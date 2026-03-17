@@ -6988,8 +6988,8 @@ var Panels = (function () {
 
   // ─── My Listings ─────────────────────────────────────────────────────
   var _myListingsData = [];
-  var _myListingsView = 'all';
-  var _myListingsQuickFilter = '';
+  var _myListingsType = 'sale'; // 'sale' or 'rental'
+  var _myListingsStatus = 'all';
 
   function myListings() {
     CRM.setPanelTitle('My Listings');
@@ -7070,58 +7070,72 @@ var Panels = (function () {
 
   function _renderMyListings(c) {
     var listings = _myListingsData;
-    var view = _myListingsView;
+    var typeTab = _myListingsType;
+    var statusTab = _myListingsStatus;
     var now = new Date();
 
-    // RLS status filter
-    var filtered = listings;
-    if (view && view !== 'all') {
-      filtered = listings.filter(function (l) { return (l.status || '') === view; });
+    // Split by sale vs rental
+    var sales = listings.filter(function (l) { return !l._isRental; });
+    var rentals = listings.filter(function (l) { return l._isRental; });
+    var typeListings = typeTab === 'rental' ? rentals : sales;
+
+    // Status filter within type
+    var filtered = typeListings;
+    if (statusTab && statusTab !== 'all') {
+      filtered = typeListings.filter(function (l) { return (l.status || '') === statusTab; });
     }
 
-    // RLS status counts
+    // Status counts for this type
     var statusCounts = {};
     var statuses = ['Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
-    statuses.forEach(function (s) { statusCounts[s] = listings.filter(function (l) { return l.status === s; }).length; });
+    statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
 
-    // Compute expiring listings (listing agreement expiry)
+    // Expiring listings
     var expiringSoon = [];
-    listings.forEach(function (l) {
+    typeListings.forEach(function (l) {
       var expDate = l.ExpirationDate || l.expiration_date || l.listing_expiry;
       if (!expDate) return;
       var daysLeft = Math.ceil((new Date(expDate) - now) / 86400000);
-      if (daysLeft > 0 && daysLeft <= 30) {
-        l._expiresIn = daysLeft;
-        expiringSoon.push(l);
-      }
+      if (daysLeft > 0 && daysLeft <= 30) { l._expiresIn = daysLeft; expiringSoon.push(l); }
     });
 
     var html = '<div class="space-y-4">';
 
-    // Header — title left, New Listing picker right
+    // Header — title + add buttons
     html += '<div class="flex items-center justify-between">' +
       '<h2 class="text-lg font-bold text-gray-900">My Listings</h2>' +
       '<div class="flex gap-2">' +
-        '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-home mr-1"></i> Sale Listing</button>' +
-        '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-key mr-1"></i> Rental Listing</button>' +
+        '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Sale</button>' +
+        '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Rental</button>' +
       '</div>' +
     '</div>';
 
-    // RLS status tabs — all same style, no colors
+    // Sale / Rental tabs — primary level
+    html += '<div class="flex gap-0 border-b border-gray-200">' +
+      '<button class="px-6 py-2.5 text-sm font-semibold border-b-2 transition-all ' +
+        (typeTab === 'sale' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700') +
+        '" onclick="Panels._switchMyListingsType(\'sale\')">Sales (' + sales.length + ')</button>' +
+      '<button class="px-6 py-2.5 text-sm font-semibold border-b-2 transition-all ' +
+        (typeTab === 'rental' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700') +
+        '" onclick="Panels._switchMyListingsType(\'rental\')">Rentals (' + rentals.length + ')</button>' +
+    '</div>';
+
+    // Status sub-tabs
     html += '<div class="flex gap-1 overflow-x-auto pb-1">';
-    html += '<button class="px-2.5 py-1 rounded text-xs font-medium border transition-all ' +
-      (view === 'all' || !view ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
-      '" onclick="Panels._switchMyListingsView(\'all\')">All (' + listings.length + ')</button>';
+    html += '<button class="px-3 py-1.5 rounded text-sm font-medium border transition-all ' +
+      (statusTab === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
+      '" onclick="Panels._switchMyListingsStatus(\'all\')">All (' + typeListings.length + ')</button>';
     statuses.forEach(function (s) {
+      var count = statusCounts[s] || 0;
+      if (count === 0 && s !== 'Active' && s !== 'Closed') return; // hide empty statuses except Active & Closed
       var label = s;
       if (s === 'ActiveUnderContract') label = 'In Contract';
       else if (s === 'ComingSoon') label = 'Coming Soon';
-      else if (s === 'Hold') label = 'Hold (Temp Off Market)';
-      else if (s === 'Withdrawn') label = 'Withdrawn (Perm Off Market)';
-      var isActive = view === s;
-      html += '<button class="px-2.5 py-1 rounded text-xs font-medium border transition-all whitespace-nowrap ' +
-        (isActive ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
-        '" onclick="Panels._switchMyListingsView(\'' + s + '\')">' + label + ' (' + (statusCounts[s] || 0) + ')</button>';
+      else if (s === 'Hold') label = 'Temp Off Market';
+      else if (s === 'Withdrawn') label = 'Perm Off Market';
+      html += '<button class="px-3 py-1.5 rounded text-sm font-medium border transition-all whitespace-nowrap ' +
+        (statusTab === s ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
+        '" onclick="Panels._switchMyListingsStatus(\'' + s + '\')">' + label + ' (' + count + ')</button>';
     });
     html += '</div>';
 
@@ -7222,7 +7236,19 @@ var Panels = (function () {
   }
 
   function _switchMyListingsView(view) {
-    _myListingsView = view;
+    // Legacy — map to new system
+    _myListingsStatus = view;
+    _renderMyListings(_container());
+  }
+
+  function _switchMyListingsType(type) {
+    _myListingsType = type;
+    _myListingsStatus = 'all';
+    _renderMyListings(_container());
+  }
+
+  function _switchMyListingsStatus(status) {
+    _myListingsStatus = status;
     _renderMyListings(_container());
   }
 
@@ -10238,6 +10264,8 @@ var Panels = (function () {
     _launchSearch: _launchSearch,
     _clearSearchHistory: _clearSearchHistory,
     _switchMyListingsView: _switchMyListingsView,
+    _switchMyListingsType: _switchMyListingsType,
+    _switchMyListingsStatus: _switchMyListingsStatus,
     _addOpenHouse: _addOpenHouse,
     _submitOpenHouse: _submitOpenHouse,
     _switchMyClientsView: _switchMyClientsView,
