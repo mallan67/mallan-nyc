@@ -10493,78 +10493,69 @@ var Panels = (function () {
       if (renters.length === 0) {
         html += UI.emptyState('fa-users', 'No renter clients');
       } else {
-        html += '<div class="space-y-3">';
+        html += '<div class="space-y-2">';
         renters.forEach(function (cl) {
           var name = cl.name || cl.full_name || cl.email || 'Unknown';
           var email = cl.email || '';
           var phone = cl.phone || cl.phone_number || '';
           var leaseStatus = _leaseStatus(cl._daysLeft);
+          var leaseEndFmt = cl._leaseEnd ? new Date(cl._leaseEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '\u2014';
+          var leaseStartFmt = cl._leaseStart ? new Date(cl._leaseStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '\u2014';
 
-          html += '<div class="card p-4">';
+          html += '<div class="card px-4 py-3">';
 
-          // Row 1: Avatar + name + actions
-          html += '<div class="flex items-start justify-between gap-3">' +
-            '<div class="flex items-center gap-3 min-w-0">' +
-              UI.avatar(name, 36) +
+          // Row 1: Name + contact + lease end + days left + status badge
+          html += '<div class="flex items-center justify-between gap-3">' +
+            '<div class="flex items-center gap-3 min-w-0 flex-1">' +
+              UI.avatar(name, 28) +
               '<div class="min-w-0">' +
-                '<div class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</div>' +
-                '<div class="text-xs text-gray-500 truncate">renter' +
-                  (email ? ' \u00b7 ' + E(email) : '') +
+                '<span class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</span>' +
+                '<span class="text-xs text-gray-400 ml-2">' +
+                  (email ? E(email) : '') +
                   (phone ? ' \u00b7 ' + E(phone) : '') +
-                '</div>' +
+                '</span>' +
               '</div>' +
             '</div>' +
-            '<div class="flex gap-2 flex-shrink-0">' +
-              (email ? '<a href="mailto:' + E(email) + '" class="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition" title="Contact"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
-              '<button class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt mr-1"></i>Open Workspace</button>' +
+            '<div class="flex items-center gap-3 flex-shrink-0 text-xs">' +
+              '<div class="text-right">' +
+                '<span class="text-gray-400">Lease:</span> ' +
+                '<span class="font-medium text-gray-700">' + leaseStartFmt + ' \u2013 ' + leaseEndFmt + '</span>' +
+                (cl._daysLeft !== null ? ' <span class="font-bold ' + leaseStatus.textClass + '">(' + cl._daysLeft + 'd)</span>' : '') +
+              '</div>' +
+              leaseStatus.badge +
             '</div>' +
           '</div>';
 
-          // Row 2: Property + Lease + Status
-          html += '<div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">' +
-            '<div class="text-xs text-gray-600">' +
-              '<span class="font-semibold text-gray-700">Property:</span> ' + E(cl._fullAddress || '\u2014') +
-            '</div>' +
-            '<div>' + leaseStatus.badge + '</div>' +
-          '</div>';
-
-          html += '<div class="mt-1 text-xs text-gray-600">' +
-            '<span class="font-semibold text-gray-700">Lease:</span> ' +
-            (cl._leaseStart ? D(cl._leaseStart) : '\u2014') + ' \u2013 ' + (cl._leaseEnd ? D(cl._leaseEnd) : '\u2014') +
-            (cl._daysLeft !== null ? ' <span class="font-bold ' + leaseStatus.textClass + '">(' + cl._daysLeft + ' days left)</span>' : '') +
-          '</div>';
-
-          // Row 3: Conversion Timeline
-          if (cl._daysLeft !== null) {
-            html += '<div class="mt-3">' +
-              '<div class="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Conversion Timeline</div>' +
-              _timeline(cl._daysLeft) +
-            '</div>';
-          }
-
-          // Row 4: Financials
-          var hasFinancials = cl._annualIncome || cl._maxBudget || cl._creditScore;
-          if (hasFinancials) {
-            html += '<div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">';
-            if (cl._annualIncome) html += '<span><span class="font-semibold text-gray-700">Income:</span> ' + _formatMoney(cl._annualIncome) + '</span>';
-            if (cl._maxBudget) html += '<span><span class="font-semibold text-gray-700">Budget:</span> ' + _formatMoney(cl._maxBudget) + ' max</span>';
-            if (cl._creditScore) html += '<span><span class="font-semibold text-gray-700">Credit:</span> ' + E(cl._creditScore) + '</span>';
-            html += '</div>';
-          }
-
-          // Row 5: Action buttons
-          html += '<div class="mt-3 flex flex-wrap gap-2">';
-          if (cl._annualIncome && cl._annualIncome > 100000) {
-            html += '<button class="px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition" ' +
-              'onclick="window.location.href=\'mailto:' + E(email) + '?subject=Buy%20vs%20Rent%20Analysis&body=Hi%20' + encodeURIComponent(name) + '%2C%0A%0AI%20put%20together%20a%20Buy%20vs%20Rent%20analysis%20for%20you.\'"><i class="fas fa-chart-bar mr-1"></i>Send Buy vs Rent</button>';
-          }
-          html += '<button class="px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition" ' +
-            'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/listings\')"><i class="fas fa-paper-plane mr-1"></i>Send Listings</button>' +
-            '<button class="px-3 py-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition" ' +
-            'onclick="Panels._leaseConvertToBuyer(\'' + E(cl.id) + '\', \'' + E(name) + '\')"><i class="fas fa-exchange-alt mr-1"></i>Convert to Buyer</button>' +
-            '<button class="px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition" ' +
-            'onclick="Panels._leaseRenew(\'' + E(cl.id) + '\')"><i class="fas fa-sync-alt mr-1"></i>Renew Lease</button>';
+          // Row 2: Property + financials + timeline + actions (single compact row)
+          html += '<div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">' +
+            '<span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>' + E(cl._fullAddress || '\u2014') + '</span>';
+          if (cl._annualIncome) html += '<span><span class="font-semibold text-gray-700">Income:</span> ' + _formatMoney(cl._annualIncome) + '</span>';
+          if (cl._monthlyRent) html += '<span><span class="font-semibold text-gray-700">Rent:</span> ' + _formatMoney(cl._monthlyRent) + '/mo</span>';
+          if (cl._maxBudget) html += '<span><span class="font-semibold text-gray-700">Max buy:</span> ' + _formatMoney(cl._maxBudget) + '</span>';
+          if (cl._creditScore) html += '<span><span class="font-semibold text-gray-700">Credit:</span> ' + E(cl._creditScore) + '</span>';
           html += '</div>';
+
+          // Row 3: Timeline + action buttons (compact)
+          html += '<div class="mt-2 flex items-center justify-between gap-3">';
+          if (cl._daysLeft !== null) {
+            html += '<div class="flex-1">' + _timeline(cl._daysLeft) + '</div>';
+          } else {
+            html += '<div class="flex-1"></div>';
+          }
+          html += '<div class="flex gap-1.5 flex-shrink-0">';
+          if (cl._annualIncome && cl._annualIncome > 100000) {
+            html += '<button class="px-2 py-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded transition" ' +
+              'onclick="window.location.href=\'mailto:' + E(email) + '?subject=Buy%20vs%20Rent%20Analysis\'"><i class="fas fa-chart-bar mr-1"></i>Buy vs Rent</button>';
+          }
+          html += '<button class="px-2 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition" ' +
+            'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/listings\')"><i class="fas fa-paper-plane mr-1"></i>Send</button>' +
+            '<button class="px-2 py-1 text-[11px] font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded transition" ' +
+            'onclick="Panels._leaseConvertToBuyer(\'' + E(cl.id) + '\', \'' + E(name) + '\')"><i class="fas fa-exchange-alt mr-1"></i>Convert</button>' +
+            '<button class="px-2 py-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded transition" ' +
+            'onclick="Panels._leaseRenew(\'' + E(cl.id) + '\')"><i class="fas fa-sync-alt mr-1"></i>Renew</button>' +
+            '<button class="px-2 py-1 text-[11px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition" ' +
+            'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt"></i></button>';
+          html += '</div></div>';
 
           html += '</div>'; // card
         });
@@ -10580,60 +10571,44 @@ var Panels = (function () {
       if (landlords.length === 0) {
         html += UI.emptyState('fa-building', 'No landlord clients');
       } else {
-        html += '<div class="space-y-3">';
+        html += '<div class="space-y-2">';
         landlords.forEach(function (cl) {
           var name = cl.name || cl.full_name || cl.email || 'Unknown';
           var email = cl.email || '';
           var phone = cl.phone || cl.phone_number || '';
 
-          html += '<div class="card p-4">';
+          html += '<div class="card px-4 py-3">';
 
-          // Row 1: Avatar + name + actions
-          html += '<div class="flex items-start justify-between gap-3">' +
-            '<div class="flex items-center gap-3 min-w-0">' +
-              UI.avatar(name, 36) +
+          // Row 1: Name + contact + property
+          html += '<div class="flex items-center justify-between gap-3">' +
+            '<div class="flex items-center gap-3 min-w-0 flex-1">' +
+              UI.avatar(name, 28) +
               '<div class="min-w-0">' +
-                '<div class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</div>' +
-                '<div class="text-xs text-gray-500 truncate">landlord' +
-                  (email ? ' \u00b7 ' + E(email) : '') +
+                '<span class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</span>' +
+                '<span class="text-xs text-gray-400 ml-2">' +
+                  (email ? E(email) : '') +
                   (phone ? ' \u00b7 ' + E(phone) : '') +
-                '</div>' +
+                '</span>' +
               '</div>' +
             '</div>' +
-            '<div class="flex gap-2 flex-shrink-0">' +
-              (email ? '<a href="mailto:' + E(email) + '" class="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition" title="Contact"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
-              '<button class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt mr-1"></i>Open Workspace</button>' +
+            '<div class="flex gap-1.5 flex-shrink-0">' +
+              (email ? '<a href="mailto:' + E(email) + '" class="px-2 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
+              '<button class="px-2 py-1 text-[11px] font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded transition" ' +
+              'onclick="Panels._leaseListForRent(\'' + E(cl.id) + '\')"><i class="fas fa-home mr-1"></i>List for Rent</button>' +
+              '<button class="px-2 py-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded transition" ' +
+              'onclick="Panels._leaseListForSale()"><i class="fas fa-dollar-sign mr-1"></i>List for Sale</button>' +
+              '<button class="px-2 py-1 text-[11px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition" ' +
+              'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt"></i></button>' +
             '</div>' +
           '</div>';
 
-          // Row 2: Property + Legal Owner
-          html += '<div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">' +
-            '<div class="text-xs text-gray-600">' +
-              '<span class="font-semibold text-gray-700">Property:</span> ' + E(cl._fullAddress || '\u2014') +
-            '</div>';
-          if (cl._legalOwner) {
-            html += '<div class="text-xs text-gray-600">' +
-              '<span class="font-semibold text-gray-700">Legal Owner:</span> ' + E(cl._legalOwner) +
-            '</div>';
-          }
-          html += '</div>';
-
-          // Row 3: Last Contact + Next Renewal
-          html += '<div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">' +
-            '<span><span class="font-semibold text-gray-700">Last Contact:</span> ' +
-              (cl._lastContact ? Utils.formatTimeAgo(cl._lastContact) : '\u2014') + '</span>' +
-            '<span><span class="font-semibold text-gray-700">Next Renewal:</span> ' +
-              (cl._nextRenewal ? D(cl._nextRenewal) : '\u2014') + '</span>' +
+          // Row 2: Property + legal owner + last contact
+          html += '<div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">' +
+            '<span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>' + E(cl._fullAddress || '\u2014') + '</span>';
+          if (cl._legalOwner) html += '<span><span class="font-semibold text-gray-700">Owner:</span> ' + E(cl._legalOwner) + '</span>';
+          html += '<span><span class="font-semibold text-gray-700">Last Contact:</span> ' +
+            (cl._lastContact ? Utils.formatTimeAgo(cl._lastContact) : '\u2014') + '</span>' +
           '</div>';
-
-          // Row 4: Action buttons
-          html += '<div class="mt-3 flex flex-wrap gap-2">' +
-            (email ? '<a href="mailto:' + E(email) + '" class="px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
-            '<button class="px-3 py-1.5 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition" ' +
-            'onclick="Panels._leaseListForRent(\'' + E(cl.id) + '\')"><i class="fas fa-home mr-1"></i>List for Rent</button>' +
-            '<button class="px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition" ' +
-            'onclick="Panels._leaseListForSale()"><i class="fas fa-dollar-sign mr-1"></i>List for Sale</button>';
-          html += '</div>';
 
           html += '</div>'; // card
         });
