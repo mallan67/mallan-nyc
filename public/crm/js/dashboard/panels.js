@@ -2038,19 +2038,47 @@ var Panels = (function () {
     }
     html += '</p>';
 
-    // Assign button or agent name
+    // Referral fee — editable, shows if set on the lead
+    var refPct = lead.referral_fee_pct || lead.referralFeePct || '';
+    if (refPct) {
+      html += '<p class="text-xs mt-1.5 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">' +
+        '<i class="fas fa-receipt mr-1"></i>Ref. fee: ' + E(refPct) + '%</p>';
+    }
+
+    // Assign button or agent name + delete
     if (isConverted) {
-      html += '<div class="mt-2"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:#DCFCE7;color:#166534"><i class="fas fa-check mr-1"></i>Converted</span></div>';
+      html += '<div class="mt-2 flex items-center justify-between"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:#DCFCE7;color:#166534"><i class="fas fa-check mr-1"></i>Converted</span>' +
+        '<button class="text-xs text-gray-300 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button></div>';
     } else if (isAssigned) {
-      html += '<div class="mt-2"><span class="text-xs text-gray-600"><i class="fas fa-user-check mr-1 text-green-500"></i>' + E(lead.agent_name || lead.assignedAgentId || lead.assigned_agent_id) + '</span></div>';
+      html += '<div class="mt-2 flex items-center justify-between"><span class="text-xs text-gray-600"><i class="fas fa-user-check mr-1 text-green-500"></i>' + E(lead.agent_name || lead.assignedAgentId || lead.assigned_agent_id) + '</span>' +
+        '<button class="text-xs text-gray-300 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button></div>';
     } else {
-      html += '<div class="mt-2"><button class="btn btn-sm btn-gold w-full" onclick="Panels._assignLeadSuggested(\'' + E(lead.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button></div>';
+      html += '<div class="mt-2 flex items-center gap-2">' +
+        '<button class="btn btn-sm btn-gold flex-1" onclick="Panels._assignLeadSuggested(\'' + E(lead.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button>' +
+        '<button class="btn btn-sm btn-outline text-gray-400 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
+      '</div>';
     }
 
     html += '</div>';
     if (showCheckbox) html += '</div>';
     html += '</div>';
     return html;
+  }
+
+  function _deleteLead(id) {
+    if (!confirm('Delete this lead? This cannot be undone.')) return;
+    MallanAPI._fetch('/api/crm/leads/' + encodeURIComponent(id), { method: 'DELETE' }).then(function () {
+      CRM.toast('Lead deleted', 'success');
+      leadDistribution();
+    }).catch(function (err) {
+      CRM.toast('Failed to delete: ' + (err.message || 'Try again'), 'error');
+    });
+  }
+
+  function _getStreeteasyFee(price) {
+    if (!price || price <= 0) return { pct: 0, amount: 0, tier: '25-35%' };
+    var pct = price >= 1000000 ? 35 : price >= 500000 ? 30 : 25;
+    return { pct: pct, amount: Math.round(price * pct / 100), tier: pct + '%' };
   }
 
   function _renderLeadsPanel(leads, agents) {
@@ -2206,9 +2234,12 @@ var Panels = (function () {
         '<div class="grid grid-cols-2 gap-4">' +
           '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" name="phone"></div>' +
           '<div class="form-group"><label class="form-label">Source</label>' +
-            '<select class="form-input form-select" name="source"><option>Website</option><option>Referral</option><option>StreetEasy</option><option>Walk-in</option><option>Social Media</option><option>Other</option></select></div>' +
+            '<select class="form-input form-select" name="source"><option>Website</option><option>StreetEasy</option><option>Zillow</option><option>Referral</option><option>Agent Referral</option><option>Walk-in</option><option>Social Media</option><option>Other</option></select></div>' +
         '</div>' +
-        '<div class="form-group"><label class="form-label">Type</label><select class="form-input form-select" name="type"><option value="buyer">Buyer</option><option value="seller">Seller</option><option value="renter">Renter</option><option value="landlord">Landlord</option></select></div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Type</label><select class="form-input form-select" name="type"><option value="buyer">Buyer</option><option value="seller">Seller</option><option value="renter">Renter</option><option value="landlord">Landlord</option></select></div>' +
+          '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" step="0.5" placeholder="Leave empty if none"></div>' +
+        '</div>' +
         '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" name="notes" rows="2"></textarea></div>' +
       '</form>',
       {
@@ -10378,6 +10409,7 @@ var Panels = (function () {
     _submitLead: _submitLead,
     _assignLead: _assignLead,
     _assignLeadSuggested: _assignLeadSuggested,
+    _deleteLead: _deleteLead,
     _doAssignLead: _doAssignLead,
     _bulkAssignLeads: _bulkAssignLeads,
     _doBulkAssign: _doBulkAssign,
