@@ -419,16 +419,16 @@ var Workspace = (function () {
     var propertyAddr = _extractNoteText('Property') || _extractNoteText('Rental Address') || '';
     var propertyUnit = _extractNoteText('Unit') || '';
     var legalOwner = _extractNoteText('Legal Owner') || '';
-    var leaseStart = _extractNoteText('Lease Start') || '';
-    var leaseEnd = _extractNoteText('Lease End') || '';
-    var monthlyRent = _extractNote('Monthly Rent') || '';
+    var leaseStart = cl.lease_start_date ? new Date(cl.lease_start_date).toLocaleDateString() : (_extractNoteText('Lease Start') || '');
+    var leaseEnd = cl.lease_end_date ? new Date(cl.lease_end_date).toLocaleDateString() : (_extractNoteText('Lease End') || '');
+    var monthlyRent = cl.rent_per_month || _extractNote('Monthly Rent') || '';
 
     var showProperty = clientType === 'landlord' || clientType === 'renter' || clientType === 'seller' || propertyAddr;
     if (showProperty) {
       html += '<div class="p-4 border rounded-lg bg-gray-50">' +
         '<div class="flex items-center justify-between mb-2">' +
           '<h3 class="text-sm font-bold text-gray-700"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i> Property</h3>' +
-          '<button class="btn btn-xs btn-outline" onclick="Workspace._editFinancials()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
+          '<button class="btn btn-xs btn-outline" onclick="Workspace._editProperty()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
         '</div>' +
         '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">' +
           '<div><span class="text-xs text-gray-500 block">Address</span><span class="font-medium">' + E(propertyAddr || '-') + '</span></div>' +
@@ -458,19 +458,31 @@ var Workspace = (function () {
         _infoRow('Last Updated', D(cl.updated_at || cl.updatedAt)) +
       '</div>' +
 
-      // Column 2: Financial Profile
+      // Column 2: Financial Profile (uses real DB fields)
       '<div class="space-y-3">' +
         '<div class="flex items-center justify-between">' +
           '<h3 class="text-sm font-bold text-gray-700">Financial Profile</h3>' +
           '<button class="btn btn-xs btn-outline" onclick="Workspace._editFinancials()"><i class="fas fa-edit text-xs"></i> Edit</button>' +
         '</div>' +
-        _infoRow('Annual Income', _extractNote('Annual Income') ? '$' + Number(_extractNote('Annual Income')).toLocaleString() : '-') +
-        _infoRow('Bonuses', _extractNote('Bonus') || _extractNote('Bonuses') ? '$' + Number(_extractNote('Bonus') || _extractNote('Bonuses')).toLocaleString() : '-') +
-        _infoRow('Down Payment', _extractNote('Down Payment') ? '$' + Number(_extractNote('Down Payment')).toLocaleString() : '-') +
-        _infoRow('Deposit / Liquid', _extractNote('Deposit') || _extractNote('Available Funds') ? '$' + Number(_extractNote('Deposit') || _extractNote('Available Funds')).toLocaleString() : '-') +
-        _infoRow('Employer', _extractNoteText('Employer') || '-') +
-        _infoRow('Work Title', _extractNoteText('Work Title') || _extractNoteText('Job Title') || '-') +
-        _infoRow('Credit Score', _extractNoteText('Credit Score') || '-') +
+        _infoRow('Annual Income', cl.annual_income ? '$' + Number(cl.annual_income).toLocaleString() : '-') +
+        _infoRow('Bonuses', cl.bonuses ? '$' + Number(cl.bonuses).toLocaleString() : '-') +
+        (clientType === 'renter' ?
+          _infoRow('Rent / Month', cl.rent_per_month ? '$' + Number(cl.rent_per_month).toLocaleString() : '-') +
+          _infoRow('Rental Deposit', cl.rental_deposit ? '$' + Number(cl.rental_deposit).toLocaleString() : '-')
+        : '') +
+        (clientType === 'buyer' ?
+          _infoRow('Down Payment', cl.down_payment ? '$' + Number(cl.down_payment).toLocaleString() : '-') +
+          _infoRow('Total Monthly Expense', cl.total_monthly_expense ? '$' + Number(cl.total_monthly_expense).toLocaleString() : '-')
+        : '') +
+        (clientType !== 'buyer' && clientType !== 'renter' ?
+          _infoRow('Down Payment', cl.down_payment ? '$' + Number(cl.down_payment).toLocaleString() : '-')
+        : '') +
+        _infoRow('Deposit / Liquid', cl.available_funds ? '$' + Number(cl.available_funds).toLocaleString() : '-') +
+        _infoRow('Monthly Debt', cl.monthly_debt ? '$' + Number(cl.monthly_debt).toLocaleString() : '-') +
+        _infoRow('Employer', cl.employer || '-') +
+        _infoRow('Work Title', cl.work_title || '-') +
+        _infoRow('Credit Score', cl.credit_score_range || '-') +
+        (cl.pre_approved ? _infoRow('Pre-Approved', '$' + Number(cl.pre_approved_amount || 0).toLocaleString()) : '') +
         '<button class="btn btn-xs btn-outline mt-2 w-full" onclick="Panels._uploadDoc(\'client\',\'' + E(_clientId) + '\')"><i class="fas fa-file-upload mr-1"></i> Upload Financial Statement</button>' +
       '</div>' +
 
@@ -633,43 +645,58 @@ var Workspace = (function () {
   }
 
   function _editFinancials() {
-    var notes = (_client && _client.notes) || '';
-    var _ext = function (label) {
-      var rx = new RegExp(label + '\\s*[:.]\\s*\\$?([\\d,]+(?:\\.\\d+)?)', 'i');
-      var m = notes.match(rx);
-      return m ? m[1].replace(/,/g, '') : '';
-    };
-    var _extT = function (label) {
-      var rx = new RegExp(label + '\\s*[:.]\\s*(.+)', 'i');
-      var m = notes.match(rx);
-      return m ? m[1].trim() : '';
-    };
+    var cl = _client || {};
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
+    var creditVal = cl.credit_score_range || '';
+
+    // Type-specific fields
+    var rentalFields = '';
+    if (clientType === 'renter') {
+      rentalFields = '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="form-group"><label class="form-label">Rent / Month</label><input class="form-input" name="rent_per_month" type="number" value="' + E(cl.rent_per_month || '') + '" placeholder="$0"></div>' +
+        '<div class="form-group"><label class="form-label">Rental Deposit</label><input class="form-input" name="rental_deposit" type="number" value="' + E(cl.rental_deposit || '') + '" placeholder="$0"></div>' +
+      '</div>';
+    }
+    var buyerFields = '';
+    if (clientType === 'buyer') {
+      buyerFields = '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="form-group"><label class="form-label">Down Payment</label><input class="form-input" name="down_payment" type="number" value="' + E(cl.down_payment || '') + '" placeholder="$0"></div>' +
+        '<div class="form-group"><label class="form-label">Total Monthly Expense</label><input class="form-input" name="total_monthly_expense" type="number" value="' + E(cl.total_monthly_expense || '') + '" placeholder="Mortgage + maint + tax"></div>' +
+      '</div>';
+    }
+    var otherDownPayment = '';
+    if (clientType !== 'buyer' && clientType !== 'renter') {
+      otherDownPayment = '<div class="form-group"><label class="form-label">Down Payment</label><input class="form-input" name="down_payment" type="number" value="' + E(cl.down_payment || '') + '" placeholder="$0"></div>';
+    }
 
     CRM.openModal('Edit Financial Profile',
       '<form id="editFinancialsForm" class="space-y-4">' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Annual Income</label><input class="form-input" name="income" type="number" value="' + E(_ext('Annual Income')) + '" placeholder="$0"></div>' +
-          '<div class="form-group"><label class="form-label">Bonuses (Annual)</label><input class="form-input" name="bonus" type="number" value="' + E(_ext('Bonus') || _ext('Bonuses')) + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Annual Income</label><input class="form-input" name="annual_income" type="number" value="' + E(cl.annual_income || '') + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Bonuses (Annual)</label><input class="form-input" name="bonuses" type="number" value="' + E(cl.bonuses || '') + '" placeholder="$0"></div>' +
+        '</div>' +
+        rentalFields +
+        buyerFields +
+        otherDownPayment +
+        '<div class="grid grid-cols-2 gap-4">' +
+          '<div class="form-group"><label class="form-label">Deposit / Available Funds</label><input class="form-input" name="available_funds" type="number" value="' + E(cl.available_funds || '') + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Monthly Debt Payments</label><input class="form-input" name="monthly_debt" type="number" value="' + E(cl.monthly_debt || '') + '" placeholder="$0"></div>' +
         '</div>' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Down Payment</label><input class="form-input" name="downpayment" type="number" value="' + E(_ext('Down Payment')) + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Employer</label><input class="form-input" name="employer" value="' + E(cl.employer || '') + '" placeholder="Company name"></div>' +
+          '<div class="form-group"><label class="form-label">Work Title</label><input class="form-input" name="work_title" value="' + E(cl.work_title || '') + '" placeholder="Job title"></div>' +
         '</div>' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Deposit / Available Funds</label><input class="form-input" name="deposit" type="number" value="' + E(_ext('Deposit') || _ext('Available Funds')) + '" placeholder="$0"></div>' +
-          '<div class="form-group"><label class="form-label">Monthly Debt Payments</label><input class="form-input" name="debt" type="number" value="' + E(_ext('Monthly Debt')) + '" placeholder="$0"></div>' +
+          '<div class="form-group"><label class="form-label">Credit Score</label>' +
+            '<select class="form-input form-select" name="credit_score_range">' +
+              '<option value="">Unknown</option>' +
+              '<option' + (creditVal.indexOf('xcellent') !== -1 ? ' selected' : '') + ' value="Excellent (740+)">Excellent (740+)</option>' +
+              '<option' + (creditVal.indexOf('ood') !== -1 ? ' selected' : '') + ' value="Good (670-739)">Good (670-739)</option>' +
+              '<option' + (creditVal.indexOf('air') !== -1 ? ' selected' : '') + ' value="Fair (580-669)">Fair (580-669)</option>' +
+              '<option' + (creditVal.indexOf('oor') !== -1 ? ' selected' : '') + ' value="Poor (below 580)">Poor (below 580)</option>' +
+            '</select></div>' +
+          '<div class="form-group"><label class="form-label">Pre-Approved Amount</label><input class="form-input" name="pre_approved_amount" type="number" value="' + E(cl.pre_approved_amount || '') + '" placeholder="$0"></div>' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Employer</label><input class="form-input" name="employer" value="' + E(_extT('Employer')) + '" placeholder="Company name"></div>' +
-          '<div class="form-group"><label class="form-label">Work Title</label><input class="form-input" name="work_title" value="' + E(_extT('Work Title') || _extT('Job Title')) + '" placeholder="Job title"></div>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">Credit Score</label>' +
-          '<select class="form-input form-select" name="credit">' +
-            '<option value="">Unknown</option>' +
-            '<option' + (_extT('Credit Score').indexOf('xcellent') !== -1 ? ' selected' : '') + ' value="Excellent (740+)">Excellent (740+)</option>' +
-            '<option' + (_extT('Credit Score').indexOf('ood') !== -1 ? ' selected' : '') + ' value="Good (670-739)">Good (670-739)</option>' +
-            '<option' + (_extT('Credit Score').indexOf('air') !== -1 ? ' selected' : '') + ' value="Fair (580-669)">Fair (580-669)</option>' +
-            '<option' + (_extT('Credit Score').indexOf('oor') !== -1 ? ' selected' : '') + ' value="Poor (below 580)">Poor (below 580)</option>' +
-          '</select></div>' +
         '<p class="text-xs text-gray-400"><i class="fas fa-lock mr-1"></i> Financial data is private — never shared with the client.</p>' +
       '</form>',
       {
@@ -684,29 +711,101 @@ var Workspace = (function () {
     if (!form) return;
     var fd = new FormData(form);
 
-    // Build financial lines
-    var lines = [];
-    if (fd.get('income')) lines.push('Annual Income: $' + fd.get('income'));
-    if (fd.get('bonus')) lines.push('Bonuses: $' + fd.get('bonus'));
-    if (fd.get('downpayment')) lines.push('Down Payment: $' + fd.get('downpayment'));
-    if (fd.get('deposit')) lines.push('Deposit: $' + fd.get('deposit'));
-    if (fd.get('debt')) lines.push('Monthly Debt: $' + fd.get('debt'));
-    if (fd.get('employer')) lines.push('Employer: ' + fd.get('employer'));
-    if (fd.get('work_title')) lines.push('Work Title: ' + fd.get('work_title'));
-    if (fd.get('credit')) lines.push('Credit Score: ' + fd.get('credit'));
-
-    // Merge with existing notes — replace financial lines, keep everything else
-    var existingNotes = (_client.notes || '').split('\n');
-    var financialLabels = ['Annual Income', 'Bonus', 'Bonuses', 'Down Payment', 'Deposit', 'Available Funds', 'Monthly Debt', 'Employer', 'Work Title', 'Job Title', 'Credit Score', 'BUYER CONVERSION'];
-    var nonFinancialLines = existingNotes.filter(function (line) {
-      return !financialLabels.some(function (label) { return line.indexOf(label) !== -1; });
+    // Build update payload from real DB fields
+    var data = {};
+    var numFields = ['annual_income', 'bonuses', 'down_payment', 'available_funds', 'monthly_debt', 'rent_per_month', 'rental_deposit', 'total_monthly_expense', 'pre_approved_amount'];
+    numFields.forEach(function (f) {
+      var v = fd.get(f);
+      if (v !== null) data[f] = v ? Number(v) : null;
     });
-    var newNotes = nonFinancialLines.concat(lines).filter(Boolean).join('\n');
+    var strFields = ['employer', 'work_title', 'credit_score_range'];
+    strFields.forEach(function (f) {
+      var v = fd.get(f);
+      if (v !== null) data[f] = v || null;
+    });
+    // Pre-approved flag: true if amount > 0
+    if (data.pre_approved_amount) data.pre_approved = true;
 
-    MallanAPI.clients.update(_clientId, { notes: newNotes }).then(function () {
-      _client.notes = newNotes;
+    MallanAPI.clients.update(_clientId, data).then(function () {
+      // Update local client object
+      Object.keys(data).forEach(function (k) { _client[k] = data[k]; });
       CRM.closeModal();
       CRM.toast('Financial profile saved', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Could not save'), 'error');
+    });
+  }
+
+  function _editProperty() {
+    var cl = _client || {};
+    var notes = cl.notes || '';
+    var _extT = function (label) {
+      var rx = new RegExp(label + '\\s*[:.]\\s*(.+)', 'i');
+      var m = notes.match(rx);
+      return m ? m[1].trim() : '';
+    };
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
+    var propertyAddr = _extT('Property') || _extT('Rental Address') || '';
+    var propertyUnit = _extT('Unit') || '';
+    var legalOwner = _extT('Legal Owner') || '';
+    var leaseStartVal = cl.lease_start_date ? cl.lease_start_date.substring(0, 10) : '';
+    var leaseEndVal = cl.lease_end_date ? cl.lease_end_date.substring(0, 10) : '';
+
+    var ownerField = '';
+    if (clientType === 'landlord' || clientType === 'seller') {
+      ownerField = '<div class="form-group"><label class="form-label">Legal Owner</label><input class="form-input" name="legal_owner" value="' + E(legalOwner) + '" placeholder="Full legal owner name"></div>';
+    }
+    var leaseFields = '';
+    if (clientType === 'renter' || clientType === 'landlord') {
+      leaseFields = '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="form-group"><label class="form-label">Lease Start</label><input class="form-input" name="lease_start_date" type="date" value="' + E(leaseStartVal) + '"></div>' +
+        '<div class="form-group"><label class="form-label">Lease End</label><input class="form-input" name="lease_end_date" type="date" value="' + E(leaseEndVal) + '"></div>' +
+      '</div>';
+    }
+
+    CRM.openModal('Edit Property',
+      '<form id="editPropertyForm" class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Property Address</label><input class="form-input" name="property_address" value="' + E(propertyAddr) + '" placeholder="123 Main St, New York, NY 10001"></div>' +
+        '<div class="form-group"><label class="form-label">Unit / Apt</label><input class="form-input" name="property_unit" value="' + E(propertyUnit) + '" placeholder="Apt 4B"></div>' +
+        ownerField +
+        leaseFields +
+      '</form>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Workspace._saveProperty()"><i class="fas fa-save mr-1"></i> Save</button>',
+      }
+    );
+  }
+
+  function _saveProperty() {
+    var form = document.getElementById('editPropertyForm');
+    if (!form) return;
+    var fd = new FormData(form);
+
+    // Property address, unit, legal owner go into notes (no dedicated DB columns yet)
+    var notes = (_client.notes || '').split('\n');
+    var propLabels = ['Property', 'Rental Address', 'Unit', 'Legal Owner'];
+    var nonPropLines = notes.filter(function (line) {
+      return !propLabels.some(function (label) { return line.indexOf(label + ':') !== -1 || line.indexOf(label + '.') !== -1; });
+    });
+    var newLines = [];
+    if (fd.get('property_address')) newLines.push('Property: ' + fd.get('property_address'));
+    if (fd.get('property_unit')) newLines.push('Unit: ' + fd.get('property_unit'));
+    if (fd.get('legal_owner')) newLines.push('Legal Owner: ' + fd.get('legal_owner'));
+    var newNotes = nonPropLines.concat(newLines).filter(Boolean).join('\n');
+
+    // Lease dates go to real DB fields
+    var data = { notes: newNotes };
+    if (fd.get('lease_start_date') !== null) data.lease_start_date = fd.get('lease_start_date') || null;
+    if (fd.get('lease_end_date') !== null) data.lease_end_date = fd.get('lease_end_date') || null;
+
+    MallanAPI.clients.update(_clientId, data).then(function () {
+      _client.notes = newNotes;
+      if (data.lease_start_date !== undefined) _client.lease_start_date = data.lease_start_date;
+      if (data.lease_end_date !== undefined) _client.lease_end_date = data.lease_end_date;
+      CRM.closeModal();
+      CRM.toast('Property saved', 'success');
       _renderClientTab();
     }).catch(function (err) {
       CRM.toast('Error: ' + (err.message || 'Could not save'), 'error');
@@ -4542,6 +4641,8 @@ var Workspace = (function () {
     _editPreferences: _editPreferences,
     _editFinancials: _editFinancials,
     _saveFinancials: _saveFinancials,
+    _editProperty: _editProperty,
+    _saveProperty: _saveProperty,
     _submitPreferences: _submitPreferences,
     _saveClientNotes: _saveClientNotes,
     _saveAlertSettings: _saveAlertSettings,

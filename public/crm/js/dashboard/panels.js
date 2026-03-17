@@ -10293,15 +10293,14 @@ var Panels = (function () {
         return t === 'landlord';
       });
 
-      // ── Enrich renters with parsed notes + computed fields ──
+      // ── Enrich renters with parsed notes + real DB fields ──
       renters.forEach(function (cl) {
         var notes = _parseNotes(cl.notes);
         cl._notes = notes;
 
-        var leaseEnd = notes.leaseEnd || cl.leaseEndDate || cl.lease_end_date ||
-          (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
-        var leaseStart = notes.leaseStart || cl.leaseStartDate || cl.lease_start_date ||
-          (cl.preferences && (cl.preferences.leaseStartDate || cl.preferences.lease_start_date)) || null;
+        // Prefer real DB fields, fall back to notes
+        var leaseEnd = cl.lease_end_date || notes.leaseEnd || null;
+        var leaseStart = cl.lease_start_date || cl.lease_start || notes.leaseStart || null;
         cl._leaseEnd = leaseEnd;
         cl._leaseStart = leaseStart;
 
@@ -10312,15 +10311,15 @@ var Panels = (function () {
           cl._daysLeft = null;
         }
 
-        var addr = notes.address || cl.address || cl.property_address ||
-          (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
+        var addr = notes.address || cl.address || cl.property_address || '';
         var unit = notes.unit || '';
         cl._fullAddress = addr + (unit ? ', ' + unit : '');
 
-        cl._annualIncome = notes.annualIncome ? parseInt(notes.annualIncome.replace(/[,$]/g, ''), 10) : null;
-        cl._monthlyRent = notes.monthlyRent || null;
-        cl._creditScore = notes.creditScore || null;
-        cl._maxBudget = _maxBudget(notes.annualIncome);
+        // Prefer real DB fields for financial data
+        cl._annualIncome = cl.annual_income ? Number(cl.annual_income) : (notes.annualIncome ? parseInt(notes.annualIncome.replace(/[,$]/g, ''), 10) : null);
+        cl._monthlyRent = cl.rent_per_month ? Number(cl.rent_per_month) : (notes.monthlyRent || null);
+        cl._creditScore = cl.credit_score_range || notes.creditScore || null;
+        cl._maxBudget = _maxBudget(cl._annualIncome || notes.annualIncome);
       });
 
       // Sort renters by lease end date (soonest first), nulls last

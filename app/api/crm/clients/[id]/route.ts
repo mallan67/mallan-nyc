@@ -76,11 +76,22 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     portal_role: lead.portal_role,
     agent_id: lead.agent_id?.toString() ?? null,
     source: lead.source,
+    notes: lead.notes,
     annual_income: lead.annual_income?.toString() ?? null,
+    bonuses: lead.bonuses?.toString() ?? null,
     credit_score_range: lead.credit_score_range,
     pre_approved: lead.pre_approved,
     pre_approved_amount: lead.pre_approved_amount?.toString() ?? null,
+    down_payment: lead.down_payment?.toString() ?? null,
+    available_funds: lead.available_funds?.toString() ?? null,
+    monthly_debt: lead.monthly_debt?.toString() ?? null,
+    employer: lead.employer,
+    work_title: lead.work_title,
+    lease_start_date: lead.lease_start_date,
     lease_end_date: lead.lease_end_date,
+    rent_per_month: lead.rent_per_month?.toString() ?? null,
+    rental_deposit: lead.rental_deposit?.toString() ?? null,
+    total_monthly_expense: lead.total_monthly_expense?.toString() ?? null,
     created_at: lead.created_at,
     updated_at: lead.updated_at,
     activity_logs: activityLogs.map((a) => ({
@@ -149,8 +160,25 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.phone !== undefined) update.phone = String(body.phone);
   if (body.status !== undefined) update.status = String(body.status);
   if (body.portal_role !== undefined) update.portal_role = body.portal_role as string | null;
-  if (body.notes !== undefined) update.notes = String(body.notes);
+  if (body.notes !== undefined) update.notes = body.notes ? String(body.notes) : null;
   if (body.source !== undefined) update.source = String(body.source);
+
+  // Financial fields
+  if (body.annual_income !== undefined) update.annual_income = body.annual_income ? parseFloat(String(body.annual_income)) : null;
+  if (body.bonuses !== undefined) update.bonuses = body.bonuses ? parseFloat(String(body.bonuses)) : null;
+  if (body.credit_score_range !== undefined) update.credit_score_range = body.credit_score_range ? String(body.credit_score_range) : null;
+  if (body.pre_approved !== undefined) update.pre_approved = Boolean(body.pre_approved);
+  if (body.pre_approved_amount !== undefined) update.pre_approved_amount = body.pre_approved_amount ? parseFloat(String(body.pre_approved_amount)) : null;
+  if (body.down_payment !== undefined) update.down_payment = body.down_payment ? parseFloat(String(body.down_payment)) : null;
+  if (body.available_funds !== undefined) update.available_funds = body.available_funds ? parseFloat(String(body.available_funds)) : null;
+  if (body.monthly_debt !== undefined) update.monthly_debt = body.monthly_debt ? parseFloat(String(body.monthly_debt)) : null;
+  if (body.employer !== undefined) update.employer = body.employer ? String(body.employer) : null;
+  if (body.work_title !== undefined) update.work_title = body.work_title ? String(body.work_title) : null;
+  if (body.rent_per_month !== undefined) update.rent_per_month = body.rent_per_month ? parseFloat(String(body.rent_per_month)) : null;
+  if (body.rental_deposit !== undefined) update.rental_deposit = body.rental_deposit ? parseFloat(String(body.rental_deposit)) : null;
+  if (body.total_monthly_expense !== undefined) update.total_monthly_expense = body.total_monthly_expense ? parseFloat(String(body.total_monthly_expense)) : null;
+  if (body.lease_start_date !== undefined) update.lease_start_date = body.lease_start_date ? new Date(String(body.lease_start_date)) : null;
+  if (body.lease_end_date !== undefined) update.lease_end_date = body.lease_end_date ? new Date(String(body.lease_end_date)) : null;
   if (body.roles !== undefined) {
     const validRoles = ["buyer", "renter", "seller", "landlord"];
     const roles = body.roles as string[];

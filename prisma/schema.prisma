@@ -158,11 +158,22 @@ model Lead {
   attorney_email      String?  @map("attorney_email")      // Seller's attorney email
   attorney_phone      String?  @map("attorney_phone")      // Seller's attorney phone
   attorney_firm       String?  @map("attorney_firm")       // Attorney's firm name
+  notes               String?   @db.Text                    // Free-form notes
   lease_end_date      DateTime? @map("lease_end_date")     // For renters: when current lease expires
+  lease_start_date    DateTime? @map("lease_start_date")   // For renters: when current lease started
   annual_income       Decimal?  @db.Decimal(14,2) @map("annual_income")  // Financial qualification
+  bonuses             Decimal?  @db.Decimal(14,2)          // Annual bonuses
   credit_score_range  String?   @map("credit_score_range") // excellent/good/fair/poor
   pre_approved        Boolean   @default(false) @map("pre_approved")     // Mortgage pre-approval
   pre_approved_amount Decimal?  @db.Decimal(14,2) @map("pre_approved_amount")
+  down_payment        Decimal?  @db.Decimal(14,2) @map("down_payment")
+  available_funds     Decimal?  @db.Decimal(14,2) @map("available_funds") // Deposit / liquid assets
+  monthly_debt        Decimal?  @db.Decimal(14,2) @map("monthly_debt")   // Monthly debt payments
+  employer            String?                              // Employer name
+  work_title          String?   @map("work_title")         // Job title
+  rent_per_month      Decimal?  @db.Decimal(14,2) @map("rent_per_month")     // Renter: current monthly rent
+  rental_deposit      Decimal?  @db.Decimal(14,2) @map("rental_deposit")     // Renter: deposit paid
+  total_monthly_expense Decimal? @db.Decimal(14,2) @map("total_monthly_expense") // Buyer: total monthly (mortgage+maint+tax)
   pipeline_stage      String    @default("new") @map("pipeline_stage")   // new/contacted/nurturing/active/showing/offer/deal/closed/past
   last_contacted_at   DateTime? @map("last_contacted_at")
   next_follow_up      DateTime? @map("next_follow_up")
