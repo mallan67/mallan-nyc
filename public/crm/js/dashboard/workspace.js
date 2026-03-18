@@ -3624,22 +3624,74 @@ var Workspace = (function () {
   function editClient() {
     if (!_client) return;
     var cl = _client;
+    var hasSecondary = cl.secondary_first_name || cl.secondary_last_name;
+    var type = cl.portal_role || cl.type || cl.client_type || 'buyer';
+
     CRM.openModal('Edit Client',
       '<form id="editClientForm" class="space-y-4">' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Name</label><input class="form-input" name="name" value="' + E(cl.name || '') + '"></div>' +
-          '<div class="form-group"><label class="form-label">Email</label><input class="form-input" name="email" value="' + E(cl.email || '') + '"></div>' +
+        // Primary person
+        '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Primary Contact</p>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div class="form-group"><label class="form-label">First Name</label><input class="form-input" name="first_name" value="' + E(cl.first_name || '') + '"></div>' +
+          '<div class="form-group"><label class="form-label">Last Name</label><input class="form-input" name="last_name" value="' + E(cl.last_name || '') + '"></div>' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div class="form-group"><label class="form-label">Email</label><input class="form-input" name="email" value="' + E(cl.email || '') + '"></div>' +
           '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" name="phone" value="' + E(cl.phone || '') + '"></div>' +
-          '<div class="form-group"><label class="form-label">Type</label>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div class="form-group"><label class="form-label">Role</label>' +
             '<select class="form-input form-select" name="type">' +
-              '<option' + ((cl.type || cl.client_type) === 'buyer' ? ' selected' : '') + '>buyer</option>' +
-              '<option' + ((cl.type || cl.client_type) === 'seller' ? ' selected' : '') + '>seller</option>' +
-              '<option' + ((cl.type || cl.client_type) === 'renter' ? ' selected' : '') + '>renter</option>' +
-              '<option' + ((cl.type || cl.client_type) === 'landlord' ? ' selected' : '') + '>landlord</option>' +
+              '<option value="buyer"' + (type === 'buyer' ? ' selected' : '') + '>Buyer</option>' +
+              '<option value="seller"' + (type === 'seller' ? ' selected' : '') + '>Seller</option>' +
+              '<option value="renter"' + (type === 'renter' ? ' selected' : '') + '>Renter</option>' +
+              '<option value="landlord"' + (type === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
+            '</select></div>' +
+          '<div class="form-group"><label class="form-label">Pipeline Stage</label>' +
+            '<select class="form-input form-select" name="pipeline_stage">' +
+              '<option value="new"' + (cl.pipeline_stage === 'new' ? ' selected' : '') + '>New</option>' +
+              '<option value="contacted"' + (cl.pipeline_stage === 'contacted' ? ' selected' : '') + '>Contacted</option>' +
+              '<option value="nurturing"' + (cl.pipeline_stage === 'nurturing' ? ' selected' : '') + '>Nurturing</option>' +
+              '<option value="active"' + (cl.pipeline_stage === 'active' ? ' selected' : '') + '>Active</option>' +
+              '<option value="showing"' + (cl.pipeline_stage === 'showing' ? ' selected' : '') + '>Showing</option>' +
+              '<option value="offer"' + (cl.pipeline_stage === 'offer' ? ' selected' : '') + '>Offer</option>' +
+              '<option value="deal"' + (cl.pipeline_stage === 'deal' ? ' selected' : '') + '>Deal</option>' +
+              '<option value="closed"' + (cl.pipeline_stage === 'closed' ? ' selected' : '') + '>Closed</option>' +
             '</select></div>' +
         '</div>' +
+
+        // Secondary person
+        '<div class="border-t pt-3 mt-1">' +
+          '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Second Person (Spouse / Partner / Co-Applicant)</p>' +
+          '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="form-group"><label class="form-label">First Name</label><input class="form-input" name="secondary_first_name" value="' + E(cl.secondary_first_name || '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Last Name</label><input class="form-input" name="secondary_last_name" value="' + E(cl.secondary_last_name || '') + '"></div>' +
+          '</div>' +
+          '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="form-group"><label class="form-label">Email</label><input class="form-input" name="secondary_email" value="' + E(cl.secondary_email || '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" name="secondary_phone" value="' + E(cl.secondary_phone || '') + '"></div>' +
+          '</div>' +
+          '<div class="form-group"><label class="form-label">Relationship</label>' +
+            '<select class="form-input form-select" name="secondary_relationship">' +
+              '<option value="">— Select —</option>' +
+              '<option value="spouse"' + (cl.secondary_relationship === 'spouse' ? ' selected' : '') + '>Spouse</option>' +
+              '<option value="partner"' + (cl.secondary_relationship === 'partner' ? ' selected' : '') + '>Partner</option>' +
+              '<option value="co-applicant"' + (cl.secondary_relationship === 'co-applicant' ? ' selected' : '') + '>Co-Applicant</option>' +
+              '<option value="parent"' + (cl.secondary_relationship === 'parent' ? ' selected' : '') + '>Parent</option>' +
+              '<option value="roommate"' + (cl.secondary_relationship === 'roommate' ? ' selected' : '') + '>Roommate</option>' +
+            '</select></div>' +
+        '</div>' +
+
+        // Address
+        '<div class="border-t pt-3 mt-1">' +
+          '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Address</p>' +
+          '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="form-group"><label class="form-label">Property Address</label><input class="form-input" name="property_address" value="' + E(cl.property_address || '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Unit #</label><input class="form-input" name="unit_number" value="' + E(cl.unit_number || '') + '"></div>' +
+          '</div>' +
+        '</div>' +
+
+        // Notes
         '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" name="notes" rows="3">' + E(cl.notes || '') + '</textarea></div>' +
       '</form>',
       {
@@ -3653,23 +3705,31 @@ var Workspace = (function () {
     var form = document.getElementById('editClientForm');
     if (!form) return;
     var raw = {};
-    new FormData(form).forEach(function (v, k) { if (v) raw[k] = v; });
+    new FormData(form).forEach(function (v, k) { raw[k] = v; });
 
-    // Map frontend field names to API field names
     var data = {};
-    if (raw.name) {
-      var parts = raw.name.split(/\s+/);
-      data.first_name = parts[0] || '';
-      data.last_name = parts.slice(1).join(' ') || '';
-    }
+    // Primary
+    if (raw.first_name !== undefined) data.first_name = raw.first_name;
+    if (raw.last_name !== undefined) data.last_name = raw.last_name;
     if (raw.email) data.email = raw.email;
-    if (raw.phone) data.phone = raw.phone;
-    if (raw.notes) data.notes = raw.notes;
-    if (raw.source) data.source = raw.source;
+    if (raw.phone !== undefined) data.phone = raw.phone;
+    if (raw.notes !== undefined) data.notes = raw.notes || null;
     if (raw.type) {
       data.portal_role = raw.type;
       data.roles = [raw.type];
     }
+    if (raw.pipeline_stage) data.pipeline_stage = raw.pipeline_stage;
+
+    // Secondary person
+    if (raw.secondary_first_name !== undefined) data.secondary_first_name = raw.secondary_first_name || null;
+    if (raw.secondary_last_name !== undefined) data.secondary_last_name = raw.secondary_last_name || null;
+    if (raw.secondary_email !== undefined) data.secondary_email = raw.secondary_email || null;
+    if (raw.secondary_phone !== undefined) data.secondary_phone = raw.secondary_phone || null;
+    if (raw.secondary_relationship !== undefined) data.secondary_relationship = raw.secondary_relationship || null;
+
+    // Address
+    if (raw.property_address !== undefined) data.property_address = raw.property_address || null;
+    if (raw.unit_number !== undefined) data.unit_number = raw.unit_number || null;
 
     MallanAPI.clients.update(_clientId, data).then(function () {
       CRM.closeModal();
