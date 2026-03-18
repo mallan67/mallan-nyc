@@ -9256,53 +9256,76 @@ var Panels = (function () {
     var name = cl.name || cl.full_name || cl.email || 'Unknown';
     var type = cl.type || cl.client_type || '';
     var nba = cl._nba || {};
+    var email = cl.email || '';
+    var phone = cl.phone || '';
 
     // Find stage index for move buttons
     var stageIdx = -1;
     PIPELINE_STAGES.forEach(function (s, i) { if (s.key === stage.key) stageIdx = i; });
 
-    var html = '<div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">';
+    // Last activity
+    var lastAct = cl._lastActivity;
+    var daysSince = lastAct ? Math.floor((new Date().getTime() - lastAct.getTime()) / 86400000) : null;
+    var activityLabel = daysSince === 0 ? 'Today' : daysSince === 1 ? '1d ago' : daysSince !== null ? daysSince + 'd ago' : '';
 
-    // Client name + type — clickable to workspace
+    var html = '<div class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors group">';
+
+    // Initials avatar
+    var initials = Utils.initials(name);
+    html += '<div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0 cursor-pointer" ' +
+      'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' + E(initials) + '</div>';
+
+    // Name + contact + badges — clickable
     html += '<div class="flex-1 min-w-0 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
       '<div class="flex items-center gap-2">' +
         '<p class="text-sm font-semibold text-gray-900 truncate hover:text-gold transition-colors">' + E(name) + '</p>' +
         UI.roleBadge(type) +
-      '</div>';
+      '</div>' +
+      '<div class="flex items-center gap-3 mt-0.5">';
 
-    // Badges: stale, lease, etc.
-    var badges = '';
-    if (cl._isStale) badges += '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">Stale</span>';
+    if (phone) html += '<span class="text-[11px] text-gray-400">' + E(phone) + '</span>';
+    if (email) html += '<span class="text-[11px] text-gray-400 truncate">' + E(email) + '</span>';
+
+    // Badges inline
+    if (cl._isStale) html += '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">Stale</span>';
     if (cl._isRenter && cl._leaseEnd) {
       var daysLeft = Utils.daysUntil(cl._leaseEnd);
       if (daysLeft !== null && daysLeft <= 180) {
         var lc = daysLeft <= 30 ? '#DC2626' : daysLeft <= 90 ? '#F59E0B' : '#6b7280';
-        badges += '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:' + lc + '15;color:' + lc + '">Lease ' + daysLeft + 'd</span>';
+        html += '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:' + lc + '15;color:' + lc + '">Lease ' + daysLeft + 'd</span>';
       }
     }
-    if (badges) html += '<div class="flex gap-1 mt-0.5">' + badges + '</div>';
-    html += '</div>';
 
-    // Next best action
-    html += '<div class="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 w-40 flex-shrink-0">' +
+    html += '</div></div>';
+
+    // Next action
+    html += '<div class="hidden md:flex items-center gap-1.5 text-xs text-gray-500 w-36 flex-shrink-0">' +
       '<i class="fas ' + (nba.icon || 'fa-arrow-right') + ' text-[10px]" style="color:' + (nba.color || '#6b7280') + '"></i>' +
       '<span class="truncate">' + E(nba.label || '') + '</span>' +
     '</div>';
 
-    // Move stage buttons
-    html += '<div class="flex items-center gap-1 flex-shrink-0" onclick="event.stopPropagation()">';
+    // Last activity
+    html += '<div class="hidden lg:block text-[11px] text-gray-400 w-16 text-right flex-shrink-0">' + activityLabel + '</div>';
+
+    // Actions
+    html += '<div class="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">';
+
+    // Move back
     if (stageIdx > 0) {
       var prev = PIPELINE_STAGES[stageIdx - 1];
-      html += '<button class="px-2 py-1 text-[10px] font-medium rounded border border-gray-200 text-gray-500 hover:border-gold hover:text-gold transition-colors" ' +
-        'onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(prev.key) + '\')" title="Move to ' + E(prev.title) + '">' +
-        '<i class="fas fa-arrow-left"></i></button>';
+      html += '<button class="w-7 h-7 rounded flex items-center justify-center border border-gray-200 text-gray-400 hover:border-gold hover:text-gold text-[10px] transition-colors" ' +
+        'onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(prev.key) + '\')" title="← ' + E(prev.title) + '">' +
+        '<i class="fas fa-chevron-left"></i></button>';
     }
+
+    // Move forward
     if (stageIdx < PIPELINE_STAGES.length - 1) {
       var next = PIPELINE_STAGES[stageIdx + 1];
-      html += '<button class="px-2 py-1 text-[10px] font-medium rounded border border-gray-200 text-gray-500 hover:border-gold hover:text-gold transition-colors" ' +
-        'onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(next.key) + '\')" title="Move to ' + E(next.title) + '">' +
-        E(next.title) + ' <i class="fas fa-arrow-right"></i></button>';
+      html += '<button class="h-7 px-2 rounded flex items-center justify-center gap-1 border border-gray-200 text-gray-500 hover:border-gold hover:text-gold text-[10px] font-medium transition-colors" ' +
+        'onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(next.key) + '\')" title="→ ' + E(next.title) + '">' +
+        E(next.title) + ' <i class="fas fa-chevron-right"></i></button>';
     }
+
     html += '</div>';
 
     html += '</div>';
@@ -12142,7 +12165,8 @@ var Panels = (function () {
   // ─── Past Deal CRUD ──────────────────────────────────────────────────
   function _addPastDeal(prefill) {
     var d = prefill || {};
-    CRM.modal(
+    var btnLabel = d.id ? 'Update Deal' : 'Save Deal';
+    CRM.openModal(
       'Add Past Deal',
       '<form id="pastDealForm" class="space-y-3">' +
         '<div class="grid grid-cols-2 gap-3">' +
@@ -12177,8 +12201,7 @@ var Panels = (function () {
         '<div><label class="form-label">Listing Courtesy</label><input id="pd_courtesy" class="form-input" value="' + E(d.listing_courtesy || '') + '" placeholder="e.g. Courtesy of Douglas Elliman"></div>' +
         (d.id ? '<input type="hidden" id="pd_id" value="' + E(d.id) + '">' : '') +
       '</form>',
-      d.id ? 'Update Deal' : 'Save Deal',
-      'Panels._submitPastDeal()'
+      { footer: '<button class="btn btn-primary" onclick="Panels._submitPastDeal()">' + btnLabel + '</button> <button class="btn btn-secondary" onclick="CRM.closeModal()">Cancel</button>' }
     );
     if (d.property_type) {
       var sel = document.getElementById('pd_property_type');
@@ -12190,14 +12213,14 @@ var Panels = (function () {
     MallanAPI._fetch('/api/crm/past-deals?limit=500').then(function (res) {
       var deal = (res.deals || []).find(function (d) { return String(d.id) === String(dealId); });
       if (deal) _addPastDeal(deal);
-      else Alerts.show('Deal not found', 'error');
+      else CRM.toast('Deal not found', 'error');
     });
   }
 
   function _submitPastDeal() {
     var street = document.getElementById('pd_street').value.trim();
     var dealType = document.getElementById('pd_deal_type').value;
-    if (!street) { Alerts.show('Street address is required', 'error'); return; }
+    if (!street) { CRM.toast('Street address is required', 'error'); return; }
 
     var body = {
       street: street,
@@ -12225,20 +12248,20 @@ var Panels = (function () {
 
     MallanAPI._fetch(url, { method: method, body: JSON.stringify(body) }).then(function () {
       CRM.closeModal();
-      Alerts.show(isEdit ? 'Past deal updated' : 'Past deal created', 'success');
+      CRM.toast(isEdit ? 'Past deal updated' : 'Past deal created', 'success');
       myListings(); // Refresh
     }).catch(function (err) {
-      Alerts.show('Error: ' + (err.message || err), 'error');
+      CRM.toast('Error: ' + (err.message || err), 'error');
     });
   }
 
   function _deletePastDeal(dealId) {
     if (!confirm('Delete this past deal? This cannot be undone.')) return;
     MallanAPI._fetch('/api/crm/past-deals/' + encodeURIComponent(dealId), { method: 'DELETE' }).then(function () {
-      Alerts.show('Past deal deleted', 'success');
+      CRM.toast('Past deal deleted', 'success');
       myListings(); // Refresh
     }).catch(function (err) {
-      Alerts.show('Error: ' + (err.message || err), 'error');
+      CRM.toast('Error: ' + (err.message || err), 'error');
     });
   }
 
