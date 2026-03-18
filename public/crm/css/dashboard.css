@@ -63,7 +63,6 @@ body { margin: 0; }
     font-size: 11px;
     font-weight: 700;
     color: #e5e7eb;
-    text-transform: uppercase;
     letter-spacing: 0.06em;
     padding: 18px 10px 8px;
     border-top: 1px solid rgba(255,255,255,0.1);
@@ -227,7 +226,7 @@ body { margin: 0; }
 }
 
 .stat-card-value {
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 800;
     color: #111827;
     line-height: 1;
@@ -729,9 +728,9 @@ body { margin: 0; }
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* ── Impersonation Bar ─────────────────────────────────────────────────── */
