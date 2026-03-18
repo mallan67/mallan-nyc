@@ -408,7 +408,6 @@ var Panels = (function () {
       // ── QUICK LINKS ────────────────────────────────────────────────
       html += '<div class="flex flex-wrap gap-2">';
       var links = [
-        { icon: 'fa-user-plus', label: 'Add Agent', action: 'Panels._addAgent()' },
         { icon: 'fa-user-tag', label: 'New Client', action: 'CRM.quickNewClient()' },
         { icon: 'fa-home', label: 'New Sale Listing', action: 'window.open(\'/crm/sale-listing\')' },
         { icon: 'fa-key', label: 'New Rental', action: 'window.open(\'/crm/rental-listing\')' },
@@ -459,41 +458,6 @@ var Panels = (function () {
         });
         if (allPayouts.length > 8) {
           html += '<p class="text-xs text-gray-400 text-center mt-2">+ ' + (allPayouts.length - 8) + ' more — <span class="cursor-pointer text-gold hover:underline" onclick="Router.navigate(\'/broker/finance/payouts\')">view all</span></p>';
-        }
-        html += '</div>';
-      }
-      html += '</div></div>';
-
-      // ── AGENTS — working section ──────────────────────────────────
-      html += '<div class="card">' +
-        '<div class="card-header"><h3><i class="fas fa-user-tie text-gold mr-2"></i>Agents</h3>' +
-          '<div class="flex gap-2">' +
-            '<button class="btn btn-sm btn-gold" onclick="Panels._addAgent()"><i class="fas fa-user-plus mr-1"></i>Add Agent</button>' +
-            '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/broker/people/agents\')">View All</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="card-body">';
-      if (agents.length === 0) {
-        html += '<p class="text-sm text-gray-400 py-3">No agents yet — add your first agent above</p>';
-      } else {
-        html += '<div class="space-y-2">';
-        agents.slice(0, 6).forEach(function (a) {
-          var name = a.full_name || a.name || a.email || 'Agent';
-          var status = a.status || 'active';
-          var licExp = a.license_expiry || a.licenseExpiry;
-          var licWarn = licExp && Utils.daysUntil(licExp) <= 90;
-          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/broker/people/agents\')">' +
-            UI.avatar(name, 32) +
-            '<div class="flex-1 min-w-0">' +
-              '<p class="text-sm font-medium truncate">' + E(name) + '</p>' +
-              '<p class="text-xs text-gray-500">' + E(a.email || '') + '</p>' +
-            '</div>' +
-            (licWarn ? '<span class="text-xs font-bold text-red-600"><i class="fas fa-exclamation-triangle mr-1"></i>License ' + Utils.daysUntil(licExp) + 'd</span>' : '') +
-            '<span class="text-xs font-semibold text-gray-500">' + E(status) + '</span>' +
-          '</div>';
-        });
-        if (agents.length > 6) {
-          html += '<p class="text-xs text-gray-400 text-center mt-2">+ ' + (agents.length - 6) + ' more — <span class="cursor-pointer text-gold hover:underline" onclick="Router.navigate(\'/broker/people/agents\')">view all</span></p>';
         }
         html += '</div>';
       }
