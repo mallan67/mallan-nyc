@@ -1090,24 +1090,27 @@ var Workspace = (function () {
         '</select></div>' +
     '</div>';
 
-    CRM.openModal('Add Person', html, [
-      { label: 'Save', style: 'primary', onclick: function () {
-        var data = {};
-        ['secondary_first_name','secondary_last_name','secondary_email','secondary_phone','secondary_relationship'].forEach(function (f) {
-          var el = document.querySelector('[name="' + f + '"]');
-          if (el && el.value.trim()) data[f] = el.value.trim();
-        });
-        if (!data.secondary_first_name) { CRM.toast('First name is required', 'warning'); return; }
-        MallanAPI.clients.update(_clientId, data).then(function () {
-          Object.assign(_client, data);
-          CRM.toast('Person added', 'success');
-          CRM.closeModal();
-          _renderClientWorkspace(_container());
-        }).catch(function (err) {
-          CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
-        });
-      }},
-    ]);
+    CRM.openModal('Add Person', html, {
+      footer: '<button class="btn btn-gold" onclick="Workspace._saveSecondaryPerson()"><i class="fas fa-save mr-1"></i> Save</button>' +
+              '<button class="btn btn-outline ml-2" onclick="CRM.closeModal()">Cancel</button>'
+    });
+  }
+
+  function _saveSecondaryPerson() {
+    var data = {};
+    ['secondary_first_name','secondary_last_name','secondary_email','secondary_phone','secondary_relationship'].forEach(function (f) {
+      var el = document.querySelector('[name="' + f + '"]');
+      if (el && el.value.trim()) data[f] = el.value.trim();
+    });
+    if (!data.secondary_first_name) { CRM.toast('First name is required', 'warning'); return; }
+    MallanAPI.clients.update(_clientId, data).then(function () {
+      Object.assign(_client, data);
+      CRM.toast('Person added', 'success');
+      CRM.closeModal();
+      _renderClientWorkspace(_container());
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
+    });
   }
 
   function _linkPartner() {
@@ -1139,24 +1142,27 @@ var Workspace = (function () {
           '</select></div>' +
         '</div>';
 
-      CRM.openModal('Link Partner / Family', html, [
-        { label: 'Link', style: 'primary', onclick: function () {
-          var partnerId = document.getElementById('linkPartnerSelect').value;
-          var rel = document.getElementById('linkPartnerRelationship').value;
-          if (!partnerId) { CRM.toast('Select a person', 'warning'); return; }
+      CRM.openModal('Link Partner / Family', html, {
+        footer: '<button class="btn btn-gold" onclick="Workspace._saveLinkPartner()"><i class="fas fa-link mr-1"></i> Link</button>' +
+                '<button class="btn btn-outline ml-2" onclick="CRM.closeModal()">Cancel</button>'
+      });
+    });
+  }
 
-          MallanAPI._fetch('/api/crm/clients/' + _clientId + '/family', {
-            method: 'POST',
-            body: JSON.stringify({ member_lead_id: partnerId, relationship: rel }),
-          }).then(function () {
-            CRM.toast('Linked successfully', 'success');
-            CRM.closeModal();
-            _renderClientTab();
-          }).catch(function (err) {
-            CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
-          });
-        }},
-      ]);
+  function _saveLinkPartner() {
+    var partnerId = document.getElementById('linkPartnerSelect').value;
+    var rel = document.getElementById('linkPartnerRelationship').value;
+    if (!partnerId) { CRM.toast('Select a person', 'warning'); return; }
+
+    MallanAPI._fetch('/api/crm/clients/' + _clientId + '/family', {
+      method: 'POST',
+      body: JSON.stringify({ member_lead_id: partnerId, relationship: rel }),
+    }).then(function () {
+      CRM.toast('Linked successfully', 'success');
+      CRM.closeModal();
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
     });
   }
 
@@ -4934,6 +4940,8 @@ var Workspace = (function () {
     _deleteClient: _deleteClient,
     _linkPartner: _linkPartner,
     _addSecondaryPerson: _addSecondaryPerson,
+    _saveSecondaryPerson: _saveSecondaryPerson,
+    _saveLinkPartner: _saveLinkPartner,
     _editNote: _editNote,
     _deleteNote: _deleteNote,
     _saveAlertSettings: _saveAlertSettings,
