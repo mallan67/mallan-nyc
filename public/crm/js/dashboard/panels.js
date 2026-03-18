@@ -4592,41 +4592,41 @@ var Panels = (function () {
       '</div>';
 
       // Readiness filter chips
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+      html += '<div class="flex flex-wrap gap-1">';
       var chips = [
-        { key: 'all', label: 'All Agents (' + agentRows.length + ')', color: '' },
-        { key: 'missing_tin', label: 'Missing TIN Info (' + missingTinCount + ')', color: missingTinCount > 0 ? 'background:#FEF2F2;color:#991B1B;border:1px solid #FECACA' : '' },
-        { key: 'ready', label: 'Ready to Generate (' + readyCount + ')', color: readyCount > 0 ? 'background:#F0FDF4;color:#166534;border:1px solid #BBF7D0' : '' },
+        { key: 'all', label: 'All Agents (' + agentRows.length + ')' },
+        { key: 'missing_tin', label: 'Missing TIN (' + missingTinCount + ')' },
+        { key: 'ready', label: 'Ready (' + readyCount + ')' },
       ];
       chips.forEach(function (ch) {
         var isActive = activeFilter === ch.key;
-        var style = isActive ? 'background:#B8860B;color:#fff;border:1px solid #B8860B' : (ch.color || 'background:#F9FAFB;color:#374151;border:1px solid #E5E7EB');
-        html += '<button style="' + style + ';padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer" ' +
+        html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
+          (isActive ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gold') + '" ' +
           'onclick="Panels._filter1099(\'' + ch.key + '\')">' + ch.label + '</button>';
       });
       html += '</div>';
 
-      // Filing status cards
+      // Filing status — compact, no background colors
       var generated = agentRows.filter(function (r) { return r.status === 'generated'; }).length;
       var pendingReview = agentRows.filter(function (r) { return r.status === 'review'; }).length;
       var sent = agentRows.filter(function (r) { return r.status === 'sent' || r.status === 'filed'; }).length;
 
-      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">' +
-        '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px;text-align:center">' +
-          '<div style="font-size:11px;font-weight:600;color:#166534;text-transform:uppercase;margin-bottom:4px">Generated</div>' +
-          '<div style="font-size:22px;font-weight:800;color:#059669">' + generated + '</div>' +
+      html += '<div class="flex flex-wrap gap-4">' +
+        '<div class="card p-4 text-center" style="min-width:120px">' +
+          '<p class="text-xs font-bold text-gray-500">Generated</p>' +
+          '<p class="text-xl font-bold text-gray-900">' + generated + '</p>' +
         '</div>' +
-        '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:14px;text-align:center">' +
-          '<div style="font-size:11px;font-weight:600;color:#92400E;text-transform:uppercase;margin-bottom:4px">Pending Review</div>' +
-          '<div style="font-size:22px;font-weight:800;color:#D97706">' + pendingReview + '</div>' +
+        '<div class="card p-4 text-center" style="min-width:120px">' +
+          '<p class="text-xs font-bold text-gray-500">Pending Review</p>' +
+          '<p class="text-xl font-bold text-gray-900">' + pendingReview + '</p>' +
         '</div>' +
-        '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:14px;text-align:center">' +
-          '<div style="font-size:11px;font-weight:600;color:#1E40AF;text-transform:uppercase;margin-bottom:4px">Sent to IRS</div>' +
-          '<div style="font-size:22px;font-weight:800;color:#1D4ED8">' + sent + '</div>' +
+        '<div class="card p-4 text-center" style="min-width:120px">' +
+          '<p class="text-xs font-bold text-gray-500">Sent to IRS</p>' +
+          '<p class="text-xl font-bold text-gray-900">' + sent + '</p>' +
         '</div>' +
-        '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:14px;text-align:center">' +
-          '<div style="font-size:11px;font-weight:600;color:#991B1B;text-transform:uppercase;margin-bottom:4px">Filing Deadline</div>' +
-          '<div style="font-size:16px;font-weight:800;color:#DC2626">April 1, ' + (taxYear + 1) + '</div>' +
+        '<div class="card p-4 text-center" style="min-width:120px">' +
+          '<p class="text-xs font-bold text-gray-500">Filing Deadline</p>' +
+          '<p class="text-sm font-bold text-gray-900">April 1, ' + (taxYear + 1) + '</p>' +
         '</div>' +
       '</div>';
 
@@ -4652,16 +4652,13 @@ var Panels = (function () {
             row.status === 'review' ? '<span class="badge badge-pending">Reviewed</span>' :
             row.status === 'sent' || row.status === 'filed' ? '<span class="badge badge-active">Filed</span>' :
             '<span class="badge badge-inactive">Not Generated</span>';
-          var rowBg = !row.hasTin ? 'background:#FFFBEB' : '';
-          var flagIcon = !row.hasTin ? '<i class="fas fa-flag" style="color:#DC2626;margin-left:6px" title="Missing TIN"></i>' : '';
-
-          html += '<tr class="border-b hover:bg-gray-50" style="' + rowBg + '">' +
-            '<td class="px-3 py-2 text-sm font-medium">' + E(row.name) + flagIcon + '</td>' +
-            '<td class="px-3 py-2 text-xs font-mono">' + (row.tinLast4 ? '***-**-' + E(row.tinLast4) : '<span style="color:#DC2626;font-weight:600">Missing</span>') + '</td>' +
+          html += '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="px-3 py-2 text-sm font-medium">' + E(row.name) + '</td>' +
+            '<td class="px-3 py-2 text-xs font-mono">' + (row.tinLast4 ? '***-**-' + E(row.tinLast4) : '<span class="text-gray-400 font-semibold">Missing</span>') + '</td>' +
             '<td class="px-3 py-2 text-sm text-right">' + row.dealCount + '</td>' +
             '<td class="px-3 py-2 text-sm text-right">' + $(row.grossComm) + '</td>' +
-            '<td class="px-3 py-2 text-sm text-right text-red-500">' + $(row.refPaid) + '</td>' +
-            '<td class="px-3 py-2 text-sm text-right text-green-600">' + $(row.refReceived) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(row.refPaid) + '</td>' +
+            '<td class="px-3 py-2 text-sm text-right">' + $(row.refReceived) + '</td>' +
             '<td class="px-3 py-2 text-sm text-right font-bold">' + $(row.amount1099) + '</td>' +
             '<td class="px-3 py-2">' + statusBadge + '</td>' +
             '<td class="px-3 py-2"><div class="flex gap-1">' +
@@ -4679,8 +4676,8 @@ var Panels = (function () {
         html += '<tr class="bg-gray-100 font-bold"><td class="px-3 py-2 text-sm">TOTALS</td><td></td>' +
           '<td class="px-3 py-2 text-sm text-right">' + fTotalDeals + '</td>' +
           '<td class="px-3 py-2 text-sm text-right">' + $(fTotalGross) + '</td>' +
-          '<td class="px-3 py-2 text-sm text-right text-red-500">' + $(fTotalRefPaid) + '</td>' +
-          '<td class="px-3 py-2 text-sm text-right text-green-600">' + $(fTotalRefRcv) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(fTotalRefPaid) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-right">' + $(fTotalRefRcv) + '</td>' +
           '<td class="px-3 py-2 text-sm text-right">' + $(fTotal1099) + '</td>' +
           '<td colspan="2"></td></tr>';
       }
