@@ -375,6 +375,8 @@ var Workspace = (function () {
     var prefs = cl.preferences || {};
     var stage = cl.stage || cl.status || 'new';
     var healthScore = cl.healthScore || cl.health_score || '—';
+    var hasSecondary = cl.secondary_first_name || cl.secondary_last_name;
+    var secondaryName = hasSecondary ? ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim() : '';
 
     // Gather events for last activity + next task
     var allEvents = Events.getByEntity('client', _clientId);
