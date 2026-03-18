@@ -10830,10 +10830,18 @@ var Panels = (function () {
         return '$' + num.toLocaleString();
       }
 
-      // ── Filter renters & landlords ──
+      // ── Filter renters & landlords (only those with actual leases) ──
       var renters = clients.filter(function (cl) {
         var t = cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '';
-        return t === 'renter' || t === 'tenant';
+        if (t !== 'renter' && t !== 'tenant') return false;
+        // Only include renters who have lease dates (not just prospects/leads)
+        var hasLease = cl.lease_end_date || cl.lease_start_date;
+        if (!hasLease) {
+          // Also check notes for lease info
+          var notes = cl.notes || '';
+          hasLease = /lease[\s_]?(?:end|start|expir)/i.test(notes);
+        }
+        return hasLease;
       });
       var landlords = clients.filter(function (cl) {
         var t = cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '';
