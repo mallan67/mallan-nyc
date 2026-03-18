@@ -184,6 +184,7 @@ var Workspace = (function () {
         '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar-plus text-xs text-gray-400 mr-2"></i>Schedule Showing</button>' +
         (cl.email ? '<a class="w-full text-left text-sm p-2 rounded hover:bg-gray-50 block" href="mailto:' + E(cl.email) + '"><i class="fas fa-envelope text-xs text-gray-400 mr-2"></i>Email</a>' : '') +
         (cl.phone ? '<a class="w-full text-left text-sm p-2 rounded hover:bg-gray-50 block" href="tel:' + E(cl.phone) + '"><i class="fas fa-phone text-xs text-gray-400 mr-2"></i>Call</a>' : '') +
+        (Permissions.can('delete_client') ? '<button class="w-full text-left text-sm p-2 rounded hover:bg-red-50 text-red-600 mt-2 border-t" onclick="Workspace._deleteClient()"><i class="fas fa-trash-alt text-xs mr-2"></i>Delete Client</button>' : '') +
       '</div></div>';
 
     // Lead Score — fetch async, render placeholder with id
@@ -901,6 +902,19 @@ var Workspace = (function () {
       _renderClientTab();
     }).catch(function (err) {
       CRM.toast('Error: ' + (err.message || 'Could not save preferences'), 'error');
+    });
+  }
+
+  function _deleteClient() {
+    if (!_clientId) return;
+    var name = _client ? ((_client.first_name || '') + ' ' + (_client.last_name || '')).trim() : 'this client';
+    if (!confirm('Delete ' + name + '? This cannot be undone.')) return;
+
+    MallanAPI._fetch('/api/crm/clients/' + _clientId, { method: 'DELETE' }).then(function () {
+      CRM.toast(name + ' deleted', 'success');
+      Router.navigate('/ops/clients');
+    }).catch(function (err) {
+      CRM.toast('Delete failed: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
@@ -4662,6 +4676,7 @@ var Workspace = (function () {
     _saveProperty: _saveProperty,
     _submitPreferences: _submitPreferences,
     _saveClientNotes: _saveClientNotes,
+    _deleteClient: _deleteClient,
     _saveAlertSettings: _saveAlertSettings,
     _searchAndSend: _searchAndSend,
     _sendListingToClient: _sendListingToClient,
