@@ -55,9 +55,10 @@ The backend CRM supports 6 portal types, each with different access levels:
 >
 > **Components:**
 > - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles)
-> - **Backend CRM** — `public/crm/` (static HTML files served same-origin on Vercel)
-> - **API layer** — `app/api/` (169 route files, 221 HTTP handlers: auth, CRM, portal, IDX, media, AI, compliance, cron)
-> - **Database** — PostgreSQL on Neon (Prisma ORM, 42 models)
+> - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `js/dashboard/` (12 JS modules: app, store, router, panels, workspace, portals, permissions, utils, events, alerts, documents, ui-components)
+> - **API layer** — `app/api/` (175+ route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
+> - **Database** — PostgreSQL on Neon (Prisma ORM, 42+ models)
+> - **Outlook integration** — Microsoft Graph OAuth for email scanning (StreetEasy lead import, folder browser)
 > - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
 > - **Cron** — 16 scheduled jobs via `vercel.json` (data retention, DOM reset, IDX sync, listing expiration, search alerts, seller/lead/conviction scoring, demand signals, intent profiles, agent metrics, experiment metrics, listing momentum, social proof, lifecycle triggers, market snapshots)
 >
@@ -70,6 +71,8 @@ The backend CRM supports 6 portal types, each with different access levels:
 > **Lead capture:** 8 public endpoints (inquiries, contact, sign-up, CMA, guides, favorites, search-alerts, open-house RSVP). All record `consent_captured_at` for TCPA/CAN-SPAM compliance. Contact form has honeypot bot protection.
 >
 > **Commission system:** `CommissionPayment` model with fail-closed split validation. `FinancialLedger` for immutable transaction logging with tamper-detection hash chain.
+>
+> **Client data model (Lead):** Multi-person support — primary person (`first_name`, `last_name`, `email`, `phone`) + secondary person (`secondary_first_name`, `secondary_last_name`, `secondary_email`, `secondary_phone`, `secondary_relationship`). Dual addresses: `property_address` (rental/sale unit) + `home_address` (owner's personal). `legal_ownership_name` for LLC/Trust. Roles array supports combos: `["landlord","seller"]`.
 >
 > **CRM analytics (14 systems):** Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor, Seller Outreach, Pricing Experiments, Pipeline.
 >

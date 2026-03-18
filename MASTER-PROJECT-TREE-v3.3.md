@@ -134,14 +134,16 @@
 - Has same tools as sale viewer (Transit, Print, Email) — CORRECT for viewer
 - Needs: listing agent info masking logic for renter viewers
 
-### CRM Hub (`dashboard.html`) — 60% COMPLETE
-- Session 1: Broker Dashboard default, goHome() routing, portal-aware navigation
-- Session 2: Agent Roster two-step onboarding
-- Session 3: Sidebar cleanup, Client Address Book brokerage property badge
-- Session 4: Major sidebar restructure, referral tracking, dashboard quick access rebuild
-- Session 5: Commission Request flow, stat cards wired, Reports/Settings/Support rebuilt
-- Session 6: Agent Roster JS fixes (sorting, filtering)
-- Session 7: Agent Dashboard built, sidebar simplified, open house modal, hash routing
+### CRM Hub (`dashboard.html`) — 80% COMPLETE
+- Session 1-7: Broker Dashboard, Agent Roster, sidebar, referrals, commission, hash routing
+- Session 8 (2026-03-17): Old CRM removed (MALLAN-NYC-CRM-FINAL2.html + 40 orphaned JS files)
+- **Email Importer:** Couple detection, partner toggle, all roles + combos (Landlord+Seller)
+- **Outlook Scanner:** Microsoft Graph OAuth, folder browser, StreetEasy lead parser, bulk import
+- **Multi-Person Clients:** Secondary person fields (spouse/partner/co-owner) on Lead model, one card per unit
+- **Landlord Dual Addresses:** property_address (rental unit) + home_address (owner's personal)
+- **Client Workspace:** Notes endpoint, edit/delete notes, delete client, add person button, partner in header
+- **Lease Tracking:** Only renters with actual leases, display names not emails
+- **Validators:** All passing (Search 30/30, Sale 13/13, Rental 12/12, CRM 18/19, RLS 41/41)
 
 ### Commission Request Forms — 70% COMPLETE
 - Role: INTERNAL — agent submits commission payment request to broker. Agent can check status and edit errors. NOT client-facing. No buyer/tenant visibility into commission splits or status.
