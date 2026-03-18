@@ -96,7 +96,7 @@ var CRM = (function () {
     Router.register('/broker/listings/compliance', function () { Panels.complianceDashboard(); });
     Router.register('/broker/listings/featured',   function () { Panels.featuredProperties(); });
     Router.register('/broker/documents',           function () { Panels.brokerDocuments(); });
-    Router.register('/broker/system/audit',        function () { Panels.auditLog(); });
+    Router.register('/broker/system/audit',        function () { Panels.licensingTracker(); });
     Router.register('/broker/system/idx-activity', function () { Panels.complianceDashboard(); });
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
@@ -379,8 +379,7 @@ var CRM = (function () {
         { heading: 'Documents' },
         { route: '/broker/documents', icon: 'fa-folder', label: 'Company Vault' },
         { heading: 'System' },
-        { route: '/broker/system/audit', icon: 'fa-clipboard-list', label: 'Audit Log' },
-        { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'License/CE/E&O' },
+        { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'License, CE/E&O & Audit' },
         { route: '/broker/system/settings', icon: 'fa-cog', label: 'System Settings' },
       ]);
     }
