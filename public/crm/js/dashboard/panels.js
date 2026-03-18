@@ -3087,95 +3087,146 @@ var Panels = (function () {
       });
     }
 
-    var now = Date.now();
-    var h24 = 24 * 3600000;
-
-    // Categorize into lanes
-    var laneNew = [];
-    var laneNeedsAssign = [];
-    var laneContacted = [];
-    var laneConverted = [];
-
-    filtered.forEach(function (l) {
-      var assigned = l.assignedAgentId || l.assigned_agent_id;
-      var status = (l.status || 'new').toLowerCase();
-      var isConverted = status === 'converted' || l.convertedClientId || l.converted_client_id;
-      var age = now - new Date(l.created_at || l.createdAt || now).getTime();
-
-      if (isConverted) {
-        laneConverted.push(l);
-      } else if (assigned && status === 'contacted') {
-        laneContacted.push(l);
-      } else if (!assigned && (status === 'contacted' || (status === 'new' && age > h24))) {
-        laneNeedsAssign.push(l);
-      } else if (!assigned && status === 'new') {
-        laneNew.push(l);
-      } else if (assigned) {
-        laneContacted.push(l);
-      } else {
-        laneNew.push(l);
-      }
+    // Sort: unassigned first, then newest first
+    filtered.sort(function (a, b) {
+      var aAssigned = a.assignedAgentId || a.assigned_agent_id ? 1 : 0;
+      var bAssigned = b.assignedAgentId || b.assigned_agent_id ? 1 : 0;
+      if (aAssigned !== bAssigned) return aAssigned - bAssigned;
+      return new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0);
     });
 
-    // Source chips
+    // Agent map
+    var agentMap = {};
+    agents.forEach(function (a) { agentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
+
+    // Source filters
     var sources = ['All', 'Website', 'StreetEasy', 'Zillow', 'Referral', 'Walk-in', 'Social Media'];
-    var chipsHtml = '<div class="flex flex-wrap gap-2">';
-    sources.forEach(function (s) {
-      var active = _leadSourceFilter === s;
-      chipsHtml += '<button class="px-3 py-1 rounded-full text-xs font-semibold transition-colors ' +
-        (active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '" ' +
-        'onclick="Panels._filterLeadsBySource(\'' + E(s) + '\')">' + E(s);
-      if (s !== 'All') {
-        var cnt = leads.filter(function (l) { return (l.source || '').toLowerCase() === s.toLowerCase(); }).length;
-        if (cnt > 0) chipsHtml += ' <span class="opacity-60">(' + cnt + ')</span>';
-      }
-      chipsHtml += '</button>';
-    });
-    chipsHtml += '</div>';
-
     var bulkCount = Object.keys(_bulkSelectedLeads).length;
 
-    var html = '<div class="space-y-4">';
+    var html = '<div class="space-y-3">';
 
     // Header
-    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
-      '<h3 class="text-lg font-bold text-gray-900">Lead Distribution</h3>' +
+    html += '<div class="flex items-center justify-between">' +
+      '<p class="text-sm text-gray-500">' + filtered.length + ' lead' + (filtered.length !== 1 ? 's' : '') + '</p>' +
       '<div class="flex items-center gap-2">' +
-        '<button class="btn btn-sm btn-outline" onclick="Panels._bulkAssignLeads()" ' +
-          (bulkCount === 0 ? 'disabled style="opacity:0.5"' : '') + '>' +
-          '<i class="fas fa-users-cog mr-1"></i>Bulk Assign <span id="bulk-assign-count">' + (bulkCount > 0 ? '(' + bulkCount + ')' : '') + '</span></button>' +
-        '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus mr-1"></i>Create Lead</button>' +
-      '</div></div>';
+        (bulkCount > 0 ? '<button class="btn btn-sm btn-outline" onclick="Panels._bulkAssignLeads()"><i class="fas fa-users-cog mr-1"></i>Assign ' + bulkCount + '</button>' : '') +
+        '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus mr-1"></i>New Lead</button>' +
+      '</div>' +
+    '</div>';
 
-    // Source filter chips
-    html += chipsHtml;
-
-    // Kanban lanes
-    var lanes = [
-      { title: 'New', items: laneNew, color: '#DC2626', icon: 'fa-inbox' },
-      { title: 'Needs Assignment', items: laneNeedsAssign, color: '#D97706', icon: 'fa-exclamation-circle' },
-      { title: 'Contacted', items: laneContacted, color: '#2563EB', icon: 'fa-phone-alt' },
-      { title: 'Converted', items: laneConverted, color: '#059669', icon: 'fa-check-circle' }
-    ];
-
-    html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">';
-    lanes.forEach(function (lane) {
-      html += '<div class="rounded-lg border" style="border-left:4px solid ' + lane.color + '">' +
-        '<div class="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">' +
-          '<span class="text-sm font-bold text-gray-800"><i class="fas ' + lane.icon + ' mr-1" style="color:' + lane.color + '"></i>' + lane.title + '</span>' +
-          '<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white" style="background:' + lane.color + '">' + lane.items.length + '</span>' +
-        '</div>' +
-        '<div class="p-2" style="max-height:480px;overflow-y:auto">';
-      if (lane.items.length === 0) {
-        html += '<p class="text-xs text-gray-400 text-center py-6">No leads</p>';
-      } else {
-        lane.items.forEach(function (l) {
-          html += _renderLeadCard(l, agents);
-        });
-      }
-      html += '</div></div>';
+    // Source filters
+    html += '<div class="flex flex-wrap gap-1">';
+    sources.forEach(function (s) {
+      var active = _leadSourceFilter === s;
+      var cnt = s === 'All' ? leads.length : leads.filter(function (l) { return (l.source || '').toLowerCase() === s.toLowerCase(); }).length;
+      if (s !== 'All' && cnt === 0) return;
+      html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
+        (active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gold') + '" ' +
+        'onclick="Panels._filterLeadsBySource(\'' + E(s) + '\')">' + E(s) + ' (' + cnt + ')</button>';
     });
     html += '</div>';
+
+    // Lead cards — single column, full detail per lead
+    if (filtered.length === 0) {
+      html += '<div class="card" style="padding:40px 20px;text-align:center">' +
+        '<p class="text-sm text-gray-400">No leads' + (_leadSourceFilter !== 'All' ? ' from ' + E(_leadSourceFilter) : '') + '</p>' +
+      '</div>';
+    } else {
+      filtered.forEach(function (l) {
+        var isAssigned = l.assignedAgentId || l.assigned_agent_id;
+        var status = (l.status || 'new').toLowerCase();
+        var isConverted = status === 'converted' || l.convertedClientId || l.converted_client_id;
+        var name = l.name || ((l.first_name || '') + ' ' + (l.last_name || '')).trim() || l.email || 'Unknown';
+        var source = l.source || '';
+        var type = l.leadType || l.type || l.portal_role || '';
+        var agentName = isAssigned ? (agentMap[l.assignedAgentId || l.assigned_agent_id] || 'Assigned') : '';
+        var showCheckbox = !isAssigned && !isConverted;
+
+        // Parse preferences/notes for detail fields
+        var prefs = l.preferences || l.search_criteria || {};
+        var notes = l.notes || '';
+        var budget = prefs.budget || prefs.max_price || prefs.budget_max || l.budget_max || l.max_price || '';
+        var area = prefs.neighborhoods || prefs.area || l.neighborhoods || '';
+        if (Array.isArray(area)) area = area.join(', ');
+        var beds = prefs.min_beds || prefs.bedrooms || l.min_beds || '';
+        var baths = prefs.min_baths || prefs.bathrooms || l.min_baths || '';
+        var sqft = prefs.min_sqft || prefs.living_area || '';
+        var pets = prefs.pets || '';
+        var amenities = prefs.amenities || '';
+        if (Array.isArray(amenities)) amenities = amenities.join(', ');
+        var monthlies = prefs.monthly_max || prefs.max_rent || '';
+
+        // Try parsing from notes if prefs are empty
+        if (!budget && notes) { var m = notes.match(/budget\s*[:=]\s*\$?([\d,]+)/i); if (m) budget = m[1]; }
+        if (!area && notes) { var m2 = notes.match(/(?:area|neighborhood)\s*[:=]\s*(.+)/i); if (m2) area = m2[1].trim(); }
+        if (!beds && notes) { var m3 = notes.match(/bed(?:room)?s?\s*[:=]\s*(\d+)/i); if (m3) beds = m3[1]; }
+        if (!baths && notes) { var m4 = notes.match(/bath(?:room)?s?\s*[:=]\s*(\d+)/i); if (m4) baths = m4[1]; }
+
+        var refPct = l.referral_fee_pct || l.referralFeePct || '';
+
+        html += '<div class="card" style="padding:16px 20px">';
+
+        // Row 1: checkbox + name/contact + assign button
+        html += '<div class="flex items-center gap-3 mb-3">';
+        if (showCheckbox) {
+          html += '<input type="checkbox" id="bulk-cb-' + E(l.id) + '" ' +
+            (_bulkSelectedLeads[l.id] ? 'checked ' : '') +
+            'onchange="Panels._toggleBulkLead(\'' + E(l.id) + '\')">';
+        }
+        html += '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm font-bold text-gray-900">' + E(name) + '</p>' +
+          '<p class="text-xs text-gray-500">' +
+            (l.phone ? E(l.phone) : '') +
+            (l.phone && l.email ? ' · ' : '') +
+            (l.email && l.email !== name ? E(l.email) : '') +
+          '</p>' +
+        '</div>';
+        // Source + type + received
+        html += '<div class="flex items-center gap-3 flex-shrink-0">';
+        if (source) html += '<span class="text-xs font-semibold text-gray-600">' + E(source) + '</span>';
+        if (refPct) html += '<span class="text-xs font-semibold text-orange-600">(' + E(refPct) + '% ref)</span>';
+        if (type) html += '<span class="text-xs font-semibold text-gray-600">' + E(type) + '</span>';
+        html += '</div>';
+        // Action
+        if (isConverted) {
+          html += '<span class="text-xs font-bold text-gray-500">Converted</span>';
+        } else if (isAssigned) {
+          html += '<span class="text-xs font-semibold text-gray-600">' + E(agentName) + '</span>';
+        } else {
+          html += '<button class="btn btn-sm btn-gold flex-shrink-0" onclick="Panels._assignLeadSuggested(\'' + E(l.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button>';
+        }
+        html += '<button class="text-gray-300 hover:text-red-500 p-1 flex-shrink-0" onclick="Panels._deleteLead(\'' + E(l.id) + '\')" title="Delete"><i class="fas fa-trash text-xs"></i></button>';
+        html += '</div>';
+
+        // Row 2: Detail fields — single row of labeled values
+        var details = [];
+        if (type) details.push({ label: 'Type', value: type });
+        if (budget) details.push({ label: 'Budget', value: typeof budget === 'number' ? $(budget) : '$' + budget });
+        if (area) details.push({ label: 'Area', value: area });
+        if (beds) details.push({ label: 'Bed', value: beds });
+        if (baths) details.push({ label: 'Bath', value: baths });
+        if (sqft) details.push({ label: 'Sq Ft', value: sqft });
+        if (pets) details.push({ label: 'Pets', value: pets });
+        if (amenities) details.push({ label: 'Amenities', value: amenities });
+        if (monthlies) details.push({ label: 'Monthly', value: typeof monthlies === 'number' ? $(monthlies) : '$' + monthlies });
+
+        if (details.length > 0) {
+          html += '<div class="flex flex-wrap gap-x-4 gap-y-1">';
+          details.forEach(function (d) {
+            html += '<div><span class="text-xs text-gray-400">' + d.label + ':</span> <span class="text-xs font-semibold text-gray-700">' + E(String(d.value)) + '</span></div>';
+          });
+          html += '</div>';
+        }
+
+        // Notes excerpt if present
+        if (notes && !budget && !area) {
+          var excerpt = notes.length > 120 ? notes.slice(0, 120) + '...' : notes;
+          html += '<p class="text-xs text-gray-400 mt-1 truncate">' + E(excerpt) + '</p>';
+        }
+
+        html += '</div>'; // end card
+      });
+    }
 
     html += '</div>';
     return html;
@@ -3225,16 +3276,30 @@ var Panels = (function () {
     CRM.openModal('New Lead',
       '<form id="newLeadForm" class="space-y-4">' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Name</label><input class="form-input" name="name"></div>' +
-          '<div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" name="email"></div>' +
+          '<div class="form-group"><label class="form-label">Name</label><input class="form-input" name="name" required></div>' +
+          '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" name="phone"></div>' +
         '</div>' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" name="phone"></div>' +
+          '<div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" name="email"></div>' +
           '<div class="form-group"><label class="form-label">Source</label>' +
             '<select class="form-input form-select" name="source"><option>Website</option><option>StreetEasy</option><option>Zillow</option><option>Referral</option><option>Agent Referral</option><option>Walk-in</option><option>Social Media</option><option>Other</option></select></div>' +
         '</div>' +
         '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Type</label><select class="form-input form-select" name="type"><option value="buyer">Buyer</option><option value="seller">Seller</option><option value="renter">Renter</option><option value="landlord">Landlord</option></select></div>' +
+          '<div class="form-group"><label class="form-label">Buy or Rent</label><select class="form-input form-select" name="type"><option value="buyer">Buy</option><option value="renter">Rent</option><option value="seller">Seller</option><option value="landlord">Landlord</option></select></div>' +
+          '<div class="form-group"><label class="form-label">Budget</label><input class="form-input" name="budget" placeholder="e.g. $500,000 or $3,500/mo"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-4">' +
+          '<div class="form-group"><label class="form-label">Area / Neighborhood</label><input class="form-input" name="area" placeholder="e.g. UES, Midtown"></div>' +
+          '<div class="form-group"><label class="form-label">Beds</label><input class="form-input" name="beds" type="number" min="0" placeholder="0"></div>' +
+          '<div class="form-group"><label class="form-label">Baths</label><input class="form-input" name="baths" type="number" min="0" step="0.5" placeholder="0"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-4">' +
+          '<div class="form-group"><label class="form-label">Sq Ft (min)</label><input class="form-input" name="sqft" type="number" min="0" placeholder="0"></div>' +
+          '<div class="form-group"><label class="form-label">Pets</label><select class="form-input form-select" name="pets"><option value="">—</option><option>No pets</option><option>Cat</option><option>Dog</option><option>Cat & Dog</option><option>Other</option></select></div>' +
+          '<div class="form-group"><label class="form-label">Monthly Max</label><input class="form-input" name="monthly_max" placeholder="e.g. $4,000"></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Amenities</label><input class="form-input" name="amenities" placeholder="e.g. doorman, laundry, gym, outdoor space"></div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
           '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" step="0.5" placeholder="Leave empty if none"></div>' +
         '</div>' +
         '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" name="notes" rows="2"></textarea></div>' +
@@ -3242,6 +3307,7 @@ var Panels = (function () {
       {
         footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
           '<button class="btn btn-gold" onclick="Panels._submitLead()"><i class="fas fa-save"></i> Create</button>',
+        size: 'lg'
       }
     );
   }
