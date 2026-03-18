@@ -921,12 +921,15 @@ var Panels = (function () {
         '<th class="text-left px-3 py-2 hidden sm:table-cell">DOM</th><th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
       filtered.forEach(function (l) {
-        var addr = l.address || l.UnparsedAddress || 'No address';
-        var type = (l.property_type || l.listing_type || l.PropertySubType || 'Sale');
+        var addr = _resolveAddress(l);
+        var lt = (l.listing_type || '').toLowerCase();
+        var pt = (l.property_type || '').toLowerCase();
+        var typeLabel = (lt === 'rent' || pt === 'residentiallease' || pt.indexOf('lease') !== -1) ? 'Rental' : 'Sale';
+        var price = l.list_price || l.ListPrice || l.price || 0;
         html += '<tr class="border-b hover:bg-gray-50">' +
           '<td class="px-3 py-2 text-sm font-medium">' + E(addr) + '</td>' +
-          '<td class="px-3 py-2 text-xs">' + E(type) + '</td>' +
-          '<td class="px-3 py-2 text-sm font-bold">' + $(l.ListPrice || l.price) + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + E(typeLabel) + '</td>' +
+          '<td class="px-3 py-2 text-sm font-bold">' + $(price) + '</td>' +
           '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
           '<td class="px-3 py-2 text-xs hidden sm:table-cell">' + (l.cumulative_dom || l.days_on_market || '-') + '</td>' +
           '<td class="px-3 py-2"><button class="text-gold hover:underline text-xs font-semibold" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">View</button></td>' +
