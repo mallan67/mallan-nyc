@@ -385,23 +385,29 @@ var Panels = (function () {
       });
       html += '</div>';
 
-      // ── NOTES & IDEAS — free-type textareas ──────────────────────
-      var NOTES_KEY = 'mallan_broker_notes';
-      var IDEAS_KEY = 'mallan_broker_ideas';
-      var savedNotes = '';
-      var savedIdeas = '';
-      try { savedNotes = localStorage.getItem(NOTES_KEY) || ''; } catch (e) { /* ignore */ }
-      try { savedIdeas = localStorage.getItem(IDEAS_KEY) || ''; } catch (e) { /* ignore */ }
-
+      // ── NOTES & IDEAS — inline notepad ──────────────────────────
       html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">';
+
+      // Notes
       html += '<div class="card" style="padding:14px 18px">' +
         '<p class="text-xs font-bold text-gray-700 mb-2"><i class="fas fa-sticky-note text-gold mr-1"></i>Notes</p>' +
-        '<textarea id="brokerNotes" class="form-input w-full" rows="6" placeholder="Type your notes here..." style="resize:vertical;font-size:13px;border:1px solid #e5e7eb">' + E(savedNotes) + '</textarea>' +
+        '<div class="flex gap-2 mb-2">' +
+          '<input id="brokerNoteInput" class="form-input flex-1 text-sm" placeholder="Type a note and press Enter..." onkeydown="if(event.key===\'Enter\'){Panels._addBrokerNote();event.preventDefault()}">' +
+          '<button class="btn btn-sm btn-gold" onclick="Panels._addBrokerNote()"><i class="fas fa-plus"></i></button>' +
+        '</div>' +
+        '<div id="brokerNotesList" class="space-y-1 max-h-[280px] overflow-y-auto"></div>' +
       '</div>';
+
+      // Ideas
       html += '<div class="card" style="padding:14px 18px">' +
         '<p class="text-xs font-bold text-gray-700 mb-2"><i class="fas fa-lightbulb text-gold mr-1"></i>Ideas & Improvements</p>' +
-        '<textarea id="brokerIdeas" class="form-input w-full" rows="6" placeholder="Quick ideas, things to improve, things to create..." style="resize:vertical;font-size:13px;border:1px solid #e5e7eb">' + E(savedIdeas) + '</textarea>' +
+        '<div class="flex gap-2 mb-2">' +
+          '<input id="brokerIdeaInput" class="form-input flex-1 text-sm" placeholder="Type an idea and press Enter..." onkeydown="if(event.key===\'Enter\'){Panels._addBrokerIdea();event.preventDefault()}">' +
+          '<button class="btn btn-sm btn-gold" onclick="Panels._addBrokerIdea()"><i class="fas fa-plus"></i></button>' +
+        '</div>' +
+        '<div id="brokerIdeasList" class="space-y-1 max-h-[280px] overflow-y-auto"></div>' +
       '</div>';
+
       html += '</div>';
 
       // ── FOLLOW-UPS — working section ──────────────────────────────
@@ -511,104 +517,82 @@ var Panels = (function () {
       html += '</div>'; // end space-y-6 wrapper
       c.innerHTML = html;
 
-      // Auto-save notes + ideas
-      var notesEl = document.getElementById('brokerNotes');
-      if (notesEl) {
-        notesEl.addEventListener('input', Utils.debounce(function () {
-          try { localStorage.setItem('mallan_broker_notes', notesEl.value); } catch (e) { /* quota */ }
-        }, 500));
-      }
-      var ideasEl = document.getElementById('brokerIdeas');
-      if (ideasEl) {
-        ideasEl.addEventListener('input', Utils.debounce(function () {
-          try { localStorage.setItem('mallan_broker_ideas', ideasEl.value); } catch (e) { /* quota */ }
-        }, 500));
-      }
+      // Render inline notes + ideas lists
+      _renderBrokerNotes();
+      _renderBrokerIdeas();
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-tachometer-alt', 'Unable to load dashboard data');
     });
   }
 
-  // ─── Board Items (Notes & Ideas) ────────────────────────────────────
-  var BOARD_KEY = 'mallan_broker_board';
+  // ─── Inline Notes & Ideas ───────────────────────────────────────────
+  var NOTES_STORE = 'mallan_broker_notes_v2';
+  var IDEAS_STORE = 'mallan_broker_ideas_v2';
 
-  function _getBoardItems() {
-    try { var raw = localStorage.getItem(BOARD_KEY); return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+  function _getItems(key) {
+    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+  }
+  function _saveItems(key, items) {
+    try { localStorage.setItem(key, JSON.stringify(items)); } catch (e) { /* quota */ }
   }
 
-  function _saveBoardItems(items) {
-    try { localStorage.setItem(BOARD_KEY, JSON.stringify(items)); } catch (e) { /* quota */ }
-  }
-
-  function _addBoardItem() {
-    CRM.openModal('Add Note',
-      '<form id="boardItemForm" class="space-y-4">' +
-        '<div class="form-group"><label class="form-label">Category</label>' +
-          '<select class="form-input form-select" name="cat">' +
-            '<option value="note">Note</option>' +
-            '<option value="idea">Idea</option>' +
-            '<option value="improve">Improve</option>' +
-            '<option value="create">Create</option>' +
-          '</select></div>' +
-        '<div class="form-group"><label class="form-label">Title</label>' +
-          '<input class="form-input" name="text" placeholder="What\'s on your mind?" required></div>' +
-        '<div class="form-group"><label class="form-label">Details (optional)</label>' +
-          '<textarea class="form-input" name="detail" rows="3" placeholder="Add more context..."></textarea></div>' +
-      '</form>',
-      { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._saveBoardItem()"><i class="fas fa-save mr-1"></i>Save</button>' }
-    );
-  }
-
-  function _saveBoardItem() {
-    var form = document.getElementById('boardItemForm');
-    if (!form) return;
-    var data = {};
-    new FormData(form).forEach(function (v, k) { data[k] = v; });
-    if (!data.text) { CRM.toast('Title is required', 'error'); return; }
-    var items = _getBoardItems();
-    // Check if editing (stored on window)
-    if (window._editBoardIdx !== undefined && window._editBoardIdx !== null) {
-      items[window._editBoardIdx] = { cat: data.cat, text: data.text, detail: data.detail || '', date: items[window._editBoardIdx].date };
-      window._editBoardIdx = null;
-    } else {
-      items.unshift({ cat: data.cat, text: data.text, detail: data.detail || '', date: new Date().toISOString() });
+  function _renderNoteList(containerId, storeKey) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    var items = _getItems(storeKey);
+    if (items.length === 0) {
+      el.innerHTML = '<p class="text-xs text-gray-400 italic py-2">No items yet</p>';
+      return;
     }
-    _saveBoardItems(items);
-    CRM.closeModal();
-    brokerDashboard();
+    el.innerHTML = items.map(function (item, i) {
+      var dateStr = item.date ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      return '<div class="group flex items-start gap-2 py-1.5 px-2 rounded hover:bg-gray-50 border-b border-gray-100 last:border-0">' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm text-gray-800">' + E(item.text) + '</p>' +
+          (dateStr ? '<p class="text-[10px] text-gray-400 mt-0.5">' + dateStr + '</p>' : '') +
+        '</div>' +
+        '<button class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all" ' +
+          'onclick="Panels._deleteNoteItem(\'' + storeKey + '\',' + i + ')" title="Delete">' +
+          '<i class="fas fa-times text-xs"></i>' +
+        '</button>' +
+      '</div>';
+    }).join('');
   }
 
-  function _editBoardItem(idx) {
-    var items = _getBoardItems();
-    var item = items[idx];
-    if (!item) return;
-    window._editBoardIdx = idx;
-    CRM.openModal('Edit Note',
-      '<form id="boardItemForm" class="space-y-4">' +
-        '<div class="form-group"><label class="form-label">Category</label>' +
-          '<select class="form-input form-select" name="cat">' +
-            '<option value="note"' + (item.cat === 'note' ? ' selected' : '') + '>Note</option>' +
-            '<option value="idea"' + (item.cat === 'idea' ? ' selected' : '') + '>Idea</option>' +
-            '<option value="improve"' + (item.cat === 'improve' ? ' selected' : '') + '>Improve</option>' +
-            '<option value="create"' + (item.cat === 'create' ? ' selected' : '') + '>Create</option>' +
-          '</select></div>' +
-        '<div class="form-group"><label class="form-label">Title</label>' +
-          '<input class="form-input" name="text" value="' + E(item.text) + '" required></div>' +
-        '<div class="form-group"><label class="form-label">Details (optional)</label>' +
-          '<textarea class="form-input" name="detail" rows="3">' + E(item.detail || '') + '</textarea></div>' +
-      '</form>',
-      { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._saveBoardItem()"><i class="fas fa-save mr-1"></i>Save</button>' }
-    );
+  function _renderBrokerNotes() { _renderNoteList('brokerNotesList', NOTES_STORE); }
+  function _renderBrokerIdeas() { _renderNoteList('brokerIdeasList', IDEAS_STORE); }
+
+  function _addBrokerNote() {
+    var input = document.getElementById('brokerNoteInput');
+    if (!input || !input.value.trim()) return;
+    var items = _getItems(NOTES_STORE);
+    items.unshift({ text: input.value.trim(), date: new Date().toISOString() });
+    _saveItems(NOTES_STORE, items);
+    input.value = '';
+    input.focus();
+    _renderBrokerNotes();
   }
 
-  function _deleteBoardItem(idx) {
-    var items = _getBoardItems();
+  function _addBrokerIdea() {
+    var input = document.getElementById('brokerIdeaInput');
+    if (!input || !input.value.trim()) return;
+    var items = _getItems(IDEAS_STORE);
+    items.unshift({ text: input.value.trim(), date: new Date().toISOString() });
+    _saveItems(IDEAS_STORE, items);
+    input.value = '';
+    input.focus();
+    _renderBrokerIdeas();
+  }
+
+  function _deleteNoteItem(storeKey, idx) {
+    var items = _getItems(storeKey);
     items.splice(idx, 1);
-    _saveBoardItems(items);
-    brokerDashboard();
+    _saveItems(storeKey, items);
+    if (storeKey === NOTES_STORE) _renderBrokerNotes();
+    else _renderBrokerIdeas();
   }
+
+  // Legacy board item functions removed — replaced by inline notes/ideas above
 
   // ─── Agent Roster ────────────────────────────────────────────────────
   function agentRoster() {
@@ -5799,12 +5783,10 @@ var Panels = (function () {
     { key: 'luxury',         label: 'Luxury ($3M+)',                 icon: 'fa-gem',           filters: { type: 'sale', minPrice: 3000000, boroughs: ['Manhattan'] }, sort: 'price-desc', desc: 'Manhattan luxury properties' },
     { key: 'townhouses',     label: 'Townhouses',                    icon: 'fa-home',          filters: { type: 'sale', propertySubTypes: ['Townhouse'], boroughs: ['Manhattan', 'Brooklyn'] }, sort: 'price-desc', desc: 'Manhattan & Brooklyn townhouses' },
     { key: 'new-dev',        label: 'New Developments',              icon: 'fa-building',      filters: { type: 'sale', newDevelopment: true }, sort: 'newest', desc: 'New construction & developments' },
-    { key: 'under-1m',       label: 'Under $1M',                     icon: 'fa-tag',           filters: { type: 'sale', maxPrice: 1000000, boroughs: ['Manhattan'] }, sort: 'price-asc', desc: 'Manhattan under $1M' },
     { key: '1m-3m',          label: '$1M - $3M',                     icon: 'fa-dollar-sign',   filters: { type: 'sale', minPrice: 1000000, maxPrice: 3000000, boroughs: ['Manhattan'] }, sort: 'price-desc', desc: 'Manhattan mid-range' },
     { key: 'newest',         label: 'New Listings',                  icon: 'fa-clock',         filters: { type: 'sale' }, sort: 'newest', desc: 'Most recently listed' },
     { key: 'terraces',       label: 'Best Terraces & Outdoor',       icon: 'fa-sun',           filters: { type: 'sale', amenities: ['Terrace', 'Balcony', 'Roof Deck'] }, sort: 'price-desc', desc: 'Outdoor space properties' },
     { key: 'large',          label: 'Spacious (1500+ SF)',           icon: 'fa-expand-arrows-alt', filters: { type: 'sale', minSqft: 1500 }, sort: 'price-desc', desc: 'Large floor plans' },
-    { key: 'brooklyn',       label: 'Brooklyn Picks',                icon: 'fa-map-marker-alt', filters: { type: 'sale', boroughs: ['Brooklyn'] }, sort: 'price-desc', desc: 'Brooklyn highlights' },
     { key: 'rentals',        label: 'Featured Rentals',              icon: 'fa-key',           filters: { type: 'rent', boroughs: ['Manhattan'] }, sort: 'price-desc', desc: 'Manhattan rentals' },
     { key: 'custom',         label: 'Custom Filter',                 icon: 'fa-sliders-h',     filters: {}, sort: 'newest', desc: 'Build your own filter' },
   ];
@@ -9241,30 +9223,23 @@ var Panels = (function () {
       });
       html += '</div>';
 
-      // Pipeline total
-      html += '<p class="text-xs text-gray-500">' + clients.length + ' clients in pipeline</p>';
-
-      // Kanban board with rich cards
-      html += '<div class="kanban-board">';
+      // Pipeline list — grouped by stage
+      html += '<div class="space-y-3">';
       PIPELINE_STAGES.forEach(function (s) {
         var stageClients = grouped[s.key] || [];
-        html += '<div class="kanban-col">' +
-          '<div class="kanban-col-header" style="border-color:' + s.color + '">' +
-            '<span class="kanban-col-title" style="color:' + s.color + '"><i class="fas ' + s.icon + ' mr-1"></i> ' + E(s.title) + '</span>' +
-            '<span class="kanban-col-count" style="background:' + s.color + '">' + stageClients.length + '</span>' +
-          '</div>' +
-          '<div class="kanban-col-body" data-stage="' + E(s.key) + '" ' +
-            'ondragover="event.preventDefault();this.style.background=\'#FFFBF0\'" ' +
-            'ondragleave="this.style.background=\'\'" ' +
-            'ondrop="Panels._pipelineDrop(event,\'' + E(s.key) + '\')">';
+        if (stageClients.length === 0) return;
 
-        if (stageClients.length === 0) {
-          html += '<div class="text-center text-xs text-gray-400 py-6"><i class="fas fa-inbox block text-lg mb-1"></i>Empty</div>';
-        } else {
-          stageClients.forEach(function (cl) {
-            html += _pipelineCard(cl, s.key);
-          });
-        }
+        html += '<div class="card overflow-hidden">' +
+          '<div class="flex items-center gap-2 px-4 py-2.5" style="border-left:4px solid ' + s.color + ';background:' + s.color + '08">' +
+            '<i class="fas ' + s.icon + ' text-xs" style="color:' + s.color + '"></i>' +
+            '<span class="text-xs font-bold uppercase tracking-wide" style="color:' + s.color + '">' + E(s.title) + '</span>' +
+            '<span class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style="background:' + s.color + '">' + stageClients.length + '</span>' +
+          '</div>' +
+          '<div class="divide-y divide-gray-100">';
+
+        stageClients.forEach(function (cl) {
+          html += _pipelineRow(cl, s);
+        });
 
         html += '</div></div>';
       });
@@ -9277,68 +9252,56 @@ var Panels = (function () {
     });
   }
 
-  function _pipelineCard(cl, stageKey) {
+  function _pipelineRow(cl, stage) {
     var name = cl.name || cl.full_name || cl.email || 'Unknown';
     var type = cl.type || cl.client_type || '';
     var nba = cl._nba || {};
 
-    var html = '<div class="kanban-card" draggable="true" ' +
-      'data-client-id="' + E(cl.id) + '" ' +
-      'ondragstart="Panels._pipelineDragStart(event,\'' + E(cl.id) + '\')" ' +
-      'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/pipeline\')">';
+    // Find stage index for move buttons
+    var stageIdx = -1;
+    PIPELINE_STAGES.forEach(function (s, i) { if (s.key === stage.key) stageIdx = i; });
 
-    // Header: name + type badge
-    html += '<div class="flex items-center justify-between mb-1">' +
-      '<p class="text-sm font-semibold text-gray-900 truncate flex-1">' + E(name) + '</p>' +
-      UI.roleBadge(type) +
-    '</div>';
+    var html = '<div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">';
 
-    // Contact
-    if (cl.email) html += '<p class="text-xs text-gray-500 truncate">' + E(cl.email) + '</p>';
+    // Client name + type — clickable to workspace
+    html += '<div class="flex-1 min-w-0 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
+      '<div class="flex items-center gap-2">' +
+        '<p class="text-sm font-semibold text-gray-900 truncate hover:text-gold transition-colors">' + E(name) + '</p>' +
+        UI.roleBadge(type) +
+      '</div>';
 
-    // Badges row
-    html += '<div class="flex flex-wrap gap-1 mt-1.5">';
-
-    // Conversion badge for renters
-    if (cl._isRenter && cl._conversionProb > 0) {
-      var convColor = cl._conversionProb >= 70 ? '#059669' : cl._conversionProb >= 40 ? '#F59E0B' : '#6b7280';
-      html += '<span class="px-1 py-0.5 rounded text-[8px] font-bold text-white" style="background:' + convColor + '">' +
-        '<i class="fas fa-exchange-alt mr-0.5"></i>' + cl._conversionProb + '%</span>';
-    }
-
-    // Lease expiry for renters
+    // Badges: stale, lease, etc.
+    var badges = '';
+    if (cl._isStale) badges += '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">Stale</span>';
     if (cl._isRenter && cl._leaseEnd) {
       var daysLeft = Utils.daysUntil(cl._leaseEnd);
       if (daysLeft !== null && daysLeft <= 180) {
-        var leaseColor = daysLeft <= 30 ? '#DC2626' : daysLeft <= 90 ? '#F59E0B' : '#6b7280';
-        html += '<span class="px-1 py-0.5 rounded text-[8px] font-bold" style="background:' + leaseColor + '15;color:' + leaseColor + '">Lease ' + daysLeft + 'd</span>';
+        var lc = daysLeft <= 30 ? '#DC2626' : daysLeft <= 90 ? '#F59E0B' : '#6b7280';
+        badges += '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold" style="background:' + lc + '15;color:' + lc + '">Lease ' + daysLeft + 'd</span>';
       }
     }
-
-    // Inactivity warning
-    if (cl._isStale) {
-      html += '<span class="px-1 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[8px] font-bold"><i class="fas fa-clock mr-0.5"></i>Stale</span>';
-    }
-
+    if (badges) html += '<div class="flex gap-1 mt-0.5">' + badges + '</div>';
     html += '</div>';
 
     // Next best action
-    html += '<div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">' +
-      '<i class="fas ' + (nba.icon || 'fa-arrow-right') + ' text-[9px]" style="color:' + (nba.color || '#6b7280') + '"></i>' +
-      '<span class="text-[10px] text-gray-600 truncate">' + E(nba.label || 'Open workspace') + '</span>' +
+    html += '<div class="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 w-40 flex-shrink-0">' +
+      '<i class="fas ' + (nba.icon || 'fa-arrow-right') + ' text-[10px]" style="color:' + (nba.color || '#6b7280') + '"></i>' +
+      '<span class="truncate">' + E(nba.label || '') + '</span>' +
     '</div>';
 
-    // Move buttons
-    html += '<div class="flex items-center justify-between mt-1.5" onclick="event.stopPropagation()">';
-    var stageIdx = -1;
-    PIPELINE_STAGES.forEach(function (s, i) { if (s.key === stageKey) stageIdx = i; });
+    // Move stage buttons
+    html += '<div class="flex items-center gap-1 flex-shrink-0" onclick="event.stopPropagation()">';
     if (stageIdx > 0) {
-      html += '<button class="text-[9px] text-gray-400 hover:text-gold" onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(PIPELINE_STAGES[stageIdx - 1].key) + '\')"><i class="fas fa-arrow-left"></i> ' + E(PIPELINE_STAGES[stageIdx - 1].title) + '</button>';
-    } else {
-      html += '<span></span>';
+      var prev = PIPELINE_STAGES[stageIdx - 1];
+      html += '<button class="px-2 py-1 text-[10px] font-medium rounded border border-gray-200 text-gray-500 hover:border-gold hover:text-gold transition-colors" ' +
+        'onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(prev.key) + '\')" title="Move to ' + E(prev.title) + '">' +
+        '<i class="fas fa-arrow-left"></i></button>';
     }
     if (stageIdx < PIPELINE_STAGES.length - 1) {
-      html += '<button class="text-[9px] text-gray-400 hover:text-gold" onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(PIPELINE_STAGES[stageIdx + 1].key) + '\')">' + E(PIPELINE_STAGES[stageIdx + 1].title) + ' <i class="fas fa-arrow-right"></i></button>';
+      var next = PIPELINE_STAGES[stageIdx + 1];
+      html += '<button class="px-2 py-1 text-[10px] font-medium rounded border border-gray-200 text-gray-500 hover:border-gold hover:text-gold transition-colors" ' +
+        'onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(next.key) + '\')" title="Move to ' + E(next.title) + '">' +
+        E(next.title) + ' <i class="fas fa-arrow-right"></i></button>';
     }
     html += '</div>';
 
@@ -12283,10 +12246,9 @@ var Panels = (function () {
   return {
     // Broker Console
     brokerDashboard: brokerDashboard,
-    _addBoardItem: _addBoardItem,
-    _saveBoardItem: _saveBoardItem,
-    _editBoardItem: _editBoardItem,
-    _deleteBoardItem: _deleteBoardItem,
+    _addBrokerNote: _addBrokerNote,
+    _addBrokerIdea: _addBrokerIdea,
+    _deleteNoteItem: _deleteNoteItem,
     brokerApprovalQueue: brokerApprovalQueue,
     _filterApprovalQueue: _filterApprovalQueue,
     agentRoster: agentRoster,
