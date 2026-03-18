@@ -394,18 +394,29 @@ var Panels = (function () {
       html += '<div class="card"><div class="card-header"><h3><i class="fas fa-building text-gold mr-2"></i>Recent Company Listings</h3>' +
         '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/listings\')">View All</button></div>' +
         '<div class="card-body"><div class="space-y-1">';
-      var recentListings = listings.slice(0, 8);
+      // Filter out closed/cancelled listings
+      var activeListings = listings.filter(function (l) {
+        var st = (l.status || '').toLowerCase();
+        return st !== 'closed' && st !== 'cancelled' && st !== 'canceled' && st !== 'sold' && st !== 'expired';
+      });
+      var recentListings = activeListings.slice(0, 8);
       if (recentListings.length === 0) {
-        html += '<p class="text-sm text-gray-400 text-center py-4">No listings yet</p>';
+        html += '<p class="text-sm text-gray-400 text-center py-4">No active listings</p>';
       }
       recentListings.forEach(function (l) {
-        var addr = l.address || l.UnparsedAddress || 'No address';
-        var price = l.ListPrice || l.price || 0;
+        // address may be a JSON object from Prisma
+        var addrObj = l.address || {};
+        var addr = (typeof addrObj === 'string') ? addrObj :
+          (addrObj.UnparsedAddress || addrObj.unparsed_address ||
+           ((addrObj.StreetNumber || '') + ' ' + (addrObj.StreetName || '') + ' ' + (addrObj.StreetSuffix || '')).trim() ||
+           l.UnparsedAddress || l.street_address || 'No address');
+        if (!addr || addr === 'No address') addr = l.full_address || l.listing_id || 'No address';
+        var price = l.list_price || l.ListPrice || l.price || 0;
         var dom = l.DaysOnMarket || l.days_on_market || 0;
         var agentName = '';
         if (l.assignedAgentId || l.assigned_agent_id) {
-          var ag = agents.find(function (a) { return a.id === (l.assignedAgentId || l.assigned_agent_id); });
-          agentName = ag ? (ag.name || ag.firstName + ' ' + ag.lastName) : '';
+          var ag = agents.find(function (a) { return a.id === (l.assignedAgentId || l.assigned_agent_id || l.agent_id); });
+          agentName = ag ? (ag.full_name || ag.name || ag.email || '') : '';
         }
         html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' +
           '<div class="w-8 h-8 rounded-lg bg-gold-bg flex items-center justify-center flex-shrink-0"><i class="fas fa-building text-xs text-gold"></i></div>' +
