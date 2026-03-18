@@ -1,13 +1,15 @@
 /**
- * prisma/seed.ts — Seeds the database with initial data.
+ * prisma/seed.ts — Seeds the database with initial agent data ONLY.
  *
  * Usage: npx tsx prisma/seed.ts
  *   or via package.json prisma.seed config.
  *
  * Creates:
  *   - Maya Allan (broker) + Leda Gorgone + Julia Djaafar (agents)
- *   - Maya's exclusive listings
- *   - Maya's closed deals
+ *
+ * NOTE: Listings come ONLY from Trestle/IDX sync or CRM form submissions.
+ *       Deals come ONLY from agent deal form submissions.
+ *       No fake/test listings or deals are seeded.
  */
 
 import path from "node:path";
@@ -53,6 +55,13 @@ async function main() {
       rental_split: 60,
       role: "BROKER",
       status: "active",
+      public_slug: "maya-allan",
+      title: "Licensed Real Estate Broker",
+      photo: "/images/agents/maya-allan.jpg",
+      bio: "Maya is a dedicated New York City real estate professional known for strategic execution, strong negotiation, and results-driven performance. With a background in international business development, she brings high-level deal experience, contract negotiation expertise, and financial discipline to every transaction. Her analytical mindset and competitive edge translate directly into successful outcomes for buyers, sellers, and investors in NYC's fast-moving market.\n\nAs a REBNY member, Maya provides full access to all New York City listings. She specializes in co-ops, condops, condos, new developments, townhouses and commercial properties. For buyers and investors, she offers expert negotiation, board package strategy, co-op interview preparation, financial and mortgage analysis, full deal-cycle management, attorney coordination, ROI projections, and in-depth comparable market analysis to ensure smart pricing and strong positioning. She guides clients step-by-step with clarity and precision from offer through closing.\n\nFor sellers, Maya develops aggressive, tailored marketing strategies designed to maximize exposure and drive top-dollar results. Her approach includes strategic pricing, professional photography, high-impact marketing materials, targeted advertising, open houses, dedicated property web presence, broker outreach, and consistent reporting. Sellers receive weekly updates with market feedback and action plans. Leveraging her network and resources, Maya positions each property competitively to achieve the strongest possible outcome.",
+      specialties: ["Co-ops & Condos", "New Developments", "Investment Properties", "Commercial & Retail"],
+      languages: ["English", "Hebrew", "Georgian"],
+      featured: true,
     },
     create: {
       first_name: "Maya",
@@ -69,6 +78,13 @@ async function main() {
       rental_split: 60,
       role: "BROKER",
       status: "active",
+      public_slug: "maya-allan",
+      title: "Licensed Real Estate Broker",
+      photo: "/images/agents/maya-allan.jpg",
+      bio: "Maya is a dedicated New York City real estate professional known for strategic execution, strong negotiation, and results-driven performance. With a background in international business development, she brings high-level deal experience, contract negotiation expertise, and financial discipline to every transaction. Her analytical mindset and competitive edge translate directly into successful outcomes for buyers, sellers, and investors in NYC's fast-moving market.\n\nAs a REBNY member, Maya provides full access to all New York City listings. She specializes in co-ops, condops, condos, new developments, townhouses and commercial properties. For buyers and investors, she offers expert negotiation, board package strategy, co-op interview preparation, financial and mortgage analysis, full deal-cycle management, attorney coordination, ROI projections, and in-depth comparable market analysis to ensure smart pricing and strong positioning. She guides clients step-by-step with clarity and precision from offer through closing.\n\nFor sellers, Maya develops aggressive, tailored marketing strategies designed to maximize exposure and drive top-dollar results. Her approach includes strategic pricing, professional photography, high-impact marketing materials, targeted advertising, open houses, dedicated property web presence, broker outreach, and consistent reporting. Sellers receive weekly updates with market feedback and action plans. Leveraging her network and resources, Maya positions each property competitively to achieve the strongest possible outcome.",
+      specialties: ["Co-ops & Condos", "New Developments", "Investment Properties", "Commercial & Retail"],
+      languages: ["English", "Hebrew", "Georgian"],
+      featured: true,
     },
   });
   console.log("  Agent: Maya Allan (BROKER) id=" + maya.id);
@@ -86,6 +102,13 @@ async function main() {
       license_type: "salesperson",
       role: "AGENT",
       status: "active",
+      public_slug: "leda-gorgone",
+      title: "Licensed Real Estate Salesperson",
+      photo: "/images/agents/leda-gorgone.jpg",
+      bio: "Blending her creative background with a passion for helping people, Leda brings an inspired and hands-on approach to every real estate journey. Her warmth, professionalism, and tireless dedication make her the perfect partner for anyone seeking their dream home or selling their current one. From preparing marketing strategies and board packages to coordinating showings and handling every detail behind the scenes, Leda ensures a seamless and stress-free experience from start to finish. Originally from S\u00e3o Paulo, Brazil, Leda moved to New York to advance her editorial fashion career. After years as a fashion journalist, stylist, producer, and location scout, she developed an exceptional eye for aesthetics and an instinct for finding the perfect match \u2014 whether it\u2019s a backdrop or a property.",
+      specialties: ["Marketing Strategy", "Board Packages", "Styling & Staging", "Buyer Representation"],
+      languages: ["English", "Portuguese"],
+      featured: false,
     },
     create: {
       first_name: "Leda",
@@ -97,6 +120,13 @@ async function main() {
       license_type: "salesperson",
       role: "AGENT",
       status: "active",
+      public_slug: "leda-gorgone",
+      title: "Licensed Real Estate Salesperson",
+      photo: "/images/agents/leda-gorgone.jpg",
+      bio: "Blending her creative background with a passion for helping people, Leda brings an inspired and hands-on approach to every real estate journey. Her warmth, professionalism, and tireless dedication make her the perfect partner for anyone seeking their dream home or selling their current one. From preparing marketing strategies and board packages to coordinating showings and handling every detail behind the scenes, Leda ensures a seamless and stress-free experience from start to finish. Originally from S\u00e3o Paulo, Brazil, Leda moved to New York to advance her editorial fashion career. After years as a fashion journalist, stylist, producer, and location scout, she developed an exceptional eye for aesthetics and an instinct for finding the perfect match \u2014 whether it\u2019s a backdrop or a property.",
+      specialties: ["Marketing Strategy", "Board Packages", "Styling & Staging", "Buyer Representation"],
+      languages: ["English", "Portuguese"],
+      featured: false,
     },
   });
   console.log("  Agent: Leda Gorgone (AGENT) id=" + leda.id);
@@ -112,6 +142,13 @@ async function main() {
       license_type: "salesperson",
       role: "AGENT",
       status: "active",
+      public_slug: "julia-djaafar",
+      title: "Licensed Real Estate Salesperson",
+      photo: "/images/agents/julia-djaafar.jpg",
+      bio: "Julia Djaafar is a seasoned real estate salesperson. Whether you are a resident of New York City or a foreigner looking for a home or investment, she will meet your real estate requirements quickly and work hard for the best resolution. Julia has a keen sense of knowing what every deal needs and she guides her clients through the process effortlessly. A graduate of the Fashion Institute of Technology, Julia was a successful fashion designer with her own brand who sold her collections to Barney\u2019s New York and Japan among others. Her work, featured in fashion magazines, demonstrates her flair for bringing together the elements of design and beauty. Julia\u2019s love for fashion and new trends translates equally into her intrigue with new neighborhoods and the endless possibilities of the real estate market. With a light touch and cheerful demeanor, she is dedicated to finding every client the right home.",
+      specialties: ["International Buyers", "Investment Properties", "Design-Forward Homes", "Buyer Representation"],
+      languages: ["English", "Japanese"],
+      featured: false,
     },
     create: {
       first_name: "Julia",
@@ -123,216 +160,38 @@ async function main() {
       license_type: "salesperson",
       role: "AGENT",
       status: "active",
+      public_slug: "julia-djaafar",
+      title: "Licensed Real Estate Salesperson",
+      photo: "/images/agents/julia-djaafar.jpg",
+      bio: "Julia Djaafar is a seasoned real estate salesperson. Whether you are a resident of New York City or a foreigner looking for a home or investment, she will meet your real estate requirements quickly and work hard for the best resolution. Julia has a keen sense of knowing what every deal needs and she guides her clients through the process effortlessly. A graduate of the Fashion Institute of Technology, Julia was a successful fashion designer with her own brand who sold her collections to Barney\u2019s New York and Japan among others. Her work, featured in fashion magazines, demonstrates her flair for bringing together the elements of design and beauty. Julia\u2019s love for fashion and new trends translates equally into her intrigue with new neighborhoods and the endless possibilities of the real estate market. With a light touch and cheerful demeanor, she is dedicated to finding every client the right home.",
+      specialties: ["International Buyers", "Investment Properties", "Design-Forward Homes", "Buyer Representation"],
+      languages: ["English", "Japanese"],
+      featured: false,
     },
   });
   console.log("  Agent: Julia Djaafar (AGENT) id=" + julia.id);
 
   // ═══════════════════════════════════════════════════════════
-  // CLIENTS (Leads)
+  // NO FAKE LISTINGS OR DEALS
   // ═══════════════════════════════════════════════════════════
-
-  // NOTE: Real clients are created via the CRM portal or /api/inquiries endpoint.
-  // No fake test clients with 555 numbers seeded.
-
-  // ═══════════════════════════════════════════════════════════
-  // LISTINGS — 26 from mock-data.js
-  // ═══════════════════════════════════════════════════════════
-
-  const now = new Date();
-
-  // Helper: Maya's listings (she's the listing agent for these)
-  const mayaListings = [
-    {
-      listing_id: "SL-23810001",
-      listing_type: "rent",
-      status: "Active",
-      property_type: "Residential",
-      property_sub_type: "Apartment",
-      list_price: 3500,
-      bedrooms_total: 1,
-      bathrooms_full: 1,
-      bathrooms_half: 0,
-      living_area: 650,
-      borough: "Manhattan",
-      neighborhood: "Upper East Side",
-      address: { street: "301 EAST 79TH STREET", unit: "5A", city: "New York", state: "NY", zip: "10075" },
-      description: "Sunny 1BR in UES pre-war elevator building. Hardwood floors, updated kitchen.",
-    },
-    {
-      listing_id: "SL-23810002",
-      listing_type: "rent",
-      status: "Active",
-      property_type: "Residential",
-      property_sub_type: "Condominium",
-      list_price: 5200,
-      bedrooms_total: 2,
-      bathrooms_full: 1,
-      bathrooms_half: 0,
-      living_area: 900,
-      borough: "Manhattan",
-      neighborhood: "Chelsea",
-      address: { street: "555 WEST 23RD STREET", unit: "12D", city: "New York", state: "NY", zip: "10011" },
-      description: "Luxury 2BR condo rental in Chelsea. Doorman, gym, rooftop deck. W/D in unit.",
-    },
-    {
-      listing_id: "SL-23820001",
-      listing_type: "sale",
-      status: "Active",
-      property_type: "Residential",
-      property_sub_type: "Cooperative",
-      list_price: 1850000,
-      bedrooms_total: 3,
-      bathrooms_full: 2,
-      bathrooms_half: 0,
-      living_area: 1450,
-      borough: "Manhattan",
-      neighborhood: "Upper West Side",
-      address: { street: "200 WEST 86TH STREET", unit: "12A", city: "New York", state: "NY", zip: "10024" },
-      description: "Stunning pre-war 3BR co-op on the Upper West Side. Grand proportions, doorman building.",
-    },
-    {
-      listing_id: "SL-23820003",
-      listing_type: "sale",
-      status: "Closed",
-      property_type: "Residential",
-      property_sub_type: "Condominium",
-      list_price: 1200000,
-      bedrooms_total: 1,
-      bathrooms_full: 1,
-      bathrooms_half: 0,
-      living_area: 820,
-      borough: "Manhattan",
-      neighborhood: "Financial District",
-      address: { street: "88 GREENWICH STREET", unit: "22H", city: "New York", state: "NY", zip: "10006" },
-      description: "FiDi 1BR condo with Hudson River views. Luxury amenities.",
-    },
-    {
-      listing_id: "SL-23830003",
-      listing_type: "sale",
-      status: "ComingSoon",
-      property_type: "Residential",
-      property_sub_type: "Cooperative",
-      list_price: 875000,
-      bedrooms_total: 2,
-      bathrooms_full: 1,
-      bathrooms_half: 0,
-      living_area: 950,
-      borough: "Manhattan",
-      neighborhood: "Sutton Place",
-      address: { street: "425 EAST 58TH STREET", unit: "8D", city: "New York", state: "NY", zip: "10022" },
-      description: "COMING SOON — Beautiful pre-war 2BR co-op in Sutton Place.",
-    },
-    {
-      listing_id: "SL-23830006",
-      listing_type: "sale",
-      status: "Closed",
-      property_type: "Residential",
-      property_sub_type: "Condominium",
-      list_price: 780000,
-      bedrooms_total: 1,
-      bathrooms_full: 1,
-      bathrooms_half: 0,
-      living_area: 700,
-      borough: "Manhattan",
-      neighborhood: "Upper East Side",
-      address: { street: "401 EAST 60TH STREET", unit: "11C", city: "New York", state: "NY", zip: "10065" },
-      description: "Recently closed listing.",
-    },
-  ];
-
-  // NOTE: Other brokerage listings come from the Trestle/IDX sync pipeline.
-  // No mock RLS listings seeded — production uses real data.
-
-  // Insert Maya's listings (with agent_id)
-  for (const l of mayaListings) {
-    await prisma.listing.upsert({
-      where: { listing_id: l.listing_id },
-      update: {},
-      create: {
-        listing_id: l.listing_id,
-        agent_id: maya.id,
-        status: l.status,
-        listing_type: l.listing_type,
-        property_type: l.property_type,
-        property_sub_type: l.property_sub_type,
-        list_price: l.list_price,
-        bedrooms_total: l.bedrooms_total,
-        bathrooms_full: l.bathrooms_full,
-        bathrooms_half: l.bathrooms_half ?? 0,
-        living_area: l.living_area,
-        borough: l.borough,
-        neighborhood: l.neighborhood,
-        address: l.address as object,
-        features: {},
-        media: [],
-        compliance: {},
-        agent_info: { company: "Mallan Real Estate Inc.", agentName: "Maya Allan" },
-        modification_timestamp: now,
-      },
-    });
-  }
-  console.log("  Listings: " + mayaListings.length + " Maya listings inserted");
-
-  // ═══════════════════════════════════════════════════════════
-  // DEALS (Maya's real closed deals)
-  // ═══════════════════════════════════════════════════════════
-
-  await prisma.deal.upsert({
-    where: { id: BigInt(1) },
-    update: {},
-    create: {
-      agent_id: maya.id,
-      representation_code: "buyer",
-      property_address: "88 Greenwich Street, 22H, New York, NY 10006",
-      price_usd: 1200000,
-      commission_rate_percent: 3,
-      split_percent: 60,
-      gross_commission_usd: 36000,
-      agent_fee_usd: 21600,
-      company_fee_usd: 14400,
-      status: "closed",
-      contract_signed: new Date("2025-06-01"),
-      contract_closed: new Date("2025-09-01"),
-    },
-  });
-
-  await prisma.deal.upsert({
-    where: { id: BigInt(2) },
-    update: {},
-    create: {
-      agent_id: maya.id,
-      representation_code: "tenant",
-      property_address: "301 East 79th Street, 5A, New York, NY 10075",
-      price_usd: 3500,
-      commission_rate_percent: 15,
-      split_percent: 60,
-      gross_commission_usd: 6300,
-      agent_fee_usd: 3780,
-      company_fee_usd: 2520,
-      status: "closed",
-      contract_signed: new Date("2025-05-10"),
-      contract_closed: new Date("2025-05-25"),
-    },
-  });
-
-  console.log("  Deals: 2 inserted");
+  // Listings come ONLY from:
+  //   1. Trestle/IDX sync (cron every 4h)
+  //   2. Agent submissions via SALE-FORM-REDESIGN / RENTAL-FORM-REDESIGN
+  //   3. CRM listing POST via dashboard
+  //
+  // Deals come ONLY from:
+  //   1. Agent deal form submissions (BUYER-DEAL-FORM / TENANT-DEAL-FORM)
+  //   2. CRM deal creation
 
   // ═══════════════════════════════════════════════════════════
   // SUMMARY
   // ═══════════════════════════════════════════════════════════
 
-  const counts = await Promise.all([
-    prisma.agent.count(),
-    prisma.lead.count(),
-    prisma.listing.count(),
-    prisma.deal.count(),
-  ]);
+  const agentCount = await prisma.agent.count();
 
   console.log("\nSeed complete!");
-  console.log("  Agents:       " + counts[0]);
-  console.log("  Clients:      " + counts[1]);
-  console.log("  Listings:     " + counts[2]);
-  console.log("  Deals:        " + counts[3]);
+  console.log("  Agents: " + agentCount);
+  console.log("  (Listings and deals are NOT seeded — they come from Trestle sync and CRM submissions only)");
 }
 
 main()

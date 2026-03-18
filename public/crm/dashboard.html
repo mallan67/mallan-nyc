@@ -102,11 +102,11 @@
 </div>
 
 <!-- ═══ MODAL LAYER ═══ -->
-<div id="modalOverlay" class="modal-overlay hidden" onclick="CRM.closeModal(event)">
+<div id="modalOverlay" class="modal-overlay hidden" onclick="CRM.closeModal(event)" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div id="modalContainer" class="modal-container" onclick="event.stopPropagation()">
         <div id="modalHeader" class="modal-header">
             <h2 id="modalTitle" class="text-lg font-bold"></h2>
-            <button onclick="CRM.closeModal()" class="p-1 text-gray-400 hover:text-gray-600 rounded"><i class="fas fa-times"></i></button>
+            <button onclick="CRM.closeModal()" class="p-1 text-gray-400 hover:text-gray-600 rounded" aria-label="Close dialog"><i class="fas fa-times"></i></button>
         </div>
         <div id="modalBody" class="modal-body"></div>
         <div id="modalFooter" class="modal-footer hidden"></div>
@@ -136,8 +136,9 @@
 <div id="toasts" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
 <!-- ═══ SCRIPTS — Load order matters ═══ -->
-<!-- 1. API Client (external dependency) -->
+<!-- 1. API Client + shared utilities (external dependencies) -->
 <script src="/crm/js/core/api-client.js"></script>
+<script src="/crm/js/core/client-normalizer.js"></script>
 <!-- 2. Foundation (no CRM dependency) -->
 <script src="/crm/js/dashboard/utils.js"></script>
 <script src="/crm/js/dashboard/store.js"></script>

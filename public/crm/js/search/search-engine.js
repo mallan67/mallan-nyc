@@ -262,7 +262,10 @@
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            params.limit = 200;
+            // ≤200: server sends inline photos via $expand=Media (fast, one request)
+            // >200: server sends listings without photos, photo-loader.js lazy-loads
+            //       via /api/media/batch + IntersectionObserver
+            params.limit = 500;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;

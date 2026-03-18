@@ -1,187 +1,410 @@
 /**
  * Import closed listings from Trestle into the local DB.
- * Fetches all closed listings for Maya Allan, creates them as DB records.
+ *
+ * Fetches ALL closed listings for Maya Allan (by name) + all agents
+ * at MAllan Real Estate Inc (by office), deduplicates, and stores
+ * with proper Trestle field mapping.
  *
  * Usage: npx tsx scripts/import-closed-from-trestle.ts
+ *
+ * Idempotent — skips listings that already exist in DB.
  */
-import path from 'node:path';
-import dotenv from 'dotenv';
-dotenv.config({ path: path.resolve('.env.local'), override: true });
+import path from "node:path";
+import dotenv from "dotenv";
+dotenv.config({ path: path.resolve(".env.local"), override: true });
 
-import { PrismaClient } from '@prisma/client';
-import { getAccessToken } from '../lib/idx/auth';
+import { PrismaClient } from "@prisma/client";
+import { getAccessToken } from "../lib/idx/auth";
 
 const prisma = new PrismaClient();
 
+// ═══════════════════════════════════════════════════════════
+// TRESTLE FIELD SELECTION
+// All fields needed for a complete closed-listing record.
+// Uses REBNY RLS field names (Trestle canonical names).
+// ═══════════════════════════════════════════════════════════
+// Use only fields validated on the IDX Plus feed.
+// We import trestle-mapper's IDX_PLUS_SELECT_FIELDS and add back a few
+// closed-listing-specific fields that may not be on the live IDX feed
+// but ARE returned for closed records.
+const SELECT_FIELDS = [
+  // B1: Address
+  "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
+  "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
+  "PostalCode", "StateOrProvince", "CountyOrParish",
+  "CrossStreet", "Latitude", "Longitude",
+  "BuildingName",
+
+  // B2: Classification
+  "ListingId", "PropertyType", "PropertySubType", "CommonInterest",
+  "OwnershipType", "StructureType",
+  "StoriesTotal",
+
+  // B4: Status & Dates
+  "StandardStatus", "ModificationTimestamp",
+  "OnMarketDate", "CloseDate", "ClosePrice",
+  "DaysOnMarket", "CumulativeDaysOnMarket",
+  "OriginalListPrice", "PreviousListPrice", "ListPrice",
+  "ListingContractDate", "PurchaseContractDate",
+
+  // B5: Pricing
+  "LeaseAmount", "LeaseAmountFrequency",
+
+  // B7: Listing Agent
+  "ListAgentFullName", "ListAgentFirstName", "ListAgentLastName",
+  "ListAgentEmail", "ListAgentDirectPhone", "ListAgentMlsId",
+  "ListAgentStateLicense",
+
+  // B8: List Office
+  "ListOfficeName", "ListOfficeMlsId", "ListOfficePhone",
+
+  // B9: Buyer Agent
+  "BuyerAgentFullName", "BuyerAgentMlsId",
+  "BuyerOfficeName", "BuyerOfficeMlsId",
+
+  // B10: Property Details
+  "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
+  "LivingArea", "LotSizeArea", "YearBuilt",
+
+  // B11: Interior
+  "Flooring", "LaundryFeatures", "FireplaceYN",
+
+  // B13: Building
+  "BuildingKeyNumeric",
+
+  // B15: Views
+  "View", "ViewYN",
+
+  // B17: Tax & HOA
+  "AssociationFee", "AssociationFeeFrequency",
+  "TaxAnnualAmount", "TaxYear",
+
+  // B18: Remarks
+  "PublicRemarks",
+].join(",");
+
 async function main() {
   const token = await getAccessToken();
-  const TRESTLE_API = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+  const TRESTLE_API =
+    process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-  // Get Maya's agent ID
-  const maya = await prisma.agent.findFirst({
-    where: { public_slug: 'maya-allan' },
-    select: { id: true },
+  // ── Look up all agents in DB ──
+  const agents = await prisma.agent.findMany({
+    select: { id: true, full_name: true, email: true, trestle_mls_id: true },
   });
-  if (!maya) throw new Error('Maya Allan not found in DB');
+  if (agents.length === 0) throw new Error("No agents found in DB");
 
-  // Fetch all closed listings by agent name
-  const filter = `ListAgentFullName eq 'Maya Allan' and StandardStatus eq 'Closed'`;
-  const select = [
-    'ListingId', 'ListAgentFullName', 'ListOfficeName', 'StandardStatus',
-    'CloseDate', 'ClosePrice', 'ListPrice', 'OriginalListPrice',
-    'StreetNumber', 'StreetName', 'StreetSuffix', 'UnitNumber',
-    'City', 'StateOrProvince', 'PostalCode', 'CountyOrParish',
-    'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf',
-    'LivingArea', 'LotSizeArea', 'YearBuilt', 'StoriesTotal',
-    'PropertyType', 'PropertySubType', 'CommonInterest',
-    'PublicRemarks', 'BuildingName',
-    'ModificationTimestamp', 'ListingContractDate', 'OnMarketDate',
-    'AssociationFee', 'AssociationFeeFrequency',
-    'TaxAnnualAmount', 'TaxYear',
-  ].join(',');
+  const agentByName = new Map(
+    agents.map((a) => [a.full_name?.toLowerCase() || "", a])
+  );
+  const defaultAgent = agents.find((a) => a.email === "maya@mallan.nyc") || agents[0];
 
-  const params = new URLSearchParams();
-  params.set('$filter', filter);
-  params.set('$select', select);
-  params.set('$top', '200');
-  params.set('$orderby', 'CloseDate desc');
+  // ── Fetch from Trestle ──
+  // Two queries: by agent name (Maya Allan) + by office (catches all agents)
+  const allRecords = new Map<string, Record<string, unknown>>();
 
-  console.log('Fetching closed listings from Trestle...');
-  const resp = await fetch(`${TRESTLE_API}/odata/Property?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-  });
+  // Query 1: By agent name
+  await fetchTrestle(
+    token,
+    TRESTLE_API,
+    `ListAgentFullName eq 'Maya Allan' and StandardStatus eq 'Closed'`,
+    allRecords
+  );
 
-  if (!resp.ok) {
-    throw new Error(`Trestle API error: ${resp.status} ${await resp.text()}`);
-  }
+  // Query 2: By office name (catches Leda, Julia, any future agents)
+  await fetchTrestle(
+    token,
+    TRESTLE_API,
+    `contains(ListOfficeName,'Mallan') and StandardStatus eq 'Closed'`,
+    allRecords
+  );
 
-  const data = await resp.json();
-  const records = data.value || [];
-  console.log(`Found ${records.length} closed listings`);
+  console.log(`\nTotal unique closed listings from Trestle: ${allRecords.size}`);
 
-  // Also fetch photos for all listings
-  console.log('Fetching photos...');
-  const listingIds = records.map((r: Record<string, unknown>) => String(r.ListingId));
+  // ── Fetch photos for all listings ──
+  console.log("Fetching photos...");
+  const listingIds = Array.from(allRecords.keys());
   const photoMap = await fetchPhotos(token, TRESTLE_API, listingIds);
 
+  // ── Import into DB ──
   let created = 0;
   let skipped = 0;
+  let errors = 0;
 
-  for (const r of records) {
-    const listingId = String(r.ListingId);
-
+  for (const [listingId, r] of allRecords) {
     // Skip if already exists
     const existing = await prisma.listing.findUnique({
       where: { listing_id: listingId },
     });
     if (existing) {
-      console.log(`  SKIP (exists): ${listingId} - ${r.StreetNumber} ${r.StreetName} ${r.UnitNumber || ''}`);
       skipped++;
       continue;
     }
 
-    // Determine listing type from price and property type
-    const isRental = String(r.PropertyType || '').toLowerCase().includes('lease') ||
-      (r.ClosePrice && Number(r.ClosePrice) < 15000) ||
-      (r.ListPrice && Number(r.ListPrice) < 15000);
+    try {
+      // ── Resolve agent ──
+      const agentName = String(r.ListAgentFullName || "").toLowerCase();
+      const agent = agentByName.get(agentName) || defaultAgent;
 
-    // Map property type
-    let propertyType = 'Residential';
-    const ci = String(r.CommonInterest || '');
-    if (ci === 'Condominium') propertyType = 'Condo';
-    else if (ci === 'StockCooperative') propertyType = 'Co-op';
-    else if (ci === 'Condop') propertyType = 'Condop';
-    else if (r.PropertySubType) propertyType = String(r.PropertySubType);
+      // ── Listing type: rental vs sale ──
+      const propType = String(r.PropertyType || "");
+      const isRental =
+        propType.toLowerCase().includes("lease") ||
+        propType === "ResidentialLease" ||
+        (r.LeaseAmount != null && Number(r.LeaseAmount) > 0) ||
+        (r.ClosePrice != null && Number(r.ClosePrice) <= 15000 && Number(r.ClosePrice) > 0) ||
+        (r.ListPrice != null && Number(r.ListPrice) <= 15000 && Number(r.ListPrice) > 0);
 
-    // Build address
-    const streetNumber = String(r.StreetNumber || '');
-    const streetName = String(r.StreetName || '');
-    const streetSuffix = String(r.StreetSuffix || '');
-    const unitNumber = r.UnitNumber ? String(r.UnitNumber) : null;
-    const city = String(r.City || 'New York');
-    const postalCode = String(r.PostalCode || '');
+      // ── Property type mapping ──
+      const ci = String(r.CommonInterest || "");
+      let propertyType = r.PropertySubType ? String(r.PropertySubType) : "Residential";
+      if (ci === "Condominium") propertyType = "Condominium";
+      else if (ci === "StockCooperative") propertyType = "Cooperative";
+      else if (ci === "Condop") propertyType = "Condop";
 
-    // Determine borough from county
-    const county = String(r.CountyOrParish || '').toLowerCase();
-    let borough = 'Manhattan';
-    if (county.includes('kings')) borough = 'Brooklyn';
-    else if (county.includes('queens')) borough = 'Queens';
-    else if (county.includes('bronx')) borough = 'Bronx';
-    else if (county.includes('richmond')) borough = 'Staten Island';
+      // ── Full address construction ──
+      const streetNumber = String(r.StreetNumber || "").trim();
+      const streetDirPrefix = String(r.StreetDirPrefix || "").trim();
+      const streetName = String(r.StreetName || "").trim();
+      const streetSuffix = String(r.StreetSuffix || "").trim();
+      const streetDirSuffix = String(r.StreetDirSuffix || "").trim();
+      const unitNumber = r.UnitNumber ? String(r.UnitNumber).trim() : null;
+      const city = String(r.City || "New York").trim();
+      const postalCode = String(r.PostalCode || "").trim();
+      const stateOrProvince = String(r.StateOrProvince || "NY").trim();
+      // UnparsedAddress may not be available on IDX Plus feed for closed listings
+      // Build it from components instead
+      const unparsedAddress: string | null = null;
 
-    const photos = photoMap.get(listingId) || [];
+      // Build human-readable street from components
+      const streetParts = [streetNumber, streetDirPrefix, streetName, streetSuffix, streetDirSuffix]
+        .filter(Boolean)
+        .join(" ");
+      // Full display address: "425 EAST PARK AVENUE, #4D"
+      const street = unparsedAddress || streetParts || "Address Unavailable";
 
-    await prisma.listing.create({
-      data: {
-        listing_id: listingId,
-        agent_id: maya.id,
-        status: 'Closed',
-        listing_type: isRental ? 'rent' : 'sale',
-        property_type: propertyType,
-        property_sub_type: r.PropertySubType ? String(r.PropertySubType) : null,
-        list_price: Number(r.ListPrice || r.ClosePrice || 0),
-        bedrooms_total: r.BedroomsTotal != null ? Number(r.BedroomsTotal) : null,
-        bathrooms_full: r.BathroomsFull != null ? Number(r.BathroomsFull) : null,
-        bathrooms_half: r.BathroomsHalf != null ? Number(r.BathroomsHalf) : null,
-        living_area: r.LivingArea ? Number(r.LivingArea) : null,
-        borough,
-        neighborhood: null,
-        city,
-        postal_code: postalCode,
-        address: {
-          StreetNumber: streetNumber,
-          StreetName: streetName,
-          StreetSuffix: streetSuffix,
-          UnitNumber: unitNumber,
-          City: city,
-          StateOrProvince: String(r.StateOrProvince || 'NY'),
-          PostalCode: postalCode,
-          Borough: borough,
+      // ── Borough from CountyOrParish ──
+      const county = String(r.CountyOrParish || "").toLowerCase();
+      let borough = "Manhattan";
+      if (county.includes("kings") || county.includes("brooklyn")) borough = "Brooklyn";
+      else if (county.includes("queens")) borough = "Queens";
+      else if (county.includes("bronx")) borough = "Bronx";
+      else if (county.includes("richmond") || county.includes("staten")) borough = "Staten Island";
+
+      // ── Neighborhood from SubdivisionName (the REBNY RLS neighborhood field) ──
+      // CityRegion = borough (Manhattan/Brooklyn/etc.), SubdivisionName = real neighborhood
+      const neighborhood = r.SubdivisionName ? String(r.SubdivisionName).trim() : null;
+
+      // ── Photos ──
+      const photos = photoMap.get(listingId) || [];
+
+      // ── Price: prefer ClosePrice, fall back to ListPrice ──
+      const closePrice = r.ClosePrice != null ? Number(r.ClosePrice) : null;
+      const listPrice = r.ListPrice != null ? Number(r.ListPrice) : 0;
+      const price = closePrice ?? listPrice;
+
+      // ── Create listing record ──
+      await prisma.listing.create({
+        data: {
+          listing_id: listingId,
+          mls_id: listingId, // Mark as Trestle-sourced
+          agent_id: agent.id,
+          status: "Closed",
+          listing_type: isRental ? "rent" : "sale",
+          property_type: propertyType,
+          property_sub_type: r.PropertySubType ? String(r.PropertySubType) : null,
+          list_price: price,
+          bedrooms_total: r.BedroomsTotal != null ? Number(r.BedroomsTotal) : null,
+          bathrooms_full: r.BathroomsFull != null ? Number(r.BathroomsFull) : null,
+          bathrooms_half: r.BathroomsHalf != null ? Number(r.BathroomsHalf) : null,
+          living_area: r.LivingArea ? Number(r.LivingArea) : null,
+          borough,
+          neighborhood,
+          city,
+          postal_code: postalCode,
+          address: {
+            // All Trestle address components (for _resolveAddress in CRM JS)
+            street: street + (unitNumber ? `, #${unitNumber}` : ""),
+            StreetNumber: streetNumber || null,
+            StreetDirPrefix: streetDirPrefix || null,
+            StreetName: streetName || null,
+            StreetSuffix: streetSuffix || null,
+            StreetDirSuffix: streetDirSuffix || null,
+            UnitNumber: unitNumber,
+            UnparsedAddress: unparsedAddress,
+            City: city,
+            StateOrProvince: stateOrProvince,
+            PostalCode: postalCode,
+            Borough: borough,
+            CrossStreet: r.CrossStreet ? String(r.CrossStreet) : null,
+            BuildingName: r.BuildingName ? String(r.BuildingName) : null,
+            Latitude: r.Latitude != null ? Number(r.Latitude) : null,
+            Longitude: r.Longitude != null ? Number(r.Longitude) : null,
+          },
+          features: {
+            // Status & dates
+            ClosePrice: closePrice,
+            CloseDate: r.CloseDate || null,
+            OriginalListPrice: r.OriginalListPrice != null ? Number(r.OriginalListPrice) : null,
+            PreviousListPrice: r.PreviousListPrice != null ? Number(r.PreviousListPrice) : null,
+            ListingContractDate: r.ListingContractDate || null,
+            PurchaseContractDate: r.PurchaseContractDate || null,
+            OnMarketDate: r.OnMarketDate || null,
+            DaysOnMarket: r.DaysOnMarket != null ? Number(r.DaysOnMarket) : null,
+            CumulativeDaysOnMarket: r.CumulativeDaysOnMarket != null ? Number(r.CumulativeDaysOnMarket) : null,
+
+            // Classification
+            CommonInterest: r.CommonInterest || null,
+            OwnershipType: r.OwnershipType || null,
+            StructureType: r.StructureType || null,
+            NewConstructionYN: r.NewConstructionYN || null,
+            StoriesTotal: r.StoriesTotal != null ? Number(r.StoriesTotal) : null,
+
+            // Building & property
+            YearBuilt: r.YearBuilt != null ? Number(r.YearBuilt) : null,
+            LotSizeArea: r.LotSizeArea != null ? Number(r.LotSizeArea) : null,
+            BuildingKeyNumeric: r.BuildingKeyNumeric != null ? Number(r.BuildingKeyNumeric) : null,
+
+            // Interior & amenities
+            Flooring: r.Flooring || null,
+            LaundryFeatures: r.LaundryFeatures || null,
+            FireplaceYN: r.FireplaceYN || null,
+            View: r.View || null,
+            ViewYN: r.ViewYN || null,
+
+            // Financial
+            AssociationFee: r.AssociationFee != null ? Number(r.AssociationFee) : null,
+            AssociationFeeFrequency: r.AssociationFeeFrequency || null,
+            TaxAnnualAmount: r.TaxAnnualAmount != null ? Number(r.TaxAnnualAmount) : null,
+            TaxYear: r.TaxYear != null ? Number(r.TaxYear) : null,
+
+            // Remarks
+            PublicRemarks: r.PublicRemarks || null,
+
+            // Buyer side (for deals where we represented buyer)
+            BuyerAgentFullName: r.BuyerAgentFullName || null,
+            BuyerAgentMlsId: r.BuyerAgentMlsId || null,
+            BuyerOfficeName: r.BuyerOfficeName || null,
+            BuyerOfficeMlsId: r.BuyerOfficeMlsId || null,
+
+            // Rental-specific (if present)
+            LeaseAmount: r.LeaseAmount != null ? Number(r.LeaseAmount) : null,
+            LeaseAmountFrequency: r.LeaseAmountFrequency || null,
+
+            // Lot
+            LotSizeArea: r.LotSizeArea != null ? Number(r.LotSizeArea) : null,
+          },
+          media: photos,
+          agent_info: {
+            ListAgentFullName: String(r.ListAgentFullName || ""),
+            ListAgentMlsId: r.ListAgentMlsId ? String(r.ListAgentMlsId) : null,
+            ListAgentStateLicense: r.ListAgentStateLicense ? String(r.ListAgentStateLicense) : null,
+            ListOfficeName: String(r.ListOfficeName || ""),
+            ListOfficeMlsId: r.ListOfficeMlsId ? String(r.ListOfficeMlsId) : null,
+          },
+
+          // Closed listings: distribution gates set correctly
+          idx_display_yn: true,
+          internet_entire_listing_display_yn: true,
+          internet_address_display_yn: true,
+          owner_opt_out: false,
+          participant_only: false,
+
+          modification_timestamp: r.ModificationTimestamp
+            ? new Date(String(r.ModificationTimestamp))
+            : new Date(),
+          listing_contract_date: r.ListingContractDate
+            ? new Date(String(r.ListingContractDate))
+            : null,
         },
-        features: {
-          YearBuilt: r.YearBuilt || null,
-          StoriesTotal: r.StoriesTotal || null,
-          PublicRemarks: r.PublicRemarks || null,
-          AssociationFee: r.AssociationFee || null,
-          AssociationFeeFrequency: r.AssociationFeeFrequency || null,
-          TaxAnnualAmount: r.TaxAnnualAmount || null,
-          TaxYear: r.TaxYear || null,
-          ClosePrice: r.ClosePrice || null,
-          CloseDate: r.CloseDate || null,
-          OriginalListPrice: r.OriginalListPrice || null,
-          CommonInterest: r.CommonInterest || null,
-        },
-        media: photos,
-        agent_info: {
-          ListAgentFullName: String(r.ListAgentFullName || 'Maya Allan'),
-          ListOfficeName: String(r.ListOfficeName || 'MAllan Real Estate Inc'),
-        },
-        // Closed listings — distribution gates don't matter for display
-        // but set them correctly for compliance
-        idx_display_yn: true,
-        internet_entire_listing_display_yn: true,
-        internet_address_display_yn: true,
-        owner_opt_out: false,
-        participant_only: false,
-        modification_timestamp: r.ModificationTimestamp ? new Date(String(r.ModificationTimestamp)) : new Date(),
-        listing_contract_date: r.ListingContractDate ? new Date(String(r.ListingContractDate)) : null,
-      },
-    });
+      });
 
-    const closePrice = r.ClosePrice ? `$${Number(r.ClosePrice).toLocaleString()}` : 'no price';
-    console.log(`  CREATED: ${streetNumber} ${streetName} ${unitNumber || ''} | ${closePrice} | ${isRental ? 'rental' : 'sale'} | ${propertyType}`);
-    created++;
+      const displayAddr = street + (unitNumber ? ` #${unitNumber}` : "");
+      const displayPrice = price
+        ? `$${price.toLocaleString()}`
+        : "no price";
+      console.log(
+        `  + ${listingId} | ${displayAddr} | ${displayPrice} | ${isRental ? "rental" : "sale"} | ${propertyType} | ${neighborhood || borough} | ${photos.length} photos`
+      );
+      created++;
+    } catch (err) {
+      console.error(`  ERROR ${listingId}:`, err);
+      errors++;
+    }
   }
 
-  console.log(`\nDone: ${created} created, ${skipped} skipped (already exist)`);
+  console.log(
+    `\nDone: ${created} created, ${skipped} skipped, ${errors} errors`
+  );
+
+  // Verify
+  const totalInDb = await prisma.listing.count();
+  console.log(`Total listings in DB: ${totalInDb}`);
 }
 
+// ═══════════════════════════════════════════════════════════
+// Fetch listings from Trestle (with pagination)
+// ═══════════════════════════════════════════════════════════
+async function fetchTrestle(
+  token: string,
+  apiUrl: string,
+  filter: string,
+  records: Map<string, Record<string, unknown>>
+): Promise<void> {
+  console.log(`Fetching: ${filter}`);
+
+  const params = new URLSearchParams();
+  params.set("$filter", filter);
+  params.set("$select", SELECT_FIELDS);
+  params.set("$top", "200");
+  params.set("$orderby", "CloseDate desc");
+  params.set("$count", "true");
+
+  let url: string | null = `${apiUrl}/odata/Property?${params.toString()}`;
+  let total = 0;
+
+  while (url) {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error(`  Trestle API error: ${resp.status} ${text.substring(0, 200)}`);
+      break;
+    }
+
+    const data = await resp.json();
+    const count = data["@odata.count"] ?? 0;
+    if (count > 0) total = count;
+
+    for (const r of data.value || []) {
+      const id = String(r.ListingId || "");
+      if (id && !records.has(id)) {
+        records.set(id, r);
+      }
+    }
+
+    url = data["@odata.nextLink"] || null;
+  }
+
+  console.log(`  Found ${total} listings (${records.size} unique so far)`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Fetch photos from Trestle Media endpoint
+// ═══════════════════════════════════════════════════════════
 async function fetchPhotos(
   token: string,
   apiUrl: string,
   listingIds: string[]
-): Promise<Map<string, { MediaURL: string; MediaType: string; Order: number }[]>> {
-  const map = new Map<string, { MediaURL: string; MediaType: string; Order: number }[]>();
+): Promise<
+  Map<string, { MediaURL: string; MediaType: string; Order: number }[]>
+> {
+  const map = new Map<
+    string,
+    { MediaURL: string; MediaType: string; Order: number }[]
+  >();
   if (listingIds.length === 0) return map;
 
   // Batch in groups of 20 to avoid URL length limits
@@ -190,46 +413,65 @@ async function fetchPhotos(
     batches.push(listingIds.slice(i, i + 20));
   }
 
+  let totalPhotos = 0;
   for (const batch of batches) {
     try {
-      const filterParts = batch.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
-      const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3`;
+      const filterParts = batch.map(
+        (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
+      );
+      // Get top 8 photos per listing (sorted by Order)
+      const mediaFilter = `(${filterParts.join(" or ")})`;
       const params = new URLSearchParams();
-      params.set('$filter', mediaFilter);
-      params.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN');
-      params.set('$orderby', 'ResourceRecordID asc,Order asc');
-      params.set('$top', String(batch.length * 4));
+      params.set("$filter", mediaFilter);
+      params.set(
+        "$select",
+        "ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,ShortDescription"
+      );
+      params.set("$orderby", "ResourceRecordID asc,Order asc");
+      params.set("$top", String(batch.length * 8));
 
-      const resp = await fetch(`${apiUrl}/odata/Media?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      });
+      const resp = await fetch(
+        `${apiUrl}/odata/Media?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
 
       if (!resp.ok) continue;
 
       const data = await resp.json();
-      for (const m of (data.value || [])) {
-        const lid = String(m.ResourceRecordID || '');
+      for (const m of data.value || []) {
+        const lid = String(m.ResourceRecordID || "");
         if (!lid || !m.MediaURL) continue;
-        const cat = String(m.MediaCategory || '').toLowerCase();
-        if (cat.includes('floor plan')) continue;
+        // Skip floor plans, virtual tours, etc. — photos only
+        const cat = String(m.MediaCategory || "").toLowerCase();
+        if (cat.includes("floor plan") || cat.includes("virtual tour")) continue;
+
         if (!map.has(lid)) map.set(lid, []);
         map.get(lid)!.push({
           MediaURL: String(m.MediaURL),
-          MediaType: 'Photo',
+          MediaType: String(m.MediaCategory || m.MediaType || "Photo"),
           Order: Number(m.Order ?? 0),
         });
+        totalPhotos++;
       }
     } catch {
-      // Non-fatal
+      // Non-fatal — some batches may fail
     }
   }
 
+  console.log(
+    `  Fetched ${totalPhotos} photos across ${map.size}/${listingIds.length} listings`
+  );
   return map;
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("Import failed:", e);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

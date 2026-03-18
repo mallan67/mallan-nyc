@@ -2311,27 +2311,27 @@
         function getReportListings() {
             var reportSelRadio = document.querySelector('input[name="reportSelection"]:checked');
             var reportSel = reportSelRadio ? reportSelRadio.value : 'all';
-            var allListings = searchResultsState.filteredListings || listings;
-            var listings;
+            var allListings = searchResultsState.filteredListings || (typeof listings !== 'undefined' ? listings : []);
+            var reportListings;
             if (reportSel === 'selected' && reportState.selectedListingIds.length > 0) {
                 var selIds = reportState.selectedListingIds;
-                listings = allListings.filter(function(l) { return selIds.indexOf(l.id) > -1; });
+                reportListings = allListings.filter(function(l) { return selIds.indexOf(l.id) > -1; });
             } else if (reportSel === 'picked') {
                 var flags = typeof listingFlags !== 'undefined' ? listingFlags : {};
-                listings = allListings.filter(function(l) { return flags[l.id] && flags[l.id].picked; });
+                reportListings = allListings.filter(function(l) { return flags[l.id] && flags[l.id].picked; });
             } else if (reportSel === 'liked') {
                 var lflags = typeof listingFlags !== 'undefined' ? listingFlags : {};
-                listings = allListings.filter(function(l) { return lflags[l.id] && lflags[l.id].liked; });
+                reportListings = allListings.filter(function(l) { return lflags[l.id] && lflags[l.id].liked; });
             } else {
-                listings = allListings;
+                reportListings = allListings;
             }
-            if (listings.length === 0) listings = allListings;
+            if (reportListings.length === 0) reportListings = allListings;
             // IDX + Internet compliance filter — remove opted-out listings
-            listings = listings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
+            reportListings = reportListings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
             // Sort via reportState
-            listings = getSortedListings(listings);
+            reportListings = getSortedListings(reportListings);
             // Enforce 250 cap
-            return listings.slice(0, 250);
+            return reportListings.slice(0, 250);
         }
 
         // ── Helper: Get agent info for reports ──

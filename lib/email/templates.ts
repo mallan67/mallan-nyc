@@ -9,42 +9,65 @@ const BRAND_GOLD = "#C4A052";
 const BRAND_DARK = "#1a1a1a";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
 
-// Shared footer for all emails
+// Shared footer — table-based for Outlook compatibility
 const FOOTER = `
-<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;line-height:1.5;">
-  <p style="margin:0 0 8px;">Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128</p>
-  <p style="margin:0 0 8px;">Licensed Real Estate Broker | NY DOS #10991205323 | 646-258-4460</p>
-  <p style="margin:0 0 8px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e5e7eb;margin-top:32px;">
+  <tr><td style="padding:16px 0 8px;font-size:11px;color:#9ca3af;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">
+    Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128
+  </td></tr>
+  <tr><td style="padding:0 0 8px;font-size:11px;color:#9ca3af;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">
+    Licensed Real Estate Broker | NY DOS #10991205323 | 646-258-4460
+  </td></tr>
+  <tr><td style="padding:0 0 8px;font-size:11px;color:#9ca3af;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">
     Mallan Real Estate Inc. is committed to compliance with the Fair Housing Act,
     the New York State Human Rights Law, and the NYC Human Rights Law (Title 8).
     We do not discriminate on the basis of race, color, religion, sex, national origin,
     familial status, disability, sexual orientation, gender identity, marital status,
     age, lawful source of income, or any other protected class.
-  </p>
-  <p style="margin:0;">
+  </td></tr>
+  <tr><td style="padding:0;font-size:11px;font-family:Arial,Helvetica,sans-serif;">
     <a href="${BASE_URL}/fair-housing" style="color:${BRAND_GOLD};text-decoration:underline;">Fair Housing Policy</a> |
     <a href="${BASE_URL}/privacy" style="color:${BRAND_GOLD};text-decoration:underline;">Privacy Policy</a>
-  </p>
-</div>`;
+  </td></tr>
+</table>`;
 
 /**
  * Wrap email content in a styled container.
+ * Uses tables for Outlook (Word rendering engine) compatibility.
  */
 function wrapEmail(content: string): string {
   return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:600px;margin:0 auto;padding:24px;">
-  <div style="background:#ffffff;border-radius:8px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-    <div style="text-align:center;margin-bottom:24px;">
-      <span style="font-size:20px;font-weight:700;color:${BRAND_DARK};letter-spacing:1px;">MALLAN</span>
-      <span style="font-size:20px;font-weight:300;color:${BRAND_GOLD};letter-spacing:1px;margin-left:4px;">NYC</span>
-    </div>
-    ${content}
-    ${FOOTER}
-  </div>
-</div>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style type="text/css">
+  body, table, td { font-family: Arial, Helvetica, sans-serif; }
+  img { border: 0; display: block; }
+  a { color: ${BRAND_GOLD}; }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;width:100%;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<!-- Outer wrapper table -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">
+  <tr><td align="center" style="padding:24px 16px;">
+    <!-- Inner content table -->
+    <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border:1px solid #e5e7eb;">
+      <!-- Header -->
+      <tr><td align="center" style="padding:28px 32px 20px;">
+        <span style="font-size:22px;font-weight:700;color:${BRAND_DARK};letter-spacing:2px;font-family:Arial,Helvetica,sans-serif;">MALLAN</span>
+        <span style="font-size:22px;font-weight:300;color:${BRAND_GOLD};letter-spacing:2px;font-family:Arial,Helvetica,sans-serif;">&nbsp;NYC</span>
+      </td></tr>
+      <!-- Content -->
+      <tr><td style="padding:0 32px 32px;font-family:Arial,Helvetica,sans-serif;">
+        ${content}
+        ${FOOTER}
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
 </body>
 </html>`;
 }
@@ -339,6 +362,118 @@ export function cmaAutoResponseEmail(
     <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;">
       This is an automated confirmation. Please do not reply to this email.
     </p>
+  `);
+}
+
+/**
+ * Listing send email — sent when agent sends a listing to a client via CRM.
+ * Shows a visual card with photo, price, address, beds/baths, and CTA.
+ */
+export function listingSendEmail(
+  listing: {
+    address: string;
+    price: string;
+    beds?: number;
+    baths?: number;
+    sqft?: number;
+    status?: string;
+    photoUrl?: string;
+    listingId: string;
+    listingType?: string;
+  },
+  clientName: string,
+  agentName: string,
+  personalNote?: string
+): string {
+  const detailUrl = `${BASE_URL}/listing/${encodeURIComponent(listing.listingId)}`;
+  const typeLabel = listing.listingType === "rent" || listing.listingType === "ResidentialLease" ? "Rental" : "Sale";
+  const details = [
+    listing.beds != null ? `${listing.beds} bed` : null,
+    listing.baths != null ? `${listing.baths} bath` : null,
+    listing.sqft ? `${listing.sqft.toLocaleString()} sqft` : null,
+  ].filter(Boolean).join(" &middot; ");
+
+  const photoHtml = listing.photoUrl
+    ? `<tr><td style="padding:0;"><img src="${escapeHtml(listing.photoUrl)}" alt="${escapeHtml(listing.address)}" width="536" style="width:100%;max-width:536px;height:auto;display:block;"></td></tr>`
+    : "";
+
+  const noteHtml = personalNote
+    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+        <tr>
+          <td width="3" style="background-color:${BRAND_GOLD};"></td>
+          <td style="padding:12px 16px;background-color:#f9fafb;">
+            <p style="font-size:14px;color:#374151;margin:0;font-style:italic;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(personalNote)}</p>
+            <p style="font-size:12px;color:#9ca3af;margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;">&mdash; ${escapeHtml(agentName)}</p>
+          </td>
+        </tr>
+      </table>`
+    : "";
+
+  return wrapEmail(`
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;">
+      Hi ${escapeHtml(clientName)},
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;">
+      ${escapeHtml(agentName)} has sent you a listing to review:
+    </p>
+    ${noteHtml}
+    <!-- Listing Card -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e5e7eb;margin-bottom:24px;">
+      ${photoHtml}
+      <tr><td style="padding:20px;">
+        <table cellpadding="0" cellspacing="0" border="0">
+          <tr><td style="padding:0 0 10px;">
+            <table cellpadding="0" cellspacing="0" border="0"><tr>
+              <td style="background-color:${BRAND_GOLD};padding:4px 12px;font-size:11px;font-weight:700;color:#ffffff;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;">
+                ${escapeHtml(typeLabel)}
+              </td>
+            </tr></table>
+          </td></tr>
+          <tr><td style="font-size:18px;font-weight:700;color:${BRAND_DARK};padding:0 0 4px;font-family:Arial,Helvetica,sans-serif;">
+            ${escapeHtml(listing.address)}
+          </td></tr>
+          <tr><td style="font-size:22px;font-weight:800;color:${BRAND_GOLD};padding:0 0 4px;font-family:Arial,Helvetica,sans-serif;">
+            ${escapeHtml(listing.price)}
+          </td></tr>
+          ${details ? `<tr><td style="font-size:13px;color:#6b7280;padding:0;font-family:Arial,Helvetica,sans-serif;">${details}</td></tr>` : ""}
+        </table>
+      </td></tr>
+    </table>
+    <!-- CTA Button -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td align="center" style="padding:0 0 24px;">
+        <!--[if mso]>
+        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${detailUrl}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="13%" fillcolor="${BRAND_GOLD}" stroke="f">
+          <w:anchorlock/><center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;">View Full Listing</center>
+        </v:roundrect>
+        <![endif]-->
+        <!--[if !mso]><!-->
+        <a href="${detailUrl}" style="display:inline-block;padding:14px 40px;background-color:${BRAND_GOLD};color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:6px;font-family:Arial,Helvetica,sans-serif;">View Full Listing</a>
+        <!--<![endif]-->
+      </td></tr>
+    </table>
+    <p style="font-size:13px;color:#9ca3af;margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;">
+      Interested? Reply to this email or call ${escapeHtml(agentName)} to schedule a showing.
+    </p>
+    <p style="font-size:11px;color:#9ca3af;margin:0;font-family:Arial,Helvetica,sans-serif;">
+      Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
+    </p>
+  `);
+}
+
+/**
+ * Generic CRM email — sent from the compose email modal in Communications.
+ */
+export function genericCrmEmail(
+  body: string,
+  agentName: string
+): string {
+  return wrapEmail(`
+    <div style="font-size:15px;color:#374151;line-height:1.7;white-space:pre-wrap;">${escapeHtml(body)}</div>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;">
+      <p style="font-size:13px;color:#6b7280;margin:0;">${escapeHtml(agentName)}</p>
+      <p style="font-size:12px;color:#9ca3af;margin:4px 0 0;">Mallan Real Estate Inc. | 646-258-4460</p>
+    </div>
   `);
 }
 

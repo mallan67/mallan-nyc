@@ -56,6 +56,7 @@ export async function GET(
           hesitationSignals: cached.hesitation_signals,
           ghostStatus: cached.ghost_status,
           silenceDays: cached.silence_days,
+          searchNarrowingTrend: cached.search_narrowing_trend,
           topListings: cached.top_listings,
           computedAt: cached.last_computed.toISOString(),
         });
@@ -82,6 +83,7 @@ export async function GET(
     hesitationSignals: cached.hesitation_signals,
     ghostStatus: cached.ghost_status,
     silenceDays: cached.silence_days,
+    searchNarrowingTrend: cached.search_narrowing_trend,
     topListings: cached.top_listings,
     computedAt: cached.last_computed.toISOString(),
   });

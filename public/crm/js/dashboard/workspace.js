@@ -54,20 +54,12 @@ var Workspace = (function () {
   }
 
   function _renderClientWorkspace(c) {
-    var cl = _client;
-    // Normalize name and type from API fields
-    if (!cl.name && (cl.first_name || cl.last_name)) {
-      cl.name = ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim();
-    }
-    if (!cl.type && !cl.client_type) {
-      cl.type = cl.portal_role || (cl.roles && cl.roles[0]) || 'buyer';
-      cl.client_type = cl.type;
-    }
+    var cl = ClientNormalizer.normalize(_client);
     var name = cl.name || cl.email || 'Client';
     var type = cl.type || cl.client_type || 'buyer';
     var hasSecondary = cl.secondary_first_name || cl.secondary_last_name;
     var secondaryName = hasSecondary ? ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim() : '';
-    var displayName = _clientDisplayName(cl);
+    var displayName = cl._displayName || ClientNormalizer.displayName(cl);
 
     var html = '<div class="space-y-0">';
 
@@ -85,7 +77,7 @@ var Workspace = (function () {
             '<h2 class="text-xl font-bold text-gray-900">' + E(displayName) + '</h2>' +
             '<div class="flex items-center gap-2 mt-1">' +
               UI.roleBadge(type) +
-              UI.stageBadge(cl.stage || cl.status || 'active') +
+              UI.stageBadge(cl.pipeline_stage || cl.stage || cl.status || 'new') +
               (hasSecondary ? '<span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">' + E(cl.secondary_relationship || 'partner') + '</span>' : '') +
             '</div>' +
           '</div>' +
@@ -94,7 +86,6 @@ var Workspace = (function () {
         '<div class="flex gap-2">' +
           (!hasSecondary ? '<button class="btn btn-sm btn-outline" onclick="Workspace._addSecondaryPerson()"><i class="fas fa-user-plus"></i> Add Person</button>' : '') +
           '<button class="btn btn-sm btn-outline" onclick="Workspace.editClient()"><i class="fas fa-edit"></i> Edit</button>' +
-          '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> Send Listing</button>' +
         '</div>' +
       '</div>' +
       // Contact info — both people
@@ -106,6 +97,20 @@ var Workspace = (function () {
         (cl.source ? '<span><i class="fas fa-tag mr-1"></i>Source: ' + E(cl.source) + '</span>' : '') +
       '</div>' +
     '</div>';
+
+    // ── Smart Alerts ──
+    var alerts = _computeClientAlerts(cl);
+    if (alerts.length > 0) {
+      html += '<div class="space-y-2 my-3">';
+      alerts.forEach(function (a) {
+        html += '<div class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border ' + a.colorClass + '">' +
+          '<i class="fas ' + a.icon + ' text-xs"></i>' +
+          '<span>' + a.message + '</span>' +
+          (a.action ? '<button class="btn btn-sm btn-outline ml-auto text-xs" onclick="' + a.action.onclick + '">' + a.action.label + '</button>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    }
 
     // Tabs
     html += UI.tabs(CLIENT_TABS, _clientTab, 'Workspace.switchClientTab');
@@ -142,8 +147,9 @@ var Workspace = (function () {
 
     // Render active tab content
     _renderClientTab();
-    // Fetch lead score for right rail
+    // Fetch lead score + health for right rail
     _fetchRailLeadScore();
+    _fetchRailHealth();
   }
 
   function _fetchHeaderPartner() {
@@ -238,12 +244,10 @@ var Workspace = (function () {
         '<div class="flex justify-between text-xs"><span>Next Task</span><span class="font-bold truncate max-w-[120px]" title="' + E(railNextTask) + '">' + E(railNextTask) + '</span></div>' +
       '</div></div>';
 
-    // Health Metrics
-    html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Health Metrics</h4>' +
-      '<div class="space-y-2">' +
-        '<div class="flex justify-between text-xs"><span>Health Score</span><span class="font-bold">' + (cl.healthScore || cl.health_score || '\u2014') + '</span></div>' +
-        '<div class="flex justify-between text-xs"><span>Readiness</span><span class="font-bold" id="wsRailReadinessScore">' + (cl.readinessScore || cl.readiness_score || '\u2014') + '</span></div>' +
-        '<div class="flex justify-between text-xs"><span>Conversion</span><span class="font-bold">' + (cl.conversionProbability || cl.conversion_probability || '\u2014') + (cl.conversionProbability ? '%' : '') + '</span></div>' +
+    // Health Metrics — fetched async from client-health endpoint
+    html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Health</h4>' +
+      '<div id="wsRailHealth" class="space-y-2">' +
+        '<div class="text-xs text-gray-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i></div>' +
       '</div></div>';
 
     // Nurture Status
@@ -270,14 +274,14 @@ var Workspace = (function () {
       '<button class="w-full text-center text-[10px] text-blue-600 hover:underline mt-2" onclick="Workspace.switchClientTab(\'readiness\')">Edit nurture settings</button>' +
     '</div>';
 
-    // Alerts
+    // Alerts (from smart alerts, not Alerts module)
     if (alerts.length > 0) {
       html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Alerts</h4>' +
         '<div class="space-y-2">';
       alerts.slice(0, 5).forEach(function (a) {
-        html += '<div class="flex gap-2 text-xs p-2 rounded" style="background:' + Alerts.severityBg(a.severity) + '">' +
-          '<i class="fas ' + Alerts.severityIcon(a.severity) + '" style="color:' + Alerts.severityColor(a.severity) + '"></i>' +
-          '<span>' + E(a.title) + '</span></div>';
+        html += '<div class="flex gap-2 text-xs p-2 rounded-lg border ' + (a.colorClass || 'bg-gray-50 border-gray-200 text-gray-700') + '">' +
+          '<i class="fas ' + (a.icon || 'fa-info-circle') + '" style="font-size:10px"></i>' +
+          '<span class="flex-1">' + (a.message || '') + '</span></div>';
       });
       html += '</div></div>';
     }
@@ -294,33 +298,64 @@ var Workspace = (function () {
   }
 
   function _computeNextBestAction(cl, type, alerts) {
-    // Check documents
-    var docs = _clientData.documents || [];
-    if (docs.length === 0) {
-      return { title: 'Upload required documents', detail: 'No documents on file. Start with required agreements.', action: "Workspace.switchClientTab('agreements')", icon: 'fa-file-signature', actionLabel: 'Go to Agreements' };
+    var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
+
+    // If in deal/offer stage — focus on closing
+    if (stage === 'deal') {
+      return { title: 'Push toward closing', detail: 'Active deal. Check documents, contingencies, and deadlines.', action: "Workspace.switchClientTab('agreements')", icon: 'fa-handshake', actionLabel: 'Agreements' };
     }
-    // Check showings
-    var showings = _clientData.showings || [];
-    if (showings.length === 0) {
-      return { title: 'Schedule a showing', detail: 'No showings scheduled yet for this client.', action: 'Workspace._scheduleShowing()', icon: 'fa-calendar-plus', actionLabel: 'Schedule' };
+    if (stage === 'offer') {
+      return { title: 'Follow up on offer', detail: 'Offer is out. Track response and prepare counter if needed.', action: "Workspace.switchClientTab('pipeline')", icon: 'fa-gavel', actionLabel: 'Pipeline' };
     }
-    // Check recent activity
-    var events = Events.getByEntity('client', _clientId);
-    var lastEvent = events.length > 0 ? events[0] : null;
-    var daysSinceLast = lastEvent ? Math.floor((Date.now() - new Date(lastEvent.createdAt).getTime()) / 86400000) : 999;
-    if (daysSinceLast > 7) {
-      return { title: 'Schedule a follow-up', detail: 'No activity in ' + daysSinceLast + ' days. Reach out to keep the relationship warm.', action: 'Workspace._addActivityNote()', icon: 'fa-sticky-note', actionLabel: 'Add Note' };
+
+    // If alerts say something urgent — surface it
+    if (alerts && alerts.length > 0) {
+      var urgent = alerts[0];
+      return { title: urgent.message, detail: '', action: urgent.action ? urgent.action.onclick : null, icon: urgent.icon, actionLabel: urgent.action ? urgent.action.label : '' };
     }
-    // Renter near lease end
+
+    // Renter near lease end — conversion talk
     if (type === 'renter') {
       var leaseEnd = cl.leaseEndDate || cl.lease_end_date;
       if (leaseEnd) {
         var daysLeft = Utils.daysUntil ? Utils.daysUntil(leaseEnd) : Math.floor((new Date(leaseEnd).getTime() - Date.now()) / 86400000);
-        if (daysLeft <= 180) {
+        if (daysLeft > 0 && daysLeft <= 180) {
           return { title: 'Discuss buyer conversion', detail: 'Lease ends in ' + daysLeft + ' days. Good time to discuss buying.', action: "Workspace.switchClientTab('pipeline')", icon: 'fa-exchange-alt', actionLabel: 'View Pipeline' };
         }
       }
     }
+
+    // Landlord near tenant lease end
+    if (type === 'landlord') {
+      var landlordLeaseEnd = cl.leaseEndDate || cl.lease_end_date;
+      if (landlordLeaseEnd) {
+        var landlordDaysLeft = Utils.daysUntil ? Utils.daysUntil(landlordLeaseEnd) : Math.floor((new Date(landlordLeaseEnd).getTime() - Date.now()) / 86400000);
+        if (landlordDaysLeft > 0 && landlordDaysLeft <= 120) {
+          return { title: 'Discuss tenant renewal or re-listing', detail: 'Tenant lease ends in ' + landlordDaysLeft + ' days.', action: 'Workspace._quickAddNote()', icon: 'fa-key', actionLabel: 'Add Note' };
+        }
+      }
+    }
+
+    // New/contacted — make first contact or schedule showing
+    if (stage === 'new') {
+      return { title: 'Make first contact', detail: 'New client. Send an intro and start building the relationship.', action: 'Workspace._quickAddNote()', icon: 'fa-phone', actionLabel: 'Log Contact' };
+    }
+
+    // No showings yet for active buyer/renter
+    var showings = _clientData.showings || [];
+    if (showings.length === 0 && (type === 'buyer' || type === 'renter')) {
+      return { title: 'Schedule a showing', detail: 'No showings yet. Find a listing and set up a visit.', action: 'Workspace._scheduleShowing()', icon: 'fa-calendar-plus', actionLabel: 'Schedule' };
+    }
+
+    // Recent activity check — stale?
+    var events = Events.getByEntity('client', _clientId);
+    var lastEvent = events.length > 0 ? events[0] : null;
+    var daysSinceLast = lastEvent ? Math.floor((Date.now() - new Date(lastEvent.createdAt).getTime()) / 86400000) : 999;
+    if (daysSinceLast > 7) {
+      return { title: 'Follow up', detail: 'No activity in ' + daysSinceLast + ' days. A quick check-in keeps the relationship warm.', action: 'Workspace._quickAddNote()', icon: 'fa-sticky-note', actionLabel: 'Add Note' };
+    }
+
+    // Default — keep sending listings
     return { title: 'Send a new listing', detail: 'Client is active. Keep sending relevant listings.', action: 'CRM.quickSendListing()', icon: 'fa-paper-plane', actionLabel: 'Send Listing' };
   }
 
@@ -343,19 +378,108 @@ var Workspace = (function () {
     });
   }
 
+  function _fetchRailHealth() {
+    MallanAPI._fetch('/api/crm/client-health/' + _clientId).then(function (data) {
+      var el = document.getElementById('wsRailHealth');
+      if (!el) return;
+      var urgencyColors = { high: '#EF4444', medium: '#F59E0B', low: '#3B82F6', none: '#9CA3AF' };
+      var urgencyLabels = { high: 'Needs Attention', medium: 'Monitor', low: 'Healthy', none: 'Stable' };
+      var color = urgencyColors[data.urgencyLevel] || '#9CA3AF';
+      var label = urgencyLabels[data.urgencyLevel] || 'Unknown';
+      var html = '<div class="flex justify-between text-xs"><span>Score</span><span class="font-bold">' + (data.healthScore || 0) + '/100</span></div>' +
+        '<div class="flex justify-between text-xs"><span>Status</span><span class="font-bold" style="color:' + color + '">' + E(label) + '</span></div>' +
+        '<div class="flex justify-between text-xs"><span>Suggested Stage</span><span class="font-bold">' + E(data.suggestedStage || '-') + '</span></div>';
+      if (data.reasons && data.reasons.length > 0) {
+        html += '<div class="mt-2 pt-2 border-t">';
+        data.reasons.slice(0, 3).forEach(function (r) {
+          html += '<p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1" style="color:' + color + '"></i>' + E(r) + '</p>';
+        });
+        html += '</div>';
+      }
+      el.innerHTML = html;
+    }).catch(function () {
+      var el = document.getElementById('wsRailHealth');
+      if (el) el.innerHTML = '<p class="text-xs text-gray-400 text-center">N/A</p>';
+    });
+  }
+
   function _loadClientSecondary() {
-    // Load tasks, showings, documents in background
+    // Load tasks, showings, documents, conviction, intent in background
     Promise.all([
       MallanAPI._fetch('/api/crm/tasks?client_id=' + _clientId).catch(function () { return { tasks: [] }; }),
       MallanAPI.showings.list({ limit: 20 }).catch(function () { return { showings: [] }; }),
       Documents.list('client', _clientId),
       Events.loadForEntity('client', _clientId),
+      MallanAPI._fetch('/api/crm/conviction/' + _clientId).catch(function () { return null; }),
     ]).then(function (r) {
       _clientData.tasks = r[0].tasks || [];
       _clientData.showings = (r[1].showings || []).filter(function (s) { return s.client_id === _clientId || s.clientId === _clientId; });
       _clientData.documents = r[2] || [];
       _clientData.events = r[3] || [];
+      _clientData.conviction = r[4] || null;
     });
+  }
+
+  // ─── Smart Client Alerts ─────────────────────────────────────────────
+
+  function _computeClientAlerts(cl) {
+    var alerts = [];
+    var now = new Date();
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
+
+    // No activity in 14+ days
+    var lastActivity = new Date(cl.updated_at || cl.created_at || 0);
+    var daysSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / 86400000);
+    if (daysSinceActivity >= 14) {
+      alerts.push({
+        icon: 'fa-clock',
+        message: 'No activity in ' + daysSinceActivity + ' days \u2014 schedule a follow-up',
+        colorClass: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+        action: { label: 'Add Task', onclick: 'Workspace._quickAddTask()' },
+      });
+    }
+
+    // Lease expiring
+    var leaseEnd = cl.lease_end_date;
+    if (leaseEnd && (clientType === 'renter' || clientType === 'landlord')) {
+      var daysLeft = Math.floor((new Date(leaseEnd).getTime() - now.getTime()) / 86400000);
+      if (daysLeft > 0 && daysLeft <= 90) {
+        var leaseMsg = clientType === 'landlord'
+          ? 'Tenant lease expires in ' + daysLeft + ' days \u2014 discuss renewal or re-listing'
+          : 'Lease expires in ' + daysLeft + ' days \u2014 discuss renewal or buying';
+        alerts.push({
+          icon: 'fa-key',
+          message: leaseMsg,
+          colorClass: daysLeft <= 30 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-orange-50 border-orange-200 text-orange-800',
+          action: { label: 'Add Note', onclick: 'Workspace._quickAddNote()' },
+        });
+      }
+    }
+
+    // Liked listings but no showing
+    var actions = cl.actions || [];
+    var likedCount = actions.filter(function (a) { return a.action === 'liked'; }).length;
+    var hasShowing = actions.some(function (a) { return a.action === 'schedule'; });
+    if (likedCount >= 3 && !hasShowing) {
+      alerts.push({
+        icon: 'fa-heart',
+        message: 'Client liked ' + likedCount + ' listings but no showing scheduled',
+        colorClass: 'bg-blue-50 border-blue-200 text-blue-800',
+        action: { label: 'Schedule', onclick: 'Workspace._scheduleShowing()' },
+      });
+    }
+
+    // Financial docs missing for buyers
+    if (clientType === 'buyer' && !cl.pre_approved && !cl.annual_income) {
+      alerts.push({
+        icon: 'fa-file-invoice-dollar',
+        message: 'Financial profile incomplete \u2014 request pre-approval docs',
+        colorClass: 'bg-gray-50 border-gray-200 text-gray-700',
+        action: null,
+      });
+    }
+
+    return alerts;
   }
 
   // ─── Tab: Overview ───────────────────────────────────────────────────
@@ -394,15 +518,31 @@ var Workspace = (function () {
 
     var html = '<div class="space-y-4">';
 
-    // ── Summary Cards (5) ──
-    html += '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">' +
+    // ── Summary Cards (4) — stage, activity, next task, type-specific ──
+    var typeSpecificCard = '';
+    if (clientType === 'renter' && cl.lease_end_date) {
+      var leaseDays = Math.floor((new Date(cl.lease_end_date).getTime() - Date.now()) / 86400000);
+      var leaseColor = leaseDays <= 30 ? 'text-red-600' : leaseDays <= 90 ? 'text-amber-600' : 'text-green-600';
+      typeSpecificCard = '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Lease Ends</p>' +
+        '<p class="text-lg font-bold ' + leaseColor + '">' + leaseDays + 'd</p>' +
+      '</div>';
+    } else if (clientType === 'buyer' && cl.pre_approved_amount) {
+      typeSpecificCard = '<div class="p-3 rounded-lg bg-green-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Pre-Approved</p>' +
+        '<p class="text-lg font-bold text-green-700">' + $(Number(cl.pre_approved_amount)) + '</p>' +
+      '</div>';
+    } else {
+      typeSpecificCard = '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Sent Listings</p>' +
+        '<p class="text-lg font-bold">' + listingCount + '</p>' +
+      '</div>';
+    }
+
+    html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
       '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
         '<p class="text-xs text-gray-500 mb-1">Stage</p>' +
         '<span class="inline-block px-3 py-1 rounded-full text-xs font-bold ' + _stageBadgeColor(stage) + '">' + E(stage) + '</span>' +
-      '</div>' +
-      '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
-        '<p class="text-xs text-gray-500 mb-1">Health Score</p>' +
-        '<p class="text-lg font-bold">' + E(String(healthScore)) + '</p>' +
       '</div>' +
       '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
         '<p class="text-xs text-gray-500 mb-1">Last Activity</p>' +
@@ -412,10 +552,7 @@ var Workspace = (function () {
         '<p class="text-xs text-gray-500 mb-1">Next Task</p>' +
         '<p class="text-sm font-medium truncate" title="' + (nextTask ? E(nextTask.title) : '') + '">' + (nextTask ? E(nextTask.title) : 'None') + '</p>' +
       '</div>' +
-      '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
-        '<p class="text-xs text-gray-500 mb-1">Sent Listings</p>' +
-        '<p class="text-lg font-bold">' + listingCount + '</p>' +
-      '</div>' +
+      typeSpecificCard +
     '</div>';
 
     // Connected listings
@@ -435,18 +572,11 @@ var Workspace = (function () {
       html += '</div>';
     }
 
-    // Parse notes for property data (address/unit/legal owner still in notes)
-    var notes = cl.notes || '';
-    var _extractNoteText = function (label) {
-      var rx = new RegExp(label + '\\s*[:.]\\s*(.+)', 'i');
-      var m = notes.match(rx);
-      return m ? m[1].trim() : '';
-    };
-
+    // Read property data from DB fields (not notes)
     var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
-    var propertyAddr = _extractNoteText('Property') || _extractNoteText('Rental Address') || '';
-    var propertyUnit = _extractNoteText('Unit') || '';
-    var legalOwner = _extractNoteText('Legal Owner') || '';
+    var propertyAddr = cl.property_address || '';
+    var propertyUnit = cl.unit_number || '';
+    var legalOwner = cl.legal_ownership_name || '';
     var _fmtDate = function (v) { if (!v) return ''; var d = new Date(v); return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }); };
     var leaseStart = _fmtDate(cl.lease_start_date);
     var leaseEnd = _fmtDate(cl.lease_end_date);
@@ -462,15 +592,22 @@ var Workspace = (function () {
       '</div>';
     }
 
-    // ── Property Card (address + unit + legal owner) ──
+    // ── Property Card (address + unit + legal owner + home address) ──
+    var homeAddr = cl.home_address || '';
     var showProperty = clientType === 'landlord' || clientType === 'renter' || clientType === 'seller' || propertyAddr;
     if (showProperty) {
+      var propLabel = clientType === 'landlord' ? 'Rental Property' : clientType === 'seller' ? 'Sale Property' : 'Address';
       var propBody = '<div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">' +
-        '<div class="col-span-2"><span class="text-xs text-gray-400 block">Address</span><span class="font-medium text-gray-900">' + E(propertyAddr || '-') + '</span></div>' +
+        '<div class="col-span-2"><span class="text-xs text-gray-400 block">' + propLabel + '</span><span class="font-medium text-gray-900">' + E(propertyAddr || '-') + '</span></div>' +
         '<div><span class="text-xs text-gray-400 block">Unit</span><span class="font-medium text-gray-900">' + E(propertyUnit || '-') + '</span></div>' +
         (clientType === 'landlord' || clientType === 'seller' ?
           '<div><span class="text-xs text-gray-400 block">Legal Owner</span><span class="font-medium text-gray-900">' + E(legalOwner || '-') + '</span></div>' : '') +
       '</div>';
+      // Home address for landlords/sellers (owner's personal address)
+      if (clientType === 'landlord' || clientType === 'seller') {
+        propBody += '<div class="mt-2 pt-2 border-t text-sm"><span class="text-xs text-gray-400 block">Owner Home Address</span>' +
+          '<span class="font-medium text-gray-900">' + E(homeAddr || '-') + '</span></div>';
+      }
       html += _card('map-marker-alt', 'Property', 'Workspace._editProperty()', propBody);
     }
 
@@ -492,6 +629,118 @@ var Workspace = (function () {
         leaseBody += '<div class="mt-2 pt-2 border-t text-sm"><span class="text-xs text-gray-400">Monthly Rent</span><span class="font-medium text-gray-900 ml-2">$' + Number(cl.rent_per_month).toLocaleString() + '</span></div>';
       }
       html += _card('calendar-alt', 'Lease', 'Workspace._editProperty()', leaseBody);
+    }
+
+    // ── BUYER QUALIFICATION CARD (renters only — the conversion tool) ──
+    if (clientType === 'renter') {
+      var qIncome = Number(cl.annual_income) || 0;
+      var qDebt = Number(cl.monthly_debt) || 0;
+      var qRent = Number(cl.rent_per_month) || 0;
+      var qCredit = cl.credit_score_range || '';
+      var qDown = Number(cl.down_payment) || 0;
+      var qFunds = Number(cl.available_funds) || 0;
+      var qPreApproved = cl.pre_approved || false;
+      var qPreAmount = Number(cl.pre_approved_amount) || 0;
+
+      if (qIncome > 0) {
+        // Calculations
+        var qMonthlyIncome = qIncome / 12;
+        var qDTI_housing = 0.28; // 28% front-end
+        var qDTI_total = 0.36; // 36% back-end
+        var qMaxHousingPayment = qMonthlyIncome * qDTI_housing;
+        var qMaxTotalPayment = qMonthlyIncome * qDTI_total - qDebt;
+        var qMaxMonthly = Math.min(qMaxHousingPayment, qMaxTotalPayment);
+
+        // Mortgage calc at 6.5% / 30yr
+        var qRate = 0.065 / 12;
+        var qTerm = 360;
+        var qMaxLoan = qMaxMonthly > 0 ? Math.round(qMaxMonthly * ((Math.pow(1 + qRate, qTerm) - 1) / (qRate * Math.pow(1 + qRate, qTerm)))) : 0;
+
+        // Down payment scenarios
+        var qDownAvailable = qDown || qFunds || 0;
+        var qMaxPrice20 = Math.round(qMaxLoan / 0.80); // 20% down
+        var qMaxPrice10 = Math.round(qMaxLoan / 0.90); // 10% down
+        var qMaxPrice5 = Math.round(qMaxLoan / 0.95);  // 5% down (FHA)
+        var qMaxPriceWithDown = qDownAvailable > 0 ? qMaxLoan + qDownAvailable : qMaxPrice20;
+
+        // Monthly mortgage at their max
+        var qMortgageMonthly = qMaxMonthly > 0 ? Math.round(qMaxMonthly) : 0;
+        var qRentDiff = qMortgageMonthly - qRent;
+        var qRentDiffPct = qRent > 0 ? Math.round(((qMortgageMonthly - qRent) / qRent) * 100) : 0;
+
+        // Front-end DTI
+        var qActualDTI = qMonthlyIncome > 0 ? Math.round((qMaxMonthly / qMonthlyIncome) * 100) : 0;
+        // Back-end DTI (with existing debt)
+        var qBackDTI = qMonthlyIncome > 0 ? Math.round(((qMaxMonthly + qDebt) / qMonthlyIncome) * 100) : 0;
+
+        // Verdict
+        var qVerdict = '';
+        var qVerdictColor = '';
+        if (qPreApproved && qPreAmount > 0) {
+          qVerdict = 'Pre-approved for ' + $(qPreAmount);
+          qVerdictColor = 'text-green-700 bg-green-50 border-green-200';
+        } else if (qMaxPriceWithDown >= 400000) {
+          qVerdict = 'Qualifies for up to ' + $(qMaxPriceWithDown);
+          qVerdictColor = 'text-green-700 bg-green-50 border-green-200';
+        } else if (qMaxPriceWithDown >= 200000) {
+          qVerdict = 'May qualify — limited budget ' + $(qMaxPriceWithDown);
+          qVerdictColor = 'text-yellow-700 bg-yellow-50 border-yellow-200';
+        } else {
+          qVerdict = 'Not ready — needs higher income or savings';
+          qVerdictColor = 'text-red-700 bg-red-50 border-red-200';
+        }
+
+        var qualBody = '<div class="p-3 mb-3 rounded-lg border font-semibold text-sm text-center ' + qVerdictColor + '">' +
+          '<i class="fas ' + (qPreApproved ? 'fa-check-circle' : 'fa-calculator') + ' mr-1"></i> ' + qVerdict +
+        '</div>' +
+        '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">' +
+          '<div class="p-2 rounded-lg bg-blue-50"><p class="text-[10px] text-gray-500 uppercase">Max Purchase</p><p class="text-base font-bold text-blue-700">' + $(qMaxPriceWithDown) + '</p></div>' +
+          '<div class="p-2 rounded-lg bg-purple-50"><p class="text-[10px] text-gray-500 uppercase">Monthly Payment</p><p class="text-base font-bold text-purple-700">' + $(qMortgageMonthly) + '/mo</p></div>' +
+          '<div class="p-2 rounded-lg ' + (qRentDiff <= 500 ? 'bg-green-50' : 'bg-orange-50') + '"><p class="text-[10px] text-gray-500 uppercase">vs Current Rent</p>' +
+            '<p class="text-base font-bold ' + (qRentDiff <= 500 ? 'text-green-700' : 'text-orange-700') + '">' +
+            (qRent > 0 ? (qRentDiff > 0 ? '+' : '') + $(qRentDiff) + '/mo' : 'No rent data') + '</p>' +
+            (qRent > 0 ? '<p class="text-[9px] text-gray-500">' + (qRentDiffPct > 0 ? '+' : '') + qRentDiffPct + '% ' + (qRentDiffPct <= 0 ? 'cheaper' : 'more') + '</p>' : '') +
+          '</div>' +
+          '<div class="p-2 rounded-lg bg-gray-50"><p class="text-[10px] text-gray-500 uppercase">Down Payment</p><p class="text-base font-bold">' + (qDownAvailable > 0 ? $(qDownAvailable) : 'Unknown') + '</p></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-3 mt-3 text-center">' +
+          '<div class="p-2 bg-gray-50 rounded"><p class="text-[10px] text-gray-500">5% Down (FHA)</p><p class="text-sm font-bold">' + $(qMaxPrice5) + '</p></div>' +
+          '<div class="p-2 bg-gray-50 rounded"><p class="text-[10px] text-gray-500">10% Down</p><p class="text-sm font-bold">' + $(qMaxPrice10) + '</p></div>' +
+          '<div class="p-2 bg-gray-50 rounded"><p class="text-[10px] text-gray-500">20% Down</p><p class="text-sm font-bold">' + $(qMaxPrice20) + '</p></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-3 mt-3">' +
+          '<div class="flex justify-between text-xs p-2 bg-gray-50 rounded"><span class="text-gray-500">Annual Income</span><span class="font-bold">' + $(qIncome) + '</span></div>' +
+          '<div class="flex justify-between text-xs p-2 bg-gray-50 rounded"><span class="text-gray-500">Monthly Debt</span><span class="font-bold">' + $(qDebt) + '</span></div>' +
+          '<div class="flex justify-between text-xs p-2 bg-gray-50 rounded"><span class="text-gray-500">Front DTI</span><span class="font-bold ' + (qActualDTI > 28 ? 'text-red-600' : 'text-green-600') + '">' + qActualDTI + '%</span></div>' +
+          '<div class="flex justify-between text-xs p-2 bg-gray-50 rounded"><span class="text-gray-500">Back DTI</span><span class="font-bold ' + (qBackDTI > 36 ? 'text-red-600' : qBackDTI > 33 ? 'text-yellow-600' : 'text-green-600') + '">' + qBackDTI + '%</span></div>' +
+          (qCredit ? '<div class="flex justify-between text-xs p-2 bg-gray-50 rounded"><span class="text-gray-500">Credit Range</span><span class="font-bold">' + E(qCredit) + '</span></div>' : '') +
+          (qPreApproved ? '<div class="flex justify-between text-xs p-2 bg-green-50 rounded"><span class="text-green-700">Pre-Approved</span><span class="font-bold text-green-700">' + (qPreAmount ? $(qPreAmount) : 'Yes') + '</span></div>' : '') +
+        '</div>' +
+        '<div class="flex gap-2 mt-3">' +
+          '<button class="btn btn-sm btn-gold flex-1" onclick="Workspace.switchClientTab(\'financial\')"><i class="fas fa-calculator mr-1"></i> Full Financial Tools</button>' +
+          '<button class="btn btn-sm btn-outline flex-1" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane mr-1"></i> Send Listings in Range</button>' +
+        '</div>';
+        html += '<div class="border rounded-xl bg-white shadow-sm overflow-hidden border-l-4 border-green-500">' +
+          '<div class="flex items-center justify-between px-4 py-3 border-b bg-green-50">' +
+            '<h3 class="text-sm font-bold text-green-800"><i class="fas fa-exchange-alt mr-2"></i>Buyer Qualification</h3>' +
+            '<button class="text-xs text-gray-500 hover:text-gray-800 font-medium" onclick="Workspace._editFinancials()"><i class="fas fa-pen mr-1"></i>Edit Financials</button>' +
+          '</div>' +
+          '<div class="px-4 py-3">' + qualBody + '</div>' +
+        '</div>';
+      } else {
+        // No financial data yet — prompt broker to enter it
+        html += '<div class="border rounded-xl bg-white shadow-sm overflow-hidden border-l-4 border-yellow-500">' +
+          '<div class="flex items-center justify-between px-4 py-3 border-b bg-yellow-50">' +
+            '<h3 class="text-sm font-bold text-yellow-800"><i class="fas fa-exchange-alt mr-2"></i>Buyer Qualification</h3>' +
+          '</div>' +
+          '<div class="px-4 py-4 text-center">' +
+            '<i class="fas fa-calculator text-2xl text-yellow-400 mb-2"></i>' +
+            '<p class="text-sm text-gray-600 mb-1">No financial data for this renter</p>' +
+            '<p class="text-xs text-gray-400 mb-3">Enter income, debt, and savings to see what they qualify for</p>' +
+            '<button class="btn btn-sm btn-gold" onclick="Workspace._editFinancials()"><i class="fas fa-edit mr-1"></i> Enter Financial Info</button>' +
+          '</div>' +
+        '</div>';
+      }
     }
 
     // ── 3-column card row: Contact, Financial, Preferences ──
@@ -856,22 +1105,17 @@ var Workspace = (function () {
 
   function _editProperty() {
     var cl = _client || {};
-    var notes = cl.notes || '';
-    var _extT = function (label) {
-      var rx = new RegExp(label + '\\s*[:.]\\s*(.+)', 'i');
-      var m = notes.match(rx);
-      return m ? m[1].trim() : '';
-    };
     var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
-    var propertyAddr = _extT('Property') || _extT('Rental Address') || '';
-    var propertyUnit = _extT('Unit') || '';
-    var legalOwner = _extT('Legal Owner') || '';
+    var propertyAddr = cl.property_address || '';
+    var propertyUnit = cl.unit_number || '';
+    var legalOwner = cl.legal_ownership_name || '';
     var leaseStartVal = cl.lease_start_date ? cl.lease_start_date.substring(0, 10) : '';
     var leaseEndVal = cl.lease_end_date ? cl.lease_end_date.substring(0, 10) : '';
 
     var ownerField = '';
     if (clientType === 'landlord' || clientType === 'seller') {
-      ownerField = '<div class="form-group"><label class="form-label">Legal Owner</label><input class="form-input" name="legal_owner" value="' + E(legalOwner) + '" placeholder="Full legal owner name"></div>';
+      ownerField = '<div class="form-group"><label class="form-label">Legal Owner</label><input class="form-input" name="legal_owner" value="' + E(legalOwner) + '" placeholder="Full legal owner name or LLC/Trust"></div>' +
+        '<div class="form-group"><label class="form-label">Owner Home Address</label><input class="form-input" name="home_address" value="' + E(cl.home_address || '') + '" placeholder="Owner\'s personal home address"></div>';
     }
     var leaseFields = '';
     if (clientType === 'renter' || clientType === 'landlord') {
@@ -900,27 +1144,17 @@ var Workspace = (function () {
     if (!form) return;
     var fd = new FormData(form);
 
-    // Property address, unit, legal owner go into notes (no dedicated DB columns yet)
-    var notes = (_client.notes || '').split('\n');
-    var propLabels = ['Property', 'Rental Address', 'Unit', 'Legal Owner'];
-    var nonPropLines = notes.filter(function (line) {
-      return !propLabels.some(function (label) { return line.indexOf(label + ':') !== -1 || line.indexOf(label + '.') !== -1; });
-    });
-    var newLines = [];
-    if (fd.get('property_address')) newLines.push('Property: ' + fd.get('property_address'));
-    if (fd.get('property_unit')) newLines.push('Unit: ' + fd.get('property_unit'));
-    if (fd.get('legal_owner')) newLines.push('Legal Owner: ' + fd.get('legal_owner'));
-    var newNotes = nonPropLines.concat(newLines).filter(Boolean).join('\n');
-
-    // Lease dates go to real DB fields
-    var data = { notes: newNotes };
+    // Save property data to real DB fields
+    var data = {};
+    data.property_address = fd.get('property_address') || null;
+    data.unit_number = fd.get('property_unit') || null;
+    if (fd.get('legal_owner') !== null) data.legal_ownership_name = fd.get('legal_owner') || null;
+    if (fd.get('home_address') !== null) data.home_address = fd.get('home_address') || null;
     if (fd.get('lease_start_date') !== null) data.lease_start_date = fd.get('lease_start_date') || null;
     if (fd.get('lease_end_date') !== null) data.lease_end_date = fd.get('lease_end_date') || null;
 
     MallanAPI.clients.update(_clientId, data).then(function () {
-      _client.notes = newNotes;
-      if (data.lease_start_date !== undefined) _client.lease_start_date = data.lease_start_date;
-      if (data.lease_end_date !== undefined) _client.lease_end_date = data.lease_end_date;
+      Object.keys(data).forEach(function (k) { _client[k] = data[k]; });
       CRM.closeModal();
       CRM.toast('Property saved', 'success');
       _renderClientTab();
@@ -1056,16 +1290,8 @@ var Workspace = (function () {
     });
   }
 
-  function _clientDisplayName(cl) {
-    var primary = cl.name || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.email;
-    if (!cl.secondary_first_name) return primary;
-    var secondary = ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim();
-    // Same last name? "John & Jane Smith". Different? "John Smith & Jane Doe"
-    if (cl.last_name && cl.secondary_last_name === cl.last_name) {
-      return (cl.first_name || '') + ' & ' + (cl.secondary_first_name || '') + ' ' + cl.last_name;
-    }
-    return primary + ' & ' + secondary;
-  }
+  // Delegates to shared ClientNormalizer
+  function _clientDisplayName(cl) { return ClientNormalizer.displayName(cl); }
 
   function _addSecondaryPerson() {
     if (!_clientId) return;
@@ -1349,19 +1575,14 @@ var Workspace = (function () {
       if (prefs.maxPrice) searchParams.maxPrice = prefs.maxPrice;
       if (prefs.minBeds) searchParams.minBeds = prefs.minBeds;
 
-      // For renters: compute max budget from financial data in notes
+      // For renters: compute max budget from financial DB fields
       var isRenter = (cl.type || cl.client_type || cl.portal_role || '').toLowerCase() === 'renter';
       if (isRenter && !searchParams.maxPrice) {
-        var notes = cl.notes || '';
-        var incomeMatch = notes.match(/Annual Income:\s*\$?([\d,]+)/i);
-        var debtMatch = notes.match(/Monthly Debt:\s*\$?([\d,]+)/i);
-        var rentMatch = notes.match(/Monthly Rent:\s*\$?([\d,]+)/i);
-        var addressMatch = notes.match(/Rental Address:\s*(.+)/i);
+        var annualIncome = Number(cl.annual_income) || 0;
+        var monthlyDebt = Number(cl.monthly_debt) || 0;
+        var monthlyRent = Number(cl.rent_per_month) || 0;
 
-        if (incomeMatch) {
-          var annualIncome = Number(incomeMatch[1].replace(/,/g, ''));
-          var monthlyDebt = debtMatch ? Number(debtMatch[1].replace(/,/g, '')) : 0;
-          var monthlyRent = rentMatch ? Number(rentMatch[1].replace(/,/g, '')) : 0;
+        if (annualIncome > 0) {
           var maxMonthly = (annualIncome / 12) * 0.28 - monthlyDebt;
           if (maxMonthly > 0) {
             var r = 0.065 / 12;
@@ -1370,11 +1591,9 @@ var Workspace = (function () {
             searchParams.maxPrice = maxPrice;
             if (!searchParams.minPrice) searchParams.minPrice = Math.round(maxPrice * 0.6);
           }
-          // Try to get neighborhood from rental address
-          if (addressMatch && !searchParams.neighborhood) {
-            var addr = addressMatch[1].trim();
-            // Extract neighborhood hint from address (e.g. "East 51st" → search nearby)
-            searchParams.address = addr.split(',')[0];
+          // Try to get neighborhood from property address
+          if (cl.property_address && !searchParams.neighborhood) {
+            searchParams.address = cl.property_address.split(',')[0];
           }
         }
 
@@ -1767,13 +1986,12 @@ var Workspace = (function () {
       '<div id="wsPipelineTasks">' + UI.loading() + '</div>' +
     '</div>';
 
-    // Tenant-to-buyer conversion engine
+    // Tenant-to-buyer conversion engine — renders skeleton, then fills async
     if (isRenter) {
       var leaseEnd = cl.leaseEndDate || cl.lease_end_date;
       var daysLeft = leaseEnd ? Utils.daysUntil(leaseEnd) : null;
-      var prob = cl.conversionProbability || 0;
 
-      // Lease expiry trigger badges
+      // Lease expiry trigger badges (static — from client data)
       var leaseAlerts = '';
       if (daysLeft !== null) {
         var thresholds = [
@@ -1793,38 +2011,16 @@ var Workspace = (function () {
         leaseAlerts += '</div>';
       }
 
-      // Behavioral signal indicators
-      var viewingSalesRatio = cl.viewingSalesRatio || cl.viewing_sales_ratio || 0;
-      var rentVsBuyUsage = cl.rentVsBuyUsage || cl.rent_vs_buy_usage || 0;
-      var behaviorSignals = '<div class="grid grid-cols-2 gap-3 mt-3">' +
-        '<div class="p-2 rounded-lg bg-purple-50">' +
-          '<p class="text-xs text-gray-500">Sales Viewing Ratio</p>' +
-          '<div class="flex items-center gap-2">' +
-            '<div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div class="h-full bg-purple-500 rounded-full" style="width:' + Math.min(viewingSalesRatio, 100) + '%"></div></div>' +
-            '<span class="text-xs font-bold text-purple-700">' + viewingSalesRatio + '%</span>' +
-          '</div>' +
-          '<p class="text-[10px] text-gray-400 mt-1">% of viewed listings that are sales</p>' +
-        '</div>' +
-        '<div class="p-2 rounded-lg bg-indigo-50">' +
-          '<p class="text-xs text-gray-500">Rent vs Buy Tool Usage</p>' +
-          '<div class="flex items-center gap-2">' +
-            '<div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div class="h-full bg-indigo-500 rounded-full" style="width:' + Math.min(rentVsBuyUsage, 100) + '%"></div></div>' +
-            '<span class="text-xs font-bold text-indigo-700">' + rentVsBuyUsage + '%</span>' +
-          '</div>' +
-          '<p class="text-[10px] text-gray-400 mt-1">Engagement with rent-vs-buy calculator</p>' +
-        '</div>' +
-      '</div>';
-
       html += '<div class="card p-4 border-l-4 border-purple-500">' +
         '<h4 class="text-sm font-bold text-purple-700 mb-2"><i class="fas fa-exchange-alt mr-2"></i>Tenant-to-Buyer Conversion</h4>' +
         '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
           '<div><p class="text-xs text-gray-500">Lease Ends</p><p class="text-sm font-bold">' + (leaseEnd ? D(leaseEnd) : 'Unknown') + '</p></div>' +
           '<div><p class="text-xs text-gray-500">Days Left</p><p class="text-sm font-bold ' + (daysLeft !== null && daysLeft < 90 ? 'text-red-600' : '') + '">' + (daysLeft !== null ? daysLeft : '—') + '</p></div>' +
-          '<div><p class="text-xs text-gray-500">Conversion Score</p><p class="text-sm font-bold">' + prob + '%</p></div>' +
-          '<div><p class="text-xs text-gray-500">Status</p><p class="text-sm font-bold">' + (prob > 70 ? 'Likely buyer' : prob > 40 ? 'Possible' : 'Low') + '</p></div>' +
+          '<div id="wsConvictionScore"><p class="text-xs text-gray-500">Conversion Score</p>' + UI.loading() + '</div>' +
+          '<div id="wsConvictionStatus"><p class="text-xs text-gray-500">Status</p>' + UI.loading() + '</div>' +
         '</div>' +
         leaseAlerts +
-        behaviorSignals +
+        '<div id="wsConvictionSignals">' + UI.loading() + '</div>' +
         '<div class="mt-3 space-y-2">' +
           '<label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"> Aggressive nurture (increase sales listing frequency)</label>' +
           '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Agent Override Note</label>' +
@@ -1869,6 +2065,66 @@ var Workspace = (function () {
       var tasksEl = document.getElementById('wsPipelineTasks');
       if (tasksEl) tasksEl.innerHTML = '<p class="text-xs text-gray-400">Could not load tasks</p>';
     });
+
+    // ── Load conviction score async (for renter conversion engine) ──
+    if (document.getElementById('wsConvictionScore')) {
+      MallanAPI._fetch('/api/crm/conviction/' + _clientId).then(function (data) {
+        var conviction = data || {};
+        _clientData.conviction = conviction;
+        var prob = conviction.score || 0;
+
+        var scoreEl = document.getElementById('wsConvictionScore');
+        if (scoreEl) {
+          scoreEl.innerHTML = '<p class="text-xs text-gray-500">Conversion Score</p><p class="text-sm font-bold">' + prob + '%</p>';
+        }
+        var statusEl = document.getElementById('wsConvictionStatus');
+        if (statusEl) {
+          var label = prob > 70 ? 'Likely buyer' : prob > 40 ? 'Possible' : 'Low';
+          var stageLabel = conviction.stage ? ' (' + E(conviction.stage) + ')' : '';
+          statusEl.innerHTML = '<p class="text-xs text-gray-500">Status</p><p class="text-sm font-bold">' + label + stageLabel + '</p>';
+        }
+
+        // Render behavioral signals
+        var signalsEl = document.getElementById('wsConvictionSignals');
+        if (signalsEl) {
+          var milestones = conviction.milestoneFlags || {};
+          var viewingSalesRatio = milestones.viewing_sales_ratio || 0;
+          if (conviction.searchNarrowingTrend) viewingSalesRatio = Math.round(conviction.searchNarrowingTrend * 100);
+          var rentVsBuyUsage = milestones.used_calculator ? 100 : (milestones.calculator_engagement || 0);
+          var ghostLabel = conviction.ghostStatus || 'active';
+          var ghostColors = { active: 'text-green-600', cooling: 'text-yellow-600', silent: 'text-orange-600', gone: 'text-red-600' };
+
+          signalsEl.innerHTML = '<div class="grid grid-cols-2 gap-3 mt-3">' +
+            '<div class="p-2 rounded-lg bg-purple-50">' +
+              '<p class="text-xs text-gray-500">Sales Viewing Ratio</p>' +
+              '<div class="flex items-center gap-2">' +
+                '<div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div class="h-full bg-purple-500 rounded-full" style="width:' + Math.min(viewingSalesRatio, 100) + '%"></div></div>' +
+                '<span class="text-xs font-bold text-purple-700">' + viewingSalesRatio + '%</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="p-2 rounded-lg bg-indigo-50">' +
+              '<p class="text-xs text-gray-500">Rent vs Buy Tool Usage</p>' +
+              '<div class="flex items-center gap-2">' +
+                '<div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div class="h-full bg-indigo-500 rounded-full" style="width:' + Math.min(rentVsBuyUsage, 100) + '%"></div></div>' +
+                '<span class="text-xs font-bold text-indigo-700">' + rentVsBuyUsage + '%</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 mt-2 text-xs">' +
+            '<span class="text-gray-500">Engagement:</span>' +
+            '<span class="font-bold ' + (ghostColors[ghostLabel] || 'text-gray-500') + '">' + E(ghostLabel.charAt(0).toUpperCase() + ghostLabel.slice(1)) + '</span>' +
+            (conviction.silenceDays > 0 ? '<span class="text-gray-400">(' + conviction.silenceDays + ' days silent)</span>' : '') +
+          '</div>';
+        }
+      }).catch(function () {
+        var scoreEl = document.getElementById('wsConvictionScore');
+        if (scoreEl) scoreEl.innerHTML = '<p class="text-xs text-gray-500">Conversion Score</p><p class="text-sm font-bold text-gray-400">N/A</p>';
+        var statusEl = document.getElementById('wsConvictionStatus');
+        if (statusEl) statusEl.innerHTML = '<p class="text-xs text-gray-500">Status</p><p class="text-sm font-bold text-gray-400">N/A</p>';
+        var signalsEl = document.getElementById('wsConvictionSignals');
+        if (signalsEl) signalsEl.innerHTML = '<p class="text-xs text-gray-400 mt-2">Could not load conviction data</p>';
+      });
+    }
   }
 
   function _toggleTask(taskId, completed) {
@@ -2323,10 +2579,35 @@ var Workspace = (function () {
   }
 
   function _clientFinancial(el) {
-    var prefs = (_client && _client.preferences) || {};
+    var cl = _client || {};
+    var prefs = cl.preferences || {};
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
     var defaultPrice = prefs.maxPrice || prefs.minPrice || 1000000;
 
+    // Pre-compute affordability for renters
+    var affordBanner = '';
+    if (clientType === 'renter') {
+      var annIncome = Number(cl.annual_income) || 0;
+      var monDebt = Number(cl.monthly_debt) || 0;
+      if (annIncome > 0) {
+        var maxMo = (annIncome / 12) * 0.28 - monDebt;
+        if (maxMo > 0) {
+          var ir = 0.065 / 12;
+          var np = 360;
+          var maxAfford = Math.round(maxMo * ((Math.pow(1 + ir, np) - 1) / (ir * Math.pow(1 + ir, np))));
+          var dp = Number(cl.down_payment) || Math.round(maxAfford * 0.2);
+          affordBanner = '<div class="p-3 mb-4 bg-green-50 border border-green-200 rounded-lg">' +
+            '<p class="text-sm font-semibold text-green-800"><i class="fas fa-chart-line mr-1"></i> This client can afford up to ' + Utils.formatMoney(maxAfford) + '</p>' +
+            '<p class="text-xs text-green-700 mt-1">Based on ' + Utils.formatMoney(annIncome) + ' income, ' + Utils.formatMoney(monDebt) + '/mo debt' +
+            (Number(cl.rent_per_month) ? ', ' + Utils.formatMoney(Number(cl.rent_per_month)) + '/mo rent' : '') + '</p>' +
+          '</div>';
+          if (!prefs.maxPrice) defaultPrice = maxAfford;
+        }
+      }
+    }
+
     var html = '<div class="space-y-4">';
+    html += affordBanner;
     html += '<h3 class="text-sm font-bold text-gray-700">Financial Tools</h3>';
 
     // ── Mortgage Calculator ──

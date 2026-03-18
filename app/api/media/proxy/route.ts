@@ -11,10 +11,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessToken } from "@/lib/idx/auth";
 
-// Only allow proxying from Trestle/Cotality media domain
-// NOTE: Old hosts (api-trestle.corelogic.com, api-prod.corelogic.com) removed — ceased March 31, 2026
+// Allow proxying from Trestle/Cotality media domains
+// Old hosts included: some Trestle media records still reference them during data migration
 const ALLOWED_HOSTS = new Set([
   "api.cotality.com",
+  "api-trestle.corelogic.com",
+  "api-prod.corelogic.com",
 ]);
 
 function isAllowedUrl(url: string): boolean {

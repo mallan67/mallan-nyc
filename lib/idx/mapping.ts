@@ -267,7 +267,8 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     streetName: fullStreetName,
     unitNumber: normalized.UnitNumber ? String(normalized.UnitNumber) : null,
     city: String(normalized.City || ''),
-    cityRegion: normalized.CityRegion ? String(normalized.CityRegion) : undefined,
+    cityRegion: normalized.SubdivisionName ? String(normalized.SubdivisionName) :
+      (normalized.CityRegion ? String(normalized.CityRegion) : undefined),
     stateOrProvince: String(normalized.StateOrProvince || 'NY'),
     postalCode: String(normalized.PostalCode || ''),
     county: String(normalized.CountyOrParish || ''),

@@ -27,15 +27,27 @@
         };
 
         function openFilterModal() {
-            document.getElementById('filterModal').classList.remove('hidden');
+            var modal = document.getElementById('filterModal');
+            modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             updateFilterSummary();
+            // Focus first focusable element
+            var first = modal.querySelector('input, select, button');
+            if (first) setTimeout(function() { first.focus(); }, 50);
         }
 
         function closeFilterModal() {
             document.getElementById('filterModal').classList.add('hidden');
             document.body.style.overflow = 'auto';
         }
+
+        // ESC key to close filter modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var fm = document.getElementById('filterModal');
+                if (fm && !fm.classList.contains('hidden')) { closeFilterModal(); return; }
+            }
+        });
 
         function initializeFilterToggles() {
             // Add click handlers for toggle labels

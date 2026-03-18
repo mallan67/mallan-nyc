@@ -1,10 +1,10 @@
 <!-- FILTER MODAL (extracted from section-main) -->
-<div id="filterModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+<div id="filterModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="filterModalTitle">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
         <!-- Modal Header -->
         <div class="p-4 border-b bg-gray-800 flex items-center justify-between">
             <div>
-                <h3 class="text-lg font-bold text-white">Filter Results</h3>
+                <h3 id="filterModalTitle" class="text-lg font-bold text-white">Filter Results</h3>
                 <p class="text-xs text-gray-400">Apply status and action filters to narrow your results</p>
             </div>
             <div class="flex items-center gap-3">

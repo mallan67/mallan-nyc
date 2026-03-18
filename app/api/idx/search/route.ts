@@ -17,6 +17,8 @@ import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { checkDistributionGates } from "@/lib/idx/trestle-mapper";
 import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
+import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 /** Map Trestle property fields to display type (no "Apartment") */
 function mapDisplayPropertyType(raw: Record<string, unknown>): string {
@@ -44,7 +46,7 @@ function mapDisplayPropertyType(raw: Record<string, unknown>): string {
 const SEARCH_SELECT_FIELDS = [
   // Address
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
-  "StreetSuffix", "UnitNumber", "City", "CityRegion", "PostalCity",
+  "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
   "PostalCode", "StateOrProvince", "CountyOrParish", "CrossStreet",
   "Latitude", "Longitude",
   // Classification
@@ -149,22 +151,23 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push(`BathroomsFull le ${Number(maxBaths)}`);
   }
 
-  // Neighborhood (CityRegion in REBNY RLS) — supports comma-separated multi-select
+  // Neighborhood (SubdivisionName in REBNY RLS) — supports comma-separated multi-select
+  // CityRegion = borough (Manhattan/Brooklyn/etc.), SubdivisionName = neighborhood (UWS/UES/Tribeca/etc.)
   const neighborhood = params.get("neighborhood");
   if (neighborhood) {
     const neighborhoods = neighborhood.split(",").map(n => n.trim()).filter(Boolean);
     if (neighborhoods.length === 1) {
-      parts.push(`CityRegion eq '${escapeOData(neighborhoods[0])}'`);
+      parts.push(`SubdivisionName eq '${escapeOData(neighborhoods[0])}'`);
     } else if (neighborhoods.length > 1) {
-      const nParts = neighborhoods.map(n => `CityRegion eq '${escapeOData(n)}'`);
+      const nParts = neighborhoods.map(n => `SubdivisionName eq '${escapeOData(n)}'`);
       parts.push(`(${nParts.join(" or ")})`);
     }
   }
 
-  // Borough (CountyOrParish in REBNY RLS)
+  // Borough (CityRegion in REBNY RLS — maps to Manhattan/Brooklyn/Queens/Bronx/Staten Island)
   const borough = params.get("borough");
   if (borough) {
-    parts.push(`CountyOrParish eq '${escapeOData(borough)}'`);
+    parts.push(`CityRegion eq '${escapeOData(borough)}'`);
   }
 
   // Status — default to active statuses for CRM agents
@@ -491,8 +494,8 @@ function mapTrestleToCRM(
     ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),
-    neighborhood: String(raw.CityRegion || ""),
-    borough: String(raw.CountyOrParish || "Manhattan"),
+    neighborhood: String(raw.SubdivisionName || ""),
+    borough: String(raw.CityRegion || raw.CountyOrParish || "Manhattan"),
     zip: String(raw.PostalCode || ""),
     yearBuilt,
     era,
@@ -589,18 +592,20 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch from Trestle (READ-ONLY GET)
-    // $expand=Media works for result sets under ~200 records (verified against Trestle docs).
-    // Cap at 200 when expanding media to avoid 400 errors on large result sets.
-    const effectiveLimit = Math.min(limit, 200);
+    // Strategy: $expand=Media only for small result sets (≤200). For larger queries,
+    // fetch properties without media and let the frontend lazy-load photos via
+    // /api/media/batch + IntersectionObserver (photo-loader.js).
+    // Trestle tokens refresh every ~12 min; auth.ts handles this with a 5-min buffer.
+    const useInlineMedia = limit <= 200;
     const result = await fetchFromTrestle({
       filter,
       select: SEARCH_SELECT_FIELDS,
-      top: effectiveLimit,
+      top: limit,
       skip,
       orderby: sort || "ModificationTimestamp desc",
-      maxTotal: effectiveLimit,
+      maxTotal: limit,
       count: true,
-      expandMedia: true,
+      expandMedia: useInlineMedia,
     });
 
     // Apply distribution gates — CRM context: agents see Participant Only + IDX opted-out
@@ -626,6 +631,74 @@ export async function GET(req: NextRequest) {
       mapTrestleToCRM(record, skip + i)
     );
 
+    // ── Batch-fetch photos for listings missing media ──
+    // When $expand=Media was used but some records came back empty (Trestle drops
+    // media on large-ish payloads), OR when $expand was disabled entirely,
+    // identify which listings need photos so the frontend can lazy-load them.
+    // Trestle tokens refresh every ~12 min; getAccessToken() handles this.
+    const needsLazyLoad = !useInlineMedia;
+    let mediaBackfilled = 0;
+
+    if (useInlineMedia) {
+      // For inline-media searches, batch-fetch photos for any records that came back empty
+      const missingMedia = listings.filter(
+        (l) => !l.images || (l.images as unknown[]).length === 0
+      );
+      if (missingMedia.length > 0 && missingMedia.length <= 50) {
+        try {
+          const { getAccessToken: getToken } = await import("@/lib/idx/auth");
+          const token = await getToken();
+          const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+          const missingIds = missingMedia.map((l) => String(l.id)).filter(Boolean);
+          const filterParts = missingIds.map(
+            (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
+          );
+          const mediaFilter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
+          const mediaParams = new URLSearchParams();
+          mediaParams.set("$filter", mediaFilter);
+          mediaParams.set("$select", "ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
+          mediaParams.set("$orderby", "Order asc");
+          mediaParams.set("$top", String(missingIds.length * 2));
+
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8_000);
+          const mediaRes = await fetch(
+            `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`,
+            {
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+              signal: controller.signal,
+            }
+          );
+          clearTimeout(timeout);
+
+          if (mediaRes.ok) {
+            const mediaData = await mediaRes.json();
+            // Group by listing ID — take first photo per listing
+            const photoByListing = new Map<string, string>();
+            for (const m of (mediaData.value || [])) {
+              const lid = String(m.ResourceRecordID || "");
+              if (lid && !photoByListing.has(lid) && m.MediaURL) {
+                const rawUrl = String(m.MediaURL);
+                photoByListing.set(lid, rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
+                  ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl);
+              }
+            }
+            // Patch listings with backfilled photos
+            for (const listing of missingMedia) {
+              const url = photoByListing.get(String(listing.id));
+              if (url) {
+                (listing as Record<string, unknown>).images = [{ url, isPrimary: true, order: 0, mediaType: "Photo" }];
+                (listing as Record<string, unknown>).photoCount = 1;
+                mediaBackfilled++;
+              }
+            }
+          }
+        } catch {
+          // Non-fatal — frontend photo-loader will handle these via /api/media/batch
+        }
+      }
+    }
+
     const response = {
       listings,
       total: listings.length,
@@ -634,6 +707,8 @@ export async function GET(req: NextRequest) {
       skip,
       limit,
       attribution: generateAttributionText(),
+      // Tell frontend whether to activate lazy photo loading
+      mediaMode: needsLazyLoad ? "lazy" as const : "inline" as const,
       _meta: {
         source: "trestle",
         fetchedAt: new Date().toISOString(),
@@ -641,6 +716,8 @@ export async function GET(req: NextRequest) {
         totalFromAPI: result.totalFetched,
         odataCount: result.odataCount,
         gatedOut: result.totalFetched - displayable.length,
+        mediaStrategy: useInlineMedia ? "expand" : "lazy",
+        mediaBackfilled,
       },
     };
 

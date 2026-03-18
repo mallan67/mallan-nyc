@@ -936,7 +936,10 @@ var CRM = (function () {
     }, 4000);
   }
 
-  // ─── Modal ───────────────────────────────────────────────────────────
+  // ─── Modal (WCAG 2.1 AA: focus trap, ESC close, focus restore) ─────
+  var _modalPreviousFocus = null;
+  var _modalKeyHandler = null;
+
   function openModal(title, bodyHtml, opts) {
     opts = opts || {};
     var overlay = document.getElementById('modalOverlay');
@@ -946,6 +949,9 @@ var CRM = (function () {
     var footerEl = document.getElementById('modalFooter');
 
     if (!overlay || !container) return;
+
+    // Save focus for restoration on close
+    _modalPreviousFocus = document.activeElement;
 
     titleEl.textContent = title;
     bodyEl.innerHTML = bodyHtml;
@@ -959,12 +965,48 @@ var CRM = (function () {
     }
 
     overlay.classList.remove('hidden');
+
+    // Focus first focusable element inside modal
+    setTimeout(function () {
+      var first = container.querySelector('input:not([type="hidden"]), select, textarea, button, [tabindex]:not([tabindex="-1"])');
+      if (first) first.focus();
+      else container.focus();
+    }, 50);
+
+    // ESC key + focus trap
+    if (_modalKeyHandler) document.removeEventListener('keydown', _modalKeyHandler);
+    _modalKeyHandler = function (e) {
+      if (e.key === 'Escape') { closeModal(); return; }
+      if (e.key !== 'Tab') return;
+      var focusable = container.querySelectorAll('input:not([type="hidden"]), select, textarea, button:not([disabled]), [tabindex]:not([tabindex="-1"]), a[href]');
+      if (focusable.length === 0) return;
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', _modalKeyHandler);
   }
 
   function closeModal(event) {
     if (event && event.target !== event.currentTarget) return;
     var overlay = document.getElementById('modalOverlay');
     if (overlay) overlay.classList.add('hidden');
+
+    // Remove key handler
+    if (_modalKeyHandler) {
+      document.removeEventListener('keydown', _modalKeyHandler);
+      _modalKeyHandler = null;
+    }
+
+    // Restore focus
+    if (_modalPreviousFocus && _modalPreviousFocus.focus) {
+      _modalPreviousFocus.focus();
+      _modalPreviousFocus = null;
+    }
   }
 
   // ─── Notifications ───────────────────────────────────────────────────
@@ -1011,6 +1053,13 @@ var CRM = (function () {
             '<option value="buyer">Buyer</option><option value="seller">Seller</option>' +
             '<option value="renter">Renter</option><option value="landlord">Landlord</option>' +
           '</select></div>' +
+        '<div class="form-group"><label class="form-label">Source</label>' +
+          '<select class="form-input form-select" name="source">' +
+            '<option value="manual">Manual Entry</option><option value="streeteasy">StreetEasy</option>' +
+            '<option value="referral">Referral</option><option value="website">Website</option>' +
+            '<option value="walk-in">Walk-In</option><option value="open-house">Open House</option>' +
+            '<option value="social">Social Media</option><option value="other">Other</option>' +
+          '</select></div>' +
         '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" name="notes" rows="2"></textarea></div>' +
       '</form>',
       {
@@ -1025,7 +1074,13 @@ var CRM = (function () {
     if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
     var data = {};
     new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
-    data.name = (data.first_name || '') + ' ' + (data.last_name || '');
+    // Map type → roles/portal_role (Zod schema expects roles[], not type)
+    if (data.type) {
+      data.roles = [data.type];
+      data.portal_role = data.type;
+      delete data.type;
+    }
+    delete data.name; // not a schema field
 
     MallanAPI.clients.create(data).then(function (result) {
       closeModal();
@@ -1083,6 +1138,23 @@ var CRM = (function () {
     try {
       return JSON.parse(localStorage.getItem('mallan_crm_recent_actions') || '[]');
     } catch (e) { return []; }
+  }
+
+  // ─── Quick Send to specific client from client list ──────────────────
+  function quickSendToClient(clientId, clientName) {
+    openModal('Send Listing to ' + clientName,
+      '<div class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Search Listing</label>' +
+          '<input class="form-input" id="qsSendSearch" placeholder="Address or MLS ID..." oninput="CRM._searchListingsForSend(this.value)"></div>' +
+        '<div id="qsSendResults"></div>' +
+        '<input type="hidden" id="qsSendClientIds" value="' + clientId + '">' +
+        '<p class="text-xs text-gray-500">Sending to: <strong>' + clientName + '</strong></p>' +
+      '</div>',
+      {
+        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="CRM._executeSend()"><i class="fas fa-paper-plane mr-1"></i> Send</button>',
+      }
+    );
   }
 
   // ─── Quick Send Listing (context-aware) ───────────────────────────────
@@ -1695,6 +1767,7 @@ var CRM = (function () {
     submitQuickClient: submitQuickClient,
     quickNewListing: quickNewListing,
     quickSendListing: quickSendListing,
+    quickSendToClient: quickSendToClient,
     _searchListingsForSend: _searchListingsForSend,
     _selectSendListing: _selectSendListing,
     _doQuickSend: _doQuickSend,

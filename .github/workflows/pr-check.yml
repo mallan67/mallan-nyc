@@ -116,6 +116,12 @@ jobs:
       - name: RLS compliance validator
         run: npm run rls:validate
 
+      - name: UCBA compliance audit
+        run: npm run ucba:audit
+
+      - name: Form-to-RLS field mapping validation
+        run: npm run validate:form-rls
+
       - name: CI compliance check
         run: node scripts/ci-compliance-check.js
 

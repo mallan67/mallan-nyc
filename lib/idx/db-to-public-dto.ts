@@ -28,15 +28,19 @@ const BOROUGH_TO_COUNTY: Record<string, string> = {
 };
 
 interface DbAddress {
+  street?: string;
   StreetNumber?: string;
+  StreetDirPrefix?: string;
   StreetName?: string;
   StreetSuffix?: string;
+  StreetDirSuffix?: string;
   UnitNumber?: string;
   City?: string;
   StateOrProvince?: string;
   PostalCode?: string;
   Borough?: string;
   Neighborhood?: string;
+  SubdivisionName?: string;
   BuildingName?: string;
   UnparsedAddress?: string;
 }
@@ -157,14 +161,21 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const mediaArr = (Array.isArray(listing.media) ? listing.media : []) as DbMediaItem[];
 
   const streetNumber = addr.StreetNumber || '';
-  const streetName = addr.StreetName
-    ? `${addr.StreetName}${addr.StreetSuffix ? ' ' + addr.StreetSuffix : ''}`
-    : '';
+  // Build full street name: StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix
+  // e.g. "W" + "END" + "Avenue" + "" = "W END Avenue"
+  const streetName = [
+    addr.StreetDirPrefix,
+    addr.StreetName,
+    addr.StreetSuffix,
+    addr.StreetDirSuffix,
+  ].filter(Boolean).join(' ') || '';
   const unitNumber = addr.UnitNumber || null;
   const city = addr.City || listing.borough || 'New York';
   const postalCode = addr.PostalCode || '';
   const borough = (addr.Borough || listing.borough || '').toLowerCase();
   const county = BOROUGH_TO_COUNTY[borough] || borough || 'New York';
+  // Neighborhood: SubdivisionName (Trestle) > Neighborhood (legacy) > DB column
+  const neighborhood = addr.SubdivisionName || addr.Neighborhood || listing.neighborhood || undefined;
 
   const suppressAddress = listing.internet_address_display_yn === false;
   const isComingSoon = listing.status === 'ComingSoon';
@@ -213,7 +224,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
           stateOrProvince: 'NY',
           postalCode,
           county,
-          neighborhood: addr.Neighborhood || listing.neighborhood || undefined,
+          neighborhood,
         }
       : {
           streetNumber,
@@ -223,7 +234,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
           stateOrProvince: 'NY',
           postalCode,
           county,
-          neighborhood: addr.Neighborhood || listing.neighborhood || undefined,
+          neighborhood,
         },
     listPrice,
     originalListPrice: listPrice,

@@ -10,12 +10,20 @@ import type { Prisma } from "@prisma/client";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, frequency, criteria } = body;
+    const { email, name, frequency, criteria, consentOptIn, consentSource } = body;
 
     // Validate required fields
     if (!email || !criteria) {
       return NextResponse.json(
         { error: "Email and search criteria are required" },
+        { status: 400 }
+      );
+    }
+
+    // TCPA: require explicit opt-in consent for email alerts
+    if (!consentOptIn) {
+      return NextResponse.json(
+        { error: "Explicit consent is required to receive email alerts" },
         { status: 400 }
       );
     }
@@ -97,7 +105,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Audit
+    // Audit — record consent details for TCPA compliance
     await prisma.auditEvent.create({
       data: {
         action: "search_alert_created",
@@ -109,6 +117,10 @@ export async function POST(request: NextRequest) {
           email: sanitizedEmail,
           frequency: alertFrequency,
           criteria: normalizedCriteria as Prisma.InputJsonValue,
+          consent_opt_in: true,
+          consent_source: consentSource || "search_alert_form",
+          consent_method: "checkbox",
+          consent_captured_at: new Date().toISOString(),
         } as Prisma.InputJsonValue,
       },
     });

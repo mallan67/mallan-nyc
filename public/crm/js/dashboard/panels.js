@@ -896,19 +896,24 @@ var Panels = (function () {
       html += '<p class="text-sm text-gray-400 text-center py-4">No listings to display.</p>';
     } else {
       html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs"><tr>' +
-        '<th class="text-left px-3 py-2">Address</th><th class="text-left px-3 py-2">Type</th>' +
+        '<th class="text-left px-3 py-2">Address</th>' +
+        '<th class="text-left px-3 py-2 hidden md:table-cell">Neighborhood</th>' +
+        '<th class="text-left px-3 py-2">Type</th>' +
         '<th class="text-left px-3 py-2">Price</th><th class="text-left px-3 py-2">Status</th>' +
         '<th class="text-left px-3 py-2 hidden sm:table-cell">DOM</th><th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
       filtered.forEach(function (l) {
         var addr = _resolveAddress(l);
+        var neighborhood = l.neighborhood || (l.address && typeof l.address === 'object' ? l.address.SubdivisionName : '') || '';
         var lt = (l.listing_type || '').toLowerCase();
         var pt = (l.property_type || '').toLowerCase();
         var typeLabel = (lt === 'rent' || pt === 'residentiallease' || pt.indexOf('lease') !== -1) ? 'Rental' : 'Sale';
+        var subType = l.property_sub_type || l.property_type || '';
         var price = l.list_price || l.ListPrice || l.price || 0;
         html += '<tr class="border-b hover:bg-gray-50">' +
           '<td class="px-3 py-2 text-sm font-medium">' + E(addr) + '</td>' +
-          '<td class="px-3 py-2 text-xs">' + E(typeLabel) + '</td>' +
+          '<td class="px-3 py-2 text-xs hidden md:table-cell">' + E(neighborhood) + '</td>' +
+          '<td class="px-3 py-2 text-xs">' + E(typeLabel) + (subType ? ' <span class="text-gray-400">· ' + E(subType) + '</span>' : '') + '</td>' +
           '<td class="px-3 py-2 text-sm font-bold">' + $(price) + '</td>' +
           '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
           '<td class="px-3 py-2 text-xs hidden sm:table-cell">' + (l.cumulative_dom || l.days_on_market || '-') + '</td>' +
@@ -8129,10 +8134,15 @@ var Panels = (function () {
     CRM.toast('Search history cleared', 'info');
   }
 
-  // ─── Address resolver — handles JSON address objects from Trestle sync ──
+  // ─── Address resolver — handles all address formats ──
+  // Priority: street (pre-built display string) > UnparsedAddress > Trestle components > fallback
   function _resolveAddress(l) {
     if (l.address && typeof l.address === 'object') {
-      // Try unparsed first
+      // 1. Pre-built display string (set by import scripts and CRM forms)
+      if (l.address.street) {
+        return l.address.street;
+      }
+      // 2. Trestle UnparsedAddress
       if (l.address.UnparsedAddress || l.address.UnParsedAddress) {
         var unparsed = l.address.UnparsedAddress || l.address.UnParsedAddress;
         if (l.address.UnitNumber && unparsed.indexOf(l.address.UnitNumber) === -1) {
@@ -8140,7 +8150,7 @@ var Panels = (function () {
         }
         return unparsed;
       }
-      // Build from components: StreetNumber + StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix + UnitNumber
+      // 3. Build from Trestle components: StreetNumber + StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix + UnitNumber
       var parts = [
         l.address.StreetNumber || '',
         l.address.StreetDirPrefix || '',
@@ -8183,24 +8193,31 @@ var Panels = (function () {
 
       // Add past deals that aren't already in DB listings
       pastDeals.forEach(function (d) {
-        var lid = d.listing_id || d.listingId;
-        if (lid && !seenIds[lid]) {
-          seenIds[lid] = true;
-          _myListingsData.push({
-            id: lid,
-            listing_id: lid,
-            address: d.address || d.property_address || 'Past Deal',
-            UnparsedAddress: d.address || d.property_address,
-            ListPrice: d.sale_price || d.price || d.amount,
-            price: d.sale_price || d.price || d.amount,
-            status: d.deal_type === 'sale' ? 'Closed' : 'Closed',
-            property_type: d.deal_type || 'sale',
-            listing_type: d.deal_type,
-            cumulative_dom: d.days_on_market || 0,
-            updated_at: d.close_date || d.created_at,
-            _fromPastDeals: true,
-          });
-        }
+        var lid = d.trestle_listing_id || d.id;
+        if (lid && seenIds[lid]) return;
+        if (lid) seenIds[lid] = true;
+        var addr = d.street || d.address || d.property_address || 'Past Deal';
+        if (d.unit) addr += ', #' + d.unit;
+        _myListingsData.push({
+          id: d.id,
+          listing_id: d.trestle_listing_id || ('PD-' + d.id),
+          address: { street: addr },
+          neighborhood: d.neighborhood || '',
+          list_price: d.close_price || 0,
+          ListPrice: d.close_price || 0,
+          price: d.close_price || 0,
+          status: 'Closed',
+          property_type: d.property_type || 'Residential',
+          property_sub_type: d.property_type || '',
+          listing_type: d.deal_type || 'sale',
+          bedrooms_total: d.beds,
+          bathrooms_full: d.baths_full,
+          living_area: d.sqft,
+          cumulative_dom: 0,
+          updated_at: d.close_date || d.created_at,
+          _fromPastDeals: true,
+          _pastDealId: d.id,
+        });
       });
 
       // Compute per-listing flags
@@ -8271,9 +8288,10 @@ var Panels = (function () {
     var html = '<div class="space-y-4">';
 
     // Add buttons (title comes from CRM.setPanelTitle, no duplicate)
-    html += '<div class="flex items-center justify-end gap-2">' +
+    html += '<div class="flex items-center justify-end gap-2 flex-wrap">' +
       '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Sale</button>' +
       '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Rental</button>' +
+      '<button class="btn btn-sm btn-outline" onclick="Panels._addPastDeal()"><i class="fas fa-history mr-1"></i> Add Past Deal</button>' +
     '</div>';
 
     // Sale / Rental tabs — primary level
@@ -8389,8 +8407,11 @@ var Panels = (function () {
             return '<span class="text-xs text-gray-500">' + l._daysSinceRefresh + 'd ago</span>';
           })() + '</td>' +
           '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
-            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
-            '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
+            (l._fromPastDeals
+              ? '<button class="btn btn-sm btn-outline" onclick="Panels._editPastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Edit Past Deal"><i class="fas fa-edit"></i></button>' +
+                '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
+              : '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
+                '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>') +
           '</div></td>' +
         '</tr>';
       });
@@ -11801,6 +11822,109 @@ var Panels = (function () {
     '</div>';
   }
 
+  // ─── Past Deal CRUD ──────────────────────────────────────────────────
+  function _addPastDeal(prefill) {
+    var d = prefill || {};
+    CRM.modal(
+      'Add Past Deal',
+      '<form id="pastDealForm" class="space-y-3">' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><label class="form-label">Street Address *</label><input id="pd_street" class="form-input" value="' + E(d.street || '') + '" required></div>' +
+          '<div><label class="form-label">Unit</label><input id="pd_unit" class="form-input" value="' + E(d.unit || '') + '"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><label class="form-label">Neighborhood</label><input id="pd_neighborhood" class="form-input" value="' + E(d.neighborhood || '') + '"></div>' +
+          '<div><label class="form-label">ZIP Code</label><input id="pd_zip" class="form-input" value="' + E(d.postal_code || '') + '"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><label class="form-label">Deal Type *</label><select id="pd_deal_type" class="form-input form-select">' +
+            '<option value="sale"' + (d.deal_type === 'sale' || !d.deal_type ? ' selected' : '') + '>Sale</option>' +
+            '<option value="rent"' + (d.deal_type === 'rent' ? ' selected' : '') + '>Rental</option></select></div>' +
+          '<div><label class="form-label">Property Type</label><select id="pd_property_type" class="form-input form-select">' +
+            '<option value="Condominium">Condominium</option><option value="Cooperative">Co-op</option>' +
+            '<option value="Condop">Condop</option><option value="Townhouse">Townhouse</option>' +
+            '<option value="Multi-Family">Multi-Family</option><option value="Commercial">Commercial</option>' +
+            '<option value="Residential">Other Residential</option></select></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-3">' +
+          '<div><label class="form-label">Close Price</label><input id="pd_price" type="number" class="form-input" value="' + (d.close_price || '') + '"></div>' +
+          '<div><label class="form-label">Close Date</label><input id="pd_date" type="date" class="form-input" value="' + (d.close_date || '') + '"></div>' +
+          '<div><label class="form-label">Sq Ft</label><input id="pd_sqft" type="number" class="form-input" value="' + (d.sqft || '') + '"></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-3">' +
+          '<div><label class="form-label">Beds</label><input id="pd_beds" type="number" class="form-input" value="' + (d.beds != null ? d.beds : '') + '"></div>' +
+          '<div><label class="form-label">Full Baths</label><input id="pd_baths" type="number" class="form-input" value="' + (d.baths_full != null ? d.baths_full : '') + '"></div>' +
+          '<div><label class="form-label">Half Baths</label><input id="pd_baths_half" type="number" class="form-input" value="' + (d.baths_half != null ? d.baths_half : '') + '"></div>' +
+        '</div>' +
+        '<div><label class="form-label">Photo URL</label><input id="pd_photo" class="form-input" value="' + E(d.photo_url || '') + '" placeholder="https://..."></div>' +
+        '<div><label class="form-label">Listing Courtesy</label><input id="pd_courtesy" class="form-input" value="' + E(d.listing_courtesy || '') + '" placeholder="e.g. Courtesy of Douglas Elliman"></div>' +
+        (d.id ? '<input type="hidden" id="pd_id" value="' + E(d.id) + '">' : '') +
+      '</form>',
+      d.id ? 'Update Deal' : 'Save Deal',
+      'Panels._submitPastDeal()'
+    );
+    if (d.property_type) {
+      var sel = document.getElementById('pd_property_type');
+      if (sel) sel.value = d.property_type;
+    }
+  }
+
+  function _editPastDeal(dealId) {
+    MallanAPI._fetch('/api/crm/past-deals?limit=500').then(function (res) {
+      var deal = (res.deals || []).find(function (d) { return String(d.id) === String(dealId); });
+      if (deal) _addPastDeal(deal);
+      else Alerts.show('Deal not found', 'error');
+    });
+  }
+
+  function _submitPastDeal() {
+    var street = document.getElementById('pd_street').value.trim();
+    var dealType = document.getElementById('pd_deal_type').value;
+    if (!street) { Alerts.show('Street address is required', 'error'); return; }
+
+    var body = {
+      street: street,
+      unit: document.getElementById('pd_unit').value.trim() || null,
+      neighborhood: document.getElementById('pd_neighborhood').value.trim() || null,
+      postal_code: document.getElementById('pd_zip').value.trim() || null,
+      deal_type: dealType,
+      property_type: document.getElementById('pd_property_type').value || null,
+      close_price: document.getElementById('pd_price').value ? Number(document.getElementById('pd_price').value) : null,
+      close_date: document.getElementById('pd_date').value || null,
+      beds: document.getElementById('pd_beds').value ? Number(document.getElementById('pd_beds').value) : null,
+      baths_full: document.getElementById('pd_baths').value ? Number(document.getElementById('pd_baths').value) : null,
+      baths_half: document.getElementById('pd_baths_half').value ? Number(document.getElementById('pd_baths_half').value) : null,
+      sqft: document.getElementById('pd_sqft').value ? Number(document.getElementById('pd_sqft').value) : null,
+      photo_url: document.getElementById('pd_photo').value.trim() || null,
+      listing_courtesy: document.getElementById('pd_courtesy').value.trim() || null,
+      source: 'manual',
+    };
+
+    var existingId = document.getElementById('pd_id');
+    var isEdit = existingId && existingId.value;
+
+    var url = isEdit ? '/api/crm/past-deals/' + encodeURIComponent(existingId.value) : '/api/crm/past-deals';
+    var method = isEdit ? 'PATCH' : 'POST';
+
+    MallanAPI._fetch(url, { method: method, body: JSON.stringify(body) }).then(function () {
+      CRM.closeModal();
+      Alerts.show(isEdit ? 'Past deal updated' : 'Past deal created', 'success');
+      myListings(); // Refresh
+    }).catch(function (err) {
+      Alerts.show('Error: ' + (err.message || err), 'error');
+    });
+  }
+
+  function _deletePastDeal(dealId) {
+    if (!confirm('Delete this past deal? This cannot be undone.')) return;
+    MallanAPI._fetch('/api/crm/past-deals/' + encodeURIComponent(dealId), { method: 'DELETE' }).then(function () {
+      Alerts.show('Past deal deleted', 'success');
+      myListings(); // Refresh
+    }).catch(function (err) {
+      Alerts.show('Error: ' + (err.message || err), 'error');
+    });
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────
   return {
     // Broker Console
@@ -11977,6 +12101,10 @@ var Panels = (function () {
     _toggleTask: _opsDashToggleTask,
     _launchSearch: _launchSearch,
     _clearSearchHistory: _clearSearchHistory,
+    _addPastDeal: _addPastDeal,
+    _editPastDeal: _editPastDeal,
+    _submitPastDeal: _submitPastDeal,
+    _deletePastDeal: _deletePastDeal,
     _switchMyListingsView: _switchMyListingsView,
     _switchMyListingsType: _switchMyListingsType,
     _switchMyListingsStatus: _switchMyListingsStatus,

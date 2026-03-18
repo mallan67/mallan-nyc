@@ -12,6 +12,14 @@
             document.getElementById('gridLayoutsModal').classList.add('hidden');
         }
 
+        // ESC key to close grid layouts modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var gm = document.getElementById('gridLayoutsModal');
+                if (gm && !gm.classList.contains('hidden')) { closeGridLayoutsModal(); return; }
+            }
+        });
+
         function populateFieldSelectionGrid() {
             var container = document.getElementById('fieldSelectionGrid');
             if (!container) return;

@@ -124,6 +124,33 @@ export async function GET(req: NextRequest) {
             where: { id: search.id },
             data: { last_alert_sent: now, result_count: newListings.length },
           });
+
+          // Also create ClientListingAction records so listings appear in portal
+          if (search.lead_id) {
+            for (const listing of newListings) {
+              const listingRecord = await prisma.listing.findUnique({
+                where: { listing_id: listing.listing_id },
+                select: { id: true },
+              });
+              if (listingRecord) {
+                await prisma.clientListingAction.upsert({
+                  where: {
+                    lead_id_listing_id_action: {
+                      lead_id: search.lead_id,
+                      listing_id: listingRecord.id,
+                      action: "sent",
+                    },
+                  },
+                  update: { created_at: now },
+                  create: {
+                    lead_id: search.lead_id,
+                    listing_id: listingRecord.id,
+                    action: "sent",
+                  },
+                }).catch(() => {}); // Non-blocking — don't fail cron on individual insert errors
+              }
+            }
+          }
         } else {
           errored++;
         }

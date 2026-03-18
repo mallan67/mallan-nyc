@@ -92,6 +92,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     rent_per_month: lead.rent_per_month?.toString() ?? null,
     rental_deposit: lead.rental_deposit?.toString() ?? null,
     total_monthly_expense: lead.total_monthly_expense?.toString() ?? null,
+    secondary_first_name: lead.secondary_first_name,
+    secondary_last_name: lead.secondary_last_name,
+    secondary_email: lead.secondary_email,
+    secondary_phone: lead.secondary_phone,
+    secondary_relationship: lead.secondary_relationship,
+    property_address: lead.property_address,
+    home_address: lead.home_address,
+    unit_number: lead.unit_number,
+    legal_ownership_name: lead.legal_ownership_name,
     created_at: lead.created_at,
     updated_at: lead.updated_at,
     activity_logs: activityLogs.map((a) => ({
@@ -162,6 +171,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.portal_role !== undefined) update.portal_role = body.portal_role as string | null;
   if (body.notes !== undefined) update.notes = body.notes ? String(body.notes) : null;
   if (body.source !== undefined) update.source = String(body.source);
+  if (body.pipeline_stage !== undefined) {
+    const validStages = ["new", "contacted", "nurturing", "active", "showing", "offer", "deal", "closed", "past"];
+    const stage = String(body.pipeline_stage);
+    if (validStages.includes(stage)) update.pipeline_stage = stage;
+  }
 
   // Financial fields
   if (body.annual_income !== undefined) update.annual_income = body.annual_income ? parseFloat(String(body.annual_income)) : null;
@@ -179,6 +193,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.total_monthly_expense !== undefined) update.total_monthly_expense = body.total_monthly_expense ? parseFloat(String(body.total_monthly_expense)) : null;
   if (body.lease_start_date !== undefined) update.lease_start_date = body.lease_start_date ? new Date(String(body.lease_start_date)) : null;
   if (body.lease_end_date !== undefined) update.lease_end_date = body.lease_end_date ? new Date(String(body.lease_end_date)) : null;
+  // Agent reassignment (broker only)
+  if (body.agent_id !== undefined) {
+    if (auth.role !== "BROKER") {
+      return NextResponse.json({ error: "Only broker can reassign clients" }, { status: 403 });
+    }
+    update.agent_id = BigInt(String(body.agent_id));
+  }
+
   if (body.roles !== undefined) {
     const validRoles = ["buyer", "renter", "seller", "landlord", "uncategorized"];
     const roles = body.roles as string[];

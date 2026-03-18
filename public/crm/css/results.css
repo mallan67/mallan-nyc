@@ -767,6 +767,14 @@
     box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
 }
 
+/* Map highlight on listing card when pin is clicked */
+.results-map-highlight {
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+    transition: outline 0.2s, box-shadow 0.2s;
+}
+
 /* Map popup card */
 .map-popup-card { width: 280px; font-family: Inter, system-ui, sans-serif; }
 .map-popup-photo {

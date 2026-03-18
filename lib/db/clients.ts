@@ -67,7 +67,25 @@ export async function findClients(opts: {
       orderBy: { updated_at: "desc" },
       take: Math.min(limit, 200),
       skip: offset,
-      select: CLIENT_SELECT,
+      select: {
+        ...CLIENT_SELECT,
+        lead_score: {
+          select: { grade: true, score: true },
+        },
+        saved_searches: {
+          where: { alert_enabled: true },
+          select: {
+            alert_frequency: true,
+            last_alert_sent: true,
+            result_count: true,
+          },
+          take: 1,
+          orderBy: { updated_at: "desc" },
+        },
+        _count: {
+          select: { actions: true },
+        },
+      },
     }),
     prisma.lead.count({ where }),
   ]);

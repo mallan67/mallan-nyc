@@ -8,17 +8,38 @@ import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { SessionUser } from "@/lib/auth/session";
 
-// Microsoft 365 SMTP configuration
+// ─── SMTP Configuration ──────────────────────────────────────────────
+// Three sending identities to protect deliverability:
+//
+// 1. AGENT EMAIL — personal sends to own clients (listing sends, 1-5 people)
+//    From: agent's own email (e.g. maya@mallan.nyc)
+//    Set per-agent on Agent.email in DB. Agent must be a valid M365 shared sender.
+//
+// 2. COMPANY EMAIL — marketing, auto-responses, system notifications
+//    From: contact@mallan.nyc (SMTP_USER)
+//    Default for all non-agent sends.
+//
+// 3. LISTINGS EMAIL — bulk eBlasts to brokers/agents (50+ recipients)
+//    From: listings@mallan.nyc (SMTP_LISTINGS_USER)
+//    Separate mailbox protects personal + contact@ from spam flags.
+//
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.office365.com";
 const SMTP_PORT = Number(process.env.SMTP_PORT || "587");
-const SMTP_USER = process.env.SMTP_USER; // e.g. contact@mallan.nyc
+const SMTP_USER = process.env.SMTP_USER; // contact@mallan.nyc
 const SMTP_PASS = process.env.SMTP_PASS; // Microsoft 365 app password
-const FROM_EMAIL = process.env.SMTP_FROM || SMTP_USER || "contact@mallan.nyc";
-const FROM_NAME = "Mallan Real Estate";
+// All addresses are aliases on maya@mallan.nyc — single M365 account, one password.
+// SMTP authenticates as SMTP_USER (maya@ or contact@), From changes per channel.
+const FROM_COMPANY_EMAIL = process.env.SMTP_FROM || "contact@mallan.nyc";
+const FROM_COMPANY_NAME = "Mallan Real Estate";
+const FROM_LISTINGS_EMAIL = "listings@mallan.nyc";
+const FROM_LISTINGS_NAME = "Mallan Listings";
+
+export type SendChannel = "agent" | "company" | "listings";
 
 const isConfigured = !!(SMTP_USER && SMTP_PASS);
 
-// Create reusable transporter (lazy — only if configured)
+// Single transporter — all channels authenticate with SMTP_USER (contact@)
+// and use "Send As" for different From addresses (M365 shared mailbox permission)
 let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter {
@@ -43,36 +64,73 @@ function getTransporter(): nodemailer.Transporter {
 /**
  * Send a single email via Microsoft 365 SMTP.
  * Logs to AuditEvent for compliance trail.
+ *
+ * @param opts.from - Override sender: { email, name } for agent sends.
+ *                    Omit for company default (contact@mallan.nyc).
+ * @param opts.channel - "agent" | "company" | "listings" — determines SMTP identity.
+ * @param opts.replyTo - Reply-to address (e.g. agent's email for company-sent mail).
  */
 export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  user?: SessionUser
+  user?: SessionUser,
+  opts?: {
+    from?: { email: string; name: string };
+    channel?: SendChannel;
+    replyTo?: string;
+  }
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!isConfigured) {
     // Dev mode: log to console instead of sending
-    console.log(`[Email:DEV] To: ${to} | Subject: ${subject} | Body length: ${html.length} chars`);
+    console.log(`[Email:DEV] To: ${to} | Subject: ${subject} | Channel: ${opts?.channel || "company"} | Body length: ${html.length} chars`);
     await logEmailAudit("send_dev", to, subject, user);
     return { success: true, messageId: "dev-mode" };
   }
 
+  // Resolve sender identity based on channel
+  const channel = opts?.channel || "company";
+  let fromEmail: string;
+  let fromName: string;
+
+  if (channel === "agent" && opts?.from) {
+    // Agent's personal email — for client listing sends (low volume)
+    fromEmail = opts.from.email;
+    fromName = opts.from.name;
+  } else if (channel === "listings") {
+    // Bulk/eBlast — separate mailbox to protect personal + contact@
+    fromEmail = FROM_LISTINGS_EMAIL;
+    fromName = FROM_LISTINGS_NAME;
+  } else {
+    // Company default — marketing, auto-responses, system
+    fromEmail = FROM_COMPANY_EMAIL;
+    fromName = FROM_COMPANY_NAME;
+  }
+
   try {
-    const info = await getTransporter().sendMail({
-      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       html,
-    });
+    };
+
+    // Reply-to: so client replies reach the agent, not the system mailbox
+    if (opts?.replyTo) {
+      mailOptions.replyTo = opts.replyTo;
+    }
+
+    // All channels use same SMTP auth (contact@) with Send As for the From address
+    const info = await getTransporter().sendMail(mailOptions);
 
     const messageId = info.messageId;
-    await logEmailAudit("send", to, subject, user, { messageId });
+    await logEmailAudit("send", to, subject, user, { messageId, channel, fromEmail });
 
     return { success: true, messageId };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error("[Email] SMTP error:", errorMessage);
-    await logEmailAudit("send_error", to, subject, user, { error: errorMessage });
+    console.error(`[Email] SMTP error (${channel}):`, errorMessage);
+    await logEmailAudit("send_error", to, subject, user, { error: errorMessage, channel, fromEmail });
     return { success: false, error: errorMessage };
   }
 }

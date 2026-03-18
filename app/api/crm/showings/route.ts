@@ -5,6 +5,8 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { sendEmail } from "@/lib/email/sendgrid";
+import { showingConfirmEmail } from "@/lib/email/templates";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -179,11 +181,79 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
+  // Auto-create feedback task for the day after the showing
+  if (leadId) {
+    const client = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { first_name: true, last_name: true },
+    });
+    const clientName = client
+      ? `${client.first_name || ""} ${client.last_name || ""}`.trim()
+      : `Client`;
+    const feedbackDue = new Date(showingDate.getTime() + 24 * 3600 * 1000);
+    await prisma.followUpTask.create({
+      data: {
+        lead_id: leadId,
+        agent_id: auth.userId,
+        title: `Get feedback on ${listing?.address || listingIdStr} from ${clientName}`,
+        description: `Showing was on ${showingDate.toLocaleDateString()}. Follow up for feedback and next steps.`,
+        due_date: feedbackDue,
+        priority: "high",
+        task_type: "showing",
+      },
+    }).catch(() => {}); // Non-blocking
+  }
+
+  // ── Email confirmation to client (non-blocking) ──
+  let emailSent = false;
+  if (leadId) {
+    const clientForEmail = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { first_name: true, last_name: true, email: true },
+    });
+    if (clientForEmail?.email) {
+      const agentRecord = await prisma.agent.findUnique({
+        where: { id: auth.userId },
+        select: { first_name: true, last_name: true },
+      });
+      const agName = agentRecord
+        ? `${agentRecord.first_name || ""} ${agentRecord.last_name || ""}`.trim() || "Your Agent"
+        : "Your Agent";
+      const clName = `${clientForEmail.first_name || ""} ${clientForEmail.last_name || ""}`.trim() || "there";
+      const html = showingConfirmEmail({
+        clientName: clName,
+        address: String(listing?.address && typeof listing.address === "object"
+          ? (listing.address as Record<string, unknown>).full || (listing.address as Record<string, unknown>).UnparsedAddress || listingIdStr
+          : listing?.address || listingIdStr),
+        date: showingDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+        time: (body.time as string) || "TBD",
+        type: (body.type as string) || "private",
+        agentName: agName,
+        notes: (body.notes as string) || undefined,
+      });
+      // Showing confirmations: sent from company email (system notification),
+      // reply-to goes to agent so client replies reach the right person
+      const agentEmail = await prisma.agent.findUnique({
+        where: { id: auth.userId },
+        select: { email: true },
+      });
+      const result = await sendEmail(
+        clientForEmail.email,
+        `Showing confirmed: ${listing?.address || listingIdStr}`,
+        html,
+        undefined,
+        { channel: "company", replyTo: agentEmail?.email || undefined }
+      ).catch(() => ({ success: false }));
+      emailSent = result.success;
+    }
+  }
+
   return NextResponse.json(
     {
       id: showing.id.toString(),
       status: "confirmed",
       date: showing.date,
+      email_sent: emailSent,
     },
     { status: 201 }
   );

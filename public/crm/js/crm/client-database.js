@@ -3,6 +3,8 @@
 // ============================================
 // Client data is loaded from the API at runtime.
 // No hardcoded demo/mock clients — real data only.
+// Uses escapeHtml() from nav.js for XSS prevention.
+// Uses ClientNormalizer from core/client-normalizer.js.
 var customerDB = {};
 
 // Agent-scoped client filtering — broker sees all, agent sees only their own
@@ -17,11 +19,18 @@ function getMyClients() {
     return clients;
 }
 
+// Navigate to client workspace in CRM dashboard
+function openClientWorkspace(clientId) {
+    if (!clientId) return;
+    window.location.href = '/crm/dashboard.html#/workspace/client/' + encodeURIComponent(clientId) + '/overview';
+}
+
 // Dynamically render client card grid (replaces hardcoded HTML cards)
 function renderClientGrid() {
     var tbody = document.getElementById('clientTableBody');
     if (!tbody) return;
     var clients = getMyClients();
+    var E = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     var stageLabels = { new_lead:'New Lead', qualified:'Qualified', requirements_confirmed:'Req. Confirmed', searching:'Searching', touring:'Touring', shortlist:'Shortlist', offer_prep:'Offer Prep', offer_submitted:'Offer', negotiation:'Negotiating', contract_signed:'Contract', closing_scheduled:'Closing', closed:'Closed' };
     var stageSteps = ['new_lead','qualified','requirements_confirmed','searching','touring','shortlist','offer_prep','offer_submitted','negotiation','contract_signed','closing_scheduled','closed'];
     var typeColors = { Buyer:'blue', Renter:'green', Seller:'amber', Landlord:'purple', Investor:'indigo' };
@@ -35,6 +44,8 @@ function renderClientGrid() {
     var activeCount = 0, closedCount = 0;
     for (var id in clients) {
         var c = clients[id];
+        // Normalize via shared utility
+        if (typeof ClientNormalizer !== 'undefined') ClientNormalizer.normalize(c);
         var cs = c.clientStatus || 'active';
         if (cs === 'active') activeCount++;
         else closedCount++;
@@ -44,8 +55,8 @@ function renderClientGrid() {
         // Dropdown filters
         if (typeFilter !== 'all' && (c.clientType || c.type || '').toLowerCase() !== typeFilter) continue;
         if (stageFilter !== 'all' && c.dealStage !== stageFilter) continue;
-        if (searchText && c.name.toLowerCase().indexOf(searchText) === -1
-            && c.email.toLowerCase().indexOf(searchText) === -1
+        if (searchText && (c.name || '').toLowerCase().indexOf(searchText) === -1
+            && (c.email || '').toLowerCase().indexOf(searchText) === -1
             && ((c.preferences && c.preferences.neighborhoods) || []).join(',').toLowerCase().indexOf(searchText) === -1) continue;
         rows.push({ id: id, client: c });
     }
@@ -59,7 +70,7 @@ function renderClientGrid() {
         var stageIdx = stageSteps.indexOf(dealStage);
         var stageColor = stageIdx >= 9 ? 'green' : stageIdx >= 6 ? 'purple' : stageIdx >= 3 ? 'blue' : 'gray';
         var tc = typeColors[c.type] || 'gray';
-        var neighborhoods = (p.neighborhoods || []).join(', ') || '\u2014';
+        var neighborhoods = E((p.neighborhoods || []).join(', ') || '\u2014');
         var beds = p.minBeds ? (p.maxBeds && p.maxBeds !== p.minBeds ? p.minBeds + '-' + p.maxBeds : p.minBeds + '+') : '\u2014';
         var baths = p.minBaths ? (p.maxBaths && p.maxBaths !== p.minBaths ? p.minBaths + '-' + p.maxBaths : p.minBaths + '+') : '\u2014';
         var lastAct = c.lastActivity ? Math.round((new Date() - new Date(c.lastActivity)) / 86400000) : null;
@@ -68,39 +79,39 @@ function renderClientGrid() {
         var savedSearchCount = (c.savedSearches || []).length;
         var portfolioCount = (c.portfolio && c.portfolio.listings) ? c.portfolio.listings.length : 0;
 
-        html += '<tr onclick="openClientWorkspace(\'' + row.id + '\')" class="border-b hover:bg-blue-50/50 cursor-pointer transition-colors">';
+        html += '<tr onclick="openClientWorkspace(\'' + E(row.id) + '\')" class="border-b hover:bg-blue-50/50 cursor-pointer transition-colors">';
 
         // Name + avatar
         html += '<td class="px-4 py-3"><div class="flex items-center gap-2.5">';
-        html += '<div class="w-8 h-8 bg-' + c.color + '-100 text-' + c.color + '-700 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0">' + c.initials + '</div>';
-        html += '<div class="min-w-0"><p class="font-semibold text-gray-900 text-sm truncate">' + c.name + '</p>';
-        html += '<p class="text-[11px] text-gray-400 truncate">' + c.email + '</p></div>';
+        html += '<div class="w-8 h-8 bg-' + E(c.color) + '-100 text-' + E(c.color) + '-700 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0">' + E(c.initials) + '</div>';
+        html += '<div class="min-w-0"><p class="font-semibold text-gray-900 text-sm truncate">' + E(c.name) + '</p>';
+        html += '<p class="text-[11px] text-gray-400 truncate">' + E(c.email) + '</p></div>';
         html += '</div></td>';
 
         // Role
-        html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-' + tc + '-100 text-' + tc + '-700 rounded-full font-semibold">' + c.type + '</span></td>';
+        html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-' + E(tc) + '-100 text-' + E(tc) + '-700 rounded-full font-semibold">' + E(c.type) + '</span></td>';
 
         // Stage
         if (cs === 'closed') {
             var closedLabels = { purchased:'Purchased', rented:'Rented', sold:'Sold', leased:'Leased' };
-            html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-gray-800 text-white rounded-full font-semibold">' + (closedLabels[c.closedType] || 'Closed') + '</span></td>';
+            html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-gray-800 text-white rounded-full font-semibold">' + E(closedLabels[c.closedType] || 'Closed') + '</span></td>';
         } else {
-            html += '<td class="px-4 py-3"><span class="text-xs font-medium text-' + stageColor + '-700">' + (stageLabels[dealStage] || dealStage) + '</span></td>';
+            html += '<td class="px-4 py-3"><span class="text-xs font-medium text-' + E(stageColor) + '-700">' + E(stageLabels[dealStage] || dealStage) + '</span></td>';
         }
 
         // Budget
-        html += '<td class="px-4 py-3 text-right text-sm font-semibold text-gray-900 whitespace-nowrap">' + (c.budget || '\u2014') + '</td>';
+        html += '<td class="px-4 py-3 text-right text-sm font-semibold text-gray-900 whitespace-nowrap">' + E(c.budget || '\u2014') + '</td>';
 
         // BD / BA
-        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + beds + '</td>';
-        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + baths + '</td>';
+        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + E(beds) + '</td>';
+        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + E(baths) + '</td>';
 
         // Neighborhood
         html += '<td class="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate" title="' + neighborhoods + '">' + neighborhoods + '</td>';
 
         // Activity
         html += '<td class="px-4 py-3">';
-        html += '<span class="text-[11px] text-' + actColor + '-600">' + (lastAct === null ? '\u2014' : lastAct === 0 ? 'Today' : lastAct + 'd') + '</span>';
+        html += '<span class="text-[11px] text-' + E(actColor) + '-600">' + (lastAct === null ? '\u2014' : lastAct === 0 ? 'Today' : lastAct + 'd') + '</span>';
         if (pendingAlerts > 0) html += ' <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">' + pendingAlerts + '</span>';
         html += '</td>';
 
@@ -127,6 +138,7 @@ function populateClientSelect() {
     var sel = document.getElementById('clientSelect');
     if (!sel) return;
     var clients = getMyClients();
+    var E = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     var html = '<option value="">-- Choose a client --</option>';
 
     if (LOGGED_IN_AGENT.role === 'broker') {
@@ -139,9 +151,9 @@ function populateClientSelect() {
             byAgent[aname].push({ id: id, client: c });
         }
         for (var agent in byAgent) {
-            html += '<optgroup label="' + agent + '\'s Clients">';
+            html += '<optgroup label="' + E(agent) + '\'s Clients">';
             byAgent[agent].forEach(function(item) {
-                html += '<option value="' + item.id + '">' + item.client.name + ' - ' + item.client.type + ' (' + item.client.budget + ')</option>';
+                html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' - ' + E(item.client.type) + ' (' + E(item.client.budget) + ')</option>';
             });
             html += '</optgroup>';
         }
@@ -155,12 +167,12 @@ function populateClientSelect() {
         }
         if (buyers.length) {
             html += '<optgroup label="Buyers">';
-            buyers.forEach(function(item) { html += '<option value="' + item.id + '">' + item.client.name + ' (' + item.client.budget + ')</option>'; });
+            buyers.forEach(function(item) { html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' (' + E(item.client.budget) + ')</option>'; });
             html += '</optgroup>';
         }
         if (renters.length) {
             html += '<optgroup label="Renters">';
-            renters.forEach(function(item) { html += '<option value="' + item.id + '">' + item.client.name + ' (' + item.client.budget + ')</option>'; });
+            renters.forEach(function(item) { html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' (' + E(item.client.budget) + ')</option>'; });
             html += '</optgroup>';
         }
     }
@@ -244,4 +256,3 @@ function parseBudgetValue(td) {
     else if (text.toUpperCase().indexOf('K') !== -1) num *= 1000;
     return num;
 }
-

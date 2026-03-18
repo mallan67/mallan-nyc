@@ -31,6 +31,7 @@
         "ucba:audit": "node scripts/ucba-compliance-audit.js",
         "ucba:audit:json": "node scripts/ucba-compliance-audit.js --json",
         "ucba:audit:fails": "node scripts/ucba-compliance-audit.js --fails",
+        "validate:form-rls": "node scripts/validate-form-rls.js",
         "rls:v2": "npx tsx lib/rls-validator/src/cli.ts",
         "rls:v2:test": "npx jest --config lib/rls-validator/jest.config.js",
         "test:compliance": "npx jest --config lib/compliance/jest.config.js",

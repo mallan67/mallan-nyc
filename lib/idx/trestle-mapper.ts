@@ -39,10 +39,10 @@ export const RESO_TO_RLS_RENAMES: Record<string, string> = {
 // Grouped by the 29 RLS categories (B1–B29)
 // ═══════════════════════════════════════════════════════════
 
-// B1: Address (24 fields)
+// B1: Address (25 fields)
 const B1_ADDRESS = [
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
-  "StreetSuffix", "UnitNumber", "City", "CityRegion", "PostalCity",
+  "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
   "PostalCode", "StateOrProvince", "CountyOrParish", "Country",
   "CrossStreet", "Directions", "Latitude", "Longitude",
   "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
@@ -606,7 +606,10 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   const livingArea = raw.LivingArea != null ? Number(raw.LivingArea) : null;
 
   const borough = inferBorough(raw);
-  const neighborhood = raw.CityRegion ? String(raw.CityRegion) : null;
+  // SubdivisionName = real neighborhood (UWS, Tribeca, etc.)
+  // CityRegion = borough (Manhattan, Brooklyn, etc.) — NOT neighborhood
+  const neighborhood = raw.SubdivisionName ? String(raw.SubdivisionName) :
+    (raw.CityRegion && raw.CityRegion !== borough ? String(raw.CityRegion) : null);
 
   // Distribution gates
   const idxDisplayYn = raw.IDXEntireListingDisplayYN !== false;
