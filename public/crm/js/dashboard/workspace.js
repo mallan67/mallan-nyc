@@ -628,33 +628,35 @@ var Workspace = (function () {
     if (famEl) {
       MallanAPI._fetch('/api/crm/clients/' + _clientId + '/family').then(function (data) {
         var members = data.members || [];
-        if (members.length === 0) {
-          famEl.innerHTML = '';
-          return;
-        }
         var fhtml = '<div class="card p-4">' +
           '<div class="flex items-center justify-between mb-3">' +
             '<h4 class="text-xs font-bold text-gray-500 uppercase"><i class="fas fa-users mr-1"></i>Family / Partner</h4>' +
-          '</div>' +
-          '<div class="space-y-2">';
-        members.forEach(function (m) {
-          var mem = m.member;
-          var name = ((mem.first_name || '') + ' ' + (mem.last_name || '')).trim() || 'Unknown';
-          var rel = m.relationship ? m.relationship.charAt(0).toUpperCase() + m.relationship.slice(1) : '';
-          fhtml += '<div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + mem.id + '/overview\')">' +
-            '<div class="flex items-center gap-3">' +
-              '<div class="w-8 h-8 rounded-full bg-gold-bg text-gold flex items-center justify-center text-xs font-bold">' +
-                E((mem.first_name || '?')[0] + (mem.last_name || '?')[0]) +
-              '</div>' +
-              '<div>' +
-                '<p class="text-sm font-semibold text-gray-900">' + E(name) + '</p>' +
-                '<p class="text-xs text-gray-500">' + E(rel) + (mem.email ? ' · ' + E(mem.email) : '') + '</p>' +
-              '</div>' +
-            '</div>' +
-            '<i class="fas fa-chevron-right text-xs text-gray-300"></i>' +
+            '<button class="text-xs text-gold hover:underline" onclick="Workspace._linkPartner()"><i class="fas fa-plus mr-1"></i>Link</button>' +
           '</div>';
-        });
-        fhtml += '</div></div>';
+        if (members.length > 0) {
+          fhtml += '<div class="space-y-2">';
+          members.forEach(function (m) {
+            var mem = m.member;
+            var name = ((mem.first_name || '') + ' ' + (mem.last_name || '')).trim() || 'Unknown';
+            var rel = m.relationship ? m.relationship.charAt(0).toUpperCase() + m.relationship.slice(1) : '';
+            fhtml += '<div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + mem.id + '/overview\')">' +
+              '<div class="flex items-center gap-3">' +
+                '<div class="w-8 h-8 rounded-full bg-gold-bg text-gold flex items-center justify-center text-xs font-bold">' +
+                  E((mem.first_name || '?')[0] + (mem.last_name || '?')[0]) +
+                '</div>' +
+                '<div>' +
+                  '<p class="text-sm font-semibold text-gray-900">' + E(name) + '</p>' +
+                  '<p class="text-xs text-gray-500">' + E(rel) + (mem.email ? ' · ' + E(mem.email) : '') + '</p>' +
+                '</div>' +
+              '</div>' +
+              '<i class="fas fa-chevron-right text-xs text-gray-300"></i>' +
+            '</div>';
+          });
+          fhtml += '</div>';
+        } else {
+          fhtml += '<p class="text-xs text-gray-400">No linked partner or family member</p>';
+        }
+        fhtml += '</div>';
         famEl.innerHTML = fhtml;
       }).catch(function () {
         famEl.innerHTML = '';
@@ -1004,6 +1006,56 @@ var Workspace = (function () {
       _renderClientTab();
     }).catch(function (err) {
       CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
+    });
+  }
+
+  function _linkPartner() {
+    if (!_clientId) return;
+
+    // Fetch all clients to show as options
+    MallanAPI.clients.list({ limit: 200 }).then(function (res) {
+      var clients = (res.clients || []).filter(function (c) { return String(c.id) !== String(_clientId); });
+      if (clients.length === 0) { CRM.toast('No other clients to link', 'warning'); return; }
+
+      var html = '<div class="space-y-4">' +
+        '<div><label class="form-label">Select Partner / Family Member</label>' +
+          '<select id="linkPartnerSelect" class="form-input">' +
+            '<option value="">-- Choose --</option>';
+      clients.forEach(function (c) {
+        var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email;
+        html += '<option value="' + c.id + '">' + E(name) + ' (' + E(c.email || '') + ')</option>';
+      });
+      html += '</select></div>' +
+        '<div><label class="form-label">Relationship</label>' +
+          '<select id="linkPartnerRelationship" class="form-input">' +
+            '<option value="spouse">Spouse</option>' +
+            '<option value="partner">Partner</option>' +
+            '<option value="co-owner">Co-Owner</option>' +
+            '<option value="co-applicant">Co-Applicant</option>' +
+            '<option value="parent">Parent</option>' +
+            '<option value="sibling">Sibling</option>' +
+            '<option value="other">Other</option>' +
+          '</select></div>' +
+        '</div>';
+
+      CRM.openModal('Link Partner / Family', html, [
+        { label: 'Link', style: 'primary', onclick: function () {
+          var partnerId = document.getElementById('linkPartnerSelect').value;
+          var rel = document.getElementById('linkPartnerRelationship').value;
+          if (!partnerId) { CRM.toast('Select a person', 'warning'); return; }
+
+          MallanAPI._fetch('/api/crm/clients/' + _clientId + '/family', {
+            method: 'POST',
+            body: JSON.stringify({ member_lead_id: partnerId, relationship: rel }),
+          }).then(function () {
+            CRM.toast('Linked successfully', 'success');
+            CRM.closeModal();
+            _renderClientTab();
+          }).catch(function (err) {
+            CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
+          });
+        }},
+      ]);
     });
   }
 
@@ -4779,6 +4831,7 @@ var Workspace = (function () {
     _submitPreferences: _submitPreferences,
     _saveClientNotes: _saveClientNotes,
     _deleteClient: _deleteClient,
+    _linkPartner: _linkPartner,
     _editNote: _editNote,
     _deleteNote: _deleteNote,
     _saveAlertSettings: _saveAlertSettings,
