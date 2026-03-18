@@ -534,15 +534,22 @@ var Workspace = (function () {
       '</div>';
     if (noteEvents.length > 0) {
       html += '<div class="space-y-2 mb-3">';
-      noteEvents.forEach(function (e) {
+      noteEvents.forEach(function (e, idx) {
         var content = (e.payload && e.payload.content) || '';
         var isPinned = content === pinnedNote;
-        html += '<div class="p-3 rounded-lg bg-gray-50 flex items-start gap-2">' +
-          '<div class="flex-1 min-w-0">' +
-            '<p class="text-sm text-gray-700">' + E(content) + '</p>' +
-            '<p class="text-xs text-gray-400 mt-1">' + Utils.formatTimeAgo(e.createdAt) + '</p>' +
+        var safeContent = E(content.replace(/'/g, "\\'").replace(/\n/g, "\\n"));
+        html += '<div class="p-3 rounded-lg bg-gray-50 group">' +
+          '<div class="flex items-start gap-2">' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm text-gray-700" id="noteText_' + idx + '">' + E(content) + '</p>' +
+              '<p class="text-xs text-gray-400 mt-1">' + Utils.formatTimeAgo(e.createdAt) + '</p>' +
+            '</div>' +
+            '<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition flex-shrink-0">' +
+              '<button class="text-xs text-gray-400 hover:text-blue-500 p-1" onclick="Workspace._editNote(' + idx + ',\'' + safeContent + '\')" title="Edit"><i class="fas fa-pen"></i></button>' +
+              '<button class="text-xs text-gray-400 hover:text-red-500 p-1" onclick="Workspace._deleteNote(' + idx + ',\'' + safeContent + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
+              (!isPinned && content ? '<button class="text-xs text-gray-400 hover:text-gold p-1" onclick="Workspace._pinNote(\'' + safeContent + '\')" title="Pin"><i class="fas fa-thumbtack"></i></button>' : '') +
+            '</div>' +
           '</div>' +
-          (!isPinned && content ? '<button class="text-xs text-gray-400 hover:text-gold flex-shrink-0" onclick="Workspace._pinNote(\'' + E(content.replace(/'/g, "\\'")) + '\')" title="Pin this note"><i class="fas fa-thumbtack"></i></button>' : '') +
         '</div>';
       });
       html += '</div>';
@@ -596,9 +603,16 @@ var Workspace = (function () {
         actEl.innerHTML = '<p class="text-xs text-gray-400">No recent activity</p>';
       } else {
         actEl.innerHTML = UI.timeline(recentEvents.map(function (e) {
+          var desc = '';
+          if (e.payload) {
+            if (e.payload.content) desc = e.payload.content;
+            else if (e.payload.name) desc = e.payload.name;
+            else if (e.payload.field) desc = e.payload.field + ' updated';
+            else { var keys = Object.keys(e.payload).filter(function(k) { return k !== 'source'; }); desc = keys.map(function(k) { return k + ': ' + e.payload[k]; }).join(', '); }
+          }
           return {
             title: Events.label(e.type),
-            description: e.payload ? JSON.stringify(e.payload).substring(0, 80) : '',
+            description: desc.substring(0, 100),
             time: Utils.formatTimeAgo(e.createdAt),
             dotClass: e.severity === 'urgent' ? 'active' : 'info',
           };
@@ -902,6 +916,53 @@ var Workspace = (function () {
       _renderClientTab();
     }).catch(function (err) {
       CRM.toast('Error: ' + (err.message || 'Could not save preferences'), 'error');
+    });
+  }
+
+  function _editNote(idx, oldContent) {
+    oldContent = oldContent.replace(/\\n/g, '\n').replace(/\\'/g, "'");
+    var newContent = prompt('Edit note:', oldContent);
+    if (newContent === null || newContent.trim() === oldContent) return;
+    newContent = newContent.trim();
+    if (!newContent) { _deleteNote(idx, oldContent); return; }
+
+    // Update in the notes text field
+    var notes = (_client.notes || '').split('\n');
+    var updated = false;
+    for (var i = 0; i < notes.length; i++) {
+      if (notes[i].indexOf(oldContent) !== -1) {
+        notes[i] = notes[i].replace(oldContent, newContent);
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) { CRM.toast('Could not find note to edit', 'warning'); return; }
+    var newNotes = notes.join('\n');
+    MallanAPI.clients.update(_clientId, { notes: newNotes }).then(function () {
+      _client.notes = newNotes;
+      CRM.toast('Note updated', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
+    });
+  }
+
+  function _deleteNote(idx, content) {
+    content = content.replace(/\\n/g, '\n').replace(/\\'/g, "'");
+    if (!confirm('Delete this note?')) return;
+
+    // Remove from notes text field
+    var notes = (_client.notes || '').split('\n');
+    var filtered = notes.filter(function (line) {
+      return line.indexOf(content) === -1;
+    });
+    var newNotes = filtered.join('\n').trim();
+    MallanAPI.clients.update(_clientId, { notes: newNotes }).then(function () {
+      _client.notes = newNotes;
+      CRM.toast('Note deleted', 'success');
+      _renderClientTab();
+    }).catch(function (err) {
+      CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
     });
   }
 
@@ -4677,6 +4738,8 @@ var Workspace = (function () {
     _submitPreferences: _submitPreferences,
     _saveClientNotes: _saveClientNotes,
     _deleteClient: _deleteClient,
+    _editNote: _editNote,
+    _deleteNote: _deleteNote,
     _saveAlertSettings: _saveAlertSettings,
     _searchAndSend: _searchAndSend,
     _sendListingToClient: _sendListingToClient,
