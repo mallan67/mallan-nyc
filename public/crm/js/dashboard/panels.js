@@ -8903,7 +8903,11 @@ var Panels = (function () {
         cl._isPast = stage === 'closed' || stage === 'past' || cl.status === 'inactive';
       });
 
-      _myClientsData = clients;
+      // My Clients = only clients you're working with (not raw "new" leads — those live in Pipeline)
+      _myClientsData = clients.filter(function (cl) {
+        var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
+        return stage !== 'new';
+      });
       _renderMyClients(c);
 
       // Listen for global search
