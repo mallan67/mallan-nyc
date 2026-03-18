@@ -344,23 +344,25 @@ var Panels = (function () {
 
       // ── Helper: action queue card ─────────────────────────────────
       function _queueCard(icon, count, label, subtext, color, route) {
-        var bgHex = color === '#DC2626' ? '#FEF2F2' : color === '#F59E0B' ? '#FFFBEB' : '#F0FDF4';
+        // Use neutral gray when count is 0, otherwise use the alert color
+        var displayColor = count > 0 ? color : '#6B7280';
+        var bgHex = displayColor === '#DC2626' ? '#FEF2F2' : displayColor === '#F59E0B' ? '#FFFBEB' : '#F3F4F6';
         var onclick = count > 0
           ? 'var el=document.getElementById(\'brokerActionQueue\');if(el){el.scrollIntoView({behavior:\"smooth\",block:\"start\"});}else{Router.navigate(\'' + route + '\');}'
           : 'Router.navigate(\'' + route + '\')';
         return '<div class="card p-4 cursor-pointer hover:border-gold hover:shadow-md transition-all text-center" onclick="' + onclick + '">' +
           '<div class="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style="background:' + bgHex + '">' +
-            '<i class="fas ' + icon + ' text-lg" style="color:' + color + '"></i>' +
+            '<i class="fas ' + icon + ' text-lg" style="color:' + displayColor + '"></i>' +
           '</div>' +
-          '<p class="text-2xl font-bold" style="color:' + color + '">' + count + '</p>' +
+          '<p class="text-2xl font-bold" style="color:' + displayColor + '">' + count + '</p>' +
           '<p class="text-xs font-semibold text-gray-700 mt-1">' + E(label) + '</p>' +
-          '<p class="text-xs mt-1" style="color:' + color + '">' + E(subtext) + '</p>' +
+          '<p class="text-xs mt-1" style="color:' + displayColor + '">' + E(subtext) + '</p>' +
         '</div>';
       }
 
       // ── Helper: status badge ──────────────────────────────────────
       function _statusBadge(status) {
-        var colors = { Active: '#2563EB', active: '#2563EB', Pending: '#F59E0B', pending: '#F59E0B', offer: '#F59E0B', ActiveUnderContract: '#7C3AED', contract: '#7C3AED', Closed: '#059669', closed: '#059669', Sold: '#059669', sold: '#059669' };
+        var colors = { Active: '#2563EB', active: '#2563EB', Pending: '#F59E0B', pending: '#F59E0B', offer: '#F59E0B', ActiveUnderContract: '#7C3AED', contract: '#7C3AED', Closed: '#374151', closed: '#374151', Sold: '#374151', sold: '#374151' };
         var bg = colors[status] || '#6B7280';
         return '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white" style="background:' + bg + '">' + E(status || 'Unknown') + '</span>';
       }
@@ -371,20 +373,20 @@ var Panels = (function () {
       // ── ROW 1: Action Queue Cards ─────────────────────────────────
       html += '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">';
       html += _queueCard('fa-user-clock', unassignedLeads.length, 'Unassigned Leads',
-        unassignedLeads.length > 0 ? unassignedLeads.length + ' need assignment' : 'All clear',
-        unassignedLeads.length > 0 ? '#DC2626' : '#059669', '/broker/leads/distribution');
+        unassignedLeads.length > 0 ? unassignedLeads.length + ' need assignment' : 'None',
+        unassignedLeads.length > 0 ? '#DC2626' : '#6B7280', '/broker/leads/distribution');
       html += _queueCard('fa-dollar-sign', pendingPayouts.length, 'Pending Payouts',
-        pendingPayouts.length > 0 ? pendingPayouts.length + ' awaiting approval' : 'All clear',
-        pendingPayouts.length > 0 ? '#F59E0B' : '#059669', '/broker/finance/payouts');
+        pendingPayouts.length > 0 ? pendingPayouts.length + ' awaiting approval' : 'None',
+        pendingPayouts.length > 0 ? '#F59E0B' : '#6B7280', '/broker/finance/payouts');
       html += _queueCard('fa-id-card', expiringAgents.length, 'Expiring Licenses',
-        expiringAgents.length > 0 ? expiringAgents.length + ' within 90 days' : 'All clear',
-        urgentExpiring.length > 0 ? '#DC2626' : expiringAgents.length > 0 ? '#F59E0B' : '#059669', '/broker/system/licensing');
+        expiringAgents.length > 0 ? expiringAgents.length + ' within 90 days' : 'None',
+        urgentExpiring.length > 0 ? '#DC2626' : expiringAgents.length > 0 ? '#F59E0B' : '#6B7280', '/broker/system/licensing');
       html += _queueCard('fa-shield-alt', compViolations, 'Compliance Issues',
-        compViolations > 0 ? compViolations + ' items need action' : 'All clear',
-        compViolations > 0 ? '#DC2626' : '#059669', '/broker/listings/compliance');
+        compViolations > 0 ? compViolations + ' items need action' : 'None',
+        compViolations > 0 ? '#DC2626' : '#6B7280', '/broker/listings/compliance');
       html += _queueCard('fa-file-signature', pendingDocs.length, 'Doc Approvals',
-        pendingDocs.length > 0 ? pendingDocs.length + ' pending review' : 'All clear',
-        pendingDocs.length > 0 ? '#F59E0B' : '#059669', '/broker/documents');
+        pendingDocs.length > 0 ? pendingDocs.length + ' pending review' : 'None',
+        pendingDocs.length > 0 ? '#F59E0B' : '#6B7280', '/broker/documents');
       html += '</div>';
 
       // ── ROW 2: Recent Activity (2 columns) ───────────────────────
@@ -461,14 +463,14 @@ var Panels = (function () {
       var lastSync = idxStatus ? (idxStatus.lastSync || idxStatus.last_sync || idxStatus.lastSyncAt || null) : null;
       html += '<div class="flex items-center justify-between">' +
         '<div class="flex items-center gap-2">' +
-          '<span class="w-2.5 h-2.5 rounded-full inline-block ' + (idxOk ? 'bg-green-500' : 'bg-red-500') + '"></span>' +
+          '<span class="w-2.5 h-2.5 rounded-full inline-block" style="background:' + (idxOk ? '#2563EB' : '#DC2626') + '"></span>' +
           '<span class="text-sm font-medium">IDX / Trestle</span>' +
         '</div>' +
         '<span class="text-xs text-gray-500">' + (idxOk ? 'Connected' : 'Disconnected') + (lastSync ? ' &middot; Synced ' + D(lastSync) : '') + '</span>' +
       '</div>';
       html += '<div class="flex items-center justify-between">' +
         '<div class="flex items-center gap-2">' +
-          '<span class="w-2.5 h-2.5 rounded-full inline-block bg-green-500"></span>' +
+          '<span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#2563EB"></span>' +
           '<span class="text-sm font-medium">REBNY RLS</span>' +
         '</div>' +
         '<span class="text-xs text-gray-500">Active</span>' +
@@ -562,9 +564,8 @@ var Panels = (function () {
 
       if (attentionItems.length === 0) {
         html += '<div class="flex flex-col items-center justify-center py-8">' +
-          '<div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-3"><i class="fas fa-check-circle text-2xl text-green-500"></i></div>' +
-          '<p class="text-sm font-semibold text-green-700">All caught up!</p>' +
-          '<p class="text-xs text-gray-500 mt-1">Nothing needs your attention right now.</p>' +
+          '<div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3"><i class="fas fa-check text-2xl text-gray-400"></i></div>' +
+          '<p class="text-sm font-semibold text-gray-700">Nothing needs attention right now</p>' +
         '</div>';
       } else {
         html += '<div class="space-y-2">';
