@@ -385,40 +385,24 @@ var Panels = (function () {
       });
       html += '</div>';
 
-      // ── NOTES & IDEAS — individual items you can add/edit/delete ──
-      var BOARD_KEY = 'mallan_broker_board';
-      var boardItems = [];
-      try { var raw = localStorage.getItem(BOARD_KEY); boardItems = raw ? JSON.parse(raw) : []; } catch (e) { boardItems = []; }
+      // ── NOTES & IDEAS — free-type textareas ──────────────────────
+      var NOTES_KEY = 'mallan_broker_notes';
+      var IDEAS_KEY = 'mallan_broker_ideas';
+      var savedNotes = '';
+      var savedIdeas = '';
+      try { savedNotes = localStorage.getItem(NOTES_KEY) || ''; } catch (e) { /* ignore */ }
+      try { savedIdeas = localStorage.getItem(IDEAS_KEY) || ''; } catch (e) { /* ignore */ }
 
-      html += '<div class="card">' +
-        '<div class="card-header"><h3><i class="fas fa-sticky-note text-gold mr-2"></i>Notes & Ideas</h3>' +
-          '<button class="btn btn-sm btn-gold" onclick="Panels._addBoardItem()"><i class="fas fa-plus mr-1"></i>Add</button>' +
-        '</div>' +
-        '<div class="card-body" id="brokerBoard">';
-
-      if (boardItems.length === 0) {
-        html += '<p class="text-sm text-gray-400 py-3">No notes yet — click Add to create one</p>';
-      } else {
-        html += '<div class="space-y-2">';
-        boardItems.forEach(function (item, i) {
-          var catColor = item.cat === 'idea' ? '#B8860B' : item.cat === 'improve' ? '#2563EB' : item.cat === 'create' ? '#7C3AED' : '#374151';
-          var catLabel = item.cat === 'idea' ? 'Idea' : item.cat === 'improve' ? 'Improve' : item.cat === 'create' ? 'Create' : 'Note';
-          html += '<div class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 group">' +
-            '<span class="text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 mt-0.5" style="background:' + catColor + '15;color:' + catColor + '">' + catLabel + '</span>' +
-            '<div class="flex-1 min-w-0">' +
-              '<p class="text-sm font-medium text-gray-900">' + E(item.text) + '</p>' +
-              (item.detail ? '<p class="text-xs text-gray-500 mt-1">' + E(item.detail) + '</p>' : '') +
-              '<p class="text-xs text-gray-300 mt-1">' + (item.date ? D(item.date) : '') + '</p>' +
-            '</div>' +
-            '<div class="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">' +
-              '<button class="p-1 text-gray-300 hover:text-gold" onclick="Panels._editBoardItem(' + i + ')" title="Edit"><i class="fas fa-pen text-xs"></i></button>' +
-              '<button class="p-1 text-gray-300 hover:text-red-500" onclick="Panels._deleteBoardItem(' + i + ')" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
-            '</div>' +
-          '</div>';
-        });
-        html += '</div>';
-      }
-      html += '</div></div>';
+      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">';
+      html += '<div class="card" style="padding:14px 18px">' +
+        '<p class="text-xs font-bold text-gray-700 mb-2"><i class="fas fa-sticky-note text-gold mr-1"></i>Notes</p>' +
+        '<textarea id="brokerNotes" class="form-input w-full" rows="6" placeholder="Type your notes here..." style="resize:vertical;font-size:13px;border:1px solid #e5e7eb">' + E(savedNotes) + '</textarea>' +
+      '</div>';
+      html += '<div class="card" style="padding:14px 18px">' +
+        '<p class="text-xs font-bold text-gray-700 mb-2"><i class="fas fa-lightbulb text-gold mr-1"></i>Ideas & Improvements</p>' +
+        '<textarea id="brokerIdeas" class="form-input w-full" rows="6" placeholder="Quick ideas, things to improve, things to create..." style="resize:vertical;font-size:13px;border:1px solid #e5e7eb">' + E(savedIdeas) + '</textarea>' +
+      '</div>';
+      html += '</div>';
 
       // ── FOLLOW-UPS — working section ──────────────────────────────
       html += '<div class="card">' +
@@ -527,7 +511,19 @@ var Panels = (function () {
       html += '</div>'; // end space-y-6 wrapper
       c.innerHTML = html;
 
-      // Board item functions are defined outside the promise
+      // Auto-save notes + ideas
+      var notesEl = document.getElementById('brokerNotes');
+      if (notesEl) {
+        notesEl.addEventListener('input', Utils.debounce(function () {
+          try { localStorage.setItem('mallan_broker_notes', notesEl.value); } catch (e) { /* quota */ }
+        }, 500));
+      }
+      var ideasEl = document.getElementById('brokerIdeas');
+      if (ideasEl) {
+        ideasEl.addEventListener('input', Utils.debounce(function () {
+          try { localStorage.setItem('mallan_broker_ideas', ideasEl.value); } catch (e) { /* quota */ }
+        }, 500));
+      }
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-tachometer-alt', 'Unable to load dashboard data');
     });
