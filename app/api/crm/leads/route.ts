@@ -18,12 +18,19 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
 
-  // Broker sees all, agent sees own
+  // Lead Distribution = only unassigned leads (no agent_id)
+  // Assigned leads are clients — they show in My Clients, not here
   if (auth.role !== "BROKER") {
     where.agent_id = auth.userId;
+  } else {
+    // Broker: default to unassigned only (Lead Distribution purpose)
+    // Pass ?all=true to see everything (for broker dashboard stats)
+    if (searchParams.get("all") !== "true") {
+      where.agent_id = null;
+    }
   }
 
-  // Unassigned filter (broker dashboard uses this)
+  // Legacy unassigned filter
   if (unassigned === "true") {
     where.agent_id = null;
   }

@@ -3060,7 +3060,7 @@ var Panels = (function () {
 
   function _deleteLead(id) {
     if (!confirm('Delete this lead? This cannot be undone.')) return;
-    MallanAPI._fetch('/api/crm/leads/' + encodeURIComponent(id), { method: 'DELETE' }).then(function () {
+    MallanAPI.clients.delete(id).then(function () {
       CRM.toast('Lead deleted', 'success');
       leadDistribution();
     }).catch(function (err) {
