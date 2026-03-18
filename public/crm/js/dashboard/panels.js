@@ -9207,7 +9207,7 @@ var Panels = (function () {
         }
       });
 
-      var grouped = Utils.groupBy(clients, function (cl) { return (cl.stage || cl.status || 'new').toLowerCase(); });
+      var grouped = Utils.groupBy(clients, function (cl) { return (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase(); });
 
       var html = '<div class="space-y-4">';
 
@@ -9346,7 +9346,7 @@ var Panels = (function () {
   }
 
   function _pipelineMove(clientId, newStage) {
-    MallanAPI.clients.update(clientId, { stage: newStage }).then(function () {
+    MallanAPI.clients.update(clientId, { pipeline_stage: newStage }).then(function () {
       Events.log('client_stage_moved', 'client', clientId, { to: newStage });
       CRM.toast('Moved to ' + newStage, 'success');
       pipeline(); // refresh
