@@ -5795,24 +5795,39 @@ var Panels = (function () {
     var c = _container(); c.innerHTML = UI.loading();
 
     MallanAPI.listings.list({ limit: 100 }).then(function (data) {
-      var listings = data.listings || [];
+      var listings = (data.listings || []).filter(function (l) {
+        var st = (l.status || '').toLowerCase();
+        return st !== 'closed' && st !== 'cancelled' && st !== 'canceled' && st !== 'sold' && st !== 'expired';
+      });
       var featured = listings.filter(function (l) { return l.featuredFlag || l.featured; });
+
+      // Address parser helper
+      function _addr(l) {
+        var a = l.address || {};
+        if (typeof a === 'string') return a;
+        return a.UnparsedAddress || a.unparsed_address ||
+          ((a.StreetNumber || '') + ' ' + (a.StreetName || '') + ' ' + (a.StreetSuffix || '')).trim() ||
+          l.UnparsedAddress || l.street_address || l.listing_id || 'No address';
+      }
+
       c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Featured Properties Config', featured.length + ' featured') +
-        '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
+        UI.sectionHeader('Featured Properties', featured.length + ' featured') +
+        (listings.length === 0 ? UI.emptyState('fa-star', 'No active listings to feature') :
+        '<div class="space-y-2">' +
         listings.slice(0, 20).map(function (l) {
           var isFeatured = l.featuredFlag || l.featured;
-          return '<div class="card p-4 flex items-center gap-3">' +
-            '<div class="flex-1">' +
-              '<p class="text-sm font-semibold">' + E(l.address || l.UnparsedAddress || 'No address') + '</p>' +
-              '<p class="text-xs text-gray-500">' + $(l.ListPrice || l.price) + '</p>' +
+          return '<div class="card" style="padding:12px 18px"><div class="flex items-center gap-3">' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-semibold truncate">' + E(_addr(l)) + '</p>' +
+              '<p class="text-xs text-gray-500">' + $(l.list_price || l.ListPrice || l.price || 0) + ' · ' + E(l.status || '') + '</p>' +
             '</div>' +
             '<button class="btn btn-sm ' + (isFeatured ? 'btn-gold' : 'btn-outline') + '" onclick="Panels._toggleFeatured(\'' + E(l.id || l.listing_id) + '\',' + !isFeatured + ')">' +
               '<i class="fas fa-star"></i> ' + (isFeatured ? 'Featured' : 'Feature') +
             '</button>' +
-          '</div>';
+          '</div></div>';
         }).join('') +
-        '</div></div>';
+        '</div>') +
+        '</div>';
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-star', 'Unable to load listings');
     });
