@@ -39,7 +39,7 @@ export async function GET() {
 
     return NextResponse.json(
       { agents: mapped },
-      { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200' } }
+      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
     );
   } catch (error) {
     console.error('[/api/agents/public] DB error:', error instanceof Error ? error.message : error);
