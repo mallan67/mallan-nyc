@@ -370,6 +370,21 @@ var Panels = (function () {
       // ── BUILD HTML ────────────────────────────────────────────────
       var html = '<div class="space-y-6">';
 
+      // ── QUICK LINKS ────────────────────────────────────────────────
+      html += '<div class="flex flex-wrap gap-2">';
+      var links = [
+        { icon: 'fa-user-plus', label: 'Add Agent', action: 'Panels._addAgent()' },
+        { icon: 'fa-user-tag', label: 'New Client', action: 'CRM.quickNewClient()' },
+        { icon: 'fa-home', label: 'New Sale Listing', action: 'window.open(\'/crm/sale-listing\')' },
+        { icon: 'fa-key', label: 'New Rental', action: 'window.open(\'/crm/rental-listing\')' },
+        { icon: 'fa-search', label: 'Property Search', action: 'window.open(\'/crm/search\')' },
+        { icon: 'fa-exchange-alt', label: 'New Referral', action: 'Panels._addReferral()' },
+      ];
+      links.forEach(function (t) {
+        html += '<button class="btn btn-outline" onclick="' + t.action + '"><i class="fas ' + t.icon + ' mr-1 text-gold"></i>' + t.label + '</button>';
+      });
+      html += '</div>';
+
       // ── NOTES & IDEAS — individual items you can add/edit/delete ──
       var BOARD_KEY = 'mallan_broker_board';
       var boardItems = [];
@@ -404,20 +419,6 @@ var Panels = (function () {
         html += '</div>';
       }
       html += '</div></div>';
-
-      // ── QUICK LINKS ────────────────────────────────────────────────
-      html += '<div class="flex flex-wrap gap-2">';
-      var links = [
-        { icon: 'fa-user-tag', label: 'New Client', action: 'CRM.quickNewClient()' },
-        { icon: 'fa-home', label: 'New Sale Listing', action: 'window.open(\'/crm/sale-listing\')' },
-        { icon: 'fa-key', label: 'New Rental', action: 'window.open(\'/crm/rental-listing\')' },
-        { icon: 'fa-search', label: 'Property Search', action: 'window.open(\'/crm/search\')' },
-        { icon: 'fa-exchange-alt', label: 'New Referral', action: 'Panels._addReferral()' },
-      ];
-      links.forEach(function (t) {
-        html += '<button class="btn btn-outline" onclick="' + t.action + '"><i class="fas ' + t.icon + ' mr-1 text-gold"></i>' + t.label + '</button>';
-      });
-      html += '</div>';
 
       // ── COMMISSION PAYOUTS — working section ────────────────────────
       html += '<div class="card">' +
