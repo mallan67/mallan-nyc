@@ -97,7 +97,7 @@ var CRM = (function () {
     Router.register('/broker/listings/featured',   function () { Panels.featuredProperties(); });
     Router.register('/broker/documents',           function () { Panels.brokerDocuments(); });
     Router.register('/broker/system/audit',        function () { Panels.auditLog(); });
-    Router.register('/broker/system/idx-activity', function () { Panels.idxActivity(); });
+    Router.register('/broker/system/idx-activity', function () { Panels.complianceDashboard(); });
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
 
@@ -374,13 +374,12 @@ var CRM = (function () {
         { route: '/broker/finance/1099', icon: 'fa-file-invoice-dollar', label: '1099 Year-End' },
         { heading: 'Listings & Compliance' },
         { route: '/broker/listings/company', icon: 'fa-building', label: 'Company Listings' },
-        { route: '/broker/listings/compliance', icon: 'fa-shield-alt', label: 'Compliance Dashboard' },
+        { route: '/broker/listings/compliance', icon: 'fa-shield-alt', label: 'Compliance & IDX' },
         { route: '/broker/listings/featured', icon: 'fa-star', label: 'Featured Properties' },
         { heading: 'Documents' },
         { route: '/broker/documents', icon: 'fa-folder', label: 'Company Vault' },
         { heading: 'System' },
         { route: '/broker/system/audit', icon: 'fa-clipboard-list', label: 'Audit Log' },
-        { route: '/broker/system/idx-activity', icon: 'fa-database', label: 'IDX/RLS Activity' },
         { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'License/CE/E&O' },
         { route: '/broker/system/settings', icon: 'fa-cog', label: 'System Settings' },
       ]);
