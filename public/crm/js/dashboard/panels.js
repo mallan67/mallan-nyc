@@ -5841,6 +5841,39 @@ var Panels = (function () {
   }
 
   // ─── Broker Documents ────────────────────────────────────────────────
+  // Document Vault sections — organized by transaction type + property type
+  var VAULT_SECTIONS = [
+    { key: 'buyer', label: 'Buyer Agreements & Disclosures', icon: 'fa-user', subsections: [
+      { key: 'buyer_coop', label: 'Co-op' },
+      { key: 'buyer_condo', label: 'Condo' },
+      { key: 'buyer_townhouse', label: 'Townhouse' },
+      { key: 'buyer_new_dev', label: 'New Development' },
+      { key: 'buyer_general', label: 'General Buyer Disclosures' },
+    ]},
+    { key: 'seller', label: 'Seller Agreements & Disclosures', icon: 'fa-home', subsections: [
+      { key: 'seller_coop', label: 'Co-op' },
+      { key: 'seller_condo', label: 'Condo' },
+      { key: 'seller_townhouse', label: 'Townhouse' },
+      { key: 'seller_listing', label: 'Listing Agreements' },
+      { key: 'seller_general', label: 'General Seller Disclosures' },
+    ]},
+    { key: 'tenant', label: 'Tenant Agreements & Disclosures', icon: 'fa-key', subsections: [
+      { key: 'tenant_lease', label: 'Lease Agreements' },
+      { key: 'tenant_application', label: 'Applications & Screening' },
+      { key: 'tenant_general', label: 'General Tenant Disclosures' },
+    ]},
+    { key: 'landlord', label: 'Landlord Agreements & Disclosures', icon: 'fa-building', subsections: [
+      { key: 'landlord_management', label: 'Management Agreements' },
+      { key: 'landlord_lease', label: 'Lease Templates' },
+      { key: 'landlord_general', label: 'General Landlord Disclosures' },
+    ]},
+    { key: 'company', label: 'Company Documents', icon: 'fa-briefcase', subsections: [
+      { key: 'company_compliance', label: 'Compliance & Licensing' },
+      { key: 'company_financial', label: 'Financial / 1099' },
+      { key: 'company_general', label: 'General' },
+    ]},
+  ];
+
   function brokerDocuments() {
     CRM.setPanelTitle('Document Vault');
     var c = _container(); c.innerHTML = UI.loading();
@@ -5858,64 +5891,120 @@ var Panels = (function () {
       var agents = r[3].agents || [];
       var deals = r[4].deals || [];
 
-      // Store for filters / template modal
+      // Store for template modal + upload
       window._docVault = { docs: docs, clients: clients, listings: listings, agents: agents, deals: deals };
-      window._docVaultFilter = { status: 'all', scope: 'all', sort: 'updated_desc' };
+
+      // Build a map of documents by vault_section tag
+      // Documents can have a vault_section field, or we categorize by scope + type
+      function _docSection(d) {
+        if (d.vault_section) return d.vault_section;
+        // Auto-categorize based on scope and type
+        var scope = (d.scope || '').toLowerCase();
+        var type = (d.type || '').toLowerCase();
+        if (scope === 'client') {
+          if (type.indexOf('buyer') !== -1 || type.indexOf('purchase') !== -1) return 'buyer_general';
+          if (type.indexOf('seller') !== -1 || type.indexOf('listing') !== -1) return 'seller_general';
+          if (type.indexOf('tenant') !== -1 || type.indexOf('lease') !== -1 || type.indexOf('rental') !== -1) return 'tenant_general';
+          if (type.indexOf('landlord') !== -1 || type.indexOf('management') !== -1) return 'landlord_general';
+          return 'buyer_general';
+        }
+        if (scope === 'listing') return 'seller_listing';
+        if (scope === 'deal') return 'buyer_general';
+        if (scope === 'company') return 'company_general';
+        return 'company_general';
+      }
+
+      var docsBySection = {};
+      docs.forEach(function (d) {
+        var sec = _docSection(d);
+        if (!docsBySection[sec]) docsBySection[sec] = [];
+        docsBySection[sec].push(d);
+      });
 
       var pendingCount = docs.filter(function (d) { return d.status === 'requested' || d.status === 'pending_approval'; }).length;
 
       var html = '<div class="space-y-4">';
 
-      // Header
-      html += UI.sectionHeader('Document Vault', docs.length + ' documents',
-        '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc()"><i class="fas fa-upload"></i> Upload</button>' +
-        '<button class="btn btn-sm btn-outline" onclick="Panels._generateFromTemplate()"><i class="fas fa-file-alt"></i> Generate from Template</button>');
+      // Upload button
+      html += '<div class="flex items-center justify-between">' +
+        '<p class="text-sm text-gray-500">' + docs.length + ' document' + (docs.length !== 1 ? 's' : '') +
+          (pendingCount > 0 ? ' · ' + pendingCount + ' pending review' : '') + '</p>' +
+        '<div class="flex gap-2">' +
+          '<button class="btn btn-sm btn-gold" onclick="Panels._uploadDoc()"><i class="fas fa-upload mr-1"></i>Upload</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="Panels._generateFromTemplate()"><i class="fas fa-file-alt mr-1"></i>Template</button>' +
+        '</div>' +
+      '</div>';
 
-      // Request Queue Card (highlighted if pending)
-      if (pendingCount > 0) {
-        html += '<div style="background:#FFFBEB;border:1px solid #F59E0B;border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">' +
-          '<div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-exclamation-triangle" style="color:#F59E0B;"></i>' +
-          '<span class="text-sm font-semibold">' + pendingCount + ' document' + (pendingCount !== 1 ? 's' : '') + ' awaiting review</span></div>' +
-          '<button class="btn btn-sm btn-outline" onclick="document.getElementById(\'docRequestQueue\').scrollIntoView({behavior:\'smooth\'})">Review Requests</button>' +
-        '</div>';
+      // Pending approvals (if any)
+      var pendingDocs = docs.filter(function (d) { return d.status === 'requested' || d.status === 'pending_approval'; });
+      if (pendingDocs.length > 0) {
+        html += '<div class="card"><div class="card-header"><h3><i class="fas fa-inbox text-gold mr-2"></i>Pending Review (' + pendingDocs.length + ')</h3></div>' +
+          '<div class="card-body">' + _renderRequestQueue(pendingDocs) + '</div></div>';
       }
 
-      // Status Filter Tabs
-      var statusCounts = { all: docs.length };
-      Documents.STATUSES.forEach(function (s) {
-        statusCounts[s] = docs.filter(function (d) { return d.status === s; }).length;
-      });
-      html += '<div class="flex flex-wrap items-center gap-2">';
-      ['all'].concat(Documents.STATUSES).forEach(function (s) {
-        var label = s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-        html += '<button class="btn btn-sm ' + (s === 'all' ? 'btn-gold' : 'btn-outline') + '" id="docStatusTab_' + s + '" onclick="Panels._filterDocVault(\'' + s + '\')">' +
-          label + ' <span class="text-xs opacity-70">(' + (statusCounts[s] || 0) + ')</span></button>';
-      });
-      // Scope dropdown
-      html += '<select class="form-input" style="width:auto;height:30px;font-size:12px;margin-left:auto;" onchange="Panels._filterDocVaultScope(this.value)" id="docScopeFilter">' +
-        '<option value="all">All Scopes</option>';
-      Documents.SCOPES.forEach(function (s) {
-        html += '<option value="' + s + '">' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
-      });
-      html += '</select></div>';
+      // Sectioned filing cabinet
+      VAULT_SECTIONS.forEach(function (section) {
+        // Count docs in this section
+        var sectionTotal = 0;
+        section.subsections.forEach(function (sub) {
+          sectionTotal += (docsBySection[sub.key] || []).length;
+        });
 
-      // Main Document Table
-      html += '<div id="docVaultTable">' + _documentsTable(docs, { showScope: true, showOwner: true, showActions: true }) + '</div>';
+        html += '<div class="card">' +
+          '<button class="card-header w-full text-left cursor-pointer" onclick="Panels._toggleSection(\'vault_' + section.key + '\')">' +
+            '<div class="flex items-center gap-2">' +
+              '<i class="fas ' + section.icon + ' text-gold"></i>' +
+              '<h3>' + E(section.label) + '</h3>' +
+              '<span class="text-xs text-gray-400 ml-1">' + sectionTotal + ' doc' + (sectionTotal !== 1 ? 's' : '') + '</span>' +
+            '</div>' +
+            '<i class="fas fa-chevron-down text-xs text-gray-400 transition-transform" id="vault_' + section.key + 'Icon"></i>' +
+          '</button>' +
+          '<div id="vault_' + section.key + '" style="display:none">';
 
-      // Request Queue Section
-      var pendingDocs = docs.filter(function (d) { return d.status === 'requested' || d.status === 'pending_approval'; });
-      html += '<div id="docRequestQueue">';
-      html += UI.card('Request Queue', _renderRequestQueue(pendingDocs),
-        pendingDocs.length > 0 ? '<span class="text-xs font-semibold" style="color:#F59E0B;">' + pendingDocs.length + ' pending</span>' : '');
-      html += '</div>';
+        section.subsections.forEach(function (sub) {
+          var subDocs = docsBySection[sub.key] || [];
+          html += '<div class="border-t border-gray-100 px-5 py-3">' +
+            '<div class="flex items-center justify-between mb-2">' +
+              '<p class="text-sm font-bold text-gray-700">' + E(sub.label) + ' <span class="text-xs font-normal text-gray-400">(' + subDocs.length + ')</span></p>' +
+              '<button class="btn btn-sm btn-outline" onclick="Panels._uploadDoc(\'' + E(sub.key) + '\')"><i class="fas fa-plus mr-1"></i>Add</button>' +
+            '</div>';
 
-      // Missing Documents Report (expandable)
-      html += '<details class="card" style="cursor:pointer;">' +
-        '<summary class="card-header" style="list-style:none;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;">' +
-          '<h3 style="margin:0;">Missing Documents Report</h3>' +
+          if (subDocs.length === 0) {
+            html += '<p class="text-xs text-gray-400 py-2">No documents yet</p>';
+          } else {
+            html += '<div class="space-y-1">';
+            subDocs.forEach(function (d) {
+              var docId = d.id || d.document_id || '';
+              var title = d.title || d.name || d.type || 'Untitled';
+              var date = d.updated_at || d.updatedAt || d.created_at || d.createdAt;
+              html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 group">' +
+                '<i class="fas fa-file-alt text-xs text-gray-400"></i>' +
+                '<div class="flex-1 min-w-0">' +
+                  '<p class="text-sm font-medium truncate">' + E(title) + '</p>' +
+                  (date ? '<p class="text-xs text-gray-400">' + D(date) + '</p>' : '') +
+                '</div>' +
+                '<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">' +
+                  '<button class="p-1 text-gray-300 hover:text-gold" onclick="Panels._viewDoc(\'' + E(docId) + '\')" title="View"><i class="fas fa-eye text-xs"></i></button>' +
+                  '<button class="p-1 text-gray-300 hover:text-gold" onclick="Panels._replaceDoc(\'' + E(docId) + '\')" title="Replace"><i class="fas fa-sync text-xs"></i></button>' +
+                  '<button class="p-1 text-gray-300 hover:text-red-500" onclick="Panels._deleteDoc(\'' + E(docId) + '\')" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
+                '</div>' +
+              '</div>';
+            });
+            html += '</div>';
+          }
+          html += '</div>';
+        });
+
+        html += '</div></div>';
+      });
+
+      // All documents table (collapsed by default)
+      html += '<details class="card">' +
+        '<summary class="card-header" style="list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between">' +
+          '<h3>All Documents (' + docs.length + ')</h3>' +
           '<i class="fas fa-chevron-down text-xs text-gray-400"></i>' +
         '</summary>' +
-        '<div class="card-body">' + _renderMissingDocs(docs, clients, listings, deals) + '</div>' +
+        '<div class="card-body">' + _documentsTable(docs, { showScope: true, showOwner: true, showActions: true }) + '</div>' +
       '</details>';
 
       html += '</div>';
