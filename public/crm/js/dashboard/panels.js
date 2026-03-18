@@ -370,338 +370,105 @@ var Panels = (function () {
       // ── BUILD HTML ────────────────────────────────────────────────
       var html = '<div class="space-y-6">';
 
-      // ── ROW 1: Action Queue Cards ─────────────────────────────────
-      html += '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">';
-      html += _queueCard('fa-user-clock', unassignedLeads.length, 'Unassigned Leads',
-        unassignedLeads.length > 0 ? unassignedLeads.length + ' need assignment' : 'None',
-        unassignedLeads.length > 0 ? '#DC2626' : '#6B7280', '/broker/leads/distribution');
-      html += _queueCard('fa-dollar-sign', pendingPayouts.length, 'Pending Payouts',
-        pendingPayouts.length > 0 ? pendingPayouts.length + ' awaiting approval' : 'None',
-        pendingPayouts.length > 0 ? '#F59E0B' : '#6B7280', '/broker/finance/payouts');
-      html += _queueCard('fa-id-card', expiringAgents.length, 'Expiring Licenses',
-        expiringAgents.length > 0 ? expiringAgents.length + ' within 90 days' : 'None',
-        urgentExpiring.length > 0 ? '#DC2626' : expiringAgents.length > 0 ? '#F59E0B' : '#6B7280', '/broker/system/licensing');
-      html += _queueCard('fa-shield-alt', compViolations, 'Compliance Issues',
-        compViolations > 0 ? compViolations + ' items need action' : 'None',
-        compViolations > 0 ? '#DC2626' : '#6B7280', '/broker/listings/compliance');
-      html += _queueCard('fa-file-signature', pendingDocs.length, 'Doc Approvals',
-        pendingDocs.length > 0 ? pendingDocs.length + ' pending review' : 'None',
-        pendingDocs.length > 0 ? '#F59E0B' : '#6B7280', '/broker/documents');
-      html += '</div>';
-
-      // ── ROW 2: Recent Activity (2 columns) ───────────────────────
-      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
-
-      // LEFT: Recent Company Listings
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-building text-gold mr-2"></i>Recent Company Listings</h3>' +
-        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/listings\')">View All</button></div>' +
-        '<div class="card-body"><div class="space-y-1">';
-      // Filter out closed/cancelled listings
-      var activeListings = listings.filter(function (l) {
-        var st = (l.status || '').toLowerCase();
-        return st !== 'closed' && st !== 'cancelled' && st !== 'canceled' && st !== 'sold' && st !== 'expired';
-      });
-      var recentListings = activeListings.slice(0, 8);
-      if (recentListings.length === 0) {
-        html += '<p class="text-sm text-gray-400 text-center py-4">No active listings</p>';
-      }
-      recentListings.forEach(function (l) {
-        // address may be a JSON object from Prisma
-        var addrObj = l.address || {};
-        var addr = (typeof addrObj === 'string') ? addrObj :
-          (addrObj.UnparsedAddress || addrObj.unparsed_address ||
-           ((addrObj.StreetNumber || '') + ' ' + (addrObj.StreetName || '') + ' ' + (addrObj.StreetSuffix || '')).trim() ||
-           l.UnparsedAddress || l.street_address || 'No address');
-        if (!addr || addr === 'No address') addr = l.full_address || l.listing_id || 'No address';
-        var price = l.list_price || l.ListPrice || l.price || 0;
-        var dom = l.DaysOnMarket || l.days_on_market || 0;
-        var agentName = '';
-        if (l.assignedAgentId || l.assigned_agent_id) {
-          var ag = agents.find(function (a) { return a.id === (l.assignedAgentId || l.assigned_agent_id || l.agent_id); });
-          agentName = ag ? (ag.full_name || ag.name || ag.email || '') : '';
-        }
-        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' +
-          '<div class="w-8 h-8 rounded-lg bg-gold-bg flex items-center justify-center flex-shrink-0"><i class="fas fa-building text-xs text-gold"></i></div>' +
-          '<div class="flex-1 min-w-0">' +
-            '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
-            '<p class="text-xs text-gray-500">' + $(price) + (agentName ? ' &middot; ' + E(agentName) : '') + ' &middot; ' + dom + ' DOM</p>' +
-          '</div>' +
-          _statusBadge(l.status) +
-        '</div>';
-      });
-      html += '</div></div></div>';
-
-      // RIGHT: Referrals + System Status
-      html += '<div class="space-y-6">';
-
-      // Recent Referrals
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-exchange-alt text-gold mr-2"></i>Recent Referrals</h3></div>' +
-        '<div class="card-body"><div class="space-y-1">';
-      if (referrals.length === 0) {
-        html += '<p class="text-sm text-gray-400 text-center py-3">No referrals</p>';
-      }
-      referrals.slice(0, 5).forEach(function (ref) {
-        var partner = ref.partnerName || ref.partner_name || ref.partner || 'Unknown';
-        var dir = ref.direction || 'outgoing';
-        var fee = ref.feeAmount || ref.fee_amount || 0;
-        var st = ref.status || 'pending';
-        var dirBadge = dir === 'incoming'
-          ? '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Incoming</span>'
-          : '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">Outgoing</span>';
-        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
-          '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(partner) + '</p>' +
-            '<p class="text-xs text-gray-500">' + $(fee) + ' &middot; ' + E(st) + '</p></div>' +
-          dirBadge +
-        '</div>';
-      });
-      html += '</div></div></div>';
-
-      // System Status
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-server text-gold mr-2"></i>System Status</h3></div>' +
-        '<div class="card-body space-y-3">';
-      var idxOk = idxStatus && (idxStatus.connected || idxStatus.status === 'ok' || idxStatus.status === 'connected');
-      var lastSync = idxStatus ? (idxStatus.lastSync || idxStatus.last_sync || idxStatus.lastSyncAt || null) : null;
-      html += '<div class="flex items-center justify-between">' +
-        '<div class="flex items-center gap-2">' +
-          '<span class="w-2.5 h-2.5 rounded-full inline-block" style="background:' + (idxOk ? '#2563EB' : '#DC2626') + '"></span>' +
-          '<span class="text-sm font-medium">IDX / Trestle</span>' +
+      // ── QUICK NOTES (saved to localStorage) ────────────────────────
+      var NOTES_KEY = 'mallan_broker_notes';
+      var savedNotes = '';
+      try { savedNotes = localStorage.getItem(NOTES_KEY) || ''; } catch (e) { /* ignore */ }
+      html += '<div class="card">' +
+        '<div class="card-header"><h3><i class="fas fa-sticky-note text-gold mr-2"></i>My Notes</h3></div>' +
+        '<div class="card-body">' +
+          '<textarea id="brokerNotes" class="form-input w-full" rows="4" placeholder="Type your notes here — auto-saved as you type..." style="resize:vertical;font-size:13px">' + E(savedNotes) + '</textarea>' +
         '</div>' +
-        '<span class="text-xs text-gray-500">' + (idxOk ? 'Connected' : 'Disconnected') + (lastSync ? ' &middot; Synced ' + D(lastSync) : '') + '</span>' +
       '</div>';
-      html += '<div class="flex items-center justify-between">' +
-        '<div class="flex items-center gap-2">' +
-          '<span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#2563EB"></span>' +
-          '<span class="text-sm font-medium">REBNY RLS</span>' +
-        '</div>' +
-        '<span class="text-xs text-gray-500">Active</span>' +
-      '</div>';
-      html += '</div></div>';
 
-      html += '</div>'; // end right column space-y
-      html += '</div>'; // end ROW 2 grid
-
-      // ── ROW 3: Quick Launch + Needs Attention ─────────────────────
-      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
-
-      // LEFT: Quick Launch Tiles (2x4 grid)
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-rocket text-gold mr-2"></i>Quick Launch</h3></div>' +
-        '<div class="card-body"><div class="grid grid-cols-2 sm:grid-cols-4 gap-3">';
-      var tiles = [
+      // ── QUICK LINKS ────────────────────────────────────────────────
+      html += '<div class="flex flex-wrap gap-2">';
+      var links = [
         { icon: 'fa-user-plus', label: 'Add Agent', action: 'Panels._addAgent()' },
         { icon: 'fa-user-tag', label: 'New Client', action: 'CRM.quickNewClient()' },
         { icon: 'fa-home', label: 'New Sale Listing', action: 'window.open(\'/crm/sale-listing\')' },
         { icon: 'fa-key', label: 'New Rental', action: 'window.open(\'/crm/rental-listing\')' },
         { icon: 'fa-search', label: 'Property Search', action: 'window.open(\'/crm/search\')' },
         { icon: 'fa-exchange-alt', label: 'New Referral', action: 'Panels._addReferral()' },
-        { icon: 'fa-shield-alt', label: 'Compliance Scan', action: 'Panels._runFairHousingScan()' },
-        { icon: 'fa-file-invoice-dollar', label: 'Generate 1099s', action: 'Router.navigate(\'/broker/finance/1099\')' },
       ];
-      tiles.forEach(function (t) {
-        html += '<button class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 hover:border-gold hover:shadow-sm transition-all text-center" onclick="' + t.action + '">' +
-          '<div class="w-10 h-10 rounded-lg bg-gold-bg flex items-center justify-center"><i class="fas ' + t.icon + ' text-sm text-gold"></i></div>' +
-          '<span class="text-xs font-semibold text-gray-700">' + t.label + '</span>' +
-        '</button>';
+      links.forEach(function (t) {
+        html += '<button class="btn btn-outline" onclick="' + t.action + '"><i class="fas ' + t.icon + ' mr-1 text-gold"></i>' + t.label + '</button>';
       });
-      html += '</div></div></div>';
+      html += '</div>';
 
-      // RIGHT: Needs Attention Today
-      html += '<div class="card"><div class="card-header"><h3><i class="fas fa-bell text-gold mr-2"></i>Needs Attention Today</h3></div>' +
-        '<div class="card-body">';
+      // ── ALERTS — only show sections that have real data ────────────
+      var alertItems = [];
 
-      var attentionItems = [];
-
-      // Overdue tasks
+      if (unassignedLeads.length > 0) {
+        alertItems.push({ icon: 'fa-user-clock', text: unassignedLeads.length + ' unassigned lead' + (unassignedLeads.length > 1 ? 's' : ''), route: '/broker/leads/distribution' });
+      }
+      if (pendingPayouts.length > 0) {
+        alertItems.push({ icon: 'fa-dollar-sign', text: pendingPayouts.length + ' pending payout' + (pendingPayouts.length > 1 ? 's' : ''), route: '/broker/finance/payouts' });
+      }
+      if (expiringAgents.length > 0) {
+        alertItems.push({ icon: 'fa-id-card', text: expiringAgents.length + ' expiring license' + (expiringAgents.length > 1 ? 's' : ''), route: '/broker/system/licensing' });
+      }
+      if (compViolations > 0) {
+        alertItems.push({ icon: 'fa-shield-alt', text: compViolations + ' compliance issue' + (compViolations > 1 ? 's' : ''), route: '/broker/listings/compliance' });
+      }
+      if (pendingDocs.length > 0) {
+        alertItems.push({ icon: 'fa-file-signature', text: pendingDocs.length + ' doc' + (pendingDocs.length > 1 ? 's' : '') + ' pending approval', route: '/broker/documents' });
+      }
       overdueTasks.slice(0, 3).forEach(function (t) {
-        attentionItems.push({
-          icon: 'fa-clock', color: '#DC2626',
-          text: 'Overdue: ' + (t.title || t.name || 'Untitled task'),
-          action: 'Router.navigate(\'/ops/tasks\')', btn: 'Review'
-        });
+        alertItems.push({ icon: 'fa-clock', text: 'Overdue: ' + (t.title || 'task'), route: '/ops/tasks' });
       });
 
-      // Stale clients (no activity 30+ days)
-      staleClients.slice(0, 2).forEach(function (cl) {
-        attentionItems.push({
-          icon: 'fa-user-clock', color: '#F59E0B',
-          text: (cl.name || cl.email || 'Client') + ' — no activity 30+ days',
-          action: 'Router.navigate(\'/workspace/client/' + (cl.id || '') + '/overview\')', btn: 'Follow up'
+      if (alertItems.length > 0) {
+        html += '<div class="card"><div class="card-header"><h3><i class="fas fa-bell text-gold mr-2"></i>Needs Attention</h3></div>' +
+          '<div class="card-body"><div class="space-y-2">';
+        alertItems.forEach(function (item) {
+          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'' + item.route + '\')">' +
+            '<i class="fas ' + item.icon + ' text-sm text-gray-500 w-5 text-center"></i>' +
+            '<p class="text-sm font-medium flex-1">' + E(item.text) + '</p>' +
+            '<i class="fas fa-chevron-right text-xs text-gray-300"></i>' +
+          '</div>';
         });
-      });
+        html += '</div></div></div>';
+      }
 
-      // Stale listings (60+ DOM, no price change)
-      staleListings.slice(0, 2).forEach(function (l) {
-        var addr = l.address || l.UnparsedAddress || 'Listing';
-        attentionItems.push({
-          icon: 'fa-home', color: '#F59E0B',
-          text: addr + ' — ' + (l.DaysOnMarket || l.days_on_market) + ' DOM, no price change',
-          action: 'Router.navigate(\'/workspace/listing/' + (l.id || l.listing_id || '') + '/overview\')', btn: 'Review'
-        });
-      });
+      // ── SUMMARY NUMBERS — only if there's data ────────────────────
+      var summaryItems = [];
+      if (clients.length > 0) summaryItems.push({ label: 'Clients', value: clients.length, route: '/ops/clients' });
+      if (listings.length > 0) summaryItems.push({ label: 'Listings', value: listings.length, route: '/ops/listings' });
+      if (agents.length > 0) summaryItems.push({ label: 'Agents', value: agents.length, route: '/broker/people/agents' });
+      if (deals.length > 0) summaryItems.push({ label: 'Deals', value: deals.length, route: '/ops/deals' });
+      if (leads.length > 0) summaryItems.push({ label: 'Leads', value: leads.length, route: '/broker/leads/distribution' });
 
-      // Old pending payouts (7+ days)
-      oldPayouts.slice(0, 2).forEach(function (d) {
-        attentionItems.push({
-          icon: 'fa-dollar-sign', color: '#DC2626',
-          text: 'Payout pending 7+ days — ' + $(d.grossCommission || d.commission || 0),
-          action: 'Router.navigate(\'/broker/finance/payouts\')', btn: 'Approve'
-        });
-      });
-
-      // Today's showings
-      todayShowings.slice(0, 2).forEach(function (t) {
-        var time = t.scheduled_at || t.scheduledAt || t.due_date;
-        attentionItems.push({
-          icon: 'fa-calendar-day', color: '#2563EB',
-          text: 'Showing today — ' + (t.title || t.name || 'Untitled') + (time ? ' at ' + new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''),
-          action: 'Router.navigate(\'/ops/showings\')', btn: 'View'
-        });
-      });
-
-      // Sort: red items first, then yellow, then blue
-      var colorPriority = { '#DC2626': 0, '#F59E0B': 1, '#2563EB': 2 };
-      attentionItems.sort(function (a, b) { return (colorPriority[a.color] || 9) - (colorPriority[b.color] || 9); });
-      attentionItems = attentionItems.slice(0, 10);
-
-      if (attentionItems.length === 0) {
-        html += '<div class="flex flex-col items-center justify-center py-8">' +
-          '<div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3"><i class="fas fa-check text-2xl text-gray-400"></i></div>' +
-          '<p class="text-sm font-semibold text-gray-700">Nothing needs attention right now</p>' +
-        '</div>';
-      } else {
-        html += '<div class="space-y-2">';
-        attentionItems.forEach(function (item) {
-          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
-            '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:' + item.color + '15">' +
-              '<i class="fas ' + item.icon + ' text-xs" style="color:' + item.color + '"></i></div>' +
-            '<p class="text-sm flex-1 min-w-0 truncate">' + E(item.text) + '</p>' +
-            '<button class="btn btn-sm btn-outline flex-shrink-0" onclick="' + item.action + '">' + item.btn + '</button>' +
+      if (summaryItems.length > 0) {
+        html += '<div class="flex flex-wrap gap-4">';
+        summaryItems.forEach(function (s) {
+          html += '<div class="card p-4 cursor-pointer hover:border-gold transition-all" style="min-width:120px" onclick="Router.navigate(\'' + s.route + '\')">' +
+            '<p class="text-xl font-bold text-gray-900">' + s.value + '</p>' +
+            '<p class="text-xs font-semibold text-gray-500">' + s.label + '</p>' +
           '</div>';
         });
         html += '</div>';
       }
 
-      html += '</div></div>'; // end Needs Attention card
-
-      html += '</div>'; // end ROW 3 grid
-
-      // ── ROW 4: Broker Action Queue ──────────────────────────────────
-      var actionQueueItems = [];
-
-      // Pending commission payouts
-      var submittedPayouts = deals.filter(function (d) {
-        var ps = d.payoutStatus || d.payout_status || '';
-        return ps === 'pending' || ps === 'submitted';
-      });
-      submittedPayouts.forEach(function (d) {
-        var agentName = '';
-        if (d.assignedAgentId || d.assigned_agent_id) {
-          var ag = agents.find(function (a) { return a.id === (d.assignedAgentId || d.assigned_agent_id); });
-          agentName = ag ? (ag.name || (ag.firstName + ' ' + ag.lastName)) : '';
-        }
-        actionQueueItems.push({
-          entityType: 'Commission',
-          entityColor: '#F59E0B',
-          description: 'Payout ' + $(d.grossCommission || d.commission || 0) + (agentName ? ' for ' + agentName : '') + ' — ' + E(d.address || d.property || 'Deal'),
-          date: d.createdAt || d.created_at || '',
-          approveAction: 'Panels._approvePayout(\'' + E(d.id || '') + '\')',
-          rejectAction: 'Panels._rejectPayout(\'' + E(d.id || '') + '\')',
-          viewRoute: '/broker/finance/payouts'
-        });
-      });
-
-      // Pending document approvals
-      var pendingDocItems = docs.filter(function (d) {
-        return d.status === 'pending_approval' || d.status === 'requested';
-      });
-      pendingDocItems.forEach(function (doc) {
-        actionQueueItems.push({
-          entityType: 'Document',
-          entityColor: '#7C3AED',
-          description: (doc.name || doc.title || doc.type || 'Untitled document') + (doc.scope_label ? ' — ' + doc.scope_label : ''),
-          date: doc.createdAt || doc.created_at || doc.uploaded_at || '',
-          approveAction: 'Panels._approveDoc(\'' + E(doc.id || '') + '\')',
-          rejectAction: 'Panels._rejectDoc(\'' + E(doc.id || '') + '\')',
-          viewRoute: '/broker/documents'
-        });
-      });
-
-      // Pending referral agreements
-      var pendingReferrals = referrals.filter(function (r) {
-        var as = r.agreement_status || r.agreementStatus || '';
-        return as === 'sent' || as === 'draft';
-      });
-      pendingReferrals.forEach(function (ref) {
-        var partner = ref.partnerName || ref.partner_name || ref.partner || 'Unknown';
-        actionQueueItems.push({
-          entityType: 'Referral',
-          entityColor: '#2563EB',
-          description: 'Referral agreement with ' + partner + ' — ' + (ref.agreement_status || ref.agreementStatus || 'draft'),
-          date: ref.createdAt || ref.created_at || '',
-          approveAction: null,
-          rejectAction: null,
-          viewRoute: '/broker/people/referrals'
-        });
-      });
-
-      // Compliance exceptions
-      listings.forEach(function (l) {
-        if (l.rls_eligible === false) return;
-        var issues = [];
-        if (l.OwnerOptOut || l.owner_opt_out) issues.push('Owner Opt-Out active');
-        if (l.rls_eligible !== false && !l.IDXEntireListingDisplayYN && l.IDXEntireListingDisplayYN !== undefined && l.IDXEntireListingDisplayYN !== true) issues.push('IDX display disabled');
-        if (issues.length > 0) {
-          actionQueueItems.push({
-            entityType: 'Compliance',
-            entityColor: '#DC2626',
-            description: (l.address || l.UnparsedAddress || 'Listing') + ' — ' + issues.join(', '),
-            date: l.updatedAt || l.updated_at || '',
-            approveAction: null,
-            rejectAction: null,
-            viewRoute: '/broker/listings/compliance'
-          });
-        }
-      });
-
-      // Sort: Compliance (red) first, then Commission (yellow), then Document (purple), then Referral (blue)
-      var entityPriority = { Compliance: 0, Commission: 1, Document: 2, Referral: 3 };
-      actionQueueItems.sort(function (a, b) { return (entityPriority[a.entityType] || 9) - (entityPriority[b.entityType] || 9); });
-
-      html += '<div id="brokerActionQueue" class="card"><div class="card-header"><h3><i class="fas fa-inbox text-gold mr-2"></i>Broker Action Queue</h3>' +
-        '<span class="text-xs text-gray-500">' + actionQueueItems.length + ' item' + (actionQueueItems.length !== 1 ? 's' : '') + ' waiting</span></div>' +
-        '<div class="card-body">';
-
-      if (actionQueueItems.length === 0) {
-        html += '<div class="flex flex-col items-center justify-center py-8">' +
-          '<div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-3"><i class="fas fa-check-circle text-2xl text-green-500"></i></div>' +
-          '<p class="text-sm font-semibold text-green-700">Nothing waiting on you</p>' +
-          '<p class="text-xs text-gray-500 mt-1">All approvals are up to date.</p>' +
-        '</div>';
-      } else {
-        html += '<div class="space-y-2">';
-        actionQueueItems.forEach(function (item) {
-          html += '<div class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 border border-gray-100">' +
-            '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white flex-shrink-0" style="background:' + item.entityColor + '">' + E(item.entityType) + '</span>' +
-            '<div class="flex-1 min-w-0">' +
-              '<p class="text-sm font-medium truncate">' + item.description + '</p>' +
-              (item.date ? '<p class="text-xs text-gray-400">' + D(item.date) + '</p>' : '') +
-            '</div>' +
-            '<div class="flex items-center gap-2 flex-shrink-0">';
-          if (item.approveAction) {
-            html += '<button class="btn btn-sm btn-gold" onclick="' + item.approveAction + '">Approve</button>';
-          }
-          if (item.rejectAction) {
-            html += '<button class="btn btn-sm btn-outline text-red-600 border-red-300 hover:bg-red-50" onclick="' + item.rejectAction + '">Reject</button>';
-          }
-          html += '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'' + item.viewRoute + '\')">View</button>';
-          html += '</div></div>';
-        });
-        html += '</div>';
-      }
-
-      html += '</div></div>'; // end Broker Action Queue card
+      // ── SYSTEM STATUS — compact one-liner ──────────────────────────
+      var idxOk = idxStatus && (idxStatus.connected || idxStatus.status === 'ok' || idxStatus.status === 'connected');
+      var lastSync = idxStatus ? (idxStatus.lastSync || idxStatus.last_sync || idxStatus.lastSyncAt || null) : null;
+      html += '<div class="flex items-center gap-4 text-xs text-gray-500">' +
+        '<span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:' + (idxOk ? '#2563EB' : '#DC2626') + '"></span>IDX ' + (idxOk ? 'Connected' : 'Disconnected') + '</span>' +
+        (lastSync ? '<span>Last sync: ' + D(lastSync) + '</span>' : '') +
+        '<span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#2563EB"></span>REBNY RLS Active</span>' +
+      '</div>';
 
       html += '</div>'; // end space-y-6 wrapper
       c.innerHTML = html;
+
+      // Auto-save notes
+      var notesEl = document.getElementById('brokerNotes');
+      if (notesEl) {
+        notesEl.addEventListener('input', Utils.debounce(function () {
+          try { localStorage.setItem('mallan_broker_notes', notesEl.value); } catch (e) { /* quota */ }
+        }, 500));
+      }
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-tachometer-alt', 'Unable to load dashboard data');
     });
