@@ -5811,7 +5811,6 @@ var Panels = (function () {
       }
 
       c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('Featured Properties', featured.length + ' featured') +
         (listings.length === 0 ? UI.emptyState('fa-star', 'No active listings to feature') :
         '<div class="space-y-2">' +
         listings.slice(0, 20).map(function (l) {
