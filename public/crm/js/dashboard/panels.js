@@ -2158,7 +2158,11 @@ var Panels = (function () {
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
         '<select id="importA_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
         '<option value="landlord"' + (personA.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
-        '<option value="seller"' + (personA.role === 'seller' ? ' selected' : '') + '>Seller</option></select></div>' +
+        '<option value="seller"' + (personA.role === 'seller' ? ' selected' : '') + '>Seller</option>' +
+        '<option value="landlord,seller">Landlord + Seller</option>' +
+        '<option value="buyer"' + (personA.role === 'buyer' ? ' selected' : '') + '>Buyer</option>' +
+        '<option value="renter"' + (personA.role === 'renter' ? ' selected' : '') + '>Renter</option>' +
+        '<option value="uncategorized"' + (personA.role === 'uncategorized' ? ' selected' : '') + '>Uncategorized</option></select></div>' +
       // Spouse/Partner toggle
       '<div class="border-t pt-3 mt-1">' +
         '<label class="flex items-center gap-2 cursor-pointer">' +
@@ -2195,7 +2199,12 @@ var Panels = (function () {
       '<div><label class="block text-xs font-semibold text-gray-700 mb-1">Type</label>' +
         '<select id="importB_type" class="w-full border rounded-lg px-3 py-2 text-sm">' +
         '<option value="renter"' + (personB.role === 'renter' ? ' selected' : '') + '>Renter</option>' +
-        '<option value="buyer"' + (personB.role === 'buyer' ? ' selected' : '') + '>Buyer</option></select></div>' +
+        '<option value="buyer"' + (personB.role === 'buyer' ? ' selected' : '') + '>Buyer</option>' +
+        '<option value="renter,buyer">Renter + Buyer</option>' +
+        '<option value="landlord"' + (personB.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
+        '<option value="seller"' + (personB.role === 'seller' ? ' selected' : '') + '>Seller</option>' +
+        '<option value="landlord,seller">Landlord + Seller</option>' +
+        '<option value="uncategorized"' + (personB.role === 'uncategorized' ? ' selected' : '') + '>Uncategorized</option></select></div>' +
       // Spouse/Partner toggle
       '<div class="border-t pt-3 mt-1">' +
         '<label class="flex items-center gap-2 cursor-pointer">' +
@@ -2274,7 +2283,10 @@ var Panels = (function () {
   function _buildImportPerson(side) {
     var name = _getImportVal('import' + side + '_name');
     var parts = name.split(/\s+/);
-    var role = _getImportVal('import' + side + '_type') || (side === 'A' ? 'landlord' : 'renter');
+    var roleVal = _getImportVal('import' + side + '_type') || (side === 'A' ? 'landlord' : 'renter');
+    // Support multi-role: "landlord,seller" → ["landlord","seller"]
+    var roles = roleVal.split(',').map(function (r) { return r.trim(); }).filter(Boolean);
+    var role = roles[0]; // primary role for portal_role
     var noteLines = [];
     var addr = _getImportVal('import' + side + '_address');
     var unitVal = _getImportVal('import' + side + '_unit');
@@ -2311,7 +2323,7 @@ var Panels = (function () {
             last_name: pParts.slice(1).join(' ') || parts.slice(1).join(' ') || '', // share last name if partner has none
             email: _getImportVal('import' + side + '_email2'),
             phone: _getImportVal('import' + side + '_phone2') || '-',
-            roles: [role],
+            roles: roles,
             portal_role: role,
             source: 'email_import',
           },
@@ -2328,7 +2340,7 @@ var Panels = (function () {
         last_name: parts.slice(1).join(' ') || '',
         email: _getImportVal('import' + side + '_email'),
         phone: _getImportVal('import' + side + '_phone') || '-',
-        roles: [role],
+        roles: roles,
         portal_role: role,
         source: 'email_import',
       },
