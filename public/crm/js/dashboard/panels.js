@@ -698,7 +698,7 @@ var Panels = (function () {
 
     Promise.all([
       MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
-      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.listings.list({ limit: 500 }).catch(function () { return { listings: [] }; }),
       MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
       MallanAPI._fetch('/api/crm/referrals?limit=500').catch(function () { return { referrals: [] }; }),
     ]).then(function (r) {
@@ -709,13 +709,24 @@ var Panels = (function () {
 
       // Build per-agent stats
       agents.forEach(function (a) {
-        var aid = a.id;
-        var myListings = allListings.filter(function (l) { return l.assignedAgentId === aid || l.assigned_agent_id === aid; });
-        var myDeals = allDeals.filter(function (d) { return d.assignedAgentId === aid || d.assigned_agent_id === aid; });
+        var aid = String(a.id);
+        var myListings = allListings.filter(function (l) {
+          return String(l.assignedAgentId || '') === aid ||
+                 String(l.assigned_agent_id || '') === aid ||
+                 String(l.agent_id || '') === aid;
+        });
+        var myDeals = allDeals.filter(function (d) {
+          return String(d.assignedAgentId || '') === aid ||
+                 String(d.assigned_agent_id || '') === aid;
+        });
         var closedDeals = myDeals.filter(function (d) { return d.stage === 'closed' || d.status === 'closed'; });
         a._activeListings = myListings.filter(function (l) { return l.status === 'Active' || l.status === 'active'; });
         a._offerListings = myListings.filter(function (l) { return l.status === 'Pending' || l.status === 'pending' || l.status === 'offer'; });
         a._contractListings = myListings.filter(function (l) { return l.status === 'ActiveUnderContract' || l.status === 'contract'; });
+        a._closedListings = myListings.filter(function (l) { return l.status === 'Closed'; });
+        a._expiredListings = myListings.filter(function (l) { return l.status === 'Expired'; });
+        a._holdListings = myListings.filter(function (l) { return l.status === 'Hold'; });
+        a._withdrawnListings = myListings.filter(function (l) { return l.status === 'Withdrawn'; });
         a._closedSales = closedDeals.filter(function (d) { return d.dealType === 'sale' || d.deal_type === 'sale'; });
         a._closedRentals = closedDeals.filter(function (d) { return d.dealType === 'rental' || d.deal_type === 'rental'; });
         a._ytdGCI = closedDeals.reduce(function (s, d) { return s + (d.grossCommission || d.commission || 0); }, 0);
@@ -798,12 +809,15 @@ var Panels = (function () {
           '<i class="fas fa-chevron-down text-gray-300 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
         '</div>' +
         // Row 2: Stats as a clean horizontal row
-        '<div class="flex items-center gap-6 mt-3 ml-12 text-xs text-gray-500">' +
-          '<div>License <span class="text-gray-700">' + licText + '</span></div>' +
-          '<div>CE <span class="' + (ceComplete ? 'text-gray-700' : 'text-gray-400') + '">' + (ceComplete ? 'Complete' : 'Incomplete') + '</span></div>' +
-          '<div>Split <span class="text-gray-700">' + splitDisplay + '</span></div>' +
-          '<div>Deals <span class="text-gray-700">' + activeDeals + '</span></div>' +
-          '<div>Referrals <span class="text-gray-700">' + refCount + '</span></div>' +
+        '<div class="flex items-center gap-6 mt-3 ml-12 text-xs text-gray-500 flex-wrap">' +
+          '<div>Active <span class="text-blue-600 font-semibold">' + (a._activeListings || []).length + '</span></div>' +
+          '<div>Closed <span class="text-green-600 font-semibold">' + (a._closedListings || []).length + '</span></div>' +
+          '<div>Expired <span class="text-gray-600 font-semibold">' + (a._expiredListings || []).length + '</span></div>' +
+          '<div>Temp Off <span class="text-yellow-600 font-semibold">' + (a._holdListings || []).length + '</span></div>' +
+          '<div>Perm Off <span class="text-red-600 font-semibold">' + (a._withdrawnListings || []).length + '</span></div>' +
+          '<div>Total <span class="text-gray-700 font-semibold">' + (a._allListings || []).length + '</span></div>' +
+          '<div class="hidden sm:block">Split <span class="text-gray-700">' + splitDisplay + '</span></div>' +
+          '<div class="hidden sm:block">Deals <span class="text-gray-700">' + activeDeals + '</span></div>' +
         '</div>' +
       '</div>' +
       // Expanded panel
@@ -1837,7 +1851,7 @@ var Panels = (function () {
 
     var filtered = _cabClients.filter(function (cl) {
       if (search) {
-        var hay = ((cl.name || '') + ' ' + (cl.email || '') + ' ' + (cl.phone || '')).toLowerCase();
+        var hay = ((cl.name || '') + ' ' + (cl.email || '') + ' ' + (cl.phone || '') + ' ' + (cl.first_name || '') + ' ' + (cl.last_name || '') + ' ' + (cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).toLowerCase();
         if (hay.indexOf(search) === -1) return false;
       }
       if (typeF && (cl.type || cl.client_type) !== typeF) return false;
@@ -5064,9 +5078,10 @@ var Panels = (function () {
           l._syncFreshness = 'outdated'; l._syncLabel = 'Unknown';
         }
 
-        // Listing type (sale/rental)
-        l._type = (l.property_type || l.PropertyType || l.listing_type || l.type || '').toLowerCase();
-        if (l._type.indexOf('rent') !== -1 || l._type === 'rental') l._typeBadge = 'Rental';
+        // Listing type (sale/rental) — listing_type is "sale" or "rent", property_type for rentals is "ResidentialLease"
+        var lt = (l.listing_type || '').toLowerCase();
+        var pt = (l.property_type || l.PropertyType || '').toLowerCase();
+        if (lt === 'rent' || pt === 'residentiallease' || pt.indexOf('rent') !== -1 || pt.indexOf('lease') !== -1) l._typeBadge = 'Rental';
         else l._typeBadge = 'Sale';
 
         // DOM
@@ -5178,8 +5193,8 @@ var Panels = (function () {
     } else {
       filtered.forEach(function (l) {
         var lid = E(l.id || l.listing_id || '');
-        var addr = l.address || l.UnparsedAddress || 'No address';
-        var price = l.ListPrice || l.price;
+        var addr = _resolveAddress(l);
+        var price = l.list_price || l.ListPrice || l.price;
         var dom = l._dom;
         var domClass = dom > 90 ? 'text-red-600 font-bold' : 'text-gray-700';
 
@@ -8069,6 +8084,18 @@ var Panels = (function () {
     CRM.toast('Search history cleared', 'info');
   }
 
+  // ─── Address resolver — handles JSON address objects from Trestle sync ──
+  function _resolveAddress(l) {
+    if (l.address && typeof l.address === 'object') {
+      return l.address.UnparsedAddress || l.address.UnParsedAddress ||
+        ((l.address.StreetNumber || '') + ' ' + (l.address.StreetName || '') +
+         (l.address.StreetSuffix ? ' ' + l.address.StreetSuffix : '') +
+         (l.address.UnitNumber ? ', #' + l.address.UnitNumber : '')).trim() ||
+        'No address';
+    }
+    return l.address || l.UnparsedAddress || 'No address';
+  }
+
   // ─── My Listings ─────────────────────────────────────────────────────
   var _myListingsData = [];
   var _myListingsType = 'sale'; // 'sale' or 'rental'
@@ -8138,9 +8165,10 @@ var Panels = (function () {
           l._needsRefresh = false;
         }
 
-        // Listing type
-        var type = (l.property_type || l.listing_type || l.PropertySubType || '').toLowerCase();
-        l._isRental = type.indexOf('rent') !== -1;
+        // Listing type: listing_type is "sale" or "rent", property_type for rentals is "ResidentialLease"
+        var lt = (l.listing_type || '').toLowerCase();
+        var pt = (l.property_type || l.PropertySubType || '').toLowerCase();
+        l._isRental = lt === 'rent' || pt === 'residentiallease' || pt.indexOf('rent') !== -1 || pt.indexOf('lease') !== -1;
       });
 
       _renderMyListings(c);
@@ -8225,7 +8253,7 @@ var Panels = (function () {
         '<div class="mt-2 space-y-1">';
       expiringSoon.sort(function (a, b) { return a._expiresIn - b._expiresIn; });
       expiringSoon.forEach(function (l) {
-        var addr = l.address || l.UnparsedAddress || 'Listing';
+        var addr = _resolveAddress(l);
         var urgency = l._expiresIn <= 7 ? 'text-red-700 font-bold' : 'text-yellow-700';
         html += '<div class="flex items-center justify-between text-xs">' +
           '<span class="cursor-pointer hover:underline" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' + E(addr) + '</span>' +
@@ -8243,7 +8271,7 @@ var Panels = (function () {
         '<p class="text-xs text-red-600 mt-1">REBNY RLS requires all active listings to be refreshed weekly. Click Edit to update.</p>' +
         '<div class="mt-2 space-y-1">';
       needsRefresh.forEach(function (l) {
-        var addr = l.address || l.UnparsedAddress || 'Listing';
+        var addr = _resolveAddress(l);
         var isRental = l._isRental;
         var lid = l.id || l.listing_id;
         html += '<div class="flex items-center justify-between text-xs">' +
@@ -8272,11 +8300,12 @@ var Panels = (function () {
         '<th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
       filtered.forEach(function (l) {
-        var addr = l.address || l.UnparsedAddress || 'No address';
-        var dom = l.cumulative_dom || l.days_on_market || 0;
-        var type = (l.property_type || l.listing_type || l.PropertySubType || '');
-        var isRental = type.toLowerCase().indexOf('rent') !== -1;
+        var addr = _resolveAddress(l);
+        var dom = l.cumulative_dom || l.cumulative_days_on_market || l.days_on_market || 0;
         var lid = l.id || l.listing_id;
+
+        // Price: handle different field names from API
+        var price = l.list_price || l.ListPrice || l.price || 0;
 
         // Expiry
         var expDate = l.ExpirationDate || l.expiration_date || l.listing_expiry;
@@ -8291,8 +8320,8 @@ var Panels = (function () {
 
         html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' +
           '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
-          '<td class="px-3 py-2 text-xs text-gray-500">' + E(isRental ? 'Rental' : 'Sale') + '</td>' +
-          '<td class="px-3 py-2 text-sm font-semibold">' + $(l.ListPrice || l.price) + '</td>' +
+          '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
+          '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
           '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
           '<td class="px-3 py-2">' + expiryHtml + '</td>' +
@@ -8302,7 +8331,7 @@ var Panels = (function () {
             return '<span class="text-xs text-gray-500">' + l._daysSinceRefresh + 'd ago</span>';
           })() + '</td>' +
           '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
-            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
+            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
             '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
           '</div></td>' +
         '</tr>';
@@ -8478,7 +8507,7 @@ var Panels = (function () {
     // Apply search
     if (search) {
       filtered = filtered.filter(function (cl) {
-        var hay = ((cl.name || '') + ' ' + (cl.email || '') + ' ' + (cl.phone || '')).toLowerCase();
+        var hay = ((cl.name || '') + ' ' + (cl.email || '') + ' ' + (cl.phone || '') + ' ' + (cl.first_name || '') + ' ' + (cl.last_name || '') + ' ' + (cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).toLowerCase();
         return hay.indexOf(search) !== -1;
       });
     }

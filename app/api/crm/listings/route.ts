@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         listing_id: true,
+        agent_id: true,
         status: true,
         listing_type: true,
         property_type: true,
@@ -67,6 +68,9 @@ export async function GET(req: NextRequest) {
         status_changed_at: true,
         first_active_date: true,
         days_on_market: true,
+        cumulative_days_on_market: true,
+        expiration_date: true,
+        sync_status: true,
         modification_timestamp: true,
         created_at: true,
         updated_at: true,
@@ -79,6 +83,8 @@ export async function GET(req: NextRequest) {
   const serialized = listings.map((l) => ({
     ...l,
     id: l.id.toString(),
+    agent_id: l.agent_id?.toString() ?? null,
+    assigned_agent_id: l.agent_id?.toString() ?? null,
     list_price: l.list_price.toString(),
     living_area: l.living_area?.toString() ?? null,
   }));

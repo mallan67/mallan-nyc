@@ -319,6 +319,56 @@ export function buildActiveFilter(
 }
 
 /**
+ * Build an OData $filter for an agent's historical listings (Closed, Expired, Hold, Withdrawn).
+ * Uses ListAgentMlsId (REBNY member ID assigned by Trestle — NOT the NY state license number).
+ * @param agentMlsId - The agent's REBNY MLS ID (e.g. "39361")
+ * @param listingType - Optional filter by sale/rent
+ */
+export function buildAgentHistoricalFilter(
+  agentMlsId: string,
+  listingType?: "sale" | "rent"
+): string {
+  const escapedId = agentMlsId.replace(/'/g, "''");
+
+  // Agent identity: ListAgentMlsId is the REBNY member ID on Trestle
+  const agentFilter = `ListAgentMlsId eq '${escapedId}'`;
+
+  // Historical statuses: Closed (Sold/Rented), Expired, Hold (Temp Off), Withdrawn (Perm Off)
+  const statusFilter =
+    "StandardStatus eq 'Closed' or StandardStatus eq 'Expired' or StandardStatus eq 'Hold' or StandardStatus eq 'Withdrawn'";
+
+  const parts = [agentFilter, `(${statusFilter})`];
+
+  if (listingType === "sale") {
+    parts.push("PropertyType ne 'ResidentialLease'");
+  } else if (listingType === "rent") {
+    parts.push("PropertyType eq 'ResidentialLease'");
+  }
+
+  return parts.join(" and ");
+}
+
+/**
+ * Build an OData $filter for ALL of an agent's listings (any status).
+ * Uses ListAgentMlsId (REBNY member ID).
+ */
+export function buildAgentAllFilter(
+  agentMlsId: string,
+  listingType?: "sale" | "rent"
+): string {
+  const escapedId = agentMlsId.replace(/'/g, "''");
+  const parts = [`ListAgentMlsId eq '${escapedId}'`];
+
+  if (listingType === "sale") {
+    parts.push("PropertyType ne 'ResidentialLease'");
+  } else if (listingType === "rent") {
+    parts.push("PropertyType eq 'ResidentialLease'");
+  }
+
+  return parts.join(" and ");
+}
+
+/**
  * Fetch media/photos for a single listing from Trestle's Media resource.
  * Uses ResourceRecordKeyNumeric (SourceSystemKey) to query.
  * Falls back to ListingId-based ResourceRecordID if key is not numeric.

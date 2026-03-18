@@ -794,3 +794,31 @@ export function validateRequiredFields(raw: Record<string, unknown>): {
   );
   return { valid: missing.length === 0, missingFields: missing };
 }
+
+/**
+ * Minimum required fields for historical/closed listings.
+ * Closed listings in Trestle naturally lack many active-listing fields
+ * (IDX display flags, activation dates, tax info, etc.).
+ * We only need enough to identify and store the listing.
+ */
+export const REQUIRED_HISTORICAL_FIELDS = [
+  "ListingId", "PropertyType", "ListPrice", "StandardStatus",
+  "City", "StateOrProvince",
+  "ListAgentMlsId", "ListAgentFullName",
+  "ModificationTimestamp",
+];
+
+/**
+ * Relaxed validation for historical/closed listings.
+ * Only checks the minimum fields needed to store a valid record.
+ */
+export function validateHistoricalFields(raw: Record<string, unknown>): {
+  valid: boolean;
+  missingFields: string[];
+} {
+  const normalized = normalizeRenames(raw);
+  const missing = REQUIRED_HISTORICAL_FIELDS.filter(
+    (field) => normalized[field] === undefined || normalized[field] === null
+  );
+  return { valid: missing.length === 0, missingFields: missing };
+}

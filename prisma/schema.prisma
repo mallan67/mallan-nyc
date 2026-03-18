@@ -21,6 +21,7 @@ model Agent {
   password_hash  String    @map("password_hash")
   phone          String?
   license_no     String?   @map("license_no")
+  trestle_mls_id String?   @map("trestle_mls_id")   // REBNY MLS member ID on Trestle (e.g. "39361") — different from state license_no
   license_type   String?   @map("license_type")     // "broker" | "salesperson"
   license_expiry DateTime? @map("license_expiry")
   sale_split     Decimal?  @db.Decimal(6,3) @map("sale_split")
