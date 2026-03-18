@@ -381,6 +381,17 @@ var Panels = (function () {
         '</div>' +
       '</div>';
 
+      // ── IDEAS & TO-DO (saved to localStorage) ─────────────────────
+      var IDEAS_KEY = 'mallan_broker_ideas';
+      var savedIdeas = '';
+      try { savedIdeas = localStorage.getItem(IDEAS_KEY) || ''; } catch (e) { /* ignore */ }
+      html += '<div class="card">' +
+        '<div class="card-header"><h3><i class="fas fa-lightbulb text-gold mr-2"></i>Ideas & Improvements</h3></div>' +
+        '<div class="card-body">' +
+          '<textarea id="brokerIdeas" class="form-input w-full" rows="4" placeholder="Quick ideas, things to improve, things to create..." style="resize:vertical;font-size:13px">' + E(savedIdeas) + '</textarea>' +
+        '</div>' +
+      '</div>';
+
       // ── QUICK LINKS ────────────────────────────────────────────────
       html += '<div class="flex flex-wrap gap-2">';
       var links = [
@@ -538,11 +549,17 @@ var Panels = (function () {
       html += '</div>'; // end space-y-6 wrapper
       c.innerHTML = html;
 
-      // Auto-save notes
+      // Auto-save notes + ideas
       var notesEl = document.getElementById('brokerNotes');
       if (notesEl) {
         notesEl.addEventListener('input', Utils.debounce(function () {
           try { localStorage.setItem('mallan_broker_notes', notesEl.value); } catch (e) { /* quota */ }
+        }, 500));
+      }
+      var ideasEl = document.getElementById('brokerIdeas');
+      if (ideasEl) {
+        ideasEl.addEventListener('input', Utils.debounce(function () {
+          try { localStorage.setItem('mallan_broker_ideas', ideasEl.value); } catch (e) { /* quota */ }
         }, 500));
       }
     }).catch(function () {
