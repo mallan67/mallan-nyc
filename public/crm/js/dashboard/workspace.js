@@ -474,6 +474,9 @@ var Workspace = (function () {
     '</div>';
     html += _card('address-card', 'Contact Information', '', contactBody);
 
+    // Family / Partner (loaded async)
+    html += '<div id="wsFamilySection"></div>';
+
     // Financial Card
     var finBody = '<div class="space-y-2 text-sm">' +
       '<div class="flex justify-between"><span class="text-gray-500">Annual Income</span><span class="font-medium text-gray-900">' + (cl.annual_income ? '$' + Number(cl.annual_income).toLocaleString() : '-') + '</span></div>' +
@@ -618,6 +621,44 @@ var Workspace = (function () {
           };
         }));
       }
+    }
+
+    // Fetch family members
+    var famEl = document.getElementById('wsFamilySection');
+    if (famEl) {
+      MallanAPI._fetch('/api/crm/clients/' + _clientId + '/family').then(function (data) {
+        var members = data.members || [];
+        if (members.length === 0) {
+          famEl.innerHTML = '';
+          return;
+        }
+        var fhtml = '<div class="card p-4">' +
+          '<div class="flex items-center justify-between mb-3">' +
+            '<h4 class="text-xs font-bold text-gray-500 uppercase"><i class="fas fa-users mr-1"></i>Family / Partner</h4>' +
+          '</div>' +
+          '<div class="space-y-2">';
+        members.forEach(function (m) {
+          var mem = m.member;
+          var name = ((mem.first_name || '') + ' ' + (mem.last_name || '')).trim() || 'Unknown';
+          var rel = m.relationship ? m.relationship.charAt(0).toUpperCase() + m.relationship.slice(1) : '';
+          fhtml += '<div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + mem.id + '/overview\')">' +
+            '<div class="flex items-center gap-3">' +
+              '<div class="w-8 h-8 rounded-full bg-gold-bg text-gold flex items-center justify-center text-xs font-bold">' +
+                E((mem.first_name || '?')[0] + (mem.last_name || '?')[0]) +
+              '</div>' +
+              '<div>' +
+                '<p class="text-sm font-semibold text-gray-900">' + E(name) + '</p>' +
+                '<p class="text-xs text-gray-500">' + E(rel) + (mem.email ? ' · ' + E(mem.email) : '') + '</p>' +
+              '</div>' +
+            '</div>' +
+            '<i class="fas fa-chevron-right text-xs text-gray-300"></i>' +
+          '</div>';
+        });
+        fhtml += '</div></div>';
+        famEl.innerHTML = fhtml;
+      }).catch(function () {
+        famEl.innerHTML = '';
+      });
     }
   }
 
