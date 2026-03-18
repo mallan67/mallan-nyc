@@ -8903,8 +8903,12 @@ var Panels = (function () {
         cl._isPast = stage === 'closed' || stage === 'past' || cl.status === 'inactive';
       });
 
-      // My Clients = all engaged clients. Future new leads (from Lead Distribution) will start in Pipeline.
-      _myClientsData = clients;
+      // My Clients = only active working clients (Active, Showing, Offer, Deal).
+      // New leads and Nurturing stay in Pipeline only — not here.
+      _myClientsData = clients.filter(function (cl) {
+        var stage = (cl.pipeline_stage || cl.stage || 'new').toLowerCase();
+        return stage === 'active' || stage === 'showing' || stage === 'offer' || stage === 'deal';
+      });
       _renderMyClients(c);
 
       // Listen for global search
