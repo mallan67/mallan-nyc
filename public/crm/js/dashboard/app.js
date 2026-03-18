@@ -82,45 +82,41 @@ var CRM = (function () {
 
   // ─── Route Registration ──────────────────────────────────────────────
   function _registerRoutes() {
-    // A1. Broker Admin
+    // A1. Broker Console
     Router.register('/broker/dashboard',           function () { Panels.brokerDashboard(); });
     Router.register('/broker/approvals',           function () { Panels.brokerApprovalQueue(); });
     Router.register('/broker/people/agents',       function () { Panels.agentRoster(); });
+    Router.register('/broker/people/clients',      function () { Panels.clientAddressBook(); });
+    Router.register('/broker/leads/distribution',  function () { Panels.leadDistribution(); });
+    Router.register('/broker/leads/referrals',     function () { Panels.referralTracking(); });
     Router.register('/broker/finance/payouts',     function () { Panels.commissionPayouts(); });
+    Router.register('/broker/finance/revenue',     function () { Panels.revenueOverview(); });
+    Router.register('/broker/finance/1099',        function () { Panels.yearEnd1099(); });
+    Router.register('/broker/listings/company',    function () { Panels.companyListings(); });
     Router.register('/broker/listings/compliance', function () { Panels.complianceDashboard(); });
+    Router.register('/broker/listings/featured',   function () { Panels.featuredProperties(); });
+    Router.register('/broker/documents',           function () { Panels.brokerDocuments(); });
+    Router.register('/broker/system/audit',        function () { Panels.auditLog(); });
+    Router.register('/broker/system/idx-activity', function () { Panels.idxActivity(); });
+    Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
 
-    // Legacy broker routes — redirect to new homes
-    Router.register('/broker/people/clients',      function () { Panels.myClients(); });
-    Router.register('/broker/leads/distribution',  function () { Panels.brokerApprovalQueue(); });
-    Router.register('/broker/leads/referrals',     function () { Panels.dealsCommissions(); });
-    Router.register('/broker/finance/revenue',     function () { Panels.dealsCommissions(); });
-    Router.register('/broker/finance/1099',        function () { Panels.commissionPayouts(); });
-    Router.register('/broker/listings/company',    function () { Panels.myListings(); });
-    Router.register('/broker/listings/featured',   function () { Panels.myListings(); });
-    Router.register('/broker/documents',           function () { Panels.complianceDashboard(); });
-    Router.register('/broker/system/audit',        function () { Panels.complianceDashboard(); });
-    Router.register('/broker/system/idx-activity', function () { Panels.complianceDashboard(); });
-    Router.register('/broker/system/licensing',    function () { Panels.systemSettings(); });
-
-    // A2. My Work
+    // A2. Operations
     Router.register('/ops/dashboard',        function () { Panels.opsDashboard(); });
     Router.register('/ops/search',           function () { Panels.propertySearch(); });
+    Router.register('/ops/listings',         function () { Panels.myListings(); });
     Router.register('/ops/clients',          function () { Panels.myClients(); });
     Router.register('/ops/pipeline',         function () { Panels.pipeline(); });
-    Router.register('/ops/leases',           function () { Panels.leaseTracking(); });
-    Router.register('/ops/listings',         function () { Panels.myListings(); });
     Router.register('/ops/tasks',            function () { Panels.tasks(); });
+    Router.register('/ops/communications',   function () { Panels.communications(); });
     Router.register('/ops/deals',            function () { Panels.dealsCommissions(); });
+    Router.register('/ops/revenue',          function () { Panels.personalRevenue(); });
+    Router.register('/ops/market',           function () { Panels.marketActivity(); });
+    Router.register('/ops/leases',          function () { Panels.leaseTracking(); });
+    Router.register('/ops/import',          function () { Panels.importFromEmail(); });
+    Router.register('/ops/outlook',         function () { Panels.outlookScanner(); });
 
-    // Legacy ops routes — redirect to new homes
-    Router.register('/ops/communications',   function () { Panels.myClients(); });
-    Router.register('/ops/revenue',          function () { Panels.dealsCommissions(); });
-    Router.register('/ops/market',           function () { Panels.opsDashboard(); });
-    Router.register('/ops/import',           function () { Panels.importFromEmail(); });
-    Router.register('/ops/outlook',          function () { Panels.outlookScanner(); });
-
-    // A3. Tools
+    // A3. Settings
     Router.register('/settings/profile',       function () { Panels.profile(); });
     Router.register('/settings/notifications', function () { Panels.notificationSettings(); });
     Router.register('/settings/integrations',  function () { Panels.integrations(); });
@@ -185,7 +181,7 @@ var CRM = (function () {
     list = clients.concat(listings);
     list.sort(function (a, b) { return b.timestamp - a.timestamp; });
     _saveRecentWorkspaces(list);
-    // Data tracked for future cmd+K search — no sidebar rendering
+    _renderRecentSection();
   }
 
   // Track workspace route changes
@@ -292,7 +288,15 @@ var CRM = (function () {
 
   // ─── Sidebar Badge Counts ─────────────────────────────────────────
   function _loadSidebarBadges() {
-    // Approvals — pending payouts + unassigned leads
+    // Lead Distribution — unassigned leads
+    MallanAPI._fetch('/api/crm/leads?limit=200').then(function (data) {
+      var leads = data.leads || data || [];
+      if (!Array.isArray(leads)) return;
+      var count = leads.filter(function (l) { return !l.assignedAgentId && !l.assigned_agent_id; }).length;
+      _appendBadge('/broker/leads/distribution', count);
+    }).catch(function () { /* silent */ });
+
+    // Commission Payouts — pending
     MallanAPI.deals.list({ limit: 200 }).then(function (data) {
       var deals = data.deals || data || [];
       if (!Array.isArray(deals)) return;
@@ -301,7 +305,6 @@ var CRM = (function () {
         return status === 'pending';
       }).length;
       _appendBadge('/broker/finance/payouts', count);
-      _appendBadge('/broker/approvals', count);
     }).catch(function () { /* silent */ });
 
     // Compliance — urgent alerts
@@ -354,36 +357,63 @@ var CRM = (function () {
 
     var html = '';
 
-    // BROKER ADMIN (Maya-only, collapsed by default)
+    // RECENT workspaces (always visible, not collapsible)
+    html += '<div id="sidebarRecent"></div>';
+
+    // FAVORITES (always visible, not collapsible)
+    html += '<div id="sidebarFavorites"></div>';
+
+    // BROKER CONSOLE (Maya-only, hidden when impersonating)
     if (Permissions.canSeeBrokerConsole()) {
-      html += _sidebarGroup('Broker Admin', 'broker', [
-        { route: '/broker/dashboard', icon: 'fa-chart-line', label: 'Admin Dashboard' },
-        { route: '/broker/people/agents', icon: 'fa-user-tie', label: 'Agents' },
-        { route: '/broker/approvals', icon: 'fa-inbox', label: 'Approvals' },
-        { route: '/broker/finance/payouts', icon: 'fa-dollar-sign', label: 'Finance' },
-        { route: '/broker/listings/compliance', icon: 'fa-shield-alt', label: 'Compliance & IDX' },
+      html += _sidebarGroup('BROKER CONSOLE', 'broker', [
+        { route: '/broker/dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
+        { route: '/broker/approvals', icon: 'fa-inbox', label: 'Approval Queue' },
+        { heading: 'People' },
+        { route: '/broker/people/agents', icon: 'fa-user-tie', label: 'Agent Roster' },
+        { route: '/broker/people/clients', icon: 'fa-address-book', label: 'Client Address Book' },
+        { heading: 'Leads & Referrals' },
+        { route: '/broker/leads/distribution', icon: 'fa-random', label: 'Lead Distribution' },
+        { route: '/broker/leads/referrals', icon: 'fa-exchange-alt', label: 'Referral Tracking' },
+        { heading: 'Finance' },
+        { route: '/broker/finance/payouts', icon: 'fa-dollar-sign', label: 'Commission Payouts' },
+        { route: '/broker/finance/revenue', icon: 'fa-chart-bar', label: 'Revenue Overview' },
+        { route: '/broker/finance/1099', icon: 'fa-file-invoice-dollar', label: '1099 Year-End' },
+        { heading: 'Listings & Compliance' },
+        { route: '/broker/listings/company', icon: 'fa-building', label: 'Company Listings' },
+        { route: '/broker/listings/compliance', icon: 'fa-shield-alt', label: 'Compliance Dashboard' },
+        { route: '/broker/listings/featured', icon: 'fa-star', label: 'Featured Properties' },
+        { heading: 'Documents' },
+        { route: '/broker/documents', icon: 'fa-folder', label: 'Company Vault' },
+        { heading: 'System' },
+        { route: '/broker/system/audit', icon: 'fa-clipboard-list', label: 'Audit Log' },
+        { route: '/broker/system/idx-activity', icon: 'fa-database', label: 'IDX/RLS Activity' },
+        { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'License/CE/E&O' },
         { route: '/broker/system/settings', icon: 'fa-cog', label: 'System Settings' },
       ]);
     }
 
-    // MY WORK (always expanded, flat list)
-    html += _sidebarGroup('My Work', 'ops', [
+    // OPERATIONS (agent view; broker sees expanded/all)
+    html += _sidebarGroup('OPERATIONS', 'ops', [
       { route: '/ops/dashboard', icon: 'fa-tachometer-alt', label: 'Dashboard' },
-      { route: '/ops/search', icon: 'fa-search', label: 'Search' },
+      { route: '/ops/search', icon: 'fa-search', label: 'Property Search' },
+      { route: '/ops/listings', icon: 'fa-building', label: 'My Listings' },
       { route: '/ops/clients', icon: 'fa-users', label: 'My Clients' },
       { route: '/ops/pipeline', icon: 'fa-stream', label: 'Pipeline' },
+      { route: '/ops/tasks', icon: 'fa-tasks', label: 'Tasks & Follow-ups' },
+      { route: '/ops/communications', icon: 'fa-envelope', label: 'Communications' },
+      { route: '/ops/deals', icon: 'fa-handshake', label: 'Deals & Commissions' },
+      { route: '/ops/revenue', icon: 'fa-chart-pie', label: 'Revenue' },
+      { route: '/ops/market', icon: 'fa-chart-area', label: 'Market Activity' },
       { route: '/ops/leases', icon: 'fa-calendar-alt', label: 'Lease Tracking' },
-      { route: '/ops/listings', icon: 'fa-building', label: 'My Listings' },
-      { route: '/ops/tasks', icon: 'fa-tasks', label: 'Tasks' },
-      { route: '/ops/deals', icon: 'fa-handshake', label: 'Deals & Revenue' },
+      { route: '/ops/import', icon: 'fa-file-import', label: 'Import Contacts' },
+      { route: '/ops/outlook', icon: 'fa-envelope', label: 'Outlook Scanner' },
     ]);
 
-    // TOOLS (collapsed)
-    html += _sidebarGroup('Tools', 'tools', [
-      { route: '/ops/import', icon: 'fa-file-import', label: 'Import' },
-      { route: '/ops/outlook', icon: 'fa-envelope', label: 'Outlook Scanner' },
+    // SETTINGS
+    html += _sidebarGroup('SETTINGS', 'settings', [
       { route: '/settings/profile', icon: 'fa-user', label: 'My Profile' },
       { route: '/settings/notifications', icon: 'fa-bell', label: 'Notifications' },
+      { route: '/settings/integrations', icon: 'fa-plug', label: 'Integrations' },
     ]);
 
     nav.innerHTML = html;
@@ -394,8 +424,14 @@ var CRM = (function () {
       if (body) body.style.display = Store.ui.sidebarExpandedGroups[group] ? 'block' : 'none';
     });
 
+    // Render recent & favorites sections
+    _renderRecentSection();
+    _renderFavoritesSection();
+
     // Load badge counts asynchronously (non-blocking)
     setTimeout(function () { _loadSidebarBadges(); }, 0);
+
+    // Pin icons removed — added clutter
   }
 
   function _sidebarGroup(title, group, items) {

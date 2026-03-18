@@ -58,9 +58,6 @@ export async function findClients(opts: {
 
   if (role !== "BROKER") {
     where.agent_id = userId;
-  } else {
-    // Broker sees all ASSIGNED clients — unassigned leads stay in Lead Distribution only
-    where.agent_id = { not: null };
   }
   if (status) where.status = status;
 

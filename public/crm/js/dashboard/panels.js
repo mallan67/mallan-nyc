@@ -857,54 +857,26 @@ var Panels = (function () {
 
   // Current filter state for roster listing badges
   var _rosterListingFilter = {};
-  var _rosterListingType = {};
-
-  function _isRentalListing(l) {
-    var lt = (l.listing_type || '').toLowerCase();
-    var pt = (l.property_type || '').toLowerCase();
-    return lt === 'rent' || pt === 'residentiallease' || pt.indexOf('lease') !== -1;
-  }
 
   function _agentListingsView(a, agentIdx) {
     var listings = a._allListings || [];
-    // Default to 'Active'
-    var filterStatus = (agentIdx !== undefined && _rosterListingFilter[agentIdx] !== undefined) ? _rosterListingFilter[agentIdx] : 'Active';
-    if (agentIdx !== undefined && _rosterListingFilter[agentIdx] === undefined) _rosterListingFilter[agentIdx] = 'Active';
-    var typeFilter = (agentIdx !== undefined && _rosterListingType[agentIdx]) ? _rosterListingType[agentIdx] : 'all';
+    var filterStatus = (agentIdx !== undefined && _rosterListingFilter[agentIdx]) ? _rosterListingFilter[agentIdx] : '';
 
-    // Type filter
-    var typeFiltered = listings;
-    if (typeFilter === 'sale') typeFiltered = listings.filter(function (l) { return !_isRentalListing(l); });
-    else if (typeFilter === 'rental') typeFiltered = listings.filter(function (l) { return _isRentalListing(l); });
-
-    var salesCount = listings.filter(function (l) { return !_isRentalListing(l); }).length;
-    var rentalsCount = listings.filter(function (l) { return _isRentalListing(l); }).length;
-
-    // Sale / Rental tabs
-    var html = '<div class="flex items-center gap-1 mb-3 border-b pb-2">';
-    [{ key: 'all', label: 'All (' + listings.length + ')' }, { key: 'sale', label: 'Sales (' + salesCount + ')' }, { key: 'rental', label: 'Rentals (' + rentalsCount + ')' }].forEach(function (t) {
-      var active = typeFilter === t.key;
-      var onclick = agentIdx !== undefined ? ' onclick="Panels._filterRosterType(' + agentIdx + ',\'' + t.key + '\')"' : '';
-      html += '<button class="px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all ' +
-        (active ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-400 hover:text-gray-600') +
-        '"' + onclick + '>' + t.label + '</button>';
-    });
-    html += '</div>';
-
-    // Status filter pills — only show statuses with count > 0
+    // RLS-aligned status counts
     var statusDefs = [
-      { key: '',                    label: 'All',         count: typeFiltered.length },
-      { key: 'Active',              label: 'Active',      count: typeFiltered.filter(function (l) { return l.status === 'Active'; }).length },
-      { key: 'Pending',             label: 'Pending',     count: typeFiltered.filter(function (l) { return l.status === 'Pending'; }).length },
-      { key: 'ActiveUnderContract', label: 'In Contract', count: typeFiltered.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
-      { key: 'Closed',              label: 'Closed',      count: typeFiltered.filter(function (l) { return l.status === 'Closed'; }).length },
-      { key: 'ComingSoon',          label: 'Coming Soon',  count: typeFiltered.filter(function (l) { return l.status === 'ComingSoon'; }).length },
-      { key: 'Hold',                label: 'Hold',        count: typeFiltered.filter(function (l) { return l.status === 'Hold'; }).length },
-      { key: 'Withdrawn',           label: 'Withdrawn',   count: typeFiltered.filter(function (l) { return l.status === 'Withdrawn'; }).length },
-      { key: 'Expired',             label: 'Expired',     count: typeFiltered.filter(function (l) { return l.status === 'Expired'; }).length },
-    ].filter(function (s) { return s.count > 0 || s.key === '' || s.key === 'Active'; });
+      { key: '',                    label: 'All',                         count: listings.length },
+      { key: 'Active',              label: 'Active',                      count: listings.filter(function (l) { return l.status === 'Active'; }).length },
+      { key: 'Pending',             label: 'Pending',                     count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
+      { key: 'ActiveUnderContract', label: 'In Contract',                 count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
+      { key: 'Closed',              label: 'Closed',                      count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
+      { key: 'ComingSoon',          label: 'Coming Soon',                 count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
+      { key: 'Hold',                label: 'Hold (Temp Off Market)',      count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
+      { key: 'Withdrawn',           label: 'Withdrawn (Perm Off Market)', count: listings.filter(function (l) { return l.status === 'Withdrawn'; }).length },
+      { key: 'Expired',             label: 'Expired',                     count: listings.filter(function (l) { return l.status === 'Expired'; }).length },
+      { key: 'Canceled',            label: 'Canceled',                    count: listings.filter(function (l) { return l.status === 'Canceled'; }).length },
+    ];
 
-    html += '<div class="flex flex-wrap gap-1 mb-3">';
+    var html = '<div class="flex flex-wrap gap-1 mb-3">';
     statusDefs.forEach(function (s) {
       var isActive = filterStatus === s.key;
       var onclick = agentIdx !== undefined ? ' onclick="Panels._filterRosterListings(' + agentIdx + ',\'' + s.key + '\')"' : '';
@@ -914,10 +886,10 @@ var Panels = (function () {
     });
     html += '</div>';
 
-    // Apply status filter
-    var filtered = typeFiltered;
+    // Apply filter
+    var filtered = listings;
     if (filterStatus) {
-      filtered = typeFiltered.filter(function (l) { return l.status === filterStatus; });
+      filtered = listings.filter(function (l) { return l.status === filterStatus; });
     }
 
     if (filtered.length === 0) {
@@ -3100,6 +3072,77 @@ var Panels = (function () {
     });
   }
 
+  function _renderLeadCard(lead, agents) {
+    var isAssigned = lead.assignedAgentId || lead.assigned_agent_id;
+    var status = (lead.status || 'new').toLowerCase();
+    var isConverted = status === 'converted' || lead.convertedClientId || lead.converted_client_id;
+    var showCheckbox = !isAssigned && !isConverted;
+
+    var createdDate = new Date(lead.created_at || lead.createdAt || Date.now());
+    var ageMs = Date.now() - createdDate.getTime();
+    var ageHours = Math.floor(ageMs / 3600000);
+
+    var html = '<div class="p-3 mb-2 rounded-lg border bg-white hover:shadow-sm transition-shadow">';
+
+    // Checkbox row for unassigned
+    if (showCheckbox) {
+      html += '<div class="flex items-start gap-2">' +
+        '<input type="checkbox" id="bulk-cb-' + E(lead.id) + '" class="mt-1 rounded border-gray-300" ' +
+        ((_bulkSelectedLeads[lead.id]) ? 'checked ' : '') +
+        'onchange="Panels._toggleBulkLead(\'' + E(lead.id) + '\')">' +
+        '<div class="flex-1 min-w-0">';
+    } else {
+      html += '<div>';
+    }
+
+    // Name + email
+    html += '<p class="text-sm font-medium truncate">' + E(lead.name || lead.email || 'Unknown') + '</p>';
+    if (lead.email) html += '<p class="text-xs text-gray-500 truncate">' + E(lead.email) + '</p>';
+
+    // Badges row
+    html += '<div class="flex flex-wrap gap-1 mt-1.5">';
+    html += _sourceWithRefBadge(lead.source || '');
+    html += ' ' + UI.roleBadge(lead.leadType || lead.type || 'buyer');
+    html += '</div>';
+
+    // Time
+    html += '<p class="text-xs text-gray-400 mt-1.5"><i class="far fa-clock mr-1"></i>';
+    if (ageHours < 1) {
+      html += 'Just now';
+    } else if (ageHours < 24) {
+      html += ageHours + 'h ago';
+    } else {
+      html += Math.floor(ageHours / 24) + 'd ago';
+    }
+    html += '</p>';
+
+    // Referral fee — editable, shows if set on the lead
+    var refPct = lead.referral_fee_pct || lead.referralFeePct || '';
+    if (refPct) {
+      html += '<p class="text-xs mt-1.5 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">' +
+        '<i class="fas fa-receipt mr-1"></i>Ref. fee: ' + E(refPct) + '%</p>';
+    }
+
+    // Assign button or agent name + delete
+    if (isConverted) {
+      html += '<div class="mt-2 flex items-center justify-between"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:#DCFCE7;color:#166534"><i class="fas fa-check mr-1"></i>Converted</span>' +
+        '<button class="text-xs text-gray-300 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button></div>';
+    } else if (isAssigned) {
+      html += '<div class="mt-2 flex items-center justify-between"><span class="text-xs text-gray-600"><i class="fas fa-user-check mr-1 text-green-500"></i>' + E(lead.agent_name || lead.assignedAgentId || lead.assigned_agent_id) + '</span>' +
+        '<button class="text-xs text-gray-300 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button></div>';
+    } else {
+      html += '<div class="mt-2 flex items-center gap-2">' +
+        '<button class="btn btn-sm btn-gold flex-1" onclick="Panels._assignLeadSuggested(\'' + E(lead.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button>' +
+        '<button class="btn btn-sm btn-outline text-gray-400 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
+      '</div>';
+    }
+
+    html += '</div>';
+    if (showCheckbox) html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
   function _deleteLead(id) {
     if (!confirm('Delete this lead? This cannot be undone.')) return;
     MallanAPI._fetch('/api/crm/leads/' + encodeURIComponent(id), { method: 'DELETE' }).then(function () {
@@ -3126,119 +3169,94 @@ var Panels = (function () {
     }
 
     var now = Date.now();
+    var h24 = 24 * 3600000;
 
-    // Build agent name map
-    var agentMap = {};
-    agents.forEach(function (a) { agentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
+    // Categorize into lanes
+    var laneNew = [];
+    var laneNeedsAssign = [];
+    var laneContacted = [];
+    var laneConverted = [];
 
-    // Sort: unassigned first, then newest first
-    filtered.sort(function (a, b) {
-      var aAssigned = a.assignedAgentId || a.assigned_agent_id ? 1 : 0;
-      var bAssigned = b.assignedAgentId || b.assigned_agent_id ? 1 : 0;
-      if (aAssigned !== bAssigned) return aAssigned - bAssigned;
-      return new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0);
+    filtered.forEach(function (l) {
+      var assigned = l.assignedAgentId || l.assigned_agent_id;
+      var status = (l.status || 'new').toLowerCase();
+      var isConverted = status === 'converted' || l.convertedClientId || l.converted_client_id;
+      var age = now - new Date(l.created_at || l.createdAt || now).getTime();
+
+      if (isConverted) {
+        laneConverted.push(l);
+      } else if (assigned && status === 'contacted') {
+        laneContacted.push(l);
+      } else if (!assigned && (status === 'contacted' || (status === 'new' && age > h24))) {
+        laneNeedsAssign.push(l);
+      } else if (!assigned && status === 'new') {
+        laneNew.push(l);
+      } else if (assigned) {
+        laneContacted.push(l);
+      } else {
+        laneNew.push(l);
+      }
     });
 
-    var unassigned = filtered.filter(function (l) { return !(l.assignedAgentId || l.assigned_agent_id); }).length;
-
-    // Source filter buttons
+    // Source chips
     var sources = ['All', 'Website', 'StreetEasy', 'Zillow', 'Referral', 'Walk-in', 'Social Media'];
-    var bulkCount = Object.keys(_bulkSelectedLeads).length;
-
-    var html = '<div class="space-y-3">';
-
-    // Header
-    html += '<div class="flex items-center justify-between">' +
-      '<p class="text-sm text-gray-500">' + filtered.length + ' lead' + (filtered.length !== 1 ? 's' : '') +
-        (unassigned > 0 ? ' · <span class="font-bold" style="color:#DC2626">' + unassigned + ' unassigned</span>' : '') +
-      '</p>' +
-      '<div class="flex items-center gap-2">' +
-        (bulkCount > 0 ? '<button class="btn btn-sm btn-outline" onclick="Panels._bulkAssignLeads()"><i class="fas fa-users-cog mr-1"></i>Assign ' + bulkCount + '</button>' : '') +
-        '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus mr-1"></i>New Lead</button>' +
-      '</div>' +
-    '</div>';
-
-    // Source filters
-    html += '<div class="flex flex-wrap gap-1">';
+    var chipsHtml = '<div class="flex flex-wrap gap-2">';
     sources.forEach(function (s) {
       var active = _leadSourceFilter === s;
-      var cnt = s === 'All' ? leads.length : leads.filter(function (l) { return (l.source || '').toLowerCase() === s.toLowerCase(); }).length;
-      if (s !== 'All' && cnt === 0) return; // hide empty source filters
-      html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
-        (active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gold') + '" ' +
-        'onclick="Panels._filterLeadsBySource(\'' + E(s) + '\')">' + E(s) + ' (' + cnt + ')</button>';
+      chipsHtml += '<button class="px-3 py-1 rounded-full text-xs font-semibold transition-colors ' +
+        (active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '" ' +
+        'onclick="Panels._filterLeadsBySource(\'' + E(s) + '\')">' + E(s);
+      if (s !== 'All') {
+        var cnt = leads.filter(function (l) { return (l.source || '').toLowerCase() === s.toLowerCase(); }).length;
+        if (cnt > 0) chipsHtml += ' <span class="opacity-60">(' + cnt + ')</span>';
+      }
+      chipsHtml += '</button>';
+    });
+    chipsHtml += '</div>';
+
+    var bulkCount = Object.keys(_bulkSelectedLeads).length;
+
+    var html = '<div class="space-y-4">';
+
+    // Header
+    html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
+      '<h3 class="text-lg font-bold text-gray-900">Lead Distribution</h3>' +
+      '<div class="flex items-center gap-2">' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._bulkAssignLeads()" ' +
+          (bulkCount === 0 ? 'disabled style="opacity:0.5"' : '') + '>' +
+          '<i class="fas fa-users-cog mr-1"></i>Bulk Assign <span id="bulk-assign-count">' + (bulkCount > 0 ? '(' + bulkCount + ')' : '') + '</span></button>' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels._createLead()"><i class="fas fa-plus mr-1"></i>Create Lead</button>' +
+      '</div></div>';
+
+    // Source filter chips
+    html += chipsHtml;
+
+    // Kanban lanes
+    var lanes = [
+      { title: 'New', items: laneNew, color: '#DC2626', icon: 'fa-inbox' },
+      { title: 'Needs Assignment', items: laneNeedsAssign, color: '#D97706', icon: 'fa-exclamation-circle' },
+      { title: 'Contacted', items: laneContacted, color: '#2563EB', icon: 'fa-phone-alt' },
+      { title: 'Converted', items: laneConverted, color: '#059669', icon: 'fa-check-circle' }
+    ];
+
+    html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">';
+    lanes.forEach(function (lane) {
+      html += '<div class="rounded-lg border" style="border-left:4px solid ' + lane.color + '">' +
+        '<div class="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">' +
+          '<span class="text-sm font-bold text-gray-800"><i class="fas ' + lane.icon + ' mr-1" style="color:' + lane.color + '"></i>' + lane.title + '</span>' +
+          '<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white" style="background:' + lane.color + '">' + lane.items.length + '</span>' +
+        '</div>' +
+        '<div class="p-2" style="max-height:480px;overflow-y:auto">';
+      if (lane.items.length === 0) {
+        html += '<p class="text-xs text-gray-400 text-center py-6">No leads</p>';
+      } else {
+        lane.items.forEach(function (l) {
+          html += _renderLeadCard(l, agents);
+        });
+      }
+      html += '</div></div>';
     });
     html += '</div>';
-
-    // Lead cards — one per lead
-    if (filtered.length === 0) {
-      html += UI.emptyState('fa-inbox', 'No leads' + (_leadSourceFilter !== 'All' ? ' from ' + _leadSourceFilter : ''));
-    } else {
-      filtered.forEach(function (l) {
-        var isAssigned = l.assignedAgentId || l.assigned_agent_id;
-        var status = (l.status || 'new').toLowerCase();
-        var isConverted = status === 'converted' || l.convertedClientId || l.converted_client_id;
-        var name = l.name || l.email || 'Unknown';
-        var source = l.source || '';
-        var type = l.leadType || l.type || 'buyer';
-        var agentName = isAssigned ? (agentMap[l.assignedAgentId || l.assigned_agent_id] || 'Assigned') : '';
-        var created = new Date(l.created_at || l.createdAt || now);
-        var ageMs = now - created.getTime();
-        var ageLabel = ageMs < 3600000 ? 'Just now' : ageMs < 86400000 ? Math.floor(ageMs / 3600000) + 'h ago' : Math.floor(ageMs / 86400000) + 'd ago';
-        var isUrgent = !isAssigned && !isConverted && ageMs > 86400000;
-        var showCheckbox = !isAssigned && !isConverted;
-        var refPct = l.referral_fee_pct || l.referralFeePct || '';
-
-        html += '<div class="card" style="padding:14px 18px' + (isUrgent ? ';border-left:3px solid #DC2626' : '') + '">' +
-          '<div class="flex items-center gap-4 flex-wrap">';
-
-        // Checkbox (for bulk assign)
-        if (showCheckbox) {
-          html += '<input type="checkbox" id="bulk-cb-' + E(l.id) + '" ' +
-            (_bulkSelectedLeads[l.id] ? 'checked ' : '') +
-            'onchange="Panels._toggleBulkLead(\'' + E(l.id) + '\')">';
-        }
-
-        // Name + contact info
-        html += '<div class="flex items-center gap-3 flex-1 min-w-0">' +
-          UI.avatar(name, 36) +
-          '<div class="min-w-0">' +
-            '<p class="text-sm font-bold text-gray-900 truncate">' + E(name) + '</p>' +
-            '<p class="text-xs text-gray-500">' +
-              (l.phone ? E(l.phone) : '') +
-              (l.phone && l.email ? ' · ' : '') +
-              (l.email && l.email !== name ? E(l.email) : '') +
-            '</p>' +
-          '</div>' +
-        '</div>';
-
-        // Info columns
-        html += '<div class="flex items-center gap-4 flex-wrap">' +
-          '<div style="min-width:70px"><p class="text-xs text-gray-400">Source</p><p class="text-sm font-semibold text-gray-800">' + E(source || '—') +
-            (refPct ? ' <span class="text-xs text-orange-600">(' + E(refPct) + '%)</span>' : '') +
-          '</p></div>' +
-          '<div style="min-width:60px"><p class="text-xs text-gray-400">Type</p><p class="text-sm font-semibold text-gray-800">' + E(type) + '</p></div>' +
-          '<div style="min-width:60px"><p class="text-xs text-gray-400">Received</p><p class="text-sm font-semibold" style="' + (isUrgent ? 'color:#DC2626' : 'color:#374151') + '">' + ageLabel + '</p></div>';
-
-        if (isAssigned) {
-          html += '<div style="min-width:80px"><p class="text-xs text-gray-400">Agent</p><p class="text-sm font-semibold text-gray-800">' + E(agentName) + '</p></div>';
-        }
-
-        html += '</div>';
-
-        // Actions
-        html += '<div class="flex items-center gap-2">';
-        if (isConverted) {
-          html += '<span class="text-xs font-bold text-green-700">Converted</span>';
-        } else if (!isAssigned) {
-          html += '<button class="btn btn-sm btn-gold" onclick="Panels._assignLeadSuggested(\'' + E(l.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button>';
-        }
-        html += '<button class="text-gray-300 hover:text-red-500 p-1" onclick="Panels._deleteLead(\'' + E(l.id) + '\')" title="Delete"><i class="fas fa-trash text-xs"></i></button>';
-        html += '</div>';
-
-        html += '</div></div>';
-      });
-    }
 
     html += '</div>';
     return html;
@@ -5327,54 +5345,36 @@ var Panels = (function () {
 
   // ─── Compliance Dashboard ──────────────────────────────────────────────
   function complianceDashboard() {
-    CRM.setPanelTitle('Compliance & IDX');
+    CRM.setPanelTitle('Compliance Dashboard');
     var c = _container(); c.innerHTML = UI.loading();
     _clearListingModel();
 
-    // Load IDX status + compliance audit in parallel
-    Promise.all([
-      MallanAPI.idx.status().catch(function () { return null; }),
-      MallanAPI._fetch('/api/crm/compliance/audit', { method: 'POST' }).catch(function () { return null; }),
-    ]).then(function (r) {
-      var idxStatus = r[0];
-      var auditResult = r[1];
-
-      // IDX status bar at top
-      var connected = !!idxStatus;
-      var lastSync = idxStatus ? (idxStatus.lastSync || idxStatus.last_sync || idxStatus.lastSyncAt) : null;
-      var idxColor = connected ? '#059669' : '#DC2626';
-      var idxHtml = '<div class="flex items-center gap-3 p-3 rounded-lg border mb-4" style="border-color:' + idxColor + '40;background:' + idxColor + '08">' +
-        '<i class="fas ' + (connected ? 'fa-check-circle' : 'fa-times-circle') + '" style="color:' + idxColor + '"></i>' +
-        '<span class="text-sm font-semibold" style="color:' + idxColor + '">IDX ' + (connected ? 'Connected' : 'Disconnected') + '</span>' +
-        '<span class="text-xs text-gray-500">Trestle/Cotality</span>' +
-        (lastSync ? '<span class="text-xs text-gray-400 ml-auto">Last sync: ' + new Date(lastSync).toLocaleString() + '</span>' : '') +
-      '</div>';
-
-      if (auditResult) {
-        _renderComplianceFromServer(c, auditResult, idxHtml);
-      } else {
-        _loadListingModel().then(function (model) {
-          _renderComplianceClientSide(c, model, idxHtml);
-        }).catch(function () {
-          c.innerHTML = idxHtml + UI.emptyState('fa-shield-alt', 'Unable to load compliance data');
-        });
-      }
+    // Try server-side audit first, fallback to client-side
+    MallanAPI._fetch('/api/crm/compliance/audit', { method: 'POST' }).then(function (auditResult) {
+      _renderComplianceFromServer(c, auditResult);
+    }).catch(function () {
+      // Server audit unavailable — fall back to client-side analysis
+      _loadListingModel().then(function (model) {
+        _renderComplianceClientSide(c, model);
+      }).catch(function () {
+        c.innerHTML = UI.emptyState('fa-shield-alt', 'Unable to load compliance data');
+      });
     });
   }
 
-  function _renderComplianceFromServer(c, audit, idxHtml) {
+  function _renderComplianceFromServer(c, audit) {
     var findings = audit.findings || [];
     var score = audit.score || 0;
     var scoreColor = score >= 90 ? '#059669' : score >= 70 ? '#F59E0B' : '#DC2626';
 
     // Group findings by category
     var buckets = {
-      fair_housing: { label: 'Fair Housing', icon: 'fa-home', color: '#DC2626', items: [] },
-      data_quality: { label: 'Data Quality', icon: 'fa-database', color: '#F97316', items: [] },
-      media: { label: 'Media', icon: 'fa-camera', color: '#F59E0B', items: [] },
-      stale: { label: 'Stale', icon: 'fa-clock', color: '#F59E0B', items: [] },
-      distribution: { label: 'Feed/Display', icon: 'fa-broadcast-tower', color: '#DC2626', items: [] },
-      rebny_rls: { label: 'REBNY RLS', icon: 'fa-shield-alt', color: '#F97316', items: [] },
+      fair_housing: { label: 'Fair Housing Risk', icon: 'fa-home', severity: 'critical', color: '#DC2626', items: [] },
+      data_quality: { label: 'Missing/Invalid Data', icon: 'fa-database', severity: 'high', color: '#F97316', items: [] },
+      media: { label: 'Media Issues', icon: 'fa-camera', severity: 'medium', color: '#F59E0B', items: [] },
+      stale: { label: 'Stale Listings', icon: 'fa-clock', severity: 'medium', color: '#F59E0B', items: [] },
+      distribution: { label: 'Feed/Display Problems', icon: 'fa-broadcast-tower', severity: 'critical', color: '#DC2626', items: [] },
+      rebny_rls: { label: 'REBNY RLS Issues', icon: 'fa-shield-alt', severity: 'high', color: '#F97316', items: [] },
     };
 
     findings.forEach(function (f) {
@@ -5384,33 +5384,37 @@ var Panels = (function () {
     });
 
     var html = '<div class="space-y-4">';
-    html += idxHtml || '';
 
-    // Compact score + compliance rules as green/red indicators
-    html += '<div class="card p-4">' +
-      '<div class="flex items-center justify-between flex-wrap gap-3">' +
-        '<div class="flex items-center gap-3">' +
-          '<span class="text-2xl font-bold" style="color:' + scoreColor + '">' + score + '%</span>' +
-          '<span class="text-xs text-gray-500">' + audit.listingsAudited + ' listings · ' + audit.totalFindings + ' findings</span>' +
+    // Score + metadata
+    html += '<div class="card p-6">' +
+      '<div class="flex items-center justify-between">' +
+        '<div class="text-center">' +
+          '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Server-Validated Compliance Score</p>' +
+          '<p class="text-5xl font-bold" style="color:' + scoreColor + '">' + score + '%</p>' +
+          '<p class="text-xs text-gray-500 mt-1">' + audit.listingsAudited + ' listings audited · ' + audit.totalFindings + ' findings</p>' +
+          '<p class="text-[10px] text-gray-400 mt-1">Audited at ' + (audit.auditedAt ? new Date(audit.auditedAt).toLocaleString() : 'now') + '</p>' +
         '</div>' +
-        '<div class="flex items-center gap-2">' +
-          (audit.critical ? '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">' + audit.critical + ' Critical</span>' : '') +
-          (audit.high ? '<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">' + audit.high + ' High</span>' : '') +
-          '<button class="btn btn-sm btn-outline" onclick="Panels.complianceDashboard()"><i class="fas fa-sync mr-1"></i>Re-Audit</button>' +
+        '<div class="flex gap-3">' +
+          '<div class="text-center"><p class="text-2xl font-bold text-red-600">' + (audit.critical || 0) + '</p><p class="text-[10px] text-gray-500">Critical</p></div>' +
+          '<div class="text-center"><p class="text-2xl font-bold text-orange-500">' + (audit.high || 0) + '</p><p class="text-[10px] text-gray-500">High</p></div>' +
+          '<div class="text-center"><p class="text-2xl font-bold text-yellow-500">' + (audit.medium || 0) + '</p><p class="text-[10px] text-gray-500">Medium</p></div>' +
         '</div>' +
+        '<button class="btn btn-sm btn-gold" onclick="Panels.complianceDashboard()"><i class="fas fa-sync mr-1"></i> Re-Audit</button>' +
       '</div>' +
     '</div>';
 
-    // Compact compliance rules — green/red indicators per category
-    html += '<div class="flex flex-wrap gap-2">';
+    // Bucket cards
+    html += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">';
     Object.keys(buckets).forEach(function (key) {
       var b = buckets[key];
       var count = b.items.length;
-      var isPass = count === 0;
-      var color = isPass ? '#059669' : b.color;
-      html += '<div class="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer hover:shadow-sm" style="border-color:' + color + '40;color:' + color + '" onclick="document.getElementById(\'compQueue\').scrollIntoView({behavior:\'smooth\'})">' +
-        '<i class="fas ' + (isPass ? 'fa-check-circle' : 'fa-exclamation-triangle') + '"></i>' +
-        E(b.label) + (count > 0 ? ' (' + count + ')' : '') +
+      var statusIcon = count === 0 ? 'fa-check-circle' : 'fa-exclamation-triangle';
+      var statusColor = count === 0 ? '#059669' : b.color;
+      html += '<div class="card p-4 text-center cursor-pointer hover:border-gold transition-all" onclick="document.getElementById(\'compQueue\').scrollIntoView({behavior:\'smooth\'})">' +
+        '<i class="fas ' + b.icon + ' text-xl mb-2" style="color:' + statusColor + '"></i>' +
+        '<p class="text-xs font-bold text-gray-700 mb-1">' + E(b.label) + '</p>' +
+        '<p class="text-lg font-bold" style="color:' + statusColor + '">' + count + '</p>' +
+        '<i class="fas ' + statusIcon + ' text-sm mt-1" style="color:' + statusColor + '"></i>' +
       '</div>';
     });
     html += '</div>';
@@ -5452,7 +5456,7 @@ var Panels = (function () {
     c.innerHTML = html;
   }
 
-  function _renderComplianceClientSide(c, model, idxHtml) {
+  function _renderComplianceClientSide(c, model) {
     var listings = model.listings;
     var agentMap = model.agentMap;
 
@@ -5513,7 +5517,6 @@ var Panels = (function () {
       var highCount = queue.filter(function (q) { return q.severity === 'high'; }).length;
 
       var html = '<div class="space-y-4">';
-      html += idxHtml || '';
 
       // Score card
       html += '<div class="card p-6 text-center">' +
@@ -7590,9 +7593,12 @@ var Panels = (function () {
 
       var html = '<div class="space-y-6">';
 
-      // ═══ SECTION 1: TODAY ═══
-      html += '<p class="text-sm text-gray-500 mb-2">' + E(todayLabel) + '</p>';
+      // ═══ SECTION 1: TODAY'S FOCUS ═══
       html += '<div class="card">' +
+        '<div class="card-header" style="border-bottom:2px solid #B8860B">' +
+          '<div><h3 class="text-lg font-bold text-gray-900"><i class="fas fa-sun text-gold mr-2"></i>Today\'s Focus</h3>' +
+          '<p class="text-sm text-gray-500 mt-0.5">' + E(todayLabel) + '</p></div>' +
+        '</div>' +
         '<div class="card-body space-y-5">';
 
       // Tasks Due Today
@@ -7815,6 +7821,66 @@ var Panels = (function () {
 
       html += '</div>'; // 2-col grid
 
+      // ═══ SECTION 4: QUICK ACTIONS + RESUME RECENT ═══
+      html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">';
+
+      // Left: Quick Actions (2x3 grid)
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-bolt text-gold mr-2"></i>Quick Actions</h3></div>' +
+        '<div class="card-body"><div class="grid grid-cols-2 sm:grid-cols-3 gap-3">';
+      var quickActions = [
+        { icon: 'fa-search', label: 'Property Search', route: '/ops/search' },
+        { icon: 'fa-user-plus', label: 'New Client', action: 'CRM.quickNewClient()' },
+        { icon: 'fa-home', label: 'New Listing', action: 'CRM.quickNewListing()' },
+        { icon: 'fa-paper-plane', label: 'Quick Send', action: 'CRM.quickSendListing()' },
+        { icon: 'fa-tasks', label: 'Quick Task', action: 'CRM.quickTask()' },
+        { icon: 'fa-sticky-note', label: 'Quick Note', action: 'CRM.quickNote()' },
+      ];
+      quickActions.forEach(function (q) {
+        html += '<button class="flex flex-col items-center justify-center p-3 rounded-lg border border-gray-200 hover:border-gold hover:shadow-sm transition-all" ' +
+          'onclick="' + (q.route ? "Router.navigate('" + q.route + "')" : q.action) + '">' +
+          '<i class="fas ' + q.icon + ' text-lg text-gold mb-1.5"></i>' +
+          '<span class="text-xs font-bold text-gray-700">' + E(q.label) + '</span></button>';
+      });
+      html += '</div></div></div>';
+
+      // Right: Resume Recent Workspaces
+      html += '<div class="card"><div class="card-header"><h3 class="text-sm font-bold"><i class="fas fa-history text-gray-500 mr-2"></i>Resume Recent</h3></div>' +
+        '<div class="card-body">';
+      var recentWorkspaces = [];
+      try { var raw = localStorage.getItem('mallan_crm_recent_workspaces'); recentWorkspaces = raw ? JSON.parse(raw) : []; } catch (e) { /* ignore */ }
+      var recentClients = recentWorkspaces.filter(function (w) { return w.type === 'client'; }).slice(0, 5);
+      var recentListings = recentWorkspaces.filter(function (w) { return w.type === 'listing'; }).slice(0, 5);
+
+      if (recentClients.length > 0) {
+        html += '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Recent Clients</p>' +
+          '<div class="space-y-1.5 mb-4">';
+        recentClients.forEach(function (w) {
+          html += '<div class="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'' + E(w.route) + '\')">' +
+            '<i class="fas fa-user text-gray-400 text-xs"></i>' +
+            '<p class="text-sm flex-1 truncate">' + E(w.name || 'Unknown') + '</p>' +
+            '<span class="text-xs text-gray-400">' + (w.timestamp ? Utils.formatTimeAgo(new Date(w.timestamp).toISOString()) : '') + '</span>' +
+          '</div>';
+        });
+        html += '</div>';
+      }
+      if (recentListings.length > 0) {
+        html += '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Recent Listings</p>' +
+          '<div class="space-y-1.5">';
+        recentListings.forEach(function (w) {
+          html += '<div class="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'' + E(w.route) + '\')">' +
+            '<i class="fas fa-building text-gray-400 text-xs"></i>' +
+            '<p class="text-sm flex-1 truncate">' + E(w.name || 'Unknown') + '</p>' +
+            '<span class="text-xs text-gray-400">' + (w.timestamp ? Utils.formatTimeAgo(new Date(w.timestamp).toISOString()) : '') + '</span>' +
+          '</div>';
+        });
+        html += '</div>';
+      }
+      if (recentClients.length === 0 && recentListings.length === 0) {
+        html += '<p class="text-sm text-gray-500 text-center py-4">No recent workspaces</p>';
+      }
+      html += '</div></div>';
+
+      html += '</div>'; // 2-col grid
       html += '</div>'; // space-y-6
 
       c.innerHTML = html;
@@ -8517,28 +8583,12 @@ var Panels = (function () {
     var view = _myClientsView;
     var search = _myClientsSearch.toLowerCase();
 
-    // MY CLIENTS = everyone you're actively working with
-    // Excludes only genuinely cold/unresponsive contacts (stage=new with no activity in 30+ days and no tasks)
-    var PIPELINE_ONLY_STAGES = ['new', 'contacted', 'nurturing'];
-    var thirtyDaysAgo = new Date(new Date().getTime() - 30 * 24 * 3600 * 1000);
-    var activeClients = clients.filter(function (cl) {
-      var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
-      // Explicit client stages always show
-      if (PIPELINE_ONLY_STAGES.indexOf(stage) === -1) return true;
-      // For pipeline stages: show in My Clients if they have recent activity, tasks, lease data, or deals
-      var hasRecentActivity = cl._lastActivity && cl._lastActivity >= thirtyDaysAgo;
-      var hasTasks = cl._taskCount > 0;
-      var hasLease = cl.lease_end_date || cl.lease_start_date || cl.leaseEndDate || cl.leaseStartDate;
-      var hasPrefs = cl.preferences || cl.search_criteria || cl.neighborhoods || cl.budget_max;
-      return hasRecentActivity || hasTasks || hasLease || hasPrefs;
-    });
-
     // Apply type sub-filter
-    var typeFiltered = activeClients;
-    if (view === 'buyer') typeFiltered = activeClients.filter(function (cl) { return (cl.type || cl.client_type) === 'buyer'; });
-    else if (view === 'seller') typeFiltered = activeClients.filter(function (cl) { return (cl.type || cl.client_type) === 'seller'; });
-    else if (view === 'renter') typeFiltered = activeClients.filter(function (cl) { return (cl.type || cl.client_type) === 'renter'; });
-    else if (view === 'landlord') typeFiltered = activeClients.filter(function (cl) { return (cl.type || cl.client_type) === 'landlord'; });
+    var typeFiltered = clients;
+    if (view === 'buyer') typeFiltered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'buyer'; });
+    else if (view === 'seller') typeFiltered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'seller'; });
+    else if (view === 'renter') typeFiltered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'renter'; });
+    else if (view === 'landlord') typeFiltered = clients.filter(function (cl) { return (cl.type || cl.client_type) === 'landlord'; });
 
     // Apply search
     if (search) {
@@ -8548,19 +8598,49 @@ var Panels = (function () {
       });
     }
 
-    // Sort by urgency: overdue tasks first, then recently updated
-    typeFiltered.sort(function (a, b) {
+    // Split into 3 sections
+    var focusNow = typeFiltered.filter(function (cl) {
+      var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
+      return ['active', 'showing', 'offer', 'deal'].indexOf(stage) !== -1;
+    });
+    var followUp = typeFiltered.filter(function (cl) {
+      var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
+      if (['active', 'showing', 'offer', 'deal', 'nurturing', 'past', 'closed'].indexOf(stage) !== -1) return false;
+      // new/contacted with no activity in 7+ days, OR overdue tasks, OR lease expiring
+      return cl._needsFollowUp || cl._isInactive || cl._leaseExpiring || (cl._nextTask && cl._nextTask.due_date && new Date(cl._nextTask.due_date) < new Date());
+    });
+    var nurture = typeFiltered.filter(function (cl) {
+      var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
+      return ['nurturing', 'past', 'closed'].indexOf(stage) !== -1;
+    });
+    // Active new/contacted clients (not in follow-up) go into focus
+    var activeNew = typeFiltered.filter(function (cl) {
+      var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
+      if (['active', 'showing', 'offer', 'deal', 'nurturing', 'past', 'closed'].indexOf(stage) !== -1) return false;
+      return !cl._needsFollowUp && !cl._isInactive && !cl._leaseExpiring && !(cl._nextTask && cl._nextTask.due_date && new Date(cl._nextTask.due_date) < new Date());
+    });
+    focusNow = focusNow.concat(activeNew);
+
+    // Sort focus by urgency: overdue tasks first, then stale, then by update
+    focusNow.sort(function (a, b) {
       var aOverdue = a._nextTask && a._nextTask.due_date && new Date(a._nextTask.due_date) < new Date() ? 0 : 1;
       var bOverdue = b._nextTask && b._nextTask.due_date && new Date(b._nextTask.due_date) < new Date() ? 0 : 1;
       if (aOverdue !== bOverdue) return aOverdue - bOverdue;
-      return new Date(b.updated_at || b.updatedAt || 0) - new Date(a.updated_at || a.updatedAt || 0);
+      return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
     });
+    followUp.sort(function (a, b) {
+      // Lease expiring first, then by staleness
+      if (a._leaseExpiring && !b._leaseExpiring) return -1;
+      if (!a._leaseExpiring && b._leaseExpiring) return 1;
+      return new Date(a.updated_at || 0) - new Date(b.updated_at || 0);
+    });
+    nurture.sort(function (a, b) { return new Date(b.updated_at || 0) - new Date(a.updated_at || 0); });
 
     var html = '<div class="space-y-4">';
 
     // Header
     html += '<div class="flex items-center justify-between gap-2">' +
-      '<p class="text-xs text-gray-500">' + typeFiltered.length + ' active client' + (typeFiltered.length !== 1 ? 's' : '') + '</p>' +
+      '<p class="text-xs text-gray-500">' + typeFiltered.length + ' client' + (typeFiltered.length !== 1 ? 's' : '') + '</p>' +
       '<div class="flex items-center gap-2">' +
         '<div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
           '<input type="text" placeholder="Search clients..." class="form-input pl-9 text-sm w-48" value="' + E(_myClientsSearch) + '" oninput="Panels._searchMyClients(this.value)"></div>' +
@@ -8578,60 +8658,14 @@ var Panels = (function () {
     });
     html += '</div>';
 
-    // Client table
-    if (typeFiltered.length === 0) {
-      html += UI.emptyState('fa-users', 'No active clients' + (search ? ' matching "' + E(search) + '"' : ''));
-    } else {
-      html += '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
-        '<th class="text-left px-3 py-2">Client</th>' +
-        '<th class="text-left px-3 py-2">Type</th>' +
-        '<th class="text-left px-3 py-2 hidden sm:table-cell">Stage</th>' +
-        '<th class="text-left px-3 py-2 hidden md:table-cell">Next Task</th>' +
-        '<th class="text-left px-3 py-2 hidden lg:table-cell">Last Activity</th>' +
-        '<th class="text-left px-3 py-2">Actions</th>' +
-      '</tr></thead><tbody>';
-      typeFiltered.forEach(function (cl) {
-        var name = cl.name || cl.email || 'Unknown';
-        var type = cl.type || cl.client_type || '';
-        var stage = (cl.pipeline_stage || cl.stage || cl.status || '').toLowerCase();
-        var lastAct = cl._lastActivity;
-        var daysSince = lastAct ? Math.floor((new Date() - lastAct) / (1000 * 60 * 60 * 24)) : null;
-        var nextTask = cl._nextTask;
-        var isOverdue = nextTask && nextTask.due_date && new Date(nextTask.due_date) < new Date();
+    // ── Section 1: Focus Now ──
+    html += _renderClientSection('Focus Now', 'fa-bolt', 'text-green-700 bg-green-50 border-green-200', focusNow, 'Active pipeline — needs your attention now', true);
 
-        html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
-          '<td class="px-3 py-2.5"><div class="flex items-center gap-2.5">' +
-            UI.avatar(name, 28) +
-            '<div class="min-w-0"><p class="text-sm font-medium truncate">' + E(name) + '</p>' +
-            (cl.email ? '<p class="text-xs text-gray-400 truncate">' + E(cl.email) + '</p>' : '') +
-          '</div></div></td>' +
-          '<td class="px-3 py-2"><span class="text-xs font-semibold text-gray-700">' + E(type || '—') + '</span></td>' +
-          '<td class="px-3 py-2 hidden sm:table-cell" onclick="event.stopPropagation()">' +
-            '<select class="text-xs font-semibold text-gray-700 border border-gray-200 rounded px-2 py-1 cursor-pointer" onchange="Panels._clientStageChange(\'' + E(cl.id) + '\',this.value)">' +
-              '<option value="active"' + (stage === 'active' ? ' selected' : '') + '>Active</option>' +
-              '<option value="showing"' + (stage === 'showing' ? ' selected' : '') + '>Showing</option>' +
-              '<option value="offer"' + (stage === 'offer' ? ' selected' : '') + '>Offer</option>' +
-              '<option value="deal"' + (stage === 'deal' ? ' selected' : '') + '>Deal</option>' +
-              '<option value="closed"' + (stage === 'closed' ? ' selected' : '') + '>Closed</option>' +
-              '<option value="past"' + (stage === 'past' ? ' selected' : '') + '>Past</option>' +
-              '<option value="nurturing">→ Pipeline</option>' +
-            '</select>' +
-          '</td>' +
-          '<td class="px-3 py-2 hidden md:table-cell">' +
-            (nextTask ? '<p class="text-xs truncate' + (isOverdue ? ' text-red-600 font-bold' : ' text-gray-700') + '">' +
-              (isOverdue ? '<i class="fas fa-exclamation-circle mr-1"></i>' : '') +
-              E(nextTask.title || 'Task') + '</p>' : '<span class="text-xs text-gray-400">—</span>') +
-          '</td>' +
-          '<td class="px-3 py-2 hidden lg:table-cell">' +
-            (daysSince !== null ? '<span class="text-xs font-semibold' + (daysSince > 7 ? ' text-yellow-600' : ' text-gray-700') + '">' + daysSince + 'd ago</span>' : '<span class="text-xs text-gray-400">—</span>') +
-          '</td>' +
-          '<td class="px-3 py-2" onclick="event.stopPropagation()">' +
-            '<button class="text-xs text-gray-500 hover:text-gold font-semibold" onclick="Panels._moveToPipeline(\'' + E(cl.id) + '\')" title="Move to Pipeline"><i class="fas fa-arrow-left mr-1"></i>Pipeline</button>' +
-          '</td>' +
-        '</tr>';
-      });
-      html += '</tbody></table></div></div>';
-    }
+    // ── Section 2: Follow Up ──
+    html += _renderClientSection('Follow Up', 'fa-clock', 'text-yellow-700 bg-yellow-50 border-yellow-200', followUp, 'Needs re-engagement — no recent activity or overdue tasks', true);
+
+    // ── Section 3: Nurture ──
+    html += _renderClientSection('Nurture', 'fa-seedling', 'text-purple-700 bg-purple-50 border-purple-200', nurture, 'Background — past clients and long-term nurture', false);
 
     html += '</div>';
     c.innerHTML = html;
@@ -8787,7 +8821,6 @@ var Panels = (function () {
   }
 
   // ─── Pipeline ────────────────────────────────────────────────────────
-  // Pipeline stages kept for reference (stage move API still uses these keys)
   var PIPELINE_STAGES = [
     { key: 'new', title: 'New', color: '#6b7280', icon: 'fa-inbox' },
     { key: 'contacted', title: 'Contacted', color: '#3b82f6', icon: 'fa-phone' },
@@ -8799,9 +8832,6 @@ var Panels = (function () {
     { key: 'closed', title: 'Closed', color: '#374151', icon: 'fa-check-circle' },
   ];
 
-  // Pipeline = contacts/prospects/cold leads only (new, contacted, nurturing)
-  var PIPELINE_STAGE_KEYS = ['new', 'contacted', 'nurturing'];
-
   function pipeline() {
     CRM.setPanelTitle('Pipeline');
     var c = _container(); c.innerHTML = UI.loading();
@@ -8810,91 +8840,81 @@ var Panels = (function () {
       MallanAPI.clients.list({ limit: 300 }).catch(function () { return { clients: [] }; }),
       MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
     ]).then(function (r) {
-      var allClients = _normalizeClients(r[0].clients || []);
+      var clients = _normalizeClients(r[0].clients || []);
       var tasks = r[1].tasks || [];
       var now = new Date();
+      var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
 
-      // Pipeline = truly cold contacts only
-      var thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-      var clients = allClients.filter(function (cl) {
-        var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
-        if (PIPELINE_STAGE_KEYS.indexOf(stage) === -1) return false;
-        var hasLease = cl.lease_end_date || cl.lease_start_date || cl.leaseEndDate || cl.leaseStartDate;
-        if (hasLease) return false;
-        var lastAct = new Date(cl.updated_at || cl.updatedAt || cl.created_at || 0);
-        var hasRecentActivity = lastAct >= thirtyDaysAgo;
-        var clientTasks = tasks.filter(function (t) { return (t.client_id === cl.id || t.clientId === cl.id) && t.status !== 'completed'; });
-        var hasTasks = clientTasks.length > 0;
-        var hasPrefs = cl.preferences || cl.search_criteria || cl.neighborhoods || cl.budget_max;
-        if (hasRecentActivity || hasTasks || hasPrefs) return false;
-        return true;
-      });
-
-      // Enrich
+      // Enrich clients
       clients.forEach(function (cl) {
+        var cid = cl.id;
+        var clientTasks = tasks.filter(function (t) { return (t.client_id === cid || t.clientId === cid) && t.status !== 'completed'; });
+        clientTasks.sort(function (a, b) { return new Date(a.due_date || '9999') - new Date(b.due_date || '9999'); });
+        cl._nextTask = clientTasks[0] || null;
         cl._lastActivity = new Date(cl.updated_at || cl.updatedAt || cl.created_at || 0);
-        cl._daysSinceActivity = Math.floor((now - cl._lastActivity) / 86400000);
-        cl._propertyAddress = cl.property_address || (cl.preferences && cl.preferences.address) || '';
-        if (!cl._propertyAddress && cl.notes) {
-          var addrMatch = cl.notes.match(/(?:property|address)\s*[:=]\s*(.+)/i);
-          if (addrMatch) cl._propertyAddress = addrMatch[1].trim();
+        cl._isStale = cl._lastActivity < sevenDaysAgo;
+        cl._isRenter = (cl.type === 'renter' || cl.client_type === 'renter');
+        cl._leaseEnd = cl.leaseEndDate || cl.lease_end_date;
+        cl._conversionProb = cl.conversionProbability || 0;
+
+        // Next best action
+        if (cl._nextTask && cl._nextTask.due_date && new Date(cl._nextTask.due_date) < now) {
+          cl._nba = { label: 'Complete overdue task', icon: 'fa-exclamation-circle', color: '#DC2626' };
+        } else if (cl._isStale) {
+          cl._nba = { label: 'Follow up', icon: 'fa-phone', color: '#F59E0B' };
+        } else if (cl._isRenter && cl._leaseEnd && Utils.daysUntil(cl._leaseEnd) <= 90) {
+          cl._nba = { label: 'Discuss conversion', icon: 'fa-exchange-alt', color: '#7C3AED' };
+        } else if (cl._nextTask) {
+          cl._nba = { label: cl._nextTask.title, icon: 'fa-tasks', color: '#2563EB' };
+        } else {
+          cl._nba = { label: 'Send listings', icon: 'fa-paper-plane', color: '#059669' };
         }
-        cl._stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
       });
 
-      clients.sort(function (a, b) { return b._daysSinceActivity - a._daysSinceActivity; });
+      var grouped = Utils.groupBy(clients, function (cl) { return (cl.stage || cl.status || 'new').toLowerCase(); });
 
-      var html = '<div class="space-y-3">';
+      var html = '<div class="space-y-4">';
 
-      // Header
-      html += '<div class="flex items-center justify-between">' +
-        '<p class="text-sm text-gray-500">' + clients.length + ' contact' + (clients.length !== 1 ? 's' : '') + ' needing outreach</p>' +
-        '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-user-plus mr-1"></i>New Contact</button>' +
-      '</div>';
+      // Summary bar
+      html += '<div class="flex gap-1 p-3 bg-white rounded-xl border overflow-x-auto">';
+      PIPELINE_STAGES.forEach(function (s, i) {
+        var count = (grouped[s.key] || []).length;
+        html += '<div class="flex-1 text-center min-w-[60px]">' +
+          '<div class="w-9 h-9 rounded-full mx-auto mb-1 flex items-center justify-center text-white text-xs font-bold" style="background:' + s.color + '">' + count + '</div>' +
+          '<p class="text-[9px] font-bold text-gray-500 uppercase">' + E(s.title) + '</p>' +
+        '</div>';
+        if (i < PIPELINE_STAGES.length - 1) html += '<div class="text-gray-300 flex items-center"><i class="fas fa-chevron-right text-[8px]"></i></div>';
+      });
+      html += '</div>';
 
-      if (clients.length === 0) {
-        html += UI.emptyState('fa-stream', 'Pipeline is empty — all contacts are active clients');
-      } else {
-        // Card rows — one per contact
-        clients.forEach(function (cl) {
-          var name = cl.name || cl.email || 'Unknown';
-          var type = cl.type || cl.client_type || '';
-          var lastSpoken = cl._daysSinceActivity === 0 ? 'Today' : cl._daysSinceActivity + 'd ago';
-          var staleColor = cl._daysSinceActivity > 14 ? 'color:#DC2626;font-weight:700' : cl._daysSinceActivity > 7 ? 'color:#D97706;font-weight:700' : 'color:#374151';
+      // Pipeline total
+      html += '<p class="text-xs text-gray-500">' + clients.length + ' clients in pipeline</p>';
 
-          html += '<div class="card" style="padding:14px 18px">' +
-            '<div class="flex items-center gap-4 flex-wrap">' +
-              // Left: avatar + name block
-              '<div class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')">' +
-                UI.avatar(name, 36) +
-                '<div class="min-w-0">' +
-                  '<p class="text-sm font-bold text-gray-900 truncate">' + E(name) + '</p>' +
-                  '<p class="text-xs text-gray-500">' +
-                    (cl.phone ? E(cl.phone) : (cl.email ? E(cl.email) : '')) +
-                    (type ? ' · ' + E(type) : '') +
-                  '</p>' +
-                  (cl._propertyAddress ? '<p class="text-xs text-gray-400 truncate">' + E(cl._propertyAddress) + '</p>' : '') +
-                '</div>' +
-              '</div>' +
-              // Middle: last spoken
-              '<div class="text-center" style="min-width:80px">' +
-                '<p class="text-xs text-gray-400">Last spoken</p>' +
-                '<p class="text-sm font-bold" style="' + staleColor + '">' + lastSpoken + '</p>' +
-              '</div>' +
-              // Right: stage dropdown + promote button
-              '<div class="flex items-center gap-2">' +
-                '<select class="text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 cursor-pointer" onchange="Panels._pipelineMove(\'' + E(cl.id) + '\',this.value)">' +
-                  '<option value="new"' + (cl._stage === 'new' ? ' selected' : '') + '>New</option>' +
-                  '<option value="contacted"' + (cl._stage === 'contacted' ? ' selected' : '') + '>Contacted</option>' +
-                  '<option value="nurturing"' + (cl._stage === 'nurturing' ? ' selected' : '') + '>Nurturing</option>' +
-                  '<option value="active">→ Clients</option>' +
-                '</select>' +
-                '<button class="btn btn-sm btn-gold" onclick="Panels._moveToClients(\'' + E(cl.id) + '\')" title="Promote to active client"><i class="fas fa-arrow-right"></i></button>' +
-              '</div>' +
-            '</div>' +
-          '</div>';
-        });
-      }
+      // Kanban board with rich cards
+      html += '<div class="kanban-board">';
+      PIPELINE_STAGES.forEach(function (s) {
+        var stageClients = grouped[s.key] || [];
+        html += '<div class="kanban-col">' +
+          '<div class="kanban-col-header" style="border-color:' + s.color + '">' +
+            '<span class="kanban-col-title" style="color:' + s.color + '"><i class="fas ' + s.icon + ' mr-1"></i> ' + E(s.title) + '</span>' +
+            '<span class="kanban-col-count" style="background:' + s.color + '">' + stageClients.length + '</span>' +
+          '</div>' +
+          '<div class="kanban-col-body" data-stage="' + E(s.key) + '" ' +
+            'ondragover="event.preventDefault();this.style.background=\'#FFFBF0\'" ' +
+            'ondragleave="this.style.background=\'\'" ' +
+            'ondrop="Panels._pipelineDrop(event,\'' + E(s.key) + '\')">';
+
+        if (stageClients.length === 0) {
+          html += '<div class="text-center text-xs text-gray-400 py-6"><i class="fas fa-inbox block text-lg mb-1"></i>Empty</div>';
+        } else {
+          stageClients.forEach(function (cl) {
+            html += _pipelineCard(cl, s.key);
+          });
+        }
+
+        html += '</div></div>';
+      });
+      html += '</div>';
 
       html += '</div>';
       c.innerHTML = html;
@@ -8903,45 +8923,75 @@ var Panels = (function () {
     });
   }
 
-  // Move contact from Pipeline → My Clients (set stage to 'active')
-  function _moveToClients(clientId) {
-    MallanAPI.clients.update(clientId, { stage: 'active' }).then(function () {
-      Events.log('client_stage_moved', 'client', clientId, { to: 'active', from: 'pipeline' });
-      CRM.toast('Moved to My Clients', 'success');
-      pipeline(); // refresh
-    }).catch(function (err) {
-      CRM.toast('Error: ' + (err.message || 'Failed to move'), 'error');
-    });
-  }
+  function _pipelineCard(cl, stageKey) {
+    var name = cl.name || cl.full_name || cl.email || 'Unknown';
+    var type = cl.type || cl.client_type || '';
+    var nba = cl._nba || {};
 
-  // Move client from My Clients → Pipeline (set stage to 'nurturing')
-  function _moveToPipeline(clientId) {
-    MallanAPI.clients.update(clientId, { stage: 'nurturing' }).then(function () {
-      Events.log('client_stage_moved', 'client', clientId, { to: 'nurturing', from: 'clients' });
-      CRM.toast('Moved to Pipeline', 'success');
-      myClients(); // refresh
-    }).catch(function (err) {
-      CRM.toast('Error: ' + (err.message || 'Failed to move'), 'error');
-    });
-  }
+    var html = '<div class="kanban-card" draggable="true" ' +
+      'data-client-id="' + E(cl.id) + '" ' +
+      'ondragstart="Panels._pipelineDragStart(event,\'' + E(cl.id) + '\')" ' +
+      'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/pipeline\')">';
 
-  // Change stage from My Clients dropdown
-  function _clientStageChange(clientId, newStage) {
-    // If nurturing selected, move to pipeline
-    if (newStage === 'nurturing' || newStage === 'new' || newStage === 'contacted') {
-      _moveToPipeline(clientId);
-      return;
+    // Header: name + type badge
+    html += '<div class="flex items-center justify-between mb-1">' +
+      '<p class="text-sm font-semibold text-gray-900 truncate flex-1">' + E(name) + '</p>' +
+      UI.roleBadge(type) +
+    '</div>';
+
+    // Contact
+    if (cl.email) html += '<p class="text-xs text-gray-500 truncate">' + E(cl.email) + '</p>';
+
+    // Badges row
+    html += '<div class="flex flex-wrap gap-1 mt-1.5">';
+
+    // Conversion badge for renters
+    if (cl._isRenter && cl._conversionProb > 0) {
+      var convColor = cl._conversionProb >= 70 ? '#059669' : cl._conversionProb >= 40 ? '#F59E0B' : '#6b7280';
+      html += '<span class="px-1 py-0.5 rounded text-[8px] font-bold text-white" style="background:' + convColor + '">' +
+        '<i class="fas fa-exchange-alt mr-0.5"></i>' + cl._conversionProb + '%</span>';
     }
-    MallanAPI.clients.update(clientId, { stage: newStage }).then(function () {
-      Events.log('client_stage_moved', 'client', clientId, { to: newStage });
-      CRM.toast('Stage updated to ' + newStage, 'success');
-    }).catch(function (err) {
-      CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
-      myClients(); // refresh to revert
-    });
+
+    // Lease expiry for renters
+    if (cl._isRenter && cl._leaseEnd) {
+      var daysLeft = Utils.daysUntil(cl._leaseEnd);
+      if (daysLeft !== null && daysLeft <= 180) {
+        var leaseColor = daysLeft <= 30 ? '#DC2626' : daysLeft <= 90 ? '#F59E0B' : '#6b7280';
+        html += '<span class="px-1 py-0.5 rounded text-[8px] font-bold" style="background:' + leaseColor + '15;color:' + leaseColor + '">Lease ' + daysLeft + 'd</span>';
+      }
+    }
+
+    // Inactivity warning
+    if (cl._isStale) {
+      html += '<span class="px-1 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[8px] font-bold"><i class="fas fa-clock mr-0.5"></i>Stale</span>';
+    }
+
+    html += '</div>';
+
+    // Next best action
+    html += '<div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">' +
+      '<i class="fas ' + (nba.icon || 'fa-arrow-right') + ' text-[9px]" style="color:' + (nba.color || '#6b7280') + '"></i>' +
+      '<span class="text-[10px] text-gray-600 truncate">' + E(nba.label || 'Open workspace') + '</span>' +
+    '</div>';
+
+    // Move buttons
+    html += '<div class="flex items-center justify-between mt-1.5" onclick="event.stopPropagation()">';
+    var stageIdx = -1;
+    PIPELINE_STAGES.forEach(function (s, i) { if (s.key === stageKey) stageIdx = i; });
+    if (stageIdx > 0) {
+      html += '<button class="text-[9px] text-gray-400 hover:text-gold" onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(PIPELINE_STAGES[stageIdx - 1].key) + '\')"><i class="fas fa-arrow-left"></i> ' + E(PIPELINE_STAGES[stageIdx - 1].title) + '</button>';
+    } else {
+      html += '<span></span>';
+    }
+    if (stageIdx < PIPELINE_STAGES.length - 1) {
+      html += '<button class="text-[9px] text-gray-400 hover:text-gold" onclick="Panels._pipelineMove(\'' + E(cl.id) + '\',\'' + E(PIPELINE_STAGES[stageIdx + 1].key) + '\')">' + E(PIPELINE_STAGES[stageIdx + 1].title) + ' <i class="fas fa-arrow-right"></i></button>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    return html;
   }
 
-  // Legacy functions kept for drag-drop compatibility
   function _pipelineDragStart(event, clientId) {
     event.dataTransfer.setData('text/plain', clientId);
     event.dataTransfer.effectAllowed = 'move';
@@ -10375,7 +10425,7 @@ var Panels = (function () {
   var _isBrokerView = false;
 
   function dealsCommissions() {
-    CRM.setPanelTitle('Deals & Revenue');
+    CRM.setPanelTitle('Deals & Commissions');
     var c = _container(); c.innerHTML = UI.loading();
     _isBrokerView = Permissions.isBroker();
 
@@ -10422,9 +10472,10 @@ var Panels = (function () {
 
     // Filter
     var filtered = deals;
-    if (view === 'all') filtered = deals.filter(function (d) { return d._stage !== 'closed' && d._stage !== 'cancelled'; });
+    if (view === 'active') filtered = deals.filter(function (d) { return d._stage !== 'closed' && d._stage !== 'cancelled'; });
+    else if (view === 'contract') filtered = deals.filter(function (d) { return d._stage === 'contract' || d._stage === 'pending'; });
     else if (view === 'closed') filtered = deals.filter(function (d) { return d._stage === 'closed'; });
-    else if (view === 'revenue' || view === 'referrals') filtered = deals; // show all for revenue/referrals view
+    else if (view === 'pending-payout') filtered = deals.filter(function (d) { return d._payout === 'pending' || d._payout === 'submitted'; });
 
     // Stats
     var totalGross = deals.reduce(function (s, d) { return s + d._gross; }, 0);
@@ -10436,7 +10487,7 @@ var Panels = (function () {
 
     // Header
     html += '<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">' +
-      '<h2 class="text-lg font-bold text-gray-900">Deals & Revenue</h2>' +
+      '<h2 class="text-lg font-bold text-gray-900">Deals & Commissions</h2>' +
       '<div class="flex gap-2">' +
         '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/buyer-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Buyer Deal</button>' +
         '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/tenant-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Tenant Deal</button>' +
@@ -10454,74 +10505,25 @@ var Panels = (function () {
 
     // View tabs
     var views = [
-      { key: 'all', label: 'Active Deals' },
+      { key: 'all', label: 'All Deals' },
+      { key: 'active', label: 'Active' },
+      { key: 'contract', label: 'In Contract' },
       { key: 'closed', label: 'Closed' },
-      { key: 'revenue', label: 'Revenue' },
-      { key: 'referrals', label: 'Referrals' },
+      { key: 'pending-payout', label: 'Pending Payout' },
     ];
     html += '<div class="flex gap-1 overflow-x-auto">';
     views.forEach(function (v) {
       var active = view === v.key;
-      var count = v.key === 'all' ? activeDealCount :
+      var count = v.key === 'all' ? deals.length :
+                  v.key === 'active' ? activeDealCount :
                   v.key === 'closed' ? deals.filter(function (d) { return d._stage === 'closed'; }).length :
-                  deals.length;
-      var showCount = v.key !== 'revenue' && v.key !== 'referrals';
+                  v.key === 'contract' ? deals.filter(function (d) { return d._stage === 'contract' || d._stage === 'pending'; }).length :
+                  pendingPayouts.length;
       html += '<button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ' +
         (active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gold') +
-        '" onclick="Panels._switchDealsView(\'' + v.key + '\')">' + E(v.label) + (showCount ? ' (' + count + ')' : '') + '</button>';
+        '" onclick="Panels._switchDealsView(\'' + v.key + '\')">' + E(v.label) + ' (' + count + ')</button>';
     });
     html += '</div>';
-
-    // Revenue summary tab
-    if (view === 'revenue') {
-      var closedDeals = deals.filter(function (d) { return d._stage === 'closed'; });
-      var thisYear = new Date().getFullYear();
-      var thisMonth = new Date().getMonth();
-      var ytd = closedDeals.filter(function (d) { var cd = new Date(d.closeDate || d.close_date || d.created_at); return cd.getFullYear() === thisYear; });
-      var mtd = ytd.filter(function (d) { var cd = new Date(d.closeDate || d.close_date || d.created_at); return cd.getMonth() === thisMonth; });
-      var field = isBroker ? function (d) { return d._gross - d._split; } : function (d) { return d._split; };
-      var ytdAmt = ytd.reduce(function (s, d) { return s + field(d); }, 0);
-      var mtdAmt = mtd.reduce(function (s, d) { return s + field(d); }, 0);
-      var lifetimeAmt = closedDeals.reduce(function (s, d) { return s + field(d); }, 0);
-      var paidDeals = closedDeals.filter(function (d) { return d._payout === 'paid'; });
-      var paidAmt = paidDeals.reduce(function (s, d) { return s + field(d); }, 0);
-      html += UI.statGrid([
-        UI.statCard($(ytdAmt), 'YTD Revenue', 'fa-chart-line', '#B8860B'),
-        UI.statCard($(mtdAmt), 'MTD Revenue', 'fa-calendar', '#059669'),
-        UI.statCard($(paidAmt), 'Paid Out', 'fa-check-circle', '#059669'),
-        UI.statCard($(lifetimeAmt), 'Lifetime', 'fa-dollar-sign', '#374151'),
-      ]);
-      // Sales vs Rentals breakdown
-      var salesAmt = ytd.filter(function (d) { return (d.dealType || d.deal_type || 'sale').toLowerCase() === 'sale'; }).reduce(function (s, d) { return s + field(d); }, 0);
-      var rentalsAmt = ytd.filter(function (d) { return (d.dealType || d.deal_type || '').toLowerCase() === 'rental'; }).reduce(function (s, d) { return s + field(d); }, 0);
-      var salesPct = ytdAmt > 0 ? Math.round(salesAmt / ytdAmt * 100) : 0;
-      html += '<div class="grid grid-cols-2 gap-4">' +
-        '<div class="card p-4"><div class="flex items-center justify-between mb-2"><span class="text-sm font-bold text-gray-700"><i class="fas fa-home text-blue-500 mr-1"></i>Sales</span><span class="text-xs font-bold text-blue-600">' + salesPct + '%</span></div><p class="text-lg font-bold">' + $(salesAmt) + '</p><div class="mt-2 h-2 bg-gray-100 rounded-full"><div class="h-2 bg-blue-500 rounded-full" style="width:' + salesPct + '%"></div></div></div>' +
-        '<div class="card p-4"><div class="flex items-center justify-between mb-2"><span class="text-sm font-bold text-gray-700"><i class="fas fa-key text-green-500 mr-1"></i>Rentals</span><span class="text-xs font-bold text-green-600">' + (100 - salesPct) + '%</span></div><p class="text-lg font-bold">' + $(rentalsAmt) + '</p><div class="mt-2 h-2 bg-gray-100 rounded-full"><div class="h-2 bg-green-500 rounded-full" style="width:' + (100 - salesPct) + '%"></div></div></div>' +
-      '</div>';
-      html += '</div>'; c.innerHTML = html; return;
-    }
-
-    // Referrals tab
-    if (view === 'referrals') {
-      html += '<div class="card"><div class="card-body">' +
-        '<p class="text-sm text-gray-500 mb-3">Referrals are tracked within deals. Deals with referral fees appear below.</p>';
-      var refDeals = deals.filter(function (d) { return d.referral_fee || d.referralFee || (d.dealType || d.deal_type || '').toLowerCase() === 'referral'; });
-      if (refDeals.length === 0) {
-        html += '<p class="text-sm text-gray-400 text-center py-4">No referral deals recorded</p>';
-      } else {
-        html += '<div class="data-table"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
-          '<th class="text-left px-3 py-2">Client</th><th class="text-left px-3 py-2">Listing</th><th class="text-right px-3 py-2">Referral Fee</th><th class="text-left px-3 py-2">Stage</th></tr></thead><tbody>';
-        refDeals.forEach(function (d) {
-          html += '<tr class="border-b hover:bg-gray-50"><td class="px-3 py-2 text-sm">' + E(d._clientName) + '</td>' +
-            '<td class="px-3 py-2 text-xs">' + E(d._listingAddr) + '</td>' +
-            '<td class="px-3 py-2 text-right text-sm font-bold">' + $(d.referral_fee || d.referralFee || 0) + '</td>' +
-            '<td class="px-3 py-2">' + UI.stageBadge(d._stage) + '</td></tr>';
-        });
-        html += '</tbody></table></div>';
-      }
-      html += '</div></div></div>'; c.innerHTML = html; return;
-    }
 
     // Deals table
     if (filtered.length === 0) {
@@ -10656,7 +10658,7 @@ var Panels = (function () {
 
   // ─── Personal Revenue ────────────────────────────────────────────────
   function personalRevenue() {
-    CRM.setPanelTitle('Deals & Revenue');
+    CRM.setPanelTitle('Revenue');
     var c = _container(); c.innerHTML = UI.loading();
     var isBroker = Permissions.isBroker();
 
@@ -12111,9 +12113,6 @@ var Panels = (function () {
     _switchMyClientsView: _switchMyClientsView,
     _searchMyClients: _searchMyClients,
     _toggleSection: _toggleSection,
-    _moveToClients: _moveToClients,
-    _moveToPipeline: _moveToPipeline,
-    _clientStageChange: _clientStageChange,
     _pipelineDragStart: _pipelineDragStart,
     _pipelineDrop: _pipelineDrop,
     _pipelineMove: _pipelineMove,
