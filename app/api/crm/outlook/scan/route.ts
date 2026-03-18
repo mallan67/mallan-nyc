@@ -41,6 +41,7 @@ interface ExtractedContact {
   role: string;
   property: string;
   price: string;
+  listing_type: string; // "rental" | "sale" | ""
   neighborhood: string;
   message: string;
   source: string; // "streeteasy" | "direct" | "email"
@@ -126,10 +127,11 @@ function parseStreetEasyLead(subject: string, body: string, date: string): Extra
     }
   }
 
-  // Determine role from context
-  let role = "buyer";
+  // Determine listing type + role from context
   const fullText = (subject + " " + plain).toLowerCase();
-  if (/rent|lease|base rent|\/mo/i.test(fullText)) role = "renter";
+  const isRental = /base rent|\/mo|per month|rent|lease|rental/i.test(fullText);
+  const listing_type = isRental ? "rental" : "sale";
+  const role = isRental ? "renter" : "buyer";
 
   return {
     name,
@@ -138,6 +140,7 @@ function parseStreetEasyLead(subject: string, body: string, date: string): Extra
     role,
     property,
     price,
+    listing_type,
     neighborhood,
     message,
     source: "streeteasy",
@@ -177,6 +180,7 @@ function extractHeaderContacts(
       role,
       property: "",
       price: "",
+      listing_type: "",
       neighborhood: "",
       message: "",
       source: "email",
@@ -199,6 +203,7 @@ function extractHeaderContacts(
       role,
       property: "",
       price: "",
+      listing_type: "",
       neighborhood: "",
       message: "",
       source: "email",

@@ -2534,6 +2534,11 @@ var Panels = (function () {
       var srcBadge = ct.source === 'streeteasy'
         ? '<span class="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded mr-1">SE</span>'
         : '';
+      var typeBadge = ct.listing_type === 'rental'
+        ? '<span class="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded mr-1">RENTAL</span>'
+        : ct.listing_type === 'sale'
+          ? '<span class="inline-block px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded mr-1">SALE</span>'
+          : '';
       var propInfo = ct.property ? E(ct.property) : E(ct.source_subject || '').substring(0, 35);
       if (ct.price) propInfo += ' · ' + E(ct.price);
       if (ct.neighborhood) propInfo += ' · ' + E(ct.neighborhood);
@@ -2549,7 +2554,7 @@ var Panels = (function () {
           '<option value="seller"' + (ct.role === 'seller' ? ' selected' : '') + '>Seller</option>' +
           '<option value="landlord"' + (ct.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
           '</select></td>' +
-        '<td class="p-3 text-xs text-gray-500">' + srcBadge + propInfo + '</td>' +
+        '<td class="p-3 text-xs text-gray-500">' + srcBadge + typeBadge + propInfo + '</td>' +
         '<td class="p-3 text-xs text-gray-400">' + dateStr + '</td>' +
         '</tr>';
     }
@@ -2583,6 +2588,7 @@ var Panels = (function () {
       var nameParts = (ct.name || '').split(/\s+/);
       var noteLines = [];
       if (ct.property) noteLines.push('Property: ' + ct.property);
+      if (ct.listing_type) noteLines.push('Type: ' + (ct.listing_type === 'rental' ? 'Rental' : 'Sale'));
       if (ct.price) noteLines.push('Price: ' + ct.price);
       if (ct.neighborhood) noteLines.push('Neighborhood: ' + ct.neighborhood);
       if (ct.message) noteLines.push('Message: ' + ct.message);
