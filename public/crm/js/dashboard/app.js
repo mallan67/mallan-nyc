@@ -181,7 +181,7 @@ var CRM = (function () {
     list = clients.concat(listings);
     list.sort(function (a, b) { return b.timestamp - a.timestamp; });
     _saveRecentWorkspaces(list);
-    _renderRecentSection();
+    // Data tracked for future cmd+K search — not rendered in sidebar
   }
 
   // Track workspace route changes
@@ -357,12 +357,6 @@ var CRM = (function () {
 
     var html = '';
 
-    // RECENT workspaces (always visible, not collapsible)
-    html += '<div id="sidebarRecent"></div>';
-
-    // FAVORITES (always visible, not collapsible)
-    html += '<div id="sidebarFavorites"></div>';
-
     // BROKER CONSOLE (Maya-only, hidden when impersonating)
     if (Permissions.canSeeBrokerConsole()) {
       html += _sidebarGroup('BROKER CONSOLE', 'broker', [
@@ -423,10 +417,6 @@ var CRM = (function () {
       var body = document.getElementById('sidebarGroup_' + group);
       if (body) body.style.display = Store.ui.sidebarExpandedGroups[group] ? 'block' : 'none';
     });
-
-    // Render recent & favorites sections
-    _renderRecentSection();
-    _renderFavoritesSection();
 
     // Load badge counts asynchronously (non-blocking)
     setTimeout(function () { _loadSidebarBadges(); }, 0);
