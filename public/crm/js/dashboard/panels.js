@@ -2811,17 +2811,36 @@ var Panels = (function () {
         '<textarea name="notes" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gold focus:border-gold" placeholder="Optional notes..."></textarea></div>' +
       '</div>';
 
+    // Add Person toggle
+    html += '<div class="border-t pt-4 mt-2">' +
+      '<label class="flex items-center gap-2 cursor-pointer">' +
+        '<input type="checkbox" id="qaHasSecondary" onchange="document.getElementById(\'qaSecondaryFields\').classList.toggle(\'hidden\',!this.checked)" class="rounded text-gold focus:ring-gold">' +
+        '<span class="text-sm font-semibold text-gray-700"><i class="fas fa-user-plus mr-1 text-gold"></i> Add Spouse / Partner / Co-Applicant</span>' +
+      '</label>' +
+      '<div id="qaSecondaryFields" class="hidden mt-3 space-y-3 pl-4 border-l-2 border-gold">' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          _qaField('secondary_first_name', 'First Name', 'text', false) +
+          _qaField('secondary_last_name', 'Last Name', 'text', false) +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4">' +
+          _qaField('secondary_email', 'Email', 'email', false) +
+          _qaField('secondary_phone', 'Phone', 'tel', false) +
+        '</div>' +
+        _qaSelect('secondary_relationship', 'Relationship', ['Spouse', 'Partner', 'Co-Buyer', 'Co-Owner', 'Roommate', 'Parent', 'Sibling', 'Other']) +
+      '</div>' +
+    '</div>';
+
     // Type-specific fields
     if (type === 'seller' || type === 'landlord') {
       html += '<div class="border-t pt-4 mt-2">' +
         '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Property Details</h4>' +
-        _qaField('property_address', 'Property Address', 'text', false) +
+        _qaField('property_address', 'Property Address', 'text', false, 'Address of the property being rented/sold') +
         '<div class="grid grid-cols-2 gap-4 mt-3">' +
         _qaField('unit_number', 'Unit / Apt Number', 'text', false) +
         _qaField('legal_ownership_name', 'Legal Ownership Name', 'text', false, 'LLC, Trust, Corp, or individual name') +
         '</div>' +
         '<div class="mt-3">' +
-        _qaSelect('ownership_type', 'Ownership Type', ['Individual', 'LLC', 'Trust', 'Corporation', 'Partnership']) +
+        _qaField('home_address', 'Owner Home Address', 'text', false, 'Owner\'s personal/mailing address') +
         '</div></div>';
     }
 
@@ -2902,19 +2921,36 @@ var Panels = (function () {
       return;
     }
 
-    data.name = (data.first_name || '') + ' ' + (data.last_name || '');
-    data.type = _quickAddClientType;
-    data.client_type = _quickAddClientType;
+    // Set roles and portal_role
+    var role = _quickAddClientType;
+    data.roles = [role];
+    data.portal_role = role;
+    data.phone = data.phone || '-';
+
+    // Handle secondary relationship lowercase
+    if (data.secondary_relationship) {
+      data.secondary_relationship = data.secondary_relationship.toLowerCase().replace(/\s+/g, '-');
+    }
+
+    // Handle numeric fields
+    ['monthly_rent', 'budget_min', 'budget_max'].forEach(function (f) {
+      if (data[f]) data[f] = Number(data[f]);
+    });
+
+    // Handle date fields
+    ['lease_start_date', 'lease_end_date'].forEach(function (f) {
+      if (data[f]) data[f] = data[f]; // keep as string, API converts
+    });
 
     MallanAPI.clients.create(data).then(function (res) {
-      Events.log('client_created', 'client', res.client ? res.client.id : null, {
-        name: data.name, type: data.type, source: data.source || 'manual',
+      var clientId = res.id || (res.client && res.client.id);
+      var displayName = data.first_name + ' ' + data.last_name;
+      if (data.secondary_first_name) displayName += ' & ' + data.secondary_first_name + ' ' + (data.secondary_last_name || '');
+      Events.log('client_created', 'client', clientId, {
+        name: displayName, type: role, source: data.source || 'manual',
       });
-      CRM.toast('Client created', 'success');
-      // Navigate to client address book to see the new client
-      if (typeof Router !== 'undefined' && Router.navigate) {
-        Router.navigate('/broker/clients');
-      }
+      CRM.toast(displayName + ' created', 'success');
+      Router.navigate('/ops/clients');
     }).catch(function (err) {
       CRM.toast('Error: ' + (err.message || 'Failed to create client'), 'error');
     });
@@ -10790,6 +10826,17 @@ var Panels = (function () {
       var clients = res.clients || [];
       var now = new Date();
 
+      // ── Display name helper (handles couples) ──
+      function _clientDisplayName(cl) {
+        var primary = cl.name || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.email;
+        if (!cl.secondary_first_name) return primary;
+        var secondary = ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim();
+        if (cl.last_name && cl.secondary_last_name === cl.last_name) {
+          return (cl.first_name || '') + ' & ' + (cl.secondary_first_name || '') + ' ' + cl.last_name;
+        }
+        return primary + ' & ' + secondary;
+      }
+
       // ── Parse notes helper ──
       function _parseNotes(notes) {
         var data = {};
@@ -10866,9 +10913,10 @@ var Panels = (function () {
           cl._daysLeft = null;
         }
 
-        var addr = notes.address || cl.address || cl.property_address || '';
-        var unit = notes.unit || '';
+        var addr = cl.property_address || notes.address || cl.address || '';
+        var unit = cl.unit_number || notes.unit || '';
         cl._fullAddress = addr + (unit ? ', ' + unit : '');
+        cl._displayName = _clientDisplayName(cl);
 
         // Prefer real DB fields for financial data
         cl._annualIncome = cl.annual_income ? Number(cl.annual_income) : (notes.annualIncome ? parseInt(notes.annualIncome.replace(/[,$]/g, ''), 10) : null);
@@ -10895,11 +10943,13 @@ var Panels = (function () {
         var nextRenewal = cl.leaseEndDate || cl.lease_end_date ||
           (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
         cl._nextRenewal = nextRenewal;
-        var addr = notes.address || cl.address || cl.property_address ||
+        var addr = cl.property_address || notes.address || cl.address ||
           (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
-        var unit = notes.unit || '';
+        var unit = cl.unit_number || notes.unit || '';
         cl._fullAddress = addr + (unit ? ', ' + unit : '');
-        cl._legalOwner = notes.legalOwner || null;
+        cl._homeAddress = cl.home_address || '';
+        cl._legalOwner = cl.legal_ownership_name || notes.legalOwner || null;
+        cl._displayName = _clientDisplayName(cl);
       });
 
       // ── Build conversion alerts ──
@@ -11025,7 +11075,7 @@ var Panels = (function () {
       } else {
         html += '<div class="space-y-2">';
         renters.forEach(function (cl) {
-          var name = cl.name || cl.full_name || cl.email || 'Unknown';
+          var name = cl._displayName || cl.name || cl.full_name || cl.email || 'Unknown';
           var email = cl.email || '';
           var phone = cl.phone || cl.phone_number || '';
           var leaseStatus = _leaseStatus(cl._daysLeft);
@@ -11103,7 +11153,7 @@ var Panels = (function () {
       } else {
         html += '<div class="space-y-2">';
         landlords.forEach(function (cl) {
-          var name = cl.name || cl.full_name || cl.email || 'Unknown';
+          var name = cl._displayName || cl.name || cl.full_name || cl.email || 'Unknown';
           var email = cl.email || '';
           var phone = cl.phone || cl.phone_number || '';
 

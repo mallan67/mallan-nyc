@@ -65,6 +65,9 @@ var Workspace = (function () {
     }
     var name = cl.name || cl.email || 'Client';
     var type = cl.type || cl.client_type || 'buyer';
+    var hasSecondary = cl.secondary_first_name || cl.secondary_last_name;
+    var secondaryName = hasSecondary ? ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim() : '';
+    var displayName = _clientDisplayName(cl);
 
     var html = '<div class="space-y-0">';
 
@@ -73,31 +76,33 @@ var Workspace = (function () {
       '<button class="text-sm text-gray-500 hover:text-gray-700" onclick="Router.navigate(\'/ops/clients\')"><i class="fas fa-arrow-left mr-1"></i> All Clients</button>' +
     '</div>';
 
-    // Header
+    // Header — shows both people side by side if couple
     html += '<div class="workspace-header">' +
       '<div class="flex items-center justify-between">' +
         '<div class="flex items-center gap-4">' +
           UI.avatar(name, 48) +
           '<div>' +
-            '<h2 class="text-xl font-bold text-gray-900">' + E(name) + '</h2>' +
+            '<h2 class="text-xl font-bold text-gray-900">' + E(displayName) + '</h2>' +
             '<div class="flex items-center gap-2 mt-1">' +
               UI.roleBadge(type) +
               UI.stageBadge(cl.stage || cl.status || 'active') +
-              (cl.healthScore ? '<span class="text-xs text-gray-500">Health: ' + cl.healthScore + '</span>' : '') +
+              (hasSecondary ? '<span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">' + E(cl.secondary_relationship || 'partner') + '</span>' : '') +
             '</div>' +
           '</div>' +
-          // Partner placeholder — populated async
-          '<div id="wsHeaderPartner" class="hidden"></div>' +
+          (hasSecondary ? UI.avatar(secondaryName, 40) : '') +
         '</div>' +
         '<div class="flex gap-2">' +
+          (!hasSecondary ? '<button class="btn btn-sm btn-outline" onclick="Workspace._addSecondaryPerson()"><i class="fas fa-user-plus"></i> Add Person</button>' : '') +
           '<button class="btn btn-sm btn-outline" onclick="Workspace.editClient()"><i class="fas fa-edit"></i> Edit</button>' +
           '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> Send Listing</button>' +
         '</div>' +
       '</div>' +
-      // Contact info
+      // Contact info — both people
       '<div class="flex flex-wrap gap-4 mt-3 text-xs text-gray-500">' +
         (cl.email ? '<span><i class="fas fa-envelope mr-1"></i>' + E(cl.email) + '</span>' : '') +
         (cl.phone ? '<span><i class="fas fa-phone mr-1"></i>' + E(cl.phone) + '</span>' : '') +
+        (hasSecondary && cl.secondary_email ? '<span class="text-gray-400">|</span><span><i class="fas fa-envelope mr-1"></i>' + E(cl.secondary_email) + '</span>' : '') +
+        (hasSecondary && cl.secondary_phone ? '<span><i class="fas fa-phone mr-1"></i>' + E(cl.secondary_phone) + '</span>' : '') +
         (cl.source ? '<span><i class="fas fa-tag mr-1"></i>Source: ' + E(cl.source) + '</span>' : '') +
       '</div>' +
     '</div>';
@@ -139,8 +144,6 @@ var Workspace = (function () {
     _renderClientTab();
     // Fetch lead score for right rail
     _fetchRailLeadScore();
-    // Fetch partner for header display
-    _fetchHeaderPartner();
   }
 
   function _fetchHeaderPartner() {
@@ -1035,6 +1038,62 @@ var Workspace = (function () {
     }).catch(function (err) {
       CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
     });
+  }
+
+  function _clientDisplayName(cl) {
+    var primary = cl.name || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.email;
+    if (!cl.secondary_first_name) return primary;
+    var secondary = ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim();
+    // Same last name? "John & Jane Smith". Different? "John Smith & Jane Doe"
+    if (cl.last_name && cl.secondary_last_name === cl.last_name) {
+      return (cl.first_name || '') + ' & ' + (cl.secondary_first_name || '') + ' ' + cl.last_name;
+    }
+    return primary + ' & ' + secondary;
+  }
+
+  function _addSecondaryPerson() {
+    if (!_clientId) return;
+    var html = '<div class="space-y-4">' +
+      '<p class="text-xs text-gray-500">Add a spouse, partner, co-buyer, co-owner, or roommate to this client.</p>' +
+      '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="form-group"><label class="form-label">First Name</label><input class="form-input" name="secondary_first_name" placeholder="First"></div>' +
+        '<div class="form-group"><label class="form-label">Last Name</label><input class="form-input" name="secondary_last_name" placeholder="Last"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="form-group"><label class="form-label">Email</label><input class="form-input" name="secondary_email" type="email" placeholder="email@example.com"></div>' +
+        '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" name="secondary_phone" type="tel" placeholder="646-555-1234"></div>' +
+      '</div>' +
+      '<div class="form-group"><label class="form-label">Relationship</label>' +
+        '<select class="form-input" name="secondary_relationship">' +
+          '<option value="spouse">Spouse</option>' +
+          '<option value="partner">Partner</option>' +
+          '<option value="co-buyer">Co-Buyer</option>' +
+          '<option value="co-owner">Co-Owner</option>' +
+          '<option value="roommate">Roommate</option>' +
+          '<option value="parent">Parent</option>' +
+          '<option value="sibling">Sibling</option>' +
+          '<option value="other">Other</option>' +
+        '</select></div>' +
+    '</div>';
+
+    CRM.openModal('Add Person', html, [
+      { label: 'Save', style: 'primary', onclick: function () {
+        var data = {};
+        ['secondary_first_name','secondary_last_name','secondary_email','secondary_phone','secondary_relationship'].forEach(function (f) {
+          var el = document.querySelector('[name="' + f + '"]');
+          if (el && el.value.trim()) data[f] = el.value.trim();
+        });
+        if (!data.secondary_first_name) { CRM.toast('First name is required', 'warning'); return; }
+        MallanAPI.clients.update(_clientId, data).then(function () {
+          Object.assign(_client, data);
+          CRM.toast('Person added', 'success');
+          CRM.closeModal();
+          _renderClientWorkspace(_container());
+        }).catch(function (err) {
+          CRM.toast('Error: ' + (err.message || 'Failed'), 'error');
+        });
+      }},
+    ]);
   }
 
   function _linkPartner() {
@@ -4860,6 +4919,7 @@ var Workspace = (function () {
     _saveClientNotes: _saveClientNotes,
     _deleteClient: _deleteClient,
     _linkPartner: _linkPartner,
+    _addSecondaryPerson: _addSecondaryPerson,
     _editNote: _editNote,
     _deleteNote: _deleteNote,
     _saveAlertSettings: _saveAlertSettings,

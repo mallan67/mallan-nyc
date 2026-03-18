@@ -93,6 +93,15 @@ export async function createClient(data: {
   portal_role?: string | null;
   agent_id: bigint;
   source?: string;
+  secondary_first_name?: string | null;
+  secondary_last_name?: string | null;
+  secondary_email?: string | null;
+  secondary_phone?: string | null;
+  secondary_relationship?: string | null;
+  property_address?: string | null;
+  home_address?: string | null;
+  unit_number?: string | null;
+  legal_ownership_name?: string | null;
 }) {
   const client = await prisma.lead.create({
     data: {

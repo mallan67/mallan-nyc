@@ -195,6 +195,19 @@ model Lead {
   intent_profile  BuyerIntentProfile?
   lead_score      LeadScore?
   showing_feedback ShowingFeedback[]
+  // --- Secondary person (spouse, partner, co-buyer, co-owner, roommate) ---
+  secondary_first_name    String?   @map("secondary_first_name")
+  secondary_last_name     String?   @map("secondary_last_name")
+  secondary_email         String?   @map("secondary_email")
+  secondary_phone         String?   @map("secondary_phone")
+  secondary_relationship  String?   @map("secondary_relationship")  // "spouse" | "partner" | "co-buyer" | "roommate" | "co-owner" | "parent" | "other"
+
+  // --- Addresses (landlords: property + home; renters: current; sellers: listing + home) ---
+  property_address        String?   @map("property_address")        // The unit being rented/sold
+  home_address            String?   @map("home_address")            // Owner's personal address
+  unit_number             String?   @map("unit_number")
+  legal_ownership_name    String?   @map("legal_ownership_name")    // LLC, Trust, individual name
+
   buyer_rep_agreement      Boolean   @default(false) @map("buyer_rep_agreement")       // UCBA E7: buyer rep agreement on file
   buyer_rep_agreement_date DateTime? @map("buyer_rep_agreement_date") // Date agreement was signed
   created_at      DateTime @default(now()) @map("created_at")

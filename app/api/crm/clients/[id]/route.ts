@@ -180,16 +180,29 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.lease_start_date !== undefined) update.lease_start_date = body.lease_start_date ? new Date(String(body.lease_start_date)) : null;
   if (body.lease_end_date !== undefined) update.lease_end_date = body.lease_end_date ? new Date(String(body.lease_end_date)) : null;
   if (body.roles !== undefined) {
-    const validRoles = ["buyer", "renter", "seller", "landlord"];
+    const validRoles = ["buyer", "renter", "seller", "landlord", "uncategorized"];
     const roles = body.roles as string[];
     if (!roles.every((r) => validRoles.includes(r))) {
       return NextResponse.json(
-        { error: "roles must be from: buyer, renter, seller, landlord" },
+        { error: "roles must be from: buyer, renter, seller, landlord, uncategorized" },
         { status: 400 }
       );
     }
     update.roles = roles;
   }
+
+  // Secondary person fields
+  if (body.secondary_first_name !== undefined) update.secondary_first_name = body.secondary_first_name ? String(body.secondary_first_name) : null;
+  if (body.secondary_last_name !== undefined) update.secondary_last_name = body.secondary_last_name ? String(body.secondary_last_name) : null;
+  if (body.secondary_email !== undefined) update.secondary_email = body.secondary_email ? String(body.secondary_email) : null;
+  if (body.secondary_phone !== undefined) update.secondary_phone = body.secondary_phone ? String(body.secondary_phone) : null;
+  if (body.secondary_relationship !== undefined) update.secondary_relationship = body.secondary_relationship ? String(body.secondary_relationship) : null;
+
+  // Address fields
+  if (body.property_address !== undefined) update.property_address = body.property_address ? String(body.property_address) : null;
+  if (body.home_address !== undefined) update.home_address = body.home_address ? String(body.home_address) : null;
+  if (body.unit_number !== undefined) update.unit_number = body.unit_number ? String(body.unit_number) : null;
+  if (body.legal_ownership_name !== undefined) update.legal_ownership_name = body.legal_ownership_name ? String(body.legal_ownership_name) : null;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json(

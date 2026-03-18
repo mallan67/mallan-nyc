@@ -49,6 +49,15 @@ export async function POST(req: NextRequest) {
     portal_role: data.portal_role ?? null,
     agent_id: auth.userId,
     source: data.source ?? "manual",
+    secondary_first_name: data.secondary_first_name ?? null,
+    secondary_last_name: data.secondary_last_name ?? null,
+    secondary_email: data.secondary_email ?? null,
+    secondary_phone: data.secondary_phone ?? null,
+    secondary_relationship: data.secondary_relationship ?? null,
+    property_address: data.property_address ?? null,
+    home_address: data.home_address ?? null,
+    unit_number: data.unit_number ?? null,
+    legal_ownership_name: data.legal_ownership_name ?? null,
   });
 
   await logAuditEvent(
