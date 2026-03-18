@@ -1,165 +1,210 @@
 // GET /api/crm/outlook/scan
 // Scans a mail folder and returns extracted contacts from each email
+// Optimized for StreetEasy leads + general introduction emails
 // Query: ?folder=FOLDER_ID&top=50&skip=0
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getOutlookToken } from "@/lib/outlook/get-token";
 import { getMessages, stripHtml } from "@/lib/outlook/graph-client";
 
-// ── Skip broker/listing emails from other agents ────────────
-// These are RLS feeds, StreetEasy alerts, mass broker emails, etc.
-const SKIP_DOMAINS = [
-  "streeteasy.com", "zillow.com", "trulia.com", "realtor.com",
-  "redfin.com", "compass.com", "homes.com", "renthop.com",
-  "apartments.com", "zumper.com", "hotpads.com", "nakedapartments.com",
-  "perchwell.com", "realtymx.com", "olr.com", "nestio.com",
-  "corcoran.com", "elliman.com", "sothebysrealty.com", "bhsusa.com",
-  "halstead.com", "warburgrealty.com", "brownharrisstevens.com",
-  "noreply", "no-reply", "notifications", "alerts", "mailer-daemon",
-  "postmaster", "donotreply", "newsletter", "marketing",
-  "rebny.com", "cotality.com", "corelogic.com", "trestle",
+// ── Your own emails to exclude ──────────────────────────────
+const MY_EMAILS = [
+  "maya@mallannyhomes.com",
+  "maya@mallan.nyc",
+  "maya.allan",
+  "mallannyhomes.com",
+  "mallan.nyc",
 ];
 
-const SKIP_SUBJECT_PATTERNS = [
-  /new\s+listing/i, /price\s+(?:change|drop|reduction)/i,
-  /just\s+listed/i, /open\s+house\s+(?:alert|invite)/i,
-  /market\s+report/i, /weekly\s+digest/i, /daily\s+alert/i,
-  /listing\s+update/i, /inventory\s+report/i,
-  /unsubscribe/i, /auto-?reply/i, /out\s+of\s+office/i,
-];
-
-function shouldSkipEmail(fromEmail: string, subject: string): boolean {
-  const fromLower = fromEmail.toLowerCase();
-  for (const domain of SKIP_DOMAINS) {
-    if (fromLower.includes(domain)) return true;
-  }
-  for (const rx of SKIP_SUBJECT_PATTERNS) {
-    if (rx.test(subject)) return true;
-  }
-  return false;
+function isMyEmail(email: string): boolean {
+  const lower = email.toLowerCase();
+  return MY_EMAILS.some((e) => lower.includes(e));
 }
 
-// ── Contact extraction from email text ──────────────────────
+// ── Skip automated/service emails ───────────────────────────
+const SKIP_SENDERS = [
+  "mailer-daemon", "postmaster", "no-reply", "noreply", "donotreply",
+  "notifications@", "alerts@", "newsletter@", "marketing@",
+  "support@", "info@streeteasy", "billing@", "receipts@",
+];
 
+function shouldSkipSender(fromEmail: string): boolean {
+  const lower = fromEmail.toLowerCase();
+  return SKIP_SENDERS.some((s) => lower.includes(s));
+}
+
+// ── Contact result type ─────────────────────────────────────
 interface ExtractedContact {
   name: string;
   email: string;
   phone: string;
-  role: string; // buyer | seller | renter | landlord | unknown
+  role: string;
+  property: string;
+  price: string;
+  neighborhood: string;
+  message: string;
+  source: string; // "streeteasy" | "direct" | "email"
   source_subject: string;
   source_date: string;
-  source_from: string;
 }
 
-function extractContacts(
-  plainText: string,
+// ── StreetEasy Lead Parser ──────────────────────────────────
+// Subject: "211 East 51st Street #4C StreetEasy Inquiry From Martin Fried"
+// Body has: Name | email | phone, then property card with address, price, beds/baths
+function parseStreetEasyLead(subject: string, body: string, date: string): ExtractedContact | null {
+  // Extract name from subject
+  const subjectMatch = subject.match(/StreetEasy Inquiry From (.+)$/i);
+  if (!subjectMatch) return null;
+
+  const name = subjectMatch[1].trim();
+
+  // Extract property address from subject (everything before "StreetEasy")
+  const addrMatch = subject.match(/^(.+?)\s+StreetEasy/i);
+  const property = addrMatch ? addrMatch[1].trim() : "";
+
+  // Parse body for contact info: "Name | email | phone"
+  const plain = stripHtml(body);
+  const lines = plain.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  let email = "";
+  let phone = "";
+  let message = "";
+  let price = "";
+  let neighborhood = "";
+
+  // Find the contact line: "Martin Fried | martinefried21@gmail.com | +19148061968"
+  for (const line of lines) {
+    // Contact line with pipes
+    if (line.includes("|") && line.includes("@")) {
+      const parts = line.split("|").map((p) => p.trim());
+      for (const part of parts) {
+        if (part.includes("@")) email = part;
+        else if (/^\+?\d[\d\s()-]{6,}$/.test(part)) phone = part;
+      }
+      continue;
+    }
+    // Standalone email
+    if (!email && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(line)) {
+      email = line;
+      continue;
+    }
+    // Standalone phone
+    if (!phone && /^\+?\d[\d\s().+-]{6,}$/.test(line) && line.replace(/\D/g, "").length >= 7) {
+      phone = line;
+      continue;
+    }
+    // Price: "$4,000 base rent" or "$1,200,000"
+    const priceMatch = line.match(/\$[\d,]+(?:\s*(?:base rent|\/mo|per month))?/i);
+    if (priceMatch && !price) {
+      price = priceMatch[0];
+      continue;
+    }
+    // Neighborhood: "CONDO IN TURTLE BAY"
+    const hoodMatch = line.match(/(?:CONDO|CO-OP|COOP|TOWNHOUSE|HOUSE|RENTAL|APARTMENT)\s+IN\s+(.+)/i);
+    if (hoodMatch && !neighborhood) {
+      neighborhood = hoodMatch[1].trim();
+      continue;
+    }
+  }
+
+  // Find the user's message (usually after "You Received a Question" and before the contact line)
+  const questionIdx = plain.indexOf("You Received a Question");
+  if (questionIdx !== -1) {
+    const afterQuestion = plain.substring(questionIdx);
+    const msgLines = afterQuestion.split("\n").map((l) => l.trim()).filter(Boolean);
+    // Skip header lines, find the actual message
+    for (let i = 1; i < msgLines.length; i++) {
+      const line = msgLines[i];
+      if (line.includes("|") && line.includes("@")) break; // contact line = end of message
+      if (line === name) break;
+      if (line === "REPLY") break;
+      if (/^You Received|^Question About/i.test(line)) continue;
+      if (/^\d+\s+\w+\s+\w+\s+Street|Avenue|Blvd/i.test(line)) continue;
+      if (line.length > 5 && line.length < 500 && !message) {
+        message = line;
+      }
+    }
+  }
+
+  // Determine role from context
+  let role = "buyer";
+  const fullText = (subject + " " + plain).toLowerCase();
+  if (/rent|lease|base rent|\/mo/i.test(fullText)) role = "renter";
+
+  return {
+    name,
+    email,
+    phone,
+    role,
+    property,
+    price,
+    neighborhood,
+    message,
+    source: "streeteasy",
+    source_subject: subject,
+    source_date: date,
+  };
+}
+
+// ── General email contact extractor (non-StreetEasy) ────────
+// Uses From/To/CC headers, NOT body parsing
+function extractHeaderContacts(
   subject: string,
   date: string,
   fromName: string,
   fromEmail: string,
-  toEmails: string[],
-  ccEmails: string[]
+  toRecipients: Array<{ name: string; address: string }>,
+  ccRecipients: Array<{ name: string; address: string }>
 ): ExtractedContact[] {
   const contacts: ExtractedContact[] = [];
-  const lines = plainText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const seen = new Set<string>();
 
-  // Extract all emails from body
-  const emailRx = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-  const bodyEmails = (plainText.match(emailRx) || [])
-    .filter((e, i, a) => a.indexOf(e) === i)
-    .filter((e) => e !== fromEmail); // exclude sender
+  // Detect role from subject
+  const subLower = subject.toLowerCase();
+  let role = "unknown";
+  if (/tenant|renter|lease|rent/i.test(subLower)) role = "renter";
+  else if (/buyer|purchase|offer|pre-approv/i.test(subLower)) role = "buyer";
+  else if (/seller|listing|exclusive|cma/i.test(subLower)) role = "seller";
+  else if (/landlord|owner/i.test(subLower)) role = "landlord";
 
-  // Extract all phones
-  const phoneRx = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g;
-  const phones = (plainText.match(phoneRx) || [])
-    .filter((p) => p.replace(/\D/g, "").length >= 7)
-    .filter((p, i, a) => a.indexOf(p) === i);
-
-  // Detect role from subject + body
-  const fullText = (subject + " " + plainText).toLowerCase();
-  let defaultRole = "unknown";
-  if (/\b(?:tenant|renter|lease|rent)\b/.test(fullText)) defaultRole = "renter";
-  else if (/\b(?:buyer|purchase|buying|pre-approv)\b/.test(fullText)) defaultRole = "buyer";
-  else if (/\b(?:seller|listing|exclusive|cma)\b/.test(fullText)) defaultRole = "seller";
-  else if (/\b(?:landlord|owner|property\s*owner)\b/.test(fullText)) defaultRole = "landlord";
-
-  // Detect named people from lines (First Last pattern)
-  const nameRx = /^[A-Z][a-z'-]+\s+(?:[A-Z]\.?\s+)?[A-Z][a-z'-]+/;
-  const skipRx = /^(?:hi |hello |dear |from |to |cc |subject |sent |date |on |regards|thank|best|sincerely|forwarded|original)/i;
-
-  // Section-based detection
-  let currentRole = defaultRole;
-  const ownerRx = /^(?:owner|landlord|property\s*owner|seller|lessor)\s*[:.]?\s*(.*)/i;
-  const tenantRx = /^(?:tenant|renter|buyer|lessee|purchaser|applicant)\s*[:.]?\s*(.*)/i;
-
-  const detectedNames: Array<{ name: string; role: string }> = [];
-
-  for (const line of lines) {
-    const om = ownerRx.exec(line);
-    if (om) {
-      currentRole = /seller/i.test(line) ? "seller" : "landlord";
-      const inline = (om[1] || "").trim();
-      if (inline && nameRx.test(inline)) detectedNames.push({ name: inline, role: currentRole });
-      continue;
-    }
-    const tm = tenantRx.exec(line);
-    if (tm) {
-      currentRole = /buyer|purchaser/i.test(line) ? "buyer" : "renter";
-      const inline = (tm[1] || "").trim();
-      if (inline && nameRx.test(inline)) detectedNames.push({ name: inline, role: currentRole });
-      continue;
-    }
-
-    // Labeled name
-    const nameLabel = line.match(/(?:name)\s*[:]\s*(.+)/i);
-    if (nameLabel) {
-      detectedNames.push({ name: nameLabel[1].trim(), role: currentRole });
-      continue;
-    }
-
-    // Unlabeled name
-    if (nameRx.test(line) && !skipRx.test(line) && !line.includes("@") && !/\b(?:LLC|Trust|Corp|Inc)\b/i.test(line)) {
-      detectedNames.push({ name: line, role: currentRole });
-    }
-  }
-
-  // Build contacts from detected names
-  const usedEmails = new Set<string>();
-  const usedPhones = new Set<string>();
-
-  for (let i = 0; i < detectedNames.length; i++) {
-    const email = bodyEmails.find((e) => !usedEmails.has(e)) || "";
-    const phone = phones.find((p) => !usedPhones.has(p)) || "";
-    if (email) usedEmails.add(email);
-    if (phone) usedPhones.add(phone);
-
+  // Add the sender (if not me and not a service)
+  if (fromEmail && !isMyEmail(fromEmail) && !shouldSkipSender(fromEmail)) {
+    seen.add(fromEmail.toLowerCase());
     contacts.push({
-      name: detectedNames[i].name,
-      email,
-      phone,
-      role: detectedNames[i].role,
+      name: fromName || "",
+      email: fromEmail,
+      phone: "",
+      role,
+      property: "",
+      price: "",
+      neighborhood: "",
+      message: "",
+      source: "email",
       source_subject: subject,
       source_date: date,
-      source_from: fromName || fromEmail,
     });
   }
 
-  // If no names detected but we have emails from body or recipients, create entries
-  if (contacts.length === 0) {
-    const allEmails = [...bodyEmails, ...toEmails.filter((e) => e !== fromEmail)];
-    const unique = allEmails.filter((e, i, a) => a.indexOf(e) === i);
-
-    for (let i = 0; i < Math.min(unique.length, 4); i++) {
-      contacts.push({
-        name: "",
-        email: unique[i],
-        phone: phones[i] || "",
-        role: defaultRole,
-        source_subject: subject,
-        source_date: date,
-        source_from: fromName || fromEmail,
-      });
-    }
+  // Add To/CC recipients (excluding me and services)
+  const allRecipients = [...toRecipients, ...ccRecipients];
+  for (const r of allRecipients) {
+    if (!r.address || isMyEmail(r.address) || shouldSkipSender(r.address)) continue;
+    const key = r.address.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    contacts.push({
+      name: r.name || "",
+      email: r.address,
+      phone: "",
+      role,
+      property: "",
+      price: "",
+      neighborhood: "",
+      message: "",
+      source: "email",
+      source_subject: subject,
+      source_date: date,
+    });
   }
 
   return contacts;
@@ -181,55 +226,76 @@ export async function GET(req: NextRequest) {
 
   const top = Math.min(parseInt(req.nextUrl.searchParams.get("top") || "50"), 100);
   const skip = parseInt(req.nextUrl.searchParams.get("skip") || "0");
+  const mode = req.nextUrl.searchParams.get("mode") || "all"; // "streeteasy" | "all"
 
   try {
     const { messages } = await getMessages(token, folderId, top, skip);
 
     const allContacts: ExtractedContact[] = [];
-
+    let streetEasyCount = 0;
+    let generalCount = 0;
     let skippedCount = 0;
+
     for (const msg of messages) {
       const fromEmail = msg.from?.emailAddress?.address || "";
       const fromName = msg.from?.emailAddress?.name || "";
+      const subject = msg.subject || "";
 
-      // Skip broker/listing/automated emails
-      if (shouldSkipEmail(fromEmail, msg.subject || "")) {
+      // StreetEasy lead detection
+      if (/streeteasy inquiry from/i.test(subject)) {
+        const lead = parseStreetEasyLead(subject, msg.body.content, msg.receivedDateTime || "");
+        if (lead) {
+          allContacts.push(lead);
+          streetEasyCount++;
+          continue;
+        }
+      }
+
+      // Skip automated senders for general extraction
+      if (shouldSkipSender(fromEmail)) {
         skippedCount++;
         continue;
       }
 
-      const plainText = msg.body.contentType === "html"
-        ? stripHtml(msg.body.content)
-        : msg.body.content;
+      // General contact extraction from headers (if mode is "all")
+      if (mode === "all") {
+        const toRecipients = (msg.toRecipients || []).map((r) => ({
+          name: r.emailAddress.name,
+          address: r.emailAddress.address,
+        }));
+        const ccRecipients = (msg.ccRecipients || []).map((r) => ({
+          name: r.emailAddress.name,
+          address: r.emailAddress.address,
+        }));
 
-      const toEmails = (msg.toRecipients || []).map((r) => r.emailAddress.address);
-      const ccEmails = (msg.ccRecipients || []).map((r) => r.emailAddress.address);
-
-      const extracted = extractContacts(
-        plainText,
-        msg.subject || "",
-        msg.receivedDateTime || "",
-        fromName,
-        fromEmail,
-        toEmails,
-        ccEmails
-      );
-
-      allContacts.push(...extracted);
+        const headerContacts = extractHeaderContacts(
+          subject,
+          msg.receivedDateTime || "",
+          fromName,
+          fromEmail,
+          toRecipients,
+          ccRecipients
+        );
+        allContacts.push(...headerContacts);
+        if (headerContacts.length > 0) generalCount++;
+      }
     }
 
     // Deduplicate by email
     const seen = new Set<string>();
     const dedupedContacts = allContacts.filter((c) => {
-      if (!c.email) return true; // keep nameless entries
-      if (seen.has(c.email.toLowerCase())) return false;
-      seen.add(c.email.toLowerCase());
+      if (!c.email) return false;
+      const key = c.email.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
 
     return NextResponse.json({
       scanned: messages.length,
       skipped: skippedCount,
+      streeteasy_leads: streetEasyCount,
+      general_contacts: generalCount,
       contacts: dedupedContacts,
     });
   } catch (err) {

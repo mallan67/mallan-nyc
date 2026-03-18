@@ -2498,9 +2498,10 @@ var Panels = (function () {
 
     // Header
     html += '<div class="flex items-center justify-between">' +
-      '<div><h3 class="text-sm font-bold text-gray-700"><i class="fas fa-address-book mr-2 text-gold"></i>Extracted Contacts from ' + E(folderName) + '</h3>' +
+      '<div><h3 class="text-sm font-bold text-gray-700"><i class="fas fa-address-book mr-2 text-gold"></i>Contacts from ' + E(folderName) + '</h3>' +
         '<p class="text-xs text-gray-500">' + data.scanned + ' emails scanned, ' + contacts.length + ' contacts found' +
-          (data.skipped ? ' (' + data.skipped + ' broker/listing emails skipped)' : '') + '</p></div>' +
+          (data.streeteasy_leads ? ' (' + data.streeteasy_leads + ' StreetEasy leads)' : '') +
+          (data.skipped ? ', ' + data.skipped + ' skipped' : '') + '</p></div>' +
       '<div class="flex gap-2">' +
         '<button onclick="Panels.outlookScanner()" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"><i class="fas fa-arrow-left mr-1"></i> Back</button>' +
         '<button onclick="Panels._importSelectedOutlook()" class="px-4 py-1.5 text-sm bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800"><i class="fas fa-download mr-1"></i> Import Selected</button>' +
@@ -2524,26 +2525,32 @@ var Panels = (function () {
         '<th class="p-3 text-left">Email</th>' +
         '<th class="p-3 text-left">Phone</th>' +
         '<th class="p-3 text-left">Type</th>' +
-        '<th class="p-3 text-left">Source Email</th>' +
+        '<th class="p-3 text-left">Property / Source</th>' +
+        '<th class="p-3 text-left">Date</th>' +
       '</tr></thead><tbody class="divide-y">';
 
     for (var i = 0; i < contacts.length; i++) {
       var ct = contacts[i];
-      var roleColors = { buyer: 'blue', renter: 'green', seller: 'amber', landlord: 'purple', unknown: 'gray' };
-      var rc = roleColors[ct.role] || 'gray';
+      var srcBadge = ct.source === 'streeteasy'
+        ? '<span class="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded mr-1">SE</span>'
+        : '';
+      var propInfo = ct.property ? E(ct.property) : E(ct.source_subject || '').substring(0, 35);
+      if (ct.price) propInfo += ' · ' + E(ct.price);
+      if (ct.neighborhood) propInfo += ' · ' + E(ct.neighborhood);
+      var dateStr = ct.source_date ? new Date(ct.source_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '';
       html += '<tr class="hover:bg-gray-50">' +
         '<td class="p-3"><input type="checkbox" data-outlook-idx="' + i + '" checked class="outlookContactCb rounded text-gold focus:ring-gold"></td>' +
         '<td class="p-3 font-medium">' + E(ct.name || '—') + '</td>' +
-        '<td class="p-3 text-gray-600">' + E(ct.email || '—') + '</td>' +
-        '<td class="p-3 text-gray-600">' + E(ct.phone || '—') + '</td>' +
+        '<td class="p-3 text-gray-600 text-xs">' + E(ct.email || '—') + '</td>' +
+        '<td class="p-3 text-gray-600 text-xs">' + E(ct.phone || '—') + '</td>' +
         '<td class="p-3"><select data-outlook-role="' + i + '" class="text-xs border rounded px-2 py-1">' +
           '<option value="buyer"' + (ct.role === 'buyer' ? ' selected' : '') + '>Buyer</option>' +
           '<option value="renter"' + (ct.role === 'renter' ? ' selected' : '') + '>Renter</option>' +
           '<option value="seller"' + (ct.role === 'seller' ? ' selected' : '') + '>Seller</option>' +
           '<option value="landlord"' + (ct.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
-          '<option value="unknown"' + (ct.role === 'unknown' ? ' selected' : '') + '>Unknown</option>' +
           '</select></td>' +
-        '<td class="p-3 text-xs text-gray-400" title="' + E(ct.source_subject) + '">' + E(ct.source_subject || '').substring(0, 40) + '</td>' +
+        '<td class="p-3 text-xs text-gray-500">' + srcBadge + propInfo + '</td>' +
+        '<td class="p-3 text-xs text-gray-400">' + dateStr + '</td>' +
         '</tr>';
     }
 
@@ -2574,19 +2581,29 @@ var Panels = (function () {
       if (role === 'unknown') role = 'buyer';
 
       var nameParts = (ct.name || '').split(/\s+/);
+      var noteLines = [];
+      if (ct.property) noteLines.push('Property: ' + ct.property);
+      if (ct.price) noteLines.push('Price: ' + ct.price);
+      if (ct.neighborhood) noteLines.push('Neighborhood: ' + ct.neighborhood);
+      if (ct.message) noteLines.push('Message: ' + ct.message);
+      if (ct.source === 'streeteasy') noteLines.push('Source: StreetEasy inquiry');
+
       toImport.push({
-        first_name: nameParts[0] || ct.email.split('@')[0] || 'Unknown',
-        last_name: nameParts.slice(1).join(' ') || '',
-        email: ct.email || (ct.name || '').replace(/\s/g, '.').toLowerCase() + '@placeholder.invalid',
-        phone: ct.phone || '-',
-        roles: [role],
-        portal_role: role,
-        source: 'outlook_import',
+        create: {
+          first_name: nameParts[0] || ct.email.split('@')[0] || 'Unknown',
+          last_name: nameParts.slice(1).join(' ') || '',
+          email: ct.email,
+          phone: ct.phone || '-',
+          roles: [role],
+          portal_role: role,
+          source: ct.source === 'streeteasy' ? 'streeteasy' : 'outlook_import',
+        },
+        notes: noteLines.length ? noteLines.join('\n') : undefined,
       });
     }
 
     // Filter out contacts without email
-    toImport = toImport.filter(function (c) { return c.email && c.email.indexOf('placeholder') === -1; });
+    toImport = toImport.filter(function (c) { return c.create.email && c.create.email.indexOf('placeholder') === -1; });
 
     if (toImport.length === 0) { CRM.toast('No contacts with valid emails to import', 'warning'); return; }
 
@@ -2599,9 +2616,14 @@ var Panels = (function () {
 
     toImport.forEach(function (person) {
       chain = chain.then(function () {
-        return MallanAPI.clients.create(person).then(function (res) {
+        return MallanAPI.clients.create(person.create).then(function (res) {
+          var clientId = res.id || (res.client && res.client.id);
           imported++;
-          Events.log('client_created', 'client', res.id, { name: person.first_name + ' ' + person.last_name, source: 'outlook_import' });
+          Events.log('client_created', 'client', clientId, { name: person.create.first_name + ' ' + person.create.last_name, source: person.create.source });
+          // PATCH with notes if present
+          if (person.notes && clientId) {
+            return MallanAPI.clients.update(clientId, { notes: person.notes });
+          }
         }).catch(function (err) {
           // 409 = duplicate email, skip
           skipped++;
