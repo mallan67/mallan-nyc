@@ -701,8 +701,8 @@ export async function GET(req: NextRequest) {
 
     const response = {
       listings,
-      total: listings.length,
-      totalCount: listings.length,
+      total: result.odataCount ?? listings.length,
+      totalCount: result.odataCount ?? listings.length,
       hasMore: result.hasMore,
       skip,
       limit,
