@@ -1,6 +1,6 @@
 // POST /api/crm/listings/reset-sync
 // ONE-TIME USE: Delete all existing listings, then re-sync from Trestle.
-// Broker-only. Pulls historical (closed/expired/hold/withdrawn) + active listings.
+// Broker-only. Searches by BOTH MLS ID and State License Number on both sides of deals.
 //
 // After use, this endpoint can be removed.
 
@@ -8,8 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hasCredentials } from "@/lib/idx/auth";
-import { syncAgentHistory } from "@/lib/idx/sync";
-import { fetchFromTrestle, buildAgentAllFilter } from "@/lib/idx/fetch";
+import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
@@ -24,25 +23,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "IDX not enabled or missing credentials" }, { status: 503 });
   }
 
-  // Get the broker's agent record
   const agent = await prisma.agent.findUnique({
     where: { id: auth.userId },
     select: { id: true, license_no: true, trestle_mls_id: true, full_name: true },
   });
 
-  if (!agent || !agent.trestle_mls_id) {
-    return NextResponse.json({ error: "Agent not found or missing trestle_mls_id" }, { status: 422 });
+  if (!agent) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 422 });
   }
 
-  const agentMlsId = agent.trestle_mls_id;
+  const mlsId = agent.trestle_mls_id; // "39361"
+  const licenseNo = agent.license_no;  // "10311201806"
   const log: string[] = [];
+
+  if (!mlsId && !licenseNo) {
+    return NextResponse.json({ error: "Agent has no MLS ID or license number" }, { status: 422 });
+  }
 
   // ══════════════════════════════════════════════════════════════
   // STEP 1: Delete all existing listings (clean slate)
   // ══════════════════════════════════════════════════════════════
   log.push("Step 1: Deleting existing listings...");
 
-  // Delete dependent records first (FK constraints)
   const [delActions, delShowings, delComments, delPriceHistory, delMarketing] = await Promise.all([
     prisma.clientListingAction.deleteMany({}),
     prisma.showing.deleteMany({}),
@@ -50,55 +52,65 @@ export async function POST(req: NextRequest) {
     prisma.priceHistory.deleteMany({}),
     prisma.marketingActivity.deleteMany({}),
   ]);
-  log.push(`  Deleted dependents: ${delActions.count} actions, ${delShowings.count} showings, ${delComments.count} comments, ${delPriceHistory.count} price history, ${delMarketing.count} marketing`);
+  log.push(`  Deleted dependents: ${delActions.count} actions, ${delShowings.count} showings, ${delComments.count} comments`);
 
-  // Delete protected period records
   await prisma.protectedPeriod.deleteMany({}).catch(() => {});
-
-  // Now delete all listings
   const delListings = await prisma.listing.deleteMany({});
   log.push(`  Deleted ${delListings.count} listings`);
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 2: Sync ALL listings from Trestle (all statuses)
+  // STEP 2: Pull ALL listings from Trestle where agent appears
+  // Search by: ListAgentMlsId, BuyerAgentMlsId, ListAgentStateLicense, BuyerAgentStateLicense
   // ══════════════════════════════════════════════════════════════
-  log.push("Step 2: Syncing from Trestle...");
+  log.push("Step 2: Pulling from Trestle...");
 
-  // 2A: Historical listings (Closed, Expired, Hold, Withdrawn)
-  log.push("  2A: Historical listings (Closed/Expired/Hold/Withdrawn)...");
-  const historicalResult = await syncAgentHistory({
-    agentMlsId,
-    agentDbId: agent.id,
-    maxRecords: 2000,
-  });
-  log.push(`  Historical: fetched=${historicalResult.total_fetched}, upserted=${historicalResult.upserted}, errors=${historicalResult.errors}`);
+  // Build comprehensive agent identity filter
+  const conditions: string[] = [];
+  if (mlsId) {
+    const escaped = mlsId.replace(/'/g, "''");
+    conditions.push(`ListAgentMlsId eq '${escaped}'`);
+    conditions.push(`BuyerAgentMlsId eq '${escaped}'`);
+  }
+  if (licenseNo) {
+    const escaped = licenseNo.replace(/'/g, "''");
+    conditions.push(`ListAgentStateLicense eq '${escaped}'`);
+    conditions.push(`BuyerAgentStateLicense eq '${escaped}'`);
+  }
 
-  // 2B: Active + Coming Soon + Under Contract listings
-  log.push("  2B: Active listings...");
-  const activeFilter = buildAgentAllFilter(agentMlsId);
-  // Override to only get active statuses (historical already handled above)
-  const activeOnlyFilter = `${activeFilter} and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'Pending')`;
+  const agentFilter = `(${conditions.join(" or ")})`;
+  log.push(`  Agent filter: ${agentFilter}`);
 
-  let activeUpserted = 0;
-  let activeErrors = 0;
-  let activeFetched = 0;
+  // Pull ALL statuses in one query
+  const filter = agentFilter;
+  log.push(`  Full filter: ${filter}`);
+
+  let totalFetched = 0;
+  let upserted = 0;
+  let errors = 0;
+  const errorDetails: string[] = [];
 
   try {
-    const activeResult = await fetchFromTrestle({
-      filter: activeOnlyFilter,
-      maxTotal: 500,
+    const result = await fetchFromTrestle({
+      filter,
+      maxTotal: 2000,
       expandMedia: true,
       orderby: "ModificationTimestamp desc",
     });
-    activeFetched = activeResult.totalFetched;
 
-    for (const raw of activeResult.records) {
+    totalFetched = result.totalFetched;
+    log.push(`  Trestle returned ${totalFetched} records`);
+
+    for (const raw of result.records) {
       try {
         const validation = validateHistoricalFields(raw);
-        if (!validation.valid) continue;
+        if (!validation.valid) {
+          log.push(`  Skip: ${String(raw.ListingId || "?")} missing ${validation.missingFields.join(",")}`);
+          continue;
+        }
 
         const gates = checkDistributionGates(raw);
         const mapped = mapTrestleToPrisma(raw);
+
         if (!gates.displayable) {
           mapped.sync_status = `gated:${gates.reason}`;
         }
@@ -133,6 +145,11 @@ export async function POST(req: NextRequest) {
             neighborhood: mapped.neighborhood,
             city: mapped.city,
             postal_code: mapped.postal_code,
+            idx_display_yn: mapped.idx_display_yn,
+            internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
+            internet_address_display_yn: mapped.internet_address_display_yn,
+            participant_only: mapped.participant_only,
+            owner_opt_out: mapped.owner_opt_out,
             address: mapped.address as Prisma.InputJsonValue,
             features: mapped.features as Prisma.InputJsonValue,
             media: mapped.media as Prisma.InputJsonValue,
@@ -145,17 +162,21 @@ export async function POST(req: NextRequest) {
             sync_status: mapped.sync_status,
           },
         });
-        activeUpserted++;
+
+        upserted++;
       } catch (err) {
-        activeErrors++;
-        console.error("[Reset-Sync] Active upsert error:", err);
+        errors++;
+        const lid = String(raw.ListingId || "unknown");
+        const msg = err instanceof Error ? err.message : "unknown";
+        errorDetails.push(`${lid}: ${msg}`);
+        console.error(`[Reset-Sync] Error upserting ${lid}:`, err);
       }
     }
   } catch (err) {
-    log.push(`  Active fetch error: ${err instanceof Error ? err.message : "unknown"}`);
+    const msg = err instanceof Error ? err.message : "unknown";
+    log.push(`  Trestle fetch error: ${msg}`);
+    return NextResponse.json({ error: `Trestle fetch failed: ${msg}`, log }, { status: 502 });
   }
-
-  log.push(`  Active: fetched=${activeFetched}, upserted=${activeUpserted}, errors=${activeErrors}`);
 
   // ══════════════════════════════════════════════════════════════
   // STEP 3: Summary
@@ -165,40 +186,44 @@ export async function POST(req: NextRequest) {
     by: ["status"],
     _count: { status: true },
   });
+  const byType = await prisma.listing.groupBy({
+    by: ["listing_type"],
+    _count: { listing_type: true },
+  });
 
   const statusSummary: Record<string, number> = {};
-  for (const row of byStatus) {
-    statusSummary[row.status] = row._count.status;
-  }
+  for (const row of byStatus) statusSummary[row.status] = row._count.status;
 
-  log.push(`Step 3: Complete. ${totalInDb} listings in DB.`);
+  const typeSummary: Record<string, number> = {};
+  for (const row of byType) typeSummary[row.listing_type] = row._count.listing_type;
+
+  log.push(`Step 3: Done. ${totalInDb} listings in DB.`);
   log.push(`  By status: ${JSON.stringify(statusSummary)}`);
+  log.push(`  By type: ${JSON.stringify(typeSummary)}`);
+  if (errorDetails.length > 0) log.push(`  Errors: ${errorDetails.slice(0, 10).join("; ")}`);
 
   await logAuditEvent("listings_reset_sync", "listing", "bulk", auth, {
     deleted: delListings.count,
-    historical: historicalResult,
-    active: { fetched: activeFetched, upserted: activeUpserted, errors: activeErrors },
+    fetched: totalFetched,
+    upserted,
+    errors,
     totalInDb,
     statusSummary,
+    typeSummary,
   });
 
   return NextResponse.json({
     success: true,
     agent: agent.full_name,
-    agentMlsId,
+    mlsId,
+    licenseNo,
     deleted: delListings.count,
-    historical: {
-      fetched: historicalResult.total_fetched,
-      upserted: historicalResult.upserted,
-      errors: historicalResult.errors,
-    },
-    active: {
-      fetched: activeFetched,
-      upserted: activeUpserted,
-      errors: activeErrors,
-    },
+    fetched: totalFetched,
+    upserted,
+    errors,
     totalInDb,
     statusSummary,
+    typeSummary,
     log,
   });
 }

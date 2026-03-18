@@ -334,8 +334,10 @@ export function buildAgentHistoricalFilter(
 ): string {
   const escapedId = agentMlsId.replace(/'/g, "''");
 
-  // Agent identity: ListAgentMlsId is the REBNY member ID on Trestle
-  const agentFilter = `ListAgentMlsId eq '${escapedId}'`;
+  // Agent identity: match on EITHER side of the deal
+  // ListAgentMlsId = you were the listing agent (your exclusive)
+  // BuyerAgentMlsId = you represented the buyer/tenant
+  const agentFilter = `(ListAgentMlsId eq '${escapedId}' or BuyerAgentMlsId eq '${escapedId}')`;
 
   // Historical statuses: Closed (Sold/Rented), Expired, Hold (Temp Off), Withdrawn (Perm Off)
   const statusFilter =
@@ -354,14 +356,14 @@ export function buildAgentHistoricalFilter(
 
 /**
  * Build an OData $filter for ALL of an agent's listings (any status).
- * Uses ListAgentMlsId (REBNY member ID).
+ * Matches ListAgentMlsId OR BuyerAgentMlsId (both sides of deals).
  */
 export function buildAgentAllFilter(
   agentMlsId: string,
   listingType?: "sale" | "rent"
 ): string {
   const escapedId = agentMlsId.replace(/'/g, "''");
-  const parts = [`ListAgentMlsId eq '${escapedId}'`];
+  const parts = [`(ListAgentMlsId eq '${escapedId}' or BuyerAgentMlsId eq '${escapedId}')`];
 
   if (listingType === "sale") {
     parts.push("PropertyType ne 'ResidentialLease'");
