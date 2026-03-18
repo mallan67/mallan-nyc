@@ -53,14 +53,18 @@ interface ExtractedContact {
 // Subject: "211 East 51st Street #4C StreetEasy Inquiry From Martin Fried"
 // Body has: Name | email | phone, then property card with address, price, beds/baths
 function parseStreetEasyLead(subject: string, body: string, date: string): ExtractedContact | null {
-  // Extract name from subject
-  const subjectMatch = subject.match(/StreetEasy Inquiry From (.+)$/i);
+  // Extract name from subject — skip replies (Re:, Fwd:)
+  const cleanSubject = subject.replace(/^(?:Re|Fwd|Fw)\s*:\s*/gi, "").trim();
+  const subjectMatch = cleanSubject.match(/StreetEasy Inquiry From (.+)$/i);
   if (!subjectMatch) return null;
 
   const name = subjectMatch[1].trim();
 
+  // Skip reply/forward emails — only parse the original StreetEasy inquiry
+  const isReply = /^(?:Re|Fwd|Fw)\s*:/i.test(subject);
+
   // Extract property address from subject (everything before "StreetEasy")
-  const addrMatch = subject.match(/^(.+?)\s+StreetEasy/i);
+  const addrMatch = cleanSubject.match(/^(.+?)\s+StreetEasy/i);
   const property = addrMatch ? addrMatch[1].trim() : "";
 
   // Parse body for contact info: "Name | email | phone"
@@ -79,13 +83,13 @@ function parseStreetEasyLead(subject: string, body: string, date: string): Extra
     if (line.includes("|") && line.includes("@")) {
       const parts = line.split("|").map((p) => p.trim());
       for (const part of parts) {
-        if (part.includes("@")) email = part;
+        if (part.includes("@") && !isMyEmail(part)) email = part;
         else if (/^\+?\d[\d\s()-]{6,}$/.test(part)) phone = part;
       }
       continue;
     }
-    // Standalone email
-    if (!email && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(line)) {
+    // Standalone email (not mine)
+    if (!email && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(line) && !isMyEmail(line)) {
       email = line;
       continue;
     }
@@ -127,8 +131,11 @@ function parseStreetEasyLead(subject: string, body: string, date: string): Extra
     }
   }
 
+  // Skip replies/forwards that don't have the original contact info
+  if (!email && isReply) return null;
+
   // Determine listing type + role from context
-  const fullText = (subject + " " + plain).toLowerCase();
+  const fullText = (cleanSubject + " " + plain).toLowerCase();
   const isRental = /base rent|\/mo|per month|rent|lease|rental/i.test(fullText);
   const listing_type = isRental ? "rental" : "sale";
   const role = isRental ? "renter" : "buyer";
@@ -144,7 +151,7 @@ function parseStreetEasyLead(subject: string, body: string, date: string): Extra
     neighborhood,
     message,
     source: "streeteasy",
-    source_subject: subject,
+    source_subject: cleanSubject,
     source_date: date,
   };
 }
