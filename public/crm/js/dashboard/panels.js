@@ -2443,6 +2443,7 @@ var Panels = (function () {
   function _renderOutlookFolders(c, data) {
     _outlookFolders = data.folders || [];
     _outlookEmail = data.email || '';
+    _folderBreadcrumb = [];
 
     var html = '<div class="space-y-6 max-w-5xl">';
 
@@ -2462,27 +2463,105 @@ var Panels = (function () {
 
     for (var i = 0; i < _outlookFolders.length; i++) {
       var f = _outlookFolders[i];
-      html += '<button onclick="Panels._scanOutlookFolder(\'' + E(f.id) + '\',\'' + E(f.displayName) + '\')" ' +
-        'class="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition text-left">' +
-        '<div class="flex items-center gap-3">' +
+      html += '<div class="flex items-center border-b hover:bg-gray-50 transition">';
+      // Scan button (main action)
+      if (f.totalItemCount > 0) {
+        html += '<button onclick="Panels._scanOutlookFolder(\'' + E(f.id) + '\',\'' + E(f.displayName) + '\')" ' +
+          'class="flex-1 p-4 flex items-center gap-3 text-left">' +
           '<i class="fas fa-folder text-gold"></i>' +
           '<div><p class="text-sm font-semibold text-gray-900">' + E(f.displayName) + '</p>' +
-            '<p class="text-xs text-gray-500">' + f.totalItemCount + ' emails</p></div></div>' +
-        (f.childFolderCount > 0 ? '<span class="text-xs text-gray-400">' + f.childFolderCount + ' subfolders <i class="fas fa-chevron-right ml-1"></i></span>' : '') +
-        '</button>';
+            '<p class="text-xs text-gray-500">' + f.totalItemCount + ' emails</p></div></button>';
+      } else {
+        html += '<div class="flex-1 p-4 flex items-center gap-3">' +
+          '<i class="fas fa-folder text-gray-300"></i>' +
+          '<div><p class="text-sm font-semibold text-gray-400">' + E(f.displayName) + '</p>' +
+            '<p class="text-xs text-gray-400">empty</p></div></div>';
+      }
+      // Expand subfolders button
+      if (f.childFolderCount > 0) {
+        html += '<button onclick="Panels._expandOutlookFolder(\'' + E(f.id) + '\',\'' + E(f.displayName) + '\')" ' +
+          'class="px-4 py-4 text-xs text-gray-500 hover:text-gold border-l" title="Show subfolders">' +
+          f.childFolderCount + ' sub <i class="fas fa-chevron-right"></i></button>';
+      }
+      html += '</div>';
     }
 
     html += '</div></div></div>';
     c.innerHTML = html;
   }
 
-  function _scanOutlookFolder(folderId, folderName) {
+  var _folderBreadcrumb = [];
+
+  function _expandOutlookFolder(parentId, parentName) {
+    _folderBreadcrumb.push({ id: parentId, name: parentName });
+    var c = _container();
+    c.innerHTML = '<div class="flex items-center justify-center h-64"><i class="fas fa-spinner fa-spin text-2xl text-gold mr-3"></i><span class="text-gray-500">Loading subfolders...</span></div>';
+
+    MallanAPI._fetch('/api/crm/outlook/folders?parent=' + encodeURIComponent(parentId)).then(function (data) {
+      var folders = data.folders || [];
+      _outlookFolders = folders;
+      var bc = _folderBreadcrumb;
+
+      var html = '<div class="space-y-6 max-w-5xl">';
+
+      // Breadcrumb
+      html += '<div class="flex items-center gap-2 text-sm">' +
+        '<button onclick="Panels.outlookScanner()" class="text-gold hover:underline">Folders</button>';
+      for (var b = 0; b < bc.length; b++) {
+        html += ' <i class="fas fa-chevron-right text-gray-300 text-xs"></i> ';
+        if (b < bc.length - 1) {
+          html += '<button onclick="Panels._expandOutlookFolder(\'' + E(bc[b].id) + '\',\'' + E(bc[b].name) + '\');Panels._folderBreadcrumb=Panels._folderBreadcrumb.slice(0,' + b + ')" class="text-gold hover:underline">' + E(bc[b].name) + '</button>';
+        } else {
+          html += '<span class="font-semibold text-gray-700">' + E(bc[b].name) + '</span>';
+        }
+      }
+      html += '</div>';
+
+      // Folder list
+      html += '<div class="bg-white rounded-xl border shadow-sm"><div class="divide-y">';
+      for (var i = 0; i < folders.length; i++) {
+        var f = folders[i];
+        html += '<div class="flex items-center hover:bg-gray-50 transition">';
+        if (f.totalItemCount > 0) {
+          html += '<button onclick="Panels._scanOutlookFolder(\'' + E(f.id) + '\',\'' + E(f.displayName) + '\')" ' +
+            'class="flex-1 p-4 flex items-center gap-3 text-left">' +
+            '<i class="fas fa-folder text-gold"></i>' +
+            '<div><p class="text-sm font-semibold text-gray-900">' + E(f.displayName) + '</p>' +
+              '<p class="text-xs text-gray-500">' + f.totalItemCount + ' emails</p></div></button>';
+        } else {
+          html += '<div class="flex-1 p-4 flex items-center gap-3">' +
+            '<i class="fas fa-folder text-gray-300"></i>' +
+            '<div><p class="text-sm font-semibold text-gray-400">' + E(f.displayName) + '</p>' +
+              '<p class="text-xs text-gray-400">empty</p></div></div>';
+        }
+        if (f.childFolderCount > 0) {
+          html += '<button onclick="Panels._expandOutlookFolder(\'' + E(f.id) + '\',\'' + E(f.displayName) + '\')" ' +
+            'class="px-4 py-4 text-xs text-gray-500 hover:text-gold border-l" title="Show subfolders">' +
+            f.childFolderCount + ' sub <i class="fas fa-chevron-right"></i></button>';
+        }
+        html += '</div>';
+      }
+      if (folders.length === 0) {
+        html += '<div class="p-8 text-center text-gray-400"><i class="fas fa-folder-open text-2xl mb-2"></i><p class="text-sm">No subfolders</p></div>';
+      }
+      html += '</div></div></div>';
+      c.innerHTML = html;
+    }).catch(function (err) {
+      c.innerHTML = '<div class="text-center py-16"><p class="text-sm text-red-600">Failed to load subfolders: ' + E(err.message || '') + '</p>' +
+        '<button onclick="Panels.outlookScanner()" class="mt-4 text-sm text-gold hover:underline">Back</button></div>';
+    });
+  }
+
+  function _scanOutlookFolder(folderId, folderName, mode) {
+    mode = mode || 'streeteasy';
     var c = _container();
     c.innerHTML = '<div class="flex items-center justify-center h-64"><i class="fas fa-spinner fa-spin text-2xl text-gold mr-3"></i>' +
       '<span class="text-gray-500">Scanning ' + E(folderName) + '...</span></div>';
 
-    MallanAPI._fetch('/api/crm/outlook/scan?folder=' + encodeURIComponent(folderId) + '&top=100').then(function (data) {
-      _renderScanResults(c, data, folderName, folderId);
+    window._lastScanFolder = { id: folderId, name: folderName };
+
+    MallanAPI._fetch('/api/crm/outlook/scan?folder=' + encodeURIComponent(folderId) + '&top=100&mode=' + mode).then(function (data) {
+      _renderScanResults(c, data, folderName, folderId, mode);
     }).catch(function (err) {
       c.innerHTML = '<div class="text-center py-16"><i class="fas fa-exclamation-circle text-3xl text-red-400 mb-3"></i>' +
         '<p class="text-sm text-red-600">Scan failed: ' + E(err.message || 'Unknown error') + '</p>' +
@@ -2490,7 +2569,7 @@ var Panels = (function () {
     });
   }
 
-  function _renderScanResults(c, data, folderName, folderId) {
+  function _renderScanResults(c, data, folderName, folderId, mode) {
     var contacts = data.contacts || [];
     window._outlookContacts = contacts;
 
@@ -2504,6 +2583,9 @@ var Panels = (function () {
           (data.skipped ? ', ' + data.skipped + ' skipped' : '') + '</p></div>' +
       '<div class="flex gap-2">' +
         '<button onclick="Panels.outlookScanner()" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"><i class="fas fa-arrow-left mr-1"></i> Back</button>' +
+        (mode === 'streeteasy'
+          ? '<button onclick="Panels._scanOutlookFolder(\'' + E(folderId) + '\',\'' + E(folderName) + '\',\'all\')" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Show All Contacts</button>'
+          : '<button onclick="Panels._scanOutlookFolder(\'' + E(folderId) + '\',\'' + E(folderName) + '\',\'streeteasy\')" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">StreetEasy Only</button>') +
         '<button onclick="Panels._importSelectedOutlook()" class="px-4 py-1.5 text-sm bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800"><i class="fas fa-download mr-1"></i> Import Selected</button>' +
       '</div></div>';
 
@@ -2553,6 +2635,7 @@ var Panels = (function () {
           '<option value="renter"' + (ct.role === 'renter' ? ' selected' : '') + '>Renter</option>' +
           '<option value="seller"' + (ct.role === 'seller' ? ' selected' : '') + '>Seller</option>' +
           '<option value="landlord"' + (ct.role === 'landlord' ? ' selected' : '') + '>Landlord</option>' +
+          '<option value="uncategorized"' + (ct.role === 'unknown' || ct.role === 'uncategorized' ? ' selected' : '') + '>Uncategorized</option>' +
           '</select></td>' +
         '<td class="p-3 text-xs text-gray-500">' + srcBadge + typeBadge + propInfo + '</td>' +
         '<td class="p-3 text-xs text-gray-400">' + dateStr + '</td>' +
@@ -2583,7 +2666,7 @@ var Panels = (function () {
       // Check for role override from dropdown
       var roleSelect = document.querySelector('[data-outlook-role="' + idx + '"]');
       var role = roleSelect ? roleSelect.value : ct.role;
-      if (role === 'unknown') role = 'buyer';
+      if (role === 'unknown') role = 'uncategorized';
 
       var nameParts = (ct.name || '').split(/\s+/);
       var noteLines = [];
@@ -11588,6 +11671,8 @@ var Panels = (function () {
     _submitEmailImport: _submitEmailImport,
     _togglePartner: _togglePartner,
     outlookScanner: outlookScanner,
+    _expandOutlookFolder: _expandOutlookFolder,
+    _folderBreadcrumb: _folderBreadcrumb,
     _scanOutlookFolder: _scanOutlookFolder,
     _toggleAllOutlook: _toggleAllOutlook,
     _importSelectedOutlook: _importSelectedOutlook,
