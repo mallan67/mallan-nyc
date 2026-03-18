@@ -602,8 +602,17 @@ var CRM = (function () {
 
     Promise.all(fetches).then(function (r) {
       var qLower = q.toLowerCase();
-      var clients = (r[0].clients || []).filter(function (c) {
-        return (c.name || c.email || '').toLowerCase().indexOf(qLower) !== -1;
+      var clients = (r[0].clients || []).map(function (c) {
+        // Normalize name + type for display
+        if (!c.name && (c.first_name || c.last_name)) c.name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+        if (!c.type) c.type = c.portal_role || (c.roles && c.roles[0]) || 'buyer';
+        // Build searchable text including secondary person
+        c._searchText = ((c.name || '') + ' ' + (c.email || '') + ' ' + (c.phone || '') +
+          (c.secondary_first_name ? ' ' + c.secondary_first_name + ' ' + (c.secondary_last_name || '') : '') +
+          (c.secondary_email ? ' ' + c.secondary_email : '')).toLowerCase();
+        return c;
+      }).filter(function (c) {
+        return c._searchText.indexOf(qLower) !== -1;
       });
       var listings = (r[1].listings || []).filter(function (l) {
         var addr = (l.address || l.UnparsedAddress || '').toLowerCase();
@@ -639,11 +648,18 @@ var CRM = (function () {
       if (clients.length > 0) {
         html += '<div class="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clients</div>';
         clients.forEach(function (c) {
+          var cDisplayName = c.name || c.email;
+          if (c.secondary_first_name) {
+            var secN = ((c.secondary_first_name || '') + ' ' + (c.secondary_last_name || '')).trim();
+            if (c.last_name && c.secondary_last_name === c.last_name) {
+              cDisplayName = (c.first_name || '') + ' & ' + (c.secondary_first_name || '') + ' ' + c.last_name;
+            } else { cDisplayName = cDisplayName + ' & ' + secN; }
+          }
           html += '<button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3" ' +
             'onclick="Router.navigate(\'/workspace/client/' + E(c.id) + '/overview\');CRM._closeSearchResults()">' +
-            UI.avatar(c.name || c.email, 24) +
-            '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(c.name || c.email) + '</span></div>' +
-            (c.type || c.client_type ? '<span class="shrink-0 text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">' + E(c.type || c.client_type) + '</span>' : '') +
+            UI.avatar(cDisplayName, 24) +
+            '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(cDisplayName) + '</span></div>' +
+            UI.roleBadge(c.type) +
             '</button>';
         });
         sectionIdx++;

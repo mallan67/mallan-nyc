@@ -13,6 +13,30 @@ var Panels = (function () {
 
   function _container() { return CRM.getContent(); }
 
+  // ── Global client normalizer — call on every client list from API ──
+  function _normalizeClient(cl) {
+    if (!cl.name && (cl.first_name || cl.last_name)) {
+      cl.name = ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim();
+    }
+    if (!cl.type && !cl.client_type) {
+      cl.type = cl.portal_role || (cl.roles && cl.roles[0]) || 'buyer';
+      cl.client_type = cl.type;
+    }
+    // Display name with secondary person (couples)
+    if (cl.secondary_first_name) {
+      var secName = ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim();
+      if (cl.last_name && cl.secondary_last_name === cl.last_name) {
+        cl._displayName = (cl.first_name || '') + ' & ' + (cl.secondary_first_name || '') + ' ' + cl.last_name;
+      } else {
+        cl._displayName = (cl.name || cl.email) + ' & ' + secName;
+      }
+    } else {
+      cl._displayName = cl.name || cl.email || 'Unknown';
+    }
+    return cl;
+  }
+  function _normalizeClients(clients) { return clients.map(_normalizeClient); }
+
   // ═══════════════════════════════════════════════════════════════════════
   // BROKER CONSOLE
   // ═══════════════════════════════════════════════════════════════════════
@@ -35,7 +59,7 @@ var Panels = (function () {
       var referrals = r[2].referrals || [];
       var listings = r[3].listings || [];
       var agents = r[4].agents || [];
-      var clients = r[5].clients || [];
+      var clients = _normalizeClients(r[5].clients || []);
 
       var agentMap = {};
       agents.forEach(function (a) { agentMap[a.id] = a.full_name || a.name || a.email || 'Agent'; });
@@ -271,7 +295,7 @@ var Panels = (function () {
       MallanAPI.idx.status().catch(function () { return null; }),
       Documents.list('company').catch(function () { return { documents: [] }; }),
     ]).then(function (r) {
-      var clients = r[0].clients || [];
+      var clients = _normalizeClients(r[0].clients || []);
       var listings = r[1].listings || [];
       var deals = r[2].deals || [];
       var agents = r[3].agents || [];
@@ -3706,7 +3730,7 @@ var Panels = (function () {
     ]).then(function (results) {
       var agents = results[0].agents || [];
       _refAgentsCache = agents;
-      var clients = results[1].clients || [];
+      var clients = _normalizeClients(results[1].clients || []);
       var user = Store.session.currentUser || {};
 
       var agentOptions = '<option value="">— Select Agent —</option>' +
@@ -5731,7 +5755,7 @@ var Panels = (function () {
       MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
     ]).then(function (r) {
       var docs = r[0] || [];
-      var clients = r[1].clients || [];
+      var clients = _normalizeClients(r[1].clients || []);
       var listings = r[2].listings || [];
       var agents = r[3].agents || [];
       var deals = r[4].deals || [];
@@ -5960,7 +5984,7 @@ var Panels = (function () {
 
   function _generateFromTemplate() {
     var vault = window._docVault || {};
-    var clients = vault.clients || [];
+    var clients = _normalizeClients(vault.clients || []);
     var listings = vault.listings || [];
     var agents = vault.agents || [];
     var deals = vault.deals || [];
@@ -6207,7 +6231,7 @@ var Panels = (function () {
   function _uploadDoc(scope, scopeId, replaceOpts) {
     replaceOpts = replaceOpts || {};
     var vault = window._docVault || {};
-    var clients = vault.clients || [];
+    var clients = _normalizeClients(vault.clients || []);
     var listings = vault.listings || [];
     var agents = vault.agents || [];
     var deals = vault.deals || [];
@@ -7536,7 +7560,7 @@ var Panels = (function () {
       MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
       MallanAPI.showings.list({ limit: 50 }).catch(function () { return { showings: [] }; }),
     ]).then(function (r) {
-      var clients = r[0].clients || [];
+      var clients = _normalizeClients(r[0].clients || []);
       var listings = r[1].listings || [];
       var deals = r[2].deals || [];
       var tasks = r[3].tasks || [];
@@ -8422,7 +8446,7 @@ var Panels = (function () {
       MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
       MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
     ]).then(function (r) {
-      var clients = r[0].clients || [];
+      var clients = _normalizeClients(r[0].clients || []);
       var tasks = r[1].tasks || [];
       var listings = r[2].listings || [];
       var now = new Date();
@@ -8673,7 +8697,7 @@ var Panels = (function () {
       MallanAPI.clients.list({ limit: 300 }).catch(function () { return { clients: [] }; }),
       MallanAPI._fetch('/api/crm/tasks').catch(function () { return { tasks: [] }; }),
     ]).then(function (r) {
-      var clients = r[0].clients || [];
+      var clients = _normalizeClients(r[0].clients || []);
       var tasks = r[1].tasks || [];
       var now = new Date();
       var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
@@ -8861,7 +8885,7 @@ var Panels = (function () {
       MallanAPI.clients.list({ limit: 200 }).catch(function () { return { clients: [] }; }),
     ]).then(function (r) {
       var allTasks = r[0].tasks || [];
-      var clients = r[1].clients || [];
+      var clients = _normalizeClients(r[1].clients || []);
       var clientMap = {};
       clients.forEach(function (cl) { clientMap[cl.id] = cl.name || cl.full_name || cl.email || 'Client'; });
 
@@ -10110,7 +10134,7 @@ var Panels = (function () {
   // ── Compose eBlast (campaign) ──────────────────────────────────────────
   function _composeBulk() {
     MallanAPI.clients.list({ limit: 500 }).then(function (res) {
-      var clients = res.clients || [];
+      var clients = _normalizeClients(res.clients || []);
       window._eblastClients = clients;
 
       _loadTemplates();
@@ -10269,7 +10293,7 @@ var Panels = (function () {
       MallanAPI.agents.list().catch(function () { return { agents: [] }; }),
     ]).then(function (r) {
       var deals = r[0].deals || [];
-      var clients = r[1].clients || [];
+      var clients = _normalizeClients(r[1].clients || []);
       var listings = r[2].listings || [];
       var agents = r[3].agents || [];
 
@@ -10852,7 +10876,7 @@ var Panels = (function () {
     var c = _container(); c.innerHTML = UI.loading();
 
     MallanAPI.clients.list({ limit: 500 }).catch(function () { return { clients: [] }; }).then(function (res) {
-      var clients = res.clients || [];
+      var clients = _normalizeClients(res.clients || []);
       var now = new Date();
 
       // ── Display name helper (handles couples) ──
