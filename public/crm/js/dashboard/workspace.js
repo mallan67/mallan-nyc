@@ -505,8 +505,22 @@ var Workspace = (function () {
     '</div>';
     html += _card('address-card', 'Contact Information', '', contactBody);
 
-    // Family / Partner (loaded async)
-    html += '<div id="wsFamilySection"></div>';
+    // Family / Partner — inline from secondary fields
+    var famBody = '';
+    if (hasSecondary) {
+      famBody = '<div class="space-y-2 text-sm">' +
+        '<div class="flex justify-between"><span class="text-gray-500">Name</span><span class="font-medium text-gray-900">' + E(secondaryName) + '</span></div>' +
+        (cl.secondary_email ? '<div class="flex justify-between"><span class="text-gray-500">Email</span><span class="font-medium text-gray-900">' + E(cl.secondary_email) + '</span></div>' : '') +
+        (cl.secondary_phone ? '<div class="flex justify-between"><span class="text-gray-500">Phone</span><span class="font-medium text-gray-900">' + E(cl.secondary_phone) + '</span></div>' : '') +
+        '<div class="flex justify-between"><span class="text-gray-500">Relationship</span><span class="font-medium text-gray-900">' + E(cl.secondary_relationship || 'Partner') + '</span></div>' +
+        '</div>';
+    } else {
+      famBody = '<div class="text-center py-2">' +
+        '<p class="text-xs text-gray-400 mb-2">No partner or co-applicant</p>' +
+        '<button class="btn btn-xs btn-outline" onclick="Workspace._addSecondaryPerson()"><i class="fas fa-user-plus mr-1"></i> Add Person</button>' +
+        '</div>';
+    }
+    html += _card('users', 'Partner / Co-Applicant', hasSecondary ? 'Workspace._addSecondaryPerson()' : '', famBody);
 
     // Financial Card
     var finBody = '<div class="space-y-2 text-sm">' +
