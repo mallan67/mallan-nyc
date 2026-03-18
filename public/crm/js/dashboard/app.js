@@ -1111,10 +1111,18 @@ var CRM = (function () {
       if (!el) return;
       var html = '<div class="max-h-40 overflow-y-auto space-y-1">';
       clients.forEach(function (c) {
+        var cName = c.name || ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email;
+        if (c.secondary_first_name) {
+          var secName = ((c.secondary_first_name || '') + ' ' + (c.secondary_last_name || '')).trim();
+          if (c.last_name && c.secondary_last_name === c.last_name) {
+            cName = (c.first_name || '') + ' & ' + (c.secondary_first_name || '') + ' ' + c.last_name;
+          } else { cName = cName + ' & ' + secName; }
+        }
+        var cRole = c.portal_role || (c.roles && c.roles[0]) || c.type || c.client_type || 'buyer';
         html += '<label class="flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer">' +
           '<input type="checkbox" name="client" value="' + E(c.id) + '" class="qs-client-cb">' +
-          '<span class="text-sm">' + E(c.name || c.email) + '</span>' +
-          UI.roleBadge(c.type || c.client_type) +
+          '<span class="text-sm">' + E(cName) + '</span>' +
+          UI.roleBadge(cRole) +
         '</label>';
       });
       html += '</div>';
