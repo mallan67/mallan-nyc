@@ -387,8 +387,8 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   // Unit rooms
   "BathroomsTotal", "CeilingHeightFeet", "CeilingHeightInches",
   "NumberOfDiningAreas", "NumberOfMasterBathrooms", "TotalLegalRooms",
-  // Building
-  "ArchitectName", "BuildingKeyNumeric", "FloorNumber", "FloorNumberInBuilding",
+  // Building (BuildingKeyNumeric re-enabled — Trestle 6.17, deployed 2026-03-04, metadata live 2026-03-10)
+  "ArchitectName", "FloorNumber", "FloorNumberInBuilding",
   "Foundation",
   // Building amenities
   "BuildingAccessibilityFeatures", "AttendanceType",

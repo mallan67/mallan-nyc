@@ -41,6 +41,8 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       result_count: search.result_count,
       agent_id: search.agent_id?.toString() ?? null,
       lead_id: search.lead_id?.toString() ?? null,
+      alert_frequency: search.alert_frequency ?? null,
+      alert_enabled: search.alert_enabled ?? false,
       created_at: search.created_at,
       updated_at: search.updated_at,
     });
@@ -77,7 +79,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
-    const updates: Prisma.SavedSearchUpdateInput = {};
+    const updates: Prisma.SavedSearchUncheckedUpdateInput = {};
 
     if (body.name !== undefined) {
       if (typeof body.name !== "string" || body.name.trim().length === 0) {
@@ -91,6 +93,21 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
         return NextResponse.json({ error: "criteria must be an object" }, { status: 400 });
       }
       updates.criteria = body.criteria as Prisma.InputJsonValue;
+    }
+
+    if (body.alert_frequency !== undefined) {
+      if (body.alert_frequency !== null && !["daily", "weekly"].includes(body.alert_frequency as string)) {
+        return NextResponse.json({ error: "alert_frequency must be 'daily', 'weekly', or null" }, { status: 400 });
+      }
+      updates.alert_frequency = (body.alert_frequency as string) ?? null;
+    }
+
+    if (body.alert_enabled !== undefined) {
+      updates.alert_enabled = Boolean(body.alert_enabled);
+    }
+
+    if (body.lead_id !== undefined) {
+      updates.lead_id = body.lead_id ? BigInt(body.lead_id as string) : null;
     }
 
     const updated = await prisma.savedSearch.update({

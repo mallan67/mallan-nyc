@@ -1510,6 +1510,14 @@ header {
     box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
 }
 
+/* Map highlight on listing card when pin is clicked */
+.results-map-highlight {
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+    transition: outline 0.2s, box-shadow 0.2s;
+}
+
 /* Map popup card */
 .map-popup-card { width: 280px; font-family: Inter, system-ui, sans-serif; }
 .map-popup-photo {
@@ -11297,13 +11305,13 @@ function toggleSection(header) {
 <!-- ═══ Modals ═══ -->
 <!-- ═══ html/modals/grid-layouts.html ═══ -->
 <!-- GRID LAYOUTS MODAL (extracted from section-main) -->
-<div id="gridLayoutsModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center" onclick="if(event.target===this)closeGridLayoutsModal()">
+<div id="gridLayoutsModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center" onclick="if(event.target===this)closeGridLayoutsModal()" role="dialog" aria-modal="true" aria-labelledby="gridLayoutsModalTitle">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col sm:flex-row">
         <!-- Left Panel - Field Selection -->
         <div class="flex-1 border-r sm:border-r border-b sm:border-b-0 flex flex-col">
             <div class="p-4 border-b bg-gray-50 flex items-center justify-between flex-shrink-0">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-900">Grid Layouts</h3>
+                    <h3 id="gridLayoutsModalTitle" class="text-lg font-bold text-gray-900">Grid Layouts</h3>
                     <p class="text-xs text-gray-500 mt-0.5">Choose which columns appear in search results. <span id="selectedFieldCount" class="font-semibold text-blue-600">0</span> selected</p>
                 </div>
                 <label class="flex items-center gap-2 cursor-pointer">
@@ -11342,12 +11350,12 @@ function toggleSection(header) {
 
 <!-- ═══ html/modals/reports.html ═══ -->
 <!-- REPORTS MODAL (extracted from section-main) -->
-<div id="reportsModal" class="fixed inset-0 bg-black/50 z-[70] hidden flex items-center justify-center">
+<div id="reportsModal" class="fixed inset-0 bg-black/50 z-[70] hidden flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="reportsModalTitle">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
         <!-- Modal Header -->
         <div class="p-4 border-b bg-gray-800 flex items-center justify-between flex-shrink-0">
             <div>
-                <h3 class="text-lg font-bold text-white">Reports</h3>
+                <h3 id="reportsModalTitle" class="text-lg font-bold text-white">Reports</h3>
                 <p class="text-xs text-gray-400">(Maximum 250 Records Can Be Selected for a Report)</p>
             </div>
             <div class="flex items-center gap-4">
@@ -11967,11 +11975,11 @@ function toggleSection(header) {
 
 <!-- ═══ html/modals/save-search.html ═══ -->
 <!-- SAVE SEARCH MODAL (extracted from section-main) -->
-<div id="saveSearchModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+<div id="saveSearchModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="saveSearchModalTitle">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div class="p-4 border-b">
             <div class="flex items-center justify-between">
-                <h3 class="font-bold text-gray-900">Save Search</h3>
+                <h3 id="saveSearchModalTitle" class="font-bold text-gray-900">Save Search</h3>
                 <button onclick="closeSaveSearchModal()" class="text-gray-400 hover:text-gray-600" aria-label="Close">
                     <i class="fas fa-times"></i>
                 </button>
@@ -11983,11 +11991,27 @@ function toggleSection(header) {
                 <input type="text" id="savedSearchName" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g., UWS 2BR Under $1.5M">
             </div>
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Client</label>
+                <select id="savedSearchClientId" class="w-full border rounded-lg px-3 py-2 text-sm">
+                    <option value="">-- No client (agent only) --</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Matching listings will appear in the client's portal</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email Alerts</label>
+                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm">
+                    <option value="">Off</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Requires client with TCPA consent on file</p>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea id="savedSearchNotes" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Add notes..."></textarea>
             </div>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p class="text-xs text-blue-700"><i class="fas fa-info-circle mr-1"></i> This search will save: current filters, view mode, selected columns, and sort order.</p>
+            <div id="savedSearchCriteriaSummary" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p class="text-xs text-blue-700"><i class="fas fa-info-circle mr-1"></i> Current search criteria will be saved.</p>
             </div>
         </div>
         <div class="p-4 border-t bg-gray-50 flex justify-end gap-3">
@@ -11999,12 +12023,12 @@ function toggleSection(header) {
 
 <!-- ═══ html/modals/report-preview.html ═══ -->
 <!-- REPORT PREVIEW MODAL (extracted from section-main) -->
-<div id="reportPreviewModal" class="fixed inset-0 bg-black/50 z-[75] hidden flex items-center justify-center">
+<div id="reportPreviewModal" class="fixed inset-0 bg-black/50 z-[75] hidden flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="reportPreviewModalTitle">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
         <!-- Preview Header -->
         <div class="p-4 border-b bg-gradient-to-r from-gray-800 to-gray-900 flex items-center justify-between flex-shrink-0">
             <div class="flex items-center gap-4">
-                <h3 class="text-lg font-bold text-white">Report Preview</h3>
+                <h3 id="reportPreviewModalTitle" class="text-lg font-bold text-white">Report Preview</h3>
                 <div class="flex gap-2">
                     <button onclick="switchPreviewFormat('grid')" id="previewFormatGrid" class="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white">Grid</button>
                     <button onclick="switchPreviewFormat('list')" id="previewFormatList" class="px-3 py-1.5 text-xs font-medium rounded bg-gray-600 text-gray-300 hover:bg-gray-500">List</button>
@@ -12719,12 +12743,12 @@ function toggleSection(header) {
 </div>
 <!-- ═══ html/modals/filter.html ═══ -->
 <!-- FILTER MODAL (extracted from section-main) -->
-<div id="filterModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+<div id="filterModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="filterModalTitle">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
         <!-- Modal Header -->
         <div class="p-4 border-b bg-gray-800 flex items-center justify-between">
             <div>
-                <h3 class="text-lg font-bold text-white">Filter Results</h3>
+                <h3 id="filterModalTitle" class="text-lg font-bold text-white">Filter Results</h3>
                 <p class="text-xs text-gray-400">Apply status and action filters to narrow your results</p>
             </div>
             <div class="flex items-center gap-3">
@@ -12931,11 +12955,11 @@ function toggleSection(header) {
 </div>
 <!-- ═══ html/modals/listing-type-info.html ═══ -->
 <!-- LISTING TYPE INFO MODAL (standalone) -->
-<div id="searchListingTypeInfoModal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+<div id="searchListingTypeInfoModal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="listingTypeInfoTitle">
     <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto">
         <div class="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between rounded-t-xl">
-            <h3 class="font-bold text-gray-900"><i class="fas fa-tag mr-2 text-blue-500"></i>Listing Type Guide</h3>
-            <button type="button" onclick="document.getElementById('searchListingTypeInfoModal').style.display='none'" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+            <h3 id="listingTypeInfoTitle" class="font-bold text-gray-900"><i class="fas fa-tag mr-2 text-blue-500"></i>Listing Type Guide</h3>
+            <button type="button" onclick="document.getElementById('searchListingTypeInfoModal').style.display='none'" class="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label="Close dialog">&times;</button>
         </div>
         <div class="p-5 space-y-4 text-sm">
             <div class="border-l-4 border-blue-500 pl-3">
@@ -13048,7 +13072,7 @@ function toggleSection(header) {
   }
   .nb-cancel-btn:hover { background: rgba(17,24,39,0.04); }
 </style>
-<div id="neighborhoodMapModal" class="fixed inset-0 bg-black/50 hidden" style="display:none; z-index:100000;">
+<div id="neighborhoodMapModal" class="fixed inset-0 bg-black/50 hidden" style="display:none; z-index:100000;" role="dialog" aria-modal="true" aria-label="Neighborhood Map">
     <div class="absolute inset-0 flex" style="padding: 0;">
         <!-- Sidebar -->
         <aside id="nbMapSidebarWrap" class="nb-modal-panel flex flex-col flex-shrink-0" style="width: 320px; border-right: 1px solid rgba(17,24,39,0.10); z-index: 5;">
@@ -13609,13 +13633,49 @@ var MallanAPI = (function () {
     },
   };
 
+  // ─── CMA (Comparative Market Analysis) ──────────────────────────────────
+
+  var cma = {
+    list: function (params) {
+      params = params || {};
+      var qs = [];
+      if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      if (params.limit) qs.push('limit=' + params.limit);
+      if (params.offset) qs.push('offset=' + params.offset);
+      var query = qs.length ? '?' + qs.join('&') : '';
+      return _fetch('/api/crm/cma' + query);
+    },
+
+    get: function (id) {
+      return _fetch('/api/crm/cma/' + encodeURIComponent(id));
+    },
+
+    create: function (data) {
+      return _fetch('/api/crm/cma', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  };
+
+  // ─── Listing Sends (send to client portal) ────────────────────────────
+
+  var listingSends = {
+    send: function (data) {
+      return _fetch('/api/crm/listing-sends', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  };
+
   // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
 
   var idx = {
     /**
      * Search listings via Trestle/REBNY RLS.
      * Returns listings in CRM flat shape (same as listings).
-     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip }
+     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
      */
     search: function (params) {
       params = params || {};
@@ -13623,14 +13683,35 @@ var MallanAPI = (function () {
       if (params.type) qs.push('type=' + encodeURIComponent(params.type));
       if (params.minPrice) qs.push('minPrice=' + params.minPrice);
       if (params.maxPrice) qs.push('maxPrice=' + params.maxPrice);
-      if (params.minBeds) qs.push('minBeds=' + params.minBeds);
+      if (params.minBeds != null) qs.push('minBeds=' + params.minBeds);
+      if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
       if (params.minBaths) qs.push('minBaths=' + params.minBaths);
+      if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
       if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
       if (params.address) qs.push('address=' + encodeURIComponent(params.address));
       if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
+      if (params.zip) qs.push('zip=' + encodeURIComponent(params.zip));
+      if (params.minRooms) qs.push('minRooms=' + params.minRooms);
+      if (params.maxRooms) qs.push('maxRooms=' + params.maxRooms);
+      if (params.minSqft) qs.push('minSqft=' + params.minSqft);
+      if (params.maxSqft) qs.push('maxSqft=' + params.maxSqft);
+      if (params.dateFrom) qs.push('dateFrom=' + encodeURIComponent(params.dateFrom));
+      if (params.dateTo) qs.push('dateTo=' + encodeURIComponent(params.dateTo));
+      if (params.dateType) qs.push('dateType=' + encodeURIComponent(params.dateType));
+      if (params.closeDateFrom) qs.push('closeDateFrom=' + encodeURIComponent(params.closeDateFrom));
+      if (params.closeDateTo) qs.push('closeDateTo=' + encodeURIComponent(params.closeDateTo));
+      if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
+      // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
+      if (params.minYear) qs.push('minYear=' + params.minYear);
+      if (params.maxYear) qs.push('maxYear=' + params.maxYear);
+      if (params.minFloors) qs.push('minFloors=' + params.minFloors);
+      if (params.maxFloors) qs.push('maxFloors=' + params.maxFloors);
+      if (params.minUnits) qs.push('minUnits=' + params.minUnits);
+      if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
+      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);
@@ -13643,6 +13724,52 @@ var MallanAPI = (function () {
      */
     status: function () {
       return _fetch('/api/idx/status');
+    },
+
+    /**
+     * Ensure an IDX listing exists in the local DB.
+     * If not found, creates a minimal record from the provided listing data.
+     * Call this before showings.create() or listingSends.send() for IDX listings.
+     * @param {object} listing - CRM flat listing object from search results
+     * @returns {Promise<{ok: boolean, listing_id: string, db_id: string, created: boolean}>}
+     */
+    ensureListing: function (listing) {
+      return _fetch('/api/idx/ensure-listing', {
+        method: 'POST',
+        body: JSON.stringify({
+          listing_id: listing.lid || listing.id,
+          address: listing.address,
+          unit: listing.unit,
+          price: listing.price,
+          beds: listing.beds,
+          baths: listing.baths,
+          full_baths: listing.fullBaths,
+          half_baths: listing.halfBaths,
+          int_sqft: listing.intSqft,
+          rooms: listing.rooms,
+          year_built: listing.yearBuilt,
+          neighborhood: listing.neighborhood,
+          borough: listing.borough,
+          zip: listing.zip,
+          property_type: listing.propertyType,
+          property_sub_type: listing.propertySubType,
+          ownership: listing.ownership,
+          status: listing.status,
+          listing_category: listing.listingCategory,
+          listing_type: listing.listingCategory === 'rental' ? 'rent' : 'sale',
+          description: listing.description,
+          agent_name: listing.agentName,
+          agent_email: listing.agentEmail,
+          agent_phone: listing.agentPhone,
+          company: listing.company,
+          latitude: listing.latitude,
+          longitude: listing.longitude,
+          cross_street: listing.crossStreet,
+          images: listing.images,
+          internet_display_yn: listing.internetDisplayYN,
+          address_display_yn: listing.addressDisplayYN,
+        }),
+      });
     },
   };
 
@@ -13735,6 +13862,8 @@ var MallanAPI = (function () {
     savedSearches: savedSearches,
     email: email,
     idx: idx,
+    cma: cma,
+    listingSends: listingSends,
 
   };
 })();
@@ -16228,20 +16357,48 @@ function manageShowToast(msg) {
             if (criteria.address) params.address = criteria.address;
             if (criteria.priceMin) params.minPrice = criteria.priceMin;
             if (criteria.priceMax) params.maxPrice = criteria.priceMax;
-            if (criteria.bedsMin) params.minBeds = criteria.bedsMin;
+            if (criteria.bedsMin != null) params.minBeds = criteria.bedsMin;
+            if (criteria.bedsMax != null) params.maxBeds = criteria.bedsMax;
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
-            if (criteria.neighborhoods && criteria.neighborhoods.length === 1) {
-                params.neighborhood = criteria.neighborhoods[0];
+            if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
+            if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
+                params.neighborhood = criteria.neighborhoods.join(',');
             }
             if (criteria.borough) params.borough = criteria.borough;
             if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
+            if (criteria.rlsId) params.listingId = criteria.rlsId;
+            if (criteria.zip) params.zip = criteria.zip;
+            // Rooms, sqft, year — all OData searchable per REBNY RLS field spec
+            if (criteria.roomsMin) params.minRooms = criteria.roomsMin;
+            if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
+            if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
+            if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
+            // Date range filters
+            if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
+            if (criteria.dateTo) params.dateTo = criteria.dateTo;
+            if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
+            if (criteria.soldDateFrom || criteria.contractDateFrom) params.closeDateFrom = criteria.soldDateFrom || criteria.contractDateFrom;
+            if (criteria.soldDateTo || criteria.contractDateTo) params.closeDateTo = criteria.soldDateTo || criteria.contractDateTo;
+            // Ownership (CommonInterest — OData searchable)
+            if (criteria.ownership && criteria.ownership.length > 0) {
+                params.ownership = criteria.ownership.join(',');
+            }
+            // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
+            if (criteria.yearMin) params.minYear = criteria.yearMin;
+            if (criteria.yearMax) params.maxYear = criteria.yearMax;
+            if (criteria.floorsMin) params.minFloors = criteria.floorsMin;
+            if (criteria.floorsMax) params.maxFloors = criteria.floorsMax;
+            if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
+            if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
+            if (criteria.buildingName) params.buildingName = criteria.buildingName;
             // Pass status filters to server (map CRM uppercase back to RESO PascalCase)
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Cancelled', 'EXPIRED': 'Expired' };
+                // Map CRM statuses to RESO StandardStatus values per REBNY RLS lookup table
+                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold' };
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            params.limit = 500;
+            params.limit = 200;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
@@ -16304,6 +16461,7 @@ function manageShowToast(msg) {
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
+                    if (typeof refreshResultsMap === 'function') refreshResultsMap();
                 } catch(renderErr) {
                     console.error('[Search] Render after server search failed:', renderErr);
                 }
@@ -16564,11 +16722,11 @@ function manageShowToast(msg) {
                 bedsMin = document.getElementById('saleMinBeds');
                 bedsMax = document.getElementById('saleMaxBeds');
             }
-            if (bedsMin && bedsMin.value && bedsMin.value !== '' && bedsMin.value !== 'custom') {
+            if (bedsMin && bedsMin.value !== '' && bedsMin.value !== 'custom') {
                 criteria.bedsMin = parseInt(bedsMin.value);
                 if (isNaN(criteria.bedsMin)) delete criteria.bedsMin;
             }
-            if (bedsMax && bedsMax.value && bedsMax.value !== '' && bedsMax.value !== 'custom') {
+            if (bedsMax && bedsMax.value !== '' && bedsMax.value !== 'custom') {
                 criteria.bedsMax = parseInt(bedsMax.value);
                 if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
             }
@@ -16582,11 +16740,11 @@ function manageShowToast(msg) {
                 bathsMin = document.getElementById('saleMinBaths');
                 bathsMax = document.getElementById('saleMaxBaths');
             }
-            if (bathsMin && bathsMin.value && bathsMin.value !== '' && bathsMin.value !== 'custom') {
+            if (bathsMin && bathsMin.value !== '' && bathsMin.value !== 'custom') {
                 criteria.bathsMin = parseFloat(bathsMin.value);
                 if (isNaN(criteria.bathsMin)) delete criteria.bathsMin;
             }
-            if (bathsMax && bathsMax.value && bathsMax.value !== '' && bathsMax.value !== 'custom') {
+            if (bathsMax && bathsMax.value !== '' && bathsMax.value !== 'custom') {
                 criteria.bathsMax = parseFloat(bathsMax.value);
                 if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
             }
@@ -16758,6 +16916,62 @@ function manageShowToast(msg) {
                     criteria.soldDateFrom = sdFrom;
                     criteria.soldDateTo = sdTo || sdFrom;
                 }
+            }
+
+            // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
+            // Only collect from building tab OR from the visible advanced building section
+            var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
+            if (currentSearchTab === 'building') {
+                yearMinEl = document.getElementById('buildingMinYear');
+                yearMaxEl = document.getElementById('buildingMaxYear');
+                unitsMinEl = document.getElementById('buildingMinUnits');
+                unitsMaxEl = document.getElementById('buildingMaxUnits');
+                floorsMinEl = document.getElementById('buildingMinFloors');
+                floorsMaxEl = document.getElementById('buildingMaxFloors');
+            } else if (currentSearchTab === 'sale') {
+                yearMinEl = document.getElementById('saleBuildingMinYear');
+                yearMaxEl = document.getElementById('saleBuildingMaxYear');
+                unitsMinEl = document.getElementById('saleBuildingMinUnits');
+                unitsMaxEl = document.getElementById('saleBuildingMaxUnits');
+                floorsMinEl = document.getElementById('saleBuildingMinFloors');
+                floorsMaxEl = document.getElementById('saleBuildingMaxFloors');
+            } else {
+                yearMinEl = document.getElementById('rentalBuildingMinYear');
+                yearMaxEl = document.getElementById('rentalBuildingMaxYear');
+                unitsMinEl = document.getElementById('rentalBuildingMinUnits');
+                unitsMaxEl = document.getElementById('rentalBuildingMaxUnits');
+                floorsMinEl = document.getElementById('rentalBuildingMinFloors');
+                floorsMaxEl = document.getElementById('rentalBuildingMaxFloors');
+            }
+            if (yearMinEl && yearMinEl.value && yearMinEl.value !== '') {
+                var ym = parseInt(yearMinEl.value);
+                if (!isNaN(ym)) criteria.yearMin = ym;
+            }
+            if (yearMaxEl && yearMaxEl.value && yearMaxEl.value !== '') {
+                var ymx = parseInt(yearMaxEl.value);
+                if (!isNaN(ymx)) criteria.yearMax = ymx;
+            }
+            if (unitsMinEl && unitsMinEl.value && unitsMinEl.value !== '') {
+                var um = parseInt(unitsMinEl.value);
+                if (!isNaN(um)) criteria.unitsMin = um;
+            }
+            if (unitsMaxEl && unitsMaxEl.value && unitsMaxEl.value !== '') {
+                var umx = parseInt(unitsMaxEl.value);
+                if (!isNaN(umx)) criteria.unitsMax = umx;
+            }
+            if (floorsMinEl && floorsMinEl.value && floorsMinEl.value !== '') {
+                var fm = parseInt(floorsMinEl.value);
+                if (!isNaN(fm)) criteria.floorsMin = fm;
+            }
+            if (floorsMaxEl && floorsMaxEl.value && floorsMaxEl.value !== '') {
+                var fmx = parseInt(floorsMaxEl.value);
+                if (!isNaN(fmx)) criteria.floorsMax = fmx;
+            }
+
+            // Building name search
+            var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
+            if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
+                criteria.buildingName = buildingNameEl.value.trim();
             }
 
             return criteria;
@@ -19193,12 +19407,98 @@ function manageShowToast(msg) {
 
 </script>
 <script>
+// ═══ js/core/client-normalizer.js ═══
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLIENT NORMALIZER — Single canonical client model transform
+// Used by: dashboard (panels.js, workspace.js) AND search (client-database.js)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var ClientNormalizer = (function () {
+  'use strict';
+
+  /**
+   * Normalize a client object from the API into a consistent shape.
+   * Mutates the original object (adds derived fields) and returns it.
+   *
+   * Guaranteed fields after normalization:
+   *   .name           — "John Smith" (from first_name + last_name, or email)
+   *   .type           — "buyer" | "seller" | "renter" | "landlord"
+   *   .client_type    — alias of .type
+   *   ._displayName   — "John & Jane Smith" for couples, or .name
+   */
+  function normalize(cl) {
+    if (!cl) return cl;
+
+    // Name from first_name + last_name
+    if (!cl.name && (cl.first_name || cl.last_name)) {
+      cl.name = ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim();
+    }
+
+    // Type from portal_role or roles array
+    if (!cl.type && !cl.client_type) {
+      cl.type = cl.portal_role || (cl.roles && cl.roles[0]) || 'buyer';
+      cl.client_type = cl.type;
+    }
+    if (!cl.client_type) cl.client_type = cl.type;
+    if (!cl.type) cl.type = cl.client_type;
+
+    // Display name — handles couples / secondary person
+    cl._displayName = displayName(cl);
+
+    return cl;
+  }
+
+  /**
+   * Normalize an array of clients.
+   */
+  function normalizeAll(clients) {
+    if (!Array.isArray(clients)) return [];
+    for (var i = 0; i < clients.length; i++) {
+      normalize(clients[i]);
+    }
+    return clients;
+  }
+
+  /**
+   * Compute display name for a client.
+   * Couples: "John & Jane Smith" (same last name) or "John Smith & Jane Doe"
+   * Single: name or email or "Unknown"
+   */
+  function displayName(cl) {
+    var primary = cl.name || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.email || 'Unknown';
+
+    if (!cl.secondary_first_name && !cl.secondary_last_name) {
+      return primary;
+    }
+
+    var secondary = ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim();
+
+    // Same last name → "John & Jane Smith"
+    if (cl.last_name && cl.secondary_last_name === cl.last_name) {
+      return (cl.first_name || '') + ' & ' + (cl.secondary_first_name || '') + ' ' + cl.last_name;
+    }
+
+    // Different last names → "John Smith & Jane Doe"
+    return primary + ' & ' + secondary;
+  }
+
+  return {
+    normalize: normalize,
+    normalizeAll: normalizeAll,
+    displayName: displayName,
+  };
+})();
+
+</script>
+<script>
 // ═══ js/crm/client-database.js ═══
 // ============================================
 // CUSTOMER MODE
 // ============================================
 // Client data is loaded from the API at runtime.
 // No hardcoded demo/mock clients — real data only.
+// Uses escapeHtml() from nav.js for XSS prevention.
+// Uses ClientNormalizer from core/client-normalizer.js.
 var customerDB = {};
 
 // Agent-scoped client filtering — broker sees all, agent sees only their own
@@ -19213,11 +19513,18 @@ function getMyClients() {
     return clients;
 }
 
+// Navigate to client workspace in CRM dashboard
+function openClientWorkspace(clientId) {
+    if (!clientId) return;
+    window.location.href = '/crm/dashboard.html#/workspace/client/' + encodeURIComponent(clientId) + '/overview';
+}
+
 // Dynamically render client card grid (replaces hardcoded HTML cards)
 function renderClientGrid() {
     var tbody = document.getElementById('clientTableBody');
     if (!tbody) return;
     var clients = getMyClients();
+    var E = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     var stageLabels = { new_lead:'New Lead', qualified:'Qualified', requirements_confirmed:'Req. Confirmed', searching:'Searching', touring:'Touring', shortlist:'Shortlist', offer_prep:'Offer Prep', offer_submitted:'Offer', negotiation:'Negotiating', contract_signed:'Contract', closing_scheduled:'Closing', closed:'Closed' };
     var stageSteps = ['new_lead','qualified','requirements_confirmed','searching','touring','shortlist','offer_prep','offer_submitted','negotiation','contract_signed','closing_scheduled','closed'];
     var typeColors = { Buyer:'blue', Renter:'green', Seller:'amber', Landlord:'purple', Investor:'indigo' };
@@ -19231,6 +19538,8 @@ function renderClientGrid() {
     var activeCount = 0, closedCount = 0;
     for (var id in clients) {
         var c = clients[id];
+        // Normalize via shared utility
+        if (typeof ClientNormalizer !== 'undefined') ClientNormalizer.normalize(c);
         var cs = c.clientStatus || 'active';
         if (cs === 'active') activeCount++;
         else closedCount++;
@@ -19240,8 +19549,8 @@ function renderClientGrid() {
         // Dropdown filters
         if (typeFilter !== 'all' && (c.clientType || c.type || '').toLowerCase() !== typeFilter) continue;
         if (stageFilter !== 'all' && c.dealStage !== stageFilter) continue;
-        if (searchText && c.name.toLowerCase().indexOf(searchText) === -1
-            && c.email.toLowerCase().indexOf(searchText) === -1
+        if (searchText && (c.name || '').toLowerCase().indexOf(searchText) === -1
+            && (c.email || '').toLowerCase().indexOf(searchText) === -1
             && ((c.preferences && c.preferences.neighborhoods) || []).join(',').toLowerCase().indexOf(searchText) === -1) continue;
         rows.push({ id: id, client: c });
     }
@@ -19255,7 +19564,7 @@ function renderClientGrid() {
         var stageIdx = stageSteps.indexOf(dealStage);
         var stageColor = stageIdx >= 9 ? 'green' : stageIdx >= 6 ? 'purple' : stageIdx >= 3 ? 'blue' : 'gray';
         var tc = typeColors[c.type] || 'gray';
-        var neighborhoods = (p.neighborhoods || []).join(', ') || '\u2014';
+        var neighborhoods = E((p.neighborhoods || []).join(', ') || '\u2014');
         var beds = p.minBeds ? (p.maxBeds && p.maxBeds !== p.minBeds ? p.minBeds + '-' + p.maxBeds : p.minBeds + '+') : '\u2014';
         var baths = p.minBaths ? (p.maxBaths && p.maxBaths !== p.minBaths ? p.minBaths + '-' + p.maxBaths : p.minBaths + '+') : '\u2014';
         var lastAct = c.lastActivity ? Math.round((new Date() - new Date(c.lastActivity)) / 86400000) : null;
@@ -19264,39 +19573,39 @@ function renderClientGrid() {
         var savedSearchCount = (c.savedSearches || []).length;
         var portfolioCount = (c.portfolio && c.portfolio.listings) ? c.portfolio.listings.length : 0;
 
-        html += '<tr onclick="openClientWorkspace(\'' + row.id + '\')" class="border-b hover:bg-blue-50/50 cursor-pointer transition-colors">';
+        html += '<tr onclick="openClientWorkspace(\'' + E(row.id) + '\')" class="border-b hover:bg-blue-50/50 cursor-pointer transition-colors">';
 
         // Name + avatar
         html += '<td class="px-4 py-3"><div class="flex items-center gap-2.5">';
-        html += '<div class="w-8 h-8 bg-' + c.color + '-100 text-' + c.color + '-700 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0">' + c.initials + '</div>';
-        html += '<div class="min-w-0"><p class="font-semibold text-gray-900 text-sm truncate">' + c.name + '</p>';
-        html += '<p class="text-[11px] text-gray-400 truncate">' + c.email + '</p></div>';
+        html += '<div class="w-8 h-8 bg-' + E(c.color) + '-100 text-' + E(c.color) + '-700 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0">' + E(c.initials) + '</div>';
+        html += '<div class="min-w-0"><p class="font-semibold text-gray-900 text-sm truncate">' + E(c.name) + '</p>';
+        html += '<p class="text-[11px] text-gray-400 truncate">' + E(c.email) + '</p></div>';
         html += '</div></td>';
 
         // Role
-        html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-' + tc + '-100 text-' + tc + '-700 rounded-full font-semibold">' + c.type + '</span></td>';
+        html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-' + E(tc) + '-100 text-' + E(tc) + '-700 rounded-full font-semibold">' + E(c.type) + '</span></td>';
 
         // Stage
         if (cs === 'closed') {
             var closedLabels = { purchased:'Purchased', rented:'Rented', sold:'Sold', leased:'Leased' };
-            html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-gray-800 text-white rounded-full font-semibold">' + (closedLabels[c.closedType] || 'Closed') + '</span></td>';
+            html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-gray-800 text-white rounded-full font-semibold">' + E(closedLabels[c.closedType] || 'Closed') + '</span></td>';
         } else {
-            html += '<td class="px-4 py-3"><span class="text-xs font-medium text-' + stageColor + '-700">' + (stageLabels[dealStage] || dealStage) + '</span></td>';
+            html += '<td class="px-4 py-3"><span class="text-xs font-medium text-' + E(stageColor) + '-700">' + E(stageLabels[dealStage] || dealStage) + '</span></td>';
         }
 
         // Budget
-        html += '<td class="px-4 py-3 text-right text-sm font-semibold text-gray-900 whitespace-nowrap">' + (c.budget || '\u2014') + '</td>';
+        html += '<td class="px-4 py-3 text-right text-sm font-semibold text-gray-900 whitespace-nowrap">' + E(c.budget || '\u2014') + '</td>';
 
         // BD / BA
-        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + beds + '</td>';
-        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + baths + '</td>';
+        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + E(beds) + '</td>';
+        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + E(baths) + '</td>';
 
         // Neighborhood
         html += '<td class="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate" title="' + neighborhoods + '">' + neighborhoods + '</td>';
 
         // Activity
         html += '<td class="px-4 py-3">';
-        html += '<span class="text-[11px] text-' + actColor + '-600">' + (lastAct === null ? '\u2014' : lastAct === 0 ? 'Today' : lastAct + 'd') + '</span>';
+        html += '<span class="text-[11px] text-' + E(actColor) + '-600">' + (lastAct === null ? '\u2014' : lastAct === 0 ? 'Today' : lastAct + 'd') + '</span>';
         if (pendingAlerts > 0) html += ' <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">' + pendingAlerts + '</span>';
         html += '</td>';
 
@@ -19323,6 +19632,7 @@ function populateClientSelect() {
     var sel = document.getElementById('clientSelect');
     if (!sel) return;
     var clients = getMyClients();
+    var E = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     var html = '<option value="">-- Choose a client --</option>';
 
     if (LOGGED_IN_AGENT.role === 'broker') {
@@ -19335,9 +19645,9 @@ function populateClientSelect() {
             byAgent[aname].push({ id: id, client: c });
         }
         for (var agent in byAgent) {
-            html += '<optgroup label="' + agent + '\'s Clients">';
+            html += '<optgroup label="' + E(agent) + '\'s Clients">';
             byAgent[agent].forEach(function(item) {
-                html += '<option value="' + item.id + '">' + item.client.name + ' - ' + item.client.type + ' (' + item.client.budget + ')</option>';
+                html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' - ' + E(item.client.type) + ' (' + E(item.client.budget) + ')</option>';
             });
             html += '</optgroup>';
         }
@@ -19351,12 +19661,12 @@ function populateClientSelect() {
         }
         if (buyers.length) {
             html += '<optgroup label="Buyers">';
-            buyers.forEach(function(item) { html += '<option value="' + item.id + '">' + item.client.name + ' (' + item.client.budget + ')</option>'; });
+            buyers.forEach(function(item) { html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' (' + E(item.client.budget) + ')</option>'; });
             html += '</optgroup>';
         }
         if (renters.length) {
             html += '<optgroup label="Renters">';
-            renters.forEach(function(item) { html += '<option value="' + item.id + '">' + item.client.name + ' (' + item.client.budget + ')</option>'; });
+            renters.forEach(function(item) { html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' (' + E(item.client.budget) + ')</option>'; });
             html += '</optgroup>';
         }
     }
@@ -19440,7 +19750,6 @@ function parseBudgetValue(td) {
     else if (text.toUpperCase().indexOf('K') !== -1) num *= 1000;
     return num;
 }
-
 
 </script>
 <script>
@@ -21639,7 +21948,7 @@ function parseBudgetValue(td) {
 <script>
 // ═══ js/search/saved-searches.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
-        // SAVED SEARCH FUNCTIONS
+        // SAVED SEARCH FUNCTIONS — API-backed (MallanAPI.savedSearches)
         // ═══════════════════════════════════════════════════════════════════════════════
 
         function toggleSavedSearchDropdown() {
@@ -21650,80 +21959,434 @@ function parseBudgetValue(td) {
             var container = document.getElementById('savedSearchList');
             if (!container) return;
 
-            if (searchResultsState.savedSearches.length === 0) {
-                container.innerHTML = '<p class="p-3 text-sm text-gray-500 text-center">No saved searches yet</p>';
+            container.innerHTML = '<p class="p-3 text-sm text-gray-400 text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+
+            if (typeof MallanAPI === 'undefined') {
+                container.innerHTML = '<p class="p-3 text-sm text-gray-500 text-center">API not available</p>';
                 return;
             }
 
-            container.innerHTML = searchResultsState.savedSearches.map(search => `
-                <div class="flex items-center justify-between px-3 py-2 hover:bg-gray-100">
-                    <button onclick="loadSavedSearch('${search.id}')" class="text-left flex-1">
-                        <div class="font-medium text-sm">${search.name}</div>
-                        <div class="text-xs text-gray-500">${search.date}</div>
-                    </button>
-                    <button onclick="deleteSavedSearch('${search.id}')" class="p-1 text-red-500 hover:bg-red-100 rounded" aria-label="Delete">
-                        <i class="fas fa-trash text-xs"></i>
-                    </button>
-                </div>
-            `).join('');
+            MallanAPI.savedSearches.list().then(function(result) {
+                var searches = result.savedSearches || [];
+                searchResultsState.savedSearches = searches;
+
+                if (searches.length === 0) {
+                    container.innerHTML = '<p class="p-3 text-sm text-gray-500 text-center">No saved searches yet</p>';
+                    return;
+                }
+
+                container.innerHTML = searches.map(function(search) {
+                    var alertBadge = search.alert_enabled && search.alert_frequency
+                        ? '<span class="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] font-semibold rounded-full">' + search.alert_frequency + '</span>'
+                        : '';
+                    var clientBadge = search.lead_id
+                        ? '<span class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-semibold rounded-full"><i class="fas fa-user text-[7px]"></i></span>'
+                        : '';
+                    var dateStr = search.updated_at ? new Date(search.updated_at).toLocaleDateString() : '';
+                    return '<div class="flex items-center justify-between px-3 py-2 hover:bg-gray-100">'
+                        + '<button onclick="loadSavedSearch(\'' + search.id + '\')" class="text-left flex-1">'
+                        + '<div class="font-medium text-sm">' + escapeHtml(search.name) + alertBadge + clientBadge + '</div>'
+                        + '<div class="text-xs text-gray-500">' + dateStr + '</div>'
+                        + '</button>'
+                        + '<button onclick="deleteSavedSearch(\'' + search.id + '\')" class="p-1 text-red-500 hover:bg-red-100 rounded" aria-label="Delete">'
+                        + '<i class="fas fa-trash text-xs"></i>'
+                        + '</button>'
+                        + '</div>';
+                }).join('');
+            }).catch(function(err) {
+                console.error('[SavedSearches] Failed to load:', err);
+                container.innerHTML = '<p class="p-3 text-sm text-red-500 text-center">Failed to load saved searches</p>';
+            });
         }
 
         function openSaveSearchModal() {
             document.getElementById('savedSearchDropdown').classList.add('hidden');
             document.getElementById('saveSearchModal').classList.remove('hidden');
+
+            // Populate client dropdown
+            _populateSaveSearchClientDropdown();
+
+            // Show criteria summary
+            _showCriteriaSummary();
+        }
+
+        function _populateSaveSearchClientDropdown() {
+            var select = document.getElementById('savedSearchClientId');
+            if (!select || typeof MallanAPI === 'undefined') return;
+
+            // Keep the default option
+            select.innerHTML = '<option value="">-- No client (agent only) --</option>';
+
+            MallanAPI.clients.list({ limit: 200 }).then(function(result) {
+                var clients = result.clients || result.leads || [];
+                clients.forEach(function(c) {
+                    var name = (c.first_name || '') + ' ' + (c.last_name || '');
+                    if (c.secondary_first_name) {
+                        name += ' & ' + c.secondary_first_name;
+                        if (c.secondary_last_name && c.secondary_last_name !== c.last_name) {
+                            name += ' ' + c.secondary_last_name;
+                        }
+                    }
+                    var opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = name.trim() + (c.email ? ' (' + c.email + ')' : '');
+                    select.appendChild(opt);
+                });
+            }).catch(function() {
+                // Non-blocking — client list is optional
+            });
+        }
+
+        function _showCriteriaSummary() {
+            var summary = document.getElementById('savedSearchCriteriaSummary');
+            if (!summary || !activeSearchCriteria) return;
+
+            var c = activeSearchCriteria;
+            var parts = [];
+            if (c.searchTab) parts.push(c.searchTab === 'rent' ? 'Rental' : c.searchTab === 'building' ? 'Building' : 'Sale');
+            if (c.priceMin || c.priceMax) {
+                var price = '$' + (c.priceMin ? c.priceMin.toLocaleString() : '0') + ' - $' + (c.priceMax ? c.priceMax.toLocaleString() : 'Any');
+                parts.push(price);
+            }
+            if (c.bedsMin != null) parts.push(c.bedsMin + '+ beds');
+            if (c.bathsMin) parts.push(c.bathsMin + '+ baths');
+            if (c.neighborhoods && c.neighborhoods.length > 0) {
+                parts.push(c.neighborhoods.length === 1 ? c.neighborhoods[0] : c.neighborhoods.length + ' neighborhoods');
+            }
+            if (c.sqftMin) parts.push(c.sqftMin + '+ sqft');
+
+            summary.innerHTML = parts.length > 0
+                ? '<p class="text-xs text-blue-700"><i class="fas fa-search mr-1"></i> <strong>Criteria:</strong> ' + escapeHtml(parts.join(' | ')) + '</p>'
+                : '<p class="text-xs text-blue-700"><i class="fas fa-info-circle mr-1"></i> Current search criteria will be saved.</p>';
+        }
+
+        /** Map activeSearchCriteria → API criteria format */
+        function _criteriaToApiFormat(c) {
+            if (!c) return { listing_type: 'sale' };
+            // Building tab doesn't have its own type — default to 'sale' but the _search_tab
+            // preserves the original tab so loadSavedSearch restores it correctly
+            return {
+                listing_type: c.searchTab === 'rent' ? 'rental' : 'sale',
+                min_price: c.priceMin || undefined,
+                max_price: c.priceMax || undefined,
+                min_beds: c.bedsMin != null ? c.bedsMin : undefined,
+                max_beds: c.bedsMax != null ? c.bedsMax : undefined,
+                min_baths: c.bathsMin || undefined,
+                max_baths: c.bathsMax || undefined,
+                min_sqft: c.sqftMin || undefined,
+                max_sqft: c.sqftMax || undefined,
+                min_rooms: c.roomsMin || undefined,
+                max_rooms: c.roomsMax || undefined,
+                neighborhoods: c.neighborhoods && c.neighborhoods.length > 0 ? c.neighborhoods : undefined,
+                borough: c.borough || undefined,
+                zip: c.zip || undefined,
+                status: c.statuses && c.statuses.length > 0 ? c.statuses : undefined,
+                property_type: c.ownership && c.ownership.length > 0 ? c.ownership : undefined,
+                address: c.address || undefined,
+                listing_id: c.rlsId || undefined,
+                // Building-specific
+                min_year: c.yearMin || undefined,
+                max_year: c.yearMax || undefined,
+                min_floors: c.floorsMin || undefined,
+                max_floors: c.floorsMax || undefined,
+                min_units: c.unitsMin || undefined,
+                max_units: c.unitsMax || undefined,
+                building_name: c.buildingName || undefined,
+                // Date ranges
+                date_from: c.dateFrom || undefined,
+                date_to: c.dateTo || undefined,
+                date_type: c.dateActivityType || undefined,
+                close_date_from: c.soldDateFrom || c.contractDateFrom || undefined,
+                close_date_to: c.soldDateTo || c.contractDateTo || undefined,
+                // View state
+                _search_tab: c.searchTab || 'sale',
+            };
+        }
+
+        /** Restore API criteria → form fields and re-run search */
+        function _criteriaToFormFields(criteria) {
+            if (!criteria) return;
+
+            // Set search tab
+            var tab = criteria._search_tab || (criteria.listing_type === 'rental' ? 'rent' : 'sale');
+            if (typeof toggleSearchTab === 'function') {
+                toggleSearchTab(tab);
+            } else {
+                currentSearchTab = tab;
+            }
+
+            // Determine element ID prefix based on tab
+            var prefix = tab === 'rent' ? 'rental' : 'sale';
+
+            // Price
+            _setSelectValue(prefix === 'rental' ? 'rentalMinRent' : 'saleMinPrice', criteria.min_price);
+            _setSelectValue(prefix === 'rental' ? 'rentalMaxRent' : 'saleMaxPrice', criteria.max_price);
+
+            // Beds
+            _setSelectValue(prefix + 'MinBeds', criteria.min_beds);
+            _setSelectValue(prefix + 'MaxBeds', criteria.max_beds);
+
+            // Baths
+            _setSelectValue(prefix + 'MinBaths', criteria.min_baths);
+            _setSelectValue(prefix + 'MaxBaths', criteria.max_baths);
+
+            // Rooms
+            _setSelectValue(prefix + 'MinRooms', criteria.min_rooms);
+            _setSelectValue(prefix + 'MaxRooms', criteria.max_rooms);
+
+            // Sqft
+            _setSelectValue(prefix + 'MinSqft', criteria.min_sqft);
+            _setSelectValue(prefix + 'MaxSqft', criteria.max_sqft);
+
+            // Address
+            var addrId = tab === 'rent' ? 'rentalSearchAddress' : tab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
+            var addrEl = document.getElementById(addrId);
+            if (addrEl && criteria.address) addrEl.value = criteria.address;
+
+            // Zip
+            var zipId = tab === 'rent' ? 'rentalQuickZip' : tab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
+            var zipEl = document.getElementById(zipId);
+            if (zipEl && criteria.zip) zipEl.value = criteria.zip;
+
+            // RLS ID
+            var rlsId = tab === 'rent' ? 'rentalQuickRls' : tab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
+            var rlsEl = document.getElementById(rlsId);
+            if (rlsEl && criteria.listing_id) rlsEl.value = criteria.listing_id;
+
+            // Neighborhoods
+            if (criteria.neighborhoods && criteria.neighborhoods.length > 0 && typeof selectNeighborhood === 'function') {
+                var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function' ? _resolveActiveNeighborhoodTagsId() : 'saleNeighborhoodTags';
+                criteria.neighborhoods.forEach(function(n) {
+                    var borough = typeof _findBoroughForNeighborhood === 'function' ? _findBoroughForNeighborhood(n) : '';
+                    selectNeighborhood(n, borough, !borough, '', tagsId);
+                });
+            }
+
+            // Building-specific fields
+            if (tab === 'building' || criteria.min_year || criteria.max_year) {
+                _setSelectValue('buildingMinYear', criteria.min_year);
+                _setSelectValue('buildingMaxYear', criteria.max_year);
+                _setSelectValue('buildingMinUnits', criteria.min_units);
+                _setSelectValue('buildingMaxUnits', criteria.max_units);
+                _setSelectValue('buildingMinFloors', criteria.min_floors);
+                _setSelectValue('buildingMaxFloors', criteria.max_floors);
+            }
+
+            // Restore date range pickers
+            var drpPrefix = tab === 'rent' ? 'rental' : 'sale';
+            if (criteria.date_from || criteria.date_to) {
+                var drpName = drpPrefix + 'ListedUpdated';
+                _setDrpDates(drpName, criteria.date_from, criteria.date_to);
+                // Also set the activity type dropdown (Listed/Updated)
+                if (criteria.date_type) {
+                    var actEl = document.getElementById(drpPrefix === 'rental' ? 'rentalListingActivityType' : 'saleListingActivityType');
+                    if (actEl) actEl.value = criteria.date_type;
+                }
+            }
+            if (criteria.close_date_from || criteria.close_date_to) {
+                var soldDrpName = drpPrefix + (drpPrefix === 'rental' ? 'RentedDate' : 'SoldDate');
+                _setDrpDates(soldDrpName, criteria.close_date_from, criteria.close_date_to);
+            }
+
+            // Restore status checkboxes
+            if (criteria.status && Array.isArray(criteria.status) && criteria.status.length > 0) {
+                // Map saved statuses back to checkbox data-value attributes
+                var statusReverseMap = {
+                    'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
+                    'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled',
+                    'EXPIRED': 'Expired', 'HOLD': 'Hold'
+                };
+                // First uncheck all status checkboxes in the active form
+                var activeForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
+                if (activeForm) {
+                    activeForm.querySelectorAll('[data-field="MlsStatus"]').forEach(function(cb) { cb.checked = false; });
+                }
+                // Then check the saved ones
+                criteria.status.forEach(function(s) {
+                    var resoVal = statusReverseMap[s] || s;
+                    var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + resoVal + '"]') : null;
+                    if (cb) cb.checked = true;
+                });
+            }
+
+            // Restore ownership checkboxes
+            if (criteria.property_type && Array.isArray(criteria.property_type) && criteria.property_type.length > 0) {
+                var ownerForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
+                if (ownerForm) {
+                    ownerForm.querySelectorAll('[data-field="CommonInterest"]').forEach(function(cb) { cb.checked = false; });
+                    criteria.property_type.forEach(function(pt) {
+                        var cb = ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + pt + '"]');
+                        if (!cb) cb = ownerForm.querySelector('[data-field="CommonInterest"][value="' + pt + '"]');
+                        if (cb) cb.checked = true;
+                    });
+                }
+            }
+        }
+
+        /** Helper: set a <select> value, trying exact match then closest */
+        function _setSelectValue(elementId, value) {
+            if (value == null) return;
+            var el = document.getElementById(elementId);
+            if (!el) return;
+            // Try exact match
+            for (var i = 0; i < el.options.length; i++) {
+                if (el.options[i].value == value) {
+                    el.selectedIndex = i;
+                    return;
+                }
+            }
+            // Try closest match for numeric selects
+            var numVal = Number(value);
+            if (!isNaN(numVal)) {
+                var best = 0, bestDiff = Infinity;
+                for (var j = 0; j < el.options.length; j++) {
+                    var optVal = Number(el.options[j].value);
+                    if (!isNaN(optVal) && Math.abs(optVal - numVal) < bestDiff) {
+                        bestDiff = Math.abs(optVal - numVal);
+                        best = j;
+                    }
+                }
+                if (bestDiff < Infinity) el.selectedIndex = best;
+            }
+        }
+
+        /** Helper: programmatically set a date range picker's dates */
+        function _setDrpDates(drpName, fromStr, toStr) {
+            var wrapper = document.querySelector('[data-drp="' + drpName + '"]');
+            if (!wrapper) return;
+
+            // Convert ISO date (YYYY-MM-DD) or MM/DD/YYYY to MM/DD/YYYY
+            function toMDY(str) {
+                if (!str) return null;
+                // Already MM/DD/YYYY?
+                if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+                // ISO YYYY-MM-DD
+                var parts = str.split('-');
+                if (parts.length === 3) return parts[1] + '/' + parts[2] + '/' + parts[0];
+                return null;
+            }
+
+            var fromMDY = toMDY(fromStr);
+            var toMDY2 = toMDY(toStr);
+
+            if (fromMDY) {
+                wrapper.setAttribute('data-from', fromMDY);
+                if (toMDY2) wrapper.setAttribute('data-to', toMDY2);
+
+                // Update the visible trigger text
+                var trigger = wrapper.querySelector('.drp-trigger');
+                if (trigger) {
+                    var textEl = trigger.querySelector('.drp-text');
+                    var clearBtn = trigger.querySelector('.drp-clear');
+                    if (textEl) {
+                        textEl.textContent = fromMDY + (toMDY2 ? ' - ' + toMDY2 : '');
+                        textEl.classList.add('has-value');
+                    }
+                    if (clearBtn) clearBtn.style.display = '';
+                }
+            }
         }
 
         function closeSaveSearchModal() {
             document.getElementById('saveSearchModal').classList.add('hidden');
         }
 
+        // ESC key to close save-search modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var sm = document.getElementById('saveSearchModal');
+                if (sm && !sm.classList.contains('hidden')) { closeSaveSearchModal(); return; }
+            }
+        });
+
         function saveCurrentSearch() {
             var name = document.getElementById('savedSearchName').value;
             var notes = document.getElementById('savedSearchNotes').value;
+            var clientId = document.getElementById('savedSearchClientId').value;
+            var alertFreq = document.getElementById('savedSearchAlertFreq').value;
 
             if (!name) {
                 showToast('Please enter a search name.', 'warning');
                 return;
             }
 
-            var newSearch = {
-                id: 's' + Date.now(),
-                name,
-                notes,
-                date: new Date().toLocaleDateString(),
-                viewMode: searchResultsState.viewMode,
-                visibleColumns: searchResultsState.visibleColumns,
-                sortField: searchResultsState.sortField,
-                sortOrder: searchResultsState.sortOrder
+            if (typeof MallanAPI === 'undefined') {
+                showToast('API not available. Please refresh.', 'error');
+                return;
+            }
+
+            var criteria = _criteriaToApiFormat(activeSearchCriteria);
+
+            var payload = {
+                name: name,
+                criteria: criteria,
+                lead_id: clientId || null,
+                alert_frequency: alertFreq || null,
+                alert_enabled: !!alertFreq,
             };
 
-            searchResultsState.savedSearches.push(newSearch);
-            localStorage.setItem('savedSearches_' + LOGGED_IN_AGENT.id, JSON.stringify(searchResultsState.savedSearches));
+            MallanAPI.savedSearches.create(payload).then(function(result) {
+                document.getElementById('savedSearchName').value = '';
+                document.getElementById('savedSearchNotes').value = '';
+                document.getElementById('savedSearchClientId').selectedIndex = 0;
+                document.getElementById('savedSearchAlertFreq').selectedIndex = 0;
+                closeSaveSearchModal();
+                populateSavedSearchList();
 
-            document.getElementById('savedSearchName').value = '';
-            document.getElementById('savedSearchNotes').value = '';
-            closeSaveSearchModal();
-            populateSavedSearchList();
-            showToast('Search "' + name + '" saved successfully!', 'success');
+                var msg = 'Search "' + name + '" saved!';
+                if (clientId) msg += ' Assigned to client.';
+                if (alertFreq) msg += ' ' + alertFreq.charAt(0).toUpperCase() + alertFreq.slice(1) + ' alerts enabled.';
+                showToast(msg, 'success');
+            }).catch(function(err) {
+                showToast('Failed to save search: ' + err.message, 'error');
+            });
         }
 
         function loadSavedSearch(searchId) {
-            var search = searchResultsState.savedSearches.find(s => s.id === searchId);
-            if (search) {
-                searchResultsState.viewMode = search.viewMode;
-                searchResultsState.visibleColumns = search.visibleColumns;
-                setViewMode(search.viewMode);
-                showToast('Loaded search: ' + search.name, 'success');
-            }
             document.getElementById('savedSearchDropdown').classList.add('hidden');
+
+            if (typeof MallanAPI === 'undefined') {
+                showToast('API not available', 'error');
+                return;
+            }
+
+            MallanAPI.savedSearches.get(searchId).then(function(search) {
+                if (!search || !search.criteria) {
+                    showToast('Saved search has no criteria', 'warning');
+                    return;
+                }
+
+                // Clear current form
+                if (typeof clearSearchForm === 'function') clearSearchForm();
+
+                // Restore form fields from saved criteria
+                _criteriaToFormFields(search.criteria);
+
+                showToast('Loaded: ' + search.name, 'success');
+
+                // Re-run the search with restored criteria
+                setTimeout(function() {
+                    if (typeof performSearch === 'function') performSearch();
+                }, 100);
+            }).catch(function(err) {
+                showToast('Failed to load search: ' + err.message, 'error');
+            });
         }
 
         function deleteSavedSearch(searchId) {
-            if (confirm('Delete this saved search?')) {
-                searchResultsState.savedSearches = searchResultsState.savedSearches.filter(s => s.id !== searchId);
-                localStorage.setItem('savedSearches_' + LOGGED_IN_AGENT.id, JSON.stringify(searchResultsState.savedSearches));
-                populateSavedSearchList();
+            if (!confirm('Delete this saved search?')) return;
+
+            if (typeof MallanAPI === 'undefined') {
+                showToast('API not available', 'error');
+                return;
             }
+
+            MallanAPI.savedSearches.delete(searchId).then(function() {
+                populateSavedSearchList();
+                showToast('Search deleted', 'success');
+            }).catch(function(err) {
+                showToast('Failed to delete: ' + err.message, 'error');
+            });
         }
 
         function reviseSearch() {
@@ -21749,6 +22412,14 @@ function parseBudgetValue(td) {
         function closeGridLayoutsModal() {
             document.getElementById('gridLayoutsModal').classList.add('hidden');
         }
+
+        // ESC key to close grid layouts modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var gm = document.getElementById('gridLayoutsModal');
+                if (gm && !gm.classList.contains('hidden')) { closeGridLayoutsModal(); return; }
+            }
+        });
 
         function populateFieldSelectionGrid() {
             var container = document.getElementById('fieldSelectionGrid');
@@ -22294,32 +22965,73 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       }
       _dbg('Insert before: ' + (firstSymbol || 'top'));
 
+      // Fill: invisible by default, visible only when selected or hovered
       _map.addLayer({
         id: 'nb-fill', type: 'fill', source: 'nb-source',
         paint: {
-          'fill-color': GOLD,
+          'fill-color': [
+            'match', ['get', 'borough'],
+            'Manhattan', '#2563EB',
+            'Brooklyn', '#10B981',
+            'Queens', '#F59E0B',
+            'Bronx', '#EF4444',
+            'Staten Island', '#8B5CF6',
+            '#6B7280'
+          ],
           'fill-opacity': [
             'case',
-            ['boolean', ['feature-state', 'selected'], false], 0.45,
-            ['boolean', ['feature-state', 'hover'], false], 0.30,
-            0.18,
+            ['boolean', ['feature-state', 'selected'], false], 0.25,
+            ['boolean', ['feature-state', 'hover'], false], 0.12,
+            0,
           ],
         },
       }, firstSymbol || undefined);
 
+      // Borders: invisible by default, solid when selected, faint on hover
       _map.addLayer({
         id: 'nb-line', type: 'line', source: 'nb-source',
         paint: {
-          'line-color': GOLD,
+          'line-color': [
+            'match', ['get', 'borough'],
+            'Manhattan', '#1D4ED8',
+            'Brooklyn', '#059669',
+            'Queens', '#D97706',
+            'Bronx', '#DC2626',
+            'Staten Island', '#7C3AED',
+            '#374151'
+          ],
           'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
-          'line-opacity': 1,
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            ['boolean', ['feature-state', 'hover'], false], 0.5,
+            0,
+          ],
         },
       }, firstSymbol || undefined);
 
+      // Labels: only show for selected neighborhoods
       _map.addLayer({
         id: 'nb-label', type: 'symbol', source: 'nb-source',
-        layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Bold'], 'text-anchor': 'center', 'text-allow-overlap': false },
-        paint: { 'text-color': '#1e3a5f', 'text-halo-color': '#fff', 'text-halo-width': 2 },
+        layout: { 'text-field': ['get', 'name'], 'text-size': 13, 'text-font': ['Open Sans Bold'], 'text-anchor': 'center', 'text-allow-overlap': false },
+        paint: {
+          'text-color': [
+            'match', ['get', 'borough'],
+            'Manhattan', '#1D4ED8',
+            'Brooklyn', '#059669',
+            'Queens', '#D97706',
+            'Bronx', '#DC2626',
+            'Staten Island', '#7C3AED',
+            '#1F2937'
+          ],
+          'text-halo-color': '#fff',
+          'text-halo-width': 2,
+          'text-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            0,
+          ],
+        },
       });
 
       _dbg('Layers added OK (' + geojson.features.length + ' polygons)');
@@ -22618,7 +23330,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       + '<div style="font-weight:700;font-size:14px;margin-bottom:2px;">' + fmtPrice(p.price) + (p.listingCategory === 'rental' ? '/mo' : '') + '</div>'
       + '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">' + (p.address || 'Address Undisclosed') + '</div>'
       + '<div style="font-size:11px;color:#374151;">' + p.beds + ' bd &middot; ' + p.baths + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
-      + '<button onclick="showListingDetail(' + p.id + ')" style="margin-top:6px;width:100%;padding:5px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">View Details</button>'
+      + '<button onclick="showListingDetail(\'' + String(p.id).replace(/'/g, "\\'") + '\')" style="margin-top:6px;width:100%;padding:5px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">View Details</button>'
       + '</div></div>';
 
     _popup = new maplibregl.Popup({ closeButton: true, maxWidth: '240px', offset: [0, -10] })
@@ -22664,17 +23376,248 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     _map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
     _map.on('load', function () {
+      addNeighborhoodPolygons();
       refreshMapPins();
     });
   }
 
+  // ── Neighborhood polygon overlays (click-to-select) ──
+  var _neighborhoodLayerAdded = false;
+  var _selectedSlugs = {};       // { slug: true } — tracks which neighborhoods are selected
+  var _geojsonSource = null;     // cached for filtering
+
+  function addNeighborhoodPolygons() {
+    if (_neighborhoodLayerAdded || !_map) return;
+
+    var geojson = (typeof window._EMBEDDED_GEOJSON !== 'undefined') ? window._EMBEDDED_GEOJSON : null;
+
+    if (geojson) {
+      _addPolygonLayers(geojson);
+    } else {
+      var geoBase = window.location.pathname.replace(/\/[^/]*$/, '');
+      var geoUrl = geoBase.endsWith('/crm') ? '/geo/rls-neighborhoods.v1.min.geojson' : '../geo/rls-neighborhoods.v1.min.geojson';
+      fetch(geoUrl).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+        if (data) _addPolygonLayers(data);
+      }).catch(function () { /* non-fatal */ });
+    }
+  }
+
+  function _addPolygonLayers(geojson) {
+    if (!_map || _neighborhoodLayerAdded) return;
+    _neighborhoodLayerAdded = true;
+    _geojsonSource = geojson;
+
+    _map.addSource('neighborhoods', {
+      type: 'geojson',
+      data: geojson,
+      promoteId: 'slug',
+    });
+
+    // Invisible hit-test layer — detects clicks anywhere on the map to identify neighborhood
+    _map.addLayer({
+      id: 'neighborhood-hit',
+      type: 'fill',
+      source: 'neighborhoods',
+      paint: {
+        'fill-color': 'transparent',
+        'fill-opacity': 0,
+      },
+    });
+
+    // Selected fill — only visible for selected neighborhoods (feature-state driven)
+    _map.addLayer({
+      id: 'neighborhood-fill',
+      type: 'fill',
+      source: 'neighborhoods',
+      paint: {
+        'fill-color': [
+          'match', ['get', 'borough'],
+          'Manhattan', 'rgba(37, 99, 235, 0.12)',
+          'Brooklyn', 'rgba(16, 185, 129, 0.12)',
+          'Queens', 'rgba(245, 158, 11, 0.12)',
+          'Bronx', 'rgba(239, 68, 68, 0.12)',
+          'Staten Island', 'rgba(139, 92, 246, 0.12)',
+          'rgba(107, 114, 128, 0.08)'
+        ],
+        'fill-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false], 1,
+          ['boolean', ['feature-state', 'hover'], false], 0.5,
+          0
+        ],
+      },
+    });
+
+    // Selected borders — only visible for selected neighborhoods
+    _map.addLayer({
+      id: 'neighborhood-borders',
+      type: 'line',
+      source: 'neighborhoods',
+      paint: {
+        'line-color': [
+          'match', ['get', 'borough'],
+          'Manhattan', '#2563EB',
+          'Brooklyn', '#10B981',
+          'Queens', '#F59E0B',
+          'Bronx', '#EF4444',
+          'Staten Island', '#8B5CF6',
+          '#6B7280'
+        ],
+        'line-width': [
+          'interpolate', ['linear'], ['zoom'],
+          10, 1,
+          13, 2,
+          16, 2.5
+        ],
+        'line-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false], 1,
+          0
+        ],
+      },
+    });
+
+    // Selected labels — name shown only for selected neighborhoods
+    _map.addLayer({
+      id: 'neighborhood-labels',
+      type: 'symbol',
+      source: 'neighborhoods',
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-size': [
+          'interpolate', ['linear'], ['zoom'],
+          10, 10,
+          13, 13,
+          16, 15
+        ],
+        'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+        'text-anchor': 'center',
+        'text-max-width': 8,
+      },
+      paint: {
+        'text-color': [
+          'match', ['get', 'borough'],
+          'Manhattan', '#1D4ED8',
+          'Brooklyn', '#059669',
+          'Queens', '#D97706',
+          'Bronx', '#DC2626',
+          'Staten Island', '#7C3AED',
+          '#374151'
+        ],
+        'text-halo-color': 'rgba(255, 255, 255, 0.9)',
+        'text-halo-width': 1.5,
+        'text-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false], 1,
+          0
+        ],
+      },
+    });
+
+    // Hover — subtle preview of boundary before clicking
+    var _hoveredId = null;
+    _map.on('mousemove', 'neighborhood-hit', function (e) {
+      if (e.features.length > 0) {
+        if (_hoveredId !== null) {
+          _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: false });
+        }
+        _hoveredId = e.features[0].id;
+        _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: true });
+        _map.getCanvas().style.cursor = 'pointer';
+      }
+    });
+    _map.on('mouseleave', 'neighborhood-hit', function () {
+      if (_hoveredId !== null) {
+        _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: false });
+      }
+      _hoveredId = null;
+      _map.getCanvas().style.cursor = '';
+    });
+
+    // Click — toggle select/deselect a neighborhood polygon
+    _map.on('click', 'neighborhood-hit', function (e) {
+      if (e.features.length === 0) return;
+
+      var slug = e.features[0].id;
+      var name = e.features[0].properties.name;
+      var borough = e.features[0].properties.borough;
+
+      if (_selectedSlugs[slug]) {
+        // Deselect
+        delete _selectedSlugs[slug];
+        _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: false });
+      } else {
+        // Select
+        _selectedSlugs[slug] = true;
+        _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: true });
+      }
+
+      // Show popup with listing count
+      var mapListings = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
+      var count = mapListings.filter(function (l) { return l.neighborhood === name; }).length;
+      var isSelected = !!_selectedSlugs[slug];
+
+      new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
+        .setLngLat(e.lngLat)
+        .setHTML(
+          '<div style="font-family:system-ui,sans-serif;padding:4px;">' +
+          '<div style="font-weight:700;font-size:13px;">' + name + '</div>' +
+          '<div style="font-size:11px;color:#6b7280;">' + borough + '</div>' +
+          '<div style="font-size:12px;margin-top:4px;font-weight:600;">' + count + ' listing' + (count !== 1 ? 's' : '') + '</div>' +
+          '<div style="font-size:11px;margin-top:4px;color:' + (isSelected ? '#2563EB' : '#9CA3AF') + ';font-weight:600;">' +
+          (isSelected ? '<i class="fas fa-check-circle"></i> Selected' : 'Deselected') + '</div>' +
+          '</div>'
+        )
+        .addTo(_map);
+    });
+
+    // Sync with search form neighborhood tags if they exist
+    _syncSelectedFromSearch();
+  }
+
+  // ── Sync selected polygons from search form neighborhood selections ──
+  function _syncSelectedFromSearch() {
+    if (!_map || !_neighborhoodLayerAdded || !_geojsonSource) return;
+
+    // Get currently selected neighborhoods from search form
+    var searchNeighborhoods = [];
+    if (typeof getSelectedNeighborhoods === 'function' && typeof _resolveActiveNeighborhoodTagsId === 'function') {
+      var tagsId = _resolveActiveNeighborhoodTagsId();
+      searchNeighborhoods = getSelectedNeighborhoods(tagsId);
+    }
+
+    // Clear all selections first
+    Object.keys(_selectedSlugs).forEach(function (slug) {
+      _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: false });
+    });
+    _selectedSlugs = {};
+
+    // Select polygons that match search neighborhoods
+    if (searchNeighborhoods.length > 0 && _geojsonSource.features) {
+      _geojsonSource.features.forEach(function (f) {
+        if (searchNeighborhoods.indexOf(f.properties.name) !== -1) {
+          var slug = f.properties.slug;
+          _selectedSlugs[slug] = true;
+          _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: true });
+        }
+      });
+    }
+  }
+
+  // Expose sync so search form can trigger it when neighborhoods change
+  window.syncResultsMapPolygons = function () {
+    if (_isOpen && _map && _neighborhoodLayerAdded) {
+      _syncSelectedFromSearch();
+    }
+  };
+
   // ── Refresh pins from current filtered listings ──
   function refreshMapPins() {
     if (!_map || !_isOpen) return;
-    var listings = (typeof getFilteredListings === 'function')
+    var mapListings = (typeof getFilteredListings === 'function')
       ? getFilteredListings(true) // skipPagination = true to get ALL results
-      : (searchResultsState && searchResultsState.filteredListings) || listings || [];
-    addMarkers(listings);
+      : (searchResultsState && searchResultsState.filteredListings) || [];
+    addMarkers(mapListings);
   }
 
   // ── Toggle split view ──
@@ -22727,8 +23670,8 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
   // ── Pan to listing (called when clicking a card) ──
   window.panToListing = function (listingId) {
     if (!_map || !_isOpen) return;
-    var listings = (searchResultsState && searchResultsState.filteredListings) || listings || [];
-    var l = listings.find(function (x) { return x.id === listingId; });
+    var panListings = (searchResultsState && searchResultsState.filteredListings) || [];
+    var l = panListings.find(function (x) { return x.id === listingId || x.lid === listingId; });
     if (!l) return;
     var lat = l.latitude || (l.geo && l.geo.lat);
     var lng = l.longitude || (l.geo && l.geo.lng);
@@ -25110,27 +26053,27 @@ function openPrintableWindow(html, options) {
         function getReportListings() {
             var reportSelRadio = document.querySelector('input[name="reportSelection"]:checked');
             var reportSel = reportSelRadio ? reportSelRadio.value : 'all';
-            var allListings = searchResultsState.filteredListings || listings;
-            var listings;
+            var allListings = searchResultsState.filteredListings || (typeof listings !== 'undefined' ? listings : []);
+            var reportListings;
             if (reportSel === 'selected' && reportState.selectedListingIds.length > 0) {
                 var selIds = reportState.selectedListingIds;
-                listings = allListings.filter(function(l) { return selIds.indexOf(l.id) > -1; });
+                reportListings = allListings.filter(function(l) { return selIds.indexOf(l.id) > -1; });
             } else if (reportSel === 'picked') {
                 var flags = typeof listingFlags !== 'undefined' ? listingFlags : {};
-                listings = allListings.filter(function(l) { return flags[l.id] && flags[l.id].picked; });
+                reportListings = allListings.filter(function(l) { return flags[l.id] && flags[l.id].picked; });
             } else if (reportSel === 'liked') {
                 var lflags = typeof listingFlags !== 'undefined' ? listingFlags : {};
-                listings = allListings.filter(function(l) { return lflags[l.id] && lflags[l.id].liked; });
+                reportListings = allListings.filter(function(l) { return lflags[l.id] && lflags[l.id].liked; });
             } else {
-                listings = allListings;
+                reportListings = allListings;
             }
-            if (listings.length === 0) listings = allListings;
+            if (reportListings.length === 0) reportListings = allListings;
             // IDX + Internet compliance filter — remove opted-out listings
-            listings = listings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
+            reportListings = reportListings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
             // Sort via reportState
-            listings = getSortedListings(listings);
+            reportListings = getSortedListings(reportListings);
             // Enforce 250 cap
-            return listings.slice(0, 250);
+            return reportListings.slice(0, 250);
         }
 
         // ── Helper: Get agent info for reports ──
@@ -26941,6 +27884,7 @@ function emailCurrentCalc() {
                                         ${isSale ? '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Flip Tax</div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Amount</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Type</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Paid By</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Remarks</span><span class="font-semibold">---</span></div>' : ''}
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Tax Deduction %</span><span class="font-semibold">---</span></div>' : ''}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">AVM Display</span><span class="font-semibold">---</span></div>
+                                        ${(listing.downPaymentAssistanceCount || listing.downPaymentAssistanceAmount) ? '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2"><i class="fas fa-hand-holding-usd text-green-500 mr-1 text-xs"></i>Down Payment Assistance</div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Programs Available</span><span class="font-semibold">' + (listing.downPaymentAssistanceCount || '---') + '</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Assistance Amount</span><span class="font-semibold">' + (listing.downPaymentAssistanceAmount ? '$' + Number(listing.downPaymentAssistanceAmount).toLocaleString() : '---') + '</span></div>' : ''}
                                     </div>
                                     <!-- Col 2: Type / Classification / Requirements -->
                                     <div class="space-y-2 text-sm">
@@ -27101,6 +28045,7 @@ function emailCurrentCalc() {
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Era</span><span class="font-semibold">${listing.era || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Stories</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Total Units</span><span class="font-semibold">---</span></div>
+                                        ${listing.buildingKey ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Building ID</span><span class="font-semibold">' + listing.buildingKey + '</span></div>' : ''}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Landmark Status</span><span class="font-semibold">---</span></div>
                                     </div>
                                     <!-- Col 2: Structure / Lot -->
@@ -27661,15 +28606,15 @@ function emailCurrentCalc() {
                         <div class="mb-4">
                             <div class="sidebar-section-label mb-2">Quick Actions</div>
                             <div class="grid grid-cols-2 gap-1.5">
-                                <button class="sidebar-tool-btn"><i class="fas fa-folder-plus"></i> Add to Set</button>
-                                <button class="sidebar-tool-btn"><i class="fas fa-chart-bar"></i> Run CMA</button>
-                                <button class="sidebar-tool-btn"><i class="fas fa-balance-scale"></i> Compare</button>
-                                <button class="sidebar-tool-btn"><i class="fas fa-flag"></i> Flag</button>
+                                <button onclick="toggleWorkingSet('${listing.id}')" class="sidebar-tool-btn" id="workingSetBtn_${listing.id}"><i class="fas fa-folder-plus"></i> ${_isInWorkingSet(listing.id) ? 'In Set' : 'Add to Set'}</button>
+                                <button onclick="runCmaFromDetail()" class="sidebar-tool-btn"><i class="fas fa-chart-bar"></i> Run CMA</button>
+                                <button onclick="addToCompareAndOpen('${listing.id}')" class="sidebar-tool-btn"><i class="fas fa-balance-scale"></i> Compare</button>
+                                <button onclick="toggleFlag('${listing.id}')" class="sidebar-tool-btn" id="flagBtn_${listing.id}"><i class="fas fa-flag ${_isFlagged(listing.id) ? 'text-red-500' : ''}"></i> ${_isFlagged(listing.id) ? 'Flagged' : 'Flag'}</button>
                                 ${isComingSoon(listing)
-                                    ? '<button class="sidebar-tool-btn opacity-50 cursor-not-allowed" disabled title="Coming Soon — No showings until ' + (listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400"></i> Blocked</button>'
-                                    : '<button class="sidebar-tool-btn"><i class="fas fa-calendar-plus"></i> Schedule</button>'
+                                    ? '<button class="sidebar-tool-btn opacity-50 cursor-not-allowed" disabled title="Coming Soon — No showings until ' + (listing.comingSoonDate || 'active date') + ' (UCBA Art. I Sec. 16)"><i class="fas fa-ban text-purple-400"></i> Blocked</button>'
+                                    : '<button onclick="openSearchScheduleShowing()" class="sidebar-tool-btn"><i class="fas fa-calendar-plus"></i> Schedule</button>'
                                 }
-                                <button class="sidebar-tool-btn"><i class="fas fa-history"></i> History</button>
+                                <button onclick="showListingHistory()" class="sidebar-tool-btn"><i class="fas fa-history"></i> History</button>
                             </div>
                         </div>
 
@@ -28349,9 +29294,12 @@ function emailCurrentCalc() {
                 '<div class="send-format-option" onclick="document.getElementById(\'sendToClientModal\').remove(); sendDetailToClient(\'summary\')">' +
                 '<i class="fas fa-th-large text-purple-500" style="font-size:20px;width:28px;text-align:center"></i>' +
                 '<div><div style="font-weight:600;font-size:14px;color:#1a1a1a">Gallery Card</div><div style="font-size:12px;color:#6b7280">Compact card format for quick sharing</div></div></div>' +
+                '<div class="send-format-option" onclick="document.getElementById(\'sendToClientModal\').remove(); openPortalSendSelector()">' +
+                '<i class="fas fa-user-circle text-indigo-500" style="font-size:20px;width:28px;text-align:center"></i>' +
+                '<div><div style="font-weight:600;font-size:14px;color:#1a1a1a">Send to Client Portal</div><div style="font-size:12px;color:#6b7280">Listing appears in client\'s portal. Creates follow-up task.</div></div></div>' +
                 '</div>' +
                 '<div style="border-top:1px solid #e5e7eb;margin-top:16px;padding-top:16px">' +
-                '<p style="font-size:11px;color:#9ca3af;margin:0"><i class="fas fa-info-circle" style="margin-right:4px"></i>Agent-only data (listing agent info, broker comments, showing instructions) will be automatically hidden in client outputs.</p>' +
+                '<p style="font-size:11px;color:#9ca3af;margin:0"><i class="fas fa-info-circle" style="margin-right:4px"></i>Agent-only data (listing agent info, broker comments, showing instructions) will be automatically hidden in client outputs. Agent PII masked per UCBA Art. I Sec. 5(C).</p>' +
                 '</div></div></div>';
             document.body.appendChild(modal);
         }
@@ -28732,6 +29680,475 @@ function emailCurrentCalc() {
             document.getElementById('commuteWalkTime').textContent = walkMin > 60 ? Math.round(walkMin/60) + ' hr ' + (walkMin%60) + ' min' : '~' + walkMin + ' min';
         }
 
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // QUICK ACTION FUNCTIONS (wired to detail sidebar buttons)
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        // ── 3A. Schedule Showing ──────────────────────────────────────────────
+        function openSearchScheduleShowing() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            // UCBA Art. I Sec. 16: Coming Soon listings cannot have showings
+            if (isComingSoon(listing)) {
+                showToast('Coming Soon — No showings allowed (UCBA Art. I Sec. 16)', 'warning');
+                return;
+            }
+
+            // Build and show schedule showing modal
+            var modalId = 'scheduleShowingModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">'
+                + '<div class="p-4 border-b flex items-center justify-between">'
+                + '<h3 class="font-bold text-gray-900">Schedule Showing</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-6 space-y-4">'
+                + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
+                + '<strong>' + escapeHtml(listing.address) + (listing.unit ? ', ' + escapeHtml(listing.unit) : '') + '</strong>'
+                + '<div class="text-xs text-gray-400 mt-1">$' + (listing.price ? listing.price.toLocaleString() : '0') + ' | ' + escapeHtml(listing.neighborhood || '') + '</div>'
+                + '</div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>'
+                + '<input type="date" id="showingDate" class="w-full border rounded-lg px-3 py-2 text-sm" min="' + new Date().toISOString().split('T')[0] + '"></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Time</label>'
+                + '<input type="time" id="showingTime" class="w-full border rounded-lg px-3 py-2 text-sm" value="10:00"></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label>'
+                + '<select id="showingType" class="w-full border rounded-lg px-3 py-2 text-sm">'
+                + '<option value="private">Private Showing</option>'
+                + '<option value="open_house">Open House</option>'
+                + '<option value="virtual">Virtual Tour</option></select></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Client</label>'
+                + '<select id="showingClientId" class="w-full border rounded-lg px-3 py-2 text-sm">'
+                + '<option value="">-- No client --</option></select></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>'
+                + '<textarea id="showingNotes" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Optional notes..."></textarea></div>'
+                + '</div>'
+                + '<div class="p-4 border-t bg-gray-50 flex justify-end gap-3">'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>'
+                + '<button onclick="_submitScheduleShowing(\'' + listing.id + '\')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">Schedule</button>'
+                + '</div></div>';
+
+            document.body.appendChild(modal);
+
+            // Populate client dropdown
+            if (typeof MallanAPI !== 'undefined') {
+                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
+                    var clients = result.clients || result.leads || [];
+                    var select = document.getElementById('showingClientId');
+                    if (!select) return;
+                    clients.forEach(function(c) {
+                        var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+                        var opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = name + (c.email ? ' (' + c.email + ')' : '');
+                        select.appendChild(opt);
+                    });
+                }).catch(function() {});
+            }
+        }
+
+        function _submitScheduleShowing(listingId) {
+            var dateVal = document.getElementById('showingDate').value;
+            if (!dateVal) { showToast('Please select a date', 'warning'); return; }
+
+            var timeVal = document.getElementById('showingTime').value || null;
+            var typeVal = document.getElementById('showingType').value || 'private';
+            var clientId = document.getElementById('showingClientId').value || null;
+            var notes = document.getElementById('showingNotes').value || null;
+
+            if (typeof MallanAPI === 'undefined') { showToast('API not available', 'error'); return; }
+
+            // Ensure listing exists in DB (IDX listings may not be synced yet)
+            var listing = listings.find(function(l) { return l.id === listingId || l.lid === listingId; });
+            var ensurePromise = (listing && listing._source === 'idx' && MallanAPI.idx.ensureListing)
+                ? MallanAPI.idx.ensureListing(listing)
+                : Promise.resolve({ ok: true, listing_id: listingId });
+
+            ensurePromise.then(function(ensureResult) {
+                var dbListingId = ensureResult.listing_id || listingId;
+                var data = {
+                    listing_id: dbListingId,
+                    date: dateVal,
+                    time: timeVal,
+                    type: typeVal,
+                    notes: notes,
+                };
+                if (clientId) data.lead_id = clientId;
+
+                return MallanAPI.showings.create(data);
+            }).then(function(result) {
+                var modal = document.getElementById('scheduleShowingModal');
+                if (modal) modal.remove();
+                showToast('Showing scheduled for ' + new Date(dateVal).toLocaleDateString() + (clientId ? '. Follow-up task created.' : ''), 'success');
+            }).catch(function(err) {
+                showToast('Failed to schedule showing: ' + err.message, 'error');
+            });
+        }
+
+        // ── 3B. Working Set (Add to Set) ──────────────────────────────────────
+        // Persisted in localStorage per agent
+        function _getWorkingSet() {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            try {
+                return JSON.parse(localStorage.getItem('workingSet_' + agentId) || '[]');
+            } catch (e) { return []; }
+        }
+
+        function _saveWorkingSet(set) {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            localStorage.setItem('workingSet_' + agentId, JSON.stringify(set));
+        }
+
+        function _isInWorkingSet(listingId) {
+            return _getWorkingSet().indexOf(String(listingId)) !== -1;
+        }
+
+        function toggleWorkingSet(listingId) {
+            var set = _getWorkingSet();
+            var id = String(listingId);
+            var idx = set.indexOf(id);
+            if (idx !== -1) {
+                set.splice(idx, 1);
+                showToast('Removed from working set', 'info');
+            } else {
+                set.push(id);
+                showToast('Added to working set (' + set.length + ' listings)', 'success');
+            }
+            _saveWorkingSet(set);
+
+            // Update button state
+            var btn = document.getElementById('workingSetBtn_' + listingId);
+            if (btn) {
+                btn.innerHTML = _isInWorkingSet(listingId)
+                    ? '<i class="fas fa-folder-minus"></i> In Set'
+                    : '<i class="fas fa-folder-plus"></i> Add to Set';
+            }
+        }
+
+        // ── 3C. Compare ──────────────────────────────────────────────────────
+        function addToCompareAndOpen(listingId) {
+            // Add to working set if not already there
+            if (!_isInWorkingSet(listingId)) {
+                toggleWorkingSet(listingId);
+            }
+
+            var set = _getWorkingSet();
+            if (set.length < 2) {
+                showToast('Add at least 2 listings to compare. Use "Add to Set" on other listings first.', 'info');
+                return;
+            }
+
+            // Get listing objects for comparison
+            var compareListings = [];
+            set.forEach(function(id) {
+                var l = listings.find(function(li) { return String(li.id) === String(id); });
+                if (l) compareListings.push(l);
+            });
+
+            if (compareListings.length < 2) {
+                showToast('Need at least 2 listings loaded for comparison', 'warning');
+                return;
+            }
+
+            // Build comparison modal
+            var modalId = 'compareModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            var fields = [
+                { label: 'Address', fn: function(l) { return l.addressDisplayYN === false ? 'Address Upon Request' : escapeHtml(l.address + (l.unit ? ', ' + l.unit : '')); } },
+                { label: 'Price', fn: function(l) { return '$' + (l.price ? l.price.toLocaleString() : '0'); } },
+                { label: 'Beds', fn: function(l) { return l.beds; } },
+                { label: 'Baths', fn: function(l) { return l.baths; } },
+                { label: 'Sqft', fn: function(l) { return l.intSqft ? l.intSqft.toLocaleString() : 'N/A'; } },
+                { label: '$/Sqft', fn: function(l) { return l.intSqft && l.price ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : 'N/A'; } },
+                { label: 'Maint/CC', fn: function(l) { return l.maintCC ? '$' + l.maintCC.toLocaleString() : 'N/A'; } },
+                { label: 'Taxes', fn: function(l) { return l.reTaxes ? '$' + Math.round(l.reTaxes).toLocaleString() + '/mo' : 'N/A'; } },
+                { label: 'DOM', fn: function(l) { return l.dom || 0; } },
+                { label: 'Neighborhood', fn: function(l) { return escapeHtml(l.neighborhood || ''); } },
+                { label: 'Year Built', fn: function(l) { return l.yearBuilt || 'N/A'; } },
+                { label: 'Ownership', fn: function(l) { return escapeHtml(l.ownership || l.propertyType || ''); } },
+                { label: 'Status', fn: function(l) { return l.status; } },
+            ];
+
+            var headerCells = compareListings.map(function(l) {
+                return '<th class="px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-50 max-w-[200px] truncate">' + escapeHtml(l.address || 'Listing') + '</th>';
+            }).join('');
+
+            var rows = fields.map(function(f) {
+                var cells = compareListings.map(function(l) {
+                    return '<td class="px-3 py-2 text-xs text-gray-600 border-l">' + f.fn(l) + '</td>';
+                }).join('');
+                return '<tr class="border-t"><td class="px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-50 whitespace-nowrap">' + f.label + '</td>' + cells + '</tr>';
+            }).join('');
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl max-w-[90vw] max-h-[80vh] overflow-auto">'
+                + '<div class="p-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">'
+                + '<h3 class="font-bold text-gray-900">Compare Listings (' + compareListings.length + ')</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-4"><table class="w-full border-collapse">'
+                + '<thead><tr><th class="px-3 py-2 text-xs bg-gray-50"></th>' + headerCells + '</tr></thead>'
+                + '<tbody>' + rows + '</tbody></table></div></div>';
+
+            document.body.appendChild(modal);
+        }
+
+        // ── 3D. Run CMA ──────────────────────────────────────────────────────
+        function runCmaFromDetail() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            if (typeof MallanAPI === 'undefined') {
+                showToast('API not available', 'error');
+                return;
+            }
+
+            showToast('Running CMA...', 'info');
+
+            MallanAPI.cma.create({
+                property_address: listing.address + (listing.unit ? ', ' + listing.unit : ''),
+                borough: listing.borough || 'Manhattan',
+                neighborhood: listing.neighborhood || null,
+                listing_type: listing.listingCategory === 'rental' ? 'rental' : 'sale',
+                property_type: listing.ownership || listing.propertyType || null,
+                bedrooms: listing.beds || null,
+                bathrooms: listing.baths || null,
+                living_area: listing.intSqft || null,
+            }).then(function(result) {
+                if (!result || !result.valuation) {
+                    showToast('CMA completed but no comparable data found', 'warning');
+                    return;
+                }
+
+                var v = result.valuation;
+                var modalId = 'cmaResultModal';
+                var existing = document.getElementById(modalId);
+                if (existing) existing.remove();
+
+                var modal = document.createElement('div');
+                modal.id = modalId;
+                modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+                modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">'
+                    + '<div class="p-4 border-b flex items-center justify-between">'
+                    + '<h3 class="font-bold text-gray-900">CMA Results</h3>'
+                    + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                    + '</div>'
+                    + '<div class="p-6 space-y-4">'
+                    + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
+                    + '<strong>' + escapeHtml(listing.address) + '</strong>'
+                    + '<div class="text-xs text-gray-400">' + escapeHtml(listing.neighborhood || '') + ' | ' + (listing.beds || 0) + 'BR / ' + (listing.baths || 0) + 'BA</div>'
+                    + '</div>'
+                    + '<div class="grid grid-cols-3 gap-4 text-center">'
+                    + '<div class="bg-green-50 rounded-lg p-3"><div class="text-xs text-gray-500">Low</div><div class="text-lg font-bold text-green-700">$' + (v.low ? Number(v.low).toLocaleString() : 'N/A') + '</div></div>'
+                    + '<div class="bg-blue-50 rounded-lg p-3"><div class="text-xs text-gray-500">Estimated</div><div class="text-lg font-bold text-blue-700">$' + (v.estimated ? Number(v.estimated).toLocaleString() : 'N/A') + '</div></div>'
+                    + '<div class="bg-orange-50 rounded-lg p-3"><div class="text-xs text-gray-500">High</div><div class="text-lg font-bold text-orange-700">$' + (v.high ? Number(v.high).toLocaleString() : 'N/A') + '</div></div>'
+                    + '</div>'
+                    + '<div class="text-[10px] text-gray-400 text-center">For internal reference only. Not an appraisal. Based on comparable listings in the area.</div>'
+                    + '</div></div>';
+
+                document.body.appendChild(modal);
+            }).catch(function(err) {
+                showToast('CMA failed: ' + err.message, 'error');
+            });
+        }
+
+        // ── 3E. Flag ─────────────────────────────────────────────────────────
+        function _getFlaggedListings() {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            try {
+                return JSON.parse(localStorage.getItem('flaggedListings_' + agentId) || '[]');
+            } catch (e) { return []; }
+        }
+
+        function _saveFlaggedListings(list) {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            localStorage.setItem('flaggedListings_' + agentId, JSON.stringify(list));
+        }
+
+        function _isFlagged(listingId) {
+            return _getFlaggedListings().indexOf(String(listingId)) !== -1;
+        }
+
+        function toggleFlag(listingId) {
+            var flagged = _getFlaggedListings();
+            var id = String(listingId);
+            var idx = flagged.indexOf(id);
+            if (idx !== -1) {
+                flagged.splice(idx, 1);
+                showToast('Flag removed', 'info');
+            } else {
+                flagged.push(id);
+                showToast('Listing flagged', 'success');
+            }
+            _saveFlaggedListings(flagged);
+
+            // Update button state
+            var btn = document.getElementById('flagBtn_' + listingId);
+            if (btn) {
+                var isFlagged = _isFlagged(listingId);
+                btn.innerHTML = '<i class="fas fa-flag ' + (isFlagged ? 'text-red-500' : '') + '"></i> ' + (isFlagged ? 'Flagged' : 'Flag');
+            }
+        }
+
+        // ── 3F. History ──────────────────────────────────────────────────────
+        function showListingHistory() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            var modalId = 'listingHistoryModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            // Build timeline from listing data
+            var events = [];
+            if (listing.listedDate) {
+                events.push({ date: listing.listedDate, label: 'Listed', detail: '$' + (listing.originalPrice || listing.price || 0).toLocaleString() });
+            }
+            if (listing.originalPrice && listing.originalPrice !== listing.price && listing.price) {
+                events.push({
+                    date: listing.updatedDate || 'N/A',
+                    label: 'Price ' + (listing.price < listing.originalPrice ? 'Reduced' : 'Increased'),
+                    detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
+                });
+            }
+            if (listing.status && listing.status !== 'ACTIVE') {
+                events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
+            }
+            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
+
+            var timelineHtml = events.map(function(ev) {
+                return '<div class="flex items-start gap-3 pb-4">'
+                    + '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>'
+                    + '<div><div class="text-xs font-semibold text-gray-700">' + escapeHtml(ev.label) + '</div>'
+                    + '<div class="text-xs text-gray-500">' + escapeHtml(ev.date) + (ev.detail ? ' — ' + escapeHtml(ev.detail) : '') + '</div></div></div>';
+            }).join('');
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">'
+                + '<div class="p-4 border-b flex items-center justify-between">'
+                + '<h3 class="font-bold text-gray-900">Listing History</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-6">'
+                + '<div class="text-sm font-semibold mb-4">' + escapeHtml(listing.address || 'Listing') + '</div>'
+                + '<div class="border-l-2 border-blue-200 pl-4 ml-1">' + timelineHtml + '</div>'
+                + '</div></div>';
+
+            document.body.appendChild(modal);
+        }
+
+        // ── 5. Send to Client Portal ─────────────────────────────────────────
+        function openPortalSendSelector() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            // Distribution gates check (UCBA compliance)
+            if (listing.permissions && listing.permissions.ownerOptOut) {
+                showToast('Cannot send — Owner Opt-Out (UCBA Art. I Sec. 5(A))', 'error');
+                return;
+            }
+            if (listing.permissions && !listing.permissions.internetDisplay) {
+                showToast('Cannot send to portal — Internet Display disabled', 'error');
+                return;
+            }
+
+            var modalId = 'portalSendModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">'
+                + '<div class="p-4 border-b flex items-center justify-between">'
+                + '<h3 class="font-bold text-gray-900">Send to Client Portal</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-6 space-y-4">'
+                + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
+                + '<strong>' + escapeHtml(listing.address) + '</strong>'
+                + '<div class="text-xs text-gray-400">$' + (listing.price ? listing.price.toLocaleString() : '0') + '</div></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Select Clients</label>'
+                + '<div id="portalSendClientList" class="border rounded-lg max-h-48 overflow-y-auto p-2 text-sm">'
+                + '<p class="text-gray-400 text-xs"><i class="fas fa-spinner fa-spin"></i> Loading clients...</p></div></div>'
+                + '</div>'
+                + '<div class="p-4 border-t bg-gray-50 flex justify-end gap-3">'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>'
+                + '<button onclick="_submitPortalSend(\'' + listing.id + '\')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">Send</button>'
+                + '</div></div>';
+
+            document.body.appendChild(modal);
+
+            // Populate client checkboxes
+            if (typeof MallanAPI !== 'undefined') {
+                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
+                    var clients = result.clients || result.leads || [];
+                    var container = document.getElementById('portalSendClientList');
+                    if (!container || clients.length === 0) {
+                        if (container) container.innerHTML = '<p class="text-gray-500 text-xs">No clients found</p>';
+                        return;
+                    }
+                    container.innerHTML = clients.map(function(c) {
+                        var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+                        var roles = Array.isArray(c.roles) ? c.roles.join(', ') : '';
+                        return '<label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">'
+                            + '<input type="checkbox" value="' + c.id + '" class="portal-send-client-cb rounded">'
+                            + '<span>' + escapeHtml(name) + (roles ? ' <span class="text-[10px] text-gray-400">(' + roles + ')</span>' : '') + '</span></label>';
+                    }).join('');
+                }).catch(function() {
+                    var container = document.getElementById('portalSendClientList');
+                    if (container) container.innerHTML = '<p class="text-red-500 text-xs">Failed to load clients</p>';
+                });
+            }
+        }
+
+        function _submitPortalSend(listingId) {
+            var checkboxes = document.querySelectorAll('.portal-send-client-cb:checked');
+            if (checkboxes.length === 0) {
+                showToast('Please select at least one client', 'warning');
+                return;
+            }
+
+            var clientIds = Array.from(checkboxes).map(function(cb) { return cb.value; });
+
+            if (typeof MallanAPI === 'undefined') { showToast('API not available', 'error'); return; }
+
+            // Ensure listing exists in DB (IDX listings may not be synced yet)
+            var listing = listings.find(function(l) { return l.id === listingId || l.lid === listingId; });
+            var ensurePromise = (listing && listing._source === 'idx' && MallanAPI.idx.ensureListing)
+                ? MallanAPI.idx.ensureListing(listing)
+                : Promise.resolve({ ok: true, listing_id: listingId });
+
+            ensurePromise.then(function(ensureResult) {
+                var dbListingId = ensureResult.listing_id || listingId;
+                return MallanAPI.listingSends.send({
+                    listing_id: dbListingId,
+                    client_ids: clientIds,
+                    sent_via: 'crm_search',
+                    context: { source: 'search_detail' },
+                });
+            }).then(function(result) {
+                var modal = document.getElementById('portalSendModal');
+                if (modal) modal.remove();
+
+                var dueDate = new Date(Date.now() + 3 * 24 * 3600 * 1000).toLocaleDateString();
+                showToast('Sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : '') + '. Follow-up task created for ' + dueDate + '.', 'success');
+            }).catch(function(err) {
+                showToast('Failed to send: ' + err.message, 'error');
+            });
+        }
+
 </script>
 <script>
 // ═══ js/search/rent-vs-buy.js ═══
@@ -28876,15 +30293,27 @@ function emailCurrentCalc() {
         };
 
         function openFilterModal() {
-            document.getElementById('filterModal').classList.remove('hidden');
+            var modal = document.getElementById('filterModal');
+            modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             updateFilterSummary();
+            // Focus first focusable element
+            var first = modal.querySelector('input, select, button');
+            if (first) setTimeout(function() { first.focus(); }, 50);
         }
 
         function closeFilterModal() {
             document.getElementById('filterModal').classList.add('hidden');
             document.body.style.overflow = 'auto';
         }
+
+        // ESC key to close filter modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var fm = document.getElementById('filterModal');
+                if (fm && !fm.classList.contains('hidden')) { closeFilterModal(); return; }
+            }
+        });
 
         function initializeFilterToggles() {
             // Add click handlers for toggle labels

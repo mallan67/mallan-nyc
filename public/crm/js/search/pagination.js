@@ -255,6 +255,7 @@
                                         ${isSale ? '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Flip Tax</div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Amount</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Type</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Paid By</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Remarks</span><span class="font-semibold">---</span></div>' : ''}
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Tax Deduction %</span><span class="font-semibold">---</span></div>' : ''}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">AVM Display</span><span class="font-semibold">---</span></div>
+                                        ${(listing.downPaymentAssistanceCount || listing.downPaymentAssistanceAmount) ? '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2"><i class="fas fa-hand-holding-usd text-green-500 mr-1 text-xs"></i>Down Payment Assistance</div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Programs Available</span><span class="font-semibold">' + (listing.downPaymentAssistanceCount || '---') + '</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Assistance Amount</span><span class="font-semibold">' + (listing.downPaymentAssistanceAmount ? '$' + Number(listing.downPaymentAssistanceAmount).toLocaleString() : '---') + '</span></div>' : ''}
                                     </div>
                                     <!-- Col 2: Type / Classification / Requirements -->
                                     <div class="space-y-2 text-sm">
@@ -415,6 +416,7 @@
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Era</span><span class="font-semibold">${listing.era || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Stories</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Total Units</span><span class="font-semibold">---</span></div>
+                                        ${listing.buildingKey ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Building ID</span><span class="font-semibold">' + listing.buildingKey + '</span></div>' : ''}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Landmark Status</span><span class="font-semibold">---</span></div>
                                     </div>
                                     <!-- Col 2: Structure / Lot -->
@@ -975,15 +977,15 @@
                         <div class="mb-4">
                             <div class="sidebar-section-label mb-2">Quick Actions</div>
                             <div class="grid grid-cols-2 gap-1.5">
-                                <button class="sidebar-tool-btn"><i class="fas fa-folder-plus"></i> Add to Set</button>
-                                <button class="sidebar-tool-btn"><i class="fas fa-chart-bar"></i> Run CMA</button>
-                                <button class="sidebar-tool-btn"><i class="fas fa-balance-scale"></i> Compare</button>
-                                <button class="sidebar-tool-btn"><i class="fas fa-flag"></i> Flag</button>
+                                <button onclick="toggleWorkingSet('${listing.id}')" class="sidebar-tool-btn" id="workingSetBtn_${listing.id}"><i class="fas fa-folder-plus"></i> ${_isInWorkingSet(listing.id) ? 'In Set' : 'Add to Set'}</button>
+                                <button onclick="runCmaFromDetail()" class="sidebar-tool-btn"><i class="fas fa-chart-bar"></i> Run CMA</button>
+                                <button onclick="addToCompareAndOpen('${listing.id}')" class="sidebar-tool-btn"><i class="fas fa-balance-scale"></i> Compare</button>
+                                <button onclick="toggleFlag('${listing.id}')" class="sidebar-tool-btn" id="flagBtn_${listing.id}"><i class="fas fa-flag ${_isFlagged(listing.id) ? 'text-red-500' : ''}"></i> ${_isFlagged(listing.id) ? 'Flagged' : 'Flag'}</button>
                                 ${isComingSoon(listing)
-                                    ? '<button class="sidebar-tool-btn opacity-50 cursor-not-allowed" disabled title="Coming Soon — No showings until ' + (listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400"></i> Blocked</button>'
-                                    : '<button class="sidebar-tool-btn"><i class="fas fa-calendar-plus"></i> Schedule</button>'
+                                    ? '<button class="sidebar-tool-btn opacity-50 cursor-not-allowed" disabled title="Coming Soon — No showings until ' + (listing.comingSoonDate || 'active date') + ' (UCBA Art. I Sec. 16)"><i class="fas fa-ban text-purple-400"></i> Blocked</button>'
+                                    : '<button onclick="openSearchScheduleShowing()" class="sidebar-tool-btn"><i class="fas fa-calendar-plus"></i> Schedule</button>'
                                 }
-                                <button class="sidebar-tool-btn"><i class="fas fa-history"></i> History</button>
+                                <button onclick="showListingHistory()" class="sidebar-tool-btn"><i class="fas fa-history"></i> History</button>
                             </div>
                         </div>
 
@@ -1663,9 +1665,12 @@
                 '<div class="send-format-option" onclick="document.getElementById(\'sendToClientModal\').remove(); sendDetailToClient(\'summary\')">' +
                 '<i class="fas fa-th-large text-purple-500" style="font-size:20px;width:28px;text-align:center"></i>' +
                 '<div><div style="font-weight:600;font-size:14px;color:#1a1a1a">Gallery Card</div><div style="font-size:12px;color:#6b7280">Compact card format for quick sharing</div></div></div>' +
+                '<div class="send-format-option" onclick="document.getElementById(\'sendToClientModal\').remove(); openPortalSendSelector()">' +
+                '<i class="fas fa-user-circle text-indigo-500" style="font-size:20px;width:28px;text-align:center"></i>' +
+                '<div><div style="font-weight:600;font-size:14px;color:#1a1a1a">Send to Client Portal</div><div style="font-size:12px;color:#6b7280">Listing appears in client\'s portal. Creates follow-up task.</div></div></div>' +
                 '</div>' +
                 '<div style="border-top:1px solid #e5e7eb;margin-top:16px;padding-top:16px">' +
-                '<p style="font-size:11px;color:#9ca3af;margin:0"><i class="fas fa-info-circle" style="margin-right:4px"></i>Agent-only data (listing agent info, broker comments, showing instructions) will be automatically hidden in client outputs.</p>' +
+                '<p style="font-size:11px;color:#9ca3af;margin:0"><i class="fas fa-info-circle" style="margin-right:4px"></i>Agent-only data (listing agent info, broker comments, showing instructions) will be automatically hidden in client outputs. Agent PII masked per UCBA Art. I Sec. 5(C).</p>' +
                 '</div></div></div>';
             document.body.appendChild(modal);
         }
@@ -2044,4 +2049,473 @@
             document.getElementById('commuteSubwayTime').textContent = '~' + subwayMin + ' min';
             document.getElementById('commuteBusTime').textContent = '~' + busMin + ' min';
             document.getElementById('commuteWalkTime').textContent = walkMin > 60 ? Math.round(walkMin/60) + ' hr ' + (walkMin%60) + ' min' : '~' + walkMin + ' min';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // QUICK ACTION FUNCTIONS (wired to detail sidebar buttons)
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        // ── 3A. Schedule Showing ──────────────────────────────────────────────
+        function openSearchScheduleShowing() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            // UCBA Art. I Sec. 16: Coming Soon listings cannot have showings
+            if (isComingSoon(listing)) {
+                showToast('Coming Soon — No showings allowed (UCBA Art. I Sec. 16)', 'warning');
+                return;
+            }
+
+            // Build and show schedule showing modal
+            var modalId = 'scheduleShowingModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">'
+                + '<div class="p-4 border-b flex items-center justify-between">'
+                + '<h3 class="font-bold text-gray-900">Schedule Showing</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-6 space-y-4">'
+                + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
+                + '<strong>' + escapeHtml(listing.address) + (listing.unit ? ', ' + escapeHtml(listing.unit) : '') + '</strong>'
+                + '<div class="text-xs text-gray-400 mt-1">$' + (listing.price ? listing.price.toLocaleString() : '0') + ' | ' + escapeHtml(listing.neighborhood || '') + '</div>'
+                + '</div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>'
+                + '<input type="date" id="showingDate" class="w-full border rounded-lg px-3 py-2 text-sm" min="' + new Date().toISOString().split('T')[0] + '"></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Time</label>'
+                + '<input type="time" id="showingTime" class="w-full border rounded-lg px-3 py-2 text-sm" value="10:00"></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label>'
+                + '<select id="showingType" class="w-full border rounded-lg px-3 py-2 text-sm">'
+                + '<option value="private">Private Showing</option>'
+                + '<option value="open_house">Open House</option>'
+                + '<option value="virtual">Virtual Tour</option></select></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Client</label>'
+                + '<select id="showingClientId" class="w-full border rounded-lg px-3 py-2 text-sm">'
+                + '<option value="">-- No client --</option></select></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>'
+                + '<textarea id="showingNotes" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Optional notes..."></textarea></div>'
+                + '</div>'
+                + '<div class="p-4 border-t bg-gray-50 flex justify-end gap-3">'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>'
+                + '<button onclick="_submitScheduleShowing(\'' + listing.id + '\')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">Schedule</button>'
+                + '</div></div>';
+
+            document.body.appendChild(modal);
+
+            // Populate client dropdown
+            if (typeof MallanAPI !== 'undefined') {
+                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
+                    var clients = result.clients || result.leads || [];
+                    var select = document.getElementById('showingClientId');
+                    if (!select) return;
+                    clients.forEach(function(c) {
+                        var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+                        var opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = name + (c.email ? ' (' + c.email + ')' : '');
+                        select.appendChild(opt);
+                    });
+                }).catch(function() {});
+            }
+        }
+
+        function _submitScheduleShowing(listingId) {
+            var dateVal = document.getElementById('showingDate').value;
+            if (!dateVal) { showToast('Please select a date', 'warning'); return; }
+
+            var timeVal = document.getElementById('showingTime').value || null;
+            var typeVal = document.getElementById('showingType').value || 'private';
+            var clientId = document.getElementById('showingClientId').value || null;
+            var notes = document.getElementById('showingNotes').value || null;
+
+            if (typeof MallanAPI === 'undefined') { showToast('API not available', 'error'); return; }
+
+            // Ensure listing exists in DB (IDX listings may not be synced yet)
+            var listing = listings.find(function(l) { return l.id === listingId || l.lid === listingId; });
+            var ensurePromise = (listing && listing._source === 'idx' && MallanAPI.idx.ensureListing)
+                ? MallanAPI.idx.ensureListing(listing)
+                : Promise.resolve({ ok: true, listing_id: listingId });
+
+            ensurePromise.then(function(ensureResult) {
+                var dbListingId = ensureResult.listing_id || listingId;
+                var data = {
+                    listing_id: dbListingId,
+                    date: dateVal,
+                    time: timeVal,
+                    type: typeVal,
+                    notes: notes,
+                };
+                if (clientId) data.lead_id = clientId;
+
+                return MallanAPI.showings.create(data);
+            }).then(function(result) {
+                var modal = document.getElementById('scheduleShowingModal');
+                if (modal) modal.remove();
+                showToast('Showing scheduled for ' + new Date(dateVal).toLocaleDateString() + (clientId ? '. Follow-up task created.' : ''), 'success');
+            }).catch(function(err) {
+                showToast('Failed to schedule showing: ' + err.message, 'error');
+            });
+        }
+
+        // ── 3B. Working Set (Add to Set) ──────────────────────────────────────
+        // Persisted in localStorage per agent
+        function _getWorkingSet() {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            try {
+                return JSON.parse(localStorage.getItem('workingSet_' + agentId) || '[]');
+            } catch (e) { return []; }
+        }
+
+        function _saveWorkingSet(set) {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            localStorage.setItem('workingSet_' + agentId, JSON.stringify(set));
+        }
+
+        function _isInWorkingSet(listingId) {
+            return _getWorkingSet().indexOf(String(listingId)) !== -1;
+        }
+
+        function toggleWorkingSet(listingId) {
+            var set = _getWorkingSet();
+            var id = String(listingId);
+            var idx = set.indexOf(id);
+            if (idx !== -1) {
+                set.splice(idx, 1);
+                showToast('Removed from working set', 'info');
+            } else {
+                set.push(id);
+                showToast('Added to working set (' + set.length + ' listings)', 'success');
+            }
+            _saveWorkingSet(set);
+
+            // Update button state
+            var btn = document.getElementById('workingSetBtn_' + listingId);
+            if (btn) {
+                btn.innerHTML = _isInWorkingSet(listingId)
+                    ? '<i class="fas fa-folder-minus"></i> In Set'
+                    : '<i class="fas fa-folder-plus"></i> Add to Set';
+            }
+        }
+
+        // ── 3C. Compare ──────────────────────────────────────────────────────
+        function addToCompareAndOpen(listingId) {
+            // Add to working set if not already there
+            if (!_isInWorkingSet(listingId)) {
+                toggleWorkingSet(listingId);
+            }
+
+            var set = _getWorkingSet();
+            if (set.length < 2) {
+                showToast('Add at least 2 listings to compare. Use "Add to Set" on other listings first.', 'info');
+                return;
+            }
+
+            // Get listing objects for comparison
+            var compareListings = [];
+            set.forEach(function(id) {
+                var l = listings.find(function(li) { return String(li.id) === String(id); });
+                if (l) compareListings.push(l);
+            });
+
+            if (compareListings.length < 2) {
+                showToast('Need at least 2 listings loaded for comparison', 'warning');
+                return;
+            }
+
+            // Build comparison modal
+            var modalId = 'compareModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            var fields = [
+                { label: 'Address', fn: function(l) { return l.addressDisplayYN === false ? 'Address Upon Request' : escapeHtml(l.address + (l.unit ? ', ' + l.unit : '')); } },
+                { label: 'Price', fn: function(l) { return '$' + (l.price ? l.price.toLocaleString() : '0'); } },
+                { label: 'Beds', fn: function(l) { return l.beds; } },
+                { label: 'Baths', fn: function(l) { return l.baths; } },
+                { label: 'Sqft', fn: function(l) { return l.intSqft ? l.intSqft.toLocaleString() : 'N/A'; } },
+                { label: '$/Sqft', fn: function(l) { return l.intSqft && l.price ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : 'N/A'; } },
+                { label: 'Maint/CC', fn: function(l) { return l.maintCC ? '$' + l.maintCC.toLocaleString() : 'N/A'; } },
+                { label: 'Taxes', fn: function(l) { return l.reTaxes ? '$' + Math.round(l.reTaxes).toLocaleString() + '/mo' : 'N/A'; } },
+                { label: 'DOM', fn: function(l) { return l.dom || 0; } },
+                { label: 'Neighborhood', fn: function(l) { return escapeHtml(l.neighborhood || ''); } },
+                { label: 'Year Built', fn: function(l) { return l.yearBuilt || 'N/A'; } },
+                { label: 'Ownership', fn: function(l) { return escapeHtml(l.ownership || l.propertyType || ''); } },
+                { label: 'Status', fn: function(l) { return l.status; } },
+            ];
+
+            var headerCells = compareListings.map(function(l) {
+                return '<th class="px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-50 max-w-[200px] truncate">' + escapeHtml(l.address || 'Listing') + '</th>';
+            }).join('');
+
+            var rows = fields.map(function(f) {
+                var cells = compareListings.map(function(l) {
+                    return '<td class="px-3 py-2 text-xs text-gray-600 border-l">' + f.fn(l) + '</td>';
+                }).join('');
+                return '<tr class="border-t"><td class="px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-50 whitespace-nowrap">' + f.label + '</td>' + cells + '</tr>';
+            }).join('');
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl max-w-[90vw] max-h-[80vh] overflow-auto">'
+                + '<div class="p-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">'
+                + '<h3 class="font-bold text-gray-900">Compare Listings (' + compareListings.length + ')</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-4"><table class="w-full border-collapse">'
+                + '<thead><tr><th class="px-3 py-2 text-xs bg-gray-50"></th>' + headerCells + '</tr></thead>'
+                + '<tbody>' + rows + '</tbody></table></div></div>';
+
+            document.body.appendChild(modal);
+        }
+
+        // ── 3D. Run CMA ──────────────────────────────────────────────────────
+        function runCmaFromDetail() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            if (typeof MallanAPI === 'undefined') {
+                showToast('API not available', 'error');
+                return;
+            }
+
+            showToast('Running CMA...', 'info');
+
+            MallanAPI.cma.create({
+                property_address: listing.address + (listing.unit ? ', ' + listing.unit : ''),
+                borough: listing.borough || 'Manhattan',
+                neighborhood: listing.neighborhood || null,
+                listing_type: listing.listingCategory === 'rental' ? 'rental' : 'sale',
+                property_type: listing.ownership || listing.propertyType || null,
+                bedrooms: listing.beds || null,
+                bathrooms: listing.baths || null,
+                living_area: listing.intSqft || null,
+            }).then(function(result) {
+                if (!result || !result.valuation) {
+                    showToast('CMA completed but no comparable data found', 'warning');
+                    return;
+                }
+
+                var v = result.valuation;
+                var modalId = 'cmaResultModal';
+                var existing = document.getElementById(modalId);
+                if (existing) existing.remove();
+
+                var modal = document.createElement('div');
+                modal.id = modalId;
+                modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+                modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">'
+                    + '<div class="p-4 border-b flex items-center justify-between">'
+                    + '<h3 class="font-bold text-gray-900">CMA Results</h3>'
+                    + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                    + '</div>'
+                    + '<div class="p-6 space-y-4">'
+                    + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
+                    + '<strong>' + escapeHtml(listing.address) + '</strong>'
+                    + '<div class="text-xs text-gray-400">' + escapeHtml(listing.neighborhood || '') + ' | ' + (listing.beds || 0) + 'BR / ' + (listing.baths || 0) + 'BA</div>'
+                    + '</div>'
+                    + '<div class="grid grid-cols-3 gap-4 text-center">'
+                    + '<div class="bg-green-50 rounded-lg p-3"><div class="text-xs text-gray-500">Low</div><div class="text-lg font-bold text-green-700">$' + (v.low ? Number(v.low).toLocaleString() : 'N/A') + '</div></div>'
+                    + '<div class="bg-blue-50 rounded-lg p-3"><div class="text-xs text-gray-500">Estimated</div><div class="text-lg font-bold text-blue-700">$' + (v.estimated ? Number(v.estimated).toLocaleString() : 'N/A') + '</div></div>'
+                    + '<div class="bg-orange-50 rounded-lg p-3"><div class="text-xs text-gray-500">High</div><div class="text-lg font-bold text-orange-700">$' + (v.high ? Number(v.high).toLocaleString() : 'N/A') + '</div></div>'
+                    + '</div>'
+                    + '<div class="text-[10px] text-gray-400 text-center">For internal reference only. Not an appraisal. Based on comparable listings in the area.</div>'
+                    + '</div></div>';
+
+                document.body.appendChild(modal);
+            }).catch(function(err) {
+                showToast('CMA failed: ' + err.message, 'error');
+            });
+        }
+
+        // ── 3E. Flag ─────────────────────────────────────────────────────────
+        function _getFlaggedListings() {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            try {
+                return JSON.parse(localStorage.getItem('flaggedListings_' + agentId) || '[]');
+            } catch (e) { return []; }
+        }
+
+        function _saveFlaggedListings(list) {
+            var agentId = (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT) ? LOGGED_IN_AGENT.id : 'default';
+            localStorage.setItem('flaggedListings_' + agentId, JSON.stringify(list));
+        }
+
+        function _isFlagged(listingId) {
+            return _getFlaggedListings().indexOf(String(listingId)) !== -1;
+        }
+
+        function toggleFlag(listingId) {
+            var flagged = _getFlaggedListings();
+            var id = String(listingId);
+            var idx = flagged.indexOf(id);
+            if (idx !== -1) {
+                flagged.splice(idx, 1);
+                showToast('Flag removed', 'info');
+            } else {
+                flagged.push(id);
+                showToast('Listing flagged', 'success');
+            }
+            _saveFlaggedListings(flagged);
+
+            // Update button state
+            var btn = document.getElementById('flagBtn_' + listingId);
+            if (btn) {
+                var isFlagged = _isFlagged(listingId);
+                btn.innerHTML = '<i class="fas fa-flag ' + (isFlagged ? 'text-red-500' : '') + '"></i> ' + (isFlagged ? 'Flagged' : 'Flag');
+            }
+        }
+
+        // ── 3F. History ──────────────────────────────────────────────────────
+        function showListingHistory() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            var modalId = 'listingHistoryModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            // Build timeline from listing data
+            var events = [];
+            if (listing.listedDate) {
+                events.push({ date: listing.listedDate, label: 'Listed', detail: '$' + (listing.originalPrice || listing.price || 0).toLocaleString() });
+            }
+            if (listing.originalPrice && listing.originalPrice !== listing.price && listing.price) {
+                events.push({
+                    date: listing.updatedDate || 'N/A',
+                    label: 'Price ' + (listing.price < listing.originalPrice ? 'Reduced' : 'Increased'),
+                    detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
+                });
+            }
+            if (listing.status && listing.status !== 'ACTIVE') {
+                events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
+            }
+            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
+
+            var timelineHtml = events.map(function(ev) {
+                return '<div class="flex items-start gap-3 pb-4">'
+                    + '<div class="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>'
+                    + '<div><div class="text-xs font-semibold text-gray-700">' + escapeHtml(ev.label) + '</div>'
+                    + '<div class="text-xs text-gray-500">' + escapeHtml(ev.date) + (ev.detail ? ' — ' + escapeHtml(ev.detail) : '') + '</div></div></div>';
+            }).join('');
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">'
+                + '<div class="p-4 border-b flex items-center justify-between">'
+                + '<h3 class="font-bold text-gray-900">Listing History</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-6">'
+                + '<div class="text-sm font-semibold mb-4">' + escapeHtml(listing.address || 'Listing') + '</div>'
+                + '<div class="border-l-2 border-blue-200 pl-4 ml-1">' + timelineHtml + '</div>'
+                + '</div></div>';
+
+            document.body.appendChild(modal);
+        }
+
+        // ── 5. Send to Client Portal ─────────────────────────────────────────
+        function openPortalSendSelector() {
+            var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
+            if (!listing) { showToast('No listing selected', 'warning'); return; }
+
+            // Distribution gates check (UCBA compliance)
+            if (listing.permissions && listing.permissions.ownerOptOut) {
+                showToast('Cannot send — Owner Opt-Out (UCBA Art. I Sec. 5(A))', 'error');
+                return;
+            }
+            if (listing.permissions && !listing.permissions.internetDisplay) {
+                showToast('Cannot send to portal — Internet Display disabled', 'error');
+                return;
+            }
+
+            var modalId = 'portalSendModal';
+            var existing = document.getElementById(modalId);
+            if (existing) existing.remove();
+
+            var modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center';
+            modal.innerHTML = '<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">'
+                + '<div class="p-4 border-b flex items-center justify-between">'
+                + '<h3 class="font-bold text-gray-900">Send to Client Portal</h3>'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>'
+                + '</div>'
+                + '<div class="p-6 space-y-4">'
+                + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
+                + '<strong>' + escapeHtml(listing.address) + '</strong>'
+                + '<div class="text-xs text-gray-400">$' + (listing.price ? listing.price.toLocaleString() : '0') + '</div></div>'
+                + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Select Clients</label>'
+                + '<div id="portalSendClientList" class="border rounded-lg max-h-48 overflow-y-auto p-2 text-sm">'
+                + '<p class="text-gray-400 text-xs"><i class="fas fa-spinner fa-spin"></i> Loading clients...</p></div></div>'
+                + '</div>'
+                + '<div class="p-4 border-t bg-gray-50 flex justify-end gap-3">'
+                + '<button onclick="document.getElementById(\'' + modalId + '\').remove()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">Cancel</button>'
+                + '<button onclick="_submitPortalSend(\'' + listing.id + '\')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">Send</button>'
+                + '</div></div>';
+
+            document.body.appendChild(modal);
+
+            // Populate client checkboxes
+            if (typeof MallanAPI !== 'undefined') {
+                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
+                    var clients = result.clients || result.leads || [];
+                    var container = document.getElementById('portalSendClientList');
+                    if (!container || clients.length === 0) {
+                        if (container) container.innerHTML = '<p class="text-gray-500 text-xs">No clients found</p>';
+                        return;
+                    }
+                    container.innerHTML = clients.map(function(c) {
+                        var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+                        var roles = Array.isArray(c.roles) ? c.roles.join(', ') : '';
+                        return '<label class="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">'
+                            + '<input type="checkbox" value="' + c.id + '" class="portal-send-client-cb rounded">'
+                            + '<span>' + escapeHtml(name) + (roles ? ' <span class="text-[10px] text-gray-400">(' + roles + ')</span>' : '') + '</span></label>';
+                    }).join('');
+                }).catch(function() {
+                    var container = document.getElementById('portalSendClientList');
+                    if (container) container.innerHTML = '<p class="text-red-500 text-xs">Failed to load clients</p>';
+                });
+            }
+        }
+
+        function _submitPortalSend(listingId) {
+            var checkboxes = document.querySelectorAll('.portal-send-client-cb:checked');
+            if (checkboxes.length === 0) {
+                showToast('Please select at least one client', 'warning');
+                return;
+            }
+
+            var clientIds = Array.from(checkboxes).map(function(cb) { return cb.value; });
+
+            if (typeof MallanAPI === 'undefined') { showToast('API not available', 'error'); return; }
+
+            // Ensure listing exists in DB (IDX listings may not be synced yet)
+            var listing = listings.find(function(l) { return l.id === listingId || l.lid === listingId; });
+            var ensurePromise = (listing && listing._source === 'idx' && MallanAPI.idx.ensureListing)
+                ? MallanAPI.idx.ensureListing(listing)
+                : Promise.resolve({ ok: true, listing_id: listingId });
+
+            ensurePromise.then(function(ensureResult) {
+                var dbListingId = ensureResult.listing_id || listingId;
+                return MallanAPI.listingSends.send({
+                    listing_id: dbListingId,
+                    client_ids: clientIds,
+                    sent_via: 'crm_search',
+                    context: { source: 'search_detail' },
+                });
+            }).then(function(result) {
+                var modal = document.getElementById('portalSendModal');
+                if (modal) modal.remove();
+
+                var dueDate = new Date(Date.now() + 3 * 24 * 3600 * 1000).toLocaleDateString();
+                showToast('Sent to ' + clientIds.length + ' client' + (clientIds.length > 1 ? 's' : '') + '. Follow-up task created for ' + dueDate + '.', 'success');
+            }).catch(function(err) {
+                showToast('Failed to send: ' + err.message, 'error');
+            });
         }

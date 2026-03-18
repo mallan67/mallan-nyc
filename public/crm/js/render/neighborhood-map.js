@@ -350,32 +350,73 @@
       }
       _dbg('Insert before: ' + (firstSymbol || 'top'));
 
+      // Fill: invisible by default, visible only when selected or hovered
       _map.addLayer({
         id: 'nb-fill', type: 'fill', source: 'nb-source',
         paint: {
-          'fill-color': GOLD,
+          'fill-color': [
+            'match', ['get', 'borough'],
+            'Manhattan', '#2563EB',
+            'Brooklyn', '#10B981',
+            'Queens', '#F59E0B',
+            'Bronx', '#EF4444',
+            'Staten Island', '#8B5CF6',
+            '#6B7280'
+          ],
           'fill-opacity': [
             'case',
-            ['boolean', ['feature-state', 'selected'], false], 0.45,
-            ['boolean', ['feature-state', 'hover'], false], 0.30,
-            0.18,
+            ['boolean', ['feature-state', 'selected'], false], 0.25,
+            ['boolean', ['feature-state', 'hover'], false], 0.12,
+            0,
           ],
         },
       }, firstSymbol || undefined);
 
+      // Borders: invisible by default, solid when selected, faint on hover
       _map.addLayer({
         id: 'nb-line', type: 'line', source: 'nb-source',
         paint: {
-          'line-color': GOLD,
+          'line-color': [
+            'match', ['get', 'borough'],
+            'Manhattan', '#1D4ED8',
+            'Brooklyn', '#059669',
+            'Queens', '#D97706',
+            'Bronx', '#DC2626',
+            'Staten Island', '#7C3AED',
+            '#374151'
+          ],
           'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
-          'line-opacity': 1,
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            ['boolean', ['feature-state', 'hover'], false], 0.5,
+            0,
+          ],
         },
       }, firstSymbol || undefined);
 
+      // Labels: only show for selected neighborhoods
       _map.addLayer({
         id: 'nb-label', type: 'symbol', source: 'nb-source',
-        layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Bold'], 'text-anchor': 'center', 'text-allow-overlap': false },
-        paint: { 'text-color': '#1e3a5f', 'text-halo-color': '#fff', 'text-halo-width': 2 },
+        layout: { 'text-field': ['get', 'name'], 'text-size': 13, 'text-font': ['Open Sans Bold'], 'text-anchor': 'center', 'text-allow-overlap': false },
+        paint: {
+          'text-color': [
+            'match', ['get', 'borough'],
+            'Manhattan', '#1D4ED8',
+            'Brooklyn', '#059669',
+            'Queens', '#D97706',
+            'Bronx', '#DC2626',
+            'Staten Island', '#7C3AED',
+            '#1F2937'
+          ],
+          'text-halo-color': '#fff',
+          'text-halo-width': 2,
+          'text-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            0,
+          ],
+        },
       });
 
       _dbg('Layers added OK (' + geojson.features.length + ' polygons)');

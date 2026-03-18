@@ -59,6 +59,8 @@ export async function GET(req: NextRequest) {
       id: s.id.toString(),
       agent_id: s.agent_id?.toString() ?? null,
       lead_id: s.lead_id?.toString() ?? null,
+      alert_frequency: s.alert_frequency ?? null,
+      alert_enabled: s.alert_enabled ?? false,
     }));
 
     return NextResponse.json({ savedSearches: serialized, total: serialized.length });
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, criteria, lead_id } = body;
+    const { name, criteria, lead_id, alert_frequency, alert_enabled } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json({ error: "name is required (non-empty string)" }, { status: 400 });
@@ -91,12 +93,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
+    if (alert_frequency !== undefined && alert_frequency !== null && !["daily", "weekly"].includes(alert_frequency)) {
+      return NextResponse.json({ error: "alert_frequency must be 'daily', 'weekly', or null" }, { status: 400 });
+    }
+
     const search = await prisma.savedSearch.create({
       data: {
         name: name.trim(),
         criteria: criteria as Prisma.InputJsonValue,
         agent_id: auth.userId,
         lead_id: lead_id ? BigInt(lead_id) : null,
+        alert_frequency: alert_frequency ?? null,
+        alert_enabled: alert_frequency ? Boolean(alert_enabled !== false) : false,
       },
     });
 
@@ -108,6 +116,9 @@ export async function POST(req: NextRequest) {
       id: search.id.toString(),
       name: search.name,
       criteria: search.criteria,
+      alert_frequency: search.alert_frequency ?? null,
+      alert_enabled: search.alert_enabled ?? false,
+      lead_id: search.lead_id?.toString() ?? null,
       created_at: search.created_at,
     }, { status: 201 });
   } catch (err) {

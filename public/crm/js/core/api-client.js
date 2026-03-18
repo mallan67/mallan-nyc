@@ -491,13 +491,49 @@ var MallanAPI = (function () {
     },
   };
 
+  // ─── CMA (Comparative Market Analysis) ──────────────────────────────────
+
+  var cma = {
+    list: function (params) {
+      params = params || {};
+      var qs = [];
+      if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      if (params.limit) qs.push('limit=' + params.limit);
+      if (params.offset) qs.push('offset=' + params.offset);
+      var query = qs.length ? '?' + qs.join('&') : '';
+      return _fetch('/api/crm/cma' + query);
+    },
+
+    get: function (id) {
+      return _fetch('/api/crm/cma/' + encodeURIComponent(id));
+    },
+
+    create: function (data) {
+      return _fetch('/api/crm/cma', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  };
+
+  // ─── Listing Sends (send to client portal) ────────────────────────────
+
+  var listingSends = {
+    send: function (data) {
+      return _fetch('/api/crm/listing-sends', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  };
+
   // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
 
   var idx = {
     /**
      * Search listings via Trestle/REBNY RLS.
      * Returns listings in CRM flat shape (same as listings).
-     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip }
+     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
      */
     search: function (params) {
       params = params || {};
@@ -505,14 +541,35 @@ var MallanAPI = (function () {
       if (params.type) qs.push('type=' + encodeURIComponent(params.type));
       if (params.minPrice) qs.push('minPrice=' + params.minPrice);
       if (params.maxPrice) qs.push('maxPrice=' + params.maxPrice);
-      if (params.minBeds) qs.push('minBeds=' + params.minBeds);
+      if (params.minBeds != null) qs.push('minBeds=' + params.minBeds);
+      if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
       if (params.minBaths) qs.push('minBaths=' + params.minBaths);
+      if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
       if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
       if (params.address) qs.push('address=' + encodeURIComponent(params.address));
       if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
+      if (params.zip) qs.push('zip=' + encodeURIComponent(params.zip));
+      if (params.minRooms) qs.push('minRooms=' + params.minRooms);
+      if (params.maxRooms) qs.push('maxRooms=' + params.maxRooms);
+      if (params.minSqft) qs.push('minSqft=' + params.minSqft);
+      if (params.maxSqft) qs.push('maxSqft=' + params.maxSqft);
+      if (params.dateFrom) qs.push('dateFrom=' + encodeURIComponent(params.dateFrom));
+      if (params.dateTo) qs.push('dateTo=' + encodeURIComponent(params.dateTo));
+      if (params.dateType) qs.push('dateType=' + encodeURIComponent(params.dateType));
+      if (params.closeDateFrom) qs.push('closeDateFrom=' + encodeURIComponent(params.closeDateFrom));
+      if (params.closeDateTo) qs.push('closeDateTo=' + encodeURIComponent(params.closeDateTo));
+      if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
+      // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
+      if (params.minYear) qs.push('minYear=' + params.minYear);
+      if (params.maxYear) qs.push('maxYear=' + params.maxYear);
+      if (params.minFloors) qs.push('minFloors=' + params.minFloors);
+      if (params.maxFloors) qs.push('maxFloors=' + params.maxFloors);
+      if (params.minUnits) qs.push('minUnits=' + params.minUnits);
+      if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
+      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);
@@ -525,6 +582,52 @@ var MallanAPI = (function () {
      */
     status: function () {
       return _fetch('/api/idx/status');
+    },
+
+    /**
+     * Ensure an IDX listing exists in the local DB.
+     * If not found, creates a minimal record from the provided listing data.
+     * Call this before showings.create() or listingSends.send() for IDX listings.
+     * @param {object} listing - CRM flat listing object from search results
+     * @returns {Promise<{ok: boolean, listing_id: string, db_id: string, created: boolean}>}
+     */
+    ensureListing: function (listing) {
+      return _fetch('/api/idx/ensure-listing', {
+        method: 'POST',
+        body: JSON.stringify({
+          listing_id: listing.lid || listing.id,
+          address: listing.address,
+          unit: listing.unit,
+          price: listing.price,
+          beds: listing.beds,
+          baths: listing.baths,
+          full_baths: listing.fullBaths,
+          half_baths: listing.halfBaths,
+          int_sqft: listing.intSqft,
+          rooms: listing.rooms,
+          year_built: listing.yearBuilt,
+          neighborhood: listing.neighborhood,
+          borough: listing.borough,
+          zip: listing.zip,
+          property_type: listing.propertyType,
+          property_sub_type: listing.propertySubType,
+          ownership: listing.ownership,
+          status: listing.status,
+          listing_category: listing.listingCategory,
+          listing_type: listing.listingCategory === 'rental' ? 'rent' : 'sale',
+          description: listing.description,
+          agent_name: listing.agentName,
+          agent_email: listing.agentEmail,
+          agent_phone: listing.agentPhone,
+          company: listing.company,
+          latitude: listing.latitude,
+          longitude: listing.longitude,
+          cross_street: listing.crossStreet,
+          images: listing.images,
+          internet_display_yn: listing.internetDisplayYN,
+          address_display_yn: listing.addressDisplayYN,
+        }),
+      });
     },
   };
 
@@ -617,6 +720,8 @@ var MallanAPI = (function () {
     savedSearches: savedSearches,
     email: email,
     idx: idx,
+    cma: cma,
+    listingSends: listingSends,
 
   };
 })();

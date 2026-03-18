@@ -221,20 +221,48 @@
             if (criteria.address) params.address = criteria.address;
             if (criteria.priceMin) params.minPrice = criteria.priceMin;
             if (criteria.priceMax) params.maxPrice = criteria.priceMax;
-            if (criteria.bedsMin) params.minBeds = criteria.bedsMin;
+            if (criteria.bedsMin != null) params.minBeds = criteria.bedsMin;
+            if (criteria.bedsMax != null) params.maxBeds = criteria.bedsMax;
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
-            if (criteria.neighborhoods && criteria.neighborhoods.length === 1) {
-                params.neighborhood = criteria.neighborhoods[0];
+            if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
+            if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
+                params.neighborhood = criteria.neighborhoods.join(',');
             }
             if (criteria.borough) params.borough = criteria.borough;
             if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
+            if (criteria.rlsId) params.listingId = criteria.rlsId;
+            if (criteria.zip) params.zip = criteria.zip;
+            // Rooms, sqft, year — all OData searchable per REBNY RLS field spec
+            if (criteria.roomsMin) params.minRooms = criteria.roomsMin;
+            if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
+            if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
+            if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
+            // Date range filters
+            if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
+            if (criteria.dateTo) params.dateTo = criteria.dateTo;
+            if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
+            if (criteria.soldDateFrom || criteria.contractDateFrom) params.closeDateFrom = criteria.soldDateFrom || criteria.contractDateFrom;
+            if (criteria.soldDateTo || criteria.contractDateTo) params.closeDateTo = criteria.soldDateTo || criteria.contractDateTo;
+            // Ownership (CommonInterest — OData searchable)
+            if (criteria.ownership && criteria.ownership.length > 0) {
+                params.ownership = criteria.ownership.join(',');
+            }
+            // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
+            if (criteria.yearMin) params.minYear = criteria.yearMin;
+            if (criteria.yearMax) params.maxYear = criteria.yearMax;
+            if (criteria.floorsMin) params.minFloors = criteria.floorsMin;
+            if (criteria.floorsMax) params.maxFloors = criteria.floorsMax;
+            if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
+            if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
+            if (criteria.buildingName) params.buildingName = criteria.buildingName;
             // Pass status filters to server (map CRM uppercase back to RESO PascalCase)
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Cancelled', 'EXPIRED': 'Expired' };
+                // Map CRM statuses to RESO StandardStatus values per REBNY RLS lookup table
+                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold' };
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            params.limit = 500;
+            params.limit = 200;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
@@ -297,6 +325,7 @@
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
+                    if (typeof refreshResultsMap === 'function') refreshResultsMap();
                 } catch(renderErr) {
                     console.error('[Search] Render after server search failed:', renderErr);
                 }
@@ -557,11 +586,11 @@
                 bedsMin = document.getElementById('saleMinBeds');
                 bedsMax = document.getElementById('saleMaxBeds');
             }
-            if (bedsMin && bedsMin.value && bedsMin.value !== '' && bedsMin.value !== 'custom') {
+            if (bedsMin && bedsMin.value !== '' && bedsMin.value !== 'custom') {
                 criteria.bedsMin = parseInt(bedsMin.value);
                 if (isNaN(criteria.bedsMin)) delete criteria.bedsMin;
             }
-            if (bedsMax && bedsMax.value && bedsMax.value !== '' && bedsMax.value !== 'custom') {
+            if (bedsMax && bedsMax.value !== '' && bedsMax.value !== 'custom') {
                 criteria.bedsMax = parseInt(bedsMax.value);
                 if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
             }
@@ -575,11 +604,11 @@
                 bathsMin = document.getElementById('saleMinBaths');
                 bathsMax = document.getElementById('saleMaxBaths');
             }
-            if (bathsMin && bathsMin.value && bathsMin.value !== '' && bathsMin.value !== 'custom') {
+            if (bathsMin && bathsMin.value !== '' && bathsMin.value !== 'custom') {
                 criteria.bathsMin = parseFloat(bathsMin.value);
                 if (isNaN(criteria.bathsMin)) delete criteria.bathsMin;
             }
-            if (bathsMax && bathsMax.value && bathsMax.value !== '' && bathsMax.value !== 'custom') {
+            if (bathsMax && bathsMax.value !== '' && bathsMax.value !== 'custom') {
                 criteria.bathsMax = parseFloat(bathsMax.value);
                 if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
             }
@@ -751,6 +780,62 @@
                     criteria.soldDateFrom = sdFrom;
                     criteria.soldDateTo = sdTo || sdFrom;
                 }
+            }
+
+            // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
+            // Only collect from building tab OR from the visible advanced building section
+            var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
+            if (currentSearchTab === 'building') {
+                yearMinEl = document.getElementById('buildingMinYear');
+                yearMaxEl = document.getElementById('buildingMaxYear');
+                unitsMinEl = document.getElementById('buildingMinUnits');
+                unitsMaxEl = document.getElementById('buildingMaxUnits');
+                floorsMinEl = document.getElementById('buildingMinFloors');
+                floorsMaxEl = document.getElementById('buildingMaxFloors');
+            } else if (currentSearchTab === 'sale') {
+                yearMinEl = document.getElementById('saleBuildingMinYear');
+                yearMaxEl = document.getElementById('saleBuildingMaxYear');
+                unitsMinEl = document.getElementById('saleBuildingMinUnits');
+                unitsMaxEl = document.getElementById('saleBuildingMaxUnits');
+                floorsMinEl = document.getElementById('saleBuildingMinFloors');
+                floorsMaxEl = document.getElementById('saleBuildingMaxFloors');
+            } else {
+                yearMinEl = document.getElementById('rentalBuildingMinYear');
+                yearMaxEl = document.getElementById('rentalBuildingMaxYear');
+                unitsMinEl = document.getElementById('rentalBuildingMinUnits');
+                unitsMaxEl = document.getElementById('rentalBuildingMaxUnits');
+                floorsMinEl = document.getElementById('rentalBuildingMinFloors');
+                floorsMaxEl = document.getElementById('rentalBuildingMaxFloors');
+            }
+            if (yearMinEl && yearMinEl.value && yearMinEl.value !== '') {
+                var ym = parseInt(yearMinEl.value);
+                if (!isNaN(ym)) criteria.yearMin = ym;
+            }
+            if (yearMaxEl && yearMaxEl.value && yearMaxEl.value !== '') {
+                var ymx = parseInt(yearMaxEl.value);
+                if (!isNaN(ymx)) criteria.yearMax = ymx;
+            }
+            if (unitsMinEl && unitsMinEl.value && unitsMinEl.value !== '') {
+                var um = parseInt(unitsMinEl.value);
+                if (!isNaN(um)) criteria.unitsMin = um;
+            }
+            if (unitsMaxEl && unitsMaxEl.value && unitsMaxEl.value !== '') {
+                var umx = parseInt(unitsMaxEl.value);
+                if (!isNaN(umx)) criteria.unitsMax = umx;
+            }
+            if (floorsMinEl && floorsMinEl.value && floorsMinEl.value !== '') {
+                var fm = parseInt(floorsMinEl.value);
+                if (!isNaN(fm)) criteria.floorsMin = fm;
+            }
+            if (floorsMaxEl && floorsMaxEl.value && floorsMaxEl.value !== '') {
+                var fmx = parseInt(floorsMaxEl.value);
+                if (!isNaN(fmx)) criteria.floorsMax = fmx;
+            }
+
+            // Building name search
+            var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
+            if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
+                criteria.buildingName = buildingNameEl.value.trim();
             }
 
             return criteria;

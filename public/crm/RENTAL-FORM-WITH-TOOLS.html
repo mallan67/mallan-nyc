@@ -2738,6 +2738,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div class="form-card-header"><i class="fas fa-city"></i> Building Information</div>
             <div class="space-y-2 text-sm">
                 <div class="flex justify-between"><span class="text-gray-600">Building Name</span><span id="rentalPreviewBldgName">--</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Building Key</span><span id="rentalPreviewBldgKey" class="text-gray-400 text-xs">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Year Built</span><span id="rentalPreviewBldgYear">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Total Units</span><span id="rentalPreviewBldgUnits">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Total Floors</span><span id="rentalPreviewBldgFloors">--</span></div>
@@ -4485,6 +4486,9 @@ function loadRentalListingData(listingId) {
     viewerSetVal('rentalTotalUnits', d.totalUnits);
     viewerSetVal('rentalStories', d.stories);
     viewerSetVal('rentalFloor', d.floor);
+    // Trestle 6.17: BuildingKeyNumeric (system-assigned building grouping ID)
+    var bldgKey = d.buildingKey || d.BuildingKeyNumeric || (d._raw && d._raw.raw_data && d._raw.raw_data.BuildingKeyNumeric) || null;
+    if (bldgKey) { setText('rentalPreviewBldgKey', bldgKey); }
     viewerSetVal('rentalElevatorsTotal', d.elevatorsTotal);
     viewerSetCheck('rentalGarageYN', d.garageYN);
     viewerSetCheck('rentalNewConstructionYN', d.newConstructionYN);

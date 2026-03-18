@@ -61,8 +61,8 @@ const SEARCH_SELECT_FIELDS = [
   // Rooms & Size
   "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger",
   "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
-  // Building
-  "BuildingName",
+  // Building (BuildingKeyNumeric: Trestle 6.17 — groups listings by building)
+  "BuildingName", "NumberOfUnitsTotal", "BuildingKeyNumeric",
   // Financial
   "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
   // Agent/Office
@@ -118,7 +118,8 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push("PropertyType eq 'ResidentialLease'");
   }
 
-  // Price range
+  // Price range — REBNY RLS uses ListPrice for BOTH sales AND rentals
+  // Per RLS field spec: "For rent/leasing, it must reflect the gross monthly rent/lease"
   const minPrice = params.get("minPrice");
   const maxPrice = params.get("maxPrice");
   if (minPrice && Number(minPrice) > 0) {
@@ -128,22 +129,36 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push(`ListPrice le ${Number(maxPrice)}`);
   }
 
-  // Bedrooms
+  // Bedrooms (ge 0 allows Studio filtering)
   const minBeds = params.get("minBeds");
-  if (minBeds && Number(minBeds) > 0) {
+  if (minBeds != null && minBeds !== "" && Number(minBeds) >= 0) {
     parts.push(`BedroomsTotal ge ${Number(minBeds)}`);
+  }
+  const maxBeds = params.get("maxBeds");
+  if (maxBeds != null && maxBeds !== "" && Number(maxBeds) >= 0) {
+    parts.push(`BedroomsTotal le ${Number(maxBeds)}`);
   }
 
   // Bathrooms
   const minBaths = params.get("minBaths");
-  if (minBaths && Number(minBaths) > 0) {
+  if (minBaths != null && minBaths !== "" && Number(minBaths) > 0) {
     parts.push(`BathroomsFull ge ${Number(minBaths)}`);
   }
+  const maxBaths = params.get("maxBaths");
+  if (maxBaths != null && maxBaths !== "" && Number(maxBaths) > 0) {
+    parts.push(`BathroomsFull le ${Number(maxBaths)}`);
+  }
 
-  // Neighborhood (CityRegion in REBNY RLS)
+  // Neighborhood (CityRegion in REBNY RLS) — supports comma-separated multi-select
   const neighborhood = params.get("neighborhood");
   if (neighborhood) {
-    parts.push(`CityRegion eq '${escapeOData(neighborhood)}'`);
+    const neighborhoods = neighborhood.split(",").map(n => n.trim()).filter(Boolean);
+    if (neighborhoods.length === 1) {
+      parts.push(`CityRegion eq '${escapeOData(neighborhoods[0])}'`);
+    } else if (neighborhoods.length > 1) {
+      const nParts = neighborhoods.map(n => `CityRegion eq '${escapeOData(n)}'`);
+      parts.push(`(${nParts.join(" or ")})`);
+    }
   }
 
   // Borough (CountyOrParish in REBNY RLS)
@@ -236,10 +251,110 @@ function buildODataFilter(params: URLSearchParams): string {
     }
   }
 
+  // Zip code (PostalCode in REBNY RLS)
+  const zip = params.get("zip");
+  if (zip) {
+    parts.push(`PostalCode eq '${escapeOData(zip)}'`);
+  }
+
+  // Rooms (RoomsTotal in REBNY RLS — LMP Search: Yes)
+  const minRooms = params.get("minRooms");
+  if (minRooms != null && minRooms !== "" && Number(minRooms) > 0) {
+    parts.push(`RoomsTotal ge ${Number(minRooms)}`);
+  }
+  const maxRooms = params.get("maxRooms");
+  if (maxRooms != null && maxRooms !== "" && Number(maxRooms) > 0) {
+    parts.push(`RoomsTotal le ${Number(maxRooms)}`);
+  }
+
+  // Square footage (LivingArea in REBNY RLS — LMP Search: Yes)
+  const minSqft = params.get("minSqft");
+  if (minSqft != null && minSqft !== "" && Number(minSqft) > 0) {
+    parts.push(`LivingArea ge ${Number(minSqft)}`);
+  }
+  const maxSqft = params.get("maxSqft");
+  if (maxSqft != null && maxSqft !== "" && Number(maxSqft) > 0) {
+    parts.push(`LivingArea le ${Number(maxSqft)}`);
+  }
+
+  // Year built (YearBuilt in REBNY RLS — LMP Search: Yes)
+  const minYear = params.get("minYear");
+  if (minYear != null && minYear !== "" && Number(minYear) > 0) {
+    parts.push(`YearBuilt ge ${Number(minYear)}`);
+  }
+  const maxYear = params.get("maxYear");
+  if (maxYear != null && maxYear !== "" && Number(maxYear) > 0) {
+    parts.push(`YearBuilt le ${Number(maxYear)}`);
+  }
+
+  // Building floors (StoriesTotal in REBNY RLS — LMP Search: Yes)
+  const minFloors = params.get("minFloors");
+  if (minFloors != null && minFloors !== "" && Number(minFloors) > 0) {
+    parts.push(`StoriesTotal ge ${Number(minFloors)}`);
+  }
+  const maxFloors = params.get("maxFloors");
+  if (maxFloors != null && maxFloors !== "" && Number(maxFloors) > 0) {
+    parts.push(`StoriesTotal le ${Number(maxFloors)}`);
+  }
+
+  // Building units (NumberOfUnitsTotal in REBNY RLS — LMP Search: Yes)
+  const minUnits = params.get("minUnits");
+  if (minUnits != null && minUnits !== "" && Number(minUnits) > 0) {
+    parts.push(`NumberOfUnitsTotal ge ${Number(minUnits)}`);
+  }
+  const maxUnits = params.get("maxUnits");
+  if (maxUnits != null && maxUnits !== "" && Number(maxUnits) > 0) {
+    parts.push(`NumberOfUnitsTotal le ${Number(maxUnits)}`);
+  }
+
+  // Date range filters (all LMP Search: Yes)
+  const dateFrom = params.get("dateFrom");
+  const dateTo = params.get("dateTo");
+  const dateType = params.get("dateType") || "Listed";
+  if (dateFrom) {
+    const field = dateType === "Updated" ? "ModificationTimestamp" : "ListingContractDate";
+    const op = dateType === "Updated" ? "gt" : "ge";
+    const val = dateType === "Updated" ? `${dateFrom}T00:00:00Z` : dateFrom;
+    parts.push(`${field} ${op} ${val}`);
+  }
+  if (dateTo) {
+    const field = dateType === "Updated" ? "ModificationTimestamp" : "ListingContractDate";
+    const val = dateType === "Updated" ? `${dateTo}T23:59:59Z` : dateTo;
+    parts.push(`${field} le ${val}`);
+  }
+
+  // Close/sold date range
+  const closeDateFrom = params.get("closeDateFrom");
+  const closeDateTo = params.get("closeDateTo");
+  if (closeDateFrom) {
+    parts.push(`CloseDate ge ${closeDateFrom}`);
+  }
+  if (closeDateTo) {
+    parts.push(`CloseDate le ${closeDateTo}`);
+  }
+
+  // Building name search
+  const buildingName = params.get("buildingName");
+  if (buildingName) {
+    parts.push(`contains(BuildingName,'${escapeOData(buildingName)}')`);
+  }
+
   // Property sub-type
   const subType = params.get("propertySubType");
   if (subType) {
     parts.push(`PropertySubType eq '${escapeOData(subType)}'`);
+  }
+
+  // CommonInterest / ownership type
+  const ownership = params.get("ownership");
+  if (ownership) {
+    const types = ownership.split(",").map(o => o.trim()).filter(Boolean);
+    if (types.length === 1) {
+      parts.push(`CommonInterest eq '${escapeOData(types[0])}'`);
+    } else if (types.length > 1) {
+      const oParts = types.map(o => `CommonInterest eq '${escapeOData(o)}'`);
+      parts.push(`(${oParts.join(" or ")})`);
+    }
   }
 
   // Single listing by ListingId (for detail page direct fetch)
@@ -281,6 +396,8 @@ function mapTrestleToCRM(
 
   const propertyType = String(raw.PropertyType || "");
   const isRental = propertyType.toLowerCase().includes("lease");
+  // REBNY RLS uses ListPrice for BOTH sales and rentals
+  // Per field spec: "For rent/leasing, it must reflect the gross monthly rent/lease"
   const price = Number(raw.ListPrice) || 0;
   const yearBuilt = raw.YearBuilt != null ? Number(raw.YearBuilt) : null;
 
@@ -294,8 +411,7 @@ function mapTrestleToCRM(
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
 
-  // Media — $expand=Media returns 400 on IDX Plus feed for bulk queries,
-  // so raw.Media is typically empty. Map it when available (detail views).
+  // Media — $expand=Media included (capped at 200 results to avoid 400 errors)
   const media = Array.isArray(raw.Media) ? raw.Media : [];
   const photoCount = Number(raw.PhotosCount) || media.length;
   const images = media.map((m: Record<string, unknown>, i: number) => {
@@ -312,6 +428,14 @@ function mapTrestleToCRM(
     };
   }).filter((img: { url: string }) => img.url);
 
+  // Down Payment Assistance (Trestle 6.17 — CustomProperty expansion)
+  const customProps = Array.isArray(raw.CustomProperty) ? raw.CustomProperty[0] as Record<string, unknown> | undefined
+    : (raw.CustomProperty as Record<string, unknown> | undefined);
+  const dpaAmount = customProps?.DownPaymentAssistanceAmount != null
+    ? Number(customProps.DownPaymentAssistanceAmount) : null;
+  const dpaCount = customProps?.DownPaymentAssistanceCount != null
+    ? Number(customProps.DownPaymentAssistanceCount) : null;
+
   // Price change detection
   const originalPrice = Number(raw.OriginalListPrice) || 0;
   let priceChange: string | null = null;
@@ -327,22 +451,27 @@ function mapTrestleToCRM(
     else era = "Pre-War";
   }
 
-  // Status normalization
+  // Status normalization — MlsStatus values per REBNY RLS lookup table
   const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "Active");
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
+    ComingSoon: "COMING_SOON",
     "Coming Soon": "COMING_SOON",
+    ActiveUnderContract: "PENDING",
     "Active Under Contract": "PENDING",
     Pending: "PENDING",
     Closed: "CLOSED",
     Expired: "EXPIRED",
     Withdrawn: "WITHDRAWN",
+    Hold: "HOLD",
+    Incomplete: "INCOMPLETE",
+    Canceled: "CANCELLED",
     Cancelled: "CANCELLED",
   };
   const status = statusMap[mlsStatus] || mlsStatus.toUpperCase();
 
   return {
-    id: index + 1,
+    id: String(raw.ListingId || raw.SourceSystemKey || index + 1),
     address: displayAddress,
     unit: String(raw.UnitNumber || ""),
     price,
@@ -368,6 +497,7 @@ function mapTrestleToCRM(
     yearBuilt,
     era,
     buildingName: raw.BuildingName ? String(raw.BuildingName) : null,
+    buildingKey: raw.BuildingKeyNumeric != null ? Number(raw.BuildingKeyNumeric) : null,
     listingType: "Exclusive",
     lid: String(raw.ListingId || ""),
     wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
@@ -402,6 +532,9 @@ function mapTrestleToCRM(
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
     comingSoonDate: null, // ComingSoonDate not on IDX Plus feed — detect via StandardStatus
+    // Trestle 6.17 fields
+    downPaymentAssistanceAmount: dpaAmount,
+    downPaymentAssistanceCount: dpaCount,
     permissions: {
       ownerOptOut: false, // Pre-filtered by Trestle on IDX Plus feed
       participantOnly: false, // Pre-filtered by Trestle on IDX Plus feed
@@ -456,16 +589,18 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch from Trestle (READ-ONLY GET)
-    // Skip $expand=Media for bulk search — photos fetched separately via /api/media/batch
+    // $expand=Media works for result sets under ~200 records (verified against Trestle docs).
+    // Cap at 200 when expanding media to avoid 400 errors on large result sets.
+    const effectiveLimit = Math.min(limit, 200);
     const result = await fetchFromTrestle({
       filter,
       select: SEARCH_SELECT_FIELDS,
-      top: limit,
+      top: effectiveLimit,
       skip,
       orderby: sort || "ModificationTimestamp desc",
-      maxTotal: limit,
+      maxTotal: effectiveLimit,
       count: true,
-      expandMedia: false,
+      expandMedia: true,
     });
 
     // Apply distribution gates — CRM context: agents see Participant Only + IDX opted-out
@@ -494,7 +629,7 @@ export async function GET(req: NextRequest) {
     const response = {
       listings,
       total: listings.length,
-      totalCount: result.odataCount ?? listings.length,
+      totalCount: listings.length,
       hasMore: result.hasMore,
       skip,
       limit,
