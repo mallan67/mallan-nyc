@@ -2561,6 +2561,16 @@ var Panels = (function () {
     window._lastScanFolder = { id: folderId, name: folderName };
 
     MallanAPI._fetch('/api/crm/outlook/scan?folder=' + encodeURIComponent(folderId) + '&top=100&mode=' + mode).then(function (data) {
+      // If StreetEasy mode found nothing, auto-retry with all contacts
+      if (mode === 'streeteasy' && (!data.contacts || data.contacts.length === 0) && data.scanned > 0) {
+        MallanAPI._fetch('/api/crm/outlook/scan?folder=' + encodeURIComponent(folderId) + '&top=100&mode=all').then(function (allData) {
+          allData._autoExpanded = true;
+          _renderScanResults(c, allData, folderName, folderId, 'all');
+        }).catch(function (err2) {
+          _renderScanResults(c, data, folderName, folderId, mode);
+        });
+        return;
+      }
       _renderScanResults(c, data, folderName, folderId, mode);
     }).catch(function (err) {
       c.innerHTML = '<div class="text-center py-16"><i class="fas fa-exclamation-circle text-3xl text-red-400 mb-3"></i>' +
@@ -2594,6 +2604,12 @@ var Panels = (function () {
         '<p class="text-sm text-gray-500">No contacts found in this folder.</p></div>';
       c.innerHTML = html + '</div>';
       return;
+    }
+
+    // Auto-expanded notice
+    if (data._autoExpanded) {
+      html += '<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">' +
+        '<i class="fas fa-info-circle mr-1"></i> No StreetEasy leads found in this folder. Showing all contacts from email headers — uncheck any brokers before importing.</div>';
     }
 
     // Select all
