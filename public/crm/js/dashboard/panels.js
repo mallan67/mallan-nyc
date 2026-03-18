@@ -420,50 +420,6 @@ var Panels = (function () {
       }
       html += '</div></div>';
 
-      // ── COMMISSION PAYOUTS — working section ────────────────────────
-      html += '<div class="card">' +
-        '<div class="card-header"><h3><i class="fas fa-dollar-sign text-gold mr-2"></i>Commission Payouts</h3>' +
-          '<div class="flex gap-2">' +
-            '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/buyer-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i>Buyer Deal</button>' +
-            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/tenant-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i>Tenant Deal</button>' +
-            '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/broker/finance/payouts\')">View All</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="card-body">';
-      var allPayouts = deals.filter(function (d) {
-        var ps = (d.payoutStatus || d.payout_status || '').toLowerCase();
-        return ps === 'pending' || ps === 'submitted';
-      });
-      if (allPayouts.length === 0) {
-        html += '<p class="text-sm text-gray-400 py-3">No pending payouts</p>';
-      } else {
-        html += '<div class="space-y-2">';
-        allPayouts.slice(0, 8).forEach(function (d) {
-          var addr = d.address || d.property_address || d.property || 'Deal';
-          var gross = d.grossCommission || d.commission || d.gross_commission || 0;
-          var agName = '';
-          if (d.assignedAgentId || d.assigned_agent_id) {
-            var ag = agents.find(function (a) { return a.id === (d.assignedAgentId || d.assigned_agent_id); });
-            agName = ag ? (ag.full_name || ag.name || '') : '';
-          }
-          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
-            '<div class="flex-1 min-w-0">' +
-              '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
-              '<p class="text-xs text-gray-500">' + $(gross) + (agName ? ' — ' + E(agName) : '') + '</p>' +
-            '</div>' +
-            '<div class="flex gap-1">' +
-              '<button class="btn btn-sm btn-gold" onclick="Panels._approvePayout(\'' + E(d.id || '') + '\');setTimeout(function(){Panels.brokerDashboard()},500)">Approve</button>' +
-              '<button class="btn btn-sm btn-outline" style="color:#DC2626;border-color:#DC2626" onclick="Panels._rejectPayout(\'' + E(d.id || '') + '\');setTimeout(function(){Panels.brokerDashboard()},500)">Reject</button>' +
-            '</div>' +
-          '</div>';
-        });
-        if (allPayouts.length > 8) {
-          html += '<p class="text-xs text-gray-400 text-center mt-2">+ ' + (allPayouts.length - 8) + ' more — <span class="cursor-pointer text-gold hover:underline" onclick="Router.navigate(\'/broker/finance/payouts\')">view all</span></p>';
-        }
-        html += '</div>';
-      }
-      html += '</div></div>';
-
       // ── FOLLOW-UPS — working section ──────────────────────────────
       html += '<div class="card">' +
         '<div class="card-header"><h3><i class="fas fa-clock text-gold mr-2"></i>Follow-ups</h3>' +
@@ -511,6 +467,50 @@ var Panels = (function () {
               '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();CRM.quickNote(\'' + E(item.id) + '\',\'' + E(item.text) + '\')">Note</button>') +
           '</div>';
         });
+        html += '</div>';
+      }
+      html += '</div></div>';
+
+      // ── COMMISSION PAYOUTS — working section ────────────────────────
+      html += '<div class="card">' +
+        '<div class="card-header"><h3><i class="fas fa-dollar-sign text-gold mr-2"></i>Commission Payouts</h3>' +
+          '<div class="flex gap-2">' +
+            '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/buyer-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i>Buyer Deal</button>' +
+            '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/tenant-deal\',\'_blank\')"><i class="fas fa-plus mr-1"></i>Tenant Deal</button>' +
+            '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/broker/finance/payouts\')">View All</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card-body">';
+      var allPayouts = deals.filter(function (d) {
+        var ps = (d.payoutStatus || d.payout_status || '').toLowerCase();
+        return ps === 'pending' || ps === 'submitted';
+      });
+      if (allPayouts.length === 0) {
+        html += '<p class="text-sm text-gray-400 py-3">No pending payouts</p>';
+      } else {
+        html += '<div class="space-y-2">';
+        allPayouts.slice(0, 8).forEach(function (d) {
+          var addr = d.address || d.property_address || d.property || 'Deal';
+          var gross = d.grossCommission || d.commission || d.gross_commission || 0;
+          var agName = '';
+          if (d.assignedAgentId || d.assigned_agent_id) {
+            var ag = agents.find(function (a) { return a.id === (d.assignedAgentId || d.assigned_agent_id); });
+            agName = ag ? (ag.full_name || ag.name || '') : '';
+          }
+          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
+              '<p class="text-xs text-gray-500">' + $(gross) + (agName ? ' — ' + E(agName) : '') + '</p>' +
+            '</div>' +
+            '<div class="flex gap-1">' +
+              '<button class="btn btn-sm btn-gold" onclick="Panels._approvePayout(\'' + E(d.id || '') + '\');setTimeout(function(){Panels.brokerDashboard()},500)">Approve</button>' +
+              '<button class="btn btn-sm btn-outline" style="color:#DC2626;border-color:#DC2626" onclick="Panels._rejectPayout(\'' + E(d.id || '') + '\');setTimeout(function(){Panels.brokerDashboard()},500)">Reject</button>' +
+            '</div>' +
+          '</div>';
+        });
+        if (allPayouts.length > 8) {
+          html += '<p class="text-xs text-gray-400 text-center mt-2">+ ' + (allPayouts.length - 8) + ' more — <span class="cursor-pointer text-gold hover:underline" onclick="Router.navigate(\'/broker/finance/payouts\')">view all</span></p>';
+        }
         html += '</div>';
       }
       html += '</div></div>';
