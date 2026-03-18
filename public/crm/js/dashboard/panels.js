@@ -5790,86 +5790,235 @@ var Panels = (function () {
   }
 
   // ─── Featured Properties ─────────────────────────────────────────────
+  // ─── Featured Properties — Broker controls what appears on homepage ──
+  var _featuredConfig = null;
+  var _featuredExclusives = [];
+
+  var FEATURED_PRESETS = [
+    { key: 'exclusives',     label: 'Our Exclusives',                icon: 'fa-crown',        filters: {}, sort: 'newest', desc: 'Mallan Real Estate exclusive listings' },
+    { key: 'luxury',         label: 'Luxury ($3M+)',                 icon: 'fa-gem',           filters: { type: 'sale', minPrice: 3000000, boroughs: ['Manhattan'] }, sort: 'price-desc', desc: 'Manhattan luxury properties' },
+    { key: 'townhouses',     label: 'Townhouses',                    icon: 'fa-home',          filters: { type: 'sale', propertySubTypes: ['Townhouse'], boroughs: ['Manhattan', 'Brooklyn'] }, sort: 'price-desc', desc: 'Manhattan & Brooklyn townhouses' },
+    { key: 'new-dev',        label: 'New Developments',              icon: 'fa-building',      filters: { type: 'sale', newDevelopment: true }, sort: 'newest', desc: 'New construction & developments' },
+    { key: 'under-1m',       label: 'Under $1M',                     icon: 'fa-tag',           filters: { type: 'sale', maxPrice: 1000000, boroughs: ['Manhattan'] }, sort: 'price-asc', desc: 'Manhattan under $1M' },
+    { key: '1m-3m',          label: '$1M - $3M',                     icon: 'fa-dollar-sign',   filters: { type: 'sale', minPrice: 1000000, maxPrice: 3000000, boroughs: ['Manhattan'] }, sort: 'price-desc', desc: 'Manhattan mid-range' },
+    { key: 'newest',         label: 'New Listings',                  icon: 'fa-clock',         filters: { type: 'sale' }, sort: 'newest', desc: 'Most recently listed' },
+    { key: 'terraces',       label: 'Best Terraces & Outdoor',       icon: 'fa-sun',           filters: { type: 'sale', amenities: ['Terrace', 'Balcony', 'Roof Deck'] }, sort: 'price-desc', desc: 'Outdoor space properties' },
+    { key: 'large',          label: 'Spacious (1500+ SF)',           icon: 'fa-expand-arrows-alt', filters: { type: 'sale', minSqft: 1500 }, sort: 'price-desc', desc: 'Large floor plans' },
+    { key: 'brooklyn',       label: 'Brooklyn Picks',                icon: 'fa-map-marker-alt', filters: { type: 'sale', boroughs: ['Brooklyn'] }, sort: 'price-desc', desc: 'Brooklyn highlights' },
+    { key: 'rentals',        label: 'Featured Rentals',              icon: 'fa-key',           filters: { type: 'rent', boroughs: ['Manhattan'] }, sort: 'price-desc', desc: 'Manhattan rentals' },
+    { key: 'custom',         label: 'Custom Filter',                 icon: 'fa-sliders-h',     filters: {}, sort: 'newest', desc: 'Build your own filter' },
+  ];
+
   function featuredProperties() {
     CRM.setPanelTitle('Featured Properties');
     var c = _container(); c.innerHTML = UI.loading();
 
-    MallanAPI.listings.list({ limit: 100 }).then(function (data) {
-      var listings = (data.listings || []).filter(function (l) {
-        var st = (l.status || '').toLowerCase();
-        return st !== 'closed' && st !== 'cancelled' && st !== 'canceled' && st !== 'sold' && st !== 'expired';
-      });
-      var featured = listings.filter(function (l) { return l.featuredFlag || l.featured; });
+    // Load current config + our exclusive listings
+    Promise.all([
+      MallanAPI._fetch('/api/featured-config').catch(function () { return null; }),
+      MallanAPI.listings.list({ limit: 100, status: 'Active' }).catch(function () { return { listings: [] }; }),
+    ]).then(function (r) {
+      _featuredConfig = r[0] || { pinnedListingIds: [], filters: { type: 'sale', boroughs: ['Manhattan'], neighborhoods: [], minPrice: 500000, maxPrice: 0, minBeds: 1 }, sort: 'newest', limit: 6 };
+      _featuredExclusives = (r[1].listings || []).filter(function (l) { return l.status === 'Active'; });
 
-      // Address parser helper
-      function _addr(l) {
-        var a = l.address || {};
-        if (typeof a === 'string') return a;
-        return a.UnparsedAddress || a.unparsed_address ||
-          ((a.StreetNumber || '') + ' ' + (a.StreetName || '') + ' ' + (a.StreetSuffix || '')).trim() ||
-          l.UnparsedAddress || l.street_address || l.listing_id || 'No address';
-      }
-
-      c.innerHTML = '<div class="space-y-4">' +
-        (listings.length === 0 ? UI.emptyState('fa-star', 'No active listings to feature') :
-        '<div class="space-y-2">' +
-        listings.slice(0, 20).map(function (l) {
-          var isFeatured = l.featuredFlag || l.featured;
-          return '<div class="card" style="padding:12px 18px"><div class="flex items-center gap-3">' +
-            '<div class="flex-1 min-w-0">' +
-              '<p class="text-sm font-semibold truncate">' + E(_addr(l)) + '</p>' +
-              '<p class="text-xs text-gray-500">' + $(l.list_price || l.ListPrice || l.price || 0) + ' · ' + E(l.status || '') + '</p>' +
-            '</div>' +
-            '<button class="btn btn-sm ' + (isFeatured ? 'btn-gold' : 'btn-outline') + '" onclick="Panels._toggleFeatured(\'' + E(l.id || l.listing_id) + '\',' + !isFeatured + ')">' +
-              '<i class="fas fa-star"></i> ' + (isFeatured ? 'Featured' : 'Feature') +
-            '</button>' +
-          '</div></div>';
-        }).join('') +
-        '</div>') +
-        '</div>';
+      _renderFeaturedPanel(c);
     }).catch(function () {
-      c.innerHTML = UI.emptyState('fa-star', 'Unable to load listings');
+      c.innerHTML = UI.emptyState('fa-star', 'Unable to load featured config');
     });
   }
 
-  function _toggleFeatured(id, val) {
-    MallanAPI.listings.update(id, { featured: val }).then(function () {
-      Events.log('featured_property_changed', 'listing', id, { featured: val });
-      CRM.toast(val ? 'Listing featured' : 'Feature removed', 'success');
-      featuredProperties();
-    }).catch(function () { CRM.toast('Updated', 'info'); });
+  function _renderFeaturedPanel(c) {
+    var cfg = _featuredConfig;
+    var exclusives = _featuredExclusives;
+    var pinnedIds = new Set(cfg.pinnedListingIds || []);
+    var activePreset = _detectActivePreset(cfg);
+
+    var html = '<div class="space-y-5">';
+
+    // ── Section 1: Our Exclusives (auto-pin) ──
+    html += '<div class="card p-4">' +
+      '<h3 class="text-sm font-bold text-gray-900 mb-2"><i class="fas fa-crown text-gold mr-2"></i>Our Exclusives</h3>' +
+      '<p class="text-xs text-gray-500 mb-3">Active Mallan listings are automatically pinned first on the homepage.</p>';
+
+    if (exclusives.length === 0) {
+      html += '<p class="text-xs text-gray-400 italic py-2">No active exclusive listings. Featured listings from RLS will show instead.</p>';
+    } else {
+      html += '<div class="space-y-1.5">';
+      exclusives.forEach(function (l) {
+        var addr = _resolveAddress(l);
+        var isPinned = pinnedIds.has(String(l.id)) || pinnedIds.has(String(l.listing_id));
+        html += '<div class="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50">' +
+          '<button class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all ' +
+            (isPinned ? 'bg-gold text-white' : 'bg-gray-100 text-gray-400 hover:bg-gold/20 hover:text-gold') +
+          '" onclick="Panels._togglePin(\'' + E(l.id || l.listing_id) + '\')" title="' + (isPinned ? 'Unpin' : 'Pin to featured') + '">' +
+            '<i class="fas fa-thumbtack"></i></button>' +
+          '<div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">' + E(addr) + '</p></div>' +
+          '<span class="text-xs font-bold text-gray-700">' + $(l.list_price || 0) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // ── Section 2: Preset Selector ──
+    html += '<div class="card p-4">' +
+      '<h3 class="text-sm font-bold text-gray-900 mb-2"><i class="fas fa-magic text-blue-500 mr-2"></i>RLS Featured Preset</h3>' +
+      '<p class="text-xs text-gray-500 mb-3">Choose what RLS listings fill the remaining featured slots.</p>' +
+      '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">';
+
+    FEATURED_PRESETS.forEach(function (p) {
+      var isActive = activePreset === p.key;
+      html += '<button class="text-left p-2.5 rounded-lg border transition-all ' +
+        (isActive ? 'border-gold bg-gold/5 ring-1 ring-gold' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50') +
+        '" onclick="Panels._applyFeaturedPreset(\'' + p.key + '\')">' +
+        '<div class="flex items-center gap-2 mb-1">' +
+          '<i class="fas ' + p.icon + ' text-xs ' + (isActive ? 'text-gold' : 'text-gray-400') + '"></i>' +
+          '<span class="text-xs font-semibold ' + (isActive ? 'text-gray-900' : 'text-gray-700') + '">' + p.label + '</span>' +
+        '</div>' +
+        '<p class="text-[10px] text-gray-500 leading-tight">' + p.desc + '</p>' +
+      '</button>';
+    });
+    html += '</div></div>';
+
+    // ── Section 3: Custom Controls (if custom preset or for fine-tuning) ──
+    html += '<div class="card p-4" id="featuredCustomControls">' +
+      '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-sliders-h text-purple-500 mr-2"></i>Fine-Tune</h3>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="form-label">Type</label><select id="fc_type" class="form-input form-select text-xs">' +
+          '<option value="sale"' + (cfg.filters.type === 'sale' ? ' selected' : '') + '>Sales</option>' +
+          '<option value="rent"' + (cfg.filters.type === 'rent' ? ' selected' : '') + '>Rentals</option>' +
+        '</select></div>' +
+        '<div><label class="form-label">Sort</label><select id="fc_sort" class="form-input form-select text-xs">' +
+          '<option value="price-desc"' + (cfg.sort === 'price-desc' ? ' selected' : '') + '>Price High→Low</option>' +
+          '<option value="price-asc"' + (cfg.sort === 'price-asc' ? ' selected' : '') + '>Price Low→High</option>' +
+          '<option value="newest"' + (cfg.sort === 'newest' ? ' selected' : '') + '>Newest First</option>' +
+        '</select></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3 mt-2">' +
+        '<div><label class="form-label">Min Price</label><input id="fc_minPrice" type="number" class="form-input text-xs" value="' + (cfg.filters.minPrice || '') + '" placeholder="0"></div>' +
+        '<div><label class="form-label">Max Price</label><input id="fc_maxPrice" type="number" class="form-input text-xs" value="' + (cfg.filters.maxPrice || '') + '" placeholder="No max"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3 mt-2">' +
+        '<div><label class="form-label">Min Beds</label><input id="fc_minBeds" type="number" class="form-input text-xs" value="' + (cfg.filters.minBeds || '') + '" placeholder="0"></div>' +
+        '<div><label class="form-label">Display Count</label><input id="fc_limit" type="number" class="form-input text-xs" value="' + (cfg.limit || 6) + '" min="3" max="12"></div>' +
+      '</div>' +
+      '<div class="mt-2"><label class="form-label">Boroughs</label>' +
+        '<div class="flex flex-wrap gap-1.5">';
+    ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'].forEach(function (b) {
+      var checked = (cfg.filters.boroughs || []).indexOf(b) !== -1;
+      html += '<label class="flex items-center gap-1 px-2 py-1 rounded border text-xs cursor-pointer ' +
+        (checked ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:border-gray-400') +
+        '"><input type="checkbox" class="sr-only fc-borough" value="' + b + '"' + (checked ? ' checked' : '') + '>' + b + '</label>';
+    });
+    html += '</div></div>' +
+      '<div class="mt-3 flex gap-2">' +
+        '<button class="btn btn-sm btn-gold flex-1" onclick="Panels._saveFeaturedConfig()"><i class="fas fa-save mr-1"></i>Save & Publish</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Panels._previewFeatured()"><i class="fas fa-eye mr-1"></i>Preview</button>' +
+      '</div>' +
+    '</div>';
+
+    html += '</div>';
+    c.innerHTML = html;
+  }
+
+  function _detectActivePreset(cfg) {
+    var f = cfg.filters || {};
+    for (var i = 0; i < FEATURED_PRESETS.length; i++) {
+      var p = FEATURED_PRESETS[i];
+      if (p.key === 'exclusives' || p.key === 'custom') continue;
+      var pf = p.filters;
+      if ((pf.type || 'sale') === (f.type || 'sale') &&
+          (pf.minPrice || 0) === (f.minPrice || 0) &&
+          (pf.maxPrice || 0) === (f.maxPrice || 0) &&
+          p.sort === (cfg.sort || 'newest')) {
+        var pb = pf.boroughs || [];
+        var cb = f.boroughs || [];
+        if (pb.length === cb.length && pb.every(function (b) { return cb.indexOf(b) !== -1; })) return p.key;
+      }
+    }
+    return 'custom';
+  }
+
+  function _applyFeaturedPreset(key) {
+    var preset = FEATURED_PRESETS.find(function (p) { return p.key === key; });
+    if (!preset) return;
+
+    if (key === 'exclusives') {
+      // Pin all exclusives, use defaults for rest
+      var ids = _featuredExclusives.map(function (l) { return String(l.id || l.listing_id); });
+      _featuredConfig.pinnedListingIds = ids;
+      _featuredConfig.filters = { type: 'sale', boroughs: ['Manhattan'], neighborhoods: [], minPrice: 0, maxPrice: 0, minBeds: 0 };
+      _featuredConfig.sort = 'newest';
+    } else if (key === 'custom') {
+      // Don't change anything, just show controls
+    } else {
+      _featuredConfig.filters = Object.assign({}, { type: 'sale', boroughs: [], neighborhoods: [], minPrice: 0, maxPrice: 0, minBeds: 0 }, preset.filters);
+      _featuredConfig.sort = preset.sort;
+    }
+
+    _renderFeaturedPanel(_container());
+  }
+
+  function _togglePin(listingId) {
+    var ids = _featuredConfig.pinnedListingIds || [];
+    var idx = ids.indexOf(String(listingId));
+    if (idx !== -1) ids.splice(idx, 1);
+    else ids.push(String(listingId));
+    _featuredConfig.pinnedListingIds = ids;
+    _renderFeaturedPanel(_container());
+  }
+
+  function _saveFeaturedConfig() {
+    // Read form values
+    var type = document.getElementById('fc_type').value;
+    var sort = document.getElementById('fc_sort').value;
+    var minPrice = Number(document.getElementById('fc_minPrice').value) || 0;
+    var maxPrice = Number(document.getElementById('fc_maxPrice').value) || 0;
+    var minBeds = Number(document.getElementById('fc_minBeds').value) || 0;
+    var limit = Number(document.getElementById('fc_limit').value) || 6;
+
+    var boroughs = [];
+    document.querySelectorAll('.fc-borough:checked').forEach(function (cb) { boroughs.push(cb.value); });
+
+    var body = {
+      pinnedListingIds: _featuredConfig.pinnedListingIds || [],
+      filters: { type: type, boroughs: boroughs, neighborhoods: [], minPrice: minPrice, maxPrice: maxPrice, minBeds: minBeds },
+      sort: sort,
+      limit: Math.max(3, Math.min(12, limit)),
+    };
+
+    MallanAPI._fetch('/api/featured-config', { method: 'PATCH', body: JSON.stringify(body) }).then(function () {
+      _featuredConfig = body;
+      Alerts.show('Featured listings updated — live on mallan.nyc within 5 minutes', 'success');
+    }).catch(function (err) {
+      Alerts.show('Error saving: ' + (err.message || err), 'error');
+    });
+  }
+
+  function _previewFeatured() {
+    window.open('https://mallan.nyc', '_blank');
   }
 
   // ─── Broker Documents ────────────────────────────────────────────────
   // Document Vault sections — organized by transaction type + property type
   var VAULT_SECTIONS = [
     { key: 'buyer', label: 'Buyer Agreements & Disclosures', icon: 'fa-user', subsections: [
-      { key: 'buyer_coop', label: 'Co-op' },
-      { key: 'buyer_condo', label: 'Condo' },
-      { key: 'buyer_townhouse', label: 'Townhouse' },
-      { key: 'buyer_new_dev', label: 'New Development' },
-      { key: 'buyer_general', label: 'General Buyer Disclosures' },
+      { key: 'buyer_agreements', label: 'Agreements' },
+      { key: 'buyer_disclosures', label: 'Disclosures' },
     ]},
     { key: 'seller', label: 'Seller Agreements & Disclosures', icon: 'fa-home', subsections: [
-      { key: 'seller_coop', label: 'Co-op' },
-      { key: 'seller_condo', label: 'Condo' },
-      { key: 'seller_townhouse', label: 'Townhouse' },
-      { key: 'seller_listing', label: 'Listing Agreements' },
-      { key: 'seller_general', label: 'General Seller Disclosures' },
+      { key: 'seller_agreements', label: 'Agreements' },
+      { key: 'seller_disclosures', label: 'Disclosures' },
     ]},
     { key: 'tenant', label: 'Tenant Agreements & Disclosures', icon: 'fa-key', subsections: [
-      { key: 'tenant_lease', label: 'Lease Agreements' },
-      { key: 'tenant_application', label: 'Applications & Screening' },
-      { key: 'tenant_general', label: 'General Tenant Disclosures' },
+      { key: 'tenant_agreements', label: 'Agreements' },
+      { key: 'tenant_disclosures', label: 'Disclosures' },
     ]},
     { key: 'landlord', label: 'Landlord Agreements & Disclosures', icon: 'fa-building', subsections: [
-      { key: 'landlord_management', label: 'Management Agreements' },
-      { key: 'landlord_lease', label: 'Lease Templates' },
-      { key: 'landlord_general', label: 'General Landlord Disclosures' },
+      { key: 'landlord_agreements', label: 'Agreements' },
+      { key: 'landlord_disclosures', label: 'Disclosures' },
     ]},
     { key: 'company', label: 'Company Documents', icon: 'fa-briefcase', subsections: [
-      { key: 'company_compliance', label: 'Compliance & Licensing' },
-      { key: 'company_financial', label: 'Financial / 1099' },
       { key: 'company_general', label: 'General' },
     ]},
   ];
@@ -5902,14 +6051,20 @@ var Panels = (function () {
         var scope = (d.scope || '').toLowerCase();
         var type = (d.type || '').toLowerCase();
         if (scope === 'client') {
-          if (type.indexOf('buyer') !== -1 || type.indexOf('purchase') !== -1) return 'buyer_general';
-          if (type.indexOf('seller') !== -1 || type.indexOf('listing') !== -1) return 'seller_general';
-          if (type.indexOf('tenant') !== -1 || type.indexOf('lease') !== -1 || type.indexOf('rental') !== -1) return 'tenant_general';
-          if (type.indexOf('landlord') !== -1 || type.indexOf('management') !== -1) return 'landlord_general';
-          return 'buyer_general';
+          if (type.indexOf('disclosure') !== -1) {
+            if (type.indexOf('buyer') !== -1) return 'buyer_disclosures';
+            if (type.indexOf('seller') !== -1) return 'seller_disclosures';
+            if (type.indexOf('tenant') !== -1 || type.indexOf('renter') !== -1) return 'tenant_disclosures';
+            if (type.indexOf('landlord') !== -1) return 'landlord_disclosures';
+          }
+          if (type.indexOf('buyer') !== -1 || type.indexOf('purchase') !== -1) return 'buyer_agreements';
+          if (type.indexOf('seller') !== -1 || type.indexOf('listing') !== -1) return 'seller_agreements';
+          if (type.indexOf('tenant') !== -1 || type.indexOf('lease') !== -1 || type.indexOf('rental') !== -1) return 'tenant_agreements';
+          if (type.indexOf('landlord') !== -1) return 'landlord_agreements';
+          return 'buyer_agreements';
         }
-        if (scope === 'listing') return 'seller_listing';
-        if (scope === 'deal') return 'buyer_general';
+        if (scope === 'listing') return 'seller_agreements';
+        if (scope === 'deal') return 'buyer_agreements';
         if (scope === 'company') return 'company_general';
         return 'company_general';
       }
@@ -12199,7 +12354,10 @@ var Panels = (function () {
     _exportPayoutsCSV: _exportPayoutsCSV,
     _markPaid: _markPaid,
     _rejectPayout: _rejectPayout,
-    _toggleFeatured: _toggleFeatured,
+    _togglePin: _togglePin,
+    _applyFeaturedPreset: _applyFeaturedPreset,
+    _saveFeaturedConfig: _saveFeaturedConfig,
+    _previewFeatured: _previewFeatured,
     _uploadDoc: _uploadDoc,
     _submitUploadDoc: _submitUploadDoc,
     _documentsTable: _documentsTable,
