@@ -86,6 +86,8 @@ var Workspace = (function () {
               (cl.healthScore ? '<span class="text-xs text-gray-500">Health: ' + cl.healthScore + '</span>' : '') +
             '</div>' +
           '</div>' +
+          // Partner placeholder — populated async
+          '<div id="wsHeaderPartner" class="hidden"></div>' +
         '</div>' +
         '<div class="flex gap-2">' +
           '<button class="btn btn-sm btn-outline" onclick="Workspace.editClient()"><i class="fas fa-edit"></i> Edit</button>' +
@@ -137,6 +139,32 @@ var Workspace = (function () {
     _renderClientTab();
     // Fetch lead score for right rail
     _fetchRailLeadScore();
+    // Fetch partner for header display
+    _fetchHeaderPartner();
+  }
+
+  function _fetchHeaderPartner() {
+    var el = document.getElementById('wsHeaderPartner');
+    if (!el) return;
+    MallanAPI._fetch('/api/crm/clients/' + _clientId + '/family').then(function (data) {
+      var members = data.members || [];
+      if (members.length === 0) {
+        el.classList.add('hidden');
+        return;
+      }
+      var m = members[0].member;
+      var rel = members[0].relationship || 'partner';
+      var pName = ((m.first_name || '') + ' ' + (m.last_name || '')).trim();
+      el.classList.remove('hidden');
+      el.innerHTML = '<div class="flex items-center gap-3 pl-3 border-l-2 border-gold cursor-pointer" onclick="Router.navigate(\'/workspace/client/' + m.id + '/overview\')">' +
+        UI.avatar(pName, 40) +
+        '<div>' +
+          '<p class="text-base font-bold text-gray-900">' + E(pName) + '</p>' +
+          '<p class="text-xs text-gray-500">' + E(rel.charAt(0).toUpperCase() + rel.slice(1)) +
+            (m.phone ? ' · ' + E(m.phone) : '') + '</p>' +
+        '</div>' +
+      '</div>';
+    }).catch(function () { el.classList.add('hidden'); });
   }
 
   function switchClientTab(tab) {
