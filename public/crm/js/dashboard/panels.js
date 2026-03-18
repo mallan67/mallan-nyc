@@ -370,27 +370,40 @@ var Panels = (function () {
       // ── BUILD HTML ────────────────────────────────────────────────
       var html = '<div class="space-y-6">';
 
-      // ── QUICK NOTES (saved to localStorage) ────────────────────────
-      var NOTES_KEY = 'mallan_broker_notes';
-      var savedNotes = '';
-      try { savedNotes = localStorage.getItem(NOTES_KEY) || ''; } catch (e) { /* ignore */ }
-      html += '<div class="card">' +
-        '<div class="card-header"><h3><i class="fas fa-sticky-note text-gold mr-2"></i>My Notes</h3></div>' +
-        '<div class="card-body">' +
-          '<textarea id="brokerNotes" class="form-input w-full" rows="4" placeholder="Type your notes here — auto-saved as you type..." style="resize:vertical;font-size:13px">' + E(savedNotes) + '</textarea>' +
-        '</div>' +
-      '</div>';
+      // ── NOTES & IDEAS — individual items you can add/edit/delete ──
+      var BOARD_KEY = 'mallan_broker_board';
+      var boardItems = [];
+      try { var raw = localStorage.getItem(BOARD_KEY); boardItems = raw ? JSON.parse(raw) : []; } catch (e) { boardItems = []; }
 
-      // ── IDEAS & TO-DO (saved to localStorage) ─────────────────────
-      var IDEAS_KEY = 'mallan_broker_ideas';
-      var savedIdeas = '';
-      try { savedIdeas = localStorage.getItem(IDEAS_KEY) || ''; } catch (e) { /* ignore */ }
       html += '<div class="card">' +
-        '<div class="card-header"><h3><i class="fas fa-lightbulb text-gold mr-2"></i>Ideas & Improvements</h3></div>' +
-        '<div class="card-body">' +
-          '<textarea id="brokerIdeas" class="form-input w-full" rows="4" placeholder="Quick ideas, things to improve, things to create..." style="resize:vertical;font-size:13px">' + E(savedIdeas) + '</textarea>' +
+        '<div class="card-header"><h3><i class="fas fa-sticky-note text-gold mr-2"></i>Notes & Ideas</h3>' +
+          '<button class="btn btn-sm btn-gold" onclick="Panels._addBoardItem()"><i class="fas fa-plus mr-1"></i>Add</button>' +
         '</div>' +
-      '</div>';
+        '<div class="card-body" id="brokerBoard">';
+
+      if (boardItems.length === 0) {
+        html += '<p class="text-sm text-gray-400 py-3">No notes yet — click Add to create one</p>';
+      } else {
+        html += '<div class="space-y-2">';
+        boardItems.forEach(function (item, i) {
+          var catColor = item.cat === 'idea' ? '#B8860B' : item.cat === 'improve' ? '#2563EB' : item.cat === 'create' ? '#7C3AED' : '#374151';
+          var catLabel = item.cat === 'idea' ? 'Idea' : item.cat === 'improve' ? 'Improve' : item.cat === 'create' ? 'Create' : 'Note';
+          html += '<div class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200 group">' +
+            '<span class="text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 mt-0.5" style="background:' + catColor + '15;color:' + catColor + '">' + catLabel + '</span>' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm font-medium text-gray-900">' + E(item.text) + '</p>' +
+              (item.detail ? '<p class="text-xs text-gray-500 mt-1">' + E(item.detail) + '</p>' : '') +
+              '<p class="text-xs text-gray-300 mt-1">' + (item.date ? D(item.date) : '') + '</p>' +
+            '</div>' +
+            '<div class="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">' +
+              '<button class="p-1 text-gray-300 hover:text-gold" onclick="Panels._editBoardItem(' + i + ')" title="Edit"><i class="fas fa-pen text-xs"></i></button>' +
+              '<button class="p-1 text-gray-300 hover:text-red-500" onclick="Panels._deleteBoardItem(' + i + ')" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div></div>';
 
       // ── QUICK LINKS ────────────────────────────────────────────────
       html += '<div class="flex flex-wrap gap-2">';
@@ -549,22 +562,91 @@ var Panels = (function () {
       html += '</div>'; // end space-y-6 wrapper
       c.innerHTML = html;
 
-      // Auto-save notes + ideas
-      var notesEl = document.getElementById('brokerNotes');
-      if (notesEl) {
-        notesEl.addEventListener('input', Utils.debounce(function () {
-          try { localStorage.setItem('mallan_broker_notes', notesEl.value); } catch (e) { /* quota */ }
-        }, 500));
-      }
-      var ideasEl = document.getElementById('brokerIdeas');
-      if (ideasEl) {
-        ideasEl.addEventListener('input', Utils.debounce(function () {
-          try { localStorage.setItem('mallan_broker_ideas', ideasEl.value); } catch (e) { /* quota */ }
-        }, 500));
-      }
+      // Board item functions are defined outside the promise
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-tachometer-alt', 'Unable to load dashboard data');
     });
+  }
+
+  // ─── Board Items (Notes & Ideas) ────────────────────────────────────
+  var BOARD_KEY = 'mallan_broker_board';
+
+  function _getBoardItems() {
+    try { var raw = localStorage.getItem(BOARD_KEY); return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+  }
+
+  function _saveBoardItems(items) {
+    try { localStorage.setItem(BOARD_KEY, JSON.stringify(items)); } catch (e) { /* quota */ }
+  }
+
+  function _addBoardItem() {
+    CRM.openModal('Add Note',
+      '<form id="boardItemForm" class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Category</label>' +
+          '<select class="form-input form-select" name="cat">' +
+            '<option value="note">Note</option>' +
+            '<option value="idea">Idea</option>' +
+            '<option value="improve">Improve</option>' +
+            '<option value="create">Create</option>' +
+          '</select></div>' +
+        '<div class="form-group"><label class="form-label">Title</label>' +
+          '<input class="form-input" name="text" placeholder="What\'s on your mind?" required></div>' +
+        '<div class="form-group"><label class="form-label">Details (optional)</label>' +
+          '<textarea class="form-input" name="detail" rows="3" placeholder="Add more context..."></textarea></div>' +
+      '</form>',
+      { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._saveBoardItem()"><i class="fas fa-save mr-1"></i>Save</button>' }
+    );
+  }
+
+  function _saveBoardItem() {
+    var form = document.getElementById('boardItemForm');
+    if (!form) return;
+    var data = {};
+    new FormData(form).forEach(function (v, k) { data[k] = v; });
+    if (!data.text) { CRM.toast('Title is required', 'error'); return; }
+    var items = _getBoardItems();
+    // Check if editing (stored on window)
+    if (window._editBoardIdx !== undefined && window._editBoardIdx !== null) {
+      items[window._editBoardIdx] = { cat: data.cat, text: data.text, detail: data.detail || '', date: items[window._editBoardIdx].date };
+      window._editBoardIdx = null;
+    } else {
+      items.unshift({ cat: data.cat, text: data.text, detail: data.detail || '', date: new Date().toISOString() });
+    }
+    _saveBoardItems(items);
+    CRM.closeModal();
+    brokerDashboard();
+  }
+
+  function _editBoardItem(idx) {
+    var items = _getBoardItems();
+    var item = items[idx];
+    if (!item) return;
+    window._editBoardIdx = idx;
+    CRM.openModal('Edit Note',
+      '<form id="boardItemForm" class="space-y-4">' +
+        '<div class="form-group"><label class="form-label">Category</label>' +
+          '<select class="form-input form-select" name="cat">' +
+            '<option value="note"' + (item.cat === 'note' ? ' selected' : '') + '>Note</option>' +
+            '<option value="idea"' + (item.cat === 'idea' ? ' selected' : '') + '>Idea</option>' +
+            '<option value="improve"' + (item.cat === 'improve' ? ' selected' : '') + '>Improve</option>' +
+            '<option value="create"' + (item.cat === 'create' ? ' selected' : '') + '>Create</option>' +
+          '</select></div>' +
+        '<div class="form-group"><label class="form-label">Title</label>' +
+          '<input class="form-input" name="text" value="' + E(item.text) + '" required></div>' +
+        '<div class="form-group"><label class="form-label">Details (optional)</label>' +
+          '<textarea class="form-input" name="detail" rows="3">' + E(item.detail || '') + '</textarea></div>' +
+      '</form>',
+      { footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+          '<button class="btn btn-gold" onclick="Panels._saveBoardItem()"><i class="fas fa-save mr-1"></i>Save</button>' }
+    );
+  }
+
+  function _deleteBoardItem(idx) {
+    var items = _getBoardItems();
+    items.splice(idx, 1);
+    _saveBoardItems(items);
+    brokerDashboard();
   }
 
   // ─── Agent Roster ────────────────────────────────────────────────────
@@ -11801,6 +11883,10 @@ var Panels = (function () {
   return {
     // Broker Console
     brokerDashboard: brokerDashboard,
+    _addBoardItem: _addBoardItem,
+    _saveBoardItem: _saveBoardItem,
+    _editBoardItem: _editBoardItem,
+    _deleteBoardItem: _deleteBoardItem,
     brokerApprovalQueue: brokerApprovalQueue,
     _filterApprovalQueue: _filterApprovalQueue,
     agentRoster: agentRoster,
