@@ -5327,165 +5327,135 @@ var Panels = (function () {
     var c = _container(); c.innerHTML = UI.loading();
     _clearListingModel();
 
-    // Load compliance audit + IDX status in parallel
+    // Load both compliance + IDX data, render into two sections on one page
     Promise.all([
       MallanAPI._fetch('/api/crm/compliance/audit', { method: 'POST' }).catch(function () { return null; }),
       MallanAPI.idx.status().catch(function () { return null; }),
-      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [] }; }),
-      MallanAPI._fetch('/api/crm/audit-log?limit=50&type=idx_sync,listing_sync,sync_error').catch(function () { return { events: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }).catch(function () { return { listings: [], total: 0 }; }),
+      MallanAPI._fetch('/api/crm/audit-log?limit=200&type=idx_sync,listing_sync,sync_error').catch(function () { return { events: [] }; }),
     ]).then(function (r) {
       var auditResult = r[0];
-      var idxStatus = r[1];
+      var idxStatusData = r[1];
       var listingsData = r[2];
-      var syncEvents = (r[3].events || []);
-      var listings = listingsData.listings || [];
+      var syncEventsData = r[3];
 
-      var html = '<div class="space-y-6">';
+      // Create two containers — compliance on top, IDX below
+      var wrapper = document.createElement('div');
+      wrapper.className = 'space-y-6';
+      var compSection = document.createElement('div');
+      var idxSection = document.createElement('div');
+      wrapper.appendChild(compSection);
+      wrapper.appendChild(idxSection);
+      c.innerHTML = '';
+      c.appendChild(wrapper);
 
-      // ── IDX/RLS STATUS ──────────────────────────────────────────
-      var connected = !!idxStatus;
-      var lastSync = idxStatus ? (idxStatus.lastSync || idxStatus.last_sync || idxStatus.lastSyncAt) : null;
-      var statusColor = connected ? '#2563EB' : '#DC2626';
+      // Render compliance into compSection
+      if (auditResult) {
+        _renderComplianceFromServer(compSection, auditResult);
+      } else {
+        _loadListingModel().then(function (model) {
+          _renderComplianceClientSide(compSection, model);
+        }).catch(function () {
+          compSection.innerHTML = UI.emptyState('fa-shield-alt', 'Unable to load compliance data');
+        });
+      }
 
-      html += '<div class="card" style="padding:16px 20px">' +
-        '<div class="flex items-center justify-between flex-wrap gap-4">' +
-          '<div class="flex items-center gap-3">' +
-            '<span class="w-3 h-3 rounded-full" style="background:' + statusColor + '"></span>' +
-            '<div>' +
-              '<p class="text-sm font-bold text-gray-900">IDX / Trestle — ' + (connected ? 'Connected' : 'Disconnected') + '</p>' +
-              '<p class="text-xs text-gray-500">IDX Plus via Trestle/Cotality · REBNY RLS</p>' +
-            '</div>' +
-          '</div>' +
-          '<div class="flex items-center gap-4 text-xs text-gray-500">' +
-            (lastSync ? '<span>Last sync: ' + D(lastSync) + ' ' + new Date(lastSync).toLocaleTimeString() + '</span>' : '') +
-            '<span>' + listings.length + ' synced listings</span>' +
+      // Render IDX into idxSection using the existing idxActivity renderer logic
+      // We pass the pre-fetched data so it doesn't double-fetch
+      _renderIdxSection(idxSection, idxStatusData, listingsData, syncEventsData);
+    }).catch(function () {
+      c.innerHTML = UI.emptyState('fa-shield-alt', 'Unable to load data');
+    });
+  }
+
+  // Render IDX status into a given container (reuses idxActivity logic)
+  function _renderIdxSection(container, status, listingsData, syncEventsRaw) {
+    var listings = listingsData.listings || [];
+    var syncEvents = syncEventsRaw.events || [];
+    var connected = !!status;
+    var lastSync = status ? (status.lastSync || status.last_sync || status.lastSyncAt) : null;
+
+    var html = '<div class="space-y-4">';
+
+    // Status bar
+    var statusColor = connected ? '#2563EB' : '#DC2626';
+    html += '<div class="card" style="border-left:4px solid ' + statusColor + ';padding:16px 20px">' +
+      '<div class="flex items-center justify-between flex-wrap gap-4">' +
+        '<div class="flex items-center gap-4">' +
+          '<div>' +
+            '<p class="text-sm font-bold text-gray-900">IDX / Trestle — ' + (connected ? 'Connected' : 'Disconnected') + '</p>' +
+            '<p class="text-xs text-gray-500">IDX Plus via Trestle/Cotality</p>' +
           '</div>' +
         '</div>' +
-      '</div>';
+        '<div class="flex items-center gap-4 text-xs text-gray-500">' +
+          (lastSync ? '<span>Last sync: ' + D(lastSync) + '</span>' : '') +
+          '<span>' + listings.length + ' synced listings</span>' +
+          '<span>Sync: every 4 hours</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
 
-      // ── SYNC ISSUES (if any) ────────────────────────────────────
-      var issueListings = listings.filter(function (l) {
-        var ss = (l.syncStatus || l.sync_status || '').toLowerCase();
-        return ss === 'error' || ss === 'pending' || ss === 'failed';
-      });
-      var syncErrors = syncEvents.filter(function (ev) { return (ev.type || '').toLowerCase().indexOf('error') !== -1; });
+    // Sync errors
+    var syncErrors = syncEvents.filter(function (ev) { return (ev.type || '').toLowerCase().indexOf('error') !== -1; });
+    var recentSyncs = syncEvents.filter(function (ev) { return (ev.type || '').toLowerCase().indexOf('sync') !== -1; }).slice(0, 10);
 
-      if (issueListings.length > 0 || syncErrors.length > 0) {
-        html += '<div class="card"><div class="card-header"><h3><i class="fas fa-exclamation-triangle text-gold mr-2"></i>Sync Issues</h3></div>' +
-          '<div class="card-body"><div class="space-y-2">';
-        issueListings.forEach(function (l) {
-          var addr = l.address || l.listing_id || 'Listing';
-          if (typeof addr === 'object') addr = addr.UnparsedAddress || addr.unparsed_address || l.listing_id || 'Listing';
-          var ss = l.syncStatus || l.sync_status || 'unknown';
-          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
-            '<i class="fas fa-exclamation-circle text-xs text-red-500 w-5 text-center"></i>' +
-            '<p class="text-sm flex-1 truncate">' + E(addr) + '</p>' +
-            '<span class="text-xs font-semibold text-red-600">' + E(ss) + '</span>' +
-          '</div>';
-        });
-        syncErrors.slice(0, 5).forEach(function (ev) {
-          var msg = ev.summary || ev.message || (ev.data && ev.data.error) || 'Sync error';
-          var ts = ev.createdAt || ev.created_at || ev.timestamp;
-          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
-            '<i class="fas fa-times-circle text-xs text-red-500 w-5 text-center"></i>' +
-            '<p class="text-xs text-red-700 flex-1 truncate">' + E(msg) + '</p>' +
-            (ts ? '<span class="text-xs text-gray-400">' + D(ts) + '</span>' : '') +
-          '</div>';
-        });
-        html += '</div></div></div>';
-      }
-
-      // ── COMPLIANCE AUDIT ────────────────────────────────────────
-      if (auditResult) {
-        var findings = auditResult.findings || [];
-        var score = auditResult.score || 0;
-        var scoreColor = score >= 90 ? '#374151' : score >= 70 ? '#F59E0B' : '#DC2626';
-
-        html += '<div class="card"><div class="card-header">' +
-          '<h3><i class="fas fa-shield-alt text-gold mr-2"></i>Compliance Audit</h3>' +
-          '<div class="flex items-center gap-3">' +
-            '<span class="text-lg font-bold" style="color:' + scoreColor + '">' + score + '%</span>' +
-            '<span class="text-xs text-gray-500">' + auditResult.listingsAudited + ' listings · ' + auditResult.totalFindings + ' findings</span>' +
-            '<button class="btn btn-sm btn-outline" onclick="Panels.complianceDashboard()"><i class="fas fa-sync mr-1"></i>Re-Audit</button>' +
-          '</div>' +
-        '</div><div class="card-body">';
-
-        if (findings.length === 0) {
-          html += '<p class="text-sm text-gray-500 py-3">All listings pass compliance checks</p>';
-        } else {
-          // Group by severity
-          var critical = findings.filter(function (f) { return f.severity === 'critical'; });
-          var high = findings.filter(function (f) { return f.severity === 'high'; });
-          var medium = findings.filter(function (f) { return f.severity === 'medium'; });
-
-          if (critical.length > 0) {
-            html += '<p class="text-xs font-bold text-red-600 mb-2">' + critical.length + ' Critical</p>';
-          }
-          if (high.length > 0) {
-            html += '<p class="text-xs font-bold text-orange-600 mb-2">' + high.length + ' High</p>';
-          }
-          if (medium.length > 0) {
-            html += '<p class="text-xs font-bold text-yellow-600 mb-2">' + medium.length + ' Medium</p>';
-          }
-
-          html += '<div class="space-y-2">';
-          findings.sort(function (a, b) {
-            var sev = { critical: 0, high: 1, medium: 2, low: 3 };
-            return (sev[a.severity] || 9) - (sev[b.severity] || 9);
-          });
-          findings.slice(0, 20).forEach(function (f) {
-            var sevColor = f.severity === 'critical' ? '#DC2626' : f.severity === 'high' ? '#F97316' : '#F59E0B';
-            html += '<div class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(f.listingId) + '/compliance\')">' +
-              '<span class="text-xs font-bold px-2 py-0.5 rounded mt-0.5 flex-shrink-0" style="color:' + sevColor + '">' + E(f.severity) + '</span>' +
-              '<div class="flex-1 min-w-0">' +
-                '<p class="text-sm font-medium truncate">' + E(f.address || 'Listing') + '</p>' +
-                '<p class="text-xs text-gray-500">' + E(f.title) + '</p>' +
-              '</div>' +
-              '<span class="text-xs text-gray-400 flex-shrink-0">' + E(f.category.replace(/_/g, ' ')) + '</span>' +
-            '</div>';
-          });
-          if (findings.length > 20) {
-            html += '<p class="text-xs text-gray-400 text-center mt-2">+ ' + (findings.length - 20) + ' more findings</p>';
-          }
-          html += '</div>';
-        }
-        html += '</div></div>';
-      } else {
-        // Fallback to client-side
-        html += '<div class="card" style="padding:20px;text-align:center">' +
-          '<p class="text-sm text-gray-400">Compliance audit unavailable — add listings to run audit</p>' +
+    if (syncErrors.length > 0) {
+      html += '<div class="card"><div class="card-header"><h3>Sync Errors (' + syncErrors.length + ')</h3></div>' +
+        '<div class="card-body"><div class="space-y-1">';
+      syncErrors.slice(0, 10).forEach(function (ev) {
+        var ts = ev.createdAt || ev.created_at || ev.timestamp;
+        var d = ev.data || ev.metadata || {};
+        var msg = ev.summary || ev.message || d.error || d.message || 'Unknown error';
+        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
+          '<i class="fas fa-exclamation-triangle text-xs text-gray-400"></i>' +
+          '<p class="text-xs text-gray-700 flex-1 truncate">' + E(msg) + '</p>' +
+          (ts ? '<span class="text-xs text-gray-400">' + D(ts) + '</span>' : '') +
         '</div>';
-      }
+      });
+      html += '</div></div></div>';
+    }
 
-      // ── RECENT SYNC HISTORY ─────────────────────────────────────
-      var syncHistory = syncEvents.filter(function (ev) {
-        return (ev.type || '').toLowerCase().indexOf('sync') !== -1;
-      }).slice(0, 10);
+    // Recent sync history
+    if (recentSyncs.length > 0) {
+      html += '<div class="card"><div class="card-header"><h3>Recent Sync History</h3></div>' +
+        '<div class="card-body"><div class="space-y-1">';
+      recentSyncs.forEach(function (ev) {
+        var ts = ev.createdAt || ev.created_at || ev.timestamp;
+        var d = ev.data || ev.metadata || {};
+        var processed = d.listingsProcessed || d.count || '-';
+        var errors = d.errors || d.errorCount || 0;
+        var isError = (ev.type || '').toLowerCase().indexOf('error') !== -1 || errors > 0;
+        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
+          '<span class="text-xs font-semibold text-gray-700">' + (isError ? 'Failed' : 'OK') + '</span>' +
+          '<p class="text-xs text-gray-500 flex-1">' + processed + ' listings</p>' +
+          (ts ? '<span class="text-xs text-gray-400">' + D(ts) + '</span>' : '') +
+        '</div>';
+      });
+      html += '</div></div></div>';
+    }
 
-      if (syncHistory.length > 0) {
-        html += '<div class="card"><div class="card-header"><h3><i class="fas fa-history text-gold mr-2"></i>Recent Sync History</h3></div>' +
-          '<div class="card-body"><div class="space-y-2">';
-        syncHistory.forEach(function (ev) {
-          var ts = ev.createdAt || ev.created_at || ev.timestamp;
-          var d = ev.data || ev.metadata || {};
-          var processed = d.listingsProcessed || d.count || '-';
-          var errors = d.errors || d.errorCount || 0;
-          var evType = (ev.type || '').toLowerCase();
-          var isError = evType.indexOf('error') !== -1 || errors > 0;
-          html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
-            '<i class="fas ' + (isError ? 'fa-times-circle text-red-500' : 'fa-check-circle text-gray-400') + ' text-xs w-5 text-center"></i>' +
-            '<p class="text-sm flex-1">' + (isError ? 'Failed' : 'Success') + ' — ' + processed + ' listings</p>' +
-            (ts ? '<span class="text-xs text-gray-400">' + D(ts) + '</span>' : '') +
-          '</div>';
-        });
-        html += '</div></div></div>';
-      }
-
-      html += '</div>';
-      c.innerHTML = html;
-    }).catch(function () {
-      c.innerHTML = UI.emptyState('fa-shield-alt', 'Unable to load compliance data');
+    // Listing issues
+    var issueListings = listings.filter(function (l) {
+      var ss = (l.syncStatus || l.sync_status || '').toLowerCase();
+      return ss === 'error' || ss === 'pending' || ss === 'failed';
     });
+    if (issueListings.length > 0) {
+      html += '<div class="card"><div class="card-header"><h3>Listing Sync Issues (' + issueListings.length + ')</h3></div>' +
+        '<div class="card-body"><div class="space-y-1">';
+      issueListings.forEach(function (l) {
+        var addr = l.address || l.listing_id || 'Listing';
+        if (typeof addr === 'object') addr = addr.UnparsedAddress || addr.unparsed_address || l.listing_id || 'Listing';
+        var ss = l.syncStatus || l.sync_status || 'unknown';
+        html += '<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">' +
+          '<p class="text-sm flex-1 truncate">' + E(addr) + '</p>' +
+          '<span class="text-xs font-semibold text-gray-500">' + E(ss) + '</span>' +
+        '</div>';
+      });
+      html += '</div></div></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
   }
 
   function _renderComplianceFromServer(c, audit) {
