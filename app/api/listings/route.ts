@@ -420,16 +420,17 @@ export async function GET(request: Request) {
 
             // Address/text search (contains on street name)
             // Normalize direction words: WEST→W, EAST→E, NORTH→N, SOUTH→S
-            // RLS uses StreetDirPrefix abbreviations (W, E, N, S)
+            // Strip street suffixes for flexible matching (Street/St, Avenue/Ave, etc.)
             if (addressParam) {
               const dirMap: Record<string, string> = { 'west': 'w', 'east': 'e', 'north': 'n', 'south': 's' };
-              const normalized = addressParam.trim().toLowerCase().replace(
-                /\b(west|east|north|south)\b/gi,
-                (m) => dirMap[m.toLowerCase()] || m
-              );
+              const suffixRe = /\b(street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct)\b\.?/gi;
+              const normalized = addressParam.trim().toLowerCase()
+                .replace(/\b(west|east|north|south)\b/gi, (m) => dirMap[m.toLowerCase()] || m)
+                .replace(suffixRe, '').replace(/\s+/g, ' ').trim();
               if (normalized) {
                 publicListings = publicListings.filter(l => {
-                  const street = `${l.address.streetNumber || ''} ${l.address.streetName || ''}`.toLowerCase();
+                  const street = `${l.address.streetNumber || ''} ${l.address.streetName || ''}`
+                    .toLowerCase().replace(suffixRe, '').replace(/\s+/g, ' ').trim();
                   return street.includes(normalized);
                 });
               }
@@ -582,8 +583,9 @@ export async function GET(request: Request) {
         // Furnished (rental)
         if (furnishedParam) filterParts.push("Furnished eq 'Furnished'");
 
-        // Address/text search — OData contains() on StreetName
+        // Address/text search — OData on StreetNumber + StreetName
         // Normalize direction words to RLS abbreviations: WEST→W, EAST→E, NORTH→N, SOUTH→S
+        // Parse into components: "134 WEST 71ST STREET" → number=134, rest="W 71ST STREET"
         if (addressParam) {
           const dirMap: Record<string, string> = { 'west': 'W', 'east': 'E', 'north': 'N', 'south': 'S' };
           const normalized = addressParam.trim().replace(
@@ -592,7 +594,19 @@ export async function GET(request: Request) {
           );
           const safeAddr = normalized.replace(/'/g, "''");
           if (safeAddr) {
-            filterParts.push(`contains(StreetName,'${safeAddr}')`);
+            // Split street number from street name for proper OData filtering
+            const addrMatch = safeAddr.match(/^(\d+[-\w]*)\s+(.+)/);
+            if (addrMatch) {
+              const [, streetNum, streetRest] = addrMatch;
+              // Remove trailing "Street/St/Avenue/Ave/etc" for broader matching
+              const streetClean = streetRest.replace(/\s+(street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct)\s*$/i, '').trim();
+              const safeNum = streetNum.replace(/'/g, "''");
+              const safeName = streetClean.replace(/'/g, "''");
+              filterParts.push(`StreetNumber eq '${safeNum}'`);
+              if (safeName) filterParts.push(`contains(StreetName,'${safeName}')`);
+            } else {
+              filterParts.push(`contains(StreetName,'${safeAddr}')`);
+            }
           }
         }
 
