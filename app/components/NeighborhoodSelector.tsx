@@ -20,24 +20,6 @@ interface NeighborhoodGroup {
 
 const MANHATTAN_GROUPS: NeighborhoodGroup[] = [
   {
-    label: 'UPTOWN',
-    neighborhoods: [
-      'Carnegie Hill', 'East Harlem', 'Hamilton Heights', 'Harlem',
-      'Inwood', 'Lenox Hill', 'Manhattan Valley', 'Marble Hill',
-      'Morningside Heights', 'Sugar Hill', 'Upper East Side',
-      'Upper West Side', 'Washington Heights', 'Yorkville',
-    ],
-  },
-  {
-    label: 'MIDTOWN',
-    neighborhoods: [
-      'Beekman Place', 'Central Park South', 'Hell\'s Kitchen',
-      'Hudson Yards', 'Kips Bay', 'Lincoln Square', 'Midtown East',
-      'Midtown West', 'Murray Hill', 'Roosevelt Island',
-      'Sutton Place', 'Tudor City', 'Turtle Bay',
-    ],
-  },
-  {
     label: 'DOWNTOWN',
     neighborhoods: [
       'Chelsea', 'East Village', 'Flatiron', 'Gramercy',
@@ -52,6 +34,24 @@ const MANHATTAN_GROUPS: NeighborhoodGroup[] = [
       'Financial District', 'Little Italy', 'Lower East Side',
       'Nolita', 'SoHo', 'South Street Seaport', 'Tribeca',
       'Two Bridges',
+    ],
+  },
+  {
+    label: 'MIDTOWN',
+    neighborhoods: [
+      'Beekman Place', 'Central Park South', 'Hell\'s Kitchen',
+      'Hudson Yards', 'Kips Bay', 'Lincoln Square', 'Midtown East',
+      'Midtown West', 'Murray Hill', 'Roosevelt Island',
+      'Sutton Place', 'Tudor City', 'Turtle Bay',
+    ],
+  },
+  {
+    label: 'UPTOWN',
+    neighborhoods: [
+      'Carnegie Hill', 'East Harlem', 'Hamilton Heights', 'Harlem',
+      'Inwood', 'Lenox Hill', 'Manhattan Valley', 'Marble Hill',
+      'Morningside Heights', 'Sugar Hill', 'Upper East Side',
+      'Upper West Side', 'Washington Heights', 'Yorkville',
     ],
   },
 ];
