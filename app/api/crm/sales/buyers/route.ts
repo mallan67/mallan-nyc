@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     // Count unique listings sent via actions
     const sentListings = new Set<string>();
     (b.actions || []).forEach((a) => {
-      if (a.listing_id) sentListings.add(a.listing_id);
+      if (a.listing_id) sentListings.add(String(a.listing_id));
     });
     return {
       ...b,
