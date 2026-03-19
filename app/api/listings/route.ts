@@ -333,12 +333,18 @@ export async function GET(request: Request) {
               break;
           }
 
+          // When address search is active, fetch more rows because the address
+          // post-filter may discard most results (address is in a JSON column,
+          // can't be filtered in SQL). Without this, we'd only post-filter 50 rows.
+          const dbTake = addressParam ? Math.min(limit * 20, 1000) : limit;
+          const dbSkip = addressParam ? 0 : skip;
+
           const [dbListings, dbTotal] = await Promise.all([
             prisma.listing.findMany({
               where: dbWhere,
               orderBy: dbOrderBy,
-              skip,
-              take: limit,
+              skip: dbSkip,
+              take: dbTake,
               select: {
                 id: true,
                 listing_id: true,
@@ -495,6 +501,31 @@ export async function GET(request: Request) {
                   });
                 }
               }
+            }
+
+            // When address post-filter was used, apply pagination on filtered results
+            if (addressParam) {
+              const filteredTotal = publicListings.length;
+              publicListings = publicListings.slice(skip, skip + limit);
+              const responseBody = {
+                success: true,
+                count: publicListings.length,
+                total: filteredTotal,
+                skip,
+                limit,
+                hasMore: skip + limit < filteredTotal,
+                listings: publicListings,
+                _compliance: {
+                  source: 'db+exclusive',
+                  idxEnabled: true,
+                  attribution: generateAttributionText(),
+                  disclaimer: 'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
+                },
+              };
+              setCache(cacheKey, responseBody);
+              return NextResponse.json(responseBody, {
+                headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+              });
             }
 
             const responseBody = {
