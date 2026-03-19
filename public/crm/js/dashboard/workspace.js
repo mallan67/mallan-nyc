@@ -35,83 +35,9 @@ var Workspace = (function () {
   ];
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TYPE + PHASE DETECTION (v2 redesign)
-  // Inspects client.roles[], client.pipeline_stage, listing IDs
-  // Returns { crm, type, phase } to route to the correct workspace renderer
+  // CLIENT WORKSPACE — open + render
+  // TODO: Two-CRM rebuild will add type-specific workspace routing here
   // ═══════════════════════════════════════════════════════════════════════
-
-  /**
-   * Detect CRM context and lifecycle phase for a client.
-   * @param {Object} cl - normalized client object
-   * @returns {{ crm: 'sales'|'rentals', type: string, phase: string }}
-   */
-  function detectTypeAndPhase(cl) {
-    var roles = cl.roles || [];
-    var stage = (cl.pipeline_stage || cl.stage || cl.status || 'new').toLowerCase();
-    var hasSaleListing = !!(cl.active_sale_listing_id || cl.activeSaleListingId);
-    var hasRentalListing = !!(cl.active_rental_listing_id || cl.activeRentalListingId);
-
-    // Determine primary role — priority: seller > landlord > buyer > renter
-    var isSeller = roles.indexOf('seller') !== -1;
-    var isLandlord = roles.indexOf('landlord') !== -1;
-    var isBuyer = roles.indexOf('buyer') !== -1;
-    var isRenter = roles.indexOf('renter') !== -1;
-
-    // Determine CRM + type
-    var crm, type;
-    if (isSeller) {
-      crm = 'sales'; type = 'seller';
-    } else if (isLandlord) {
-      crm = 'rentals'; type = 'landlord';
-    } else if (isBuyer) {
-      crm = 'sales'; type = 'buyer';
-    } else if (isRenter) {
-      crm = 'rentals'; type = 'renter';
-    } else {
-      // Fallback — infer from portal_role or default to buyer
-      var portalRole = (cl.portal_role || cl.type || cl.client_type || '').toLowerCase();
-      if (portalRole === 'seller') { crm = 'sales'; type = 'seller'; }
-      else if (portalRole === 'landlord') { crm = 'rentals'; type = 'landlord'; }
-      else if (portalRole === 'renter' || portalRole === 'tenant') { crm = 'rentals'; type = 'renter'; }
-      else { crm = 'sales'; type = 'buyer'; }
-    }
-
-    // Determine phase based on type + pipeline_stage + listing linkage
-    var phase;
-    if (type === 'seller') {
-      if (hasSaleListing || stage === 'active_seller' || stage === 'active') {
-        phase = 'active';
-      } else {
-        phase = 'prospect';
-      }
-    } else if (type === 'buyer') {
-      if (stage === 'active_buyer' || stage === 'active' || stage === 'showing' || stage === 'offer' || stage === 'deal') {
-        phase = 'active';
-      } else {
-        phase = 'prospect';
-      }
-    } else if (type === 'landlord') {
-      if (hasRentalListing || stage === 'active_landlord' || stage === 'active') {
-        phase = 'active';
-      } else {
-        phase = 'prospect';
-      }
-    } else if (type === 'renter') {
-      if (stage === 'current_tenant') {
-        phase = 'current_tenant';
-      } else if (stage === 'viewed_not_rent') {
-        phase = 'viewed_not_rent';
-      } else if (stage === 'active_renter' || stage === 'active' || stage === 'showing') {
-        phase = 'active';
-      } else {
-        phase = 'prospect';
-      }
-    } else {
-      phase = 'prospect';
-    }
-
-    return { crm: crm, type: type, phase: phase };
-  }
 
   function openClient(clientId, tab) {
     tab = tab || 'overview';
@@ -122,43 +48,13 @@ var Workspace = (function () {
     var c = CRM.getContent();
     c.innerHTML = UI.loading();
 
-    // Load client
     MallanAPI.clients.get(clientId).then(function (data) {
       _client = data.client || data;
-
-      // v2 redesign: route to correct workspace renderer based on type + phase
-      var detected = detectTypeAndPhase(ClientNormalizer.normalize(_client));
-      _client._detected = detected;
-
-      if (detected.type === 'seller' && detected.phase === 'prospect') {
-        SellerWorkspace.renderProspect(_client, c, _clientId);
-      } else if (detected.type === 'seller' && detected.phase === 'active') {
-        SellerWorkspace.renderActive(_client, c, _clientId);
-      } else if (detected.type === 'buyer' && detected.phase === 'prospect') {
-        BuyerWorkspace.renderProspect(_client, c, _clientId);
-      } else if (detected.type === 'buyer' && detected.phase === 'active') {
-        BuyerWorkspace.renderActive(_client, c, _clientId);
-      } else if (detected.type === 'landlord' && detected.phase === 'prospect') {
-        LandlordWorkspace.renderProspect(_client, c, _clientId);
-      } else if (detected.type === 'landlord' && detected.phase === 'active') {
-        LandlordWorkspace.renderActive(_client, c, _clientId);
-      } else if (detected.type === 'renter' && detected.phase === 'prospect') {
-        TenantWorkspace.renderProspect(_client, c, _clientId);
-      } else if (detected.type === 'renter' && detected.phase === 'active') {
-        TenantWorkspace.renderActive(_client, c, _clientId);
-      } else if (detected.type === 'renter' && detected.phase === 'viewed_not_rent') {
-        TenantWorkspace.renderViewedNotRent(_client, c, _clientId);
-      } else if (detected.type === 'renter' && detected.phase === 'current_tenant') {
-        TenantWorkspace.renderCurrentTenant(_client, c, _clientId);
-      } else {
-        // Fallback to legacy workspace
-        _renderClientWorkspace(c);
-      }
-
+      _renderClientWorkspace(c);
       _loadClientSecondary();
     }).catch(function (err) {
       c.innerHTML = UI.emptyState('fa-exclamation-circle', 'Could not load client: ' + (err.message || 'Unknown error'),
-        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/sales/seller-prospects\')">Back to CRM</button>');
+        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/dashboard\')">Back to Dashboard</button>');
     });
   }
 
@@ -172,14 +68,9 @@ var Workspace = (function () {
 
     var html = '<div class="space-y-0">';
 
-    // Back navigation — route to correct CRM based on client type
-    var backRoute = '/sales/buyers';
-    var backLabel = 'All Clients';
-    var roles = cl.roles || [];
-    if (roles.indexOf('seller') !== -1) { backRoute = '/sales/sellers'; backLabel = 'Active Sellers'; }
-    else if (roles.indexOf('buyer') !== -1) { backRoute = '/sales/buyers'; backLabel = 'Active Buyers'; }
-    else if (roles.indexOf('landlord') !== -1) { backRoute = '/rentals/landlords'; backLabel = 'Landlords'; }
-    else if (roles.indexOf('renter') !== -1) { backRoute = '/rentals/tenants'; backLabel = 'Current Tenants'; }
+    // Back navigation
+    var backRoute = '/ops/dashboard';
+    var backLabel = 'Dashboard';
 
     html += '<div class="flex items-center gap-2 mb-2">' +
       '<button class="text-sm text-gray-500 hover:text-gray-700" onclick="Router.navigate(\'' + backRoute + '\')"><i class="fas fa-arrow-left mr-1"></i> ' + E(backLabel) + '</button>' +
@@ -5450,7 +5341,6 @@ var Workspace = (function () {
     _getClient: function () { return _client; },
 
     // Type + Phase detection (v2 redesign)
-    detectTypeAndPhase: detectTypeAndPhase,
 
     // Client Workspace
     openClient: openClient,
