@@ -11,6 +11,7 @@ import SearchFilterPanel from '@/app/components/SearchFilterPanel';
 import NeighborhoodSelector from '@/app/components/NeighborhoodSelector';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { getAllNeighborhoods } from '@/lib/neighborhoods/boroughs';
+import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
 import { TAB_CONFIG } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
 import { trackSearch } from '@/lib/posthog';
@@ -233,47 +234,64 @@ function SearchClient() {
   const isRental = tabConfig.apiType === 'rent';
 
   // ── Route searchQuery to the right API param ──
-  // Detect if the query is a neighborhood name, borough, or zip vs a street address
+  // Handles: exact neighborhoods, boroughs, zips, natural language ("2 bed UES"), addresses
   const resolvedSearch = useMemo(() => {
     const q = (searchQuery || '').trim();
-    if (!q) return { neighborhood: undefined, borough: undefined, address: undefined };
+    if (!q) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined };
 
     const qLower = q.toLowerCase();
 
-    // Check if it's a known neighborhood name
+    // Exact neighborhood match
     const allNeighborhoods = getAllNeighborhoods();
     const matchedNeighborhood = allNeighborhoods.find(n => n.name.toLowerCase() === qLower);
-    if (matchedNeighborhood) return { neighborhood: matchedNeighborhood.name, borough: undefined, address: undefined };
+    if (matchedNeighborhood) return { neighborhood: matchedNeighborhood.name, borough: undefined, address: undefined, nlFilters: undefined };
 
-    // Check if it's a borough name
+    // Exact borough match
     const boroughs = ['manhattan', 'brooklyn', 'queens', 'bronx', 'staten island'];
-    if (boroughs.includes(qLower)) return { neighborhood: undefined, borough: q, address: undefined };
+    if (boroughs.includes(qLower)) return { neighborhood: undefined, borough: q, address: undefined, nlFilters: undefined };
 
-    // Check if it's a zip code
-    if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined };
+    // Zip code
+    if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined };
 
-    // Otherwise treat as address/text search
-    return { neighborhood: undefined, borough: undefined, address: q };
+    // Natural language detection: contains beds, price, property type, amenity, or neighborhood keywords
+    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|no\s*fee|gym|pool|furnished)/i;
+    const containsNeighborhood = allNeighborhoods.some(n => qLower.includes(n.name.toLowerCase()));
+    const containsBorough = boroughs.some(b => qLower.includes(b));
+
+    if (nlSignals.test(q) || containsNeighborhood || containsBorough) {
+      const parsed = parseNaturalLanguageSearch(q);
+      return {
+        neighborhood: parsed.neighborhood || undefined,
+        borough: parsed.borough || undefined,
+        address: undefined,
+        nlFilters: parsed.filters,
+      };
+    }
+
+    // Plain address/text search
+    return { neighborhood: undefined, borough: undefined, address: q, nlFilters: undefined };
   }, [searchQuery]);
 
   // ── Listings hook ──
+  // NL-parsed filters (from "2 bed upper east side" etc.) merge with toolbar filters
+  const nl = resolvedSearch.nlFilters;
   const { listings, loading, loadingMore, error, total, hasMore, loadMore } = useListings({
     type: tabConfig.apiType === 'sale' ? 'buy' : 'rent',
     commercial: tabConfig.commercial,
-    minPrice: filters.minPrice,
-    maxPrice: filters.maxPrice,
-    beds: filters.beds,
-    minBaths: filters.baths,
-    propertySubTypes: filters.propertySubTypes,
+    minPrice: filters.minPrice ?? nl?.minPrice,
+    maxPrice: filters.maxPrice ?? nl?.maxPrice,
+    beds: filters.beds ?? nl?.beds,
+    minBaths: filters.baths ?? nl?.baths,
+    propertySubTypes: filters.propertySubTypes?.length ? filters.propertySubTypes : nl?.propertySubTypes,
     ownershipTypes: filters.ownershipTypes,
     statuses: filters.statuses,
-    yearBuilt: filters.yearBuilt,
-    furnished: filters.furnished,
-    amenities: filters.amenities,
+    yearBuilt: filters.yearBuilt ?? nl?.yearBuilt,
+    furnished: filters.furnished ?? nl?.furnished,
+    amenities: filters.amenities?.length ? filters.amenities : nl?.amenities,
     openHouse: filters.openHouse,
     openHouseDate: filters.openHouseDate,
-    minSqft: filters.minSqft,
-    maxSqft: filters.maxSqft,
+    minSqft: filters.minSqft ?? nl?.minSqft,
+    maxSqft: filters.maxSqft ?? nl?.maxSqft,
     sort: filters.sort,
     neighborhood: selectedNeighborhoods.join(',') || resolvedSearch.neighborhood || neighborhoodParam || filters.neighborhood,
     borough: resolvedSearch.borough || boroughParam || undefined,
