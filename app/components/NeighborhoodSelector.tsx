@@ -22,35 +22,36 @@ const MANHATTAN_GROUPS: NeighborhoodGroup[] = [
   {
     label: 'UPTOWN',
     neighborhoods: [
-      'Upper East Side', 'Upper West Side', 'Yorkville', 'Carnegie Hill',
-      'Lenox Hill', 'East Harlem', 'Harlem', 'Hamilton Heights', 'Sugar Hill',
-      'Morningside Heights', 'Manhattan Valley', 'Washington Heights', 'Inwood',
-      'Marble Hill',
+      'Carnegie Hill', 'East Harlem', 'Hamilton Heights', 'Harlem',
+      'Inwood', 'Lenox Hill', 'Manhattan Valley', 'Marble Hill',
+      'Morningside Heights', 'Sugar Hill', 'Upper East Side',
+      'Upper West Side', 'Washington Heights', 'Yorkville',
     ],
   },
   {
     label: 'MIDTOWN',
     neighborhoods: [
-      'Midtown East', 'Midtown West', 'Murray Hill', 'Turtle Bay',
-      'Sutton Place', 'Beekman Place', 'Tudor City', 'Kips Bay',
-      'Hell\'s Kitchen', 'Hudson Yards', 'Central Park South',
-      'Lincoln Square', 'Roosevelt Island',
+      'Beekman Place', 'Central Park South', 'Hell\'s Kitchen',
+      'Hudson Yards', 'Kips Bay', 'Lincoln Square', 'Midtown East',
+      'Midtown West', 'Murray Hill', 'Roosevelt Island',
+      'Sutton Place', 'Tudor City', 'Turtle Bay',
     ],
   },
   {
     label: 'DOWNTOWN',
     neighborhoods: [
-      'Chelsea', 'Flatiron', 'NoMad', 'Gramercy', 'Stuyvesant Town',
-      'Greenwich Village', 'West Village', 'Meatpacking District',
-      'East Village', 'NoHo', 'Union Square',
+      'Chelsea', 'East Village', 'Flatiron', 'Gramercy',
+      'Greenwich Village', 'Meatpacking District', 'NoHo', 'NoMad',
+      'Stuyvesant Town', 'Union Square', 'West Village',
     ],
   },
   {
     label: 'LOWER MANHATTAN',
     neighborhoods: [
-      'SoHo', 'Nolita', 'Little Italy', 'Chinatown', 'Lower East Side',
-      'Two Bridges', 'Tribeca', 'Financial District', 'Battery Park City',
-      'South Street Seaport', 'Civic Center',
+      'Battery Park City', 'Chinatown', 'Civic Center',
+      'Financial District', 'Little Italy', 'Lower East Side',
+      'Nolita', 'SoHo', 'South Street Seaport', 'Tribeca',
+      'Two Bridges',
     ],
   },
 ];
