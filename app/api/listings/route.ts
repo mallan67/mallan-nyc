@@ -333,11 +333,20 @@ export async function GET(request: Request) {
               break;
           }
 
-          // When address search is active, fetch more rows because the address
-          // post-filter may discard most results (address is in a JSON column,
-          // can't be filtered in SQL). Without this, we'd only post-filter 50 rows.
-          const dbTake = addressParam ? Math.min(limit * 20, 1000) : limit;
-          const dbSkip = addressParam ? 0 : skip;
+          // Address search: push StreetNumber into Prisma JSON path filter
+          // so the DB narrows results in SQL before the street name post-filter
+          if (addressParam) {
+            const addrMatch = addressParam.trim().match(/^(\d+[-\w]*)\s+/);
+            if (addrMatch) {
+              const addrCondition: Prisma.ListingWhereInput = {
+                address: { path: ['StreetNumber'], equals: addrMatch[1] },
+              };
+              dbWhere.AND = [...(Array.isArray(dbWhere.AND) ? dbWhere.AND : dbWhere.AND ? [dbWhere.AND] : []), addrCondition];
+            }
+          }
+
+          const dbTake = limit;
+          const dbSkip = skip;
 
           const [dbListings, dbTotal] = await Promise.all([
             prisma.listing.findMany({
@@ -503,31 +512,6 @@ export async function GET(request: Request) {
               }
             }
 
-            // When address post-filter was used, apply pagination on filtered results
-            if (addressParam) {
-              const filteredTotal = publicListings.length;
-              publicListings = publicListings.slice(skip, skip + limit);
-              const responseBody = {
-                success: true,
-                count: publicListings.length,
-                total: filteredTotal,
-                skip,
-                limit,
-                hasMore: skip + limit < filteredTotal,
-                listings: publicListings,
-                _compliance: {
-                  source: 'db+exclusive',
-                  idxEnabled: true,
-                  attribution: generateAttributionText(),
-                  disclaimer: 'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
-                },
-              };
-              setCache(cacheKey, responseBody);
-              return NextResponse.json(responseBody, {
-                headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
-              });
-            }
-
             const responseBody = {
               success: true,
               count: publicListings.length,
@@ -614,30 +598,24 @@ export async function GET(request: Request) {
         // Furnished (rental)
         if (furnishedParam) filterParts.push("Furnished eq 'Furnished'");
 
-        // Address/text search — OData on StreetNumber + StreetName
+        // Address/text search — OData contains() on StreetName only
+        // (StreetNumber is not reliably filterable on Trestle IDX Plus OData)
         // Normalize direction words to RLS abbreviations: WEST→W, EAST→E, NORTH→N, SOUTH→S
-        // Parse into components: "134 WEST 71ST STREET" → number=134, rest="W 71ST STREET"
+        // Strip street number and suffix so contains() matches the StreetName field
         if (addressParam) {
           const dirMap: Record<string, string> = { 'west': 'W', 'east': 'E', 'north': 'N', 'south': 'S' };
           const normalized = addressParam.trim().replace(
             /\b(west|east|north|south)\b/gi,
             (m) => dirMap[m.toLowerCase()] || m
           );
-          const safeAddr = normalized.replace(/'/g, "''");
-          if (safeAddr) {
-            // Split street number from street name for proper OData filtering
-            const addrMatch = safeAddr.match(/^(\d+[-\w]*)\s+(.+)/);
-            if (addrMatch) {
-              const [, streetNum, streetRest] = addrMatch;
-              // Remove trailing "Street/St/Avenue/Ave/etc" for broader matching
-              const streetClean = streetRest.replace(/\s+(street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct)\s*$/i, '').trim();
-              const safeNum = streetNum.replace(/'/g, "''");
-              const safeName = streetClean.replace(/'/g, "''");
-              filterParts.push(`StreetNumber eq '${safeNum}'`);
-              if (safeName) filterParts.push(`contains(StreetName,'${safeName}')`);
-            } else {
-              filterParts.push(`contains(StreetName,'${safeAddr}')`);
-            }
+          // Strip leading street number and trailing suffix for StreetName matching
+          const streetOnly = normalized
+            .replace(/^\d+[-\w]*\s+/, '')  // remove "134 " prefix
+            .replace(/\s+(street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct)\s*$/i, '')
+            .trim()
+            .replace(/'/g, "''");
+          if (streetOnly) {
+            filterParts.push(`contains(StreetName,'${streetOnly}')`);
           }
         }
 
