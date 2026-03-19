@@ -966,3 +966,172 @@ input[type="checkbox"] {
 .mobile-nav-btn i { font-size: 18px; }
 .mobile-nav-btn.active { color: #B8860B; }
 .mobile-nav-btn:hover { color: #B8860B; }
+
+/* ── Rich Table Enhancements ──────────────────────────────────────────── */
+.data-table .row-avatar-cell {
+    width: 44px;
+    padding-right: 0;
+}
+
+.data-table .row-actions-cell {
+    width: 80px;
+    text-align: right;
+}
+
+.row-action-btn:hover {
+    background: #FFFBF0 !important;
+    border-color: #B8860B !important;
+    color: #B8860B !important;
+}
+
+.data-table .investor-row td {
+    border-left: 3px solid #F59E0B;
+}
+
+/* ── Score Indicator ──────────────────────────────────────────────────── */
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.score-indicator svg circle:last-child {
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+/* ── Toggle Switch ────────────────────────────────────────────────────── */
+.toggle-switch:hover { opacity: 0.85; }
+.toggle-switch:focus { outline: 2px solid #B8860B40; outline-offset: 2px; }
+
+/* ── KPI Strip (above tables) ─────────────────────────────────────────── */
+.kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.kpi-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: box-shadow 0.15s;
+}
+
+.kpi-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+.kpi-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.kpi-card-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+}
+
+.kpi-card-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+/* ── Calculator Cards ─────────────────────────────────────────────────── */
+.calc-results > div:first-child { padding-top: 0; }
+
+/* ── Fee Structure Pills ──────────────────────────────────────────────── */
+.fee-pill-owner { background: #ECFDF5; color: #059669; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+.fee-pill-tenant { background: #FEF3C7; color: #D97706; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+.fee-pill-nofee { background: #EFF6FF; color: #2563EB; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+
+/* ── Vacancy Risk Icons ───────────────────────────────────────────────── */
+.risk-high { color: #DC2626; }
+.risk-medium { color: #F59E0B; }
+.risk-low { color: #059669; }
+
+/* ── DOM Color Coding ─────────────────────────────────────────────────── */
+.dom-green { color: #059669; font-weight: 700; }
+.dom-yellow { color: #F59E0B; font-weight: 700; }
+.dom-red { color: #DC2626; font-weight: 700; }
+
+/* ── Intake Form Sections ─────────────────────────────────────────────── */
+.intake-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.intake-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    cursor: pointer;
+    background: #fafafa;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.15s;
+}
+
+.intake-section-header:hover { background: #f3f4f6; }
+
+.intake-section-header h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.intake-section-body {
+    padding: 16px 20px;
+}
+
+.intake-section.collapsed .intake-section-body { display: none; }
+.intake-section.collapsed .intake-chevron { transform: rotate(-90deg); }
+
+.intake-chevron {
+    font-size: 10px;
+    color: #9ca3af;
+    transition: transform 0.15s;
+}
+
+/* ── Promote Button ───────────────────────────────────────────────────── */
+.btn-promote {
+    background: linear-gradient(135deg, #B8860B, #D4A017);
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.btn-promote:hover { box-shadow: 0 2px 8px rgba(184,134,11,0.3); transform: translateY(-1px); }
+
+/* ── Responsive KPI ───────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .kpi-card { padding: 10px 12px; }
+    .kpi-card-value { font-size: 18px; }
+}
+
+@media (max-width: 480px) {
+    .kpi-strip { grid-template-columns: 1fr; }
+}

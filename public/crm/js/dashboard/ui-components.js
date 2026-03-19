@@ -286,6 +286,129 @@ var UI = (function () {
     '</div>';
   }
 
+  // ─── Score Indicator (circular arc for conviction/buyer potential) ────
+  function scoreIndicator(value, max, color) {
+    max = max || 100;
+    var pct = Math.min(100, Math.round((value / max) * 100));
+    color = color || (pct >= 70 ? '#059669' : pct >= 40 ? '#F59E0B' : '#9CA3AF');
+    var r = 16, cx = 18, cy = 18, stroke = 4;
+    var circ = 2 * Math.PI * r;
+    var offset = circ - (pct / 100) * circ;
+    return '<div class="score-indicator" style="width:36px;height:36px;position:relative;display:inline-flex;align-items:center;justify-content:center;">' +
+      '<svg width="36" height="36" style="transform:rotate(-90deg)">' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#f3f4f6" stroke-width="' + stroke + '"/>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + stroke + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + offset + '" stroke-linecap="round"/>' +
+      '</svg>' +
+      '<span style="position:absolute;font-size:10px;font-weight:800;color:' + color + '">' + value + '</span>' +
+    '</div>';
+  }
+
+  // ─── Toggle Switch ───────────────────────────────────────────────────
+  function toggleSwitch(on, onclick) {
+    var bg = on ? '#059669' : '#d1d5db';
+    var dot = on ? 'translateX(16px)' : 'translateX(0)';
+    return '<button class="toggle-switch" onclick="' + (onclick || '') + '" style="width:36px;height:20px;border-radius:10px;background:' + bg + ';border:none;cursor:pointer;position:relative;transition:background 0.2s;padding:0;">' +
+      '<span style="display:block;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);position:absolute;top:2px;left:2px;transition:transform 0.2s;transform:' + dot + '"></span>' +
+    '</button>';
+  }
+
+  // ─── Progress Dots (outreach 30/60/90 tracking) ──────────────────────
+  function progressDots(items) {
+    // items: [{ done: true, overdue: false, label: '30d' }, ...]
+    var html = '<div style="display:flex;gap:6px;align-items:center;">';
+    items.forEach(function(item) {
+      var color = item.done ? '#059669' : item.overdue ? '#DC2626' : '#d1d5db';
+      var icon = item.done ? 'fa-check' : item.overdue ? 'fa-clock' : 'fa-circle';
+      html += '<div title="' + E(item.label || '') + '" style="width:20px;height:20px;border-radius:50%;background:' + color + '20;display:flex;align-items:center;justify-content:center;">' +
+        '<i class="fas ' + icon + '" style="font-size:8px;color:' + color + '"></i></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // ─── Date Badge (color-coded urgency) ────────────────────────────────
+  function dateBadge(dateStr, opts) {
+    if (!dateStr) return '<span class="text-gray-400">-</span>';
+    opts = opts || {};
+    var d = new Date(dateStr);
+    var now = new Date();
+    var diff = Math.floor((d.getTime() - now.getTime()) / 86400000);
+    var color = '#6b7280';
+    if (opts.urgency === 'lease') {
+      color = diff <= 30 ? '#DC2626' : diff <= 90 ? '#F59E0B' : '#059669';
+    } else if (opts.urgency === 'overdue') {
+      color = diff < 0 ? '#DC2626' : diff <= 7 ? '#F59E0B' : '#059669';
+    }
+    var pulse = (opts.urgency === 'lease' && diff <= 30) ? 'animation:pulse 2s infinite;' : '';
+    return '<span style="font-size:12px;font-weight:700;color:' + color + ';' + pulse + '">' + D(dateStr) + '</span>';
+  }
+
+  // ─── Conviction/Score Bar ────────────────────────────────────────────
+  function scoreBar(value, max, label) {
+    max = max || 100;
+    var pct = Math.min(100, Math.round((value / max) * 100));
+    var color = pct >= 70 ? '#059669' : pct >= 40 ? '#F59E0B' : '#DC2626';
+    return '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<div style="flex:1;height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden;">' +
+        '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:3px;transition:width 0.3s;"></div>' +
+      '</div>' +
+      '<span style="font-size:11px;font-weight:800;color:' + color + ';min-width:28px;text-align:right;">' + value + '</span>' +
+    '</div>';
+  }
+
+  // ─── Row Action Buttons ──────────────────────────────────────────────
+  function rowActions(actions) {
+    var html = '<div class="row-actions" style="display:flex;gap:4px;justify-content:flex-end;" onclick="event.stopPropagation()">';
+    actions.forEach(function(a) {
+      html += '<button class="row-action-btn" title="' + E(a.title || '') + '" onclick="' + (a.onclick || '') + '" style="width:28px;height:28px;border-radius:6px;border:1px solid #e5e7eb;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;color:#6b7280;">' +
+        '<i class="fas ' + a.icon + '" style="font-size:11px;"></i></button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // ─── Calculator Card ─────────────────────────────────────────────────
+  function calculatorCard(opts) {
+    // opts: { id, title, icon, color, inputs: [{id,label,type,placeholder,prefix,suffix}], computeFn, outputs: [{id,label}] }
+    var color = opts.color || '#B8860B';
+    var html = '<div class="card" id="calc_' + E(opts.id) + '">' +
+      '<div class="card-header" style="background:' + color + '08;border-bottom-color:' + color + '20;">' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+          '<div style="width:36px;height:36px;border-radius:8px;background:' + color + '15;display:flex;align-items:center;justify-content:center;">' +
+            '<i class="fas ' + (opts.icon || 'fa-calculator') + '" style="color:' + color + ';font-size:14px;"></i></div>' +
+          '<h3 style="margin:0;font-size:14px;font-weight:700;color:#111827;">' + E(opts.title) + '</h3>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<div class="grid grid-cols-2 gap-3 mb-4">';
+
+    (opts.inputs || []).forEach(function(inp) {
+      html += '<div>' +
+        '<label class="text-xs font-semibold text-gray-700 mb-1 block">' + E(inp.label) + '</label>' +
+        '<div style="position:relative;">' +
+          (inp.prefix ? '<span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:#9ca3af;">' + E(inp.prefix) + '</span>' : '') +
+          '<input type="' + (inp.type || 'number') + '" id="calc_' + E(opts.id) + '_' + E(inp.id) + '" placeholder="' + E(inp.placeholder || '') + '" ' +
+            'class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:border-gold focus:outline-none" ' +
+            'style="' + (inp.prefix ? 'padding-left:24px;' : '') + (inp.suffix ? 'padding-right:28px;' : '') + '" ' +
+            'oninput="' + (opts.computeFn || '') + '()">' +
+          (inp.suffix ? '<span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;color:#9ca3af;">' + E(inp.suffix) + '</span>' : '') +
+        '</div></div>';
+    });
+
+    html += '</div>' +
+      '<div class="calc-results" id="calc_' + E(opts.id) + '_results" style="background:#f9fafb;border-radius:8px;padding:12px;">';
+
+    (opts.outputs || []).forEach(function(out) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;' + (out.primary ? 'border-top:2px solid #e5e7eb;margin-top:8px;padding-top:12px;' : '') + '">' +
+        '<span class="text-xs font-semibold text-gray-600">' + E(out.label) + '</span>' +
+        '<span id="calc_' + E(opts.id) + '_' + E(out.id) + '" class="text-sm font-bold ' + (out.primary ? 'text-lg text-green-700' : 'text-gray-900') + '">—</span>' +
+      '</div>';
+    });
+
+    html += '</div></div></div>';
+    return html;
+  }
+
   return {
     statCard: statCard,
     statGrid: statGrid,
@@ -309,5 +432,12 @@ var UI = (function () {
     btn: btn,
     btnSm: btnSm,
     alertItem: alertItem,
+    scoreIndicator: scoreIndicator,
+    toggleSwitch: toggleSwitch,
+    progressDots: progressDots,
+    dateBadge: dateBadge,
+    scoreBar: scoreBar,
+    rowActions: rowActions,
+    calculatorCard: calculatorCard,
   };
 })();
