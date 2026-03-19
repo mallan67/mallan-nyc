@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { loadNeighborhoods, ALL_BOROUGH_SLUGS, BOROUGH_CONFIGS } from '@/lib/neighborhoods/boroughs';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 
@@ -9,10 +9,70 @@ interface NeighborhoodSelectorProps {
   onChange: (neighborhoods: string[]) => void;
 }
 
-// Pre-load all neighborhood data (static imports, no API call)
-const BOROUGH_NEIGHBORHOODS: Record<BoroughSlug, string[]> = {} as Record<BoroughSlug, string[]>;
+// ── Grouped neighborhood data by borough ──
+// Manhattan is the primary market — full coverage with geographic groupings.
+// Other boroughs use their existing JSON data in a single group.
+
+interface NeighborhoodGroup {
+  label: string;
+  neighborhoods: string[];
+}
+
+const MANHATTAN_GROUPS: NeighborhoodGroup[] = [
+  {
+    label: 'UPTOWN',
+    neighborhoods: [
+      'Upper East Side', 'Upper West Side', 'Yorkville', 'Carnegie Hill',
+      'Lenox Hill', 'East Harlem', 'Harlem', 'Hamilton Heights', 'Sugar Hill',
+      'Morningside Heights', 'Manhattan Valley', 'Washington Heights', 'Inwood',
+      'Marble Hill',
+    ],
+  },
+  {
+    label: 'MIDTOWN',
+    neighborhoods: [
+      'Midtown East', 'Midtown West', 'Murray Hill', 'Turtle Bay',
+      'Sutton Place', 'Beekman Place', 'Tudor City', 'Kips Bay',
+      'Hell\'s Kitchen', 'Hudson Yards', 'Central Park South',
+      'Lincoln Square', 'Roosevelt Island',
+    ],
+  },
+  {
+    label: 'DOWNTOWN',
+    neighborhoods: [
+      'Chelsea', 'Flatiron', 'NoMad', 'Gramercy', 'Stuyvesant Town',
+      'Greenwich Village', 'West Village', 'Meatpacking District',
+      'East Village', 'NoHo', 'Union Square',
+    ],
+  },
+  {
+    label: 'LOWER MANHATTAN',
+    neighborhoods: [
+      'SoHo', 'Nolita', 'Little Italy', 'Chinatown', 'Lower East Side',
+      'Two Bridges', 'Tribeca', 'Financial District', 'Battery Park City',
+      'South Street Seaport', 'Civic Center',
+    ],
+  },
+];
+
+// Build grouped data for other boroughs from their JSON files
+function buildFlatGroup(slug: BoroughSlug): NeighborhoodGroup[] {
+  const names = loadNeighborhoods(slug).map(n => n.name);
+  return [{ label: '', neighborhoods: names }];
+}
+
+const BOROUGH_GROUPS: Record<BoroughSlug, NeighborhoodGroup[]> = {
+  manhattan: MANHATTAN_GROUPS,
+  brooklyn: buildFlatGroup('brooklyn'),
+  queens: buildFlatGroup('queens'),
+  bronx: buildFlatGroup('bronx'),
+  'staten-island': buildFlatGroup('staten-island'),
+};
+
+// Flat list of all neighborhoods per borough (for "All [Borough]" toggle)
+const BOROUGH_ALL_NAMES: Record<BoroughSlug, string[]> = {} as Record<BoroughSlug, string[]>;
 for (const slug of ALL_BOROUGH_SLUGS) {
-  BOROUGH_NEIGHBORHOODS[slug] = loadNeighborhoods(slug).map(n => n.name);
+  BOROUGH_ALL_NAMES[slug] = BOROUGH_GROUPS[slug].flatMap(g => g.neighborhoods);
 }
 
 const BOROUGH_TABS: { slug: BoroughSlug; label: string }[] = [
@@ -22,6 +82,26 @@ const BOROUGH_TABS: { slug: BoroughSlug; label: string }[] = [
   { slug: 'bronx', label: 'Bronx' },
   { slug: 'staten-island', label: 'Staten Island' },
 ];
+
+// ── Checkbox row component ──
+function CheckRow({ name, checked, onChange }: { name: string; checked: boolean; onChange: () => void }) {
+  return (
+    <label className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-gray-50 cursor-pointer transition-colors group">
+      <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+        checked ? 'bg-brand-dark border-brand-dark' : 'border-gray-300 group-hover:border-gray-400'
+      }`}>
+        {checked && (
+          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </span>
+      <span className={`text-xs font-medium ${checked ? 'text-brand-dark' : 'text-brand-dark/70'}`}>
+        {name}
+      </span>
+    </label>
+  );
+}
 
 export default function NeighborhoodSelector({ selected, onChange }: NeighborhoodSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,22 +124,40 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
 
-  // Close on Escape
+  // Close on Escape + return focus to trigger
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [isOpen]);
 
-  const boroughName = BOROUGH_CONFIGS[activeBorough].name;
-  const neighborhoods = BOROUGH_NEIGHBORHOODS[activeBorough];
+  // Focus management: move focus into panel on open, return on close
+  const prevOpen = useRef(false);
+  useEffect(() => {
+    if (isOpen && !prevOpen.current) {
+      requestAnimationFrame(() => {
+        panelRef.current?.querySelector<HTMLElement>('label, button')?.focus();
+      });
+    }
+    if (!isOpen && prevOpen.current) {
+      triggerRef.current?.focus();
+    }
+    prevOpen.current = isOpen;
+  }, [isOpen]);
 
-  // "All [Borough]" selects all neighborhoods in that borough
-  const allBoroughNeighborhoods = neighborhoods;
-  const allBoroughSelected = allBoroughNeighborhoods.every(n => selected.includes(n));
+  const boroughName = BOROUGH_CONFIGS[activeBorough].name;
+  const groups = BOROUGH_GROUPS[activeBorough];
+  const allBoroughNeighborhoods = BOROUGH_ALL_NAMES[activeBorough];
+  const allBoroughSelected = useMemo(
+    () => allBoroughNeighborhoods.every(n => selected.includes(n)),
+    [allBoroughNeighborhoods, selected]
+  );
 
   const toggleNeighborhood = useCallback((name: string) => {
     if (selected.includes(name)) {
@@ -69,12 +167,20 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
     }
   }, [selected, onChange]);
 
+  const toggleGroup = useCallback((groupNames: string[]) => {
+    const allSelected = groupNames.every(n => selected.includes(n));
+    if (allSelected) {
+      onChange(selected.filter(n => !groupNames.includes(n)));
+    } else {
+      const others = selected.filter(n => !groupNames.includes(n));
+      onChange([...others, ...groupNames]);
+    }
+  }, [selected, onChange]);
+
   const toggleAllBorough = useCallback(() => {
     if (allBoroughSelected) {
-      // Deselect all from this borough
       onChange(selected.filter(n => !allBoroughNeighborhoods.includes(n)));
     } else {
-      // Add all from this borough (dedup)
       const others = selected.filter(n => !allBoroughNeighborhoods.includes(n));
       onChange([...others, ...allBoroughNeighborhoods]);
     }
@@ -89,6 +195,49 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
     : selected.length === 1
       ? selected[0]
       : `${selected.length} Neighborhoods`;
+
+  // ── Shared content renderer (used by both desktop and mobile) ──
+  const renderGroups = (colClass: string) => (
+    <>
+      {/* All [Borough] checkbox */}
+      <div className="px-1 pb-1 border-b border-gray-100 mb-2">
+        <CheckRow
+          name={`All ${boroughName}`}
+          checked={allBoroughSelected}
+          onChange={toggleAllBorough}
+        />
+      </div>
+
+      {groups.map((group) => {
+        const groupAllSelected = group.neighborhoods.every(n => selected.includes(n));
+        return (
+          <div key={group.label || 'default'} className="mb-3">
+            {group.label && (
+              <div className="flex items-center justify-between px-1 mb-1">
+                <h4 className="text-[10px] font-bold text-brand-dark/40 tracking-wider">{group.label}</h4>
+                <button
+                  onClick={() => toggleGroup(group.neighborhoods)}
+                  className="text-[10px] text-brand-dark/40 hover:text-brand-dark/70 font-medium transition-colors"
+                >
+                  {groupAllSelected ? 'Clear' : 'Select all'}
+                </button>
+              </div>
+            )}
+            <div className={colClass}>
+              {group.neighborhoods.map(name => (
+                <CheckRow
+                  key={name}
+                  name={name}
+                  checked={selected.includes(name)}
+                  onChange={() => toggleNeighborhood(name)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
 
   return (
     <div className="relative">
@@ -114,12 +263,15 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
         )}
       </button>
 
-      {/* Desktop floating panel */}
+      {/* Panels */}
       {isOpen && (
         <>
+          {/* ── Desktop floating panel ── */}
           <div
             ref={panelRef}
-            className="hidden lg:block absolute top-full left-0 mt-2 w-[480px] bg-white rounded-xl shadow-xl ring-1 ring-black/10 z-50 overflow-hidden"
+            role="dialog"
+            aria-label="Select neighborhoods"
+            className="hidden lg:block absolute top-full left-0 mt-2 w-[520px] bg-white rounded-xl shadow-xl ring-1 ring-black/10 z-50 overflow-hidden"
           >
             {/* Borough tabs */}
             <div className="flex border-b border-gray-100">
@@ -138,38 +290,9 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
               ))}
             </div>
 
-            {/* Neighborhood pills */}
-            <div className="p-3 max-h-[350px] overflow-y-auto">
-              <div className="flex flex-wrap gap-1.5">
-                {/* All [Borough] pill */}
-                <button
-                  onClick={toggleAllBorough}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    allBoroughSelected
-                      ? 'bg-brand-dark text-white'
-                      : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
-                  }`}
-                >
-                  All {boroughName}
-                </button>
-
-                {neighborhoods.map(name => {
-                  const isSelected = selected.includes(name);
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => toggleNeighborhood(name)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-brand-dark text-white'
-                          : 'bg-gray-100 text-brand-dark/80 hover:bg-gray-200'
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Grouped checkboxes */}
+            <div className="p-3 max-h-[400px] overflow-y-auto">
+              {renderGroups('grid grid-cols-2 gap-x-2')}
             </div>
 
             {/* Footer */}
@@ -190,13 +313,13 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
             </div>
           </div>
 
-          {/* Mobile full-width sheet */}
-          <div className="lg:hidden fixed inset-0 z-50 flex flex-col">
+          {/* ── Mobile full-width sheet ── */}
+          <div className="lg:hidden fixed inset-0 z-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Select neighborhoods">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/40" onClick={() => setIsOpen(false)} />
+            <div className="absolute inset-0 bg-black/40" onClick={() => { setIsOpen(false); triggerRef.current?.focus(); }} />
 
             {/* Sheet */}
-            <div className="mt-auto relative bg-white rounded-t-2xl max-h-[80vh] flex flex-col">
+            <div className="mt-auto relative bg-white rounded-t-2xl max-h-[85vh] flex flex-col">
               {/* Handle */}
               <div className="flex justify-center pt-2 pb-1">
                 <div className="w-10 h-1 rounded-full bg-gray-300" />
@@ -221,40 +344,12 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
                 ))}
               </div>
 
-              {/* Neighborhood pills — 2-col grid */}
+              {/* Grouped checkboxes */}
               <div className="flex-1 overflow-y-auto px-4 py-2">
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={toggleAllBorough}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors col-span-2 ${
-                      allBoroughSelected
-                        ? 'bg-brand-dark text-white'
-                        : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
-                    }`}
-                  >
-                    All {boroughName}
-                  </button>
-
-                  {neighborhoods.map(name => {
-                    const isSelected = selected.includes(name);
-                    return (
-                      <button
-                        key={name}
-                        onClick={() => toggleNeighborhood(name)}
-                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${
-                          isSelected
-                            ? 'bg-brand-dark text-white'
-                            : 'bg-gray-100 text-brand-dark/80 hover:bg-gray-200'
-                        }`}
-                      >
-                        {name}
-                      </button>
-                    );
-                  })}
-                </div>
+                {renderGroups('grid grid-cols-2 gap-x-2')}
               </div>
 
-              {/* Done button */}
+              {/* Footer */}
               <div className="p-4 border-t border-gray-100">
                 <div className="flex gap-3">
                   <button
@@ -265,7 +360,7 @@ export default function NeighborhoodSelector({ selected, onChange }: Neighborhoo
                     Clear
                   </button>
                   <button
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => { setIsOpen(false); triggerRef.current?.focus(); }}
                     className="flex-1 py-2.5 text-sm font-semibold text-white bg-brand-dark rounded-xl"
                   >
                     Done

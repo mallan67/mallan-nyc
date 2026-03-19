@@ -77,7 +77,8 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "area": "14th-23rd, Park Ave S to 5th Ave",
     "alternateNames": [
       "Gramercy west",
-      "Union Square north"
+      "Union Square north",
+      "Stuyvesant Town"
     ]
   },
   "10011": {
@@ -111,7 +112,8 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Manhattan",
     "area": "Hudson to 7th Ave, Houston to 14th",
     "alternateNames": [
-      "Greenwich Village west"
+      "Greenwich Village west",
+      "Meatpacking District"
     ]
   },
   "10016": {
@@ -143,7 +145,8 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "area": "42nd-59th, 8th Ave to river",
     "alternateNames": [
       "Clinton",
-      "Midtown West"
+      "Midtown West",
+      "Central Park South"
     ]
   },
   "10020": {
@@ -165,6 +168,7 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "area": "49th-59th, 5th Ave to East River",
     "alternateNames": [
       "Sutton Place",
+      "Beekman Place",
       "Plaza District"
     ]
   },
@@ -173,6 +177,7 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Manhattan",
     "area": "59th-72nd, CPW to river",
     "alternateNames": [
+      "Lincoln Square",
       "Lincoln Center area"
     ]
   },

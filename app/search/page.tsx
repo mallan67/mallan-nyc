@@ -759,7 +759,7 @@ function SearchClient() {
             />
             <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm px-4 py-1.5 z-10">
               <p className="text-[9px] text-brand-dark/30 text-center leading-relaxed">
-                Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Mallan Real Estate Inc. — Licensed Real Estate Broker · Equal Housing Opportunity
+                Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Mallan Real Estate Inc. — Licensed Real Estate Broker · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable.
               </p>
             </div>
           </div>
