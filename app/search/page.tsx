@@ -10,6 +10,7 @@ import { GridCard, ListCard, SplitCard } from '@/app/components/SearchListingCar
 import SearchFilterPanel from '@/app/components/SearchFilterPanel';
 import NeighborhoodSelector from '@/app/components/NeighborhoodSelector';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
+import { getAllNeighborhoods } from '@/lib/neighborhoods/boroughs';
 import { TAB_CONFIG } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
 import { trackSearch } from '@/lib/posthog';
@@ -231,6 +232,30 @@ function SearchClient() {
   const tabConfig = TAB_CONFIG[activeTab];
   const isRental = tabConfig.apiType === 'rent';
 
+  // ── Route searchQuery to the right API param ──
+  // Detect if the query is a neighborhood name, borough, or zip vs a street address
+  const resolvedSearch = useMemo(() => {
+    const q = (searchQuery || '').trim();
+    if (!q) return { neighborhood: undefined, borough: undefined, address: undefined };
+
+    const qLower = q.toLowerCase();
+
+    // Check if it's a known neighborhood name
+    const allNeighborhoods = getAllNeighborhoods();
+    const matchedNeighborhood = allNeighborhoods.find(n => n.name.toLowerCase() === qLower);
+    if (matchedNeighborhood) return { neighborhood: matchedNeighborhood.name, borough: undefined, address: undefined };
+
+    // Check if it's a borough name
+    const boroughs = ['manhattan', 'brooklyn', 'queens', 'bronx', 'staten island'];
+    if (boroughs.includes(qLower)) return { neighborhood: undefined, borough: q, address: undefined };
+
+    // Check if it's a zip code
+    if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined };
+
+    // Otherwise treat as address/text search
+    return { neighborhood: undefined, borough: undefined, address: q };
+  }, [searchQuery]);
+
   // ── Listings hook ──
   const { listings, loading, loadingMore, error, total, hasMore, loadMore } = useListings({
     type: tabConfig.apiType === 'sale' ? 'buy' : 'rent',
@@ -250,10 +275,10 @@ function SearchClient() {
     minSqft: filters.minSqft,
     maxSqft: filters.maxSqft,
     sort: filters.sort,
-    neighborhood: selectedNeighborhoods.join(',') || neighborhoodParam || filters.neighborhood,
-    borough: boroughParam || undefined,
-    zipCodes: zipParam || undefined,
-    address: searchQuery || undefined,
+    neighborhood: selectedNeighborhoods.join(',') || resolvedSearch.neighborhood || neighborhoodParam || filters.neighborhood,
+    borough: resolvedSearch.borough || boroughParam || undefined,
+    zipCodes: zipParam || (/^\d{5}$/.test(searchQuery?.trim() || '') ? searchQuery.trim() : undefined),
+    address: resolvedSearch.address || undefined,
     limit: 50,
   });
 
