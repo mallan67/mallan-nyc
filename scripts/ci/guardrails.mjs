@@ -325,7 +325,7 @@ if (prohibitedTerms.length > 0) {
     /^content\/.*\.(md|mdx|json)$/,
   ];
 
-  // Exclusion patterns
+  // Exclusion patterns — files that intentionally reference prohibited terms
   const excludePatterns = [
     /_templates\//,
     /_drafts\//,
@@ -333,6 +333,8 @@ if (prohibitedTerms.length > 0) {
     /\.spec\./,
     /prohibited-terms\.json$/,
     /rls-rules\.json$/,
+    /compliance\/audit\/route\.ts$/,   // compliance scanner contains patterns to DETECT prohibited terms
+    /rls-enforcement\.ts$/,            // RLS enforcement scanner references terms to block them
   ];
 
   const filesToScan = allFiles.filter((f) => {
