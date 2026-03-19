@@ -5,7 +5,7 @@
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
-                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel(${listing.id})">
+                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}')">
                     <div class="relative flex-shrink-0">
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
@@ -15,7 +15,7 @@
                             </div>
                         </div>
                         <div class="absolute top-1.5 left-1.5">
-                            <input type="checkbox" class="w-3.5 h-3.5" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection(${listing.id})">
+                            <input type="checkbox" class="w-3.5 h-3.5" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection('${listing.id}')">
                         </div>
                         ${selected ? '<span class="absolute top-1.5 left-7 w-4 h-4 bg-blue-500 text-white rounded text-[9px] flex items-center justify-center font-bold">' + selIdx + '</span>' : ''}
                     </div>
@@ -76,7 +76,7 @@
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-1.5">
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" class="w-4 h-4" ${selected ? 'checked' : ''} onclick="toggleListingSelection(${listing.id}); renderMasterDetailView();">
+                        <input type="checkbox" class="w-4 h-4" ${selected ? 'checked' : ''} onclick="toggleListingSelection('${listing.id}'); renderMasterDetailView();">
                         <h2 class="text-base font-bold">${displayAddress}${displayUnit}</h2>
                         <button class="text-gray-400 text-xs"><i class="fas fa-external-link-alt"></i></button>
                     </div>

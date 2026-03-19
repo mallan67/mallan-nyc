@@ -11,13 +11,13 @@
                 return `
                 <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
-                    <div class="relative cursor-pointer group" onclick="openListingInNewTab(${listing.id})">
+                    <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}')">
                         <div class="cm-photo-wrap cm-card-photo">
                             <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                         </div>
                         <!-- Checkbox -->
                         <div class="absolute top-3 left-3 z-10">
-                            <input type="checkbox" class="w-4 h-4 rounded cursor-pointer" ${selected ? 'checked' : ''} onclick="event.stopPropagation();toggleListingSelection(${listing.id})">
+                            <input type="checkbox" class="w-4 h-4 rounded cursor-pointer" ${selected ? 'checked' : ''} onclick="event.stopPropagation();toggleListingSelection('${listing.id}')">
                         </div>
                         <!-- Badges -->
                         ${listing.priceChange === 'down' ? '<div class="absolute top-3 right-3 px-2 py-1 bg-red-500 text-white text-[10px] font-bold rounded-lg z-10"><i class="fas fa-arrow-down mr-0.5"></i>PRICE DROP</div>' : ''}

@@ -199,8 +199,31 @@ export async function GET(request: Request) {
       if (isZip) {
         filterParts.push(`startswith(PostalCode, '${escapedQuery}')`);
       } else if (!isListingId) {
-        // Only search by address if not a listing ID pattern
-        filterParts.push(`contains(StreetName, '${escapedQuery}')`);
+        // Address search — split into StreetNumber + StreetDirPrefix + StreetName
+        // Trestle stores these as separate fields, not one combined string
+        const raw = query.trim().toUpperCase();
+        const dirMatch = raw.match(/^(\d+)\s+(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i);
+        const numMatch = raw.match(/^(\d+)\s+(.*)/);
+
+        if (dirMatch) {
+          const streetNum = dirMatch[1];
+          const dir = dirMatch[2].charAt(0);
+          const street = dirMatch[3].replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|WAY|COURT|CT)\s*$/i, '').replace(/(ST|ND|RD|TH)\b/gi, '').trim().replace(/'/g, "''");
+          const conds = [`startswith(StreetNumber,'${streetNum}')`, `StreetDirPrefix eq '${dir}'`];
+          if (street) conds.push(`contains(StreetName,'${street}')`);
+          filterParts.push(`(${conds.join(' and ')})`);
+        } else if (numMatch && numMatch[1]) {
+          const streetNum = numMatch[1];
+          const street = (numMatch[2] || '').replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|WAY|COURT|CT)\s*$/i, '').replace(/(ST|ND|RD|TH)\b/gi, '').trim().replace(/'/g, "''");
+          if (street) {
+            filterParts.push(`(startswith(StreetNumber,'${streetNum}') and contains(StreetName,'${street}'))`);
+          } else {
+            filterParts.push(`startswith(StreetNumber,'${streetNum}')`);
+          }
+        } else {
+          // Text only — street name or building name
+          filterParts.push(`(contains(StreetName,'${escapedQuery}') or contains(BuildingName,'${escapedQuery}'))`);
+        }
       } else {
         // Skip address search for listing IDs — already handled above
       }

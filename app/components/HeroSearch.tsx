@@ -25,12 +25,13 @@ const DEFAULT_HERO: HeroSettings = {
 };
 
 // Default suggestions shown before user types
+// value MUST be the display name (not slug) — API filters by SubdivisionName / neighborhood name
 const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
-  { type: 'neighborhood', label: 'Upper East Side', sublabel: 'Manhattan', value: 'upper-east-side' },
-  { type: 'neighborhood', label: 'Upper West Side', sublabel: 'Manhattan', value: 'upper-west-side' },
-  { type: 'neighborhood', label: 'Tribeca', sublabel: 'Manhattan', value: 'tribeca' },
-  { type: 'neighborhood', label: 'Chelsea', sublabel: 'Manhattan', value: 'chelsea' },
-  { type: 'neighborhood', label: 'Williamsburg', sublabel: 'Brooklyn', value: 'williamsburg' },
+  { type: 'neighborhood', label: 'Upper East Side', sublabel: 'Manhattan', value: 'Upper East Side' },
+  { type: 'neighborhood', label: 'Upper West Side', sublabel: 'Manhattan', value: 'Upper West Side' },
+  { type: 'neighborhood', label: 'Tribeca', sublabel: 'Manhattan', value: 'Tribeca' },
+  { type: 'neighborhood', label: 'Chelsea', sublabel: 'Manhattan', value: 'Chelsea' },
+  { type: 'neighborhood', label: 'Williamsburg', sublabel: 'Brooklyn', value: 'Williamsburg' },
 ];
 
 // Example queries shown as placeholder hints (rotate)
@@ -196,50 +197,27 @@ export default function HeroSearch() {
     };
   }, []);
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     const q = query.trim();
+    const tab = activeTab === 'rent' ? 'rent-residential' : 'buy-residential';
+
     if (!q) {
-      router.push(`/search?type=${activeTab}`);
+      router.push(`/search?tab=${tab}`);
       return;
     }
 
-    // Simple queries (just a neighborhood name, zip, or short text) — skip AI
+    // Simple queries (just a zip or very short text) — go straight to search
     const isSimple = /^\d{5}$/.test(q) || q.length < 4;
     if (isSimple) {
       const params = new URLSearchParams();
-      params.set('type', activeTab);
+      params.set('tab', tab);
       params.set('q', q);
       router.push(`/search?${params.toString()}`);
       return;
     }
 
-    // Try AI parsing first, fall back to regex
+    // Natural language parsing (instant, client-side regex)
     setIsSearching(true);
-    try {
-      const res = await fetch('/api/search/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
-        signal: AbortSignal.timeout(3000), // 3s max — if AI is slow, use regex
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.filters) {
-          // AI parsed successfully — add the active tab context if AI didn't detect intent
-          if (!data.filters.tab) {
-            data.filters.tab = activeTab === 'rent' ? 'rent-residential' : 'buy-residential';
-          }
-          router.push(buildSearchUrl(data.filters));
-          setIsSearching(false);
-          return;
-        }
-      }
-    } catch {
-      // AI failed or timed out — fall through to regex
-    }
-
-    // Regex fallback (instant)
     const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|laundry|gym|furnished|pool|parking|no\s*fee|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
     if (nlSignals.test(q)) {
       router.push(buildSearchUrl(regexParse(q)));
@@ -249,7 +227,7 @@ export default function HeroSearch() {
 
     // Standard search
     const params = new URLSearchParams();
-    params.set('type', activeTab);
+    params.set('tab', tab);
     params.set('q', q);
     router.push(`/search?${params.toString()}`);
     setIsSearching(false);
@@ -272,7 +250,8 @@ export default function HeroSearch() {
     }
 
     const params = new URLSearchParams();
-    params.set('type', activeTab);
+    const tab = activeTab === 'rent' ? 'rent-residential' : 'buy-residential';
+    params.set('tab', tab);
     if (suggestion.type === 'neighborhood') {
       params.set('neighborhood', suggestion.value);
     } else if (suggestion.type === 'zip') {

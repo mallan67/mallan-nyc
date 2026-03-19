@@ -482,6 +482,34 @@
                 return;
             }
 
+            // Pre-fetch photos for listings missing images before rendering
+            var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
+            if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
+                var ids = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean).slice(0, 50);
+                if (ids.length > 0) {
+                    fetch('/api/media/batch?ids=' + encodeURIComponent(ids.join(',')) + '&detail=true', { credentials: 'same-origin' })
+                        .then(function(r) { return r.ok ? r.json() : null; })
+                        .then(function(data) {
+                            if (!data) return;
+                            var photos = data.photos || {};
+                            var media = data.media || {};
+                            needPhotos.forEach(function(l) {
+                                var lid = l.lid || l.id;
+                                if (media[lid] && media[lid].length > 0) {
+                                    l.images = media[lid].filter(function(m) { return m.mediaType === 'Photo'; }).sort(function(a, b) { return a.order - b.order; });
+                                    l.photoCount = l.images.length;
+                                } else if (photos[lid]) {
+                                    l.images = [{ url: photos[lid], isPrimary: true }];
+                                    if (!l.photoCount) l.photoCount = 1;
+                                }
+                            });
+                            // Re-render preview now that photos are loaded
+                            try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
+                        })
+                        .catch(function() { /* non-fatal — report shows without photos */ });
+                }
+            }
+
             // Track address-suppressed listings for compliance warning banner
             var complianceWarnings = listings.filter(function(l) { return l.addressDisplayYN === false; });
 

@@ -1,16 +1,48 @@
 {
-  "version": "2025-09-30-v3.0",
-  "lastUpdated": "2026-03-11",
-  "source": "REBNY RLS Data Migration 2025_LMP — data/rebny-rls-property-fields.csv (449 fields)",
+  "version": "2025-09-30-v4.0",
+  "lastUpdated": "2026-03-19",
+  "source": "REBNY RLS Data Migration 2025_LMP — data/rebny-rls-property-fields.csv (902 rows, 815 unique) + existing validator (448 fields)",
   "note": "Generated from authoritative RLS CSV. BuyerAgentCommission/Type removed per NAR Settlement (Aug 2025). Field Authority: UCBA > RLS > RESO/IDX > Internal > Fail Closed.",
-  "totalFields": 450,
+  "totalFields": 1015,
   "fields": [
+    {
+      "field": "AboveGradeBedrooms",
+      "matrixFieldName": "AboveGradeBedrooms",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
     {
       "field": "AboveGradeFinishedArea",
       "matrixFieldName": "AboveGradeFinishedArea",
       "description": "Finished area within the structure that is at or above the surface of the ground.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeFinishedAreaRange",
+      "matrixFieldName": "AboveGradeFinishedAreaRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeFinishedAreaRangeSource",
+      "matrixFieldName": "AboveGradeFinishedAreaRangeSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeFinishedAreaRangeUnits",
+      "matrixFieldName": "AboveGradeFinishedAreaRangeUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -28,6 +60,54 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: Required if AboveGradeFinishedArea is entered"
+    },
+    {
+      "field": "AboveGradeUnfinishedArea",
+      "matrixFieldName": "AboveGradeUnfinishedArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeUnfinishedAreaRange",
+      "matrixFieldName": "AboveGradeUnfinishedAreaRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeUnfinishedAreaRangeSource",
+      "matrixFieldName": "AboveGradeUnfinishedAreaRangeSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeUnfinishedAreaRangeUnits",
+      "matrixFieldName": "AboveGradeUnfinishedAreaRangeUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeUnfinishedAreaSource",
+      "matrixFieldName": "AboveGradeUnfinishedAreaSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AboveGradeUnfinishedAreaUnits",
+      "matrixFieldName": "AboveGradeUnfinishedAreaUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "AccessibilityFeatures",
@@ -58,6 +138,54 @@
       "matrixFieldName": "ActiveOpenHouseCount",
       "description": "Calculated count in Matrix of active open houses",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AdditionalFee",
+      "matrixFieldName": "AdditionalFee",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AdditionalFeeDescription",
+      "matrixFieldName": "AdditionalFeeDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AdditionalFeeFrequency",
+      "matrixFieldName": "AdditionalFeeFrequency",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AdditionalFeeYN",
+      "matrixFieldName": "AdditionalFeeYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AdditionalParcelsDescription",
+      "matrixFieldName": "AdditionalParcelsDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AdditionalParcelsYN",
+      "matrixFieldName": "AdditionalParcelsYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -102,11 +230,27 @@
       "requirements": "No, rejects if not in Street Dictionary"
     },
     {
+      "field": "AnchorsCoTenants",
+      "matrixFieldName": "AnchorsCoTenants",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "Appliances",
       "matrixFieldName": "Appliances",
       "description": "List of appliances included in the sale/lease",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AppointmentRequiredYN",
+      "matrixFieldName": "AppointmentRequiredYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -142,6 +286,14 @@
       "requirements": "No"
     },
     {
+      "field": "AssociationAmenities",
+      "matrixFieldName": "AssociationAmenities",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "AssociationFee",
       "matrixFieldName": "AssociationFee",
       "description": "Monthly maintenance fee (coop/condop) or common charges (condo). Does not include taxes.",
@@ -166,6 +318,22 @@
       "requirements": "Conditional: If AssociationFee2 >0, then this is required"
     },
     {
+      "field": "AssociationFee3",
+      "matrixFieldName": "AssociationFee3",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationFee3Frequency",
+      "matrixFieldName": "AssociationFee3Frequency",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "AssociationFeeFrequency",
       "matrixFieldName": "AssociationFeeFrequency",
       "description": "Frequency of association fee (Monthly, Quarterly, Annually, etc.)",
@@ -182,9 +350,65 @@
       "requirements": "No"
     },
     {
+      "field": "AssociationFeeTotal",
+      "matrixFieldName": "AssociationFeeTotal",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationFeeTotalFrequency",
+      "matrixFieldName": "AssociationFeeTotalFrequency",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "AssociationName",
       "matrixFieldName": "AssociationName",
       "description": "Name of condo/co-op corporation (as on stock certificate)",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationName2",
+      "matrixFieldName": "AssociationName2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationName3",
+      "matrixFieldName": "AssociationName3",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationPhone",
+      "matrixFieldName": "AssociationPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationPhone2",
+      "matrixFieldName": "AssociationPhone2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "AssociationPhone3",
+      "matrixFieldName": "AssociationPhone3",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -214,12 +438,44 @@
       "requirements": "Yes"
     },
     {
+      "field": "Attic",
+      "matrixFieldName": "Attic",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AttributionContact",
+      "matrixFieldName": "AttributionContact",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "AvailabilityDate",
       "matrixFieldName": "AvailabilityDate",
       "description": "Date the property will be available for possession/occupation",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: If PropertyType = ResidentialLease"
+    },
+    {
+      "field": "AvailabilityType",
+      "matrixFieldName": "AvailabilityType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "AvailableLeaseType",
+      "matrixFieldName": "AvailableLeaseType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "BackOnMarketDate",
@@ -318,6 +574,14 @@
       "requirements": "No"
     },
     {
+      "field": "BedroomsPossible",
+      "matrixFieldName": "BedroomsPossible",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "BedroomsTotal",
       "matrixFieldName": "BedroomsTotal",
       "description": "Total number of bedrooms in the dwelling",
@@ -326,11 +590,43 @@
       "requirements": "Yes"
     },
     {
+      "field": "BelowGradeBedrooms",
+      "matrixFieldName": "BelowGradeBedrooms",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "BelowGradeFinishedArea",
       "matrixFieldName": "BelowGradeFinishedArea",
       "description": "Finished area within the structure that is below ground",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeFinishedAreaRange",
+      "matrixFieldName": "BelowGradeFinishedAreaRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeFinishedAreaRangeSource",
+      "matrixFieldName": "BelowGradeFinishedAreaRangeSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeFinishedAreaRangeUnits",
+      "matrixFieldName": "BelowGradeFinishedAreaRangeUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -348,6 +644,134 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: Required if BelowGradeFinishedArea is entered"
+    },
+    {
+      "field": "BelowGradeUnfinishedArea",
+      "matrixFieldName": "BelowGradeUnfinishedArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeUnfinishedAreaRange",
+      "matrixFieldName": "BelowGradeUnfinishedAreaRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeUnfinishedAreaRangeSource",
+      "matrixFieldName": "BelowGradeUnfinishedAreaRangeSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeUnfinishedAreaRangeUnits",
+      "matrixFieldName": "BelowGradeUnfinishedAreaRangeUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeUnfinishedAreaSource",
+      "matrixFieldName": "BelowGradeUnfinishedAreaSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BelowGradeUnfinishedAreaUnits",
+      "matrixFieldName": "BelowGradeUnfinishedAreaUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BillingOfficeKey",
+      "matrixFieldName": "BillingOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BoatDockAccommodates",
+      "matrixFieldName": "BoatDockAccommodates",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BoatDockHeight",
+      "matrixFieldName": "BoatDockHeight",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BoatDockSlipDescription",
+      "matrixFieldName": "BoatDockSlipDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BoatDockSlipFeatures",
+      "matrixFieldName": "BoatDockSlipFeatures",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BoatDockYN",
+      "matrixFieldName": "BoatDockYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BoatSlipYN",
+      "matrixFieldName": "BoatSlipYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BodyType",
+      "matrixFieldName": "BodyType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "BonusAmount",
+      "matrixFieldName": "BonusAmount",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BuilderModel",
+      "matrixFieldName": "BuilderModel",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "BuilderName",
@@ -380,6 +804,30 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: PropertyType = Residential AND  PropertySubType is any of - Duplex, Mixed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family, Single Family Townhouse, Triplex, Unimproved Land."
+    },
+    {
+      "field": "BuildingAreaTotalRange",
+      "matrixFieldName": "BuildingAreaTotalRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BuildingAreaTotalRangeSource",
+      "matrixFieldName": "BuildingAreaTotalRangeSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "BuildingAreaTotalRangeUnits",
+      "matrixFieldName": "BuildingAreaTotalRangeUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
     },
     {
       "field": "BuildingAreaUnits",
@@ -526,6 +974,14 @@
       "requirements": "No"
     },
     {
+      "field": "BuildingSizeDimensions",
+      "matrixFieldName": "BuildingSizeDimensions",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "BuildingSmokeFreeYN",
       "matrixFieldName": "BuildingSmokeFreeYN",
       "description": "A building is 100% smoke-free where smoking tobacco products are prohibited within the building. This means no smoking in individual apartments or common indoor and outdoor areas. Some smoke-free buildings may allow smoking only in a limited designated outdoor area. Please refer to the Smoke Free Air Act for more details.",
@@ -574,6 +1030,14 @@
       "requirements": "No"
     },
     {
+      "field": "BusinessName",
+      "matrixFieldName": "BusinessName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "BusinessType",
       "matrixFieldName": "BusinessType",
       "description": "List of type of business on premise or part of the building, if Building Description is mix-use building. Retail, Wholesale, Grocery, Food & Bev, etc. Not to be used to describe the listing that is for lease or sale.",
@@ -604,6 +1068,14 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: If BuyerAgentRLSParticipantYN=False AND any Buyer value filled"
+    },
+    {
+      "field": "BuyerAgentKey",
+      "matrixFieldName": "BuyerAgentKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "BuyerAgentKeyNumeric",
@@ -662,6 +1134,14 @@
       "requirements": "No"
     },
     {
+      "field": "BuyerOfficeKey",
+      "matrixFieldName": "BuyerOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "BuyerOfficeKeyNumeric",
       "matrixFieldName": "BuyerOfficeKeyNumeric",
       "description": "Unique identifier of the Buyer Office. This is the foreign key that relates to the Office resource OfficeKeyNumeric",
@@ -702,6 +1182,14 @@
       "requirements": "No"
     },
     {
+      "field": "BuyerTeamKey",
+      "matrixFieldName": "BuyerTeamKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "BuyerTeamKeyNumeric",
       "matrixFieldName": "BuyerTeamKeyNumeric",
       "description": "Unique identifier of the Buyer Team. This is the foreign key that relates to the Team resource Team KeyNumeric",
@@ -721,6 +1209,14 @@
       "field": "BuyerTeamName",
       "matrixFieldName": "BuyerTeamName",
       "description": "The name of the team representing the buyer.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CableTvExpense",
+      "matrixFieldName": "CableTvExpense",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -782,6 +1278,14 @@
       "requirements": "No"
     },
     {
+      "field": "CarrierRoute",
+      "matrixFieldName": "CarrierRoute",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CeilingHeightFeet",
       "matrixFieldName": "CeilingHeightFeet",
       "description": "The average height of the ceilings of the listing that is for sale/lease in Feet. The total ceiling height should be the combination for CeilingHeightFeet and CeilingHeightInches. For example, Ceiling Height is 9 Feet 6 Inches.",
@@ -806,6 +1310,30 @@
       "requirements": "No"
     },
     {
+      "field": "ChangedByMemberID",
+      "matrixFieldName": "ChangedByMemberID",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ChangedByMemberKey",
+      "matrixFieldName": "ChangedByMemberKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ChangedByMemberKeyNumeric",
+      "matrixFieldName": "ChangedByMemberKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "City",
       "matrixFieldName": "City",
       "description": "City where the property is located. RESO DD 2.0: Now a Lookup type.",
@@ -820,6 +1348,22 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes; CityRegion must match with CountyOrParish:\r\nKings-Brooklyn\r\nQueens- Queens\r\nNew York- Manhattan\r\nRichmond- Staten Island\r\nBronx-Bronx"
+    },
+    {
+      "field": "ClassName",
+      "matrixFieldName": "ClassName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "CLIP",
+      "matrixFieldName": "CLIP",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "CloseDate",
@@ -878,6 +1422,14 @@
       "requirements": "Conditional: If CoBuyerAgentRLSParticipantYN=False AND any CoBuyer value filled"
     },
     {
+      "field": "CoBuyerAgentKey",
+      "matrixFieldName": "CoBuyerAgentKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoBuyerAgentKeyNumeric",
       "matrixFieldName": "CoBuyerAgentKeyNumeric",
       "description": "Unique identifier of the Co Buyer Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
@@ -926,6 +1478,14 @@
       "requirements": "No"
     },
     {
+      "field": "CoBuyerOfficeKey",
+      "matrixFieldName": "CoBuyerOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoBuyerOfficeKeyNumeric",
       "matrixFieldName": "CoBuyerOfficeKeyNumeric",
       "description": "Unique identifier of the Co Buyer Office. This is the foreign key that relates to the Office resource Office KeyNumeric",
@@ -966,6 +1526,14 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgent2AOR",
+      "matrixFieldName": "CoListAgent2AOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgent2DirectPhone",
       "matrixFieldName": "CoListAgent2DirectPhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
@@ -982,10 +1550,34 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgent2FirstName",
+      "matrixFieldName": "CoListAgent2FirstName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgent2FullName",
       "matrixFieldName": "CoListAgent2FullName",
       "description": "The full name of the co-listing agent 2 as registered with DOS Licensing",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent2HomePhone",
+      "matrixFieldName": "CoListAgent2HomePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent2Key",
+      "matrixFieldName": "CoListAgent2Key",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -998,9 +1590,49 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgent2LastName",
+      "matrixFieldName": "CoListAgent2LastName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent2MiddleName",
+      "matrixFieldName": "CoListAgent2MiddleName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent2MlsId",
+      "matrixFieldName": "CoListAgent2MlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgent2MLSID",
       "matrixFieldName": "CoListAgent2MLSID",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent2MobilePhone",
+      "matrixFieldName": "CoListAgent2MobilePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent2NationalAssociationId",
+      "matrixFieldName": "CoListAgent2NationalAssociationId",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -1012,6 +1644,22 @@
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
       "requirements": ""
+    },
+    {
+      "field": "CoListAgent2OfficePhone",
+      "matrixFieldName": "CoListAgent2OfficePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent2PreferredPhone",
+      "matrixFieldName": "CoListAgent2PreferredPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "CoListAgent2StateLicense",
@@ -1026,6 +1674,14 @@
       "matrixFieldName": "CoListAgent2URL",
       "description": "The website URL of the co-listing agent 2",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3AOR",
+      "matrixFieldName": "CoListAgent3AOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1046,10 +1702,34 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgent3FirstName",
+      "matrixFieldName": "CoListAgent3FirstName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgent3FullName",
       "matrixFieldName": "CoListAgent3FullName",
       "description": "The full name of the co-listing agent 3 as registered with DOS Licensing",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3HomePhone",
+      "matrixFieldName": "CoListAgent3HomePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3Key",
+      "matrixFieldName": "CoListAgent3Key",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1062,9 +1742,49 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgent3LastName",
+      "matrixFieldName": "CoListAgent3LastName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3MiddleName",
+      "matrixFieldName": "CoListAgent3MiddleName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3MlsId",
+      "matrixFieldName": "CoListAgent3MlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgent3MLSID",
       "matrixFieldName": "CoListAgent3MLSID",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3MobilePhone",
+      "matrixFieldName": "CoListAgent3MobilePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3NationalAssociationId",
+      "matrixFieldName": "CoListAgent3NationalAssociationId",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -1076,6 +1796,22 @@
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
       "requirements": ""
+    },
+    {
+      "field": "CoListAgent3OfficePhone",
+      "matrixFieldName": "CoListAgent3OfficePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgent3PreferredPhone",
+      "matrixFieldName": "CoListAgent3PreferredPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "CoListAgent3StateLicense",
@@ -1090,6 +1826,22 @@
       "matrixFieldName": "CoListAgent3URL",
       "description": "The website URL of the co-listing agent 3.",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentAOR",
+      "matrixFieldName": "CoListAgentAOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentDesignation",
+      "matrixFieldName": "CoListAgentDesignation",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1110,10 +1862,34 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgentFax",
+      "matrixFieldName": "CoListAgentFax",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentFirstName",
+      "matrixFieldName": "CoListAgentFirstName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgentFullName",
       "matrixFieldName": "CoListAgentFullName",
       "description": "The full name of the co-listing agent as registered with DOS Licensing",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentKey",
+      "matrixFieldName": "CoListAgentKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1126,9 +1902,49 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgentLastName",
+      "matrixFieldName": "CoListAgentLastName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentMiddleName",
+      "matrixFieldName": "CoListAgentMiddleName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgentMlsId",
       "matrixFieldName": "CoListAgentMlsId",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentNamePrefix",
+      "matrixFieldName": "CoListAgentNamePrefix",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentNameSuffix",
+      "matrixFieldName": "CoListAgentNameSuffix",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentNationalAssociationId",
+      "matrixFieldName": "CoListAgentNationalAssociationId",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -1142,6 +1958,46 @@
       "requirements": ""
     },
     {
+      "field": "CoListAgentOfficePhone",
+      "matrixFieldName": "CoListAgentOfficePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentOfficePhoneExt",
+      "matrixFieldName": "CoListAgentOfficePhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentPager",
+      "matrixFieldName": "CoListAgentPager",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentPreferredPhone",
+      "matrixFieldName": "CoListAgentPreferredPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentPreferredPhoneExt",
+      "matrixFieldName": "CoListAgentPreferredPhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgentStateLicense",
       "matrixFieldName": "CoListAgentStateLicense",
       "description": "The State License Number of the Co Listing Agent.",
@@ -1150,10 +2006,170 @@
       "requirements": "No"
     },
     {
+      "field": "CoListAgentTollFreePhone",
+      "matrixFieldName": "CoListAgentTollFreePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CoListAgentURL",
       "matrixFieldName": "CoListAgentURL",
       "description": "The website URL of the co-listing agent.",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentVoiceMail",
+      "matrixFieldName": "CoListAgentVoiceMail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListAgentVoiceMailExt",
+      "matrixFieldName": "CoListAgentVoiceMailExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOffice2AOR",
+      "matrixFieldName": "CoListOffice2AOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOffice2Email",
+      "matrixFieldName": "CoListOffice2Email",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOffice2Key",
+      "matrixFieldName": "CoListOffice2Key",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOffice2MlsId",
+      "matrixFieldName": "CoListOffice2MlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOffice2Name",
+      "matrixFieldName": "CoListOffice2Name",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOffice2Phone",
+      "matrixFieldName": "CoListOffice2Phone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOffice2URL",
+      "matrixFieldName": "CoListOffice2URL",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeAOR",
+      "matrixFieldName": "CoListOfficeAOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeEmail",
+      "matrixFieldName": "CoListOfficeEmail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeFax",
+      "matrixFieldName": "CoListOfficeFax",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeKey",
+      "matrixFieldName": "CoListOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeKeyNumeric",
+      "matrixFieldName": "CoListOfficeKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeMlsId",
+      "matrixFieldName": "CoListOfficeMlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeName",
+      "matrixFieldName": "CoListOfficeName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficePhone",
+      "matrixFieldName": "CoListOfficePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficePhoneExt",
+      "matrixFieldName": "CoListOfficePhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CoListOfficeURL",
+      "matrixFieldName": "CoListOfficeURL",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1180,6 +2196,38 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
+    },
+    {
+      "field": "CommonWalls",
+      "matrixFieldName": "CommonWalls",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "CommunityFeatures",
+      "matrixFieldName": "CommunityFeatures",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ComplexName",
+      "matrixFieldName": "ComplexName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "CompSaleYN",
+      "matrixFieldName": "CompSaleYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "Concessions",
@@ -1246,6 +2294,38 @@
       "requirements": "No"
     },
     {
+      "field": "ContinentRegion",
+      "matrixFieldName": "ContinentRegion",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Contingency",
+      "matrixFieldName": "Contingency",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ContingentDate",
+      "matrixFieldName": "ContingentDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ContractStatusChangeDate",
+      "matrixFieldName": "ContractStatusChangeDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "Cooling",
       "matrixFieldName": "Cooling",
       "description": "Cooling system features (Central Air, Window Unit(s), Split System, Through Wall, None)",
@@ -1286,12 +2366,28 @@
       "requirements": "Conditional: If submitted the value must be US"
     },
     {
+      "field": "CountrySubdivision",
+      "matrixFieldName": "CountrySubdivision",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "CountyOrParish",
       "matrixFieldName": "CountyOrParish",
       "description": "County where the property is located (NYC: New York, Kings, Queens, Bronx, Richmond). RESO DD 2.0: Now a Lookup type.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes; CityRegion must match with CountyOrParish:\r\nKings-Brooklyn\r\nQueens- Queens\r\nNew York- Manhattan\r\nRichmond- Staten Island\r\nBronx-Bronx"
+    },
+    {
+      "field": "CoveredSpaces",
+      "matrixFieldName": "CoveredSpaces",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "CrossStreet",
@@ -1307,6 +2403,14 @@
       "description": "The number of days the property is on market, as defined by the RLS business rules.",
       "lmpAddEdit": "No",
       "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "CurrentFinancing",
+      "matrixFieldName": "CurrentFinancing",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
       "requirements": "No"
     },
     {
@@ -1326,10 +2430,34 @@
       "requirements": "No"
     },
     {
+      "field": "CustomFields",
+      "matrixFieldName": "CustomFields",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "DaysOnMarket",
       "matrixFieldName": "DaysOnMarket",
       "description": "The number of days the listing is on market, as defined by the RLS business rules. Please refer to the UCBA to make the appropriate calculation for DaysOnMarket.",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "DelayedMarketingDate",
+      "matrixFieldName": "DelayedMarketingDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "DelayedMarketingYN",
+      "matrixFieldName": "DelayedMarketingYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1347,6 +2475,14 @@
       "description": "The security deposit the tenant/buyer must pay to the landlord/seller, expressed as a dollar amount.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "DevelopmentName",
+      "matrixFieldName": "DevelopmentName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -1382,6 +2518,14 @@
       "requirements": "No"
     },
     {
+      "field": "Disclaimer",
+      "matrixFieldName": "Disclaimer",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "DocumentsAvailable",
       "matrixFieldName": "DocumentsAvailable",
       "description": "A list of the Documents available for the property. Knowing what documents are available for the property is valuable information.",
@@ -1402,6 +2546,30 @@
       "matrixFieldName": "DocumentsCount",
       "description": "The total number of documents or supplements included with the listings.",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "DOH1",
+      "matrixFieldName": "DOH1",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "DOH2",
+      "matrixFieldName": "DOH2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "DOH3",
+      "matrixFieldName": "DOH3",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1446,6 +2614,38 @@
       "requirements": "No"
     },
     {
+      "field": "ElementarySchool",
+      "matrixFieldName": "ElementarySchool",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ElementarySchoolDistrict",
+      "matrixFieldName": "ElementarySchoolDistrict",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Elevation",
+      "matrixFieldName": "Elevation",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ElevationUnits",
+      "matrixFieldName": "ElevationUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "ElevatorsTotal",
       "matrixFieldName": "ElevatorsTotal",
       "description": "Number of elevators in the building. If there is no elevator then enter '0'. If ElevatorsTotal is greater than 0 then BuildingFeatures to have Elevator(s) as value.",
@@ -1462,9 +2662,33 @@
       "requirements": "No"
     },
     {
+      "field": "EntryLocation",
+      "matrixFieldName": "EntryLocation",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "EstimatedCloseDate",
+      "matrixFieldName": "EstimatedCloseDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "Exclusions",
       "matrixFieldName": "Exclusions",
       "description": "Elements of the property that will not be included in the sale. i.e. Chandeliers will be removed prior to close.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ExistingLeaseType",
+      "matrixFieldName": "ExistingLeaseType",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -1497,6 +2721,22 @@
       "field": "Fencing",
       "matrixFieldName": "Fencing",
       "description": "A list of types of fencing found at the property being sold.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "FhaEligibility",
+      "matrixFieldName": "FhaEligibility",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "FinancialDataSource",
+      "matrixFieldName": "FinancialDataSource",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -1582,12 +2822,60 @@
       "requirements": "No"
     },
     {
+      "field": "FractionalShare",
+      "matrixFieldName": "FractionalShare",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "FractionalUnitNumber",
       "matrixFieldName": "FractionalUnitNumber",
       "description": "Unit Number Plus Weeks Assigned (For Example 501-Week 52)",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: If PropertySubType= Co Ownership"
+    },
+    {
+      "field": "FranchiseNationalAssociationId",
+      "matrixFieldName": "FranchiseNationalAssociationId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "FrontageLength",
+      "matrixFieldName": "FrontageLength",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "FrontageLengthRemarks",
+      "matrixFieldName": "FrontageLengthRemarks",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "FrontageLengthUnit",
+      "matrixFieldName": "FrontageLengthUnit",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "FrontageType",
+      "matrixFieldName": "FrontageType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "FuelExpense",
@@ -1628,6 +2916,38 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: If Furnished = Furnished OR Partially OR Negotiable"
+    },
+    {
+      "field": "FurnitureReplacementExpense",
+      "matrixFieldName": "FurnitureReplacementExpense",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "GarageArea",
+      "matrixFieldName": "GarageArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "GarageAreaUnits",
+      "matrixFieldName": "GarageAreaUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "GarageDimensions",
+      "matrixFieldName": "GarageDimensions",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
     },
     {
       "field": "GarageSpaces",
@@ -1718,6 +3038,14 @@
       "requirements": "No"
     },
     {
+      "field": "GreenVerificationYN",
+      "matrixFieldName": "GreenVerificationYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "GreenWaterConservation",
       "matrixFieldName": "GreenWaterConservation",
       "description": "Pick list of general water conserving attributes of the property such as landscaping or reclamation without naming specific elements with ratings that may wane over time.",
@@ -1726,9 +3054,73 @@
       "requirements": "No"
     },
     {
+      "field": "GrossIncome",
+      "matrixFieldName": "GrossIncome",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "GrossScheduledIncome",
+      "matrixFieldName": "GrossScheduledIncome",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "GuarantorsAcceptedYN",
       "matrixFieldName": "GuarantorsAcceptedYN",
       "description": "Indicate whether a guarantor is accepted on listing/unit level. Refer to the buildingrules for building policies.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "GuestHouseAreaTotal",
+      "matrixFieldName": "GuestHouseAreaTotal",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "GuestHouseAreaTotalSource",
+      "matrixFieldName": "GuestHouseAreaTotalSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "GuestHouseAreaTotalUnits",
+      "matrixFieldName": "GuestHouseAreaTotalUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "GuestHouseDescription",
+      "matrixFieldName": "GuestHouseDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "GuestHouseYN",
+      "matrixFieldName": "GuestHouseYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "HabitableResidenceYN",
+      "matrixFieldName": "HabitableResidenceYN",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -1750,11 +3142,51 @@
       "requirements": "No"
     },
     {
+      "field": "HighSchool",
+      "matrixFieldName": "HighSchool",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "HighSchoolDistrict",
+      "matrixFieldName": "HighSchoolDistrict",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "HomeWarrantyYN",
       "matrixFieldName": "HomeWarrantyYN",
       "description": "Indicates whether or not a home warranty is included in the sale of the property.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "HoursDaysOfOperation",
+      "matrixFieldName": "HoursDaysOfOperation",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "HoursDaysOfOperationDescription",
+      "matrixFieldName": "HoursDaysOfOperationDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "HumanModifiedYN",
+      "matrixFieldName": "HumanModifiedYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -1766,11 +3198,67 @@
       "requirements": "Yes: The LMPs are required to set this attribute to default as True."
     },
     {
+      "field": "IDXOfficeParticipationYN",
+      "matrixFieldName": "IDXOfficeParticipationYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ImageHeight",
+      "matrixFieldName": "ImageHeight",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ImageOf",
+      "matrixFieldName": "ImageOf",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ImageSizeDescription",
+      "matrixFieldName": "ImageSizeDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ImageWidth",
+      "matrixFieldName": "ImageWidth",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "Inclusions",
       "matrixFieldName": "Inclusions",
       "description": "Portable elements of the property that will be included in the sale.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "IncomeIncludes",
+      "matrixFieldName": "IncomeIncludes",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "InputEntryOrder",
+      "matrixFieldName": "InputEntryOrder",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -1886,6 +3374,30 @@
       "requirements": "No"
     },
     {
+      "field": "Lang2_Type",
+      "matrixFieldName": "Lang2_Type",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "Lang3_Type",
+      "matrixFieldName": "Lang3_Type",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LastMonthRentReqYN",
+      "matrixFieldName": "LastMonthRentReqYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "Latitude",
       "matrixFieldName": "Latitude",
       "description": "The geographic latitude of some reference point on the property, specified in degrees and decimal parts. Positive numbers must not include the plus symbol.",
@@ -1902,11 +3414,99 @@
       "requirements": "No"
     },
     {
+      "field": "LeasableArea",
+      "matrixFieldName": "LeasableArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeasableAreaUnits",
+      "matrixFieldName": "LeasableAreaUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseAmount",
+      "matrixFieldName": "LeaseAmount",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseAmountFrequency",
+      "matrixFieldName": "LeaseAmountFrequency",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseAmountPerArea",
+      "matrixFieldName": "LeaseAmountPerArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseAmountPerAreaUnit",
+      "matrixFieldName": "LeaseAmountPerAreaUnit",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseAssignableYN",
+      "matrixFieldName": "LeaseAssignableYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseConsideredYN",
+      "matrixFieldName": "LeaseConsideredYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "LeaseRenewalOptionYN",
       "matrixFieldName": "LeaseRenewalOptionYN",
       "description": "Indicates whether or not there is an option to renew the lease for the listing.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseTerm",
+      "matrixFieldName": "LeaseTerm",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseTermOptions",
+      "matrixFieldName": "LeaseTermOptions",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LeaseTermsDescription",
+      "matrixFieldName": "LeaseTermsDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -1934,9 +3534,49 @@
       "requirements": "No"
     },
     {
+      "field": "License1",
+      "matrixFieldName": "License1",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "License2",
+      "matrixFieldName": "License2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "License3",
+      "matrixFieldName": "License3",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "LicensesExpense",
       "matrixFieldName": "LicensesExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentAOR",
+      "matrixFieldName": "ListAgentAOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentDesignation",
+      "matrixFieldName": "ListAgentDesignation",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -1958,6 +3598,22 @@
       "requirements": "No"
     },
     {
+      "field": "ListAgentFax",
+      "matrixFieldName": "ListAgentFax",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentFirstName",
+      "matrixFieldName": "ListAgentFirstName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "ListAgentFullName",
       "matrixFieldName": "ListAgentFullName",
       "description": "Full name of the listing agent",
@@ -1974,10 +3630,34 @@
       "requirements": "No"
     },
     {
+      "field": "ListAgentKey",
+      "matrixFieldName": "ListAgentKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "ListAgentKeyNumeric",
       "matrixFieldName": "ListAgentKeyNumeric",
       "description": "Unique identifier of the List Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentLastName",
+      "matrixFieldName": "ListAgentLastName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentMiddleName",
+      "matrixFieldName": "ListAgentMiddleName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -1990,12 +3670,76 @@
       "requirements": "Yes"
     },
     {
+      "field": "ListAgentNamePrefix",
+      "matrixFieldName": "ListAgentNamePrefix",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentNameSuffix",
+      "matrixFieldName": "ListAgentNameSuffix",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentNationalAssociationId",
+      "matrixFieldName": "ListAgentNationalAssociationId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "ListAgentNickname",
       "matrixFieldName": "ListAgentNickname",
       "description": "The Alternate name used by the List Agent",
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
       "requirements": ""
+    },
+    {
+      "field": "ListAgentOfficePhone",
+      "matrixFieldName": "ListAgentOfficePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentOfficePhoneExt",
+      "matrixFieldName": "ListAgentOfficePhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentPager",
+      "matrixFieldName": "ListAgentPager",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentPreferredPhone",
+      "matrixFieldName": "ListAgentPreferredPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentPreferredPhoneExt",
+      "matrixFieldName": "ListAgentPreferredPhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "ListAgentStateLicense",
@@ -2006,11 +3750,43 @@
       "requirements": "No"
     },
     {
+      "field": "ListAgentTollFreePhone",
+      "matrixFieldName": "ListAgentTollFreePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "ListAgentURL",
       "matrixFieldName": "ListAgentURL",
       "description": "The website URL of the listing agent.",
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentVoiceMail",
+      "matrixFieldName": "ListAgentVoiceMail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAgentVoiceMailExt",
+      "matrixFieldName": "ListAgentVoiceMailExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListAOR",
+      "matrixFieldName": "ListAOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -2030,6 +3806,14 @@
       "requirements": "Yes; ListingContractDate cannot be more than one year from current date."
     },
     {
+      "field": "ListingId",
+      "matrixFieldName": "ListingId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "ListingID",
       "matrixFieldName": "ListingID",
       "description": "The local, well-known identifier for the Listing. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",
@@ -2046,10 +3830,34 @@
       "requirements": "No"
     },
     {
+      "field": "ListingKey",
+      "matrixFieldName": "ListingKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "ListingKeyNumeric",
       "matrixFieldName": "ListingKeyNumeric",
       "description": "The unique identifier for the listing.",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListingPermission",
+      "matrixFieldName": "ListingPermission",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ListingService",
+      "matrixFieldName": "ListingService",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -2078,9 +3886,49 @@
       "requirements": "No"
     },
     {
+      "field": "ListingURLDescription",
+      "matrixFieldName": "ListingURLDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListOfficeAOR",
+      "matrixFieldName": "ListOfficeAOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListOfficeEmail",
+      "matrixFieldName": "ListOfficeEmail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListOfficeFax",
+      "matrixFieldName": "ListOfficeFax",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "ListOfficeIDXParticipationYN",
       "matrixFieldName": "ListOfficeIDXParticipationYN",
       "description": "Does the List Office/Broker participate in IDX? True value allows the listing to be sent to an IDX (provided that the list office participates in IDX). This is generated from the IDXOfficeParticipationYN attribute in Member resource and managed through the REBNY membership directory.",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ListOfficeKey",
+      "matrixFieldName": "ListOfficeKey",
+      "description": "IDX Plus field",
       "lmpAddEdit": "No",
       "lmpSearch": "No",
       "requirements": "No"
@@ -2110,10 +3958,26 @@
       "requirements": "No"
     },
     {
+      "field": "ListOfficeNationalAssociationId",
+      "matrixFieldName": "ListOfficeNationalAssociationId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "ListOfficePhone",
       "matrixFieldName": "ListOfficePhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListOfficePhoneExt",
+      "matrixFieldName": "ListOfficePhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -2132,6 +3996,22 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
+    },
+    {
+      "field": "ListPriceLow",
+      "matrixFieldName": "ListPriceLow",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ListTeamKey",
+      "matrixFieldName": "ListTeamKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "ListTeamKeyNumeric",
@@ -2166,6 +4046,46 @@
       "requirements": "Conditional: If PropertyType = Residential AND CommonInterest = Condominium"
     },
     {
+      "field": "LivingAreaRange",
+      "matrixFieldName": "LivingAreaRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LivingAreaRangeHigh",
+      "matrixFieldName": "LivingAreaRangeHigh",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LivingAreaRangeLow",
+      "matrixFieldName": "LivingAreaRangeLow",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LivingAreaRangeSource",
+      "matrixFieldName": "LivingAreaRangeSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LivingAreaRangeUnits",
+      "matrixFieldName": "LivingAreaRangeUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "LivingAreaSource",
       "matrixFieldName": "LivingAreaSource",
       "description": "The source of the measurements. This is a pick list of options showing the source of the measurement (e.g., Agent, Assessor, Estimate).",
@@ -2182,6 +4102,22 @@
       "requirements": "Conditional: If LivingArea > 0"
     },
     {
+      "field": "Location",
+      "matrixFieldName": "Location",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LongDescription",
+      "matrixFieldName": "LongDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "Longitude",
       "matrixFieldName": "Longitude",
       "description": "The geographic longitude of some reference point on the property, specified in degrees and decimal parts. Positive numbers must not include the plus symbol.",
@@ -2190,9 +4126,25 @@
       "requirements": "No"
     },
     {
+      "field": "LotDimensionsSource",
+      "matrixFieldName": "LotDimensionsSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "LotFeatures",
       "matrixFieldName": "LotFeatures",
       "description": "A list of features or description of the lot included in the sale/lease.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "LotSizeAcres",
+      "matrixFieldName": "LotSizeAcres",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2206,12 +4158,52 @@
       "requirements": "Conditional: PropertySubType = any of Single Family Townhouse, Duplex, MIxed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family Residence, Triplex, Unimproved Land"
     },
     {
+      "field": "LotSizeAreaRangeHigh",
+      "matrixFieldName": "LotSizeAreaRangeHigh",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LotSizeAreaRangeLow",
+      "matrixFieldName": "LotSizeAreaRangeLow",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "LotSizeDimensions",
       "matrixFieldName": "LotSizeDimensions",
       "description": "The dimensions of the lot minimally represented as length and width (i.e. 250 x 180) or a measurement of all sides of the polygon representing the property lines of the property. i.e. 30 x 50 x 120 x 60 x 22.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: PropertySubType = any of Single Family Townhouse, Duplex, MIxed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family Residence, Triplex, Unimproved Land"
+    },
+    {
+      "field": "LotSizeRange",
+      "matrixFieldName": "LotSizeRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LotSizeRangeSource",
+      "matrixFieldName": "LotSizeRangeSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "LotSizeRangeUnits",
+      "matrixFieldName": "LotSizeRangeUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
     },
     {
       "field": "LotSizeSource",
@@ -2230,12 +4222,60 @@
       "requirements": ""
     },
     {
+      "field": "LotSizeSquareFeet",
+      "matrixFieldName": "LotSizeSquareFeet",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "LotSizeUnits",
       "matrixFieldName": "LotSizeUnits",
       "description": "A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: If LotSizeArea =>0"
+    },
+    {
+      "field": "MainLevelBathrooms",
+      "matrixFieldName": "MainLevelBathrooms",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "MainLevelBedrooms",
+      "matrixFieldName": "MainLevelBedrooms",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "MainOfficeKey",
+      "matrixFieldName": "MainOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MainOfficeKeyNumeric",
+      "matrixFieldName": "MainOfficeKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MainOfficeMlsId",
+      "matrixFieldName": "MainOfficeMlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
     },
     {
       "field": "MaintenanceExpense",
@@ -2258,6 +4298,14 @@
       "matrixFieldName": "MajorChangeType",
       "description": "Description of the last major change on the listing, i.e. “price reduction”, “back on market”, etc. May be used to display on a summary view of listing results to quickly identify listings that have had major changes recently.",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Make",
+      "matrixFieldName": "Make",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -2310,9 +4358,569 @@
       "requirements": "Conditional: PropertyType = Residential AND CommonInterest = Condominium, StockCooperative, or Condop"
     },
     {
+      "field": "MaximumNumberOfPets",
+      "matrixFieldName": "MaximumNumberOfPets",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "MaximumPetWeight",
+      "matrixFieldName": "MaximumPetWeight",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "MaxLeaseMonths",
       "matrixFieldName": "MaxLeaseMonths",
       "description": "The maximum length of the lease expressed as a number of months.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaCategory",
+      "matrixFieldName": "MediaCategory",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaClassification",
+      "matrixFieldName": "MediaClassification",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaHTML",
+      "matrixFieldName": "MediaHTML",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaKeyNumeric",
+      "matrixFieldName": "MediaKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaModificationTimestamp",
+      "matrixFieldName": "MediaModificationTimestamp",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaObjectID",
+      "matrixFieldName": "MediaObjectID",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaStatus",
+      "matrixFieldName": "MediaStatus",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaType",
+      "matrixFieldName": "MediaType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MediaURL",
+      "matrixFieldName": "MediaURL",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberAddress1",
+      "matrixFieldName": "MemberAddress1",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberAddress2",
+      "matrixFieldName": "MemberAddress2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberAlternateId",
+      "matrixFieldName": "MemberAlternateId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberAOR",
+      "matrixFieldName": "MemberAOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberAORkey",
+      "matrixFieldName": "MemberAORkey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberAORkeyNumeric",
+      "matrixFieldName": "MemberAORkeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberAORMlsId",
+      "matrixFieldName": "MemberAORMlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberBio",
+      "matrixFieldName": "MemberBio",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberCarrierRoute",
+      "matrixFieldName": "MemberCarrierRoute",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberCity",
+      "matrixFieldName": "MemberCity",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberCityRegion",
+      "matrixFieldName": "MemberCityRegion",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberCommitteeCount",
+      "matrixFieldName": "MemberCommitteeCount",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberCountry",
+      "matrixFieldName": "MemberCountry",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberCountyOrParish",
+      "matrixFieldName": "MemberCountyOrParish",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberDesignation",
+      "matrixFieldName": "MemberDesignation",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberDirectPhone",
+      "matrixFieldName": "MemberDirectPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberEmail",
+      "matrixFieldName": "MemberEmail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberFax",
+      "matrixFieldName": "MemberFax",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberFirstName",
+      "matrixFieldName": "MemberFirstName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberFullName",
+      "matrixFieldName": "MemberFullName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberIsAssistantTo",
+      "matrixFieldName": "MemberIsAssistantTo",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberKeyNumeric",
+      "matrixFieldName": "MemberKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberLanguages",
+      "matrixFieldName": "MemberLanguages",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberLastName",
+      "matrixFieldName": "MemberLastName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberMailOptOutYN",
+      "matrixFieldName": "MemberMailOptOutYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberMiddleName",
+      "matrixFieldName": "MemberMiddleName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberMlsAccessYN",
+      "matrixFieldName": "MemberMlsAccessYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberMlsId",
+      "matrixFieldName": "MemberMlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberMobilePhone",
+      "matrixFieldName": "MemberMobilePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberNamePrefix",
+      "matrixFieldName": "MemberNamePrefix",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberNameSuffix",
+      "matrixFieldName": "MemberNameSuffix",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberNationalAssociationEntryDate",
+      "matrixFieldName": "MemberNationalAssociationEntryDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberNationalAssociationId",
+      "matrixFieldName": "MemberNationalAssociationId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberNickname",
+      "matrixFieldName": "MemberNickname",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberOfficePhone",
+      "matrixFieldName": "MemberOfficePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberOfficePhoneExt",
+      "matrixFieldName": "MemberOfficePhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberOtherPhoneType",
+      "matrixFieldName": "MemberOtherPhoneType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPhoneTTYTDD",
+      "matrixFieldName": "MemberPhoneTTYTDD",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPostalCode",
+      "matrixFieldName": "MemberPostalCode",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPostalCodePlus4",
+      "matrixFieldName": "MemberPostalCodePlus4",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPreferredMail",
+      "matrixFieldName": "MemberPreferredMail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPreferredMedia",
+      "matrixFieldName": "MemberPreferredMedia",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPreferredPhone",
+      "matrixFieldName": "MemberPreferredPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPreferredPhoneExt",
+      "matrixFieldName": "MemberPreferredPhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPreferredPublication",
+      "matrixFieldName": "MemberPreferredPublication",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberPrimaryAorId",
+      "matrixFieldName": "MemberPrimaryAorId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MembershipFeeFrequency",
+      "matrixFieldName": "MembershipFeeFrequency",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberStateLicenseExpirationDate",
+      "matrixFieldName": "MemberStateLicenseExpirationDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberStateOrProvince",
+      "matrixFieldName": "MemberStateOrProvince",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberStatus",
+      "matrixFieldName": "MemberStatus",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberStreetAdditionalInfo",
+      "matrixFieldName": "MemberStreetAdditionalInfo",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberTollFreePhone",
+      "matrixFieldName": "MemberTollFreePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberTransferDate",
+      "matrixFieldName": "MemberTransferDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberType",
+      "matrixFieldName": "MemberType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberVoiceMail",
+      "matrixFieldName": "MemberVoiceMail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberVoiceMailExt",
+      "matrixFieldName": "MemberVoiceMailExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MemberVotingPrecinct",
+      "matrixFieldName": "MemberVotingPrecinct",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "MiddleOrJuniorSchool",
+      "matrixFieldName": "MiddleOrJuniorSchool",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "MiddleOrJuniorSchoolDistrict",
+      "matrixFieldName": "MiddleOrJuniorSchoolDistrict",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2350,17 +4958,17 @@
       "requirements": "No"
     },
     {
-      "field": "MoveInCosts",
-      "matrixFieldName": "MoveInCosts",
-      "description": "Specific fees not included in the base rent or deposit that apply to the listing (e.g., application fees, move-in fees).",
-      "lmpAddEdit": "Yes",
-      "lmpSearch": "Yes",
+      "field": "MonthlyRate",
+      "matrixFieldName": "MonthlyRate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
-      "field": "MoveInCostsComments",
-      "matrixFieldName": "MoveInCostsComments",
-      "description": "Comments or clarifications regarding the additional listing fees.Comments or clarifications regarding the Move In Costs.",
+      "field": "MoveInCosts",
+      "matrixFieldName": "MoveInCosts",
+      "description": "Specific fees not included in the base rent or deposit that apply to the listing (e.g., application fees, move-in fees).",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2372,6 +4980,14 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: If MoveInCosts have any value"
+    },
+    {
+      "field": "MoveInCostsComments",
+      "matrixFieldName": "MoveInCostsComments",
+      "description": "Comments or clarifications regarding the additional listing fees.Comments or clarifications regarding the Move In Costs.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "NetMonthlyRent",
@@ -2422,9 +5038,73 @@
       "requirements": "No"
     },
     {
+      "field": "NumberOfBoatDocks",
+      "matrixFieldName": "NumberOfBoatDocks",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfBoatSlips",
+      "matrixFieldName": "NumberOfBoatSlips",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfBranches",
+      "matrixFieldName": "NumberOfBranches",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "NumberOfBuildings",
       "matrixFieldName": "NumberOfBuildings",
       "description": "Total number of separate buildings on the premise.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfFullTimeEmployees",
+      "matrixFieldName": "NumberOfFullTimeEmployees",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfLots",
+      "matrixFieldName": "NumberOfLots",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfNonMemberSalespersons",
+      "matrixFieldName": "NumberOfNonMemberSalespersons",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfPads",
+      "matrixFieldName": "NumberOfPads",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfPartTimeEmployees",
+      "matrixFieldName": "NumberOfPartTimeEmployees",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2486,6 +5166,22 @@
       "requirements": "No"
     },
     {
+      "field": "NumberOfUnitsLeased",
+      "matrixFieldName": "NumberOfUnitsLeased",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "NumberOfUnitsMoMo",
+      "matrixFieldName": "NumberOfUnitsMoMo",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "NumberOfUnitsTotal",
       "matrixFieldName": "NumberOfUnitsTotal",
       "description": "Total number of residential units included in the property, occupied or unoccupied.",
@@ -2510,6 +5206,382 @@
       "requirements": "No"
     },
     {
+      "field": "OffersDescription",
+      "matrixFieldName": "OffersDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OffersReviewDate",
+      "matrixFieldName": "OffersReviewDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeAddress1",
+      "matrixFieldName": "OfficeAddress1",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeAddress2",
+      "matrixFieldName": "OfficeAddress2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeAlternateId",
+      "matrixFieldName": "OfficeAlternateId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeAOR",
+      "matrixFieldName": "OfficeAOR",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeAORkey",
+      "matrixFieldName": "OfficeAORkey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeAORkeyNumeric",
+      "matrixFieldName": "OfficeAORkeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeAORMlsId",
+      "matrixFieldName": "OfficeAORMlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeBio",
+      "matrixFieldName": "OfficeBio",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeBranchType",
+      "matrixFieldName": "OfficeBranchType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeBrokerKey",
+      "matrixFieldName": "OfficeBrokerKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeBrokerKeyNumeric",
+      "matrixFieldName": "OfficeBrokerKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeBrokerMlsId",
+      "matrixFieldName": "OfficeBrokerMlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeBrokerNationalAssociationId",
+      "matrixFieldName": "OfficeBrokerNationalAssociationId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeCity",
+      "matrixFieldName": "OfficeCity",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeCityRegion",
+      "matrixFieldName": "OfficeCityRegion",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeCountry",
+      "matrixFieldName": "OfficeCountry",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeCountyOrParish",
+      "matrixFieldName": "OfficeCountyOrParish",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeEmail",
+      "matrixFieldName": "OfficeEmail",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeFax",
+      "matrixFieldName": "OfficeFax",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeKey",
+      "matrixFieldName": "OfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeKeyNumeric",
+      "matrixFieldName": "OfficeKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailAddress1",
+      "matrixFieldName": "OfficeMailAddress1",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailAddress2",
+      "matrixFieldName": "OfficeMailAddress2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailCareOf",
+      "matrixFieldName": "OfficeMailCareOf",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailCity",
+      "matrixFieldName": "OfficeMailCity",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailCountry",
+      "matrixFieldName": "OfficeMailCountry",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailCountyOrParish",
+      "matrixFieldName": "OfficeMailCountyOrParish",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailPostalCode",
+      "matrixFieldName": "OfficeMailPostalCode",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailPostalCodePlus4",
+      "matrixFieldName": "OfficeMailPostalCodePlus4",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMailStateOrProvince",
+      "matrixFieldName": "OfficeMailStateOrProvince",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeMlsId",
+      "matrixFieldName": "OfficeMlsId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeName",
+      "matrixFieldName": "OfficeName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeNationalAssociationId",
+      "matrixFieldName": "OfficeNationalAssociationId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeNationalAssociationIdInsertDate",
+      "matrixFieldName": "OfficeNationalAssociationIdInsertDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficePhone",
+      "matrixFieldName": "OfficePhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficePhoneExt",
+      "matrixFieldName": "OfficePhoneExt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficePostalCode",
+      "matrixFieldName": "OfficePostalCode",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficePostalCodePlus4",
+      "matrixFieldName": "OfficePostalCodePlus4",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficePreferredMedia",
+      "matrixFieldName": "OfficePreferredMedia",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficePrimaryAorId",
+      "matrixFieldName": "OfficePrimaryAorId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficePrimaryStateOrProvince",
+      "matrixFieldName": "OfficePrimaryStateOrProvince",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeStateOrProvince",
+      "matrixFieldName": "OfficeStateOrProvince",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeStatus",
+      "matrixFieldName": "OfficeStatus",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeStreetAdditionalInfo",
+      "matrixFieldName": "OfficeStreetAdditionalInfo",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OfficeType",
+      "matrixFieldName": "OfficeType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "OffMarketDate",
       "matrixFieldName": "OffMarketDate",
       "description": "The date the listing was taken off market in the Source System. Where possible, this date is reflective of the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",
@@ -2522,6 +5594,14 @@
       "matrixFieldName": "OffMarketTimestamp",
       "description": "The transactional timestamp automatically recorded by the MLS system representing the most recent date/time the listing's status was set to and off market status (not Active or Backup)",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OngoingFees",
+      "matrixFieldName": "OngoingFees",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -2542,10 +5622,58 @@
       "requirements": "No"
     },
     {
+      "field": "OpenHouseAttendedBy",
+      "matrixFieldName": "OpenHouseAttendedBy",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "OpenHouseCount",
       "matrixFieldName": "OpenHouseCount",
       "description": "Total count of open house rows",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseDate",
+      "matrixFieldName": "OpenHouseDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseEndTime",
+      "matrixFieldName": "OpenHouseEndTime",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseId",
+      "matrixFieldName": "OpenHouseId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseKeyNumeric",
+      "matrixFieldName": "OpenHouseKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseModificationTimestamp",
+      "matrixFieldName": "OpenHouseModificationTimestamp",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -2563,6 +5691,30 @@
       "description": "Total count of open house rows where OpenHouse Type is public and Open House Start Time is in the future",
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseStartTime",
+      "matrixFieldName": "OpenHouseStartTime",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseStatus",
+      "matrixFieldName": "OpenHouseStatus",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OpenHouseType",
+      "matrixFieldName": "OpenHouseType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -2598,6 +5750,22 @@
       "requirements": "No"
     },
     {
+      "field": "OperatingExpenseIncludes",
+      "matrixFieldName": "OperatingExpenseIncludes",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Order",
+      "matrixFieldName": "Order",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "OriginalDetailYN",
       "matrixFieldName": "OriginalDetailYN",
       "description": "Indicates whether the building still have the original detail.",
@@ -2622,6 +5790,182 @@
       "requirements": "Conditional: if ChangeType = PriceChange"
     },
     {
+      "field": "OriginatingSystemBuyerTeamKey",
+      "matrixFieldName": "OriginatingSystemBuyerTeamKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemCoListAgent2MemberKey",
+      "matrixFieldName": "OriginatingSystemCoListAgent2MemberKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemCoListAgent3MemberKey",
+      "matrixFieldName": "OriginatingSystemCoListAgent3MemberKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemCoListAgentMemberKey",
+      "matrixFieldName": "OriginatingSystemCoListAgentMemberKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemCoListOffice2Key",
+      "matrixFieldName": "OriginatingSystemCoListOffice2Key",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemCoListOfficeKey",
+      "matrixFieldName": "OriginatingSystemCoListOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemID",
+      "matrixFieldName": "OriginatingSystemID",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemKey",
+      "matrixFieldName": "OriginatingSystemKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemListAgentMemberKey",
+      "matrixFieldName": "OriginatingSystemListAgentMemberKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemListingKey",
+      "matrixFieldName": "OriginatingSystemListingKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemListOfficeKey",
+      "matrixFieldName": "OriginatingSystemListOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemListTeamKey",
+      "matrixFieldName": "OriginatingSystemListTeamKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemMainOfficeKey",
+      "matrixFieldName": "OriginatingSystemMainOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemMediaKey",
+      "matrixFieldName": "OriginatingSystemMediaKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemMemberKey",
+      "matrixFieldName": "OriginatingSystemMemberKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemMemberMlsSecurityClass",
+      "matrixFieldName": "OriginatingSystemMemberMlsSecurityClass",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemModificationTimestamp",
+      "matrixFieldName": "OriginatingSystemModificationTimestamp",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemOfficeBrokerKey",
+      "matrixFieldName": "OriginatingSystemOfficeBrokerKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemOfficeKey",
+      "matrixFieldName": "OriginatingSystemOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemOfficeManagerKey",
+      "matrixFieldName": "OriginatingSystemOfficeManagerKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemResourceRecordKey",
+      "matrixFieldName": "OriginatingSystemResourceRecordKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "OriginatingSystemSubName",
+      "matrixFieldName": "OriginatingSystemSubName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "OtherEquipment",
       "matrixFieldName": "OtherEquipment",
       "description": "A list of other equipment that will be included in the listing that is for sale/lease.",
@@ -2638,11 +5982,35 @@
       "requirements": "No"
     },
     {
+      "field": "OtherExpenseDescription",
+      "matrixFieldName": "OtherExpenseDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "OtherExpenseRemarks",
       "matrixFieldName": "OtherExpenseRemarks",
       "description": "Description of other expenses incurred on the property.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OtherParking",
+      "matrixFieldName": "OtherParking",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OtherPhone",
+      "matrixFieldName": "OtherPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -2678,9 +6046,33 @@
       "requirements": "No"
     },
     {
+      "field": "Ownership",
+      "matrixFieldName": "Ownership",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "OwnershipType",
+      "matrixFieldName": "OwnershipType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "ParcelNumber",
       "matrixFieldName": "ParcelNumber",
       "description": "A number used to uniquely identify a parcel or lot. This number is typically issued by the county or county assessor. The AP number format varies from county to county. It is recommended that all Parcel Numbers be transmitted without dashes or hyphens.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ParcelSubcomponent",
+      "matrixFieldName": "ParcelSubcomponent",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2697,6 +6089,30 @@
       "field": "ParkingTotal",
       "matrixFieldName": "ParkingTotal",
       "description": "The total number of parking spaces included in the sale or lease.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ParkManagerName",
+      "matrixFieldName": "ParkManagerName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ParkManagerPhone",
+      "matrixFieldName": "ParkManagerPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ParkName",
+      "matrixFieldName": "ParkName",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2726,6 +6142,14 @@
       "requirements": "Conditional: PropertyType = Residential AND CommonInterest = Condominium"
     },
     {
+      "field": "Permission",
+      "matrixFieldName": "Permission",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "Permissions",
       "matrixFieldName": "Permissions",
       "description": "The level of access permission for the listing. Only listings marked Private (Participant's Only Listing) will be accessible.",
@@ -2737,6 +6161,14 @@
       "field": "PestControlExpense",
       "matrixFieldName": "PestControlExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "PetDeposit",
+      "matrixFieldName": "PetDeposit",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2764,6 +6196,22 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: If PetsAllowed = UnitBreedRestrictions, UnitNumberLimit OR UnitSizeLimit"
+    },
+    {
+      "field": "PetsAllowedYN",
+      "matrixFieldName": "PetsAllowedYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "PetsComments",
+      "matrixFieldName": "PetsComments",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "PhotosChangeTimestamp",
@@ -2795,6 +6243,14 @@
       "description": "A list of features or description of the pool on the property.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "PoolPrivateYN",
+      "matrixFieldName": "PoolPrivateYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
       "requirements": "No"
     },
     {
@@ -2838,6 +6294,38 @@
       "requirements": "No"
     },
     {
+      "field": "PotentialShortSale",
+      "matrixFieldName": "PotentialShortSale",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "PowerProductionType",
+      "matrixFieldName": "PowerProductionType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "PowerProductionYN",
+      "matrixFieldName": "PowerProductionYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "PreferredPhotoYN",
+      "matrixFieldName": "PreferredPhotoYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "PreviousListPrice",
       "matrixFieldName": "PreviousListPrice",
       "description": "The most recent previous ListPrice of the listing.",
@@ -2859,6 +6347,22 @@
       "description": "The transactional timestamp automatically recorded by the RLS system representing the date/time the listing's price was last changed.",
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "PricePerArea",
+      "matrixFieldName": "PricePerArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "PricePerAreaUnit",
+      "matrixFieldName": "PricePerAreaUnit",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -2894,6 +6398,30 @@
       "requirements": "No"
     },
     {
+      "field": "ProjectName",
+      "matrixFieldName": "ProjectName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "PropertyAccess",
+      "matrixFieldName": "PropertyAccess",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "PropertyAttachedYN",
+      "matrixFieldName": "PropertyAttachedYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "PropertyCondition",
       "matrixFieldName": "PropertyCondition",
       "description": "A listing describing the condition of the listing that is for sale/lease. All items in the definition must be met. This attribute is only permitted for agent view ONLY. This cannot be shared or displayed to any consumer/clients. Disclaimer must be conspicuously present on the page where the Property Condition data is displayed: “Property Condition\" information is not verified for authenticity or accuracy and is not guaranteed and may not reflect all real estate activity in the market. ©[YEAR] The Real Estate Board of New York, Inc., All rights reserved.",
@@ -2908,6 +6436,14 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
+    },
+    {
+      "field": "PropertySubTypeAdditional",
+      "matrixFieldName": "PropertySubTypeAdditional",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
     },
     {
       "field": "PropertyType",
@@ -2926,6 +6462,38 @@
       "requirements": "Yes"
     },
     {
+      "field": "PublicRemarks_lang2",
+      "matrixFieldName": "PublicRemarks_lang2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "PublicRemarks_lang3",
+      "matrixFieldName": "PublicRemarks_lang3",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "PublicSurveySection",
+      "matrixFieldName": "PublicSurveySection",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "PublicSurveyTownship",
+      "matrixFieldName": "PublicSurveyTownship",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "PurchaseContractDate",
       "matrixFieldName": "PurchaseContractDate",
       "description": "This is the date of when the offer was accepted and contract was fully executed. This contract date should match what is recorded under public records. This is not to be confused with the CloseDate which is a separate attribute.",
@@ -2934,9 +6502,113 @@
       "requirements": "Conditional: MLSStatus = Pending;  The PurchaseContractDate is required to be greater than or equal to the ListingContractDate attribute."
     },
     {
+      "field": "RecordSignature",
+      "matrixFieldName": "RecordSignature",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "Refreshments",
+      "matrixFieldName": "Refreshments",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "RentControlYN",
+      "matrixFieldName": "RentControlYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "RentIncludes",
+      "matrixFieldName": "RentIncludes",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "RentingAllowedYN",
       "matrixFieldName": "RentingAllowedYN",
       "description": "Indicates whether or not tenant is permitted to rent/sublet the unit/property",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ResourceName",
+      "matrixFieldName": "ResourceName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ResourceRecordID",
+      "matrixFieldName": "ResourceRecordID",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ResourceRecordKey",
+      "matrixFieldName": "ResourceRecordKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ResourceRecordKeyNumeric",
+      "matrixFieldName": "ResourceRecordKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "Restrictions",
+      "matrixFieldName": "Restrictions",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "RoadFrontageType",
+      "matrixFieldName": "RoadFrontageType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "RoadResponsibility",
+      "matrixFieldName": "RoadResponsibility",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "RoadSurfaceType",
+      "matrixFieldName": "RoadSurfaceType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Roof",
+      "matrixFieldName": "Roof",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -2966,6 +6638,62 @@
       "requirements": "Yes"
     },
     {
+      "field": "RoomType",
+      "matrixFieldName": "RoomType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SaleOrLeaseIncludes",
+      "matrixFieldName": "SaleOrLeaseIncludes",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "SaleOrLeaseIndicator",
+      "matrixFieldName": "SaleOrLeaseIndicator",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SeatingCapacity",
+      "matrixFieldName": "SeatingCapacity",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SecurityDeposit",
+      "matrixFieldName": "SecurityDeposit",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SecurityDepositDescription",
+      "matrixFieldName": "SecurityDepositDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "SecurityDepositYN",
+      "matrixFieldName": "SecurityDepositYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "SecurityFeatures",
       "matrixFieldName": "SecurityFeatures",
       "description": "A list describing the security features on the property.",
@@ -2979,6 +6707,86 @@
       "description": "Indicates whether or not a community is a senior community.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SerialU",
+      "matrixFieldName": "SerialU",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SerialX",
+      "matrixFieldName": "SerialX",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SerialXX",
+      "matrixFieldName": "SerialXX",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Sewer",
+      "matrixFieldName": "Sewer",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ShortDescription",
+      "matrixFieldName": "ShortDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ShowingAgentFirstName",
+      "matrixFieldName": "ShowingAgentFirstName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ShowingAgentKey",
+      "matrixFieldName": "ShowingAgentKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ShowingAgentKeyNumeric",
+      "matrixFieldName": "ShowingAgentKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ShowingAgentLastName",
+      "matrixFieldName": "ShowingAgentLastName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "ShowingAgentMlsID",
+      "matrixFieldName": "ShowingAgentMlsID",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -3001,6 +6809,14 @@
       "field": "ShowingContactPhone",
       "matrixFieldName": "ShowingContactPhone",
       "description": "Phone number for scheduling showings",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ShowingContactPhoneExt",
+      "matrixFieldName": "ShowingContactPhoneExt",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -3046,11 +6862,35 @@
       "requirements": "Conditional: Required if ShowingEndTime is provided. ShowingStartTime  cannot be greater than or equal to ShowingEndTime"
     },
     {
+      "field": "SignOnPropertyYN",
+      "matrixFieldName": "SignOnPropertyYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "SizeDimensions",
       "matrixFieldName": "SizeDimensions",
       "description": "The dimensions of the building minimally represented as length and width (i.e. 250 x 180) or a measurement of all sides of the polygon representing the property. i.e. 30 x 50 x 120 x 60 x 22",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Skirt",
+      "matrixFieldName": "Skirt",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SourceSystemID",
+      "matrixFieldName": "SourceSystemID",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -3060,6 +6900,22 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes - TEMPORARY",
       "requirements": "Yes"
+    },
+    {
+      "field": "SourceSystemMediaKey",
+      "matrixFieldName": "SourceSystemMediaKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "SourceSystemMemberKey",
+      "matrixFieldName": "SourceSystemMemberKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
     },
     {
       "field": "SourceSystemModificationTimestamp",
@@ -3075,6 +6931,14 @@
       "description": "The name of the immediate record provider. The system from which the record was directly received. LMP's Company Name",
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SourceSystemOfficeKey",
+      "matrixFieldName": "SourceSystemOfficeKey",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -3097,6 +6961,14 @@
       "field": "SpecialAssessmentExpirationDateTime",
       "matrixFieldName": "SpecialAssessmentExpirationDateTime",
       "description": "The date when the special assessment expires",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SpecialLicenses",
+      "matrixFieldName": "SpecialLicenses",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -3126,12 +6998,28 @@
       "requirements": "Yes"
     },
     {
+      "field": "StartShowingDate",
+      "matrixFieldName": "StartShowingDate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "StateOrProvince",
       "matrixFieldName": "StateOrProvince",
       "description": "State where the property is located",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
+    },
+    {
+      "field": "StateRegion",
+      "matrixFieldName": "StateRegion",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "StatusChangeTimestamp",
@@ -3150,12 +7038,44 @@
       "requirements": "No"
     },
     {
+      "field": "StoriesPartial",
+      "matrixFieldName": "StoriesPartial",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "StoriesPartialTotal",
+      "matrixFieldName": "StoriesPartialTotal",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "StoriesTotal",
       "matrixFieldName": "StoriesTotal",
       "description": "Total number of stories in the building",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
+    },
+    {
+      "field": "StormProtection",
+      "matrixFieldName": "StormProtection",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "StreetAdditionalInfo",
+      "matrixFieldName": "StreetAdditionalInfo",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "StreetDirPrefix",
@@ -3206,6 +7126,14 @@
       "requirements": "No\r\nreject if not in dictionary"
     },
     {
+      "field": "StreetSuffixModifier",
+      "matrixFieldName": "StreetSuffixModifier",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "StructureType",
       "matrixFieldName": "StructureType",
       "description": "The type of structure that the property completely or partially encompasses. For example: House are the overall sold or leased as a whole. Multi Family or Mixed-Use may be sold/leased in whole, but are often sold or leased by units. This field is the type of structure as opposed to style, which is under the Architectural Style field. Please refer/use PropertySubType when identifying Townhouse, Single Family, Mixused, etc.",
@@ -3235,6 +7163,14 @@
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "SyndicateTo",
+      "matrixFieldName": "SyndicateTo",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -3278,12 +7214,52 @@
       "requirements": "Conditional: PropertyType = Residential AND  PropertySubType is any of - Duplex, Mixed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family, Single Family Townhouse, Triplex, Unimproved Land."
     },
     {
+      "field": "TaxAssessedValue",
+      "matrixFieldName": "TaxAssessedValue",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxAssessedValueImprovement",
+      "matrixFieldName": "TaxAssessedValueImprovement",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxAssessedValueLand",
+      "matrixFieldName": "TaxAssessedValueLand",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxAuthority",
+      "matrixFieldName": "TaxAuthority",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "TaxBlock",
       "matrixFieldName": "TaxBlock",
       "description": "A type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as divided into lots on which homes or other types of developments are built. An example would read \"Lot 12 of Block 45 of Tract 3002 of the City of San Dunes, Desert County.\" Such a description would also reference an official plat filed with the clerk or recorder for that area which shows the location of the block and often the dimensions of the lots therein.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
+    },
+    {
+      "field": "TaxBookNumber",
+      "matrixFieldName": "TaxBookNumber",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "TaxDeductionAmount",
@@ -3310,6 +7286,14 @@
       "requirements": "No"
     },
     {
+      "field": "TaxLegalDescription",
+      "matrixFieldName": "TaxLegalDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "TaxLot",
       "matrixFieldName": "TaxLot",
       "description": "Specific to the Unit, if different from the whole property/building. For example condominiums in NYC typically have their own designated lot number per unit.\r\n\r\nA type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as divided into lots on which homes or other types of developments are built. An example would read \"Lot 12 of Block 45 of Tract 3002 of the City of San Dunes, Desert County.\" Such a description would also reference an official plat filed with the clerk or recorder for that area which shows the location of the block and often the dimensions of the lots therein.",
@@ -3318,12 +7302,140 @@
       "requirements": "Conditional: PropertyType = Residential and CommonInterest = Condominium"
     },
     {
+      "field": "TaxMapNumber",
+      "matrixFieldName": "TaxMapNumber",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "TaxMonthlyAmount",
       "matrixFieldName": "TaxMonthlyAmount",
       "description": "The monthly amount of tax for condos. Please refer to Building Resource>TaxAnnualAmount for Townhouse, Single Homes, or Building, Lots.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Conditional: PropertyType = Residential AND CommonElements = Condominium"
+    },
+    {
+      "field": "TaxOtherAnnualAssessmentAmount",
+      "matrixFieldName": "TaxOtherAnnualAssessmentAmount",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxParcelLetter",
+      "matrixFieldName": "TaxParcelLetter",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxRate",
+      "matrixFieldName": "TaxRate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxStatusCurrent",
+      "matrixFieldName": "TaxStatusCurrent",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxTract",
+      "matrixFieldName": "TaxTract",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TaxYear",
+      "matrixFieldName": "TaxYear",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TenantPays",
+      "matrixFieldName": "TenantPays",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TenantPaysDescription",
+      "matrixFieldName": "TenantPaysDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "ThirdPartyIntegrationType",
+      "matrixFieldName": "ThirdPartyIntegrationType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "TitleCompanyAddress",
+      "matrixFieldName": "TitleCompanyAddress",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "TitleCompanyName",
+      "matrixFieldName": "TitleCompanyName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "TitleCompanyPhone",
+      "matrixFieldName": "TitleCompanyPhone",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "TitleCompanyPreferred",
+      "matrixFieldName": "TitleCompanyPreferred",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "Topography",
+      "matrixFieldName": "Topography",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "TotalActualRent",
+      "matrixFieldName": "TotalActualRent",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "TotalDocumentsCount",
@@ -3346,6 +7458,14 @@
       "matrixFieldName": "TotalPhotosCount",
       "description": "Total Count of all photos including public and private photos",
       "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Township",
+      "matrixFieldName": "Township",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -3382,6 +7502,14 @@
       "requirements": "No"
     },
     {
+      "field": "UniqueLicenseeIdentifier",
+      "matrixFieldName": "UniqueLicenseeIdentifier",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "UnitCount",
       "matrixFieldName": "UnitCount",
       "description": "Count of all rows for Units Subtable - used for Residential Income",
@@ -3406,11 +7534,195 @@
       "requirements": "Conditional: If PropertySubType = Apartment, Deeded Parking, Garden Apartment, Loft, Office, Retail, Timeshare, Unit Duplex, Unit Quadruplex, Unit Triplex"
     },
     {
+      "field": "UnitsFurnished",
+      "matrixFieldName": "UnitsFurnished",
+      "description": "Total Calculated field of unit rows that are furnished. Are the units furnished? i.e. All Units, Varies By Unit, None.",
+      "lmpAddEdit": "No",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeActualRent",
+      "matrixFieldName": "UnitTypeActualRent",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeActualRentRange",
+      "matrixFieldName": "UnitTypeActualRentRange",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeArea",
+      "matrixFieldName": "UnitTypeArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeAreaSource",
+      "matrixFieldName": "UnitTypeAreaSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeAreaUnits",
+      "matrixFieldName": "UnitTypeAreaUnits",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeBathsTotal",
+      "matrixFieldName": "UnitTypeBathsTotal",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeBedsTotal",
+      "matrixFieldName": "UnitTypeBedsTotal",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeDeposit",
+      "matrixFieldName": "UnitTypeDeposit",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeFireplaceYN",
+      "matrixFieldName": "UnitTypeFireplaceYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeFurnished",
+      "matrixFieldName": "UnitTypeFurnished",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeGarageAttachedYN",
+      "matrixFieldName": "UnitTypeGarageAttachedYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeGarageSpaces",
+      "matrixFieldName": "UnitTypeGarageSpaces",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeKeyNumeric",
+      "matrixFieldName": "UnitTypeKeyNumeric",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeLeasedYN",
+      "matrixFieldName": "UnitTypeLeasedYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeMonthToMonthYN",
+      "matrixFieldName": "UnitTypeMonthToMonthYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeNumFullBaths",
+      "matrixFieldName": "UnitTypeNumFullBaths",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeNumHalfBaths",
+      "matrixFieldName": "UnitTypeNumHalfBaths",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeOccupantType",
+      "matrixFieldName": "UnitTypeOccupantType",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypePetDeposit",
+      "matrixFieldName": "UnitTypePetDeposit",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypePetDepositPerPetYN",
+      "matrixFieldName": "UnitTypePetDepositPerPetYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeProForma",
+      "matrixFieldName": "UnitTypeProForma",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "UnitTypes",
       "matrixFieldName": "UnitTypes",
       "description": "A collection of types of units included in the income (multifamily) property. The collection includes a type, beds, baths and other aspects of the type of unit behind described.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeTotalRent",
+      "matrixFieldName": "UnitTypeTotalRent",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -3422,10 +7734,42 @@
       "requirements": "No"
     },
     {
-      "field": "UnitsFurnished",
-      "matrixFieldName": "UnitsFurnished",
-      "description": "Total Calculated field of unit rows that are furnished. Are the units furnished? i.e. All Units, Varies By Unit, None.",
+      "field": "UnitTypeUnitNum",
+      "matrixFieldName": "UnitTypeUnitNum",
+      "description": "IDX Plus field",
       "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UnitTypeUnitsTotal",
+      "matrixFieldName": "UnitTypeUnitsTotal",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "UniversalParcelId",
+      "matrixFieldName": "UniversalParcelId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "UniversalPropertyId",
+      "matrixFieldName": "UniversalPropertyId",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "UnparsedAddress",
+      "matrixFieldName": "UnparsedAddress",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
     },
@@ -3436,6 +7780,38 @@
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
+    },
+    {
+      "field": "Utilities",
+      "matrixFieldName": "Utilities",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "UtilitiesExpense",
+      "matrixFieldName": "UtilitiesExpense",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "VacancyAllowance",
+      "matrixFieldName": "VacancyAllowance",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "VacancyAllowanceRate",
+      "matrixFieldName": "VacancyAllowanceRate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "Video2URL",
@@ -3510,9 +7886,33 @@
       "requirements": "No"
     },
     {
+      "field": "VirtualOfficeWebsiteYN",
+      "matrixFieldName": "VirtualOfficeWebsiteYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
       "field": "VirtualTourURLBranded",
       "matrixFieldName": "VirtualTourURLBranded",
       "description": "A text field that holds the URL for an branded virtual tour of the property.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "VirtualTourURLBranded2",
+      "matrixFieldName": "VirtualTourURLBranded2",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "VirtualTourURLBranded3",
+      "matrixFieldName": "VirtualTourURLBranded3",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -3542,9 +7942,57 @@
       "requirements": "No"
     },
     {
+      "field": "WalkScore",
+      "matrixFieldName": "WalkScore",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "WaterAccessDescription",
+      "matrixFieldName": "WaterAccessDescription",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "WaterAccessYN",
+      "matrixFieldName": "WaterAccessYN",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
+      "requirements": "No"
+    },
+    {
+      "field": "WaterBodyName",
+      "matrixFieldName": "WaterBodyName",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "WaterfrontFeatures",
+      "matrixFieldName": "WaterfrontFeatures",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "WaterfrontYN",
       "matrixFieldName": "WaterfrontYN",
       "description": "The property is on the waterfront.",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "WaterHeater",
+      "matrixFieldName": "WaterHeater",
+      "description": "IDX Plus field",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No"
@@ -3555,6 +8003,22 @@
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "WaterSource",
+      "matrixFieldName": "WaterSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "WeeklyRate",
+      "matrixFieldName": "WeeklyRate",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "No",
+      "lmpSearch": "No",
       "requirements": "No"
     },
     {
@@ -3574,6 +8038,14 @@
       "requirements": "Conditional: MLSStatus = Withdrawn and WithdrawnDate must = OffMarketDate"
     },
     {
+      "field": "WoodedArea",
+      "matrixFieldName": "WoodedArea",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "WorkmansCompensationExpense",
       "matrixFieldName": "WorkmansCompensationExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
@@ -3590,12 +8062,60 @@
       "requirements": "Yes and must be 4 characters, 1700 or greater and no more than 10 years into future."
     },
     {
+      "field": "YearBuiltDetails",
+      "matrixFieldName": "YearBuiltDetails",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "YearBuiltEffective",
+      "matrixFieldName": "YearBuiltEffective",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "YearBuiltSource",
+      "matrixFieldName": "YearBuiltSource",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "YearEstablished",
+      "matrixFieldName": "YearEstablished",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
       "field": "YearRenovated",
       "matrixFieldName": "YearRenovated",
       "description": "The year the unit was renovated.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "No but if entered, must be 4 characters"
+    },
+    {
+      "field": "YearsCurrentOwner",
+      "matrixFieldName": "YearsCurrentOwner",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
+    },
+    {
+      "field": "Zoning",
+      "matrixFieldName": "Zoning",
+      "description": "IDX Plus field",
+      "lmpAddEdit": "Yes",
+      "lmpSearch": "Yes",
+      "requirements": "No"
     },
     {
       "field": "ZoningDescription",

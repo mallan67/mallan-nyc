@@ -108,7 +108,7 @@
 
                 <!-- Address & Tags -->
                 <div class="flex items-center gap-2 mb-0.5">
-                    <input type="checkbox" class="w-3.5 h-3.5 accent-amber-600" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="toggleListingSelection(${listing.id})">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-amber-600" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="toggleListingSelection('${listing.id}')">
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight">${displayAddress}${displayUnit}</h1>
                     <span class="px-1.5 py-0.5 border border-gray-200 rounded text-[9px] text-gray-400 font-mono">L-${listing.lid || listing.id}</span>
                 </div>
@@ -898,10 +898,10 @@
 
                         <!-- ═══ Primary Actions: Email / Print / Share ═══ -->
                         <div class="flex items-center gap-1.5 mb-4">
-                            <button onclick="openReportsModal([${listing.id}])" class="sidebar-action-primary" title="Email report to client">
+                            <button onclick="openReportsModal(['${listing.id}'])" class="sidebar-action-primary" title="Email report to client">
                                 <i class="fas fa-envelope"></i><span>Email</span>
                             </button>
-                            <button onclick="openReportsModal([${listing.id}], 'print')" class="sidebar-action-primary" title="Print report in new tab">
+                            <button onclick="openReportsModal(['${listing.id}'], 'print')" class="sidebar-action-primary" title="Print report in new tab">
                                 <i class="fas fa-print"></i><span>Print</span>
                             </button>
                             <button onclick="shareListing('${listing.id}')" class="sidebar-action-primary" title="Share listing link">

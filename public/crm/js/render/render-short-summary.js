@@ -5,13 +5,13 @@
                 var displayUnit = listing.addressDisplayYN === false ? '' : ', ' + escapeHtml(listing.unit);
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab(${listing.id})">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}')">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
                     <div class="w-[180px] flex-shrink-0 cm-photo-wrap relative">
                         <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy">
-                        <div class="absolute top-2 left-2"><input type="checkbox" class="w-4 h-4" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection(${listing.id})"></div>
+                        <div class="absolute top-2 left-2"><input type="checkbox" class="w-4 h-4" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection('${listing.id}')"></div>
                         <div class="absolute bottom-2 right-2 flex items-center gap-1 text-white text-[10px]"><span class="font-bold">${listing.photoCount}</span><i class="fas fa-images"></i></div>
                         ${listing.priceChange === 'down' ? '<div class="absolute top-2 right-2 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded font-bold"><i class="fas fa-arrow-down"></i></div>' : ''}
                     </div>
