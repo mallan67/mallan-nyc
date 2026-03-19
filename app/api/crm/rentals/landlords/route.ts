@@ -1,29 +1,16 @@
-// /api/crm/rentals/landlords — GET: landlords with unit + listing data
+// /api/crm/rentals/landlords — GET: all landlords, POST: create, PATCH: update
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const phase = req.nextUrl.searchParams.get("phase");
-
   const where: Record<string, unknown> = {
     roles: { has: "landlord" },
-    status: { in: ["active", "contacted", "new"] },
   };
-
-  if (phase === "prospect") {
-    where.pipeline_stage = { in: ["new", "contacted", "nurturing", "prospect"] };
-    where.active_rental_listing_id = null;
-  } else if (phase === "active") {
-    where.OR = [
-      { pipeline_stage: { in: ["active", "active_landlord"] } },
-      { active_rental_listing_id: { not: null } },
-    ];
-    delete where.status;
-  }
 
   if (auth.role !== "BROKER") {
     where.agent_id = auth.userId;
@@ -38,7 +25,6 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Enrich with listing data
   const enriched = await Promise.all(
     landlords.map(async (l) => {
       let listing_status = "No Listing";
@@ -71,4 +57,92 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json({ landlords: enriched });
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const body = await req.json();
+  const { first_name, last_name, email, phone, property_address, unit_number, entity_name, entity_type, fee_structure, notes } = body;
+
+  if (!first_name || !last_name || !email) {
+    return NextResponse.json({ error: "first_name, last_name, email required" }, { status: 400 });
+  }
+
+  const landlord = await prisma.lead.create({
+    data: {
+      first_name,
+      last_name,
+      email,
+      phone: phone || "",
+      roles: ["landlord"],
+      status: "new",
+      pipeline_stage: "new",
+      agent_id: auth.userId,
+      source: "manual",
+      property_address,
+      unit_number,
+      entity_name,
+      entity_type,
+      fee_structure,
+      notes,
+    },
+  });
+
+  await logAuditEvent("create_landlord", "lead", String(landlord.id), auth, { first_name, last_name });
+
+  return NextResponse.json({
+    landlord: { ...landlord, id: String(landlord.id), name: `${landlord.first_name} ${landlord.last_name}`.trim() },
+  }, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const body = await req.json();
+  const { id, ...updates } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
+  const existing = await prisma.lead.findFirst({
+    where: { id: BigInt(id), ...(auth.role !== "BROKER" ? { agent_id: auth.userId } : {}) },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Landlord not found" }, { status: 404 });
+  }
+
+  const allowed = [
+    "first_name", "last_name", "email", "phone", "status", "pipeline_stage",
+    "property_address", "unit_number", "home_address", "entity_name", "entity_type",
+    "fee_structure", "vacancy_risk", "seller_potential", "seller_potential_reason",
+    "property_disclosures", "lease_terms",
+    "notes", "next_follow_up", "last_contacted_at", "relist_reminder_date",
+    "secondary_first_name", "secondary_last_name", "secondary_email", "secondary_phone", "secondary_relationship",
+    "legal_ownership_name", "authorized_signatories",
+  ];
+
+  const data: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in updates) data[key] = updates[key];
+  }
+
+  const updated = await prisma.lead.update({
+    where: { id: BigInt(id) },
+    data,
+  });
+
+  await logAuditEvent("update_landlord", "lead", String(updated.id), auth, { fields: Object.keys(data) });
+
+  return NextResponse.json({
+    landlord: { ...updated, id: String(updated.id), name: `${updated.first_name} ${updated.last_name}`.trim() },
+  });
 }

@@ -1,4 +1,4 @@
-// /api/crm/campaigns — GET: list campaigns, POST: create campaign
+// /api/crm/campaigns — GET: list, POST: create, PUT: update, DELETE: remove
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
@@ -73,4 +73,71 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     campaign: { ...campaign, id: String(campaign.id), agent_id: String(campaign.agent_id) },
   }, { status: 201 });
+}
+
+export async function PUT(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const body = await req.json();
+  const { id, ...updates } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
+  const existing = await prisma.campaign.findFirst({
+    where: { id: BigInt(id), ...(auth.role !== "BROKER" ? { agent_id: auth.userId } : {}) },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  const allowed = ["name", "audience_type", "campaign_type", "status", "frequency", "template_id", "filters", "next_run_at"];
+  const data: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in updates) data[key] = updates[key];
+  }
+
+  const updated = await prisma.campaign.update({
+    where: { id: BigInt(id) },
+    data,
+  });
+
+  await logAuditEvent("update_campaign", "campaign", String(updated.id), auth, { fields: Object.keys(data) });
+
+  return NextResponse.json({
+    campaign: { ...updated, id: String(updated.id), agent_id: String(updated.agent_id) },
+  });
+}
+
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const url = new URL(req.url);
+  const id = url.searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
+  const existing = await prisma.campaign.findFirst({
+    where: { id: BigInt(id), ...(auth.role !== "BROKER" ? { agent_id: auth.userId } : {}) },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  await prisma.campaign.delete({ where: { id: BigInt(id) } });
+
+  await logAuditEvent("delete_campaign", "campaign", id, auth, { name: existing.name });
+
+  return NextResponse.json({ deleted: true });
 }

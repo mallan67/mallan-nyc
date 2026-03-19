@@ -1,30 +1,16 @@
-// /api/crm/sales/sellers — GET: active sellers with listing + activity data
+// /api/crm/sales/sellers — GET: all sellers, POST: create, PATCH: update
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const phase = req.nextUrl.searchParams.get("phase");
-
   const where: Record<string, unknown> = {
     roles: { has: "seller" },
-    status: { in: ["active", "contacted", "new"] },
   };
-
-  // Phase filtering: prospect = no listing linked, active = has listing linked
-  if (phase === "prospect") {
-    where.pipeline_stage = { in: ["new", "contacted", "nurturing", "prospect"] };
-    where.active_sale_listing_id = null;
-  } else if (phase === "active") {
-    where.OR = [
-      { pipeline_stage: { in: ["active", "active_seller"] } },
-      { active_sale_listing_id: { not: null } },
-    ];
-    delete where.status; // active sellers may have various statuses
-  }
 
   // Agent sees only own clients; broker sees all
   if (auth.role !== "BROKER") {
@@ -51,7 +37,7 @@ export async function GET(req: NextRequest) {
       let listing_status = "No Listing";
       let list_price: number | null = null;
       let dom = 0;
-      let showings_count = s.showings.length;
+      const showings_count = s.showings.length;
 
       if (s.active_sale_listing_id) {
         const listing = await prisma.listing.findFirst({
@@ -79,4 +65,97 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json({ sellers: enriched });
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const body = await req.json();
+  const { first_name, last_name, email, phone, property_address, unit_number, entity_name, entity_type, attorney_name, attorney_email, attorney_phone, attorney_firm, notes } = body;
+
+  if (!first_name || !last_name || !email) {
+    return NextResponse.json({ error: "first_name, last_name, email required" }, { status: 400 });
+  }
+
+  const seller = await prisma.lead.create({
+    data: {
+      first_name,
+      last_name,
+      email,
+      phone: phone || "",
+      roles: ["seller"],
+      status: "new",
+      pipeline_stage: "new",
+      agent_id: auth.userId,
+      source: "manual",
+      property_address,
+      unit_number,
+      entity_name,
+      entity_type,
+      attorney_name,
+      attorney_email,
+      attorney_phone,
+      attorney_firm,
+      notes,
+    },
+  });
+
+  await logAuditEvent("create_seller", "lead", String(seller.id), auth, { first_name, last_name });
+
+  return NextResponse.json({
+    seller: { ...seller, id: String(seller.id), name: `${seller.first_name} ${seller.last_name}`.trim() },
+  }, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const body = await req.json();
+  const { id, ...updates } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
+  // Verify ownership
+  const existing = await prisma.lead.findFirst({
+    where: { id: BigInt(id), ...(auth.role !== "BROKER" ? { agent_id: auth.userId } : {}) },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Seller not found" }, { status: 404 });
+  }
+
+  // Sanitize updates — only allow known fields
+  const allowed = [
+    "first_name", "last_name", "email", "phone", "status", "pipeline_stage",
+    "property_address", "unit_number", "home_address", "entity_name", "entity_type",
+    "attorney_name", "attorney_email", "attorney_phone", "attorney_firm",
+    "notes", "next_follow_up", "last_contacted_at",
+    "secondary_first_name", "secondary_last_name", "secondary_email", "secondary_phone", "secondary_relationship",
+    "legal_ownership_name", "authorized_signatories",
+    "home_prep_checklist", "building_mgmt_requirements", "disclosures", "documents_collected", "marketing_strategy",
+  ];
+
+  const data: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in updates) data[key] = updates[key];
+  }
+
+  const updated = await prisma.lead.update({
+    where: { id: BigInt(id) },
+    data,
+  });
+
+  await logAuditEvent("update_seller", "lead", String(updated.id), auth, { fields: Object.keys(data) });
+
+  return NextResponse.json({
+    seller: { ...updated, id: String(updated.id), name: `${updated.first_name} ${updated.last_name}`.trim() },
+  });
 }

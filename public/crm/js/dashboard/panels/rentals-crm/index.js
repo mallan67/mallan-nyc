@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// RENTALS CRM — v2 Redesign
-// Subnav: Landlord Prospects | Active Landlords | Renter Prospects | Active Renters |
-//         Viewed/Did Not Rent | Current Tenants | Marketing | Activity
+// RENTALS CRM — 7 tabs (no prospect/active split)
+// Landlords | Rental Listings | Viewed/Did Not Rent | Current Tenants | Marketing | Activity | Automation
 // ═══════════════════════════════════════════════════════════════════════════════
 /* global CRM, Router, Store, UI, Utils, FilterBar, ActivityTable, MallanAPI, ClientNormalizer */
 
@@ -13,30 +12,27 @@ var RentalsCRM = (function () {
   var D = Utils.formatDate;
 
   var TABS = [
-    { id: 'landlord-prospects', route: '/rentals/landlord-prospects', label: 'Landlord Prospects', icon: 'fa-user-clock' },
-    { id: 'landlords',          route: '/rentals/landlords',          label: 'Active Landlords',   icon: 'fa-key' },
-    { id: 'renter-prospects',   route: '/rentals/renter-prospects',   label: 'Renter Prospects',   icon: 'fa-user-clock' },
-    { id: 'renters',            route: '/rentals/renters',            label: 'Active Renters',     icon: 'fa-search' },
-    { id: 'viewed',             route: '/rentals/viewed',             label: 'Viewed / Did Not Rent', icon: 'fa-eye-slash' },
-    { id: 'tenants',            route: '/rentals/tenants',            label: 'Current Tenants',    icon: 'fa-user-check' },
-    { id: 'marketing',          route: '/rentals/marketing',          label: 'Marketing',          icon: 'fa-bullhorn' },
-    { id: 'activity',           route: '/rentals/activity',           label: 'Activity',           icon: 'fa-stream' },
+    { id: 'landlords',  route: '/rentals/landlords',  label: 'Landlords',             icon: 'fa-key' },
+    { id: 'listings',   route: '/rentals/listings',    label: 'Rental Listings',       icon: 'fa-building' },
+    { id: 'viewed',     route: '/rentals/viewed',      label: 'Viewed / Did Not Rent', icon: 'fa-eye-slash' },
+    { id: 'tenants',    route: '/rentals/tenants',     label: 'Current Tenants',       icon: 'fa-user-check' },
+    { id: 'marketing',  route: '/rentals/marketing',   label: 'Marketing',             icon: 'fa-bullhorn' },
+    { id: 'activity',   route: '/rentals/activity',    label: 'Activity',              icon: 'fa-stream' },
+    { id: 'automation', route: '/rentals/automation',   label: 'Automation',            icon: 'fa-robot' },
   ];
 
   var _state = {
-    landlordProspects: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    landlords: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    renterProspects: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    renters: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    viewed: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    tenants: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    listings: { data: [], sort: { key: 'address', dir: 'asc' }, page: 1, search: '' },
-    marketing: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    activity: { data: [], page: 1, filter: 'all' },
+    landlords:  { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
+    listings:   { data: [], sort: { key: 'address', dir: 'asc' }, page: 1, search: '' },
+    viewed:     { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
+    tenants:    { data: [], sort: { key: 'lease_end_date', dir: 'asc' }, page: 1, search: '' },
+    marketing:  { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
+    activity:   { data: [], page: 1, filter: 'all' },
+    automation: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
   };
 
   // ─── Subnav ──────────────────────────────────────────────────────────
-  function _renderSubnav(activeTab) {
+  function _subnav(activeTab) {
     var html = '<div class="flex gap-1 overflow-x-auto border-b border-gray-200 mb-4 pb-px -mx-1">';
     TABS.forEach(function (tab) {
       var active = tab.id === activeTab;
@@ -51,129 +47,45 @@ var RentalsCRM = (function () {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 1: LANDLORD PROSPECTS
+  // TAB 1: LANDLORDS
   // ═══════════════════════════════════════════════════════════════════════
-  function landlordProspects() {
+  function landlords() {
     CRM.setPanelTitle('Rentals CRM');
     var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('landlord-prospects') + UI.loading();
+    c.innerHTML = _subnav('landlords') + UI.loading();
 
-    MallanAPI._fetch('/api/crm/rentals/landlords?phase=prospect').then(function (data) {
-      _state.landlordProspects.data = (data.landlords || data.clients || []).map(function (l) { return ClientNormalizer.normalize(l); });
-      _renderLandlordProspectsTable(c);
-    }).catch(function () {
-      c.innerHTML = _renderSubnav('landlord-prospects') + UI.emptyState('fa-user-clock', 'Unable to load landlord prospects');
-    });
-  }
-
-  function _renderLandlordProspectsTable(c) {
-    var st = _state.landlordProspects;
-    var rows = ActivityTable.filterRows(st.data, st.search);
-    rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
-
-    var html = _renderSubnav('landlord-prospects');
-
-    html += FilterBar.render({
-      id: 'landlord_prospects',
-      placeholder: 'Search landlord prospects...',
-      onSearch: 'RentalsCRM._searchLandlordProspects',
-      filters: [
-        { key: 'source', label: 'Source', options: [
-          { value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' },
-          { value: 'manual', label: 'Manual' }, { value: 'streetEasy', label: 'StreetEasy' }
-        ]},
-      ],
-      onFilter: 'RentalsCRM._filterLandlordProspects',
-      quickActions: [
-        { label: 'New Landlord', icon: 'fa-plus', onclick: 'CRM.quickNewClient({ role: "landlord" })' },
-      ],
-    });
-
-    html += ActivityTable.render({
-      id: 'landlord_prospects_table',
-      columns: [
-        { key: 'name', label: 'Name', render: function (r) {
-          var badge = '';
-          if (r.entity_name) badge = ' <span class="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">' + E(r.entity_type || 'Entity') + '</span>';
-          return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>' + badge;
-        }},
-        { key: 'property_address', label: 'Property', render: function (r) {
-          var addr = E(r.property_address || '-');
-          if (r.unit_number) addr += ' #' + E(r.unit_number);
-          return addr;
-        }},
-        { key: 'source', label: 'Source', render: function (r) {
-          return '<span class="text-xs text-gray-500">' + E(r.source || '-') + '</span>';
-        }},
-        { key: 'vacancy_risk', label: 'Vacancy Risk', render: function (r) {
-          var v = r.vacancy_risk || '-';
-          var colors = { high: 'text-red-600', medium: 'text-yellow-600', low: 'text-green-600' };
-          return '<span class="font-bold text-xs ' + (colors[v] || '') + '">' + E(v) + '</span>';
-        }},
-        { key: 'last_contacted_at', label: 'Last Contact', render: function (r) {
-          return r.last_contacted_at ? Utils.formatTimeAgo(r.last_contacted_at) : '<span class="text-gray-400">Never</span>';
-        }},
-        { key: 'updated_at', label: 'Last Activity', render: function (r) {
-          return r.updated_at ? Utils.formatTimeAgo(r.updated_at) : '-';
-        }},
-      ],
-      rows: rows,
-      sort: st.sort,
-      onSort: 'RentalsCRM._sortLandlordProspects',
-      onRowClick: 'RentalsCRM._openClient',
-      page: st.page,
-      pageSize: 25,
-      onPage: 'RentalsCRM._pageLandlordProspects',
-      emptyIcon: 'fa-user-clock',
-      emptyText: 'No landlord prospects',
-    });
-
-    c.innerHTML = html;
-  }
-
-  function _searchLandlordProspects(q) { _state.landlordProspects.search = q; _state.landlordProspects.page = 1; _renderLandlordProspectsTable(CRM.getContent()); }
-  function _filterLandlordProspects() { _renderLandlordProspectsTable(CRM.getContent()); }
-  function _sortLandlordProspects(key) {
-    var st = _state.landlordProspects;
-    st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderLandlordProspectsTable(CRM.getContent());
-  }
-  function _pageLandlordProspects(p) { _state.landlordProspects.page = p; _renderLandlordProspectsTable(CRM.getContent()); }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // TAB 2: ACTIVE LANDLORDS — linked to rental listings
-  // ═══════════════════════════════════════════════════════════════════════
-  function activeLandlords() {
-    CRM.setPanelTitle('Rentals CRM');
-    var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('landlords') + UI.loading();
-
-    MallanAPI._fetch('/api/crm/rentals/landlords?phase=active').then(function (data) {
+    MallanAPI._fetch('/api/crm/rentals/landlords').then(function (data) {
       _state.landlords.data = (data.landlords || data.clients || []).map(function (l) { return ClientNormalizer.normalize(l); });
-      _renderLandlordsTable(c);
+      _renderLandlords(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('landlords') + UI.emptyState('fa-key', 'Unable to load active landlords');
+      c.innerHTML = _subnav('landlords') + UI.emptyState('fa-key', 'Unable to load landlords');
     });
   }
 
-  function _renderLandlordsTable(c) {
+  function _renderLandlords(c) {
     var st = _state.landlords;
     var rows = ActivityTable.filterRows(st.data, st.search);
     rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
 
-    var html = _renderSubnav('landlords');
+    var html = _subnav('landlords');
 
     html += FilterBar.render({
       id: 'landlords',
-      placeholder: 'Search active landlords...',
+      placeholder: 'Search landlords...',
       onSearch: 'RentalsCRM._searchLandlords',
       filters: [
         { key: 'status', label: 'Listing Status', options: [
           { value: 'Active', label: 'Active' }, { value: 'Rented', label: 'Rented' },
           { value: 'Vacant', label: 'Vacant' }, { value: 'Coming Soon', label: 'Coming Soon' }
         ]},
+        { key: 'fee_structure', label: 'Fee', options: [
+          { value: 'owner_pay', label: 'Owner Pay' }, { value: 'tenant_pay', label: 'Tenant Pay' }, { value: 'no_fee', label: 'No Fee' }
+        ]},
       ],
       onFilter: 'RentalsCRM._filterLandlords',
+      quickActions: [
+        { label: 'New Landlord', icon: 'fa-plus', onclick: 'CRM.quickNewClient({ role: "landlord" })' },
+      ],
     });
 
     html += ActivityTable.render({
@@ -191,23 +103,27 @@ var RentalsCRM = (function () {
         }},
         { key: 'listing_status', label: 'Listing Status', render: function (r) {
           var s = r.listing_status || 'No Listing';
-          var colors = { 'Active': 'bg-blue-100 text-blue-700', 'Rented': 'bg-green-100 text-green-700', 'Vacant': 'bg-red-100 text-red-700', 'Coming Soon': 'bg-yellow-100 text-yellow-700' };
+          var colors = { 'Active': 'bg-blue-100 text-blue-700', 'Rented': 'bg-green-100 text-green-700', 'Vacant': 'bg-red-100 text-red-700', 'Coming Soon': 'bg-yellow-100 text-yellow-700', 'No Listing': 'bg-gray-100 text-gray-500' };
           return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[s] || 'bg-gray-100 text-gray-600') + '">' + E(s) + '</span>';
         }},
         { key: 'list_price', label: 'Rent', render: function (r) {
           return r.list_price ? $(Number(r.list_price)) + '/mo' : '-';
         }},
-        { key: 'showings_count', label: 'Showings', render: function (r) { return String(r.showings_count || 0); } },
         { key: 'fee_structure', label: 'Fee', render: function (r) {
           var f = r.fee_structure || '-';
           return E(f.replace(/_/g, ' '));
+        }},
+        { key: 'vacancy_risk', label: 'Vacancy Risk', render: function (r) {
+          var v = r.vacancy_risk || '-';
+          var colors = { high: 'text-red-600', medium: 'text-yellow-600', low: 'text-green-600' };
+          return '<span class="font-bold text-xs ' + (colors[v] || '') + '">' + E(v) + '</span>';
         }},
         { key: 'seller_potential', label: 'Seller Potential', render: function (r) {
           var p = r.seller_potential || 'none';
           var colors = { high: 'bg-red-100 text-red-700', medium: 'bg-yellow-100 text-yellow-700', low: 'bg-gray-100 text-gray-600', none: 'bg-gray-50 text-gray-400' };
           return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[p] || colors.none) + '">' + E(p.toUpperCase()) + '</span>';
         }},
-        { key: 'updated_at', label: 'Last Action', render: function (r) {
+        { key: 'updated_at', label: 'Last Activity', render: function (r) {
           return r.updated_at ? Utils.formatTimeAgo(r.updated_at) : '-';
         }},
       ],
@@ -219,214 +135,137 @@ var RentalsCRM = (function () {
       pageSize: 25,
       onPage: 'RentalsCRM._pageLandlords',
       emptyIcon: 'fa-key',
-      emptyText: 'No active landlords — convert a prospect to get started',
+      emptyText: 'No landlords yet — add one to start',
     });
 
     c.innerHTML = html;
   }
 
-  function _searchLandlords(q) { _state.landlords.search = q; _state.landlords.page = 1; _renderLandlordsTable(CRM.getContent()); }
-  function _filterLandlords() { _renderLandlordsTable(CRM.getContent()); }
+  function _searchLandlords(q) { _state.landlords.search = q; _state.landlords.page = 1; _renderLandlords(CRM.getContent()); }
+  function _filterLandlords() { _renderLandlords(CRM.getContent()); }
   function _sortLandlords(key) {
     var st = _state.landlords;
     st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderLandlordsTable(CRM.getContent());
+    _renderLandlords(CRM.getContent());
   }
-  function _pageLandlords(p) { _state.landlords.page = p; _renderLandlordsTable(CRM.getContent()); }
+  function _pageLandlords(p) { _state.landlords.page = p; _renderLandlords(CRM.getContent()); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 3: RENTER PROSPECTS
+  // TAB 2: RENTAL LISTINGS
   // ═══════════════════════════════════════════════════════════════════════
-  function renterProspects() {
+  function rentalListings() {
     CRM.setPanelTitle('Rentals CRM');
     var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('renter-prospects') + UI.loading();
+    c.innerHTML = _subnav('listings') + UI.loading();
 
-    MallanAPI._fetch('/api/crm/rentals/renters?phase=prospect').then(function (data) {
-      _state.renterProspects.data = (data.renters || data.clients || []).map(function (r) { return ClientNormalizer.normalize(r); });
-      _renderRenterProspectsTable(c);
+    MallanAPI._fetch('/api/crm/rentals/listings').then(function (data) {
+      _state.listings.data = data.listings || [];
+      _renderListings(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('renter-prospects') + UI.emptyState('fa-user-clock', 'Unable to load renter prospects');
+      c.innerHTML = _subnav('listings') + UI.emptyState('fa-building', 'Unable to load rental listings');
     });
   }
 
-  function _renderRenterProspectsTable(c) {
-    var st = _state.renterProspects;
+  function _renderListings(c) {
+    var st = _state.listings;
     var rows = ActivityTable.filterRows(st.data, st.search);
     rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
 
-    var html = _renderSubnav('renter-prospects');
+    var html = _subnav('listings');
 
     html += FilterBar.render({
-      id: 'renter_prospects',
-      placeholder: 'Search renter prospects...',
-      onSearch: 'RentalsCRM._searchRenterProspects',
+      id: 'rlistings',
+      placeholder: 'Search rental listings...',
+      onSearch: 'RentalsCRM._searchListings',
       filters: [
-        { key: 'no_fee_only', label: 'Fee Pref', options: [
-          { value: 'true', label: 'No-Fee Only' }, { value: 'false', label: 'Any' }
+        { key: 'status', label: 'Status', options: [
+          { value: 'Active', label: 'Active' }, { value: 'Coming Soon', label: 'Coming Soon' },
+          { value: 'Rented', label: 'Rented' }, { value: 'Pending', label: 'Pending' }
+        ]},
+        { key: 'fee_structure', label: 'Fee', options: [
+          { value: 'owner_pay', label: 'Owner Pay' }, { value: 'tenant_pay', label: 'Tenant Pay' }, { value: 'no_fee', label: 'No Fee' }
         ]},
       ],
-      onFilter: 'RentalsCRM._filterRenterProspects',
+      onFilter: 'RentalsCRM._filterListings',
       quickActions: [
-        { label: 'New Renter', icon: 'fa-plus', onclick: 'CRM.quickNewClient({ role: "renter" })' },
+        { label: 'New Rental Listing', icon: 'fa-plus', onclick: 'CRM.openListingForm && CRM.openListingForm("rental")' },
       ],
     });
 
     html += ActivityTable.render({
-      id: 'renter_prospects_table',
+      id: 'rlistings_table',
       columns: [
-        { key: 'name', label: 'Name', render: function (r) {
-          return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>';
+        { key: 'address', label: 'Address', render: function (r) {
+          var addr = r.address;
+          if (typeof addr === 'object') addr = addr.UnparsedAddress || addr.full || '';
+          return '<span class="font-medium text-gray-900">' + E(addr || '') + '</span>';
         }},
-        { key: 'budget', label: 'Budget', render: function (r) {
-          return r.rent_per_month ? $(Number(r.rent_per_month)) + '/mo' : '<span class="text-gray-400">-</span>';
+        { key: 'landlord_name', label: 'Landlord', render: function (r) { return E(r.landlord_name || r.owner_name || '-'); } },
+        { key: 'status', label: 'Status', render: function (r) {
+          var s = r.status || 'Active';
+          var colors = { 'Active': 'bg-blue-100 text-blue-700', 'Rented': 'bg-green-100 text-green-700', 'Pending': 'bg-orange-100 text-orange-700', 'Coming Soon': 'bg-yellow-100 text-yellow-700' };
+          return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[s] || 'bg-gray-100 text-gray-600') + '">' + E(s) + '</span>';
         }},
-        { key: 'no_fee_only', label: 'No-Fee', render: function (r) {
-          return r.no_fee_only ? '<span class="text-red-600 font-bold text-xs">Yes</span>' : '<span class="text-gray-400 text-xs">No</span>';
+        { key: 'list_price', label: 'Rent', render: function (r) { return $(Number(r.list_price || 0)) + '/mo'; } },
+        { key: 'fee_structure', label: 'Fee', render: function (r) {
+          var f = r.fee_structure || '-';
+          return E(f.replace(/_/g, ' '));
         }},
-        { key: 'docs_ready', label: 'Docs Ready', render: function (r) {
-          var docs = r.docs_readiness || {};
-          var total = 0, ready = 0;
-          for (var k in docs) { total++; if (docs[k]) ready++; }
-          if (total === 0) return '<span class="text-gray-400">-</span>';
-          var pct = Math.round((ready / total) * 100);
-          var color = pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600';
-          return '<span class="font-bold text-xs ' + color + '">' + pct + '%</span>';
-        }},
-        { key: 'source', label: 'Source', render: function (r) {
-          return '<span class="text-xs text-gray-500">' + E(r.source || '-') + '</span>';
-        }},
-        { key: 'last_contacted_at', label: 'Last Contact', render: function (r) {
-          return r.last_contacted_at ? Utils.formatTimeAgo(r.last_contacted_at) : '<span class="text-gray-400">Never</span>';
-        }},
-        { key: 'updated_at', label: 'Last Activity', render: function (r) {
-          return r.updated_at ? Utils.formatTimeAgo(r.updated_at) : '-';
-        }},
-      ],
-      rows: rows,
-      sort: st.sort,
-      onSort: 'RentalsCRM._sortRenterProspects',
-      onRowClick: 'RentalsCRM._openClient',
-      page: st.page,
-      pageSize: 25,
-      onPage: 'RentalsCRM._pageRenterProspects',
-      emptyIcon: 'fa-user-clock',
-      emptyText: 'No renter prospects',
-    });
-
-    c.innerHTML = html;
-  }
-
-  function _searchRenterProspects(q) { _state.renterProspects.search = q; _state.renterProspects.page = 1; _renderRenterProspectsTable(CRM.getContent()); }
-  function _filterRenterProspects() { _renderRenterProspectsTable(CRM.getContent()); }
-  function _sortRenterProspects(key) {
-    var st = _state.renterProspects;
-    st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderRenterProspectsTable(CRM.getContent());
-  }
-  function _pageRenterProspects(p) { _state.renterProspects.page = p; _renderRenterProspectsTable(CRM.getContent()); }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // TAB 4: ACTIVE RENTERS — searching & showing
-  // ═══════════════════════════════════════════════════════════════════════
-  function activeRenters() {
-    CRM.setPanelTitle('Rentals CRM');
-    var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('renters') + UI.loading();
-
-    MallanAPI._fetch('/api/crm/rentals/renters?phase=active').then(function (data) {
-      _state.renters.data = (data.renters || data.clients || []).map(function (r) { return ClientNormalizer.normalize(r); });
-      _renderRentersTable(c);
-    }).catch(function () {
-      c.innerHTML = _renderSubnav('renters') + UI.emptyState('fa-search', 'Unable to load active renters');
-    });
-  }
-
-  function _renderRentersTable(c) {
-    var st = _state.renters;
-    var rows = ActivityTable.filterRows(st.data, st.search);
-    rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
-
-    var html = _renderSubnav('renters');
-
-    html += FilterBar.render({
-      id: 'renters',
-      placeholder: 'Search active renters...',
-      onSearch: 'RentalsCRM._searchRenters',
-      filters: [
-        { key: 'stage', label: 'Stage', options: [
-          { value: 'showing', label: 'Showing' }, { value: 'application', label: 'Application' }
-        ]},
-      ],
-      onFilter: 'RentalsCRM._filterRenters',
-    });
-
-    html += ActivityTable.render({
-      id: 'renters_table',
-      columns: [
-        { key: 'name', label: 'Renter', render: function (r) {
-          return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>';
-        }},
-        { key: 'budget', label: 'Budget', render: function (r) {
-          return r.rent_per_month ? $(Number(r.rent_per_month)) + '/mo' : '-';
-        }},
-        { key: 'pipeline_stage', label: 'Stage', render: function (r) {
-          return UI.stageBadge(r.pipeline_stage || 'active');
-        }},
-        { key: 'listings_sent_count', label: 'Listings Sent', render: function (r) { return String(r.listings_sent_count || 0); } },
+        { key: 'applications_count', label: 'Apps', render: function (r) { return String(r.applications_count || 0); } },
         { key: 'showings_count', label: 'Showings', render: function (r) { return String(r.showings_count || 0); } },
-        { key: 'last_viewed_listing_at', label: 'Last Viewed', render: function (r) {
-          return r.last_viewed_listing_at ? Utils.formatTimeAgo(r.last_viewed_listing_at) : '<span class="text-gray-400">-</span>';
-        }},
-        { key: 'updated_at', label: 'Last Action', render: function (r) {
-          return r.updated_at ? Utils.formatTimeAgo(r.updated_at) : '-';
+        { key: 'rls_eligible', label: 'RLS', render: function (r) {
+          var ok = r.rls_eligible !== false;
+          return ok
+            ? '<span class="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-bold">RLS</span>'
+            : '<span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-bold">Site Only</span>';
         }},
       ],
       rows: rows,
       sort: st.sort,
-      onSort: 'RentalsCRM._sortRenters',
-      onRowClick: 'RentalsCRM._openClient',
+      onSort: 'RentalsCRM._sortListings',
+      onRowClick: 'RentalsCRM._openListing',
       page: st.page,
       pageSize: 25,
-      onPage: 'RentalsCRM._pageRenters',
-      emptyIcon: 'fa-search',
-      emptyText: 'No active renters',
+      onPage: 'RentalsCRM._pageListings',
+      emptyIcon: 'fa-building',
+      emptyText: 'No rental listings',
     });
 
     c.innerHTML = html;
   }
 
-  function _searchRenters(q) { _state.renters.search = q; _state.renters.page = 1; _renderRentersTable(CRM.getContent()); }
-  function _filterRenters() { _renderRentersTable(CRM.getContent()); }
-  function _sortRenters(key) {
-    var st = _state.renters;
+  function _searchListings(q) { _state.listings.search = q; _state.listings.page = 1; _renderListings(CRM.getContent()); }
+  function _filterListings() { _renderListings(CRM.getContent()); }
+  function _sortListings(key) {
+    var st = _state.listings;
     st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderRentersTable(CRM.getContent());
+    _renderListings(CRM.getContent());
   }
-  function _pageRenters(p) { _state.renters.page = p; _renderRentersTable(CRM.getContent()); }
+  function _pageListings(p) { _state.listings.page = p; _renderListings(CRM.getContent()); }
+  function _openListing(id) { Router.navigate('/workspace/listing/' + id + '/overview'); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 5: VIEWED / DID NOT RENT
+  // TAB 3: VIEWED / DID NOT RENT
   // ═══════════════════════════════════════════════════════════════════════
   function viewedDidNotRent() {
     CRM.setPanelTitle('Rentals CRM');
     var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('viewed') + UI.loading();
+    c.innerHTML = _subnav('viewed') + UI.loading();
 
     MallanAPI._fetch('/api/crm/rentals/prospects').then(function (data) {
       _state.viewed.data = (data.prospects || data.clients || []).map(function (p) { return ClientNormalizer.normalize(p); });
-      _renderViewedTable(c);
+      _renderViewed(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('viewed') + UI.emptyState('fa-eye-slash', 'Unable to load viewed/did-not-rent');
+      c.innerHTML = _subnav('viewed') + UI.emptyState('fa-eye-slash', 'Unable to load viewed/did-not-rent');
     });
   }
 
-  function _renderViewedTable(c) {
+  function _renderViewed(c) {
     var st = _state.viewed;
     var rows = ActivityTable.filterRows(st.data, st.search);
     rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
 
-    var html = _renderSubnav('viewed');
+    var html = _subnav('viewed');
 
     html += FilterBar.render({
       id: 'viewed',
@@ -476,37 +315,37 @@ var RentalsCRM = (function () {
     c.innerHTML = html;
   }
 
-  function _searchViewed(q) { _state.viewed.search = q; _state.viewed.page = 1; _renderViewedTable(CRM.getContent()); }
-  function _filterViewed() { _renderViewedTable(CRM.getContent()); }
+  function _searchViewed(q) { _state.viewed.search = q; _state.viewed.page = 1; _renderViewed(CRM.getContent()); }
+  function _filterViewed() { _renderViewed(CRM.getContent()); }
   function _sortViewed(key) {
     var st = _state.viewed;
     st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderViewedTable(CRM.getContent());
+    _renderViewed(CRM.getContent());
   }
-  function _pageViewed(p) { _state.viewed.page = p; _renderViewedTable(CRM.getContent()); }
+  function _pageViewed(p) { _state.viewed.page = p; _renderViewed(CRM.getContent()); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 6: CURRENT TENANTS
+  // TAB 4: CURRENT TENANTS
   // ═══════════════════════════════════════════════════════════════════════
   function currentTenants() {
     CRM.setPanelTitle('Rentals CRM');
     var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('tenants') + UI.loading();
+    c.innerHTML = _subnav('tenants') + UI.loading();
 
     MallanAPI._fetch('/api/crm/rentals/tenants').then(function (data) {
       _state.tenants.data = (data.tenants || data.clients || []).map(function (t) { return ClientNormalizer.normalize(t); });
-      _renderTenantsTable(c);
+      _renderTenants(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('tenants') + UI.emptyState('fa-user-check', 'Unable to load tenants');
+      c.innerHTML = _subnav('tenants') + UI.emptyState('fa-user-check', 'Unable to load tenants');
     });
   }
 
-  function _renderTenantsTable(c) {
+  function _renderTenants(c) {
     var st = _state.tenants;
     var rows = ActivityTable.filterRows(st.data, st.search);
     rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
 
-    var html = _renderSubnav('tenants');
+    var html = _subnav('tenants');
 
     html += FilterBar.render({
       id: 'tenants',
@@ -565,45 +404,37 @@ var RentalsCRM = (function () {
     c.innerHTML = html;
   }
 
-  function _searchTenants(q) { _state.tenants.search = q; _state.tenants.page = 1; _renderTenantsTable(CRM.getContent()); }
-  function _filterTenants() { _renderTenantsTable(CRM.getContent()); }
+  function _searchTenants(q) { _state.tenants.search = q; _state.tenants.page = 1; _renderTenants(CRM.getContent()); }
+  function _filterTenants() { _renderTenants(CRM.getContent()); }
   function _sortTenants(key) {
     var st = _state.tenants;
     st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderTenantsTable(CRM.getContent());
+    _renderTenants(CRM.getContent());
   }
-  function _pageTenants(p) { _state.tenants.page = p; _renderTenantsTable(CRM.getContent()); }
+  function _pageTenants(p) { _state.tenants.page = p; _renderTenants(CRM.getContent()); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 7: RENTAL LISTINGS (legacy — accessible via direct route)
-  // ═══════════════════════════════════════════════════════════════════════
-  function rentalListings() {
-    // Redirect to active landlords — rental listings are shown as the landlord's listing backend
-    activeLandlords();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // TAB 8: RENTALS MARKETING
+  // TAB 5: RENTALS MARKETING
   // ═══════════════════════════════════════════════════════════════════════
   function rentalsMarketing() {
     CRM.setPanelTitle('Rentals CRM');
     var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('marketing') + UI.loading();
+    c.innerHTML = _subnav('marketing') + UI.loading();
 
     MallanAPI._fetch('/api/crm/campaigns?crm_type=rentals').then(function (data) {
       _state.marketing.data = data.campaigns || [];
-      _renderRentalsMarketing(c);
+      _renderMarketing(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('marketing') + UI.emptyState('fa-bullhorn', 'Unable to load campaigns');
+      c.innerHTML = _subnav('marketing') + UI.emptyState('fa-bullhorn', 'Unable to load campaigns');
     });
   }
 
-  function _renderRentalsMarketing(c) {
+  function _renderMarketing(c) {
     var st = _state.marketing;
     var rows = ActivityTable.filterRows(st.data, st.search);
     rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
 
-    var html = _renderSubnav('marketing');
+    var html = _subnav('marketing');
 
     html += FilterBar.render({
       id: 'rmarketing',
@@ -644,42 +475,42 @@ var RentalsCRM = (function () {
     c.innerHTML = html;
   }
 
-  function _searchMarketing(q) { _state.marketing.search = q; _state.marketing.page = 1; _renderRentalsMarketing(CRM.getContent()); }
+  function _searchMarketing(q) { _state.marketing.search = q; _state.marketing.page = 1; _renderMarketing(CRM.getContent()); }
   function _sortMarketing(key) {
     var st = _state.marketing;
     st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderRentalsMarketing(CRM.getContent());
+    _renderMarketing(CRM.getContent());
   }
-  function _pageMarketing(p) { _state.marketing.page = p; _renderRentalsMarketing(CRM.getContent()); }
-  function _newCampaign() { CRM.toast('Campaign creation — coming next sprint', 'info'); }
+  function _pageMarketing(p) { _state.marketing.page = p; _renderMarketing(CRM.getContent()); }
+  function _newCampaign() { CRM.toast('Campaign creation coming soon', 'info'); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 9: RENTALS ACTIVITY FEED
+  // TAB 6: RENTALS ACTIVITY FEED
   // ═══════════════════════════════════════════════════════════════════════
   function rentalsActivity() {
     CRM.setPanelTitle('Rentals CRM');
     var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('activity') + UI.loading();
+    c.innerHTML = _subnav('activity') + UI.loading();
 
     MallanAPI._fetch('/api/crm/rentals/activity').then(function (data) {
       _state.activity.data = data.events || [];
-      _renderRentalsActivity(c);
+      _renderActivity(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('activity') + UI.emptyState('fa-stream', 'Unable to load activity');
+      c.innerHTML = _subnav('activity') + UI.emptyState('fa-stream', 'Unable to load activity');
     });
   }
 
-  function _renderRentalsActivity(c) {
+  function _renderActivity(c) {
     var events = _state.activity.data;
     var filter = _state.activity.filter;
     if (filter !== 'all') {
       events = events.filter(function (e) { return e.client_type === filter; });
     }
 
-    var html = _renderSubnav('activity');
+    var html = _subnav('activity');
 
     html += '<div class="flex gap-1 mb-4">';
-    ['all', 'landlords', 'renters', 'viewed', 'tenants'].forEach(function (f) {
+    ['all', 'landlords', 'listings', 'tenants', 'viewed'].forEach(function (f) {
       var active = filter === f;
       var label = f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1);
       html += '<button class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all ' +
@@ -710,7 +541,7 @@ var RentalsCRM = (function () {
     c.innerHTML = html;
   }
 
-  function _filterActivity(f) { _state.activity.filter = f; _renderRentalsActivity(CRM.getContent()); }
+  function _filterActivity(f) { _state.activity.filter = f; _renderActivity(CRM.getContent()); }
 
   function _activityIcon(type) {
     var map = {
@@ -728,6 +559,98 @@ var RentalsCRM = (function () {
     return map[type] || { icon: 'fa-circle', color: '#9CA3AF', bg: '#F9FAFB' };
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // TAB 7: RENTALS AUTOMATION
+  // ═══════════════════════════════════════════════════════════════════════
+  function rentalsAutomation() {
+    CRM.setPanelTitle('Rentals CRM');
+    var c = CRM.getContent();
+    c.innerHTML = _subnav('automation') + UI.loading();
+
+    MallanAPI._fetch('/api/crm/automation/status?crm_type=rentals').then(function (data) {
+      _state.automation.data = data.contacts || [];
+      _renderAutomation(c);
+    }).catch(function () {
+      c.innerHTML = _subnav('automation') + UI.emptyState('fa-robot', 'Unable to load automation status');
+    });
+  }
+
+  function _renderAutomation(c) {
+    var st = _state.automation;
+    var rows = ActivityTable.filterRows(st.data, st.search);
+    rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
+
+    var html = _subnav('automation');
+
+    html += FilterBar.render({
+      id: 'rautomation',
+      placeholder: 'Search contacts...',
+      onSearch: 'RentalsCRM._searchAutomation',
+      filters: [
+        { key: 'drip', label: 'Drip Status', options: [
+          { value: 'active', label: 'Active' }, { value: 'monthly', label: 'Monthly' },
+          { value: 'quarterly', label: 'Quarterly' }, { value: 'paused', label: 'Paused' }
+        ]},
+      ],
+      onFilter: 'RentalsCRM._filterAutomation',
+    });
+
+    html += ActivityTable.render({
+      id: 'rautomation_table',
+      columns: [
+        { key: 'name', label: 'Contact', render: function (r) {
+          return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>';
+        }},
+        { key: 'type', label: 'Type', render: function (r) {
+          var t = r.type || 'unknown';
+          var colors = { landlord: 'bg-blue-100 text-blue-700', renter: 'bg-green-100 text-green-700', tenant: 'bg-green-100 text-green-700' };
+          return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[t] || 'bg-gray-100 text-gray-600') + '">' + E(t) + '</span>';
+        }},
+        { key: 'rental_drip_on', label: 'Drip', render: function (r) {
+          return r.rental_drip_on
+            ? '<span class="text-green-600 font-bold text-xs">ON</span>'
+            : '<span class="text-gray-400 text-xs">OFF</span>';
+        }},
+        { key: 'rental_drip_status', label: 'Tier', render: function (r) {
+          var s = r.rental_drip_status || 'paused';
+          var colors = { active: 'bg-green-100 text-green-700', monthly: 'bg-blue-100 text-blue-700', quarterly: 'bg-yellow-100 text-yellow-700', biannual: 'bg-gray-100 text-gray-600', paused: 'bg-red-100 text-red-600' };
+          return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[s] || 'bg-gray-100 text-gray-600') + '">' + E(s) + '</span>';
+        }},
+        { key: 'renewal_drip_on', label: 'Renewal Drip', render: function (r) {
+          return r.renewal_drip_on
+            ? '<span class="text-green-600 font-bold text-xs">ON</span>'
+            : '<span class="text-gray-400 text-xs">OFF</span>';
+        }},
+        { key: 'last_rental_email_opened', label: 'Last Opened', render: function (r) {
+          return r.last_rental_email_opened ? Utils.formatTimeAgo(r.last_rental_email_opened) : '-';
+        }},
+        { key: 'last_response_at', label: 'Last Response', render: function (r) {
+          return r.last_response_at ? Utils.formatTimeAgo(r.last_response_at) : '-';
+        }},
+      ],
+      rows: rows,
+      sort: st.sort,
+      onSort: 'RentalsCRM._sortAutomation',
+      onRowClick: 'RentalsCRM._openClient',
+      page: st.page,
+      pageSize: 25,
+      onPage: 'RentalsCRM._pageAutomation',
+      emptyIcon: 'fa-robot',
+      emptyText: 'No contacts with automation data',
+    });
+
+    c.innerHTML = html;
+  }
+
+  function _searchAutomation(q) { _state.automation.search = q; _state.automation.page = 1; _renderAutomation(CRM.getContent()); }
+  function _filterAutomation() { _renderAutomation(CRM.getContent()); }
+  function _sortAutomation(key) {
+    var st = _state.automation;
+    st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
+    _renderAutomation(CRM.getContent());
+  }
+  function _pageAutomation(p) { _state.automation.page = p; _renderAutomation(CRM.getContent()); }
+
   // ─── Shared ──────────────────────────────────────────────────────────
   function _openClient(id) { Router.navigate('/workspace/client/' + id + '/overview'); }
 
@@ -735,38 +658,24 @@ var RentalsCRM = (function () {
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════════════
   return {
-    landlordProspects: landlordProspects,
-    activeLandlords: activeLandlords,
-    renterProspects: renterProspects,
-    activeRenters: activeRenters,
+    landlords: landlords,
+    rentalListings: rentalListings,
     viewedDidNotRent: viewedDidNotRent,
     currentTenants: currentTenants,
-    rentalListings: rentalListings,
     rentalsMarketing: rentalsMarketing,
     rentalsActivity: rentalsActivity,
+    rentalsAutomation: rentalsAutomation,
 
-    // Legacy aliases
-    landlords: activeLandlords,
-    prospects: viewedDidNotRent,
-
-    // Internal handlers
     _openClient: _openClient,
-    _searchLandlordProspects: _searchLandlordProspects,
-    _filterLandlordProspects: _filterLandlordProspects,
-    _sortLandlordProspects: _sortLandlordProspects,
-    _pageLandlordProspects: _pageLandlordProspects,
     _searchLandlords: _searchLandlords,
     _filterLandlords: _filterLandlords,
     _sortLandlords: _sortLandlords,
     _pageLandlords: _pageLandlords,
-    _searchRenterProspects: _searchRenterProspects,
-    _filterRenterProspects: _filterRenterProspects,
-    _sortRenterProspects: _sortRenterProspects,
-    _pageRenterProspects: _pageRenterProspects,
-    _searchRenters: _searchRenters,
-    _filterRenters: _filterRenters,
-    _sortRenters: _sortRenters,
-    _pageRenters: _pageRenters,
+    _searchListings: _searchListings,
+    _filterListings: _filterListings,
+    _sortListings: _sortListings,
+    _pageListings: _pageListings,
+    _openListing: _openListing,
     _searchViewed: _searchViewed,
     _filterViewed: _filterViewed,
     _sortViewed: _sortViewed,
@@ -780,5 +689,9 @@ var RentalsCRM = (function () {
     _pageMarketing: _pageMarketing,
     _newCampaign: _newCampaign,
     _filterActivity: _filterActivity,
+    _searchAutomation: _searchAutomation,
+    _filterAutomation: _filterAutomation,
+    _sortAutomation: _sortAutomation,
+    _pageAutomation: _pageAutomation,
   };
 })();

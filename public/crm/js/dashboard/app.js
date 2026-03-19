@@ -101,27 +101,23 @@ var CRM = (function () {
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
 
-    // A2. Sales CRM (Seller / Buyer) — v2 redesign subnav routes
-    Router.register('/sales/seller-prospects',  function () { SalesCRM.sellerProspects(); });
+    // A2. Sales CRM — 7 tabs
     Router.register('/sales/sellers',           function () { SalesCRM.activeSellers(); });
-    Router.register('/sales/buyer-prospects',   function () { SalesCRM.buyerProspects(); });
     Router.register('/sales/buyers',            function () { SalesCRM.activeBuyers(); });
+    Router.register('/sales/landlord-sellers',  function () { SalesCRM.landlordSellers(); });
     Router.register('/sales/listings',          function () { SalesCRM.salesListings(); });
     Router.register('/sales/marketing',         function () { SalesCRM.salesMarketing(); });
     Router.register('/sales/activity',          function () { SalesCRM.salesActivity(); });
+    Router.register('/sales/automation',        function () { SalesCRM.salesAutomation(); });
 
-    // A3. Rentals CRM (Landlord / Tenant) — v2 redesign subnav routes
-    Router.register('/rentals/landlord-prospects', function () { RentalsCRM.landlordProspects(); });
-    Router.register('/rentals/landlords',          function () { RentalsCRM.activeLandlords(); });
-    Router.register('/rentals/renter-prospects',   function () { RentalsCRM.renterProspects(); });
-    Router.register('/rentals/renters',            function () { RentalsCRM.activeRenters(); });
-    Router.register('/rentals/viewed',             function () { RentalsCRM.viewedDidNotRent(); });
-    Router.register('/rentals/tenants',            function () { RentalsCRM.currentTenants(); });
-    Router.register('/rentals/marketing',          function () { RentalsCRM.rentalsMarketing(); });
-    Router.register('/rentals/activity',           function () { RentalsCRM.rentalsActivity(); });
-    // Legacy route aliases (keep for backwards compat)
-    Router.register('/rentals/prospects',          function () { RentalsCRM.viewedDidNotRent(); });
-    Router.register('/rentals/listings',           function () { RentalsCRM.rentalListings(); });
+    // A3. Rentals CRM — 7 tabs
+    Router.register('/rentals/landlords',       function () { RentalsCRM.landlords(); });
+    Router.register('/rentals/listings',        function () { RentalsCRM.rentalListings(); });
+    Router.register('/rentals/viewed',          function () { RentalsCRM.viewedDidNotRent(); });
+    Router.register('/rentals/tenants',         function () { RentalsCRM.currentTenants(); });
+    Router.register('/rentals/marketing',       function () { RentalsCRM.rentalsMarketing(); });
+    Router.register('/rentals/activity',        function () { RentalsCRM.rentalsActivity(); });
+    Router.register('/rentals/automation',      function () { RentalsCRM.rentalsAutomation(); });
 
     // A4. Operations
     Router.register('/ops/dashboard',        function () { Panels.opsDashboard(); });
@@ -169,8 +165,6 @@ var CRM = (function () {
   var FAVORITES_KEY = 'mallan_crm_favorites';
   var DEFAULT_FAVORITES = [
     { route: '/broker/dashboard', label: 'Dashboard', icon: 'fa-chart-line' },
-    { route: '/sales/seller-prospects', label: 'Sales CRM', icon: 'fa-home' },
-    { route: '/rentals/landlord-prospects', label: 'Rentals CRM', icon: 'fa-key' },
   ];
 
   function _getRecentWorkspaces() {
@@ -401,17 +395,27 @@ var CRM = (function () {
       ]);
     }
 
-    // CRM — Two top-level items only. Subnav renders inside content area.
-    // Active state is set by updateSidebarActive() after route resolves — not inline here.
-    html += '<div class="sidebar-section">' +
-      '<div class="sidebar-label"><span>CRM</span></div>' +
-      '<button class="sidebar-item" data-route="/sales/seller-prospects" onclick="Router.navigate(\'/sales/seller-prospects\')">' +
-        '<i class="fas fa-home w-5 text-center text-xs"></i><span>Seller / Buyer</span>' +
-      '</button>' +
-      '<button class="sidebar-item" data-route="/rentals/landlord-prospects" onclick="Router.navigate(\'/rentals/landlord-prospects\')">' +
-        '<i class="fas fa-key w-5 text-center text-xs"></i><span>Landlord / Tenant</span>' +
-      '</button>' +
-    '</div>';
+    // SALES CRM (Seller / Buyer) — 7 tabs
+    html += _sidebarGroup('SALES CRM', 'sales', [
+      { route: '/sales/sellers', icon: 'fa-home', label: 'Active Sellers' },
+      { route: '/sales/buyers', icon: 'fa-user-tag', label: 'Active Buyers' },
+      { route: '/sales/landlord-sellers', icon: 'fa-exchange-alt', label: 'Landlord Sellers' },
+      { route: '/sales/listings', icon: 'fa-building', label: 'Listings (Sale)' },
+      { route: '/sales/marketing', icon: 'fa-bullhorn', label: 'Marketing' },
+      { route: '/sales/activity', icon: 'fa-stream', label: 'Activity' },
+      { route: '/sales/automation', icon: 'fa-robot', label: 'Automation' },
+    ]);
+
+    // RENTALS CRM (Landlord / Tenant) — 7 tabs
+    html += _sidebarGroup('RENTALS CRM', 'rentals', [
+      { route: '/rentals/landlords', icon: 'fa-key', label: 'Landlords' },
+      { route: '/rentals/listings', icon: 'fa-building', label: 'Rental Listings' },
+      { route: '/rentals/viewed', icon: 'fa-eye-slash', label: 'Viewed / Did Not Rent' },
+      { route: '/rentals/tenants', icon: 'fa-user-check', label: 'Current Tenants' },
+      { route: '/rentals/marketing', icon: 'fa-bullhorn', label: 'Marketing' },
+      { route: '/rentals/activity', icon: 'fa-stream', label: 'Activity' },
+      { route: '/rentals/automation', icon: 'fa-robot', label: 'Automation' },
+    ]);
 
     // OPERATIONS (agent view; broker sees expanded/all)
     html += _sidebarGroup('OPERATIONS', 'ops', [
@@ -486,15 +490,7 @@ var CRM = (function () {
     var currentRoute = Store.ui.activeRoute || '';
     document.querySelectorAll('.sidebar-item[data-route]').forEach(function (el) {
       var route = el.getAttribute('data-route');
-      // CRM sidebar items match any sub-route under /sales or /rentals
-      var isActive = false;
-      if (route === '/sales/seller-prospects') {
-        isActive = currentRoute.indexOf('/sales/') === 0;
-      } else if (route === '/rentals/landlord-prospects') {
-        isActive = currentRoute.indexOf('/rentals/') === 0;
-      } else {
-        isActive = Router.isActive(route);
-      }
+      var isActive = Router.isActive(route);
       el.classList.toggle('active', isActive);
     });
   }
