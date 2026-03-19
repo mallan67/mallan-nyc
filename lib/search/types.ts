@@ -39,6 +39,7 @@ export interface SearchFilters {
   sort?: string;
   // Location
   neighborhood?: string;
+  neighborhoods?: string[];
   borough?: string;
   zip?: string;
   q?: string;

@@ -8,8 +8,25 @@ import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
-// Audit logger removed during cleanup — stub to prevent breaks
-const logTrestleAccess = async (_data: Record<string, unknown>) => {};
+// Trestle access audit logger — REBNY requires 12-month retention on MLS data access
+const logTrestleAccess = async (data: Record<string, unknown>) => {
+  try {
+    const prismaModule = await import('@/lib/prisma');
+    const db = prismaModule.default;
+    await db.auditEvent.create({
+      data: {
+        action: 'trestle_access',
+        entity_type: 'listing',
+        entity_id: (data.filter as string)?.slice(0, 200) || 'unknown',
+        user_type: 'system',
+        changes: JSON.parse(JSON.stringify(data)),
+        ip_address: (data.ip as string) || null,
+      },
+    });
+  } catch {
+    // Non-fatal — don't break listing fetch if audit logging fails
+  }
+};
 import { reportApiError } from '@/lib/sentry-report';
 import { lookupNeighborhoodZips } from '@/lib/geo/neighborhood-zips';
 
@@ -234,19 +251,27 @@ export async function GET(request: Request) {
           }
 
           // Neighborhood — CityRegion is unreliable in REBNY data, so resolve to ZIP codes
+          // Supports multi-neighborhood: comma-separated names
           if (neighborhood) {
-            const nZips = lookupNeighborhoodZips(neighborhood);
-            if (nZips.length > 0) {
-              // Use AND to add neighborhood filter without overwriting distribution gate OR
+            const names = neighborhood.split(',').map(n => n.trim()).filter(Boolean);
+            const allZips = names.flatMap(n => lookupNeighborhoodZips(n));
+            const nameConditions = names.map(n => ({ neighborhood: { equals: n, mode: 'insensitive' as const } }));
+
+            if (allZips.length > 0) {
               const neighborhoodCondition: Prisma.ListingWhereInput = {
                 OR: [
-                  { postal_code: { in: nZips } },
-                  { neighborhood: { equals: neighborhood, mode: 'insensitive' } },
+                  { postal_code: { in: [...new Set(allZips)] } },
+                  ...nameConditions,
                 ],
               };
               dbWhere.AND = [...(Array.isArray(dbWhere.AND) ? dbWhere.AND : dbWhere.AND ? [dbWhere.AND] : []), neighborhoodCondition];
+            } else if (names.length === 1) {
+              dbWhere.neighborhood = { equals: names[0], mode: 'insensitive' };
             } else {
-              dbWhere.neighborhood = { equals: neighborhood, mode: 'insensitive' };
+              const neighborhoodCondition: Prisma.ListingWhereInput = {
+                OR: nameConditions,
+              };
+              dbWhere.AND = [...(Array.isArray(dbWhere.AND) ? dbWhere.AND : dbWhere.AND ? [dbWhere.AND] : []), neighborhoodCondition];
             }
           }
 
@@ -394,12 +419,18 @@ export async function GET(request: Request) {
             }
 
             // Address/text search (contains on street name)
+            // Normalize direction words: WEST→W, EAST→E, NORTH→N, SOUTH→S
+            // RLS uses StreetDirPrefix abbreviations (W, E, N, S)
             if (addressParam) {
-              const addrLower = addressParam.trim().toLowerCase();
-              if (addrLower) {
+              const dirMap: Record<string, string> = { 'west': 'w', 'east': 'e', 'north': 'n', 'south': 's' };
+              const normalized = addressParam.trim().toLowerCase().replace(
+                /\b(west|east|north|south)\b/gi,
+                (m) => dirMap[m.toLowerCase()] || m
+              );
+              if (normalized) {
                 publicListings = publicListings.filter(l => {
                   const street = `${l.address.streetNumber || ''} ${l.address.streetName || ''}`.toLowerCase();
-                  return street.includes(addrLower);
+                  return street.includes(normalized);
                 });
               }
             }
@@ -552,8 +583,14 @@ export async function GET(request: Request) {
         if (furnishedParam) filterParts.push("Furnished eq 'Furnished'");
 
         // Address/text search — OData contains() on StreetName
+        // Normalize direction words to RLS abbreviations: WEST→W, EAST→E, NORTH→N, SOUTH→S
         if (addressParam) {
-          const safeAddr = addressParam.trim().replace(/'/g, "''");
+          const dirMap: Record<string, string> = { 'west': 'W', 'east': 'E', 'north': 'N', 'south': 'S' };
+          const normalized = addressParam.trim().replace(
+            /\b(west|east|north|south)\b/gi,
+            (m) => dirMap[m.toLowerCase()] || m
+          );
+          const safeAddr = normalized.replace(/'/g, "''");
           if (safeAddr) {
             filterParts.push(`contains(StreetName,'${safeAddr}')`);
           }
@@ -643,13 +680,15 @@ export async function GET(request: Request) {
         }
 
         // Neighborhood → ZIP push for Trestle OData (CityRegion is unreliable)
+        // Supports multi-neighborhood: comma-separated names
         if (neighborhood && !zipCodes) {
-          const nZips = lookupNeighborhoodZips(neighborhood);
-          if (nZips.length > 0) {
-            if (nZips.length === 1) {
-              filterParts.push(`PostalCode eq '${nZips[0]}'`);
+          const names = neighborhood.split(',').map(n => n.trim()).filter(Boolean);
+          const allZips = [...new Set(names.flatMap(n => lookupNeighborhoodZips(n)))];
+          if (allZips.length > 0) {
+            if (allZips.length === 1) {
+              filterParts.push(`PostalCode eq '${allZips[0]}'`);
             } else {
-              filterParts.push(`(${nZips.map(z => `PostalCode eq '${z}'`).join(' or ')})`);
+              filterParts.push(`(${allZips.map(z => `PostalCode eq '${z}'`).join(' or ')})`);
             }
           }
         }
@@ -1123,11 +1162,15 @@ async function fetchExclusiveListings(
     }
 
     if (neighborhood) {
-      const nZips = lookupNeighborhoodZips(neighborhood);
-      if (nZips.length > 0) {
-        where.AND = [{ OR: [{ postal_code: { in: nZips } }, { neighborhood: { equals: neighborhood, mode: 'insensitive' } }] }];
+      const names = neighborhood.split(',').map(n => n.trim()).filter(Boolean);
+      const allZips = [...new Set(names.flatMap(n => lookupNeighborhoodZips(n)))];
+      const nameConditions = names.map(n => ({ neighborhood: { equals: n, mode: 'insensitive' as const } }));
+      if (allZips.length > 0) {
+        where.AND = [{ OR: [{ postal_code: { in: allZips } }, ...nameConditions] }];
+      } else if (names.length === 1) {
+        where.neighborhood = { equals: names[0], mode: 'insensitive' };
       } else {
-        where.neighborhood = { equals: neighborhood, mode: 'insensitive' };
+        where.AND = [{ OR: nameConditions }];
       }
     }
 

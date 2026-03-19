@@ -8,6 +8,7 @@ import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAuto
 import SaveSearchButton from '@/app/components/SaveSearchButton';
 import { GridCard, ListCard, SplitCard } from '@/app/components/SearchListingCard';
 import SearchFilterPanel from '@/app/components/SearchFilterPanel';
+import NeighborhoodSelector from '@/app/components/NeighborhoodSelector';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { TAB_CONFIG } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
@@ -154,6 +155,10 @@ function SearchClient() {
       : 'split'
   );
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(() => {
+    const nParam = searchParams?.get('neighborhoods');
+    return nParam ? nParam.split(',').map(n => decodeURIComponent(n.trim())).filter(Boolean) : [];
+  });
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
@@ -213,13 +218,15 @@ function SearchClient() {
     // Persist view mode and search query in URL so back-navigation restores them
     setOrDel('view', viewMode !== 'split' ? viewMode : undefined);
     setOrDel('q', searchQuery || undefined);
+    // Neighborhoods multi-select
+    setOrDel('neighborhoods', selectedNeighborhoods.length > 0 ? selectedNeighborhoods.join(',') : undefined);
     // Clear neighborhood/borough from URL when search query is cleared (reset scenario)
     if (!searchQuery) {
       params.delete('neighborhood');
       params.delete('borough');
     }
     router.replace(`/search?${params.toString()}`, { scroll: false });
-  }, [filters, viewMode, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters, viewMode, searchQuery, selectedNeighborhoods]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabConfig = TAB_CONFIG[activeTab];
   const isRental = tabConfig.apiType === 'rent';
@@ -243,7 +250,7 @@ function SearchClient() {
     minSqft: filters.minSqft,
     maxSqft: filters.maxSqft,
     sort: filters.sort,
-    neighborhood: neighborhoodParam || filters.neighborhood,
+    neighborhood: selectedNeighborhoods.join(',') || neighborhoodParam || filters.neighborhood,
     borough: boroughParam || undefined,
     zipCodes: zipParam || undefined,
     address: searchQuery || undefined,
@@ -271,34 +278,11 @@ function SearchClient() {
     }
   }, [loading, total]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Client-side text/zip post-filter ──
+  // ── Client-side zip post-filter (address search handled server-side via API) ──
   const filteredListings = useMemo(() => {
-    // Skip client-side text filter when API already filtered by structured params
-    const hasApiFilters = !!(neighborhoodParam || filters.propertySubTypes?.length ||
-      filters.beds != null || filters.amenities?.length || filters.minPrice || filters.maxPrice);
-
-    return listings.filter((listing) => {
-      // Skip text filter when neighborhood matches or structured filters are active
-      const isNeighborhoodQuery = neighborhoodParam &&
-        searchQuery.toLowerCase() === neighborhoodParam.toLowerCase();
-      if (searchQuery && !isNeighborhoodQuery && !hasApiFilters) {
-        const q = searchQuery.toLowerCase();
-        const addr = `${listing.address.streetNumber} ${listing.address.streetName} ${listing.address.unitNumber || ''}`.toLowerCase();
-        const mlsId = (listing.mlsId || '').toLowerCase();
-        const listingId = (listing.id || '').toLowerCase();
-        if (
-          !addr.includes(q) &&
-          !listing.address.neighborhood.toLowerCase().includes(q) &&
-          !listing.address.postalCode.includes(q) &&
-          !listing.address.borough.toLowerCase().includes(q) &&
-          !mlsId.includes(q) &&
-          !listingId.includes(q)
-        ) return false;
-      }
-      if (zipParam && listing.address.postalCode !== zipParam) return false;
-      return true;
-    });
-  }, [listings, searchQuery, neighborhoodParam, zipParam, filters]);
+    if (!zipParam) return listings;
+    return listings.filter((listing) => listing.address.postalCode === zipParam);
+  }, [listings, zipParam]);
 
   // ── Sort (Manhattan always first, then by selected sort) ──
   const sortedListings = useMemo(() => {
@@ -414,6 +398,7 @@ function SearchClient() {
   const clearFilters = useCallback(() => {
     setSearchQuery('');
     setFilters({ sort: 'price-desc' });
+    setSelectedNeighborhoods([]);
     // Clear all URL params (neighborhood, borough, zip, q, beds, etc.) — fresh search
     router.replace(`/search?tab=${activeTab}`, { scroll: false });
   }, [router, activeTab]);
@@ -435,6 +420,12 @@ function SearchClient() {
     const pills: { label: string; key: string }[] = [];
     if (boroughParam) pills.push({ label: boroughParam, key: 'borough' });
     if (neighborhoodParam) pills.push({ label: neighborhoodParam, key: 'neighborhood' });
+    if (selectedNeighborhoods.length > 0) {
+      pills.push({
+        label: selectedNeighborhoods.length === 1 ? selectedNeighborhoods[0] : `${selectedNeighborhoods.length} neighborhoods`,
+        key: 'neighborhoods',
+      });
+    }
     if (zipParam) pills.push({ label: `ZIP: ${zipParam}`, key: 'zip' });
     if (filters.beds != null) pills.push({ label: filters.beds === 0 ? 'Studio' : `${filters.beds}+ beds`, key: 'beds' });
     if (filters.baths != null) pills.push({ label: `${filters.baths}+ baths`, key: 'baths' });
@@ -453,7 +444,7 @@ function SearchClient() {
     }
     if (filters.amenities?.length) pills.push({ label: `${filters.amenities.length} amenities`, key: 'amenities' });
     return pills;
-  }, [filters, neighborhoodParam, zipParam]);
+  }, [filters, neighborhoodParam, zipParam, selectedNeighborhoods]);
 
   const filterCount = activeFilterPills.length;
 
@@ -537,6 +528,46 @@ function SearchClient() {
                 );
               })()}
             </div>
+
+            {/* Beds quick-access */}
+            <select
+              value={filters.beds != null ? filters.beds.toString() : ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFilters(prev => ({ ...prev, beds: val !== '' ? Number(val) : null }));
+              }}
+              className="hidden sm:block w-20 sm:w-24 rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+              aria-label="Bedrooms"
+            >
+              <option value="">Beds</option>
+              <option value="0">Studio</option>
+              <option value="1">1+</option>
+              <option value="2">2+</option>
+              <option value="3">3+</option>
+              <option value="4">4+</option>
+            </select>
+
+            {/* Baths quick-access */}
+            <select
+              value={filters.baths != null ? filters.baths.toString() : ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFilters(prev => ({ ...prev, baths: val !== '' ? Number(val) : null }));
+              }}
+              className="hidden sm:block w-20 sm:w-24 rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+              aria-label="Bathrooms"
+            >
+              <option value="">Baths</option>
+              <option value="1">1+</option>
+              <option value="2">2+</option>
+              <option value="3">3+</option>
+            </select>
+
+            {/* Neighborhood selector */}
+            <NeighborhoodSelector
+              selected={selectedNeighborhoods}
+              onChange={setSelectedNeighborhoods}
+            />
 
             <button
               onClick={() => setShowFilters(true)}
