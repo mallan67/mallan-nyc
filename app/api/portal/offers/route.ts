@@ -98,13 +98,10 @@ export async function GET(req: NextRequest) {
       list_price: listing?.list_price?.toString() ?? null,
       comment: a.comment,
       created_at: a.created_at,
+      // REBNY: Buyer PII masked from seller — only show "Buyer via [Agent]"
+      // Seller communicates with buyer ONLY through their agent
       from: a.lead
-        ? {
-            id: a.lead.id.toString(),
-            name: `${a.lead.first_name} ${a.lead.last_name}`,
-            email: a.lead.email,
-            phone: a.lead.phone,
-          }
+        ? { id: a.lead.id.toString(), name: 'Buyer (via your agent)' }
         : null,
     };
   });

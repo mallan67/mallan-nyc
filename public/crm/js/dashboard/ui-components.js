@@ -136,9 +136,9 @@ var UI = (function () {
       html += '<div class="timeline-item">' +
         '<div class="timeline-dot ' + (item.dotClass || '') + '"></div>' +
         '<div>' +
-          '<p class="text-sm font-medium text-gray-900">' + (item.title || '') + '</p>' +
-          (item.description ? '<p class="text-xs text-gray-500 mt-0.5">' + item.description + '</p>' : '') +
-          '<p class="text-xs text-gray-400 mt-1">' + (item.time || '') + '</p>' +
+          '<p class="text-sm font-medium text-gray-900">' + E(item.title || '') + '</p>' +
+          (item.description ? '<p class="text-xs text-gray-500 mt-0.5">' + E(item.description) + '</p>' : '') +
+          '<p class="text-xs text-gray-400 mt-1">' + E(item.time || '') + '</p>' +
         '</div>' +
       '</div>';
     });
@@ -163,8 +163,12 @@ var UI = (function () {
   function stageBadge(stage) {
     var colors = {
       new: '#6b7280', contacted: '#3b82f6', nurturing: '#8b5cf6',
-      active: '#059669', showing: '#f59e0b', offer: '#f97316',
+      prospect: '#6b7280',
+      active: '#059669', active_seller: '#059669', active_buyer: '#059669',
+      active_landlord: '#059669', active_renter: '#059669',
+      showing: '#f59e0b', offer: '#f97316',
       deal: '#10b981', closed: '#059669', past: '#9ca3af',
+      viewed_not_rent: '#f97316', current_tenant: '#3b82f6',
     };
     var c = colors[stage] || '#6b7280';
     return '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;font-weight:700;border-radius:6px;background:' + c + '15;color:' + c + ';text-transform:uppercase;">' + E(stage || 'new') + '</span>';

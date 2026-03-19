@@ -27,6 +27,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "At least one role is required" }, { status: 400 });
     }
 
+    // Derive workspaces from roles (renter → "tenant" workspace, others 1:1)
+    const workspaceMap: Record<string, string> = { buyer: "buyer", renter: "tenant", seller: "seller", landlord: "landlord" };
+    const enabledWorkspaces = validRoles.map((r: string) => workspaceMap[r] || r);
+
+    // Primary portal role: first role selected (user's default landing)
+    const primaryRole = enabledWorkspaces[0] || "buyer";
+
+    // Legacy portal_role: keep for backward compat — use first role with precedence
     const portalRole = validRoles.includes("buyer") ? "buyer"
       : validRoles.includes("renter") ? "tenant"
       : validRoles.includes("seller") ? "seller"
@@ -38,11 +46,18 @@ export async function POST(req: NextRequest) {
       data: {
         phone: phone.trim(),
         roles: validRoles,
-        portal_role: portalRole,
+        portal_role: portalRole,                   // LEGACY — kept for compat
+        primary_portal_role: primaryRole,           // NEW — default landing workspace
+        enabled_workspaces: enabledWorkspaces,      // NEW — all accessible portals
       },
     });
 
-    return NextResponse.json({ success: true, role: portalRole });
+    return NextResponse.json({
+      success: true,
+      role: portalRole,
+      primaryPortalRole: primaryRole,
+      enabledWorkspaces,
+    });
   } catch (err) {
     console.error("Complete profile error:", err);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });

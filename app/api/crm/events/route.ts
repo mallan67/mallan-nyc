@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const entityId = searchParams.get("entity_id") || searchParams.get("lead_id");
+  const entityType = searchParams.get("entity_type"); // "client" | "listing"
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
 
   if (!entityId) {
@@ -21,7 +22,22 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const leadId = safeBigInt(entityId);
+  // If entity_type is "listing", resolve the owner's lead_id
+  let leadId: bigint | null = null;
+  if (entityType === "listing") {
+    const listing = await prisma.listing.findFirst({
+      where: { listing_id: entityId },
+      select: { owner_client_id: true },
+    });
+    leadId = listing?.owner_client_id ?? null;
+    if (!leadId) {
+      // No owner linked — return empty events
+      return NextResponse.json({ events: [] });
+    }
+  } else {
+    leadId = safeBigInt(entityId);
+  }
+
   if (!leadId) {
     return NextResponse.json(
       { error: "Invalid entity_id" },
@@ -40,8 +56,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Optional filters
+  const typeFilter = searchParams.get("type");
+  const where: Prisma.ActivityLogWhereInput = { lead_id: leadId };
+  if (typeFilter) {
+    where.activity_type = typeFilter;
+  }
+
   const events = await prisma.activityLog.findMany({
-    where: { lead_id: leadId },
+    where,
     orderBy: { created_at: "desc" },
     take: limit,
   });
@@ -112,13 +135,27 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // REBNY: Scrub PII from event metadata before storage
+  // Events must not contain SSN, bank accounts, or other sensitive PII
+  let safeMetadata = metadata ?? {};
+  if (typeof safeMetadata === 'object' && safeMetadata !== null) {
+    const PII_PATTERNS = ['ssn', 'social_security', 'bank_account', 'routing_number', 'passport', 'driver_license', 'credit_card'];
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(safeMetadata)) {
+      if (!PII_PATTERNS.some(p => key.toLowerCase().includes(p))) {
+        cleaned[key] = val;
+      }
+    }
+    safeMetadata = cleaned;
+  }
+
   const event = await prisma.activityLog.create({
     data: {
       lead_id: leadId,
       activity_type: String(activity_type),
       title: String(title),
       detail: detail ? String(detail) : null,
-      metadata: (metadata ?? {}) as Prisma.InputJsonValue,
+      metadata: safeMetadata as Prisma.InputJsonValue,
       actor_type: auth.role === "BROKER" ? "broker" : "agent",
       actor_id: auth.userId,
     },

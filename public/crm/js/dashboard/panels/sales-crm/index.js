@@ -1,7 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// SALES CRM — Subnav controller (Seller / Buyer)
-// 7 tabs: Active Sellers, Active Buyers, Landlord Sellers, Listings, Marketing,
-//         Activity, Automation
+// SALES CRM — v2 Redesign
+// Subnav: Seller Prospects | Active Sellers | Buyer Prospects | Active Buyers |
+//         Listings | Marketing | Activity
+// Prospect pages are conversion-centric (CMA, outreach, "Convert to Listing" CTA)
+// Active pages link into the listing backend / listings management
 // ═══════════════════════════════════════════════════════════════════════════════
 /* global CRM, Router, Store, UI, Utils, FilterBar, ActivityTable, MallanAPI, ClientNormalizer */
 
@@ -13,24 +15,24 @@ var SalesCRM = (function () {
   var D = Utils.formatDate;
 
   var TABS = [
-    { id: 'sellers',          route: '/sales/sellers',          label: 'Active Sellers',    icon: 'fa-home' },
-    { id: 'buyers',           route: '/sales/buyers',           label: 'Active Buyers',     icon: 'fa-user-tag' },
-    { id: 'landlord-sellers', route: '/sales/landlord-sellers', label: 'Landlord Sellers',  icon: 'fa-exchange-alt' },
-    { id: 'listings',         route: '/sales/listings',         label: 'Listings',          icon: 'fa-building' },
-    { id: 'marketing',        route: '/sales/marketing',        label: 'Marketing',         icon: 'fa-bullhorn' },
-    { id: 'activity',         route: '/sales/activity',         label: 'Activity',          icon: 'fa-stream' },
-    { id: 'automation',       route: '/sales/automation',       label: 'Automation',        icon: 'fa-robot' },
+    { id: 'seller-prospects',  route: '/sales/seller-prospects',  label: 'Seller Prospects',  icon: 'fa-user-clock' },
+    { id: 'sellers',           route: '/sales/sellers',           label: 'Active Sellers',    icon: 'fa-home' },
+    { id: 'buyer-prospects',   route: '/sales/buyer-prospects',   label: 'Buyer Prospects',   icon: 'fa-user-clock' },
+    { id: 'buyers',            route: '/sales/buyers',            label: 'Active Buyers',     icon: 'fa-user-tag' },
+    { id: 'listings',          route: '/sales/listings',          label: 'Listings',          icon: 'fa-building' },
+    { id: 'marketing',         route: '/sales/marketing',         label: 'Marketing',         icon: 'fa-bullhorn' },
+    { id: 'activity',          route: '/sales/activity',          label: 'Activity',          icon: 'fa-stream' },
   ];
 
-  // State
+  // State per tab
   var _state = {
+    sellerProspects: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
     sellers: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
+    buyerProspects: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
     buyers: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
-    landlordSellers: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
     listings: { data: [], sort: { key: 'address', dir: 'asc' }, page: 1, search: '' },
     marketing: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1, search: '' },
     activity: { data: [], page: 1, filter: 'all' },
-    automation: { data: [], sort: { key: 'name', dir: 'asc' }, page: 1 },
   };
 
   // ─── Subnav renderer ──────────────────────────────────────────────────
@@ -49,18 +51,107 @@ var SalesCRM = (function () {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 1: ACTIVE SELLERS
+  // TAB 1: SELLER PROSPECTS — conversion-centric
+  // ═══════════════════════════════════════════════════════════════════════
+  function sellerProspects() {
+    CRM.setPanelTitle('Sales CRM');
+    var c = CRM.getContent();
+    c.innerHTML = _renderSubnav('seller-prospects') + UI.loading();
+
+    MallanAPI._fetch('/api/crm/sales/sellers?phase=prospect').then(function (data) {
+      _state.sellerProspects.data = (data.sellers || data.clients || []).map(function (s) { return ClientNormalizer.normalize(s); });
+      _renderSellerProspectsTable(c);
+    }).catch(function () {
+      c.innerHTML = _renderSubnav('seller-prospects') + UI.emptyState('fa-user-clock', 'Unable to load seller prospects');
+    });
+  }
+
+  function _renderSellerProspectsTable(c) {
+    var st = _state.sellerProspects;
+    var rows = ActivityTable.filterRows(st.data, st.search);
+    rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
+
+    var html = _renderSubnav('seller-prospects');
+
+    html += FilterBar.render({
+      id: 'seller_prospects',
+      placeholder: 'Search seller prospects...',
+      onSearch: 'SalesCRM._searchSellerProspects',
+      filters: [
+        { key: 'source', label: 'Source', options: [
+          { value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' },
+          { value: 'manual', label: 'Manual' }, { value: 'streetEasy', label: 'StreetEasy' }
+        ]},
+      ],
+      onFilter: 'SalesCRM._filterSellerProspects',
+      quickActions: [
+        { label: 'New Seller Prospect', icon: 'fa-plus', onclick: 'CRM.quickNewClient({ role: "seller" })' },
+      ],
+    });
+
+    html += ActivityTable.render({
+      id: 'seller_prospects_table',
+      columns: [
+        { key: 'name', label: 'Name', render: function (r) {
+          var badge = '';
+          if (r.entity_name) badge = ' <span class="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">' + E(r.entity_type || 'Entity') + '</span>';
+          return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>' + badge;
+        }},
+        { key: 'property_address', label: 'Property', render: function (r) {
+          return E(r.property_address || r.address || '-');
+        }},
+        { key: 'source', label: 'Source', render: function (r) {
+          return '<span class="text-xs text-gray-500">' + E(r.source || '-') + '</span>';
+        }},
+        { key: 'last_contacted_at', label: 'Last Contact', render: function (r) {
+          return r.last_contacted_at ? Utils.formatTimeAgo(r.last_contacted_at) : '<span class="text-gray-400">Never</span>';
+        }},
+        { key: 'next_follow_up', label: 'Next Follow-up', render: function (r) {
+          if (!r.next_follow_up) return '<span class="text-gray-400">-</span>';
+          var d = new Date(r.next_follow_up);
+          var isPast = d < new Date();
+          return '<span class="' + (isPast ? 'text-red-600 font-bold' : '') + '">' + D(r.next_follow_up) + '</span>';
+        }},
+        { key: 'updated_at', label: 'Last Activity', render: function (r) {
+          return r.updated_at ? Utils.formatTimeAgo(r.updated_at) : '-';
+        }},
+      ],
+      rows: rows,
+      sort: st.sort,
+      onSort: 'SalesCRM._sortSellerProspects',
+      onRowClick: 'SalesCRM._openClient',
+      page: st.page,
+      pageSize: 25,
+      onPage: 'SalesCRM._pageSellerProspects',
+      emptyIcon: 'fa-user-clock',
+      emptyText: 'No seller prospects — add one to start your pipeline',
+    });
+
+    c.innerHTML = html;
+  }
+
+  function _searchSellerProspects(q) { _state.sellerProspects.search = q; _state.sellerProspects.page = 1; _renderSellerProspectsTable(CRM.getContent()); }
+  function _filterSellerProspects() { _renderSellerProspectsTable(CRM.getContent()); }
+  function _sortSellerProspects(key) {
+    var st = _state.sellerProspects;
+    st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
+    _renderSellerProspectsTable(CRM.getContent());
+  }
+  function _pageSellerProspects(p) { _state.sellerProspects.page = p; _renderSellerProspectsTable(CRM.getContent()); }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TAB 2: ACTIVE SELLERS — linked to listings
   // ═══════════════════════════════════════════════════════════════════════
   function activeSellers() {
     CRM.setPanelTitle('Sales CRM');
     var c = CRM.getContent();
     c.innerHTML = _renderSubnav('sellers') + UI.loading();
 
-    MallanAPI._fetch('/api/crm/sales/sellers').then(function (data) {
-      _state.sellers.data = (data.sellers || []).map(function (s) { return ClientNormalizer.normalize(s); });
+    MallanAPI._fetch('/api/crm/sales/sellers?phase=active').then(function (data) {
+      _state.sellers.data = (data.sellers || data.clients || []).map(function (s) { return ClientNormalizer.normalize(s); });
       _renderSellersTable(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('sellers') + UI.emptyState('fa-home', 'Unable to load sellers');
+      c.innerHTML = _renderSubnav('sellers') + UI.emptyState('fa-home', 'Unable to load active sellers');
     });
   }
 
@@ -73,18 +164,15 @@ var SalesCRM = (function () {
 
     html += FilterBar.render({
       id: 'sellers',
-      placeholder: 'Search sellers...',
+      placeholder: 'Search active sellers...',
       onSearch: 'SalesCRM._searchSellers',
       filters: [
-        { key: 'status', label: 'Status', options: [
-          { value: 'active', label: 'Active' }, { value: 'coming_soon', label: 'Coming Soon' },
-          { value: 'under_contract', label: 'Under Contract' }, { value: 'closed', label: 'Closed' }
+        { key: 'status', label: 'Listing Status', options: [
+          { value: 'Active', label: 'Active' }, { value: 'Coming Soon', label: 'Coming Soon' },
+          { value: 'Under Contract', label: 'Under Contract' }, { value: 'Closed', label: 'Closed' }
         ]},
       ],
       onFilter: 'SalesCRM._filterSellers',
-      quickActions: [
-        { label: 'New Seller', icon: 'fa-plus', onclick: 'SalesCRM._newSeller()' },
-      ],
     });
 
     html += ActivityTable.render({
@@ -95,19 +183,20 @@ var SalesCRM = (function () {
           if (r.entity_name) badge = ' <span class="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">' + E(r.entity_type || 'Entity') + '</span>';
           return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>' + badge;
         }},
-        { key: 'property_address', label: 'Property', render: function (r) {
+        { key: 'property_address', label: 'Listing', render: function (r) {
           return E(r.property_address || r.address || '-');
         }},
-        { key: 'listing_status', label: 'Listing Status', render: function (r) {
-          var s = r.listing_status || 'No Listing';
+        { key: 'listing_status', label: 'Status', render: function (r) {
+          var s = r.listing_status || 'Active';
           var colors = { 'Active': 'bg-blue-100 text-blue-700', 'Coming Soon': 'bg-yellow-100 text-yellow-700', 'Under Contract': 'bg-purple-100 text-purple-700', 'Closed': 'bg-green-100 text-green-700' };
           var cls = colors[s] || 'bg-gray-100 text-gray-600';
           return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + cls + '">' + E(s) + '</span>';
         }},
-        { key: 'showings_count', label: 'Showings', render: function (r) { return String(r.showings_count || 0); } },
-        { key: 'last_login_at', label: 'Last Login', render: function (r) {
-          return r.last_login_at ? Utils.formatTimeAgo(r.last_login_at) : '<span class="text-gray-400">Never</span>';
+        { key: 'list_price', label: 'Price', render: function (r) {
+          return r.list_price ? $(Number(r.list_price)) : '-';
         }},
+        { key: 'showings_count', label: 'Showings', render: function (r) { return String(r.showings_count || 0); } },
+        { key: 'dom', label: 'DOM', render: function (r) { return String(r.dom || r.days_on_market || 0); } },
         { key: 'updated_at', label: 'Last Action', render: function (r) {
           return r.updated_at ? Utils.formatTimeAgo(r.updated_at) : '-';
         }},
@@ -115,41 +204,137 @@ var SalesCRM = (function () {
       rows: rows,
       sort: st.sort,
       onSort: 'SalesCRM._sortSellers',
-      onRowClick: 'SalesCRM._openSeller',
+      onRowClick: 'SalesCRM._openClient',
       page: st.page,
       pageSize: 25,
       onPage: 'SalesCRM._pageSellers',
       emptyIcon: 'fa-home',
-      emptyText: 'No active sellers',
+      emptyText: 'No active sellers — convert a prospect to get started',
     });
 
     c.innerHTML = html;
   }
 
   function _searchSellers(q) { _state.sellers.search = q; _state.sellers.page = 1; _renderSellersTable(CRM.getContent()); }
-  function _filterSellers(key, val) { /* TODO: apply filter */ _renderSellersTable(CRM.getContent()); }
+  function _filterSellers(key, val) { _renderSellersTable(CRM.getContent()); }
   function _sortSellers(key) {
     var st = _state.sellers;
     st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
     _renderSellersTable(CRM.getContent());
   }
   function _pageSellers(p) { _state.sellers.page = p; _renderSellersTable(CRM.getContent()); }
-  function _openSeller(id) { Router.navigate('/workspace/client/' + id + '/overview'); }
-  function _newSeller() { CRM.quickNewClient({ role: 'seller' }); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 2: ACTIVE BUYERS (+ INVESTORS)
+  // TAB 3: BUYER PROSPECTS — qualification-centric
+  // ═══════════════════════════════════════════════════════════════════════
+  function buyerProspects() {
+    CRM.setPanelTitle('Sales CRM');
+    var c = CRM.getContent();
+    c.innerHTML = _renderSubnav('buyer-prospects') + UI.loading();
+
+    MallanAPI._fetch('/api/crm/sales/buyers?phase=prospect').then(function (data) {
+      _state.buyerProspects.data = (data.buyers || data.clients || []).map(function (b) { return ClientNormalizer.normalize(b); });
+      _renderBuyerProspectsTable(c);
+    }).catch(function () {
+      c.innerHTML = _renderSubnav('buyer-prospects') + UI.emptyState('fa-user-clock', 'Unable to load buyer prospects');
+    });
+  }
+
+  function _renderBuyerProspectsTable(c) {
+    var st = _state.buyerProspects;
+    var rows = ActivityTable.filterRows(st.data, st.search);
+    rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
+
+    var html = _renderSubnav('buyer-prospects');
+
+    html += FilterBar.render({
+      id: 'buyer_prospects',
+      placeholder: 'Search buyer prospects...',
+      onSearch: 'SalesCRM._searchBuyerProspects',
+      filters: [
+        { key: 'type', label: 'Type', options: [
+          { value: 'buyer', label: 'Buyers' }, { value: 'investor', label: 'Investors' }
+        ]},
+        { key: 'pre_approved', label: 'Pre-Approved', options: [
+          { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }
+        ]},
+      ],
+      onFilter: 'SalesCRM._filterBuyerProspects',
+      quickActions: [
+        { label: 'New Buyer Prospect', icon: 'fa-plus', onclick: 'CRM.quickNewClient({ role: "buyer" })' },
+      ],
+    });
+
+    html += ActivityTable.render({
+      id: 'buyer_prospects_table',
+      columns: [
+        { key: 'name', label: 'Name', render: function (r) {
+          var badges = '';
+          if (r.is_investor) badges += ' <span class="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-bold">Investor</span>';
+          if (r.entity_name) badges += ' <span class="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">' + E(r.entity_type || 'Entity') + '</span>';
+          return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>' + badges;
+        }},
+        { key: 'budget', label: 'Budget', render: function (r) {
+          if (r.pre_approved_amount) return $(Number(r.pre_approved_amount));
+          if (r.available_funds) return $(Number(r.available_funds));
+          return '<span class="text-gray-400">-</span>';
+        }},
+        { key: 'pre_approved', label: 'Pre-Approved', render: function (r) {
+          return r.pre_approved
+            ? '<span class="text-green-600 font-bold text-xs">Yes</span>'
+            : '<span class="text-gray-400 text-xs">No</span>';
+        }},
+        { key: 'source', label: 'Source', render: function (r) {
+          return '<span class="text-xs text-gray-500">' + E(r.source || '-') + '</span>';
+        }},
+        { key: 'last_contacted_at', label: 'Last Contact', render: function (r) {
+          return r.last_contacted_at ? Utils.formatTimeAgo(r.last_contacted_at) : '<span class="text-gray-400">Never</span>';
+        }},
+        { key: 'conviction_score', label: 'Conviction', render: function (r) {
+          var score = r.conviction_score || 0;
+          var color = score >= 70 ? 'text-green-600' : score >= 40 ? 'text-yellow-600' : 'text-gray-400';
+          return '<span class="font-bold ' + color + '">' + score + '</span>';
+        }},
+        { key: 'updated_at', label: 'Last Activity', render: function (r) {
+          return r.updated_at ? Utils.formatTimeAgo(r.updated_at) : '-';
+        }},
+      ],
+      rows: rows,
+      sort: st.sort,
+      onSort: 'SalesCRM._sortBuyerProspects',
+      onRowClick: 'SalesCRM._openClient',
+      page: st.page,
+      pageSize: 25,
+      onPage: 'SalesCRM._pageBuyerProspects',
+      emptyIcon: 'fa-user-clock',
+      emptyText: 'No buyer prospects — add one to start qualifying',
+    });
+
+    c.innerHTML = html;
+  }
+
+  function _searchBuyerProspects(q) { _state.buyerProspects.search = q; _state.buyerProspects.page = 1; _renderBuyerProspectsTable(CRM.getContent()); }
+  function _filterBuyerProspects() { _renderBuyerProspectsTable(CRM.getContent()); }
+  function _sortBuyerProspects(key) {
+    var st = _state.buyerProspects;
+    st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
+    _renderBuyerProspectsTable(CRM.getContent());
+  }
+  function _pageBuyerProspects(p) { _state.buyerProspects.page = p; _renderBuyerProspectsTable(CRM.getContent()); }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TAB 4: ACTIVE BUYERS — listings management
   // ═══════════════════════════════════════════════════════════════════════
   function activeBuyers() {
     CRM.setPanelTitle('Sales CRM');
     var c = CRM.getContent();
     c.innerHTML = _renderSubnav('buyers') + UI.loading();
 
-    MallanAPI._fetch('/api/crm/sales/buyers').then(function (data) {
-      _state.buyers.data = (data.buyers || []).map(function (b) { return ClientNormalizer.normalize(b); });
+    MallanAPI._fetch('/api/crm/sales/buyers?phase=active').then(function (data) {
+      _state.buyers.data = (data.buyers || data.clients || []).map(function (b) { return ClientNormalizer.normalize(b); });
       _renderBuyersTable(c);
     }).catch(function () {
-      c.innerHTML = _renderSubnav('buyers') + UI.emptyState('fa-user-tag', 'Unable to load buyers');
+      c.innerHTML = _renderSubnav('buyers') + UI.emptyState('fa-user-tag', 'Unable to load active buyers');
     });
   }
 
@@ -162,21 +347,18 @@ var SalesCRM = (function () {
 
     html += FilterBar.render({
       id: 'buyers',
-      placeholder: 'Search buyers & investors...',
+      placeholder: 'Search active buyers & investors...',
       onSearch: 'SalesCRM._searchBuyers',
       filters: [
         { key: 'type', label: 'Type', options: [
           { value: 'buyer', label: 'Buyers' }, { value: 'investor', label: 'Investors' }
         ]},
         { key: 'stage', label: 'Stage', options: [
-          { value: 'active', label: 'Active' }, { value: 'showing', label: 'Showing' },
-          { value: 'offer', label: 'Offer' }, { value: 'nurturing', label: 'Nurturing' }
+          { value: 'showing', label: 'Showing' },
+          { value: 'offer', label: 'Offer' }, { value: 'deal', label: 'Deal' }
         ]},
       ],
       onFilter: 'SalesCRM._filterBuyers',
-      quickActions: [
-        { label: 'New Buyer', icon: 'fa-plus', onclick: 'SalesCRM._newBuyer()' },
-      ],
     });
 
     html += ActivityTable.render({
@@ -189,17 +371,18 @@ var SalesCRM = (function () {
           return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>' + badges;
         }},
         { key: 'budget', label: 'Budget', render: function (r) {
-          if (r.pre_approved_amount) return Utils.formatMoney(r.pre_approved_amount);
-          if (r.available_funds) return Utils.formatMoney(r.available_funds);
+          if (r.pre_approved_amount) return $(Number(r.pre_approved_amount));
+          if (r.available_funds) return $(Number(r.available_funds));
           return '-';
         }},
         { key: 'pipeline_stage', label: 'Stage', render: function (r) {
-          return UI.stageBadge(r.pipeline_stage || 'new');
+          return UI.stageBadge(r.pipeline_stage || 'active');
         }},
+        { key: 'listings_sent_count', label: 'Listings Sent', render: function (r) { return String(r.listings_sent_count || 0); } },
+        { key: 'showings_count', label: 'Showings', render: function (r) { return String(r.showings_count || 0); } },
         { key: 'last_viewed_listing_at', label: 'Last Viewed', render: function (r) {
           return r.last_viewed_listing_at ? Utils.formatTimeAgo(r.last_viewed_listing_at) : '<span class="text-gray-400">-</span>';
         }},
-        { key: 'login_count', label: 'Logins', render: function (r) { return String(r.login_count || 0); } },
         { key: 'conviction_score', label: 'Conviction', render: function (r) {
           var score = r.conviction_score || 0;
           var color = score >= 70 ? 'text-green-600' : score >= 40 ? 'text-yellow-600' : 'text-gray-400';
@@ -212,7 +395,7 @@ var SalesCRM = (function () {
       rows: rows,
       sort: st.sort,
       onSort: 'SalesCRM._sortBuyers',
-      onRowClick: 'SalesCRM._openBuyer',
+      onRowClick: 'SalesCRM._openClient',
       page: st.page,
       pageSize: 25,
       onPage: 'SalesCRM._pageBuyers',
@@ -231,93 +414,9 @@ var SalesCRM = (function () {
     _renderBuyersTable(CRM.getContent());
   }
   function _pageBuyers(p) { _state.buyers.page = p; _renderBuyersTable(CRM.getContent()); }
-  function _openBuyer(id) { Router.navigate('/workspace/client/' + id + '/overview'); }
-  function _newBuyer() { CRM.quickNewClient({ role: 'buyer' }); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 3: LANDLORD SELLERS (bridge)
-  // ═══════════════════════════════════════════════════════════════════════
-  function landlordSellers() {
-    CRM.setPanelTitle('Sales CRM');
-    var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('landlord-sellers') + UI.loading();
-
-    MallanAPI._fetch('/api/crm/sales/landlord-sellers').then(function (data) {
-      _state.landlordSellers.data = (data.landlordSellers || []).map(function (s) { return ClientNormalizer.normalize(s); });
-      _renderLandlordSellersTable(c);
-    }).catch(function () {
-      c.innerHTML = _renderSubnav('landlord-sellers') + UI.emptyState('fa-exchange-alt', 'No landlords with seller potential');
-    });
-  }
-
-  function _renderLandlordSellersTable(c) {
-    var st = _state.landlordSellers;
-    var rows = ActivityTable.filterRows(st.data, st.search);
-    rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
-
-    var html = _renderSubnav('landlord-sellers');
-
-    html += FilterBar.render({
-      id: 'lsellers',
-      placeholder: 'Search landlord-sellers...',
-      onSearch: 'SalesCRM._searchLandlordSellers',
-      filters: [
-        { key: 'potential', label: 'Seller Potential', options: [
-          { value: 'high', label: 'High' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' }
-        ]},
-      ],
-      onFilter: 'SalesCRM._filterLandlordSellers',
-    });
-
-    html += ActivityTable.render({
-      id: 'lsellers_table',
-      columns: [
-        { key: 'name', label: 'Landlord', render: function (r) {
-          return '<span class="font-medium text-gray-900">' + E(r.name || '') + '</span>';
-        }},
-        { key: 'property_address', label: 'Property', render: function (r) { return E(r.property_address || '-'); }},
-        { key: 'seller_potential', label: 'Seller Potential', render: function (r) {
-          var p = r.seller_potential || 'low';
-          var colors = { high: 'bg-red-100 text-red-700', medium: 'bg-yellow-100 text-yellow-700', low: 'bg-gray-100 text-gray-600' };
-          return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[p] || colors.low) + '">' + E(p.toUpperCase()) + '</span>';
-        }},
-        { key: 'vacancy_risk', label: 'Vacancy Risk', render: function (r) {
-          var v = r.vacancy_risk || '-';
-          return E(v);
-        }},
-        { key: 'lease_end_date', label: 'Lease End', render: function (r) {
-          return r.lease_end_date ? D(r.lease_end_date) : '-';
-        }},
-        { key: 'updated_at', label: 'Last Contact', render: function (r) {
-          return r.last_contacted_at ? Utils.formatTimeAgo(r.last_contacted_at) : '-';
-        }},
-      ],
-      rows: rows,
-      sort: st.sort,
-      onSort: 'SalesCRM._sortLandlordSellers',
-      onRowClick: 'SalesCRM._openLandlordSeller',
-      page: st.page,
-      pageSize: 25,
-      onPage: 'SalesCRM._pageLandlordSellers',
-      emptyIcon: 'fa-exchange-alt',
-      emptyText: 'No landlords with seller potential',
-    });
-
-    c.innerHTML = html;
-  }
-
-  function _searchLandlordSellers(q) { _state.landlordSellers.search = q; _state.landlordSellers.page = 1; _renderLandlordSellersTable(CRM.getContent()); }
-  function _filterLandlordSellers() { _renderLandlordSellersTable(CRM.getContent()); }
-  function _sortLandlordSellers(key) {
-    var st = _state.landlordSellers;
-    st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderLandlordSellersTable(CRM.getContent());
-  }
-  function _pageLandlordSellers(p) { _state.landlordSellers.page = p; _renderLandlordSellersTable(CRM.getContent()); }
-  function _openLandlordSeller(id) { Router.navigate('/workspace/client/' + id + '/overview'); }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // TAB 4: SALE LISTINGS
+  // TAB 5: SALE LISTINGS
   // ═══════════════════════════════════════════════════════════════════════
   function salesListings() {
     CRM.setPanelTitle('Sales CRM');
@@ -363,14 +462,14 @@ var SalesCRM = (function () {
           if (typeof addr === 'object') addr = addr.UnparsedAddress || addr.full || '';
           return '<span class="font-medium text-gray-900">' + E(addr || '') + '</span>';
         }},
-        { key: 'seller_name', label: 'Seller', render: function (r) { return E(r.seller_name || '-'); } },
+        { key: 'seller_name', label: 'Seller', render: function (r) { return E(r.seller_name || r.owner_name || '-'); } },
         { key: 'status', label: 'Status', render: function (r) {
           var s = r.status || 'Active';
           var colors = { 'Active': 'bg-blue-100 text-blue-700', 'Pending': 'bg-orange-100 text-orange-700', 'Closed': 'bg-green-100 text-green-700', 'Coming Soon': 'bg-yellow-100 text-yellow-700' };
           return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[s] || 'bg-gray-100 text-gray-600') + '">' + E(s) + '</span>';
         }},
-        { key: 'list_price', label: 'Price', render: function (r) { return Utils.formatMoney(r.list_price || 0); } },
-        { key: 'dom', label: 'DOM', render: function (r) { return String(r.dom || 0); } },
+        { key: 'list_price', label: 'Price', render: function (r) { return $(Number(r.list_price || 0)); } },
+        { key: 'dom', label: 'DOM', render: function (r) { return String(r.dom || r.days_on_market || 0); } },
         { key: 'showings_count', label: 'Showings', render: function (r) { return String(r.showings_count || 0); } },
         { key: 'inquiries_count', label: 'Inquiries', render: function (r) { return String(r.inquiries_count || 0); } },
       ],
@@ -399,7 +498,7 @@ var SalesCRM = (function () {
   function _openListing(id) { Router.navigate('/workspace/listing/' + id + '/overview'); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 5: SALES MARKETING
+  // TAB 6: SALES MARKETING
   // ═══════════════════════════════════════════════════════════════════════
   function salesMarketing() {
     CRM.setPanelTitle('Sales CRM');
@@ -470,7 +569,7 @@ var SalesCRM = (function () {
   function _newCampaign() { CRM.toast('Campaign creation — coming next sprint', 'info'); }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 6: SALES ACTIVITY FEED
+  // TAB 7: SALES ACTIVITY FEED
   // ═══════════════════════════════════════════════════════════════════════
   function salesActivity() {
     CRM.setPanelTitle('Sales CRM');
@@ -496,9 +595,9 @@ var SalesCRM = (function () {
 
     // Filter tabs
     html += '<div class="flex gap-1 mb-4">';
-    ['all', 'sellers', 'buyers', 'investors', 'landlord-sellers'].forEach(function (f) {
+    ['all', 'seller-prospects', 'sellers', 'buyer-prospects', 'buyers'].forEach(function (f) {
       var active = filter === f;
-      var label = f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1).replace('-', ' ');
+      var label = f === 'all' ? 'All' : f.split('-').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
       html += '<button class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all ' +
         (active ? 'bg-gold text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-gold') +
         '" onclick="SalesCRM._filterActivity(\'' + f + '\')">' + label + '</button>';
@@ -539,106 +638,45 @@ var SalesCRM = (function () {
       comment: { icon: 'fa-comment', color: '#6366F1', bg: '#EEF2FF' },
       email: { icon: 'fa-envelope', color: '#EC4899', bg: '#FDF2F8' },
       status_change: { icon: 'fa-exchange-alt', color: '#B8860B', bg: '#FFFBF0' },
+      conversion: { icon: 'fa-check-circle', color: '#059669', bg: '#ECFDF5' },
+      cma: { icon: 'fa-chart-bar', color: '#6366F1', bg: '#EEF2FF' },
     };
     return map[type] || { icon: 'fa-circle', color: '#9CA3AF', bg: '#F9FAFB' };
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // TAB 7: SALES AUTOMATION
-  // ═══════════════════════════════════════════════════════════════════════
-  function salesAutomation() {
-    CRM.setPanelTitle('Sales CRM');
-    var c = CRM.getContent();
-    c.innerHTML = _renderSubnav('automation') + UI.loading();
-
-    MallanAPI._fetch('/api/crm/automation/status?crm_type=sales').then(function (data) {
-      _state.automation.data = data.contacts || [];
-      _renderSalesAutomation(c);
-    }).catch(function () {
-      c.innerHTML = _renderSubnav('automation') + UI.emptyState('fa-robot', 'Unable to load automation status');
-    });
-  }
-
-  function _renderSalesAutomation(c) {
-    var st = _state.automation;
-    var rows = ActivityTable.sortRows(st.data, st.sort.key, st.sort.dir);
-
-    var html = _renderSubnav('automation');
-
-    html += ActivityTable.render({
-      id: 'sautomation_table',
-      columns: [
-        { key: 'name', label: 'Contact', render: function (r) { return '<span class="font-medium">' + E(r.name || '') + '</span>'; } },
-        { key: 'type', label: 'Type', render: function (r) { return E(r.type || '-'); } },
-        { key: 'sales_drip_on', label: 'Drip', render: function (r) {
-          return r.sales_drip_on
-            ? '<span class="text-green-600 font-bold text-xs">ON</span>'
-            : '<span class="text-gray-400 text-xs">OFF</span>';
-        }},
-        { key: 'sales_drip_status', label: 'Tier', render: function (r) {
-          var tier = r.sales_drip_status || 'paused';
-          var colors = { active: 'bg-green-100 text-green-700', monthly: 'bg-blue-100 text-blue-700', quarterly: 'bg-yellow-100 text-yellow-700', biannual: 'bg-gray-100 text-gray-600', paused: 'bg-red-100 text-red-700' };
-          return '<span class="text-[10px] px-2 py-0.5 rounded font-bold ' + (colors[tier] || colors.paused) + '">' + E(tier) + '</span>';
-        }},
-        { key: 'last_sales_email_opened', label: 'Last Opened', render: function (r) {
-          return r.last_sales_email_opened ? Utils.formatTimeAgo(r.last_sales_email_opened) : '-';
-        }},
-        { key: 'last_response_at', label: 'Last Response', render: function (r) {
-          return r.last_response_at ? Utils.formatTimeAgo(r.last_response_at) : '-';
-        }},
-      ],
-      rows: rows,
-      sort: st.sort,
-      onSort: 'SalesCRM._sortAutomation',
-      onRowClick: 'SalesCRM._openAutomationContact',
-      page: st.page,
-      pageSize: 25,
-      onPage: 'SalesCRM._pageAutomation',
-      emptyIcon: 'fa-robot',
-      emptyText: 'No automation contacts',
-    });
-
-    c.innerHTML = html;
-  }
-
-  function _sortAutomation(key) {
-    var st = _state.automation;
-    st.sort = { key: key, dir: st.sort.key === key && st.sort.dir === 'asc' ? 'desc' : 'asc' };
-    _renderSalesAutomation(CRM.getContent());
-  }
-  function _pageAutomation(p) { _state.automation.page = p; _renderSalesAutomation(CRM.getContent()); }
-  function _openAutomationContact(id) { Router.navigate('/workspace/client/' + id + '/overview'); }
+  // ─── Shared handlers ──────────────────────────────────────────────────
+  function _openClient(id) { Router.navigate('/workspace/client/' + id + '/overview'); }
 
   // ═══════════════════════════════════════════════════════════════════════
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════════════
   return {
+    sellerProspects: sellerProspects,
     activeSellers: activeSellers,
+    buyerProspects: buyerProspects,
     activeBuyers: activeBuyers,
-    landlordSellers: landlordSellers,
     salesListings: salesListings,
     salesMarketing: salesMarketing,
     salesActivity: salesActivity,
-    salesAutomation: salesAutomation,
 
     // Internal handlers exposed for inline onclick
+    _searchSellerProspects: _searchSellerProspects,
+    _filterSellerProspects: _filterSellerProspects,
+    _sortSellerProspects: _sortSellerProspects,
+    _pageSellerProspects: _pageSellerProspects,
     _searchSellers: _searchSellers,
     _filterSellers: _filterSellers,
     _sortSellers: _sortSellers,
     _pageSellers: _pageSellers,
-    _openSeller: _openSeller,
-    _newSeller: _newSeller,
+    _searchBuyerProspects: _searchBuyerProspects,
+    _filterBuyerProspects: _filterBuyerProspects,
+    _sortBuyerProspects: _sortBuyerProspects,
+    _pageBuyerProspects: _pageBuyerProspects,
     _searchBuyers: _searchBuyers,
     _filterBuyers: _filterBuyers,
     _sortBuyers: _sortBuyers,
     _pageBuyers: _pageBuyers,
-    _openBuyer: _openBuyer,
-    _newBuyer: _newBuyer,
-    _searchLandlordSellers: _searchLandlordSellers,
-    _filterLandlordSellers: _filterLandlordSellers,
-    _sortLandlordSellers: _sortLandlordSellers,
-    _pageLandlordSellers: _pageLandlordSellers,
-    _openLandlordSeller: _openLandlordSeller,
+    _openClient: _openClient,
     _searchListings: _searchListings,
     _filterListings: _filterListings,
     _sortListings: _sortListings,
@@ -649,8 +687,5 @@ var SalesCRM = (function () {
     _pageMarketing: _pageMarketing,
     _newCampaign: _newCampaign,
     _filterActivity: _filterActivity,
-    _sortAutomation: _sortAutomation,
-    _pageAutomation: _pageAutomation,
-    _openAutomationContact: _openAutomationContact,
   };
 })();

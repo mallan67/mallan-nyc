@@ -35,11 +35,11 @@ The backend CRM supports 6 portal types, each with different access levels:
 
 | File | Role |
 |------|------|
-| `dashboard.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals |
+| `dashboard.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals. v2: Two-CRM lifecycle workspaces (Sales + Rentals) with prospect/active phases, Convert API, listing backend. |
 | `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search of REBNY RLS. Not shared. |
-| `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing → RLS |
+| `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing → RLS. Audited 2026-03-19: 119 data-rls-field values verified against CSV, distribution gates clean (IDX+Syndication primary, InternetEntireListingDisplayYN locked for standard sales, no VOW), 34 Fair Housing patterns, 48 mandatory fields collected. |
 | `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + buyers view exclusive sale listings (buyers see masked listing agent info) |
-| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive rental → RLS |
+| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive rental → RLS. Audited 2026-03-18: checkbox groups + fees + open houses + commercial fields fixed. |
 | `RENTAL-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + renters view exclusive rental listings (renters see masked listing agent info) |
 | `BUYER-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — buyer's agent → broker. Agent can check status + edit errors. Not client-facing. |
 | `TENANT-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — renter's agent → broker. Agent can check status + edit errors. Not client-facing. |
@@ -54,8 +54,8 @@ The backend CRM supports 6 portal types, each with different access levels:
 > **Live production site at mallan.nyc (Vercel, Next.js 16.1.6)**
 >
 > **Components:**
-> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles)
-> - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `js/dashboard/` (12 JS modules: app, store, router, panels, workspace, portals, permissions, utils, events, alerts, documents, ui-components)
+> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search with RLS direction normalization, `PropertySearch.tsx` is dead code.
+> - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `js/dashboard/` (12 core JS modules + 9 panel modules in `js/dashboard/panels/`). **v2 Two-CRM redesign (2026-03-19):** lifecycle-based workspaces with prospect/active phases, `detectTypeAndPhase()` routing, Convert API, `Listing.owner_client_id` FK. Seller/Buyer/Landlord/Tenant each have full prospect + active workspace renderers.
 > - **API layer** — `app/api/` (175+ route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
 > - **Database** — PostgreSQL on Neon (Prisma ORM, 42+ models)
 > - **Outlook integration** — Microsoft Graph OAuth for email scanning (StreetEasy lead import, folder browser)
@@ -70,11 +70,13 @@ The backend CRM supports 6 portal types, each with different access levels:
 >
 > **Lead capture:** 8 public endpoints (inquiries, contact, sign-up, CMA, guides, favorites, search-alerts, open-house RSVP). All record `consent_captured_at` for TCPA/CAN-SPAM compliance. Contact form has honeypot bot protection.
 >
-> **Commission system:** `CommissionPayment` model with fail-closed split validation. `FinancialLedger` for immutable transaction logging with tamper-detection hash chain.
+> **Commission system:** `CommissionPayment` model with fail-closed split validation. `FinancialLedger` schema exists for immutable transaction logging with tamper-detection hash chain (schema-only — hash chain implementation pending).
 >
 > **Client data model (Lead):** Multi-person support — primary person (`first_name`, `last_name`, `email`, `phone`) + secondary person (`secondary_first_name`, `secondary_last_name`, `secondary_email`, `secondary_phone`, `secondary_relationship`). Dual addresses: `property_address` (rental/sale unit) + `home_address` (owner's personal). `legal_ownership_name` for LLC/Trust. Roles array supports combos: `["landlord","seller"]`.
 >
 > **CRM analytics (14 systems):** Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor, Seller Outreach, Pricing Experiments, Pipeline.
+>
+> **CRM v2 workspace system:** `detectTypeAndPhase()` routes each client to the correct workspace renderer. 4 workspace files (seller, buyer, landlord, tenant) each have prospect + active modes. Convert API (`POST /api/crm/convert`) handles 6 lifecycle transitions with AuditEvent logging. `Listing.owner_client_id` links listings to their owner client.
 >
 > **Frontend resilience (added 2026-03-13):**
 > - Error boundaries: 7 error.tsx files (global + per-section)
@@ -88,7 +90,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 > - RLS Enforcement Gate (`lib/compliance/rls-enforcement.ts`) — 19 mandatory fields, 6 distribution gates, Fair Housing scanning
 > - DOM Tracker (`lib/compliance/dom-tracker.ts`) — UCBA 2026 days-on-market with 30-day reset
 > - Portal DTO sanitizer (`lib/compliance/dto.ts`) — public/portal/CRM tiers with agent PII masking
-> - REBNY Validator (`lib/rls-validator/`) — CI-gateable, 10-section validation, 4-layer field resolution
+> - REBNY Validator (`lib/compliance/`) — CI-gateable, 10-section validation, 4-layer field resolution
 >
 > **Do NOT:**
 > - Confuse the public frontend with the backend CRM — they are different products for different users
@@ -191,7 +193,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `compliance/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes, 47 BLOCKERs) |
 | `prisma/schema.prisma` | Database schema — 42 Prisma models (Listing, Agent, Lead, Deal, CommissionPayment, FinancialLedger, AuditEvent, etc.) |
 | `lib/compliance/` | Server-side compliance: RLS enforcement gate, DOM tracker, portal DTO sanitizer |
-| `lib/rls-validator/` | CI-gateable REBNY RLS validator (10 sections, 4-layer resolution) |
+| `lib/compliance/` | CI-gateable REBNY RLS validator (10 sections, 4-layer resolution) |
 | `compliance/FULL-AUDIT-2026-03-13.md` | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY |
 | `compliance/rules/ucba-audit-checklist.json` | Machine-readable audit checklist — used by `scripts/ucba-compliance-audit.js` for regression detection |
 | `scripts/ucba-compliance-audit.js` | UCBA compliance validator — `npm run ucba:audit` — detects regressions if passing rules break |

@@ -118,6 +118,56 @@ export async function requirePortalRole(
 }
 
 /**
+ * Require a lead with access to a specific workspace.
+ * Checks enabled_workspaces[] on Lead, falling back to roles[]-derived workspaces.
+ * Agents/brokers bypass (full CRM access).
+ * This is the v2 replacement for requirePortalRole() — workspace-aware access.
+ */
+export async function requireWorkspace(
+  req: NextRequest,
+  ...allowedWorkspaces: string[]
+): Promise<SessionUser | NextResponse> {
+  const result = await requireAuth(req);
+  if (result instanceof NextResponse) return result;
+
+  // Agents and brokers bypass workspace checks (full CRM access)
+  if (result.userType === "agent") return result;
+
+  // For leads, check enabled_workspaces
+  const lead = await prisma.lead.findUnique({
+    where: { id: result.userId },
+    select: { enabled_workspaces: true, roles: true, portal_role: true },
+  });
+
+  if (!lead) {
+    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  }
+
+  // Derive workspaces: explicit enabled_workspaces > roles-derived > portal_role
+  let workspaces = lead.enabled_workspaces;
+  if (!workspaces || workspaces.length === 0) {
+    workspaces = (lead.roles || []).map(r => r === "renter" ? "tenant" : r);
+  }
+  if (workspaces.length === 0 && lead.portal_role) {
+    workspaces = [lead.portal_role];
+  }
+
+  // Normalize: "renter" → "tenant" for workspace matching
+  const normalizedWorkspaces = workspaces.map(w => w === "renter" ? "tenant" : w);
+  const normalizedAllowed = allowedWorkspaces.map(w => w === "renter" ? "tenant" : w);
+
+  const hasAccess = normalizedAllowed.some(a => normalizedWorkspaces.includes(a));
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: "Access denied for this workspace" },
+      { status: 403 }
+    );
+  }
+
+  return result;
+}
+
+/**
  * Helper: check if result is a NextResponse (error) vs SessionUser (success).
  */
 export function isAuthError(

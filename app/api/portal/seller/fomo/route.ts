@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { requirePortalRole, isAuthError } from '@/lib/auth';
+
 function getMomentumTier(score: number): string {
   if (score >= 80) return 'hot';
   if (score >= 60) return 'warm';
@@ -18,17 +19,12 @@ export const dynamic = 'force-dynamic';
  * Seller portal auth required.
  */
 export async function GET(request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session_token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // C-3 fix: use session cookie auth instead of broken portal_token lookup
+  const auth = await requirePortalRole(request, "seller", "landlord");
+  if (isAuthError(auth)) return auth;
 
-  const lead = await prisma.lead.findFirst({
-    where: {
-      portal_token: token,
-      portal_role: { in: ['seller', 'landlord'] },
-    },
+  const lead = await prisma.lead.findUnique({
+    where: { id: auth.userId },
     select: { id: true },
   });
 

@@ -152,7 +152,9 @@ model Lead {
   phone           String
   roles           String[] // ["buyer","renter","seller","landlord"]
   status          String   @default("new") // new, contacted, active, closed
-  portal_role     String?  @map("portal_role")    // "buyer" | "tenant" | "seller" | "landlord"
+  portal_role     String?  @map("portal_role")    // "buyer" | "tenant" | "seller" | "landlord" — LEGACY, kept for compat
+  primary_portal_role String? @map("primary_portal_role") // default landing workspace ("seller"|"buyer"|"landlord"|"tenant")
+  enabled_workspaces String[] @default([]) @map("enabled_workspaces") // ["seller","buyer","landlord","tenant"] — portals this lead can access
   portal_token    String?  @unique @map("portal_token")  // SHA-256 hash of invite token
   portal_token_expires_at DateTime? @map("portal_token_expires_at") // TTL for invite token (72h)
   password_hash   String?  @map("password_hash")  // for portal login
@@ -181,7 +183,7 @@ model Lead {
   rent_per_month      Decimal?  @db.Decimal(14,2) @map("rent_per_month")     // Renter: current monthly rent
   rental_deposit      Decimal?  @db.Decimal(14,2) @map("rental_deposit")     // Renter: deposit paid
   total_monthly_expense Decimal? @db.Decimal(14,2) @map("total_monthly_expense") // Buyer: total monthly (mortgage+maint+tax)
-  pipeline_stage      String    @default("new") @map("pipeline_stage")   // new/contacted/nurturing/active/showing/offer/deal/closed/past
+  pipeline_stage      String    @default("new") @map("pipeline_stage")   // new/contacted/nurturing/prospect/active_seller/active_buyer/active_landlord/active_renter/showing/offer/deal/viewed_not_rent/current_tenant/closed/past
   last_contacted_at   DateTime? @map("last_contacted_at")
   next_follow_up      DateTime? @map("next_follow_up")
   follow_up_tasks     FollowUpTask[]
@@ -273,11 +275,17 @@ model Lead {
   non_renewal_date         DateTime? @map("non_renewal_date")
   reengage_anchor_date     DateTime? @map("reengage_anchor_date")
 
+  // --- Showing date tracking ---
+  first_shown_date         DateTime? @map("first_shown_date")     // First showing date for this lead
+  last_shown_date          DateTime? @map("last_shown_date")      // Most recent showing date
+
   // --- Promotion tracking (cross-CRM routing) ---
   promoted_to_buyer_at     DateTime? @map("promoted_to_buyer_at")
   promoted_to_seller_at    DateTime? @map("promoted_to_seller_at")
   promoted_from_landlord_at DateTime? @map("promoted_from_landlord_at")
   promoted_from_tenant_at  DateTime? @map("promoted_from_tenant_at")
+  promotion_source         String?   @map("promotion_source")     // "landlord" | "tenant" | "renter" | "viewer"
+  promotion_reason         String?   @map("promotion_reason")     // free text reason for promotion
 
   // --- Entity ownership (LLC, Trust, Corp, Inc) ---
   entity_name              String?   @map("entity_name")
@@ -297,8 +305,10 @@ model Lead {
   fee_structure            String?   @map("fee_structure")             // "owner_pay" | "tenant_pay" | "no_fee"
 
   // --- Relations for new models ---
+  owned_listings           Listing[]  @relation("ListingOwner")
   showing_history          ShowingHistory[]
   campaigns_targeted       CampaignRecipient[]
+  portal_events            PortalEvent[]
 
   created_at      DateTime @default(now()) @map("created_at")
   updated_at      DateTime @updatedAt @map("updated_at")
@@ -320,6 +330,8 @@ model Listing {
   mls_id                  String?   @map("mls_id")
   agent_id                BigInt?   @map("agent_id")                   // Listing agent (for exclusive listings)
   agent                   Agent?    @relation(fields: [agent_id], references: [id])
+  owner_client_id         BigInt?   @map("owner_client_id")            // FK to Lead — the seller/landlord who owns this listing
+  owner_client            Lead?     @relation("ListingOwner", fields: [owner_client_id], references: [id])
 
   // --- Filter columns (indexed for queries) ---
   status                  String    @default("Active")                  // RESO StandardStatus
@@ -394,6 +406,7 @@ model Listing {
   @@index([modification_timestamp])
   @@index([idx_display_yn, owner_opt_out])
   @@index([agent_id])
+  @@index([owner_client_id])
   @@map("listings")
 }
 
@@ -1597,4 +1610,32 @@ model ShowingHistory {
 
   @@index([lead_id, showing_date])
   @@map("showing_history")
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAL EVENT — Per-workspace event tracking for client portals
+// Tracks: logins, listing views, email opens, comments, showing requests, approvals
+// Separate from AuditEvent (compliance) and ActivityLog (agent-side) — this is the CLIENT event layer
+// ═══════════════════════════════════════════════════════════
+model PortalEvent {
+  id           BigInt    @id @default(autoincrement())
+  lead_id      BigInt    @map("lead_id")
+  lead         Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  workspace    String    // "seller" | "buyer" | "landlord" | "tenant"
+  event_type   String    @map("event_type") // login, listing_view, email_open, comment_view, comment_add, showing_request, offer_view, document_view, approval, reaction
+
+  listing_id   String?   @map("listing_id")    // Which listing this event relates to (if any)
+  property_id  String?   @map("property_id")   // Building/property reference (if any)
+  campaign_id  BigInt?   @map("campaign_id")    // Marketing campaign reference (if any)
+  metadata     Json?     @default("{}")         // Additional event-specific data
+
+  created_at   DateTime  @default(now()) @map("created_at")
+
+  @@index([lead_id, workspace])
+  @@index([event_type])
+  @@index([listing_id])
+  @@index([campaign_id])
+  @@index([created_at])
+  @@map("portal_events")
 }

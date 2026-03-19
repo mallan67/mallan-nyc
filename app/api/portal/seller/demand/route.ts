@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { requirePortalRole, isAuthError } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,18 +14,12 @@ export const dynamic = 'force-dynamic';
  * PRIVACY: Returns aggregate counts only. No buyer PII. Fair Housing safe.
  */
 export async function GET(request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session_token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // C-2 fix: use session cookie auth instead of broken portal_token lookup
+  const auth = await requirePortalRole(request, "seller", "landlord");
+  if (isAuthError(auth)) return auth;
 
-  // Verify seller portal session
-  const lead = await prisma.lead.findFirst({
-    where: {
-      portal_token: token,
-      portal_role: { in: ['seller', 'landlord'] },
-    },
+  const lead = await prisma.lead.findUnique({
+    where: { id: auth.userId },
     select: { id: true, portal_role: true },
   });
 
@@ -123,7 +117,7 @@ export async function GET(request: NextRequest) {
       totalMatchingBuyers: matchingBuyers,
       exactPriceMatch,
       recentSearchers,
-      demandTrend: Math.round(demandTrend * 10) / 10, // +12.5% = demand growing
+      demandTrend: Math.round(demandTrend * 10) / 10,
       neighborhood: listing.neighborhood,
       priceRange: { min: Math.round(priceMin), max: Math.round(priceMax) },
     },

@@ -132,6 +132,9 @@ export async function GET(req: NextRequest) {
         email: true,
         phone: true,
         portal_role: true,
+        primary_portal_role: true,
+        enabled_workspaces: true,
+        roles: true,
       },
     });
     if (!lead) {
@@ -140,14 +143,26 @@ export async function GET(req: NextRequest) {
         principalType: null,
         role: null,
         portalRole: null,
+        roles: [],
+        primaryPortalRole: null,
+        enabledWorkspaces: [],
         user: null,
       });
     }
+    // Derive enabled workspaces from roles if not explicitly set
+    const enabledWorkspaces = lead.enabled_workspaces.length > 0
+      ? lead.enabled_workspaces
+      : (lead.roles || []).map((r: string) => r === "renter" ? "tenant" : r);
+    const primaryPortalRole = lead.primary_portal_role || lead.portal_role || enabledWorkspaces[0] || null;
+
     return NextResponse.json({
       authenticated: true,
       principalType: "lead",
       role: lead.portal_role || session.role,
-      portalRole: lead.portal_role || null,
+      portalRole: lead.portal_role || null,   // LEGACY — kept for backward compat
+      roles: lead.roles || [],
+      primaryPortalRole,
+      enabledWorkspaces,
       user: {
         id: lead.id.toString(),
         name: `${lead.first_name} ${lead.last_name}`,

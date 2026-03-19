@@ -40,11 +40,21 @@ export async function POST(req: NextRequest) {
     updates.seller_potential = "high";
     updates.promoted_to_seller_at = new Date();
     updates.promoted_from_landlord_at = new Date();
+    updates.promotion_source = "landlord";
+    updates.promotion_reason = body.reason || "Landlord-to-seller promotion";
+    // Enable seller workspace
+    const workspaces = [...new Set([...(lead.enabled_workspaces || []), "seller"])];
+    updates.enabled_workspaces = workspaces;
   } else if (promotion_type === "renter_to_buyer") {
     if (!newRoles.includes("buyer")) newRoles.push("buyer");
     updates.roles = newRoles;
     updates.promoted_to_buyer_at = new Date();
     updates.promoted_from_tenant_at = new Date();
+    updates.promotion_source = "tenant";
+    updates.promotion_reason = body.reason || "Renter-to-buyer promotion";
+    // Enable buyer workspace
+    const workspaces = [...new Set([...(lead.enabled_workspaces || []), "buyer"])];
+    updates.enabled_workspaces = workspaces;
   }
 
   const updated = await prisma.lead.update({

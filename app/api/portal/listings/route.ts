@@ -49,11 +49,21 @@ export async function GET(req: NextRequest) {
     listingMap.get(lid)!.reactions[a.action] = true;
   }
 
-  // Centralized DTO: handles owner opt-out, address suppression, agent masking
+  // REBNY RLS: Explicit distribution gate enforcement (fail-closed)
+  // These checks run BEFORE DTO sanitization as a hard-block layer
   const listings = Array.from(listingMap.values())
     .map(({ listing, reactions }) => {
+      // Gate 1: Owner opt-out — must not display
+      if (listing.owner_opt_out) return null;
+      // Gate 2: IDX display — must be true for portal display
+      if (listing.idx_display_yn === false) return null;
+      // Gate 3: Internet entire listing display — must be true
+      if (listing.internet_entire_listing_display_yn === false) return null;
+      // Gate 4: Participant only — must not show on portal
+      if (listing.participant_only) return null;
+      // DTO sanitization (address suppression, agent masking, additional checks)
       const sanitized = sanitizeListingForPortal(listing, portalRole);
-      if (!sanitized) return null; // Owner opt-out → skip
+      if (!sanitized) return null;
       return { ...sanitized, reactions };
     })
     .filter(Boolean);

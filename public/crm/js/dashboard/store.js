@@ -229,6 +229,25 @@ var Store = (function () {
     return session.principalType === 'client';
   }
 
+  // ─── Feature Flags ─────────────────────────────────────────────────────
+  var _featureFlags = {};
+  (function _loadFlags() {
+    try {
+      var raw = localStorage.getItem('mallan_crm_feature_flags');
+      if (raw) _featureFlags = JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+  })();
+
+  function featureFlag(name) {
+    return _featureFlags[name] === true;
+  }
+
+  function setFeatureFlag(name, value) {
+    _featureFlags[name] = value;
+    try { localStorage.setItem('mallan_crm_feature_flags', JSON.stringify(_featureFlags)); } catch (e) { /* quota */ }
+    emit('featureflag:changed', { name: name, value: value });
+  }
+
   function isImpersonating() {
     return session.impersonatedAgentId !== null;
   }
@@ -358,6 +377,10 @@ var Store = (function () {
     getActiveFilters: getActiveFilters,
     setSort: setSort,
     getSort: getSort,
+
+    // Feature flags
+    featureFlag: featureFlag,
+    setFeatureFlag: setFeatureFlag,
 
     // Saved views
     savedViews: entities.savedViews,

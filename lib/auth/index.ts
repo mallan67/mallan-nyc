@@ -13,6 +13,7 @@ export {
   requireBroker,
   requireAgentOrBroker,
   requirePortalRole,
+  requireWorkspace,
   isAuthError,
   logAuditEvent,
   SESSION_COOKIE,
