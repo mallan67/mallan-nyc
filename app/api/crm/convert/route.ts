@@ -1,7 +1,7 @@
 // /api/crm/convert — POST: convert a lead through pipeline actions
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError, logAuditEvent, type SessionUser } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 const VALID_ACTIONS = [
@@ -134,7 +134,7 @@ async function handlePromoteToListing(
   lead: { id: bigint; roles: string[]; pipeline_stage: string; active_sale_listing_id: string | null; active_rental_listing_id: string | null },
   listingDraft: ListingDraft | undefined,
   agentId: bigint,
-  auth: { userId: bigint; role: string; email: string }
+  auth: SessionUser
 ) {
   if (!listingDraft) {
     return NextResponse.json({ error: "listingDraft is required for promote_to_listing" }, { status: 400 });
@@ -248,7 +248,7 @@ async function handlePromoteToListing(
 async function handleBuyerRepSigned(
   lead: { id: bigint; roles: string[]; pipeline_stage: string; buyer_rep_agreement: boolean },
   agentId: bigint,
-  auth: { userId: bigint; role: string; email: string }
+  auth: SessionUser
 ) {
   const updatedRoles = lead.roles.includes("buyer") ? lead.roles : [...lead.roles, "buyer"];
 
@@ -288,7 +288,7 @@ async function handleBuyerRepSigned(
 async function handleActivateRenter(
   lead: { id: bigint; pipeline_stage: string },
   _agentId: bigint,
-  auth: { userId: bigint; role: string; email: string }
+  auth: SessionUser
 ) {
   await prisma.lead.update({
     where: { id: lead.id },
@@ -309,7 +309,7 @@ async function handleSignLease(
   lead: { id: bigint; pipeline_stage: string },
   leaseData: LeaseData | undefined,
   _agentId: bigint,
-  auth: { userId: bigint; role: string; email: string }
+  auth: SessionUser
 ) {
   if (!leaseData) {
     return NextResponse.json({ error: "leaseData is required for sign_lease" }, { status: 400 });
@@ -349,7 +349,7 @@ async function handleSignLease(
 async function handlePromoteToBuyer(
   lead: { id: bigint; roles: string[]; buyer_potential: number | null },
   _agentId: bigint,
-  auth: { userId: bigint; role: string; email: string }
+  auth: SessionUser
 ) {
   const updatedRoles = lead.roles.includes("buyer") ? lead.roles : [...lead.roles, "buyer"];
 
@@ -381,7 +381,7 @@ async function handleRoleTransition(
   lead: { id: bigint; roles: string[] },
   targetRole: string | undefined,
   _agentId: bigint,
-  auth: { userId: bigint; role: string; email: string }
+  auth: SessionUser
 ) {
   if (!targetRole) {
     return NextResponse.json({ error: "targetRole is required for role_transition" }, { status: 400 });
