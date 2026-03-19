@@ -56,6 +56,7 @@ model Agent {
   protected_periods   ProtectedPeriod[]
   marketing_activities MarketingActivity[]
   follow_up_tasks      FollowUpTask[]      @relation("AgentTasks")
+  campaigns            Campaign[]
 
   // --- Outlook integration (Microsoft Graph OAuth tokens) ---
   outlook_access_token    String?  @db.Text @map("outlook_access_token")
@@ -211,12 +212,102 @@ model Lead {
 
   buyer_rep_agreement      Boolean   @default(false) @map("buyer_rep_agreement")       // UCBA E7: buyer rep agreement on file
   buyer_rep_agreement_date DateTime? @map("buyer_rep_agreement_date") // Date agreement was signed
+
+  // --- Contact behavior tracking (on the listing, not email) ---
+  last_login_at            DateTime? @map("last_login_at")
+  login_count              Int       @default(0) @map("login_count")
+  last_response_at         DateTime? @map("last_response_at")
+  last_click_at            DateTime? @map("last_click_at")
+  last_viewed_listing_id   String?   @map("last_viewed_listing_id")
+  last_viewed_listing_at   DateTime? @map("last_viewed_listing_at")
+
+  // --- Listing relationship ---
+  active_sale_listing_id   String?   @map("active_sale_listing_id")
+  active_rental_listing_id String?   @map("active_rental_listing_id")
+
+  // --- Investor fields ---
+  is_investor              Boolean   @default(false) @map("is_investor")
+  investment_strategy      String?   @map("investment_strategy")       // "cash_flow" | "appreciation" | "value_add" | "1031_exchange"
+  cap_rate_target          Decimal?  @db.Decimal(5,2) @map("cap_rate_target")
+  cash_on_cash_target      Decimal?  @db.Decimal(5,2) @map("cash_on_cash_target")
+  holding_period_years     Int?      @map("holding_period_years")
+  exchange_1031_status     String?   @map("exchange_1031_status")      // "none" | "identifying" | "exchanging" | "completed"
+  exchange_1031_deadline   DateTime? @map("exchange_1031_deadline")
+  current_portfolio        Json?     @map("current_portfolio")
+
+  // --- Seller/landlord fields ---
+  seller_potential         String?   @default("none") @map("seller_potential") // "none" | "low" | "medium" | "high"
+  seller_potential_reason  String[]  @map("seller_potential_reason")
+  vacancy_risk             String?   @map("vacancy_risk")              // "low" | "medium" | "high"
+  relist_reminder_date     DateTime? @map("relist_reminder_date")
+
+  // --- Renter fields ---
+  no_fee_only              Boolean   @default(false) @map("no_fee_only")
+  exclusive_acceptable     Boolean   @default(true) @map("exclusive_acceptable")
+  building_type_pref       String[]  @map("building_type_pref")        // ["condo", "coop", "condop", "rental"]
+  guarantor_needed         Boolean   @default(false) @map("guarantor_needed")
+  docs_readiness           Json?     @map("docs_readiness")            // { pay_stubs: true, tax_returns: false, ... }
+
+  // --- Viewed/did-not-rent tracking ---
+  viewed_addresses         Json?     @map("viewed_addresses")
+  buyer_potential           Int?     @default(0) @map("buyer_potential") // 0-100
+
+  // --- Outreach dates (real DB fields, sortable) ---
+  outreach_6mo_date        DateTime? @map("outreach_6mo_date")
+  outreach_90d_date        DateTime? @map("outreach_90d_date")
+  outreach_60d_date        DateTime? @map("outreach_60d_date")
+  outreach_30d_date        DateTime? @map("outreach_30d_date")
+
+  // --- Drip/automation state ---
+  sales_drip_on            Boolean   @default(false) @map("sales_drip_on")
+  rental_drip_on           Boolean   @default(false) @map("rental_drip_on")
+  renewal_drip_on          Boolean   @default(false) @map("renewal_drip_on")
+  sales_drip_status        String?   @map("sales_drip_status")         // "active" | "monthly" | "quarterly" | "biannual" | "paused"
+  rental_drip_status       String?   @map("rental_drip_status")
+  last_sales_email_opened  DateTime? @map("last_sales_email_opened")
+  last_rental_email_opened DateTime? @map("last_rental_email_opened")
+  last_unsubscribe_at      DateTime? @map("last_unsubscribe_at")
+
+  // --- Rental timeline ---
+  renewal_status           String?   @map("renewal_status")            // "pending" | "renewing" | "not_renewing" | "month_to_month"
+  non_renewal_date         DateTime? @map("non_renewal_date")
+  reengage_anchor_date     DateTime? @map("reengage_anchor_date")
+
+  // --- Promotion tracking (cross-CRM routing) ---
+  promoted_to_buyer_at     DateTime? @map("promoted_to_buyer_at")
+  promoted_to_seller_at    DateTime? @map("promoted_to_seller_at")
+  promoted_from_landlord_at DateTime? @map("promoted_from_landlord_at")
+  promoted_from_tenant_at  DateTime? @map("promoted_from_tenant_at")
+
+  // --- Entity ownership (LLC, Trust, Corp, Inc) ---
+  entity_name              String?   @map("entity_name")
+  entity_type              String?   @map("entity_type")               // "individual" | "llc" | "trust" | "corp" | "inc"
+  authorized_signatories   Json?     @map("authorized_signatories")    // [{ name, title, email, phone }]
+
+  // --- Seller intake fields ---
+  home_prep_checklist      Json?     @map("home_prep_checklist")
+  building_mgmt_requirements Json?   @map("building_mgmt_requirements")
+  disclosures              Json?     @map("disclosures")
+  documents_collected      Json?     @map("documents_collected")
+  marketing_strategy       Json?     @map("marketing_strategy")
+
+  // --- Landlord intake fields ---
+  property_disclosures     Json?     @map("property_disclosures")
+  lease_terms              Json?     @map("lease_terms")
+  fee_structure            String?   @map("fee_structure")             // "owner_pay" | "tenant_pay" | "no_fee"
+
+  // --- Relations for new models ---
+  showing_history          ShowingHistory[]
+  campaigns_targeted       CampaignRecipient[]
+
   created_at      DateTime @default(now()) @map("created_at")
   updated_at      DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([created_at])
   @@index([agent_id])
+  @@index([seller_potential])
+  @@index([renewal_status])
   @@map("leads")
 }
 
@@ -1433,4 +1524,77 @@ model ActivityLog {
 
   @@index([lead_id, created_at])
   @@map("activity_logs")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMPAIGN — Marketing campaigns (sales + rentals CRM)
+// ═══════════════════════════════════════════════════════════
+model Campaign {
+  id              BigInt   @id @default(autoincrement())
+  agent_id        BigInt   @map("agent_id")
+  agent           Agent    @relation(fields: [agent_id], references: [id])
+  crm_type        String   @map("crm_type")        // "sales" | "rentals"
+  name            String
+  audience_type   String   @map("audience_type")    // "buyers" | "sellers" | "investors" | "landlords" | "tenants" | "prospects"
+  campaign_type   String   @map("campaign_type")    // "listing_alert" | "market_update" | "showing_summary" | "valuation" | "reactivation" | "renewal"
+  status          String   @default("draft")        // "draft" | "scheduled" | "sent" | "recurring"
+  frequency       String?                           // "daily" | "weekly" | "monthly" | "quarterly" | "biannual" | "one_time"
+  recipient_count Int      @default(0) @map("recipient_count")
+  sent_count      Int      @default(0) @map("sent_count")
+  open_count      Int      @default(0) @map("open_count")
+  click_count     Int      @default(0) @map("click_count")
+  response_count  Int      @default(0) @map("response_count")
+  last_run_at     DateTime? @map("last_run_at")
+  next_run_at     DateTime? @map("next_run_at")
+  template_id     String?  @map("template_id")
+  filters         Json?                             // audience filter criteria
+  created_at      DateTime @default(now()) @map("created_at")
+  updated_at      DateTime @updatedAt @map("updated_at")
+  recipients      CampaignRecipient[]
+
+  @@index([agent_id])
+  @@index([crm_type, status])
+  @@map("campaigns")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMPAIGN RECIPIENT — Links campaigns to leads
+// ═══════════════════════════════════════════════════════════
+model CampaignRecipient {
+  id          BigInt   @id @default(autoincrement())
+  campaign_id BigInt   @map("campaign_id")
+  campaign    Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  lead_id     BigInt   @map("lead_id")
+  lead        Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  sent_at     DateTime? @map("sent_at")
+  opened_at   DateTime? @map("opened_at")
+  clicked_at  DateTime? @map("clicked_at")
+  responded_at DateTime? @map("responded_at")
+
+  @@unique([campaign_id, lead_id])
+  @@index([lead_id])
+  @@map("campaign_recipients")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHOWING HISTORY — Per-lead showing records for viewed/did-not-rent
+// ═══════════════════════════════════════════════════════════
+model ShowingHistory {
+  id                   BigInt   @id @default(autoincrement())
+  lead_id              BigInt   @map("lead_id")
+  lead                 Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  listing_id           String?  @map("listing_id")
+  address              String
+  unit                 String?
+  showing_date         DateTime @map("showing_date")
+  price_at_time        Decimal? @db.Decimal(14,2) @map("price_at_time")
+  reaction             String?                      // "interested" | "neutral" | "not_interested"
+  what_caught_attention String? @map("what_caught_attention") @db.Text
+  why_not_rented       String?  @map("why_not_rented") // "fee_objection" | "price" | "location" | "building" | "timing" | "other"
+  notes                String?  @db.Text
+  rented               Boolean  @default(false)
+  created_at           DateTime @default(now()) @map("created_at")
+
+  @@index([lead_id, showing_date])
+  @@map("showing_history")
 }

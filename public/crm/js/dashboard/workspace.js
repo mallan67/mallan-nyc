@@ -63,9 +63,17 @@ var Workspace = (function () {
 
     var html = '<div class="space-y-0">';
 
-    // Back navigation
+    // Back navigation — route to correct CRM based on client type
+    var backRoute = '/sales/buyers';
+    var backLabel = 'All Clients';
+    var roles = cl.roles || [];
+    if (roles.indexOf('seller') !== -1) { backRoute = '/sales/sellers'; backLabel = 'Active Sellers'; }
+    else if (roles.indexOf('buyer') !== -1) { backRoute = '/sales/buyers'; backLabel = 'Active Buyers'; }
+    else if (roles.indexOf('landlord') !== -1) { backRoute = '/rentals/landlords'; backLabel = 'Landlords'; }
+    else if (roles.indexOf('renter') !== -1) { backRoute = '/rentals/tenants'; backLabel = 'Current Tenants'; }
+
     html += '<div class="flex items-center gap-2 mb-2">' +
-      '<button class="text-sm text-gray-500 hover:text-gray-700" onclick="Router.navigate(\'/ops/clients\')"><i class="fas fa-arrow-left mr-1"></i> All Clients</button>' +
+      '<button class="text-sm text-gray-500 hover:text-gray-700" onclick="Router.navigate(\'' + backRoute + '\')"><i class="fas fa-arrow-left mr-1"></i> ' + E(backLabel) + '</button>' +
     '</div>';
 
     // Header — shows both people side by side if couple
@@ -78,6 +86,8 @@ var Workspace = (function () {
             '<div class="flex items-center gap-2 mt-1">' +
               UI.roleBadge(type) +
               UI.stageBadge(cl.pipeline_stage || cl.stage || cl.status || 'new') +
+              (cl.is_investor ? '<span class="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded font-bold">Investor</span>' : '') +
+              (cl.entity_name ? '<span class="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">' + E(cl.entity_type || 'Entity') + '</span>' : '') +
               (hasSecondary ? '<span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">' + E(cl.secondary_relationship || 'partner') + '</span>' : '') +
             '</div>' +
           '</div>' +
@@ -115,13 +125,27 @@ var Workspace = (function () {
     // Tabs
     html += UI.tabs(CLIENT_TABS, _clientTab, 'Workspace.switchClientTab');
 
-    // Sticky action bar
+    // Sticky action bar — type-specific buttons
+    var actionBarExtra = '';
+    if (type === 'seller') {
+      actionBarExtra = '<button class="btn btn-sm btn-outline" onclick="Workspace._generateCMA()"><i class="fas fa-chart-bar"></i> <span class="hidden sm:inline">CMA</span></button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar"></i> <span class="hidden sm:inline">Open House</span></button>';
+    } else if (type === 'buyer') {
+      actionBarExtra = '<button class="btn btn-sm btn-outline" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar"></i> <span class="hidden sm:inline">Showing</span></button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._generateCMA()"><i class="fas fa-chart-bar"></i> <span class="hidden sm:inline">CMA</span></button>';
+    } else if (type === 'landlord') {
+      actionBarExtra = '<button class="btn btn-sm btn-outline" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar"></i> <span class="hidden sm:inline">Showing</span></button>' +
+        '<button class="btn btn-sm btn-outline" onclick="Workspace._generateCMA()"><i class="fas fa-chart-bar"></i> <span class="hidden sm:inline">Rental Comps</span></button>';
+    } else {
+      actionBarExtra = '<button class="btn btn-sm btn-outline" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar"></i> <span class="hidden sm:inline">Showing</span></button>';
+    }
+
     html += '<div class="workspace-action-bar">' +
       '<div class="action-group">' +
         '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">Send Listing</span></button>' +
         '<button class="btn btn-sm btn-outline" onclick="Workspace._quickAddNote()"><i class="fas fa-sticky-note"></i> <span class="hidden sm:inline">Note</span></button>' +
         '<button class="btn btn-sm btn-outline" onclick="Workspace._quickAddTask()"><i class="fas fa-tasks"></i> <span class="hidden sm:inline">Task</span></button>' +
-        '<button class="btn btn-sm btn-outline" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar"></i> <span class="hidden sm:inline">Showing</span></button>' +
+        actionBarExtra +
       '</div>' +
       '<div class="action-group">' +
         (cl.email ? '<a href="mailto:' + E(cl.email) + '" class="btn btn-sm btn-outline"><i class="fas fa-envelope"></i></a>' : '') +
@@ -520,12 +544,35 @@ var Workspace = (function () {
 
     // ── Summary Cards (4) — stage, activity, next task, type-specific ──
     var typeSpecificCard = '';
-    if (clientType === 'renter' && cl.lease_end_date) {
+    if (clientType === 'landlord') {
+      var feeLabels = { owner_pay: 'Owner-Pay', tenant_pay: 'Tenant-Pay', no_fee: 'No-Fee' };
+      var feeColors = { owner_pay: 'text-green-700', tenant_pay: 'text-yellow-700', no_fee: 'text-blue-700' };
+      var feeBg = { owner_pay: 'bg-green-50', tenant_pay: 'bg-yellow-50', no_fee: 'bg-blue-50' };
+      var feeVal = cl.fee_structure || 'owner_pay';
+      typeSpecificCard = '<div class="p-3 rounded-lg ' + (feeBg[feeVal] || 'bg-gray-50') + ' text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Fee Structure</p>' +
+        '<p class="text-lg font-bold ' + (feeColors[feeVal] || '') + '">' + E(feeLabels[feeVal] || feeVal) + '</p>' +
+      '</div>';
+    } else if (clientType === 'renter' && cl.lease_end_date) {
       var leaseDays = Math.floor((new Date(cl.lease_end_date).getTime() - Date.now()) / 86400000);
       var leaseColor = leaseDays <= 30 ? 'text-red-600' : leaseDays <= 90 ? 'text-amber-600' : 'text-green-600';
       typeSpecificCard = '<div class="p-3 rounded-lg bg-gray-50 text-center">' +
         '<p class="text-xs text-gray-500 mb-1">Lease Ends</p>' +
         '<p class="text-lg font-bold ' + leaseColor + '">' + leaseDays + 'd</p>' +
+      '</div>';
+    } else if (clientType === 'seller') {
+      var docsCollected = {};
+      try { docsCollected = cl.documents_collected ? (typeof cl.documents_collected === 'string' ? JSON.parse(cl.documents_collected) : cl.documents_collected) : {}; } catch (e) { /* */ }
+      var docCount = Object.values(docsCollected).filter(function (v) { return v === true; }).length;
+      typeSpecificCard = '<div class="p-3 rounded-lg bg-amber-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Docs Collected</p>' +
+        '<p class="text-lg font-bold text-amber-700">' + docCount + '/8</p>' +
+      '</div>';
+    } else if (clientType === 'buyer' && cl.is_investor) {
+      var invStrategy = { cash_flow: 'Cash Flow', appreciation: 'Appreciation', value_add: 'Value-Add', '1031_exchange': '1031' };
+      typeSpecificCard = '<div class="p-3 rounded-lg bg-amber-50 text-center">' +
+        '<p class="text-xs text-gray-500 mb-1">Strategy</p>' +
+        '<p class="text-lg font-bold text-amber-700">' + E(invStrategy[cl.investment_strategy] || 'TBD') + '</p>' +
       '</div>';
     } else if (clientType === 'buyer' && cl.pre_approved_amount) {
       typeSpecificCard = '<div class="p-3 rounded-lg bg-green-50 text-center">' +
@@ -741,6 +788,26 @@ var Workspace = (function () {
           '</div>' +
         '</div>';
       }
+    }
+
+    // ── SELLER-SPECIFIC SECTIONS (entity, attorney, intake, disclosures, docs, marketing, net proceeds) ──
+    if (clientType === 'seller' && typeof SellerWorkspace !== 'undefined') {
+      html += '<div class="space-y-4">' + SellerWorkspace.renderSellerSections(cl) + '</div>';
+    }
+
+    // ── BUYER/INVESTOR-SPECIFIC SECTIONS (conviction, buyer rep, investor intake, 1031, tools) ──
+    if (clientType === 'buyer' && typeof BuyerWorkspace !== 'undefined') {
+      html += '<div class="space-y-4">' + BuyerWorkspace.renderBuyerSections(cl) + '</div>';
+    }
+
+    // ── LANDLORD-SPECIFIC SECTIONS (disclosures, lease terms, fee structure, vacancy calc, relist timing) ──
+    if (clientType === 'landlord' && typeof LandlordWorkspace !== 'undefined') {
+      html += '<div class="space-y-4">' + LandlordWorkspace.renderLandlordSections(cl) + '</div>';
+    }
+
+    // ── RENTER-SPECIFIC SECTIONS (renewal, buyer conversion, outreach, showing history, docs, drip) ──
+    if (clientType === 'renter' && typeof TenantWorkspace !== 'undefined') {
+      html += '<div class="space-y-4">' + TenantWorkspace.renderRenterSections(cl) + '</div>';
     }
 
     // ── 3-column card row: Contact, Financial, Preferences ──
@@ -3775,7 +3842,7 @@ var Workspace = (function () {
       _loadListingSecondary();
     }).catch(function (err) {
       c.innerHTML = UI.emptyState('fa-exclamation-circle', 'Could not load listing: ' + (err.message || 'Unknown error'),
-        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/ops/listings\')">Back to Listings</button>');
+        '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/sales/listings\')">Back to Listings</button>');
     });
   }
 
@@ -4163,6 +4230,11 @@ var Workspace = (function () {
     if (l.PublicRemarks || l.description) {
       html += '<div><h3 class="text-sm font-bold text-gray-700 mb-2">Description</h3>' +
         '<p class="text-sm text-gray-600">' + E(l.PublicRemarks || l.description) + '</p></div>';
+    }
+
+    // Listing workspace extensions (marketing, behavioral, seller connection)
+    if (typeof ListingWorkspaceExt !== 'undefined') {
+      html += ListingWorkspaceExt.renderListingOverviewExtra(l, _listingId);
     }
 
     html += '</div>';
@@ -5160,7 +5232,7 @@ var Workspace = (function () {
     }
 
     html += visibilityRow('IDX Display', idxDisplay);
-    html += visibilityRow('VOW Display', vowDisplay);
+    html += visibilityRow('Internet Entire Listing Display', vowDisplay);
     html += visibilityRow('Internet Address Display', internetAddress);
     html += '</div></div>';
 
@@ -5264,6 +5336,10 @@ var Workspace = (function () {
 
   // ─── Public API ──────────────────────────────────────────────────────
   return {
+    // Client data accessors (for extension modules)
+    _getClientId: function () { return _clientId; },
+    _getClient: function () { return _client; },
+
     // Client Workspace
     openClient: openClient,
     switchClientTab: switchClientTab,

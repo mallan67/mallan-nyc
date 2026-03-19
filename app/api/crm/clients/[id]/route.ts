@@ -101,6 +101,63 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     home_address: lead.home_address,
     unit_number: lead.unit_number,
     legal_ownership_name: lead.legal_ownership_name,
+    // Attorney
+    attorney_name: lead.attorney_name,
+    attorney_email: lead.attorney_email,
+    attorney_phone: lead.attorney_phone,
+    attorney_firm: lead.attorney_firm,
+    // Entity ownership
+    entity_name: lead.entity_name,
+    entity_type: lead.entity_type,
+    authorized_signatories: lead.authorized_signatories,
+    // Seller intake
+    home_prep_checklist: lead.home_prep_checklist,
+    building_mgmt_requirements: lead.building_mgmt_requirements,
+    disclosures: lead.disclosures,
+    documents_collected: lead.documents_collected,
+    marketing_strategy: lead.marketing_strategy,
+    // Landlord intake
+    property_disclosures: lead.property_disclosures,
+    lease_terms: lead.lease_terms,
+    fee_structure: lead.fee_structure,
+    // Investor
+    is_investor: lead.is_investor,
+    investment_strategy: lead.investment_strategy,
+    cap_rate_target: lead.cap_rate_target?.toString() ?? null,
+    cash_on_cash_target: lead.cash_on_cash_target?.toString() ?? null,
+    holding_period_years: lead.holding_period_years,
+    // Seller/landlord
+    seller_potential: lead.seller_potential,
+    vacancy_risk: lead.vacancy_risk,
+    active_sale_listing_id: lead.active_sale_listing_id,
+    active_rental_listing_id: lead.active_rental_listing_id,
+    // Renter
+    no_fee_only: lead.no_fee_only,
+    guarantor_needed: lead.guarantor_needed,
+    building_type_pref: lead.building_type_pref,
+    docs_readiness: lead.docs_readiness,
+    buyer_potential: lead.buyer_potential,
+    // Automation
+    sales_drip_on: lead.sales_drip_on,
+    rental_drip_on: lead.rental_drip_on,
+    renewal_drip_on: lead.renewal_drip_on,
+    sales_drip_status: lead.sales_drip_status,
+    rental_drip_status: lead.rental_drip_status,
+    renewal_status: lead.renewal_status,
+    non_renewal_date: lead.non_renewal_date,
+    reengage_anchor_date: lead.reengage_anchor_date,
+    // Outreach dates
+    outreach_6mo_date: lead.outreach_6mo_date,
+    outreach_90d_date: lead.outreach_90d_date,
+    outreach_60d_date: lead.outreach_60d_date,
+    outreach_30d_date: lead.outreach_30d_date,
+    // Behavior tracking
+    last_login_at: lead.last_login_at,
+    login_count: lead.login_count,
+    last_viewed_listing_at: lead.last_viewed_listing_at,
+    // Buyer rep
+    buyer_rep_agreement: lead.buyer_rep_agreement,
+    buyer_rep_agreement_date: lead.buyer_rep_agreement_date,
     created_at: lead.created_at,
     updated_at: lead.updated_at,
     activity_logs: activityLogs.map((a) => ({
@@ -226,6 +283,61 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.unit_number !== undefined) update.unit_number = body.unit_number ? String(body.unit_number) : null;
   if (body.legal_ownership_name !== undefined) update.legal_ownership_name = body.legal_ownership_name ? String(body.legal_ownership_name) : null;
 
+  // Attorney fields
+  if (body.attorney_name !== undefined) update.attorney_name = body.attorney_name ? String(body.attorney_name) : null;
+  if (body.attorney_email !== undefined) update.attorney_email = body.attorney_email ? String(body.attorney_email) : null;
+  if (body.attorney_phone !== undefined) update.attorney_phone = body.attorney_phone ? String(body.attorney_phone) : null;
+  if (body.attorney_firm !== undefined) update.attorney_firm = body.attorney_firm ? String(body.attorney_firm) : null;
+
+  // Entity ownership fields
+  if (body.entity_name !== undefined) update.entity_name = body.entity_name ? String(body.entity_name) : null;
+  if (body.entity_type !== undefined) update.entity_type = body.entity_type ? String(body.entity_type) : null;
+  if (body.authorized_signatories !== undefined) update.authorized_signatories = body.authorized_signatories ?? null;
+
+  // Seller intake fields (JSON)
+  if (body.home_prep_checklist !== undefined) update.home_prep_checklist = body.home_prep_checklist ?? null;
+  if (body.building_mgmt_requirements !== undefined) update.building_mgmt_requirements = body.building_mgmt_requirements ?? null;
+  if (body.disclosures !== undefined) update.disclosures = body.disclosures ?? null;
+  if (body.documents_collected !== undefined) update.documents_collected = body.documents_collected ?? null;
+  if (body.marketing_strategy !== undefined) update.marketing_strategy = body.marketing_strategy ?? null;
+
+  // Landlord intake fields
+  if (body.property_disclosures !== undefined) update.property_disclosures = body.property_disclosures ?? null;
+  if (body.lease_terms !== undefined) update.lease_terms = body.lease_terms ?? null;
+  if (body.fee_structure !== undefined) update.fee_structure = body.fee_structure ? String(body.fee_structure) : null;
+
+  // Investor fields
+  if (body.is_investor !== undefined) update.is_investor = Boolean(body.is_investor);
+  if (body.investment_strategy !== undefined) update.investment_strategy = body.investment_strategy ? String(body.investment_strategy) : null;
+  if (body.cap_rate_target !== undefined) update.cap_rate_target = body.cap_rate_target ? parseFloat(String(body.cap_rate_target)) : null;
+  if (body.cash_on_cash_target !== undefined) update.cash_on_cash_target = body.cash_on_cash_target ? parseFloat(String(body.cash_on_cash_target)) : null;
+  if (body.holding_period_years !== undefined) update.holding_period_years = body.holding_period_years ? parseInt(String(body.holding_period_years)) : null;
+
+  // Seller/landlord potential
+  if (body.seller_potential !== undefined) update.seller_potential = body.seller_potential ? String(body.seller_potential) : null;
+  if (body.vacancy_risk !== undefined) update.vacancy_risk = body.vacancy_risk ? String(body.vacancy_risk) : null;
+
+  // Renter fields
+  if (body.no_fee_only !== undefined) update.no_fee_only = Boolean(body.no_fee_only);
+  if (body.guarantor_needed !== undefined) update.guarantor_needed = Boolean(body.guarantor_needed);
+  if (body.building_type_pref !== undefined) update.building_type_pref = body.building_type_pref ?? [];
+  if (body.docs_readiness !== undefined) update.docs_readiness = body.docs_readiness ?? null;
+
+  // Renewal / automation
+  if (body.renewal_status !== undefined) update.renewal_status = body.renewal_status ? String(body.renewal_status) : null;
+  if (body.non_renewal_date !== undefined) update.non_renewal_date = body.non_renewal_date ? new Date(String(body.non_renewal_date)) : null;
+  if (body.reengage_anchor_date !== undefined) update.reengage_anchor_date = body.reengage_anchor_date ? new Date(String(body.reengage_anchor_date)) : null;
+  if (body.sales_drip_on !== undefined) update.sales_drip_on = Boolean(body.sales_drip_on);
+  if (body.rental_drip_on !== undefined) update.rental_drip_on = Boolean(body.rental_drip_on);
+  if (body.renewal_drip_on !== undefined) update.renewal_drip_on = Boolean(body.renewal_drip_on);
+  if (body.buyer_potential !== undefined) update.buyer_potential = body.buyer_potential != null ? parseInt(String(body.buyer_potential)) : null;
+
+  // Outreach dates
+  if (body.outreach_6mo_date !== undefined) update.outreach_6mo_date = body.outreach_6mo_date ? new Date(String(body.outreach_6mo_date)) : null;
+  if (body.outreach_90d_date !== undefined) update.outreach_90d_date = body.outreach_90d_date ? new Date(String(body.outreach_90d_date)) : null;
+  if (body.outreach_60d_date !== undefined) update.outreach_60d_date = body.outreach_60d_date ? new Date(String(body.outreach_60d_date)) : null;
+  if (body.outreach_30d_date !== undefined) update.outreach_30d_date = body.outreach_30d_date ? new Date(String(body.outreach_30d_date)) : null;
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json(
       { error: "No valid fields to update" },
@@ -275,11 +387,25 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  // Delete related records first (preferences, actions, sessions)
-  await prisma.clientPreference.deleteMany({ where: { lead_id: lead.id } });
-  await prisma.clientListingAction.deleteMany({ where: { lead_id: lead.id } });
-  await prisma.session.deleteMany({ where: { user_id: lead.id, user_type: "lead" } });
-  await prisma.lead.delete({ where: { id: lead.id } });
+  // Cascade-delete all related records in a transaction
+  await prisma.$transaction([
+    prisma.clientPreference.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.clientListingAction.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.session.deleteMany({ where: { user_id: lead.id, user_type: "lead" } }),
+    prisma.activityLog.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.followUpTask.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.showingFeedback.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.showing.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.notification.deleteMany({ where: { recipient_id: lead.id, recipient_type: "lead" } }),
+    prisma.leadScore.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.convictionScore.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.savedSearch.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.comment.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.intentEvent.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.behavioralEvent.deleteMany({ where: { lead_id: lead.id } }),
+    prisma.familyMember.deleteMany({ where: { OR: [{ lead_id: lead.id }, { member_lead_id: lead.id }] } }),
+    prisma.lead.delete({ where: { id: lead.id } }),
+  ]);
 
   await logAuditEvent(
     "delete",

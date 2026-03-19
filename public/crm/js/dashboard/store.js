@@ -21,7 +21,7 @@ var Store = (function () {
   // F2. UI State
   var ui = {
     activeRoute: null,
-    sidebarExpandedGroups: { broker: true, ops: true, settings: false },
+    sidebarExpandedGroups: { broker: true, sales: true, rentals: true, ops: true, settings: false },
     sidebarOpen: false,          // mobile
     openModals: [],
     commandPaletteOpen: false,

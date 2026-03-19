@@ -101,18 +101,32 @@ var CRM = (function () {
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
 
-    // A2. Operations
+    // A2. Sales CRM (Seller / Buyer) — 7 subnav routes
+    Router.register('/sales/sellers',          function () { SalesCRM.activeSellers(); });
+    Router.register('/sales/buyers',           function () { SalesCRM.activeBuyers(); });
+    Router.register('/sales/landlord-sellers', function () { SalesCRM.landlordSellers(); });
+    Router.register('/sales/listings',         function () { SalesCRM.salesListings(); });
+    Router.register('/sales/marketing',        function () { SalesCRM.salesMarketing(); });
+    Router.register('/sales/activity',         function () { SalesCRM.salesActivity(); });
+    Router.register('/sales/automation',       function () { SalesCRM.salesAutomation(); });
+
+    // A3. Rentals CRM (Landlord / Tenant) — 7 subnav routes
+    Router.register('/rentals/landlords',      function () { RentalsCRM.landlords(); });
+    Router.register('/rentals/listings',       function () { RentalsCRM.rentalListings(); });
+    Router.register('/rentals/prospects',      function () { RentalsCRM.prospects(); });
+    Router.register('/rentals/tenants',        function () { RentalsCRM.currentTenants(); });
+    Router.register('/rentals/marketing',      function () { RentalsCRM.rentalsMarketing(); });
+    Router.register('/rentals/activity',       function () { RentalsCRM.rentalsActivity(); });
+    Router.register('/rentals/automation',     function () { RentalsCRM.rentalsAutomation(); });
+
+    // A4. Operations
     Router.register('/ops/dashboard',        function () { Panels.opsDashboard(); });
     Router.register('/ops/search',           function () { Panels.propertySearch(); });
     Router.register('/ops/listings',         function () { Panels.myListings(); });
-    Router.register('/ops/clients',          function () { Panels.myClients(); });
-    Router.register('/ops/pipeline',         function () { Panels.pipeline(); });
     Router.register('/ops/tasks',            function () { Panels.tasks(); });
-    Router.register('/ops/communications',   function () { Panels.communications(); });
     Router.register('/ops/deals',            function () { Panels.dealsCommissions(); });
     Router.register('/ops/revenue',          function () { Panels.personalRevenue(); });
     Router.register('/ops/market',           function () { Panels.marketActivity(); });
-    Router.register('/ops/leases',          function () { Panels.leaseTracking(); });
     Router.register('/ops/import',          function () { Panels.importFromEmail(); });
     Router.register('/ops/outlook',         function () { Panels.outlookScanner(); });
 
@@ -151,9 +165,9 @@ var CRM = (function () {
   var FAVORITES_KEY = 'mallan_crm_favorites';
   var DEFAULT_FAVORITES = [
     { route: '/broker/dashboard', label: 'Dashboard', icon: 'fa-chart-line' },
-    { route: '/broker/people/agents', label: 'Agent Roster', icon: 'fa-user-tie' },
-    { route: '/ops/clients', label: 'My Clients', icon: 'fa-users' },
-    { route: '/ops/listings', label: 'My Listings', icon: 'fa-building' },
+    { route: '/sales/sellers', label: 'Active Sellers', icon: 'fa-home' },
+    { route: '/sales/buyers', label: 'Active Buyers', icon: 'fa-user-tag' },
+    { route: '/rentals/landlords', label: 'Landlords', icon: 'fa-key' },
   ];
 
   function _getRecentWorkspaces() {
@@ -384,19 +398,37 @@ var CRM = (function () {
       ]);
     }
 
+    // SALES CRM (Seller / Buyer)
+    html += _sidebarGroup('SELLER / BUYER', 'sales', [
+      { route: '/sales/sellers', icon: 'fa-home', label: 'Active Sellers' },
+      { route: '/sales/buyers', icon: 'fa-user-tag', label: 'Active Buyers' },
+      { route: '/sales/landlord-sellers', icon: 'fa-exchange-alt', label: 'Landlord Sellers' },
+      { route: '/sales/listings', icon: 'fa-building', label: 'Listings' },
+      { route: '/sales/marketing', icon: 'fa-bullhorn', label: 'Marketing' },
+      { route: '/sales/activity', icon: 'fa-stream', label: 'Activity' },
+      { route: '/sales/automation', icon: 'fa-robot', label: 'Automation' },
+    ]);
+
+    // RENTALS CRM (Landlord / Tenant)
+    html += _sidebarGroup('LANDLORD / TENANT', 'rentals', [
+      { route: '/rentals/landlords', icon: 'fa-key', label: 'Landlords' },
+      { route: '/rentals/listings', icon: 'fa-building', label: 'Rental Listings' },
+      { route: '/rentals/prospects', icon: 'fa-eye-slash', label: 'Viewed / Did Not Rent' },
+      { route: '/rentals/tenants', icon: 'fa-user-check', label: 'Current Tenants' },
+      { route: '/rentals/marketing', icon: 'fa-bullhorn', label: 'Marketing' },
+      { route: '/rentals/activity', icon: 'fa-stream', label: 'Activity' },
+      { route: '/rentals/automation', icon: 'fa-robot', label: 'Automation' },
+    ]);
+
     // OPERATIONS (agent view; broker sees expanded/all)
     html += _sidebarGroup('OPERATIONS', 'ops', [
       { route: '/ops/dashboard', icon: 'fa-tachometer-alt', label: 'Dashboard' },
       { route: '/ops/search', icon: 'fa-search', label: 'Property Search' },
       { route: '/ops/listings', icon: 'fa-building', label: 'My Listings' },
-      { route: '/ops/clients', icon: 'fa-users', label: 'My Clients' },
-      { route: '/ops/pipeline', icon: 'fa-stream', label: 'Pipeline' },
       { route: '/ops/tasks', icon: 'fa-tasks', label: 'Tasks & Follow-ups' },
-      { route: '/ops/communications', icon: 'fa-envelope', label: 'Communications' },
       { route: '/ops/deals', icon: 'fa-handshake', label: 'Deals & Commissions' },
       { route: '/ops/revenue', icon: 'fa-chart-pie', label: 'Revenue' },
       { route: '/ops/market', icon: 'fa-chart-area', label: 'Market Activity' },
-      { route: '/ops/leases', icon: 'fa-calendar-alt', label: 'Lease Tracking' },
       { route: '/ops/import', icon: 'fa-file-import', label: 'Import Contacts' },
       { route: '/ops/outlook', icon: 'fa-envelope', label: 'Outlook Scanner' },
     ]);
@@ -1062,6 +1094,10 @@ var CRM = (function () {
     if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
     var data = {};
     new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    // Capture display values before mutating data for API
+    var clientDisplayName = data.name || ((data.first_name || '') + ' ' + (data.last_name || '')).trim() || 'Unknown';
+    var clientType = data.type || 'client';
+
     // Map type → roles/portal_role (Zod schema expects roles[], not type)
     if (data.type) {
       data.roles = [data.type];
@@ -1072,7 +1108,7 @@ var CRM = (function () {
 
     MallanAPI.clients.create(data).then(function (result) {
       closeModal();
-      Events.log('client_created', 'client', result.client ? result.client.id : null, { name: data.name, type: data.type });
+      Events.log('client_created', 'client', result.client ? result.client.id : null, { name: clientDisplayName, type: clientType });
       toast('Client created', 'success');
       Router.navigate('/ops/clients');
     }).catch(function (err) {
@@ -1814,6 +1850,19 @@ var CRM = (function () {
 window.addEventListener('unhandledrejection', function (event) {
   console.error('Unhandled promise rejection:', event.reason);
   event.preventDefault();
+});
+
+// ── Listen for postMessage from listing forms (auto-refresh on save) ──
+window.addEventListener('message', function (event) {
+  if (!event.data || typeof event.data !== 'object') return;
+  if (event.data.type === 'listing_saved') {
+    CRM.toast('Listing ' + (event.data.mode === 'create' ? 'created' : 'updated'), 'success');
+    // Refresh the current panel if it's a listings view
+    var current = Router.current ? Router.current() : '';
+    if (current.indexOf('listing') !== -1 || current.indexOf('dashboard') !== -1) {
+      Router.navigate(current); // Re-render current route
+    }
+  }
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────

@@ -116,13 +116,13 @@
 <!-- ═══ MOBILE BOTTOM NAV ═══ -->
 <nav id="mobileNav" class="mobile-nav">
     <button onclick="Router.navigate('/ops/dashboard')" class="mobile-nav-btn" data-route="/ops/dashboard">
-        <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+        <i class="fas fa-tachometer-alt"></i><span>Home</span>
     </button>
-    <button onclick="Router.navigate('/ops/search')" class="mobile-nav-btn" data-route="/ops/search">
-        <i class="fas fa-search"></i><span>Search</span>
+    <button onclick="Router.navigate('/sales/sellers')" class="mobile-nav-btn" data-route="/sales/sellers">
+        <i class="fas fa-home"></i><span>Sales</span>
     </button>
-    <button onclick="Router.navigate('/ops/clients')" class="mobile-nav-btn" data-route="/ops/clients">
-        <i class="fas fa-users"></i><span>Clients</span>
+    <button onclick="Router.navigate('/rentals/landlords')" class="mobile-nav-btn" data-route="/rentals/landlords">
+        <i class="fas fa-key"></i><span>Rentals</span>
     </button>
     <button onclick="Router.navigate('/ops/listings')" class="mobile-nav-btn" data-route="/ops/listings">
         <i class="fas fa-building"></i><span>Listings</span>
@@ -150,10 +150,22 @@
 <script src="/crm/js/dashboard/documents.js"></script>
 <!-- 4. UI layer (depends on Utils) -->
 <script src="/crm/js/dashboard/ui-components.js"></script>
-<!-- 5. App shell + views (depends on everything above) -->
+<!-- 5. Shared panel components (depends on UI + Utils) -->
+<script src="/crm/js/dashboard/panels/shared/filter-bar.js"></script>
+<script src="/crm/js/dashboard/panels/shared/activity-table.js"></script>
+<!-- 6. App shell + views (depends on everything above) -->
 <script src="/crm/js/dashboard/panels.js"></script>
 <script src="/crm/js/dashboard/workspace.js"></script>
 <script src="/crm/js/dashboard/portals.js"></script>
+<!-- 7. CRM panels (depend on Panels, Workspace, shared components) -->
+<script src="/crm/js/dashboard/panels/sales-crm/seller-workspace.js"></script>
+<script src="/crm/js/dashboard/panels/sales-crm/buyer-workspace.js"></script>
+<script src="/crm/js/dashboard/panels/sales-crm/listing-workspace.js"></script>
+<script src="/crm/js/dashboard/panels/sales-crm/index.js"></script>
+<script src="/crm/js/dashboard/panels/rentals-crm/landlord-workspace.js"></script>
+<script src="/crm/js/dashboard/panels/rentals-crm/tenant-workspace.js"></script>
+<script src="/crm/js/dashboard/panels/rentals-crm/index.js"></script>
+<!-- 8. App init (must be last) -->
 <script src="/crm/js/dashboard/app.js"></script>
 
 </body>
