@@ -320,12 +320,9 @@
                     if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
-                    } else if (typeof listings !== 'undefined' && listings.length > 0) {
-                        searchResultsState.filteredListings = listings.slice();
-                        searchResultsState.currentPage = 1;
-                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                        if (typeof updateResultsCount === 'function') updateResultsCount();
                     } else {
+                        // No saved search state — go back to search form
+                        // (don't dump all 500 unfiltered listings)
                         if (typeof _hideResultsSkeleton === 'function') _hideResultsSkeleton();
                         if (searchFormContainer) searchFormContainer.style.display = 'block';
                         if (searchResultsSection) searchResultsSection.style.display = 'none';
