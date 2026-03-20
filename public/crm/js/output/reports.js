@@ -2343,7 +2343,9 @@
             var reportListings;
             if (reportSel === 'selected' && reportState.selectedListingIds.length > 0) {
                 var selIds = reportState.selectedListingIds;
-                reportListings = allListings.filter(function(l) { return selIds.indexOf(l.id) > -1; });
+                reportListings = allListings.filter(function(l) {
+                    return selIds.indexOf(l.id) > -1 || selIds.indexOf(l.lid) > -1 || selIds.indexOf(String(l.id)) > -1;
+                });
             } else if (reportSel === 'picked') {
                 var flags = typeof listingFlags !== 'undefined' ? listingFlags : {};
                 reportListings = allListings.filter(function(l) { return flags[l.id] && flags[l.id].picked; });
@@ -2353,7 +2355,7 @@
             } else {
                 reportListings = allListings;
             }
-            if (reportListings.length === 0) reportListings = allListings;
+            if (reportListings.length === 0 && reportSel === 'all') reportListings = allListings;
             // IDX + Internet compliance filter — remove opted-out listings
             reportListings = reportListings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
             // Sort via reportState
