@@ -11181,17 +11181,18 @@ function toggleSection(header) {
             <!-- Listing Detail Full Page -->
             <div id="listingDetailPage" class="fixed inset-0 bg-white z-[60] hidden" style="overflow-y:auto;-webkit-overflow-scrolling:touch">
                 <!-- Sticky header bar -->
-                <div class="sticky top-0 bg-white border-b z-10 px-6 py-2 flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"><i class="fas fa-arrow-left text-xs"></i> Back</button>
-                        <span id="detailNavSep" class="text-gray-300">|</span>
-                        <button id="detailPrevBtn" onclick="detailPanelPrev()" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Previous listing"><i class="fas fa-chevron-left text-xs"></i></button>
-                        <span id="detailNavPosition" class="text-xs text-gray-400 font-medium"></span>
-                        <button id="detailNextBtn" onclick="detailPanelNext()" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Next listing"><i class="fas fa-chevron-right text-xs"></i></button>
-                        <span class="text-gray-200">|</span>
-                        <label id="detailSelectLabel" class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600 hover:text-blue-600">
-                            <input type="checkbox" id="detailSelectCheckbox" class="w-4 h-4 rounded" onchange="toggleDetailSelection()">
-                            <span class="text-xs font-medium">Select</span>
+                <div class="sticky top-0 bg-white border-b z-10 px-4 sm:px-6 py-2 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-2 sm:gap-3">
+                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-200"><i class="fas fa-arrow-left text-xs"></i> <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span></button>
+                        <span id="detailNavSep" class="text-gray-300 hidden sm:inline">|</span>
+                        <div id="detailNavGroup" class="flex items-center gap-1 bg-gray-50 rounded-lg border border-gray-200 px-1 py-0.5">
+                            <button id="detailPrevBtn" onclick="detailPanelPrev()" class="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white rounded text-gray-700 text-sm font-medium transition-colors" title="Previous listing (←)"><i class="fas fa-chevron-left text-xs"></i> <span class="hidden sm:inline">Prev</span></button>
+                            <span id="detailNavPosition" class="text-xs font-semibold text-gray-600 px-2 min-w-[50px] text-center"></span>
+                            <button id="detailNextBtn" onclick="detailPanelNext()" class="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white rounded text-gray-700 text-sm font-medium transition-colors" title="Next listing (→)"><span class="hidden sm:inline">Next</span> <i class="fas fa-chevron-right text-xs"></i></button>
+                        </div>
+                        <label id="detailSelectLabel" class="flex items-center gap-2 cursor-pointer ml-1 sm:ml-2 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                            <input type="checkbox" id="detailSelectCheckbox" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" onchange="toggleDetailSelection()">
+                            <span class="text-sm font-medium text-gray-700">Select</span>
                         </label>
                     </div>
                     <div id="detailHeaderRight" class="flex items-center gap-3">
@@ -29318,10 +29319,32 @@ function emailCurrentCalc() {
             document.getElementById('listingDetailPage').scrollTop = 0;
             document.body.style.overflow = 'hidden'; // Lock body scroll so overlay scrolls
 
-            // Update selection checkbox
+            // Ensure nav controls are visible (standalone mode may have hidden them)
+            var _navGroup = document.getElementById('detailNavGroup');
+            var _navSep = document.getElementById('detailNavSep');
+            var _prevBtn = document.getElementById('detailPrevBtn');
+            var _nextBtn = document.getElementById('detailNextBtn');
+            var _selLabel = document.getElementById('detailSelectLabel');
+            if (_navGroup) _navGroup.style.display = '';
+            if (_navSep) _navSep.style.display = '';
+            if (_prevBtn) _prevBtn.style.display = '';
+            if (_nextBtn) _nextBtn.style.display = '';
+            if (_selLabel) _selLabel.style.display = '';
+
+            // Update selection checkbox + label styling
             var detailCb = document.getElementById('detailSelectCheckbox');
+            var _isSelected = searchResultsState.selectedListings.includes(listingId);
             if (detailCb) {
-                detailCb.checked = searchResultsState.selectedListings.includes(listingId);
+                detailCb.checked = _isSelected;
+            }
+            if (_selLabel) {
+                if (_isSelected) {
+                    _selLabel.classList.add('border-blue-400', 'bg-blue-50');
+                    _selLabel.classList.remove('border-gray-200');
+                } else {
+                    _selLabel.classList.remove('border-blue-400', 'bg-blue-50');
+                    _selLabel.classList.add('border-gray-200');
+                }
             }
 
             // Update nav position (e.g., "3 / 89")
@@ -29689,6 +29712,23 @@ function emailCurrentCalc() {
         function toggleDetailSelection() {
             if (!_detailCurrentId) return;
             if (typeof toggleListingSelection === 'function') toggleListingSelection(_detailCurrentId);
+            // Sync checkbox visual with actual state
+            var cb = document.getElementById('detailSelectCheckbox');
+            if (cb) {
+                var isSelected = searchResultsState.selectedListings.includes(_detailCurrentId);
+                cb.checked = isSelected;
+                // Update label styling to show selection state
+                var lbl = document.getElementById('detailSelectLabel');
+                if (lbl) {
+                    if (isSelected) {
+                        lbl.classList.add('border-blue-400', 'bg-blue-50');
+                        lbl.classList.remove('border-gray-200');
+                    } else {
+                        lbl.classList.remove('border-blue-400', 'bg-blue-50');
+                        lbl.classList.add('border-gray-200');
+                    }
+                }
+            }
         }
 
         function detailPanelPrev() {
@@ -32331,18 +32371,18 @@ function emailCurrentCalc() {
                 }
 
                 function _setupStandaloneDetail() {
-                    // Adjust header for standalone mode
+                    // Adjust header for standalone mode — hide nav & select (no result set to navigate)
                     var backBtn = document.getElementById('detailBackBtn');
+                    var navGroup = document.getElementById('detailNavGroup');
                     var navSep = document.getElementById('detailNavSep');
-                    var prevBtn = document.getElementById('detailPrevBtn');
-                    var nextBtn = document.getElementById('detailNextBtn');
+                    var selLabel = document.getElementById('detailSelectLabel');
                     if (backBtn) {
                         backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
                         backBtn.onclick = function() { window.close(); };
                     }
+                    if (navGroup) navGroup.style.display = 'none';
                     if (navSep) navSep.style.display = 'none';
-                    if (prevBtn) prevBtn.style.display = 'none';
-                    if (nextBtn) nextBtn.style.display = 'none';
+                    if (selLabel) selLabel.style.display = 'none';
                 }
 
                 // Try immediately (data might already be loaded)
