@@ -28,4 +28,6 @@ const nextConfig = {
   // No headers() function needed — all headers set in middleware
 };
 
-module.exports = withSentryConfig(nextConfig);
+// Sentry wrapping temporarily disabled to diagnose React Error #300 (hydration hooks mismatch)
+// module.exports = withSentryConfig(nextConfig);
+module.exports = nextConfig;
