@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
@@ -33,8 +32,6 @@ import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlu
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
-import ListingViewTracker from '@/app/components/ListingViewTracker';
-import TrackListingView from '@/app/components/TrackListingView';
 import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 
 import { getAccessToken } from '@/lib/idx/auth';
@@ -880,10 +877,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
-      <ListingViewTracker />
-      <Suspense fallback={null}>
-        <TrackListingView listingId={listing.id} />
-      </Suspense>
       <RecentlyViewedTracker
         id={listing.id}
         slug={listing.slug}
