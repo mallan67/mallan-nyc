@@ -1,7 +1,7 @@
 // GET /api/idx/search
 // Direct passthrough search against Trestle/REBNY RLS (read-only).
 // Auth: agent or broker session cookie required.
-// Returns listings in CRM flat shape (same as _MOCK_LISTINGS_DATA).
+// Returns listings in CRM flat shape for the search UI.
 //
 // COMPLIANCE:
 // - Server-side only, no public caching

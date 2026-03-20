@@ -285,15 +285,25 @@
 
                 // Apply neighborhood resolution and defaults
                 serverListings.forEach(function(l) {
-                    if (!l.borough) l.borough = 'Manhattan';
-                    if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
-                    if (l.totalMonthly == null) l.totalMonthly = 0;
                     if (l.price == null) l.price = 0;
+                    if (l.totalMonthly == null) l.totalMonthly = 0;
+                    if (l.maintCC == null) l.maintCC = 0;
+                    if (l.reTaxes == null) l.reTaxes = 0;
                     if (l.beds == null) l.beds = 0;
                     if (l.baths == null) l.baths = 0;
+                    if (l.rooms == null) l.rooms = 0;
+                    if (l.dom == null) l.dom = 0;
+                    if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
                     if (!l.status) l.status = 'ACTIVE';
                     if (!l.address) l.address = 'Address Unavailable';
+                    if (!l.unit) l.unit = '';
+                    if (!l.neighborhood) l.neighborhood = '';
+                    if (!l.zip) l.zip = '';
+                    if (!l.borough) l.borough = 'Manhattan';
+                    if (!l.listedDate) l.listedDate = '--';
+                    if (!l.company) l.company = '';
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
+                    if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
                 });
 
                 // Merge server results into listings (preserving existing data with photos)

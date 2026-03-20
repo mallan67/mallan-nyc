@@ -36,6 +36,22 @@
             try {
             var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
+            // Null-safe defaults for detail view rendering
+            if (listing.price == null) listing.price = 0;
+            if (listing.totalMonthly == null) listing.totalMonthly = 0;
+            if (listing.maintCC == null) listing.maintCC = 0;
+            if (listing.reTaxes == null) listing.reTaxes = 0;
+            if (listing.beds == null) listing.beds = 0;
+            if (listing.baths == null) listing.baths = 0;
+            if (listing.rooms == null) listing.rooms = 0;
+            if (listing.dom == null) listing.dom = 0;
+            if (!listing.status) listing.status = 'ACTIVE';
+            if (!listing.address) listing.address = 'Address Unavailable';
+            if (!listing.unit) listing.unit = '';
+            if (!listing.neighborhood) listing.neighborhood = '';
+            if (!listing.zip) listing.zip = '';
+            if (!listing.listedDate) listing.listedDate = '--';
+            if (!listing.company) listing.company = '';
             _detailCurrentId = listingId;
             _detailPhotoIdx = 0;
             _detailActiveTab = 'overview';

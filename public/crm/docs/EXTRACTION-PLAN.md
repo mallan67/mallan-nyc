@@ -110,7 +110,7 @@ Extract into 9 groups following the load order.
 | `js/core/agent-context.js` | 12093–12120 | `LOGGED_IN_AGENT`, `AGENT_PROFILE` |
 | `js/core/nav.js` | 12121–12145 | `showSearchSection()` |
 | `js/core/reso-field-map.js` | ~21252–21345 | `RESO_FIELD_MAP`, `resoData()`, `resoAttr()` |
-| `js/core/mock-data.js` | ~21346+ | `mockListings[]`, `searchResultsState`, `reportState`, `customerDB{}` |
+| `js/core/data-loader.js` | ~21346+ | `listings[]`, `searchResultsState`, `reportState`, `_replaceListings()` |
 
 ### Group 2: Compliance
 | File | Content |

@@ -100,8 +100,9 @@
                             </div>
                         </div>
                     </div>
+                    ${listing.listingCategory === 'rental' ? '<div class="px-5 py-1 border-t border-gray-50">' + fareActDisclosure(listing) + '</div>' : ''}
                     <!-- Attribution footer -->
-                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
+                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')}</div>
                 </div>
             `}).join('');
         }

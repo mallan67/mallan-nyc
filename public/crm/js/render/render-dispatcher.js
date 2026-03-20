@@ -122,6 +122,14 @@
                     if (l.internetDisplayYN === false) return false;
                 }
                 // CRM: no Gate 3 filtering
+                // Gate 6: Closed >24h — suppress (UCBA Art. I Sec. 6-7)
+                if (l.status === 'CLOSED') {
+                    var closedTs = l.updatedDate ? new Date(l.updatedDate) : null;
+                    if (closedTs && !isNaN(closedTs.getTime())) {
+                        var hoursSinceClosed = (Date.now() - closedTs.getTime()) / (1000 * 60 * 60);
+                        if (hoursSinceClosed > 24) return false;
+                    }
+                }
                 return true;
             });
             // Apply status flag filters (picked, liked, shown, etc.)

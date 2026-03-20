@@ -347,8 +347,29 @@
         function _replaceListings(newData, source) {
             listings.length = 0;
             newData.forEach(function(l) { listings.push(l); });
-            // Apply borough defaults + neighborhood resolution
-            listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+            // Ensure all fields used by renderers have safe defaults
+            listings.forEach(function(l) {
+                if (l.price == null) l.price = 0;
+                if (l.totalMonthly == null) l.totalMonthly = 0;
+                if (l.maintCC == null) l.maintCC = 0;
+                if (l.reTaxes == null) l.reTaxes = 0;
+                if (l.beds == null) l.beds = 0;
+                if (l.baths == null) l.baths = 0;
+                if (l.rooms == null) l.rooms = 0;
+                if (l.dom == null) l.dom = 0;
+                if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
+                if (!l.status) l.status = 'ACTIVE';
+                if (!l.address) l.address = 'Address Unavailable';
+                if (!l.unit) l.unit = '';
+                if (!l.neighborhood) l.neighborhood = '';
+                if (!l.zip) l.zip = '';
+                if (!l.borough) l.borough = 'Manhattan';
+                if (!l.listedDate) l.listedDate = '--';
+                if (!l.company) l.company = '';
+                if (!l.permissions) {
+                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                }
+            });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);
             // Dispatch event so other modules (e.g. hash routing) know data is ready
@@ -424,4 +445,4 @@
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // COMPREHENSIVE FIELD DICTIONARIES FOR REPORTS - ALL REBNY RLS FIELDS
-        // These dictionaries contain ALL fields present in the mockup forms
+        // These dictionaries contain ALL fields present in the listing forms

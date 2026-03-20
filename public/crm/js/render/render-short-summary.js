@@ -2,7 +2,7 @@
             var container = document.getElementById('shortSummaryResults');
             container.innerHTML = getFilteredListings().map(listing => {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
-                var displayUnit = listing.addressDisplayYN === false ? '' : ', ' + escapeHtml(listing.unit);
+                var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
                 <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}')">
@@ -85,7 +85,7 @@
                     </div>
                     ${isComingSoon(listing) ? '<div class="px-3 py-1 border-t border-gray-50">' + comingSoonShowingNotice(listing) + '</div>' : ''}
                     ${listing.listingCategory === 'rental' ? '<div class="px-3 py-1 border-t border-gray-50">' + fareActDisclosure(listing) + '</div>' : ''}
-                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
+                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')}</div>
                 </div>
             `}).join('');
         }

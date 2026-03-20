@@ -9889,25 +9889,25 @@ function toggleSection(header) {
                                 <span class="hidden sm:inline">Back</span>
                             </button>
                             <div class="w-px h-5 bg-gray-600 hidden sm:block"></div>
-                            <button onclick="jumpToSearch('sale','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition" id="stickyNavSaleBasic">
+                            <button onclick="jumpToSearch('sale','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition" id="stickyNavSaleBasic">
                                 <i class="fas fa-home mr-1 text-[10px]"></i>Sales
                             </button>
-                            <button onclick="jumpToSearch('sale','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition hidden sm:inline-flex" id="stickyNavSaleAdv">
+                            <button onclick="jumpToSearch('sale','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition hidden sm:inline-flex" id="stickyNavSaleAdv">
                                 <i class="fas fa-sliders-h mr-1 text-[10px]"></i>Sales Adv
                             </button>
-                            <div class="w-px h-4 bg-gray-600"></div>
-                            <button onclick="jumpToSearch('rent','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition" id="stickyNavRentBasic">
+                            <div class="w-px h-4 bg-gray-500"></div>
+                            <button onclick="jumpToSearch('rent','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition" id="stickyNavRentBasic">
                                 <i class="fas fa-building mr-1 text-[10px]"></i>Rentals
                             </button>
-                            <button onclick="jumpToSearch('rent','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition hidden sm:inline-flex" id="stickyNavRentAdv">
+                            <button onclick="jumpToSearch('rent','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition hidden sm:inline-flex" id="stickyNavRentAdv">
                                 <i class="fas fa-sliders-h mr-1 text-[10px]"></i>Rentals Adv
                             </button>
-                            <div class="w-px h-4 bg-gray-600"></div>
-                            <button onclick="jumpToSearch('building','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition">
+                            <div class="w-px h-4 bg-gray-500"></div>
+                            <button onclick="jumpToSearch('building','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition">
                                 <i class="fas fa-city mr-1 text-[10px]"></i>Buildings
                             </button>
-                            <div class="w-px h-4 bg-gray-600"></div>
-                            <button onclick="jumpToComparables()" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-amber-400/80 hover:bg-amber-500/20 hover:text-amber-300 transition">
+                            <div class="w-px h-4 bg-gray-500"></div>
+                            <button onclick="jumpToComparables()" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 transition">
                                 <i class="fas fa-chart-bar mr-1 text-[10px]"></i>Comps
                             </button>
                         </div>
@@ -10256,6 +10256,53 @@ function toggleSection(header) {
                                         <option value="3">3 BA</option>
                                         <option value="4">4+ BA</option>
                                     </select>
+                                </div>
+                            </div>
+                            <!-- Sq Ft, Neighborhood, Property Type -->
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-100">
+                                <div>
+                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Min Sq Ft</label>
+                                    <select id="refineMinSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
+                                        <option value="">Any</option>
+                                        <option value="400">400+ sf</option>
+                                        <option value="600">600+ sf</option>
+                                        <option value="800">800+ sf</option>
+                                        <option value="1000">1,000+ sf</option>
+                                        <option value="1500">1,500+ sf</option>
+                                        <option value="2000">2,000+ sf</option>
+                                        <option value="3000">3,000+ sf</option>
+                                        <option value="5000">5,000+ sf</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Max Sq Ft</label>
+                                    <select id="refineMaxSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
+                                        <option value="">Any</option>
+                                        <option value="600">Up to 600 sf</option>
+                                        <option value="800">Up to 800 sf</option>
+                                        <option value="1000">Up to 1,000 sf</option>
+                                        <option value="1500">Up to 1,500 sf</option>
+                                        <option value="2000">Up to 2,000 sf</option>
+                                        <option value="3000">Up to 3,000 sf</option>
+                                        <option value="5000">Up to 5,000 sf</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Property Type</label>
+                                    <select id="refinePropertyType" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
+                                        <option value="">Any</option>
+                                        <option value="Condominium">Condo</option>
+                                        <option value="StockCooperative">Co-op</option>
+                                        <option value="Condop">Condop</option>
+                                        <option value="Townhouse">Townhouse</option>
+                                        <option value="MultiFamily">Multi-Family</option>
+                                        <option value="SingleFamily">Single Family</option>
+                                        <option value="Land">Land</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Neighborhood</label>
+                                    <input type="text" id="refineNeighborhood" placeholder="e.g. Upper East Side" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all placeholder:text-gray-400">
                                 </div>
                             </div>
                             <!-- Status quick-toggles -->
@@ -16421,15 +16468,25 @@ function manageShowToast(msg) {
 
                 // Apply neighborhood resolution and defaults
                 serverListings.forEach(function(l) {
-                    if (!l.borough) l.borough = 'Manhattan';
-                    if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
-                    if (l.totalMonthly == null) l.totalMonthly = 0;
                     if (l.price == null) l.price = 0;
+                    if (l.totalMonthly == null) l.totalMonthly = 0;
+                    if (l.maintCC == null) l.maintCC = 0;
+                    if (l.reTaxes == null) l.reTaxes = 0;
                     if (l.beds == null) l.beds = 0;
                     if (l.baths == null) l.baths = 0;
+                    if (l.rooms == null) l.rooms = 0;
+                    if (l.dom == null) l.dom = 0;
+                    if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
                     if (!l.status) l.status = 'ACTIVE';
                     if (!l.address) l.address = 'Address Unavailable';
+                    if (!l.unit) l.unit = '';
+                    if (!l.neighborhood) l.neighborhood = '';
+                    if (!l.zip) l.zip = '';
+                    if (!l.borough) l.borough = 'Manhattan';
+                    if (!l.listedDate) l.listedDate = '--';
+                    if (!l.company) l.company = '';
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
+                    if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
                 });
 
                 // Merge server results into listings (preserving existing data with photos)
@@ -17537,6 +17594,30 @@ function manageShowToast(msg) {
             var baMax = document.getElementById('refineMaxBaths');
             if (baMin && baMin.value !== '') c.bathsMin = parseFloat(baMin.value); else delete c.bathsMin;
             if (baMax && baMax.value !== '') c.bathsMax = parseFloat(baMax.value); else delete c.bathsMax;
+
+            // Sq Ft
+            var sqMin = document.getElementById('refineMinSqft');
+            var sqMax = document.getElementById('refineMaxSqft');
+            if (sqMin && sqMin.value) c.sqftMin = parseInt(sqMin.value); else delete c.sqftMin;
+            if (sqMax && sqMax.value) c.sqftMax = parseInt(sqMax.value); else delete c.sqftMax;
+
+            // Property Type (CommonInterest)
+            var propType = document.getElementById('refinePropertyType');
+            if (propType && propType.value) {
+                c.ownership = [propType.value === 'Townhouse' || propType.value === 'MultiFamily' || propType.value === 'SingleFamily' || propType.value === 'Land' ? propType.value : propType.value];
+                c.propertySubType = propType.value;
+            } else {
+                delete c.ownership;
+                delete c.propertySubType;
+            }
+
+            // Neighborhood
+            var nhood = document.getElementById('refineNeighborhood');
+            if (nhood && nhood.value.trim()) {
+                c.neighborhoods = [nhood.value.trim()];
+            } else {
+                delete c.neighborhoods;
+            }
 
             // Statuses
             var statuses = [];
@@ -18979,7 +19060,7 @@ function manageShowToast(msg) {
 
 </script>
 <script>
-// ═══ js/core/mock-data.js ═══
+// ═══ js/core/data-loader.js ═══
         // Stub: customerDB removed with client section
         var customerDB = {};
         var currentWorkspaceClientId = null;
@@ -19329,8 +19410,29 @@ function manageShowToast(msg) {
         function _replaceListings(newData, source) {
             listings.length = 0;
             newData.forEach(function(l) { listings.push(l); });
-            // Apply borough defaults + neighborhood resolution
-            listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+            // Ensure all fields used by renderers have safe defaults
+            listings.forEach(function(l) {
+                if (l.price == null) l.price = 0;
+                if (l.totalMonthly == null) l.totalMonthly = 0;
+                if (l.maintCC == null) l.maintCC = 0;
+                if (l.reTaxes == null) l.reTaxes = 0;
+                if (l.beds == null) l.beds = 0;
+                if (l.baths == null) l.baths = 0;
+                if (l.rooms == null) l.rooms = 0;
+                if (l.dom == null) l.dom = 0;
+                if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
+                if (!l.status) l.status = 'ACTIVE';
+                if (!l.address) l.address = 'Address Unavailable';
+                if (!l.unit) l.unit = '';
+                if (!l.neighborhood) l.neighborhood = '';
+                if (!l.zip) l.zip = '';
+                if (!l.borough) l.borough = 'Manhattan';
+                if (!l.listedDate) l.listedDate = '--';
+                if (!l.company) l.company = '';
+                if (!l.permissions) {
+                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                }
+            });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);
             // Dispatch event so other modules (e.g. hash routing) know data is ready
@@ -19406,7 +19508,7 @@ function manageShowToast(msg) {
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // COMPREHENSIVE FIELD DICTIONARIES FOR REPORTS - ALL REBNY RLS FIELDS
-        // These dictionaries contain ALL fields present in the mockup forms
+        // These dictionaries contain ALL fields present in the listing forms
 
 </script>
 <script>
@@ -20382,6 +20484,14 @@ function parseBudgetValue(td) {
                     if (l.internetDisplayYN === false) return false;
                 }
                 // CRM: no Gate 3 filtering
+                // Gate 6: Closed >24h — suppress (UCBA Art. I Sec. 6-7)
+                if (l.status === 'CLOSED') {
+                    var closedTs = l.updatedDate ? new Date(l.updatedDate) : null;
+                    if (closedTs && !isNaN(closedTs.getTime())) {
+                        var hoursSinceClosed = (Date.now() - closedTs.getTime()) / (1000 * 60 * 60);
+                        if (hoursSinceClosed > 24) return false;
+                    }
+                }
                 return true;
             });
             // Apply status flag filters (picked, liked, shown, etc.)
@@ -20949,6 +21059,7 @@ function parseBudgetValue(td) {
                             </div>
                             <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
                         </div>
+                        ${listing.listingCategory === 'rental' ? fareActDisclosure(listing) : ''}
                         <!-- Attribution -->
                         <p class="text-[10px] text-gray-300 mt-2 font-light" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')}</p>
                     </div>
@@ -20964,7 +21075,7 @@ function parseBudgetValue(td) {
             var container = document.getElementById('shortSummaryResults');
             container.innerHTML = getFilteredListings().map(listing => {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
-                var displayUnit = listing.addressDisplayYN === false ? '' : ', ' + escapeHtml(listing.unit);
+                var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
                 <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab(${listing.id})">
@@ -21047,7 +21158,7 @@ function parseBudgetValue(td) {
                     </div>
                     ${isComingSoon(listing) ? '<div class="px-3 py-1 border-t border-gray-50">' + comingSoonShowingNotice(listing) + '</div>' : ''}
                     ${listing.listingCategory === 'rental' ? '<div class="px-3 py-1 border-t border-gray-50">' + fareActDisclosure(listing) + '</div>' : ''}
-                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
+                    <div class="px-3 py-0.5 text-[8px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')}</div>
                 </div>
             `}).join('');
         }
@@ -21158,8 +21269,9 @@ function parseBudgetValue(td) {
                             </div>
                         </div>
                     </div>
+                    ${listing.listingCategory === 'rental' ? '<div class="px-5 py-1 border-t border-gray-50">' + fareActDisclosure(listing) + '</div>' : ''}
                     <!-- Attribution footer -->
-                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} ${listing.agentPhone ? '&middot; ' + escapeHtml(listing.agentPhone) : ''}</div>
+                    <div class="px-5 py-1.5 text-[9px] text-gray-300 border-t border-gray-50" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')}</div>
                 </div>
             `}).join('');
         }
@@ -21191,7 +21303,7 @@ function parseBudgetValue(td) {
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-1">
-                            <h4 class="font-bold text-xs truncate">${displayAddress}, ${listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : ''}</h4>
+                            <h4 class="font-bold text-xs truncate">${displayAddress}${listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
                             <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
                         </div>
@@ -21382,7 +21494,7 @@ function parseBudgetValue(td) {
 
                 <!-- Compliance -->
                 ${fareActDisclosure(listing)}
-                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed</div>
+                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; Information deemed reliable but not guaranteed</div>
             `;
         }
 
@@ -21439,7 +21551,6 @@ function parseBudgetValue(td) {
             if (_photoBatchQueue.length > 0) _scheduleBatchFetch();
 
             var idsParam = batch.join(',');
-            if (typeof MallanAPI === 'undefined') return;
 
             fetch('/api/media/batch?ids=' + encodeURIComponent(idsParam), {
                 credentials: 'same-origin'
@@ -21470,15 +21581,23 @@ function parseBudgetValue(td) {
             // Find all img elements inside cards for this listing
             var cards = document.querySelectorAll('[data-listing-lid="' + listingId + '"] .cm-photo, [data-listing-lid="' + listingId + '"] .cm-photo-wrap img');
             cards.forEach(function(img) {
-                if (img.tagName === 'IMG' && img.src && img.src.indexOf('data:image/svg') !== -1) {
-                    img.src = photoUrl;
-                    img.style.display = '';
+                if (img.tagName === 'IMG') {
+                    var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
+                    var isHidden = img.style.display === 'none';
+                    var isEmpty = !img.src || img.src === '' || img.src === window.location.href;
+                    if (isSvg || isHidden || isEmpty) {
+                        img.src = photoUrl;
+                        img.style.display = '';
+                    }
                 }
             });
             // Also try by data-photo-lid attribute (set by renderers)
             var imgs = document.querySelectorAll('img[data-photo-lid="' + listingId + '"]');
             imgs.forEach(function(img) {
-                if (img.src && img.src.indexOf('data:image/svg') !== -1) {
+                var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
+                var isHidden = img.style.display === 'none';
+                var isEmpty = !img.src || img.src === '' || img.src === window.location.href;
+                if (isSvg || isHidden || isEmpty) {
                     img.src = photoUrl;
                     img.style.display = '';
                 }
@@ -27668,6 +27787,22 @@ function emailCurrentCalc() {
             try {
             var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
+            // Null-safe defaults for detail view rendering
+            if (listing.price == null) listing.price = 0;
+            if (listing.totalMonthly == null) listing.totalMonthly = 0;
+            if (listing.maintCC == null) listing.maintCC = 0;
+            if (listing.reTaxes == null) listing.reTaxes = 0;
+            if (listing.beds == null) listing.beds = 0;
+            if (listing.baths == null) listing.baths = 0;
+            if (listing.rooms == null) listing.rooms = 0;
+            if (listing.dom == null) listing.dom = 0;
+            if (!listing.status) listing.status = 'ACTIVE';
+            if (!listing.address) listing.address = 'Address Unavailable';
+            if (!listing.unit) listing.unit = '';
+            if (!listing.neighborhood) listing.neighborhood = '';
+            if (!listing.zip) listing.zip = '';
+            if (!listing.listedDate) listing.listedDate = '--';
+            if (!listing.company) listing.company = '';
             _detailCurrentId = listingId;
             _detailPhotoIdx = 0;
             _detailActiveTab = 'overview';
@@ -28633,7 +28768,7 @@ function emailCurrentCalc() {
                 </div>
 
                 <!-- Attribution footer -->
-                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
+                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
             `;
 
             // Populate similar listings (neighborhood + nearby)
@@ -30894,12 +31029,7 @@ function emailCurrentCalc() {
                 MallanAPI.idx.search(params).then(function(result) {
                     _serverSearchActive = false;
                     if (result.listings && result.listings.length > 0) {
-                        listings.length = 0;
-                        result.listings.forEach(function(l) { listings.push(l); });
-                        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
-                        if (typeof resolveNeighborhoodCanonical === 'function') {
-                            listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
-                        }
+                        _replaceListings(result.listings, 'IDX/Trestle (re-sort)');
                         // Re-filter and render
                         var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
                         searchResultsState.filteredListings = typeof filterListings === 'function'
@@ -31707,7 +31837,7 @@ function emailCurrentCalc() {
                         // Legacy sequential ID — we need to wait for bulk data
                         // But also trigger the bulk load if it hasn't started
                         MallanAPI.onReady(function() {
-                            // Bulk load will be triggered by mock-data.js MallanAPI.onReady
+                            // Bulk load will be triggered by data-loader.js MallanAPI.onReady
                             // Just wait for mallan:data:ready event (Path 1)
                         });
                     }

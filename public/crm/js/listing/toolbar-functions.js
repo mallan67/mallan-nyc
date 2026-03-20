@@ -88,12 +88,7 @@
                 MallanAPI.idx.search(params).then(function(result) {
                     _serverSearchActive = false;
                     if (result.listings && result.listings.length > 0) {
-                        listings.length = 0;
-                        result.listings.forEach(function(l) { listings.push(l); });
-                        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
-                        if (typeof resolveNeighborhoodCanonical === 'function') {
-                            listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
-                        }
+                        _replaceListings(result.listings, 'IDX/Trestle (re-sort)');
                         // Re-filter and render
                         var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
                         searchResultsState.filteredListings = typeof filterListings === 'function'

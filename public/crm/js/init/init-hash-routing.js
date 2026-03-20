@@ -154,7 +154,7 @@
                         // Legacy sequential ID — we need to wait for bulk data
                         // But also trigger the bulk load if it hasn't started
                         MallanAPI.onReady(function() {
-                            // Bulk load will be triggered by mock-data.js MallanAPI.onReady
+                            // Bulk load will be triggered by data-loader.js MallanAPI.onReady
                             // Just wait for mallan:data:ready event (Path 1)
                         });
                     }

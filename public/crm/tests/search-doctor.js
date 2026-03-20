@@ -651,7 +651,7 @@ var SearchDoctor = (function() {
 
 
         // ═════════════════════════════════════════════════════════════════════
-        // MOCK DATA INTEGRITY (DI-01 to DI-03)
+        // DATA INTEGRITY (DI-01 to DI-03)
         // ═════════════════════════════════════════════════════════════════════
 
         // DI-01: IDX + Internet display flags present on all listings

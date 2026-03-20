@@ -21,7 +21,7 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-1">
-                            <h4 class="font-bold text-xs truncate">${displayAddress}, ${listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : ''}</h4>
+                            <h4 class="font-bold text-xs truncate">${displayAddress}${listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
                             <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
                         </div>
@@ -212,7 +212,7 @@
 
                 <!-- Compliance -->
                 ${fareActDisclosure(listing)}
-                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed</div>
+                <div class="text-[9px] text-gray-300 border-t pt-1.5 mt-2" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; Information deemed reliable but not guaranteed</div>
             `;
         }
 
