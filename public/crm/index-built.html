@@ -2517,6 +2517,9 @@ button[id^="filterBtn_"][aria-pressed="true"] {
 #listingDetailPage {
   background: white !important;
   overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  height: 100% !important;
 }
 
 /* Detail photo grid */
@@ -11121,7 +11124,7 @@ function toggleSection(header) {
             <!-- [MODALS REMOVED — see html/modals/ for: client-delivery, grid-layouts, reports, add-edit-client, save-search, report-preview, client-feedback, client-report-view, filter] -->
 
             <!-- Listing Detail Full Page -->
-            <div id="listingDetailPage" class="fixed inset-0 bg-white z-[60] overflow-y-auto hidden">
+            <div id="listingDetailPage" class="fixed inset-0 bg-white z-[60] hidden" style="overflow-y:auto;-webkit-overflow-scrolling:touch">
                 <!-- Sticky header bar -->
                 <div class="sticky top-0 bg-white border-b z-10 px-6 py-2 flex items-center justify-between shadow-sm">
                     <div class="flex items-center gap-3">
