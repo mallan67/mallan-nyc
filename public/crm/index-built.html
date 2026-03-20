@@ -29319,12 +29319,18 @@ function emailCurrentCalc() {
             document.getElementById('listingDetailPage').scrollTop = 0;
             document.body.style.overflow = 'hidden'; // Lock body scroll so overlay scrolls
 
-            // Ensure nav controls are visible (standalone mode may have hidden them)
+            // Reset header controls (standalone mode may have changed/hidden them)
+            var _backBtn = document.getElementById('detailBackBtn');
             var _navGroup = document.getElementById('detailNavGroup');
             var _navSep = document.getElementById('detailNavSep');
             var _prevBtn = document.getElementById('detailPrevBtn');
             var _nextBtn = document.getElementById('detailNextBtn');
             var _selLabel = document.getElementById('detailSelectLabel');
+            // Restore Back button (standalone mode changes it to "× Close")
+            if (_backBtn) {
+                _backBtn.innerHTML = '<i class="fas fa-arrow-left text-xs"></i> <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span>';
+                _backBtn.onclick = function() { closeListingDetail(); };
+            }
             if (_navGroup) _navGroup.style.display = '';
             if (_navSep) _navSep.style.display = '';
             if (_prevBtn) _prevBtn.style.display = '';
@@ -32363,7 +32369,14 @@ function emailCurrentCalc() {
                         }
                         if (listing) {
                             showListingDetail(listing.id);
-                            _setupStandaloneDetail();
+                            // If there are filtered results (user came from search), keep nav controls.
+                            // Only hide nav in true standalone mode (no search session).
+                            var hasResults = typeof searchResultsState !== 'undefined'
+                                && searchResultsState.filteredListings
+                                && searchResultsState.filteredListings.length > 1;
+                            if (!hasResults) {
+                                _setupStandaloneDetail();
+                            }
                             return true;
                         }
                     }
@@ -32429,7 +32442,13 @@ function emailCurrentCalc() {
                                     }
                                     _markResolved();
                                     showListingDetail(fetched.id);
-                                    _setupStandaloneDetail();
+                                    // Only go standalone if no search results to navigate
+                                    var hasResults2 = typeof searchResultsState !== 'undefined'
+                                        && searchResultsState.filteredListings
+                                        && searchResultsState.filteredListings.length > 1;
+                                    if (!hasResults2) {
+                                        _setupStandaloneDetail();
+                                    }
                                 }
                             }).catch(function() { /* let other paths handle it */ });
                         });
