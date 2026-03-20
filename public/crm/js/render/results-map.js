@@ -17,11 +17,21 @@
   var _markers = [];
   var _isOpen = false;
   var _popup = null;
+  var _centroids = null; // neighborhood → {lat, lng} fallback
 
   var STYLES = {
     positron: 'https://tiles.openfreemap.org/styles/positron',
     bright: 'https://tiles.openfreemap.org/styles/bright',
   };
+
+  // Load neighborhood centroids for listings without coordinates
+  (function loadCentroids() {
+    var base = window.location.pathname.replace(/\/[^/]*$/, '');
+    var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'rls-neighborhood-centroids.v1.json';
+    fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+      if (data) _centroids = data;
+    }).catch(function() {});
+  })();
 
   // ── Ensure MapLibre is loaded ──
   function ensureMapLibre(cb) {
@@ -40,12 +50,25 @@
   }
 
   // ── Build GeoJSON from current listings ──
+  // Uses listing lat/lng if available, falls back to neighborhood centroid
+  // with small random offset so pins don't stack on the exact same point.
   function buildGeoJSON(listings) {
     var features = [];
     for (var i = 0; i < listings.length; i++) {
       var l = listings[i];
       var lat = l.latitude || (l.geo && l.geo.lat);
       var lng = l.longitude || (l.geo && l.geo.lng);
+      var approx = false;
+      // Fallback: use neighborhood centroid if listing has no coordinates
+      if ((!lat || !lng) && _centroids && l.neighborhood) {
+        var centroid = _centroids[l.neighborhood] || _centroids[l.neighborhoodCanonical];
+        if (centroid) {
+          // Add small random offset (±0.002° ≈ 1 block) so pins don't stack
+          lat = centroid.lat + (Math.random() - 0.5) * 0.004;
+          lng = centroid.lng + (Math.random() - 0.5) * 0.004;
+          approx = true;
+        }
+      }
       if (!lat || !lng) continue;
       features.push({
         type: 'Feature',
@@ -60,6 +83,7 @@
           photo: (l.images && l.images[0] && l.images[0].url) || '',
           neighborhood: l.neighborhood || '',
           listingCategory: l.listingCategory || '',
+          approx: approx,
         },
       });
     }
