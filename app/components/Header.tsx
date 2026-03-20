@@ -104,6 +104,23 @@ export default function Header() {
     setMobileOpen(false);
   }, [pathname]);
 
+  // Load Google Translate AFTER hydration to prevent React Error #418/#300
+  // (Google Translate modifies the DOM which breaks React hydration)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if ((window as Record<string, unknown>).googleTranslateElementInit) return;
+    (window as Record<string, unknown>).googleTranslateElementInit = () => {
+      new (window as any).google.translate.TranslateElement(
+        { pageLanguage: 'en', includedLanguages: 'en,es,zh-CN,zh-TW,ko,ru,fr,he,ar,ja,pt,it,de,pl', layout: (window as any).google.translate.TranslateElement.InlineLayout.HORIZONTAL, autoDisplay: false },
+        'google_translate_element'
+      );
+    };
+    const script = document.createElement('script');
+    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+    script.async = true;
+    document.head.appendChild(script);
+  }, []);
+
   // Resources are static — no fetch needed (avoids 100-200ms per navigation)
 
   const buyItems = [

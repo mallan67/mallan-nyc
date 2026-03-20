@@ -179,21 +179,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />
         {/* Preconnect to external domains for faster resource loading */}
-        <link rel="dns-prefetch" href="https://translate.google.com" />
+        {/* translate.google.com loaded dynamically by Header after hydration */}
         <link rel="preconnect" href="https://api.cotality.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://api.cotality.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {/* Google Translate — nonce required for CSP strict-dynamic */}
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `function googleTranslateElementInit(){new google.translate.TranslateElement({pageLanguage:'en',includedLanguages:'en,es,zh-CN,zh-TW,ko,ru,fr,he,ar,ja,pt,it,de,pl',layout:google.translate.TranslateElement.InlineLayout.HORIZONTAL,autoDisplay:false},'google_translate_element');}`,
-          }}
-        />
-        <script nonce={nonce} src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async />
+        {/* Google Translate — loaded after hydration via Header component to prevent React Error #418/#300 */}
       </head>
       <body className="antialiased font-sans">
         <SkipLink />

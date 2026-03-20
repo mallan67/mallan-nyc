@@ -25,11 +25,6 @@ export default function ListingError({
           We couldn&apos;t load this listing right now. This is usually a brief
           data-source delay. Please try again.
         </p>
-        {/* Temporary: show error details so we can diagnose */}
-        <p className="text-xs text-red-400 bg-red-50 rounded p-2 mb-4 font-mono break-all">
-          {error.message || 'Unknown error'}
-          {error.digest ? ` [digest: ${error.digest}]` : ''}
-        </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={reset}
