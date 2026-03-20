@@ -19,7 +19,7 @@ import { trackSearch } from '@/lib/posthog';
 // Client component — data fetched via useListings hook (no force-dynamic needed)
 
 const SearchMap = nextDynamic(() => import('@/app/components/SearchMap'), { ssr: false });
-const RecentlyViewed = nextDynamic(() => import('@/app/components/RecentlyViewed'), { ssr: false });
+// RecentlyViewed strip removed — shown on listing pages only, not search
 
 // ── Tab backward-compat mapping ──
 function resolveTab(typeParam: string): SearchTab {
@@ -427,6 +427,15 @@ function SearchClient() {
       router.push(`/agents/${suggestion.value}`);
     } else if (suggestion.type === 'listing') {
       router.push(`/listing/${suggestion.value}`);
+    } else if (suggestion.type === 'address') {
+      // Address — set search query and navigate with q param so useListings fetches by address
+      setSearchQuery(suggestion.value);
+      params.set('q', suggestion.value);
+      params.delete('neighborhood');
+      params.delete('borough');
+      params.delete('zip');
+      params.delete('near');
+      router.push(`/search?${params.toString()}`);
     } else {
       setSearchQuery(suggestion.label);
     }
@@ -681,7 +690,7 @@ function SearchClient() {
         </div>
       </div>
 
-      <RecentlyViewed />
+      {/* RecentlyViewed removed — not needed on search page */}
 
       {/* ── Main Area ── */}
       <div className={`flex-1 min-h-0 ${isFullViewport ? 'overflow-hidden isolate' : 'overflow-y-auto'}`}>
