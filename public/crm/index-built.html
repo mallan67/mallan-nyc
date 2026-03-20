@@ -23812,45 +23812,42 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     addMarkers(mapListings);
   }
 
-  // ── Toggle split view ──
+  // ── Toggle map view ──
   window.toggleResultsMap = function () {
     _isOpen = !_isOpen;
     var wrapper = document.getElementById('resultsMapWrapper');
-    var resultsContainer = document.getElementById('resultsContainer');
     var toggleBtn = document.getElementById('resultsMapToggleBtn');
 
-    if (!wrapper || !resultsContainer) return;
+    if (!wrapper) return;
 
     if (_isOpen) {
-      // Enter split view
-      wrapper.style.display = 'block';
-      resultsContainer.parentElement.style.display = 'flex';
-      resultsContainer.style.flex = '1';
-      resultsContainer.style.minWidth = '0';
-      resultsContainer.style.maxHeight = '80vh';
-      resultsContainer.style.overflowY = 'auto';
+      // Show map panel above results
+      wrapper.style.cssText = 'display:block; width:100%; height:500px; position:relative; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:16px; overflow:hidden;';
       if (toggleBtn) {
         toggleBtn.classList.add('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.remove('text-gray-500');
       }
 
+      // Move wrapper before resultsContainer for above-results layout
+      var resultsContainer = document.getElementById('resultsContainer');
+      if (resultsContainer && wrapper.parentElement) {
+        wrapper.parentElement.insertBefore(wrapper, resultsContainer);
+      }
+
       ensureMapLibre(function () {
+        var container = document.getElementById('resultsMapContainer');
+        if (container) container.style.cssText = 'width:100%; height:100%;';
         setTimeout(function () {
           initMap();
           if (_map) {
             _map.resize();
             refreshMapPins();
           }
-        }, 100);
+        }, 150);
       });
     } else {
-      // Exit split view
+      // Hide map
       wrapper.style.display = 'none';
-      resultsContainer.parentElement.style.display = '';
-      resultsContainer.style.flex = '';
-      resultsContainer.style.minWidth = '';
-      resultsContainer.style.maxHeight = '';
-      resultsContainer.style.overflowY = '';
       if (toggleBtn) {
         toggleBtn.classList.remove('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.add('text-gray-500');
