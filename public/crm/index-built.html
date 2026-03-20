@@ -3474,8 +3474,9 @@ function toggleSection(header) {
 
                         <!-- Price / Rooms -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-2">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Price / Rooms</p>
+                            <p class="text-sm font-bold text-gray-800 mb-2.5">Price / Rooms</p>
                             <div class="space-y-2">
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Price</label>
                                 <div class="flex gap-1">
                                     <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinPrice">
                                         <option value="">Min Price</option>
@@ -3541,6 +3542,12 @@ function toggleSection(header) {
                                         <option value="100000000">$100M+</option>
                                     </select>
                                 </div>
+                                <div id="saleCustomPriceRow" class="hidden flex gap-1">
+                                    <input type="number" id="saleCustomMinPrice" placeholder="Min $" class="flex-1 min-w-0 border border-blue-300 rounded px-1.5 py-1 text-xs bg-blue-50" step="1000">
+                                    <span class="text-gray-400 text-xs flex-shrink-0">—</span>
+                                    <input type="number" id="saleCustomMaxPrice" placeholder="Max $" class="flex-1 min-w-0 border border-blue-300 rounded px-1.5 py-1 text-xs bg-blue-50" step="1000">
+                                </div>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1">Beds / Baths</label>
                                 <div class="flex gap-1">
                                     <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinBeds">
                                         <option value="">Min Beds</option>
@@ -3599,6 +3606,7 @@ function toggleSection(header) {
                                         <option value="6">6+ BA</option>
                                     </select>
                                 </div>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1">Rooms / SqFt</label>
                                 <div class="flex gap-1">
                                     <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinRooms">
                                         <option value="">Min Rooms</option>
@@ -3726,17 +3734,8 @@ function toggleSection(header) {
 
                         <!-- Quick Search -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
-                            <!-- 1. RLS ID / Web ID / Listing # + Zip -->
-                            <div class="flex items-end gap-2 mb-2">
-                                <div class="flex-1">
-                                    <input type="text" id="saleQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
-                                </div>
-                                <div class="w-[72px]">
-                                    <input type="text" id="saleQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
-                                </div>
-                            </div>
-                            <!-- 2. Neighborhood + Map icon + Transit icon -->
+                            <p class="text-sm font-bold text-gray-800 mb-2.5">Quick Search</p>
+                            <!-- 1. Neighborhood (most-used — moved to top) -->
                             <div class="mb-2">
                                 <div class="flex gap-1.5 items-center">
                                     <div class="relative flex-1">
@@ -3793,16 +3792,31 @@ function toggleSection(header) {
                                     </div>
                                 </div>
                             </div>
-                            <!-- 3. Address -->
+                            <!-- 2. Address + Unit -->
                             <div class="mb-1.5 relative">
-                                <input type="text" id="saleSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'saleSearchAddrResults')" autocomplete="off">
-                                <div id="saleSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Address</label>
+                                <div class="flex gap-1.5">
+                                    <div class="flex-1 relative">
+                                        <input type="text" id="saleSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'saleSearchAddrResults')" autocomplete="off">
+                                        <div id="saleSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                    </div>
+                                    <div class="w-[72px]">
+                                        <input type="text" id="saleQuickUnit" placeholder="Unit #" class="w-full border rounded px-2 py-1.5 text-xs text-center">
+                                    </div>
+                                </div>
                             </div>
-                            <!-- 4. Unit (optional) -->
-                            <div class="mb-2">
-                                <input type="text" id="saleQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
+                            <!-- 3. RLS ID + Zip (less common) -->
+                            <div class="flex items-end gap-1.5 mb-2">
+                                <div class="flex-1">
+                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">RLS ID / Listing #</label>
+                                    <input type="text" id="saleQuickRls" placeholder="RLS ID, Web ID (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
+                                </div>
+                                <div class="w-[72px]">
+                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Zip</label>
+                                    <input type="text" id="saleQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
+                                </div>
                             </div>
-                            <!-- 5. Search -->
+                            <!-- 4. Search -->
                             <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
                                 <i class="fas fa-search mr-1"></i> Search
                             </button>
@@ -4539,17 +4553,8 @@ function toggleSection(header) {
 
                         <!-- Quick Search (Rental) -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
-                            <!-- 1. RLS ID / Web ID / Listing # + Zip -->
-                            <div class="flex items-end gap-2 mb-2">
-                                <div class="flex-1">
-                                    <input type="text" id="rentalQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
-                                </div>
-                                <div class="w-[72px]">
-                                    <input type="text" id="rentalQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
-                                </div>
-                            </div>
-                            <!-- 2. Neighborhood + Map icon + Transit icon -->
+                            <p class="text-sm font-bold text-gray-800 mb-2.5">Quick Search</p>
+                            <!-- 1. Neighborhood (most-used — moved to top) -->
                             <div class="mb-2">
                                 <div class="flex gap-1.5 items-center">
                                     <div class="relative flex-1">
@@ -4606,16 +4611,31 @@ function toggleSection(header) {
                                     </div>
                                 </div>
                             </div>
-                            <!-- 3. Address -->
+                            <!-- 2. Address + Unit -->
                             <div class="mb-1.5 relative">
-                                <input type="text" id="rentalSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'rentalSearchAddrResults')" autocomplete="off">
-                                <div id="rentalSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Address</label>
+                                <div class="flex gap-1.5">
+                                    <div class="flex-1 relative">
+                                        <input type="text" id="rentalSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'rentalSearchAddrResults')" autocomplete="off">
+                                        <div id="rentalSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                    </div>
+                                    <div class="w-[72px]">
+                                        <input type="text" id="rentalQuickUnit" placeholder="Unit #" class="w-full border rounded px-2 py-1.5 text-xs text-center">
+                                    </div>
+                                </div>
                             </div>
-                            <!-- 4. Unit (optional) -->
-                            <div class="mb-2">
-                                <input type="text" id="rentalQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
+                            <!-- 3. RLS ID + Zip (less common) -->
+                            <div class="flex items-end gap-1.5 mb-2">
+                                <div class="flex-1">
+                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">RLS ID / Listing #</label>
+                                    <input type="text" id="rentalQuickRls" placeholder="RLS ID, Web ID (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
+                                </div>
+                                <div class="w-[72px]">
+                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Zip</label>
+                                    <input type="text" id="rentalQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
+                                </div>
                             </div>
-                            <!-- 5. Search -->
+                            <!-- 4. Search -->
                             <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
                                 <i class="fas fa-search mr-1"></i> Search
                             </button>
@@ -9862,6 +9882,21 @@ function toggleSection(header) {
                         </div>
                     </div>
                 </div>
+                    <!-- Saved Searches quick-access panel -->
+                    <div id="savedSearchesFormPanel" class="bg-white border rounded-xl shadow-sm mb-4 overflow-hidden" style="display:none;">
+                        <div class="px-4 py-2.5 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onclick="toggleSavedSearchesPanel()">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-folder-open text-blue-500 text-sm"></i>
+                                <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Saved Searches</span>
+                                <span id="savedSearchFormCount" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">0</span>
+                            </div>
+                            <i id="savedSearchesPanelChevron" class="fas fa-chevron-down text-gray-400 text-xs transition-transform"></i>
+                        </div>
+                        <div id="savedSearchesPanelBody" class="hidden">
+                            <div id="savedSearchFormList" class="max-h-52 overflow-y-auto"></div>
+                        </div>
+                    </div>
+
                     <!-- Sticky search actions — always visible at bottom of form -->
                     <div class="sticky bottom-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 rounded-b-xl">
                         <div class="flex items-center gap-2 text-xs text-gray-400">
@@ -9872,10 +9907,14 @@ function toggleSection(header) {
                             <button onclick="openSaveSearchModal()" class="hover:text-blue-600 transition-colors">
                                 <i class="far fa-bookmark mr-1"></i>Save
                             </button>
+                            <span class="text-gray-200">|</span>
+                            <button onclick="toggleSavedSearchesPanel()" class="hover:text-blue-600 transition-colors">
+                                <i class="fas fa-folder-open mr-1"></i>My Searches
+                            </button>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="clearSearchForm()" class="px-4 py-2 text-sm text-gray-500 hover:text-red-500 font-medium transition-colors">Clear</button>
-                            <button onclick="performSearch()" class="px-8 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all">
+                            <button onclick="performSearch()" id="searchFormMainBtn" class="px-8 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all">
                                 <i class="fas fa-search mr-1.5"></i>Search
                             </button>
                         </div>
@@ -10137,7 +10176,7 @@ function toggleSection(header) {
                                                 <i class="fas fa-check-circle"></i> Work With <i class="fas fa-chevron-down text-[9px] ml-0.5"></i>
                                             </button>
                                             <div id="workWithCustomerDropdown" class="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-2xl border z-50 hidden" style="max-height:350px">
-                                                <div class="p-2.5 border-b"><input type="text" id="clientSearchInput" placeholder="Search clients..." class="w-full border rounded-lg px-3 py-2 text-sm" oninput="filterClients(event)"></div>
+                                                <div class="p-2.5 border-b"><input type="text" id="clientSearchInput" placeholder="Search clients..." class="w-full border rounded-lg px-3 py-2 text-sm" oninput="filterClients(event)" data-rls-ignore="true"></div>
                                                 <div id="clientList" class="overflow-y-auto" style="max-height:260px"></div>
                                                 <div class="p-2 border-t text-center"><a href="/crm/dashboard.html#clients" class="text-xs text-blue-600 hover:underline">Manage Clients</a></div>
                                             </div>
@@ -10161,6 +10200,13 @@ function toggleSection(header) {
 
                     </div>
                     <!-- END RESULTS TOOLBAR -->
+
+                    <!-- Active Filter Pills Bar -->
+                    <div id="activeFilterPillBar" class="hidden flex items-center gap-2 flex-wrap px-4 py-2 bg-gray-50 border rounded-lg mb-3">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Filters:</span>
+                        <div id="activeFilterPills" class="flex items-center gap-1.5 flex-wrap"></div>
+                        <button onclick="clearAllFiltersAndRerun()" class="ml-auto text-[10px] font-medium text-red-500 hover:text-red-700 transition-colors"><i class="fas fa-times mr-0.5"></i>Clear All</button>
+                    </div>
 
                     <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                     <!-- INLINE REFINE PANEL — quick-adjust search without leaving results              -->
@@ -10275,7 +10321,7 @@ function toggleSection(header) {
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-100">
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Min Sq Ft</label>
-                                    <select id="refineMinSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
+                                    <select id="refineMinSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all" data-rls-ignore="true">
                                         <option value="">Any</option>
                                         <option value="400">400+ sf</option>
                                         <option value="600">600+ sf</option>
@@ -10289,7 +10335,7 @@ function toggleSection(header) {
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Max Sq Ft</label>
-                                    <select id="refineMaxSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
+                                    <select id="refineMaxSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all" data-rls-ignore="true">
                                         <option value="">Any</option>
                                         <option value="600">Up to 600 sf</option>
                                         <option value="800">Up to 800 sf</option>
@@ -10302,7 +10348,7 @@ function toggleSection(header) {
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Property Type</label>
-                                    <select id="refinePropertyType" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
+                                    <select id="refinePropertyType" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all" data-rls-ignore="true">
                                         <option value="">Any</option>
                                         <option value="Condominium">Condo</option>
                                         <option value="StockCooperative">Co-op</option>
@@ -10315,7 +10361,7 @@ function toggleSection(header) {
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Neighborhood</label>
-                                    <input type="text" id="refineNeighborhood" placeholder="e.g. Upper East Side" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all placeholder:text-gray-400">
+                                    <input type="text" id="refineNeighborhood" placeholder="e.g. Upper East Side" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all placeholder:text-gray-400" data-rls-ignore="true">
                                 </div>
                             </div>
                             <!-- Status quick-toggles -->
@@ -12052,14 +12098,14 @@ function toggleSection(header) {
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Client</label>
-                <select id="savedSearchClientId" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <select id="savedSearchClientId" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                     <option value="">-- No client (agent only) --</option>
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Matching listings will appear in the client's portal</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email Alerts</label>
-                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                     <option value="">Off</option>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -16777,11 +16823,17 @@ function manageShowToast(msg) {
                 priceMin = document.getElementById('saleMinPrice');
                 priceMax = document.getElementById('saleMaxPrice');
             }
-            if (priceMin && priceMin.value && priceMin.value !== 'custom' && priceMin.value !== '') {
+            if (priceMin && priceMin.value === 'custom') {
+                var customMinEl = document.getElementById(currentSearchTab === 'rent' ? 'rentalCustomMinPrice' : 'saleCustomMinPrice');
+                if (customMinEl && customMinEl.value) { var cv = parseInt(customMinEl.value); if (!isNaN(cv)) criteria.priceMin = cv; }
+            } else if (priceMin && priceMin.value && priceMin.value !== '') {
                 var pMin = parseInt(priceMin.value);
                 if (!isNaN(pMin)) criteria.priceMin = pMin;
             }
-            if (priceMax && priceMax.value && priceMax.value !== 'custom' && priceMax.value !== '') {
+            if (priceMax && priceMax.value === 'custom') {
+                var customMaxEl = document.getElementById(currentSearchTab === 'rent' ? 'rentalCustomMaxPrice' : 'saleCustomMaxPrice');
+                if (customMaxEl && customMaxEl.value) { var cv2 = parseInt(customMaxEl.value); if (!isNaN(cv2)) criteria.priceMax = cv2; }
+            } else if (priceMax && priceMax.value && priceMax.value !== '') {
                 var pMax = parseInt(priceMax.value);
                 if (!isNaN(pMax)) criteria.priceMax = pMax;
             }
@@ -17380,12 +17432,19 @@ function manageShowToast(msg) {
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
             countEls.forEach(function(el) { el.textContent = count + ' Results'; });
 
+            // Update sticky nav result count
+            var stickyCount = document.getElementById('stickyNavResultCount');
+            if (stickyCount) stickyCount.textContent = count + ' results';
+
             // Update pagination
             var totalPagesEl = document.getElementById('totalPages');
             if (totalPagesEl) totalPagesEl.textContent = totalPages;
 
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
+
+            // Update active filter pills
+            if (typeof renderActiveFilterPills === 'function') renderActiveFilterPills();
         }
 
         // Back to search - show search form, hide results
@@ -18766,6 +18825,10 @@ function manageShowToast(msg) {
         function toggleClientDeliveryMenu() {}
         function openDeliveryModal() {}
         function closeDeliveryModal() {}
+        function closeAddClientModal() {
+            var m = document.getElementById('addClientModal');
+            if (m) m.classList.add('hidden');
+        }
 
         // Select all results (with REBNY bulk export limit)
         function selectAllResults() {
@@ -19549,12 +19612,183 @@ function manageShowToast(msg) {
 
         function _showNoListingsMessage(msg) {
             var resultsEl = document.getElementById('searchResults') || document.getElementById('listingGrid');
-            if (resultsEl) {
-                resultsEl.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280;">' +
-                    '<i class="fas fa-exclamation-circle" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db;"></i>' +
-                    '<p style="font-size:15px;font-weight:600;">' + escapeHtml(msg) + '</p></div>';
+            if (!resultsEl) return;
+
+            // Build active filters summary if available
+            var filterHints = '';
+            var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : null;
+            if (criteria) {
+                var pills = [];
+                if (criteria.searchTab) pills.push(criteria.searchTab === 'rent' ? 'Rentals' : criteria.searchTab === 'building' ? 'Buildings' : 'Sales');
+                if (criteria.neighborhoods && criteria.neighborhoods.length) pills.push(criteria.neighborhoods.join(', '));
+                if (criteria.priceMin || criteria.priceMax) {
+                    var pr = '';
+                    if (criteria.priceMin) pr += '$' + (criteria.priceMin >= 1000000 ? (criteria.priceMin/1000000) + 'M' : (criteria.priceMin/1000) + 'K');
+                    pr += ' – ';
+                    if (criteria.priceMax) pr += '$' + (criteria.priceMax >= 1000000 ? (criteria.priceMax/1000000) + 'M' : (criteria.priceMax/1000) + 'K');
+                    else pr += 'No max';
+                    pills.push(pr);
+                }
+                if (criteria.bedsMin) pills.push(criteria.bedsMin + '+ BD');
+                if (criteria.statuses && criteria.statuses.length) pills.push(criteria.statuses.join(', '));
+                if (pills.length) {
+                    filterHints = '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">';
+                    pills.forEach(function(p) { filterHints += '<span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:2px 10px;font-size:11px;color:#6b7280;">' + escapeHtml(p) + '</span>'; });
+                    filterHints += '</div>';
+                }
             }
+
+            resultsEl.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280;">'
+                + '<i class="fas fa-search" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db;"></i>'
+                + '<p style="font-size:15px;font-weight:600;">' + escapeHtml(msg) + '</p>'
+                + filterHints
+                + '<div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">'
+                + '<button onclick="clearAllFiltersAndRerun()" style="padding:6px 16px;font-size:12px;font-weight:600;border:1px solid #d1d5db;border-radius:8px;background:white;color:#374151;cursor:pointer;">Clear All Filters</button>'
+                + '<button onclick="backToSearch()" style="padding:6px 16px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">Back to Search</button>'
+                + '</div>'
+                + '<p style="margin-top:12px;font-size:11px;color:#9ca3af;">Try broadening your price range, adding more neighborhoods, or including more statuses.</p>'
+                + '</div>';
         }
+
+        // ── Active Filter Pill Bar — shows current search criteria as removable pills ──
+        function renderActiveFilterPills() {
+            var bar = document.getElementById('activeFilterPillBar');
+            var container = document.getElementById('activeFilterPills');
+            if (!bar || !container) return;
+
+            var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : null;
+            if (!criteria) { bar.classList.add('hidden'); return; }
+
+            var pills = [];
+
+            // Search type
+            if (criteria.searchTab) {
+                var label = criteria.searchTab === 'rent' ? 'Rentals' : criteria.searchTab === 'building' ? 'Buildings' : 'Sales';
+                pills.push({ label: label, key: 'searchTab' });
+            }
+
+            // Neighborhoods
+            if (criteria.neighborhoods && criteria.neighborhoods.length) {
+                criteria.neighborhoods.forEach(function(n) {
+                    pills.push({ label: n, key: 'neighborhood', value: n });
+                });
+            }
+
+            // Price
+            if (criteria.priceMin || criteria.priceMax) {
+                var pr = '';
+                if (criteria.priceMin) pr += '$' + _formatPriceShort(criteria.priceMin);
+                pr += '–';
+                if (criteria.priceMax) pr += '$' + _formatPriceShort(criteria.priceMax);
+                else pr += 'No max';
+                pills.push({ label: pr, key: 'price' });
+            }
+
+            // Beds
+            if (criteria.bedsMin || criteria.bedsMax) {
+                var bd = '';
+                if (criteria.bedsMin) bd += criteria.bedsMin + '+';
+                if (criteria.bedsMax) bd += (bd ? '–' : '0–') + criteria.bedsMax;
+                pills.push({ label: bd + ' BD', key: 'beds' });
+            }
+
+            // Baths
+            if (criteria.bathsMin) {
+                pills.push({ label: criteria.bathsMin + '+ BA', key: 'baths' });
+            }
+
+            // Statuses
+            if (criteria.statuses && criteria.statuses.length) {
+                criteria.statuses.forEach(function(s) {
+                    pills.push({ label: s, key: 'status', value: s });
+                });
+            }
+
+            // Address
+            if (criteria.address) {
+                pills.push({ label: criteria.address, key: 'address' });
+            }
+
+            if (pills.length <= 1) { bar.classList.add('hidden'); return; } // Just search type = not interesting
+
+            bar.classList.remove('hidden');
+            container.innerHTML = pills.map(function(p) {
+                return '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded-full text-[11px] font-medium text-gray-700">'
+                    + escapeHtml(p.label)
+                    + '<button onclick="removeFilterPill(\'' + p.key + '\',\'' + (p.value || '') + '\')" class="text-gray-400 hover:text-red-500 ml-0.5" title="Remove">&times;</button>'
+                    + '</span>';
+            }).join('');
+        }
+
+        function _formatPriceShort(val) {
+            if (val >= 1000000) return (val / 1000000) + 'M';
+            if (val >= 1000) return (val / 1000) + 'K';
+            return val.toString();
+        }
+
+        function removeFilterPill(key, value) {
+            if (!activeSearchCriteria) return;
+            if (key === 'price') { delete activeSearchCriteria.priceMin; delete activeSearchCriteria.priceMax; }
+            else if (key === 'beds') { delete activeSearchCriteria.bedsMin; delete activeSearchCriteria.bedsMax; }
+            else if (key === 'baths') { delete activeSearchCriteria.bathsMin; delete activeSearchCriteria.bathsMax; }
+            else if (key === 'address') { delete activeSearchCriteria.address; }
+            else if (key === 'neighborhood' && value && activeSearchCriteria.neighborhoods) {
+                activeSearchCriteria.neighborhoods = activeSearchCriteria.neighborhoods.filter(function(n) { return n !== value; });
+            }
+            else if (key === 'status' && value && activeSearchCriteria.statuses) {
+                activeSearchCriteria.statuses = activeSearchCriteria.statuses.filter(function(s) { return s !== value; });
+            }
+            // Re-filter with updated criteria
+            var filtered = (typeof filterListings === 'function' && typeof listings !== 'undefined') ? filterListings(listings, activeSearchCriteria) : [];
+            searchResultsState.filteredListings = filtered;
+            searchResultsState.currentPage = 1;
+            if (typeof initializeSearchResults === 'function') initializeSearchResults();
+            if (typeof updateResultsCount === 'function') updateResultsCount();
+        }
+
+        function clearAllFiltersAndRerun() {
+            if (typeof clearSearchForm === 'function') clearSearchForm();
+            if (typeof backToSearch === 'function') backToSearch();
+        }
+
+        // ── Custom price input toggle ──────────────────────────────────────────────
+        (function() {
+            var pairs = [
+                ['saleMinPrice', 'saleMaxPrice', 'saleCustomPriceRow', 'saleCustomMinPrice', 'saleCustomMaxPrice'],
+            ];
+            pairs.forEach(function(p) {
+                var minSel = document.getElementById(p[0]);
+                var maxSel = document.getElementById(p[1]);
+                var row = document.getElementById(p[2]);
+                if (!minSel || !maxSel || !row) return;
+                function check() {
+                    if (minSel.value === 'custom' || maxSel.value === 'custom') {
+                        row.classList.remove('hidden');
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                }
+                minSel.addEventListener('change', check);
+                maxSel.addEventListener('change', check);
+            });
+        })();
+
+        // ── Enter key to search ────────────────────────────────────────────────────
+        (function() {
+            var formContainer = document.getElementById('searchFormContainer');
+            if (!formContainer) return;
+            formContainer.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter') return;
+                var tag = e.target.tagName.toLowerCase();
+                // Skip if user is in a textarea or autocomplete dropdown
+                if (tag === 'textarea') return;
+                // Skip if an autocomplete dropdown is visible
+                var dropdowns = formContainer.querySelectorAll('.absolute.z-50:not(.hidden)');
+                if (dropdowns.length > 0) return;
+                e.preventDefault();
+                if (typeof performSearch === 'function') performSearch();
+            });
+        })();
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // COMPREHENSIVE FIELD DICTIONARIES FOR REPORTS - ALL REBNY RLS FIELDS
@@ -19654,7 +19888,7 @@ var ClientNormalizer = (function () {
 // No hardcoded demo/mock clients — real data only.
 // Uses escapeHtml() from nav.js for XSS prevention.
 // Uses ClientNormalizer from core/client-normalizer.js.
-var customerDB = {};
+// NOTE: customerDB is declared in data-loader.js — do NOT re-declare here
 
 // Agent-scoped client filtering — broker sees all, agent sees only their own
 function getMyClients() {
@@ -22565,6 +22799,109 @@ function parseBudgetValue(td) {
             backToSearch();
         }
 
+        // ── Saved Searches panel in search form ──────────────────────────────────
+        function toggleSavedSearchesPanel() {
+            var panel = document.getElementById('savedSearchesFormPanel');
+            var body = document.getElementById('savedSearchesPanelBody');
+            var chevron = document.getElementById('savedSearchesPanelChevron');
+            if (!panel || !body) return;
+
+            if (panel.style.display === 'none') {
+                panel.style.display = '';
+                body.classList.remove('hidden');
+                if (chevron) chevron.style.transform = 'rotate(180deg)';
+                populateSavedSearchFormList();
+            } else if (body.classList.contains('hidden')) {
+                body.classList.remove('hidden');
+                if (chevron) chevron.style.transform = 'rotate(180deg)';
+            } else {
+                body.classList.add('hidden');
+                if (chevron) chevron.style.transform = '';
+            }
+        }
+
+        function populateSavedSearchFormList() {
+            var container = document.getElementById('savedSearchFormList');
+            var countBadge = document.getElementById('savedSearchFormCount');
+            if (!container) return;
+
+            container.innerHTML = '<p class="p-3 text-sm text-gray-400 text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
+
+            if (typeof MallanAPI === 'undefined') {
+                container.innerHTML = '<p class="p-3 text-xs text-gray-500 text-center">API not available</p>';
+                return;
+            }
+
+            MallanAPI.savedSearches.list().then(function(result) {
+                var searches = result.savedSearches || [];
+                if (countBadge) countBadge.textContent = searches.length;
+
+                if (searches.length === 0) {
+                    container.innerHTML = '<p class="p-3 text-xs text-gray-500 text-center">No saved searches yet. Use "Save" to create one.</p>';
+                    return;
+                }
+
+                // Group by client
+                var byClient = {};
+                var agentOnly = [];
+                searches.forEach(function(s) {
+                    if (s.lead_id && s.lead_name) {
+                        if (!byClient[s.lead_id]) byClient[s.lead_id] = { name: s.lead_name, searches: [] };
+                        byClient[s.lead_id].searches.push(s);
+                    } else {
+                        agentOnly.push(s);
+                    }
+                });
+
+                var html = '';
+                // Agent's own searches
+                if (agentOnly.length) {
+                    html += '<div class="px-3 py-1.5 bg-gray-50 border-b text-[10px] font-bold text-gray-500 uppercase tracking-wider">My Searches</div>';
+                    agentOnly.forEach(function(s) { html += _savedSearchFormItem(s); });
+                }
+                // Client searches
+                Object.keys(byClient).forEach(function(clientId) {
+                    var group = byClient[clientId];
+                    html += '<div class="px-3 py-1.5 bg-blue-50 border-b text-[10px] font-bold text-blue-600 uppercase tracking-wider"><i class="fas fa-user mr-1"></i>' + escapeHtml(group.name) + '</div>';
+                    group.searches.forEach(function(s) { html += _savedSearchFormItem(s); });
+                });
+
+                container.innerHTML = html;
+            }).catch(function(err) {
+                container.innerHTML = '<p class="p-3 text-xs text-red-500 text-center">Failed to load</p>';
+            });
+        }
+
+        function _savedSearchFormItem(search) {
+            var alertBadge = search.alert_enabled ? '<span class="ml-1 px-1 py-0.5 bg-green-100 text-green-700 text-[9px] font-semibold rounded-full">' + (search.alert_frequency || 'alert') + '</span>' : '';
+            var dateStr = search.updated_at ? new Date(search.updated_at).toLocaleDateString() : '';
+            return '<div class="flex items-center justify-between px-3 py-2 hover:bg-gray-50 border-b border-gray-100">'
+                + '<button onclick="loadSavedSearch(\'' + search.id + '\')" class="text-left flex-1 min-w-0">'
+                + '<div class="font-medium text-xs truncate">' + escapeHtml(search.name) + alertBadge + '</div>'
+                + '<div class="text-[10px] text-gray-400">' + dateStr + '</div>'
+                + '</button>'
+                + '<button onclick="deleteSavedSearch(\'' + search.id + '\');populateSavedSearchFormList();" class="ml-2 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete">'
+                + '<i class="fas fa-trash text-[10px]"></i>'
+                + '</button>'
+                + '</div>';
+        }
+
+        // Auto-show saved searches panel if there are any
+        (function() {
+            if (typeof MallanAPI === 'undefined') return;
+            MallanAPI.onReady(function() {
+                MallanAPI.savedSearches.list().then(function(result) {
+                    var searches = result.savedSearches || [];
+                    var panel = document.getElementById('savedSearchesFormPanel');
+                    var countBadge = document.getElementById('savedSearchFormCount');
+                    if (countBadge) countBadge.textContent = searches.length;
+                    if (searches.length > 0 && panel) {
+                        panel.style.display = '';
+                    }
+                }).catch(function() {});
+            });
+        })();
+
 
 </script>
 
@@ -23383,12 +23720,33 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
   };
 
   // Load neighborhood centroids for listings without coordinates
+  var _centroidLookup = {}; // lowercase → centroid for case-insensitive matching
+  var _centroidsReady = false;
+  // Borough-level fallback centroids (used when neighborhood doesn't match any centroid)
+  var _boroughCentroids = {
+    'manhattan': { lat: 40.7580, lng: -73.9855 },
+    'brooklyn': { lat: 40.6782, lng: -73.9442 },
+    'queens': { lat: 40.7282, lng: -73.7949 },
+    'bronx': { lat: 40.8448, lng: -73.8648 },
+    'the bronx': { lat: 40.8448, lng: -73.8648 },
+    'staten island': { lat: 40.5795, lng: -74.1502 },
+    'new york': { lat: 40.7580, lng: -73.9855 },
+  };
   (function loadCentroids() {
     var base = window.location.pathname.replace(/\/[^/]*$/, '');
     var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'rls-neighborhood-centroids.v1.json';
     fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
-      if (data) _centroids = data;
-    }).catch(function() {});
+      if (data) {
+        _centroids = data;
+        // Build case-insensitive lookup
+        Object.keys(data).forEach(function (k) {
+          _centroidLookup[k.toLowerCase()] = data[k];
+        });
+      }
+      _centroidsReady = true;
+      // Re-render pins if map is already open (handles async timing)
+      if (_isOpen && _map) refreshMapPins();
+    }).catch(function() { _centroidsReady = true; });
   })();
 
   // ── Ensure MapLibre is loaded ──
@@ -23415,11 +23773,25 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       var lat = l.latitude || (l.geo && l.geo.lat);
       var lng = l.longitude || (l.geo && l.geo.lng);
       var approx = false;
-      if ((!lat || !lng) && _centroids && l.neighborhood) {
-        var centroid = _centroids[l.neighborhood] || _centroids[l.neighborhoodCanonical];
+      if (!lat || !lng) {
+        // Trestle does not provide Latitude/Longitude — use neighborhood centroid fallback
+        var centroid = null;
+        if (_centroids && (l.neighborhood || l.neighborhoodCanonical)) {
+          // Try exact match, then case-insensitive, then canonical
+          centroid = _centroids[l.neighborhood]
+            || _centroids[l.neighborhoodCanonical]
+            || _centroidLookup[(l.neighborhood || '').toLowerCase()]
+            || _centroidLookup[(l.neighborhoodCanonical || '').toLowerCase()];
+        }
+        // Borough-level fallback (wider jitter so pins spread across borough)
+        if (!centroid && l.borough) {
+          centroid = _boroughCentroids[(l.borough || '').toLowerCase()];
+        }
         if (centroid) {
-          lat = centroid.lat + (Math.random() - 0.5) * 0.004;
-          lng = centroid.lng + (Math.random() - 0.5) * 0.004;
+          // Neighborhood: tight jitter (±0.002°). Borough: wider jitter (±0.01°)
+          var jitter = centroid === _boroughCentroids[(l.borough || '').toLowerCase()] ? 0.02 : 0.004;
+          lat = centroid.lat + (Math.random() - 0.5) * jitter;
+          lng = centroid.lng + (Math.random() - 0.5) * jitter;
           approx = true;
         }
       }
@@ -23726,7 +24098,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       _map.getCanvas().style.cursor = '';
     });
 
-    // Click — toggle select/deselect a neighborhood polygon
+    // Click — toggle select/deselect a neighborhood polygon → filter results
     _map.on('click', 'neighborhood-hit', function (e) {
       if (e.features.length === 0) return;
 
@@ -23744,10 +24116,24 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: true });
       }
 
+      // Build list of selected neighborhood names from GeoJSON source
+      var selectedNames = [];
+      if (_geojsonSource && _geojsonSource.features) {
+        _geojsonSource.features.forEach(function (f) {
+          if (_selectedSlugs[f.properties.slug]) {
+            selectedNames.push(f.properties.name);
+          }
+        });
+      }
+
+      // Filter results to selected neighborhoods (or show all if none selected)
+      _filterByMapNeighborhoods(selectedNames);
+
       // Show popup with listing count
       var mapListings = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
       var count = mapListings.filter(function (l) { return l.neighborhood === name; }).length;
       var isSelected = !!_selectedSlugs[slug];
+      var totalSelected = selectedNames.length;
 
       new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
         .setLngLat(e.lngLat)
@@ -23757,7 +24143,9 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
           '<div style="font-size:11px;color:#6b7280;">' + borough + '</div>' +
           '<div style="font-size:12px;margin-top:4px;font-weight:600;">' + count + ' listing' + (count !== 1 ? 's' : '') + '</div>' +
           '<div style="font-size:11px;margin-top:4px;color:' + (isSelected ? '#2563EB' : '#9CA3AF') + ';font-weight:600;">' +
-          (isSelected ? '<i class="fas fa-check-circle"></i> Selected' : 'Deselected') + '</div>' +
+          (isSelected ? '<i class="fas fa-check-circle"></i> Selected' : 'Deselected') +
+          (totalSelected > 0 ? ' &middot; ' + totalSelected + ' area' + (totalSelected !== 1 ? 's' : '') + ' filtered' : '') +
+          '</div>' +
           '</div>'
         )
         .addTo(_map);
@@ -23803,12 +24191,43 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     }
   };
 
+  // ── Filter displayed results by map-selected neighborhoods ──
+  function _filterByMapNeighborhoods(selectedNames) {
+    if (!searchResultsState || !searchResultsState.filteredListings) return;
+    if (selectedNames.length === 0) {
+      // No neighborhoods selected — show all results (re-filter from source)
+      if (typeof listings !== 'undefined' && typeof activeSearchCriteria !== 'undefined' && typeof filterListings === 'function') {
+        searchResultsState.filteredListings = filterListings(listings, activeSearchCriteria);
+      }
+    } else {
+      // Filter to only selected neighborhoods
+      var nameSet = {};
+      selectedNames.forEach(function (n) { nameSet[n.toLowerCase()] = true; });
+      var base = (typeof listings !== 'undefined' && typeof activeSearchCriteria !== 'undefined' && typeof filterListings === 'function')
+        ? filterListings(listings, activeSearchCriteria)
+        : searchResultsState.filteredListings;
+      searchResultsState.filteredListings = base.filter(function (l) {
+        var nh = (l.neighborhood || '').toLowerCase();
+        var nhc = (l.neighborhoodCanonical || '').toLowerCase();
+        return nameSet[nh] || nameSet[nhc];
+      });
+    }
+    searchResultsState.currentPage = 1;
+    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+    if (typeof updateResultsCount === 'function') updateResultsCount();
+    refreshMapPins();
+  }
+
   // ── Refresh pins from current filtered listings ──
   function refreshMapPins() {
     if (!_map || !_isOpen) return;
     var mapListings = (typeof getFilteredListings === 'function')
       ? getFilteredListings(true) // skipPagination = true to get ALL results
       : (searchResultsState && searchResultsState.filteredListings) || [];
+    var geojson = buildGeoJSON(mapListings);
+    var withCoords = mapListings.filter(function(l) { return l.latitude && l.longitude; }).length;
+    var withNh = mapListings.filter(function(l) { return l.neighborhood; }).length;
+    console.log('[ResultsMap] ' + mapListings.length + ' listings, ' + withCoords + ' with coords, ' + withNh + ' with neighborhood, ' + geojson.features.length + ' pins plotted, ' + Object.keys(_centroidLookup).length + ' centroids loaded');
     addMarkers(mapListings);
   }
 
@@ -26571,16 +26990,28 @@ function openPrintableWindow(html, options) {
             sel.innerHTML = '<option value="">— Choose a client —</option>';
             var clients = typeof customerDB !== 'undefined' ? customerDB : {};
             var configuredEmail = (typeof getConfiguredAgentEmail === 'function') ? getConfiguredAgentEmail() : '';
-            Object.keys(clients).forEach(function(id) {
-                var c = clients[id];
-                // Test client uses configured email from Email Settings
-                var email = c.email || (id === 'test-client' ? configuredEmail : '');
-                if (!email) return;
-                var opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = c.name + ' (' + email + ')';
-                sel.appendChild(opt);
-            });
+            var hasClients = Object.keys(clients).length > 0;
+
+            if (hasClients) {
+                Object.keys(clients).forEach(function(id) {
+                    var c = clients[id];
+                    var email = c.email || (id === 'test-client' ? configuredEmail : '');
+                    if (!email) return;
+                    var opt = document.createElement('option');
+                    opt.value = id;
+                    opt.textContent = (c.name || c._displayName || 'Client') + ' (' + email + ')';
+                    sel.appendChild(opt);
+                });
+            } else if (typeof searchResultsState !== 'undefined' && searchResultsState.clients && searchResultsState.clients.length > 0) {
+                // Fallback: use searchResultsState.clients array if customerDB is empty
+                searchResultsState.clients.forEach(function(c) {
+                    if (!c.email) return;
+                    var opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name + ' (' + c.email + ')';
+                    sel.appendChild(opt);
+                });
+            }
         }
 
         // ── When a client is selected from dropdown, fill email + prepared-for ──
@@ -28864,6 +29295,7 @@ function emailCurrentCalc() {
 
             document.getElementById('listingDetailPage').classList.remove('hidden');
             document.getElementById('listingDetailPage').scrollTop = 0;
+            document.body.style.overflow = 'hidden'; // Lock body scroll so overlay scrolls
 
             // Update hash to reflect detail view
             if (!window._suppressHashUpdate) {
@@ -28942,6 +29374,7 @@ function emailCurrentCalc() {
 
         function closeListingDetail() {
             document.getElementById('listingDetailPage').classList.add('hidden');
+            document.body.style.overflow = ''; // Restore body scroll
             _detailCurrentId = null;
 
             // Go back to results
