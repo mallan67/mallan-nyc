@@ -1522,6 +1522,10 @@
             var searchResultsSection = document.getElementById('searchResultsSection');
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
+            // Hide detail page if open
+            var detailPage = document.getElementById('listingDetailPage');
+            if (detailPage) detailPage.classList.add('hidden');
+
             // Show search form container
             var searchFormContainer = document.getElementById('searchFormContainer');
             if (searchFormContainer) searchFormContainer.style.display = 'block';
@@ -1531,6 +1535,9 @@
 
             // Switch to the correct mode (basic or advanced) — uses existing function
             toggleSearchMode(mode);
+
+            // Update hash so refresh returns to search form
+            history.pushState(null, '', '#main');
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }

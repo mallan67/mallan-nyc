@@ -223,7 +223,12 @@ function printListingSheet() {
         showToast('Please select at least one listing to print.', 'warning');
         return;
     }
-
+    // Use the reports modal which has format/version/options
+    if (typeof openReportsModal === 'function') {
+        openReportsModal(ids, 'print');
+        return;
+    }
+    // Legacy fallback
     var compliance = checkListingCompliance(ids);
 
     // Show blocked listings warning
@@ -302,14 +307,19 @@ function previewListingSheet() {
     closeDeliveryModal();
 }
 
-// Email listing sheet — sends branded HTML email directly to client with status, formatCurrency, updatedDate, REBNY attribution
+// Email listing sheet — opens reports modal with email preset
 function emailListingSheet() {
     var ids = getSelectedListingIds();
     if (ids.length === 0) {
         showToast('Please select at least one listing to email.', 'warning');
         return;
     }
-
+    // Use the reports modal which has a working client selector + email delivery
+    if (typeof openReportsModal === 'function') {
+        openReportsModal(ids, 'email');
+        return;
+    }
+    // Legacy fallback (should not reach here)
     var compliance = checkListingCompliance(ids);
 
     if (compliance.blocked.length > 0 && compliance.passed.length === 0) {

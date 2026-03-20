@@ -10132,9 +10132,16 @@ function toggleSection(header) {
                                     </span>
                                     <div class="w-px h-5 bg-blue-200"></div>
                                     <div class="flex items-center gap-1">
-                                        <button onclick="openWorkWithSelected()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
-                                            <i class="fas fa-check-circle"></i> Work With
-                                        </button>
+                                        <div class="relative">
+                                            <button onclick="openWorkWithSelected()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+                                                <i class="fas fa-check-circle"></i> Work With <i class="fas fa-chevron-down text-[9px] ml-0.5"></i>
+                                            </button>
+                                            <div id="workWithCustomerDropdown" class="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-2xl border z-50 hidden" style="max-height:350px">
+                                                <div class="p-2.5 border-b"><input type="text" id="clientSearchInput" placeholder="Search clients..." class="w-full border rounded-lg px-3 py-2 text-sm" oninput="filterClients(event)"></div>
+                                                <div id="clientList" class="overflow-y-auto" style="max-height:260px"></div>
+                                                <div class="p-2 border-t text-center"><a href="/crm/dashboard.html#clients" class="text-xs text-blue-600 hover:underline">Manage Clients</a></div>
+                                            </div>
+                                        </div>
                                         <button onclick="printListingSheet()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
                                             <i class="fas fa-print"></i> Print
                                         </button>
@@ -17735,6 +17742,10 @@ function manageShowToast(msg) {
             var searchResultsSection = document.getElementById('searchResultsSection');
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
+            // Hide detail page if open
+            var detailPage = document.getElementById('listingDetailPage');
+            if (detailPage) detailPage.classList.add('hidden');
+
             // Show search form container
             var searchFormContainer = document.getElementById('searchFormContainer');
             if (searchFormContainer) searchFormContainer.style.display = 'block';
@@ -17744,6 +17755,9 @@ function manageShowToast(msg) {
 
             // Switch to the correct mode (basic or advanced) — uses existing function
             toggleSearchMode(mode);
+
+            // Update hash so refresh returns to search form
+            history.pushState(null, '', '#main');
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -32737,7 +32751,10 @@ function printListingSheet() {
         showToast('Please select at least one listing to print.', 'warning');
         return;
     }
-
+    if (typeof openReportsModal === 'function') {
+        openReportsModal(ids, 'print');
+        return;
+    }
     var compliance = checkListingCompliance(ids);
 
     // Show blocked listings warning
@@ -32823,7 +32840,10 @@ function emailListingSheet() {
         showToast('Please select at least one listing to email.', 'warning');
         return;
     }
-
+    if (typeof openReportsModal === 'function') {
+        openReportsModal(ids, 'email');
+        return;
+    }
     var compliance = checkListingCompliance(ids);
 
     if (compliance.blocked.length > 0 && compliance.passed.length === 0) {
