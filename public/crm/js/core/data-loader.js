@@ -339,7 +339,7 @@
             if (typeof currentSearchTab !== 'undefined') {
                 currentSearchTab = _savedTab === 'rent' ? 'rent' : 'sale';
             }
-            return MallanAPI.idx.search({ limit: 500, type: _searchType }).then(function(result) {
+            return MallanAPI.idx.search({ limit: 200, type: _searchType }).then(function(result) {
                 if (result.listings && result.listings.length > 0) {
                     _replaceListings(result.listings, 'IDX/Trestle');
                     // Show REBNY attribution

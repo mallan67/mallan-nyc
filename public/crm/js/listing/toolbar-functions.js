@@ -71,7 +71,7 @@
                 var searchType = savedTab === 'rent' ? 'rental' : 'sale';
 
                 // Build search params with current criteria
-                var params = { limit: 500, type: searchType };
+                var params = { limit: 200, type: searchType };
                 if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
                     if (activeSearchCriteria.priceMin) params.minPrice = activeSearchCriteria.priceMin;
                     if (activeSearchCriteria.priceMax) params.maxPrice = activeSearchCriteria.priceMax;

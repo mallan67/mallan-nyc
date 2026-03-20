@@ -16451,7 +16451,7 @@ function manageShowToast(msg) {
             // ≤200: server sends inline photos via $expand=Media (fast, one request)
             // >200: server sends listings without photos, photo-loader.js lazy-loads
             //       via /api/media/batch + IntersectionObserver
-            params.limit = 500;
+            params.limit = 200;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
@@ -19404,7 +19404,7 @@ function manageShowToast(msg) {
             if (typeof currentSearchTab !== 'undefined') {
                 currentSearchTab = _savedTab === 'rent' ? 'rent' : 'sale';
             }
-            return MallanAPI.idx.search({ limit: 500, type: _searchType }).then(function(result) {
+            return MallanAPI.idx.search({ limit: 200, type: _searchType }).then(function(result) {
                 if (result.listings && result.listings.length > 0) {
                     _replaceListings(result.listings, 'IDX/Trestle');
                     // Show REBNY attribution
@@ -31045,7 +31045,7 @@ function emailCurrentCalc() {
                 var searchType = savedTab === 'rent' ? 'rental' : 'sale';
 
                 // Build search params with current criteria
-                var params = { limit: 500, type: searchType };
+                var params = { limit: 200, type: searchType };
                 if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
                     if (activeSearchCriteria.priceMin) params.minPrice = activeSearchCriteria.priceMin;
                     if (activeSearchCriteria.priceMax) params.maxPrice = activeSearchCriteria.priceMax;
