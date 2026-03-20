@@ -11180,23 +11180,44 @@ function toggleSection(header) {
 
             <!-- Listing Detail Full Page -->
             <div id="listingDetailPage" class="fixed inset-0 bg-white z-[60] hidden" style="overflow-y:auto;-webkit-overflow-scrolling:touch">
-                <!-- Sticky header bar -->
-                <div class="sticky top-0 bg-white border-b z-10 px-4 sm:px-6 py-2 flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-2 sm:gap-3">
-                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-200"><i class="fas fa-arrow-left text-xs"></i> <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span></button>
-                        <span id="detailNavSep" class="text-gray-300 hidden sm:inline">|</span>
-                        <div id="detailNavGroup" class="flex items-center gap-1 bg-gray-50 rounded-lg border border-gray-200 px-1 py-0.5">
-                            <button id="detailPrevBtn" onclick="detailPanelPrev()" class="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white rounded text-gray-700 text-sm font-medium transition-colors" title="Previous listing (←)"><i class="fas fa-chevron-left text-xs"></i> <span class="hidden sm:inline">Prev</span></button>
-                            <span id="detailNavPosition" class="text-xs font-semibold text-gray-600 px-2 min-w-[50px] text-center"></span>
-                            <button id="detailNextBtn" onclick="detailPanelNext()" class="flex items-center gap-1 px-2.5 py-1.5 hover:bg-white rounded text-gray-700 text-sm font-medium transition-colors" title="Next listing (→)"><span class="hidden sm:inline">Next</span> <i class="fas fa-chevron-right text-xs"></i></button>
+                <!-- TOP BAR: dark nav bar like RealPlus -->
+                <div class="sticky top-0 z-10" style="font-family:Inter,system-ui,sans-serif;">
+                    <!-- Row 1: Navigation bar (dark) -->
+                    <div id="detailNavBar" class="bg-gray-900 text-white px-4 py-2 flex items-center gap-3">
+                        <!-- Left: Back -->
+                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-200 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
+                            <i class="fas fa-arrow-left text-xs"></i>
+                            <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span>
+                        </button>
+                        <span id="detailNavSep" class="text-gray-600">|</span>
+                        <!-- Center: Nav arrows + position -->
+                        <div class="flex-1 flex justify-center">
+                            <div id="detailNavGroup" class="flex items-center gap-0.5">
+                                <button id="detailPrevBtn" onclick="detailPanelPrev()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white transition-colors" title="Previous listing (←)"><i class="fas fa-chevron-left"></i></button>
+                                <span id="detailNavPosition" class="text-sm font-semibold text-white px-3 min-w-[60px] text-center tabular-nums"></span>
+                                <button id="detailNextBtn" onclick="detailPanelNext()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white transition-colors" title="Next listing (→)"><i class="fas fa-chevron-right"></i></button>
+                            </div>
                         </div>
-                        <label id="detailSelectLabel" class="flex items-center gap-2 cursor-pointer ml-1 sm:ml-2 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                            <input type="checkbox" id="detailSelectCheckbox" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" onchange="toggleDetailSelection()">
-                            <span class="text-sm font-medium text-gray-700">Select</span>
-                        </label>
+                        <!-- Right: action icons -->
+                        <div id="detailActionIcons" class="flex items-center gap-1">
+                            <button onclick="detailEmailListing()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white" title="Email"><i class="fas fa-envelope text-sm"></i></button>
+                            <button onclick="detailPrintListing()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white" title="Print"><i class="fas fa-print text-sm"></i></button>
+                            <button onclick="detailShareListing()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white" title="Share"><i class="fas fa-share-alt text-sm"></i></button>
+                        </div>
                     </div>
-                    <div id="detailHeaderRight" class="flex items-center gap-3">
-                        <!-- Populated by JS: status badge + price -->
+                    <!-- Row 2: Address + Select + Status + Price + Financials -->
+                    <div id="detailInfoBar" class="bg-white border-b px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-sm">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <label id="detailSelectLabel" class="flex-shrink-0 cursor-pointer" title="Select this listing">
+                                <input type="checkbox" id="detailSelectCheckbox" class="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" onchange="toggleDetailSelection()">
+                            </label>
+                            <div id="detailAddressBar" class="min-w-0">
+                                <!-- Populated by JS: address, tags -->
+                            </div>
+                        </div>
+                        <div id="detailHeaderRight" class="flex items-center gap-3 flex-shrink-0">
+                            <!-- Populated by JS: status badge + price + financials -->
+                        </div>
                     </div>
                 </div>
                 <div id="listingDetailContent" class="max-w-[1360px] mx-auto px-5 py-3">
@@ -28357,14 +28378,32 @@ function emailCurrentCalc() {
                 }
             }
 
-            // Header right: status + price + financials
+            // Header right: status + price + financials (RealPlus-style)
             document.getElementById('detailHeaderRight').innerHTML =
                 '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + statusLabel + '</span>'
-                + '<span class="text-lg font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
-                + '<div class="flex items-center gap-4 ml-4 text-xs text-gray-500">'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
+                + '<span class="text-xl font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
+                + '<div class="hidden sm:flex items-center gap-4 ml-4 text-xs text-gray-500">'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400 tracking-wide">' + (isSale ? 'Common Charges' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
+                + (isSale ? '<div class="text-right"><div class="uppercase text-[10px] text-gray-400 tracking-wide">R.E. Taxes</div><div class="font-semibold text-gray-700">$' + (listing.reTaxes || 0).toLocaleString() + '</div></div>' : '')
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400 tracking-wide">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <button onclick="openCalculatorModal(\'mortgage\', ' + listing.id + ')" class="inline-flex items-center justify-center w-5 h-5 rounded hover:bg-blue-100 text-blue-500 hover:text-blue-700 transition-colors ml-0.5" title="Open Financial Calculator"><i class="fas fa-calculator text-xs"></i></button></div></div>'
                 + '</div>';
+
+            // Address bar (below nav, next to checkbox)
+            var addrBar = document.getElementById('detailAddressBar');
+            if (addrBar) {
+                addrBar.innerHTML = '<div class="flex items-center gap-2 flex-wrap">'
+                    + '<h1 class="text-base sm:text-lg font-bold text-gray-900 truncate">' + displayAddress + displayUnit + '</h1>'
+                    + '<span class="px-1.5 py-0.5 border border-gray-200 rounded text-[9px] text-gray-400 font-mono flex-shrink-0">L-' + (listing.lid || listing.id) + '</span>'
+                    + '</div>'
+                    + '<div class="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">'
+                    + '<span>' + escapeHtml(listing.neighborhood) + '</span>'
+                    + '<span class="text-gray-300">&bull;</span>'
+                    + '<span>' + ownershipLabel(listing.ownership) + '</span>'
+                    + (listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : '')
+                    + '<span class="text-gray-300">&bull;</span>'
+                    + '<span>' + escapeHtml(listing.zip) + '</span>'
+                    + '</div>';
+            }
 
             // ── Helper: only show a field row if it has real data ──
             function fld(label, value, cls) {
@@ -28397,23 +28436,7 @@ function emailCurrentCalc() {
                     </div>
                 </div>
 
-                <!-- Address & Tags -->
-                <div class="flex items-center gap-2 mb-0.5">
-                    <input type="checkbox" class="w-3.5 h-3.5 accent-amber-600" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="toggleListingSelection(${listing.id})">
-                    <h1 class="text-xl font-bold text-gray-900 tracking-tight">${displayAddress}${displayUnit}</h1>
-                    <span class="px-1.5 py-0.5 border border-gray-200 rounded text-[9px] text-gray-400 font-mono">L-${listing.lid || listing.id}</span>
-                </div>
-
-                <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
-                    <span>${escapeHtml(listing.neighborhood)}</span>
-                    <span class="text-gray-300">&bull;</span>
-                    <span>${escapeHtml(listing.borough || 'Manhattan')}, NY ${escapeHtml(listing.zip)}</span>
-                    ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : ''}
-                    <span class="text-gray-300">&bull;</span>
-                    <span>${ownershipLabel(listing.ownership)}</span>
-                    ${listing.buildingName ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.buildingName) + '</span>' : ''}
-                    ${listing.crossStreet ? '<span class="text-gray-300">&bull;</span><span class="text-gray-400"><i class="fas fa-arrows-alt-h text-[10px] mr-0.5"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
-                </div>
+                <!-- Address & Tags are now in the sticky header info bar -->
 
                 <!-- Stats Bar -->
                 <div class="lux-stat-bar mb-4">
@@ -29323,9 +29346,9 @@ function emailCurrentCalc() {
             var _backBtn = document.getElementById('detailBackBtn');
             var _navGroup = document.getElementById('detailNavGroup');
             var _navSep = document.getElementById('detailNavSep');
-            var _prevBtn = document.getElementById('detailPrevBtn');
-            var _nextBtn = document.getElementById('detailNextBtn');
             var _selLabel = document.getElementById('detailSelectLabel');
+            var _infoBar = document.getElementById('detailInfoBar');
+            var _actionIcons = document.getElementById('detailActionIcons');
             // Restore Back button (standalone mode changes it to "× Close")
             if (_backBtn) {
                 _backBtn.innerHTML = '<i class="fas fa-arrow-left text-xs"></i> <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span>';
@@ -29333,24 +29356,15 @@ function emailCurrentCalc() {
             }
             if (_navGroup) _navGroup.style.display = '';
             if (_navSep) _navSep.style.display = '';
-            if (_prevBtn) _prevBtn.style.display = '';
-            if (_nextBtn) _nextBtn.style.display = '';
             if (_selLabel) _selLabel.style.display = '';
+            if (_infoBar) _infoBar.style.display = '';
+            if (_actionIcons) _actionIcons.style.display = '';
 
-            // Update selection checkbox + label styling
+            // Update selection checkbox
             var detailCb = document.getElementById('detailSelectCheckbox');
             var _isSelected = searchResultsState.selectedListings.includes(listingId);
             if (detailCb) {
                 detailCb.checked = _isSelected;
-            }
-            if (_selLabel) {
-                if (_isSelected) {
-                    _selLabel.classList.add('border-blue-400', 'bg-blue-50');
-                    _selLabel.classList.remove('border-gray-200');
-                } else {
-                    _selLabel.classList.remove('border-blue-400', 'bg-blue-50');
-                    _selLabel.classList.add('border-gray-200');
-                }
             }
 
             // Update nav position (e.g., "3 / 89")
@@ -29449,6 +29463,11 @@ function emailCurrentCalc() {
             // Go back to results
             history.pushState(null, '', '#results');
         }
+
+        // Header action button wrappers
+        function detailEmailListing() { if (typeof emailListingDetail === 'function') emailListingDetail(); }
+        function detailPrintListing() { if (typeof printListingDetail === 'function') printListingDetail(); }
+        function detailShareListing() { if (_detailCurrentId) shareListing(_detailCurrentId); }
 
         function _detailKeyHandler(e) {
             // Skip if user is typing in an input
@@ -29721,19 +29740,7 @@ function emailCurrentCalc() {
             // Sync checkbox visual with actual state
             var cb = document.getElementById('detailSelectCheckbox');
             if (cb) {
-                var isSelected = searchResultsState.selectedListings.includes(_detailCurrentId);
-                cb.checked = isSelected;
-                // Update label styling to show selection state
-                var lbl = document.getElementById('detailSelectLabel');
-                if (lbl) {
-                    if (isSelected) {
-                        lbl.classList.add('border-blue-400', 'bg-blue-50');
-                        lbl.classList.remove('border-gray-200');
-                    } else {
-                        lbl.classList.remove('border-blue-400', 'bg-blue-50');
-                        lbl.classList.add('border-gray-200');
-                    }
-                }
+                cb.checked = searchResultsState.selectedListings.includes(_detailCurrentId);
             }
         }
 
@@ -32389,6 +32396,7 @@ function emailCurrentCalc() {
                     var navGroup = document.getElementById('detailNavGroup');
                     var navSep = document.getElementById('detailNavSep');
                     var selLabel = document.getElementById('detailSelectLabel');
+                    var actionIcons = document.getElementById('detailActionIcons');
                     if (backBtn) {
                         backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
                         backBtn.onclick = function() { window.close(); };
@@ -32396,6 +32404,7 @@ function emailCurrentCalc() {
                     if (navGroup) navGroup.style.display = 'none';
                     if (navSep) navSep.style.display = 'none';
                     if (selLabel) selLabel.style.display = 'none';
+                    if (actionIcons) actionIcons.style.display = 'none';
                 }
 
                 // Try immediately (data might already be loaded)
