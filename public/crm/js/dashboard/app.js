@@ -120,7 +120,7 @@ var CRM = (function () {
     Router.register('/rentals/automation',      function () { RentalsCRM.rentalsAutomation(); });
 
     // A4. Operations
-    Router.register('/ops/dashboard',        function () { Panels.opsDashboard(); });
+    Router.register('/ops/dashboard',        function () { if (typeof HomeScreen !== 'undefined') { HomeScreen.render(); } else { Panels.opsDashboard(); } });
     Router.register('/ops/search',           function () { Panels.propertySearch(); });
     Router.register('/ops/listings',         function () { Panels.myListings(); });
     Router.register('/ops/tasks',            function () { Panels.tasks(); });

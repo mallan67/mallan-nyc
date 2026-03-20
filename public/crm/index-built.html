@@ -2507,13 +2507,16 @@ button[id^="filterBtn_"][aria-pressed="true"] {
 }
 
 /* Detail panel — glass card */
-.detail-panel,
-#listingDetailPage {
+.detail-panel {
   background: white !important;
   border-radius: 20px !important;
   box-shadow: var(--float-shadow) !important;
   border: none !important;
   overflow: hidden;
+}
+#listingDetailPage {
+  background: white !important;
+  overflow-y: auto !important;
 }
 
 /* Detail photo grid */
