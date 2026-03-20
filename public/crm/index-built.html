@@ -2519,8 +2519,7 @@ button[id^="filterBtn_"][aria-pressed="true"] {
   overflow-y: auto !important;
   overflow-x: hidden !important;
   -webkit-overflow-scrolling: touch;
-  height: 100vh !important;
-  overscroll-behavior: contain;
+  height: 100% !important;
 }
 
 /* Detail photo grid */
@@ -3475,9 +3474,8 @@ function toggleSection(header) {
 
                         <!-- Price / Rooms -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-2">
-                            <p class="text-sm font-bold text-gray-800 mb-2.5">Price / Rooms</p>
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Price / Rooms</p>
                             <div class="space-y-2">
-                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Price</label>
                                 <div class="flex gap-1">
                                     <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinPrice">
                                         <option value="">Min Price</option>
@@ -3543,14 +3541,6 @@ function toggleSection(header) {
                                         <option value="100000000">$100M+</option>
                                     </select>
                                 </div>
-                                <div id="saleCustomPriceRow" class="hidden flex gap-1 items-center mt-1 p-1.5 bg-blue-50 border-2 border-blue-300 rounded-lg">
-                                    <span class="text-[10px] text-blue-600 font-semibold flex-shrink-0">$</span>
-                                    <input type="text" id="saleCustomMinPrice" placeholder="Min (e.g. 850000)" class="flex-1 min-w-0 border border-blue-300 rounded px-2 py-1.5 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" inputmode="numeric">
-                                    <span class="text-gray-500 text-xs font-semibold flex-shrink-0 px-1">to $</span>
-                                    <input type="text" id="saleCustomMaxPrice" placeholder="Max (e.g. 1500000)" class="flex-1 min-w-0 border border-blue-300 rounded px-2 py-1.5 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" inputmode="numeric">
-                                    <button type="button" onclick="clearCustomPrice('sale')" class="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-500 hover:bg-red-200 hover:text-red-700 text-xs flex-shrink-0" title="Clear custom price">&times;</button>
-                                </div>
-                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1">Beds / Baths</label>
                                 <div class="flex gap-1">
                                     <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinBeds">
                                         <option value="">Min Beds</option>
@@ -3609,7 +3599,6 @@ function toggleSection(header) {
                                         <option value="6">6+ BA</option>
                                     </select>
                                 </div>
-                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1">Rooms / SqFt</label>
                                 <div class="flex gap-1">
                                     <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinRooms">
                                         <option value="">Min Rooms</option>
@@ -3737,8 +3726,17 @@ function toggleSection(header) {
 
                         <!-- Quick Search -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
-                            <p class="text-sm font-bold text-gray-800 mb-2.5">Quick Search</p>
-                            <!-- 1. Neighborhood (most-used — moved to top) -->
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
+                            <!-- 1. RLS ID / Web ID / Listing # + Zip -->
+                            <div class="flex items-end gap-2 mb-2">
+                                <div class="flex-1">
+                                    <input type="text" id="saleQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
+                                </div>
+                                <div class="w-[72px]">
+                                    <input type="text" id="saleQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
+                                </div>
+                            </div>
+                            <!-- 2. Neighborhood + Map icon + Transit icon -->
                             <div class="mb-2">
                                 <div class="flex gap-1.5 items-center">
                                     <div class="relative flex-1">
@@ -3753,7 +3751,7 @@ function toggleSection(header) {
                                         <i class="fas fa-subway text-sm"></i>
                                     </button>
                                 </div>
-                                <div id="saleNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5 max-h-[72px] overflow-y-auto"></div>
+                                <div id="saleNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
                                 <!-- Transit expandable (slides down below neighborhood row) -->
                                 <div id="saleTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
                                     <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
@@ -3795,31 +3793,16 @@ function toggleSection(header) {
                                     </div>
                                 </div>
                             </div>
-                            <!-- 2. Address + Unit -->
+                            <!-- 3. Address -->
                             <div class="mb-1.5 relative">
-                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Address</label>
-                                <div class="flex gap-1.5">
-                                    <div class="flex-1 relative">
-                                        <input type="text" id="saleSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'saleSearchAddrResults')" autocomplete="off">
-                                        <div id="saleSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                                    </div>
-                                    <div class="w-[72px]">
-                                        <input type="text" id="saleQuickUnit" placeholder="Unit #" class="w-full border rounded px-2 py-1.5 text-xs text-center">
-                                    </div>
-                                </div>
+                                <input type="text" id="saleSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'saleSearchAddrResults')" autocomplete="off">
+                                <div id="saleSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
                             </div>
-                            <!-- 3. RLS ID + Zip (less common) -->
-                            <div class="flex items-end gap-1.5 mb-2">
-                                <div class="flex-1">
-                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">RLS ID / Listing #</label>
-                                    <input type="text" id="saleQuickRls" placeholder="RLS ID, Web ID (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
-                                </div>
-                                <div class="w-[72px]">
-                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Zip</label>
-                                    <input type="text" id="saleQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
-                                </div>
+                            <!-- 4. Unit (optional) -->
+                            <div class="mb-2">
+                                <input type="text" id="saleQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
                             </div>
-                            <!-- 4. Search -->
+                            <!-- 5. Search -->
                             <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
                                 <i class="fas fa-search mr-1"></i> Search
                             </button>
@@ -4556,8 +4539,17 @@ function toggleSection(header) {
 
                         <!-- Quick Search (Rental) -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
-                            <p class="text-sm font-bold text-gray-800 mb-2.5">Quick Search</p>
-                            <!-- 1. Neighborhood (most-used — moved to top) -->
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
+                            <!-- 1. RLS ID / Web ID / Listing # + Zip -->
+                            <div class="flex items-end gap-2 mb-2">
+                                <div class="flex-1">
+                                    <input type="text" id="rentalQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
+                                </div>
+                                <div class="w-[72px]">
+                                    <input type="text" id="rentalQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
+                                </div>
+                            </div>
+                            <!-- 2. Neighborhood + Map icon + Transit icon -->
                             <div class="mb-2">
                                 <div class="flex gap-1.5 items-center">
                                     <div class="relative flex-1">
@@ -4614,31 +4606,16 @@ function toggleSection(header) {
                                     </div>
                                 </div>
                             </div>
-                            <!-- 2. Address + Unit -->
+                            <!-- 3. Address -->
                             <div class="mb-1.5 relative">
-                                <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Address</label>
-                                <div class="flex gap-1.5">
-                                    <div class="flex-1 relative">
-                                        <input type="text" id="rentalSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'rentalSearchAddrResults')" autocomplete="off">
-                                        <div id="rentalSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                                    </div>
-                                    <div class="w-[72px]">
-                                        <input type="text" id="rentalQuickUnit" placeholder="Unit #" class="w-full border rounded px-2 py-1.5 text-xs text-center">
-                                    </div>
-                                </div>
+                                <input type="text" id="rentalSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'rentalSearchAddrResults')" autocomplete="off">
+                                <div id="rentalSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
                             </div>
-                            <!-- 3. RLS ID + Zip (less common) -->
-                            <div class="flex items-end gap-1.5 mb-2">
-                                <div class="flex-1">
-                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">RLS ID / Listing #</label>
-                                    <input type="text" id="rentalQuickRls" placeholder="RLS ID, Web ID (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
-                                </div>
-                                <div class="w-[72px]">
-                                    <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Zip</label>
-                                    <input type="text" id="rentalQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
-                                </div>
+                            <!-- 4. Unit (optional) -->
+                            <div class="mb-2">
+                                <input type="text" id="rentalQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
                             </div>
-                            <!-- 4. Search -->
+                            <!-- 5. Search -->
                             <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
                                 <i class="fas fa-search mr-1"></i> Search
                             </button>
@@ -9885,21 +9862,6 @@ function toggleSection(header) {
                         </div>
                     </div>
                 </div>
-                    <!-- Saved Searches quick-access panel -->
-                    <div id="savedSearchesFormPanel" class="bg-white border rounded-xl shadow-sm mb-4 overflow-hidden" style="display:none;">
-                        <div class="px-4 py-2.5 bg-gray-50 border-b flex items-center justify-between cursor-pointer" onclick="toggleSavedSearchesPanel()">
-                            <div class="flex items-center gap-2">
-                                <i class="fas fa-folder-open text-blue-500 text-sm"></i>
-                                <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Saved Searches</span>
-                                <span id="savedSearchFormCount" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full">0</span>
-                            </div>
-                            <i id="savedSearchesPanelChevron" class="fas fa-chevron-down text-gray-400 text-xs transition-transform"></i>
-                        </div>
-                        <div id="savedSearchesPanelBody" class="hidden">
-                            <div id="savedSearchFormList" class="max-h-52 overflow-y-auto"></div>
-                        </div>
-                    </div>
-
                     <!-- Sticky search actions — always visible at bottom of form -->
                     <div class="sticky bottom-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 rounded-b-xl">
                         <div class="flex items-center gap-2 text-xs text-gray-400">
@@ -9910,14 +9872,10 @@ function toggleSection(header) {
                             <button onclick="openSaveSearchModal()" class="hover:text-blue-600 transition-colors">
                                 <i class="far fa-bookmark mr-1"></i>Save
                             </button>
-                            <span class="text-gray-200">|</span>
-                            <button onclick="toggleSavedSearchesPanel()" class="hover:text-blue-600 transition-colors">
-                                <i class="fas fa-folder-open mr-1"></i>My Searches
-                            </button>
                         </div>
                         <div class="flex items-center gap-2">
                             <button onclick="clearSearchForm()" class="px-4 py-2 text-sm text-gray-500 hover:text-red-500 font-medium transition-colors">Clear</button>
-                            <button onclick="performSearch()" id="searchFormMainBtn" class="px-8 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all">
+                            <button onclick="performSearch()" class="px-8 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all">
                                 <i class="fas fa-search mr-1.5"></i>Search
                             </button>
                         </div>
@@ -10179,7 +10137,7 @@ function toggleSection(header) {
                                                 <i class="fas fa-check-circle"></i> Work With <i class="fas fa-chevron-down text-[9px] ml-0.5"></i>
                                             </button>
                                             <div id="workWithCustomerDropdown" class="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-2xl border z-50 hidden" style="max-height:350px">
-                                                <div class="p-2.5 border-b"><input type="text" id="clientSearchInput" placeholder="Search clients..." class="w-full border rounded-lg px-3 py-2 text-sm" oninput="filterClients(event)" data-rls-ignore="true"></div>
+                                                <div class="p-2.5 border-b"><input type="text" id="clientSearchInput" placeholder="Search clients..." class="w-full border rounded-lg px-3 py-2 text-sm" oninput="filterClients(event)"></div>
                                                 <div id="clientList" class="overflow-y-auto" style="max-height:260px"></div>
                                                 <div class="p-2 border-t text-center"><a href="/crm/dashboard.html#clients" class="text-xs text-blue-600 hover:underline">Manage Clients</a></div>
                                             </div>
@@ -10203,13 +10161,6 @@ function toggleSection(header) {
 
                     </div>
                     <!-- END RESULTS TOOLBAR -->
-
-                    <!-- Active Filter Pills Bar -->
-                    <div id="activeFilterPillBar" class="hidden flex items-center gap-2 flex-wrap px-4 py-2 bg-gray-50 border rounded-lg mb-3">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Filters:</span>
-                        <div id="activeFilterPills" class="flex items-center gap-1.5 flex-wrap"></div>
-                        <button onclick="clearAllFiltersAndRerun()" class="ml-auto text-[10px] font-medium text-red-500 hover:text-red-700 transition-colors"><i class="fas fa-times mr-0.5"></i>Clear All</button>
-                    </div>
 
                     <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                     <!-- INLINE REFINE PANEL — quick-adjust search without leaving results              -->
@@ -10324,7 +10275,7 @@ function toggleSection(header) {
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-100">
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Min Sq Ft</label>
-                                    <select id="refineMinSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all" data-rls-ignore="true">
+                                    <select id="refineMinSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
                                         <option value="">Any</option>
                                         <option value="400">400+ sf</option>
                                         <option value="600">600+ sf</option>
@@ -10338,7 +10289,7 @@ function toggleSection(header) {
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Max Sq Ft</label>
-                                    <select id="refineMaxSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all" data-rls-ignore="true">
+                                    <select id="refineMaxSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
                                         <option value="">Any</option>
                                         <option value="600">Up to 600 sf</option>
                                         <option value="800">Up to 800 sf</option>
@@ -10351,7 +10302,7 @@ function toggleSection(header) {
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Property Type</label>
-                                    <select id="refinePropertyType" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all" data-rls-ignore="true">
+                                    <select id="refinePropertyType" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
                                         <option value="">Any</option>
                                         <option value="Condominium">Condo</option>
                                         <option value="StockCooperative">Co-op</option>
@@ -10364,7 +10315,7 @@ function toggleSection(header) {
                                 </div>
                                 <div>
                                     <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Neighborhood</label>
-                                    <input type="text" id="refineNeighborhood" placeholder="e.g. Upper East Side" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all placeholder:text-gray-400" data-rls-ignore="true">
+                                    <input type="text" id="refineNeighborhood" placeholder="e.g. Upper East Side" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all placeholder:text-gray-400">
                                 </div>
                             </div>
                             <!-- Status quick-toggles -->
@@ -11181,44 +11132,16 @@ function toggleSection(header) {
 
             <!-- Listing Detail Full Page -->
             <div id="listingDetailPage" class="fixed inset-0 bg-white z-[60] hidden" style="overflow-y:auto;-webkit-overflow-scrolling:touch">
-                <!-- TOP BAR: dark nav bar like RealPlus -->
-                <div class="sticky top-0 z-10" style="font-family:Inter,system-ui,sans-serif;">
-                    <!-- Row 1: Navigation bar (dark) -->
-                    <div id="detailNavBar" class="bg-gray-900 text-white px-4 py-2.5 flex items-center gap-3">
-                        <!-- Left: Back -->
-                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors">
-                            <i class="fas fa-arrow-left text-xs"></i>
-                            <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span>
-                        </button>
-                        <span id="detailNavSep" class="text-gray-500">|</span>
-                        <!-- Center: Nav arrows + position -->
-                        <div class="flex-1 flex justify-center">
-                            <div id="detailNavGroup" class="flex items-center gap-1 bg-gray-800 rounded-lg px-1 py-0.5">
-                                <button id="detailPrevBtn" onclick="detailPanelPrev()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-600 text-white transition-colors" title="Previous listing (←)"><i class="fas fa-chevron-left text-sm"></i></button>
-                                <span id="detailNavPosition" class="text-sm font-bold text-white px-3 min-w-[60px] text-center tabular-nums"></span>
-                                <button id="detailNextBtn" onclick="detailPanelNext()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-600 text-white transition-colors" title="Next listing (→)"><i class="fas fa-chevron-right text-sm"></i></button>
-                            </div>
-                        </div>
-                        <!-- Right: action icons -->
-                        <div id="detailActionIcons" class="flex items-center gap-1">
-                            <button onclick="detailEmailListing()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-700 text-white" title="Email"><i class="fas fa-envelope text-sm"></i></button>
-                            <button onclick="detailPrintListing()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-700 text-white" title="Print"><i class="fas fa-print text-sm"></i></button>
-                            <button onclick="detailShareListing()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-700 text-white" title="Share"><i class="fas fa-share-alt text-sm"></i></button>
-                        </div>
+                <!-- Sticky header bar -->
+                <div class="sticky top-0 bg-white border-b z-10 px-6 py-2 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"><i class="fas fa-arrow-left text-xs"></i> Back to Results</button>
+                        <span id="detailNavSep" class="text-gray-300">|</span>
+                        <button id="detailPrevBtn" onclick="detailPanelPrev()" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Previous listing"><i class="fas fa-chevron-left text-xs"></i></button>
+                        <button id="detailNextBtn" onclick="detailPanelNext()" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Next listing"><i class="fas fa-chevron-right text-xs"></i></button>
                     </div>
-                    <!-- Row 2: Address + Select + Status + Price + Financials -->
-                    <div id="detailInfoBar" class="bg-white border-b px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-sm">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <label id="detailSelectLabel" class="flex-shrink-0 cursor-pointer" title="Select this listing">
-                                <input type="checkbox" id="detailSelectCheckbox" class="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" onchange="toggleDetailSelection()">
-                            </label>
-                            <div id="detailAddressBar" class="min-w-0">
-                                <!-- Populated by JS: address, tags -->
-                            </div>
-                        </div>
-                        <div id="detailHeaderRight" class="flex items-center gap-3 flex-shrink-0">
-                            <!-- Populated by JS: status badge + price + financials -->
-                        </div>
+                    <div id="detailHeaderRight" class="flex items-center gap-3">
+                        <!-- Populated by JS: status badge + price -->
                     </div>
                 </div>
                 <div id="listingDetailContent" class="max-w-[1360px] mx-auto px-5 py-3">
@@ -12129,14 +12052,14 @@ function toggleSection(header) {
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Client</label>
-                <select id="savedSearchClientId" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
+                <select id="savedSearchClientId" class="w-full border rounded-lg px-3 py-2 text-sm">
                     <option value="">-- No client (agent only) --</option>
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Matching listings will appear in the client's portal</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email Alerts</label>
-                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
+                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm">
                     <option value="">Off</option>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -16854,17 +16777,11 @@ function manageShowToast(msg) {
                 priceMin = document.getElementById('saleMinPrice');
                 priceMax = document.getElementById('saleMaxPrice');
             }
-            if (priceMin && priceMin.value === 'custom') {
-                var customMinEl = document.getElementById(currentSearchTab === 'rent' ? 'rentalCustomMinPrice' : 'saleCustomMinPrice');
-                if (customMinEl && customMinEl.value) { var cv = parseInt(customMinEl.value); if (!isNaN(cv)) criteria.priceMin = cv; }
-            } else if (priceMin && priceMin.value && priceMin.value !== '') {
+            if (priceMin && priceMin.value && priceMin.value !== 'custom' && priceMin.value !== '') {
                 var pMin = parseInt(priceMin.value);
                 if (!isNaN(pMin)) criteria.priceMin = pMin;
             }
-            if (priceMax && priceMax.value === 'custom') {
-                var customMaxEl = document.getElementById(currentSearchTab === 'rent' ? 'rentalCustomMaxPrice' : 'saleCustomMaxPrice');
-                if (customMaxEl && customMaxEl.value) { var cv2 = parseInt(customMaxEl.value); if (!isNaN(cv2)) criteria.priceMax = cv2; }
-            } else if (priceMax && priceMax.value && priceMax.value !== '') {
+            if (priceMax && priceMax.value && priceMax.value !== 'custom' && priceMax.value !== '') {
                 var pMax = parseInt(priceMax.value);
                 if (!isNaN(pMax)) criteria.priceMax = pMax;
             }
@@ -17463,19 +17380,12 @@ function manageShowToast(msg) {
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
             countEls.forEach(function(el) { el.textContent = count + ' Results'; });
 
-            // Update sticky nav result count
-            var stickyCount = document.getElementById('stickyNavResultCount');
-            if (stickyCount) stickyCount.textContent = count + ' results';
-
             // Update pagination
             var totalPagesEl = document.getElementById('totalPages');
             if (totalPagesEl) totalPagesEl.textContent = totalPages;
 
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
-
-            // Update active filter pills
-            if (typeof renderActiveFilterPills === 'function') renderActiveFilterPills();
         }
 
         // Back to search - show search form, hide results
@@ -18856,10 +18766,6 @@ function manageShowToast(msg) {
         function toggleClientDeliveryMenu() {}
         function openDeliveryModal() {}
         function closeDeliveryModal() {}
-        function closeAddClientModal() {
-            var m = document.getElementById('addClientModal');
-            if (m) m.classList.add('hidden');
-        }
 
         // Select all results (with REBNY bulk export limit)
         function selectAllResults() {
@@ -19148,17 +19054,8 @@ function manageShowToast(msg) {
         // Helper: get primary photo URL for a listing (Cinematic Minimalism)
         function getListingPhoto(listing) {
             if (listing.images && listing.images.length > 0) {
-                // Prefer the primary photo; skip floor plans
                 var primary = listing.images.find(function(img) { return img.isPrimary; });
-                if (primary && primary.url) return primary.url;
-                // Find first non-floor-plan image
-                var photo = listing.images.find(function(img) {
-                    return img.mediaCategory !== 'FloorPlan' && img.imageOf !== 'FloorPlan'
-                        && img.mediaType !== 'FloorPlan';
-                });
-                if (photo && photo.url) return photo.url;
-                // Last resort: any image
-                var url = listing.images[0].url;
+                var url = (primary || listing.images[0]).url;
                 if (url) return url;
             }
             // SVG placeholder — matches frontend aesthetic
@@ -19652,201 +19549,12 @@ function manageShowToast(msg) {
 
         function _showNoListingsMessage(msg) {
             var resultsEl = document.getElementById('searchResults') || document.getElementById('listingGrid');
-            if (!resultsEl) return;
-
-            // Build active filters summary if available
-            var filterHints = '';
-            var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : null;
-            if (criteria) {
-                var pills = [];
-                if (criteria.searchTab) pills.push(criteria.searchTab === 'rent' ? 'Rentals' : criteria.searchTab === 'building' ? 'Buildings' : 'Sales');
-                if (criteria.neighborhoods && criteria.neighborhoods.length) pills.push(criteria.neighborhoods.join(', '));
-                if (criteria.priceMin || criteria.priceMax) {
-                    var pr = '';
-                    if (criteria.priceMin) pr += '$' + (criteria.priceMin >= 1000000 ? (criteria.priceMin/1000000) + 'M' : (criteria.priceMin/1000) + 'K');
-                    pr += ' – ';
-                    if (criteria.priceMax) pr += '$' + (criteria.priceMax >= 1000000 ? (criteria.priceMax/1000000) + 'M' : (criteria.priceMax/1000) + 'K');
-                    else pr += 'No max';
-                    pills.push(pr);
-                }
-                if (criteria.bedsMin) pills.push(criteria.bedsMin + '+ BD');
-                if (criteria.statuses && criteria.statuses.length) pills.push(criteria.statuses.join(', '));
-                if (pills.length) {
-                    filterHints = '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">';
-                    pills.forEach(function(p) { filterHints += '<span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:2px 10px;font-size:11px;color:#6b7280;">' + escapeHtml(p) + '</span>'; });
-                    filterHints += '</div>';
-                }
+            if (resultsEl) {
+                resultsEl.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280;">' +
+                    '<i class="fas fa-exclamation-circle" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db;"></i>' +
+                    '<p style="font-size:15px;font-weight:600;">' + escapeHtml(msg) + '</p></div>';
             }
-
-            resultsEl.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#6b7280;">'
-                + '<i class="fas fa-search" style="font-size:32px;margin-bottom:12px;display:block;color:#d1d5db;"></i>'
-                + '<p style="font-size:15px;font-weight:600;">' + escapeHtml(msg) + '</p>'
-                + filterHints
-                + '<div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">'
-                + '<button onclick="clearAllFiltersAndRerun()" style="padding:6px 16px;font-size:12px;font-weight:600;border:1px solid #d1d5db;border-radius:8px;background:white;color:#374151;cursor:pointer;">Clear All Filters</button>'
-                + '<button onclick="backToSearch()" style="padding:6px 16px;font-size:12px;font-weight:600;border:none;border-radius:8px;background:#2563eb;color:white;cursor:pointer;">Back to Search</button>'
-                + '</div>'
-                + '<p style="margin-top:12px;font-size:11px;color:#9ca3af;">Try broadening your price range, adding more neighborhoods, or including more statuses.</p>'
-                + '</div>';
         }
-
-        // ── Active Filter Pill Bar — shows current search criteria as removable pills ──
-        function renderActiveFilterPills() {
-            var bar = document.getElementById('activeFilterPillBar');
-            var container = document.getElementById('activeFilterPills');
-            if (!bar || !container) return;
-
-            var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : null;
-            if (!criteria) { bar.classList.add('hidden'); return; }
-
-            var pills = [];
-
-            // Search type
-            if (criteria.searchTab) {
-                var label = criteria.searchTab === 'rent' ? 'Rentals' : criteria.searchTab === 'building' ? 'Buildings' : 'Sales';
-                pills.push({ label: label, key: 'searchTab' });
-            }
-
-            // Neighborhoods
-            if (criteria.neighborhoods && criteria.neighborhoods.length) {
-                criteria.neighborhoods.forEach(function(n) {
-                    pills.push({ label: n, key: 'neighborhood', value: n });
-                });
-            }
-
-            // Price
-            if (criteria.priceMin || criteria.priceMax) {
-                var pr = '';
-                if (criteria.priceMin) pr += '$' + _formatPriceShort(criteria.priceMin);
-                pr += '–';
-                if (criteria.priceMax) pr += '$' + _formatPriceShort(criteria.priceMax);
-                else pr += 'No max';
-                pills.push({ label: pr, key: 'price' });
-            }
-
-            // Beds
-            if (criteria.bedsMin || criteria.bedsMax) {
-                var bd = '';
-                if (criteria.bedsMin) bd += criteria.bedsMin + '+';
-                if (criteria.bedsMax) bd += (bd ? '–' : '0–') + criteria.bedsMax;
-                pills.push({ label: bd + ' BD', key: 'beds' });
-            }
-
-            // Baths
-            if (criteria.bathsMin) {
-                pills.push({ label: criteria.bathsMin + '+ BA', key: 'baths' });
-            }
-
-            // Statuses
-            if (criteria.statuses && criteria.statuses.length) {
-                criteria.statuses.forEach(function(s) {
-                    pills.push({ label: s, key: 'status', value: s });
-                });
-            }
-
-            // Address
-            if (criteria.address) {
-                pills.push({ label: criteria.address, key: 'address' });
-            }
-
-            if (pills.length <= 1) { bar.classList.add('hidden'); return; } // Just search type = not interesting
-
-            bar.classList.remove('hidden');
-            container.innerHTML = pills.map(function(p) {
-                return '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded-full text-[11px] font-medium text-gray-700">'
-                    + escapeHtml(p.label)
-                    + '<button onclick="removeFilterPill(\'' + p.key + '\',\'' + (p.value || '') + '\')" class="text-gray-400 hover:text-red-500 ml-0.5" title="Remove">&times;</button>'
-                    + '</span>';
-            }).join('');
-        }
-
-        function _formatPriceShort(val) {
-            if (val >= 1000000) return (val / 1000000) + 'M';
-            if (val >= 1000) return (val / 1000) + 'K';
-            return val.toString();
-        }
-
-        function removeFilterPill(key, value) {
-            if (!activeSearchCriteria) return;
-            if (key === 'price') { delete activeSearchCriteria.priceMin; delete activeSearchCriteria.priceMax; }
-            else if (key === 'beds') { delete activeSearchCriteria.bedsMin; delete activeSearchCriteria.bedsMax; }
-            else if (key === 'baths') { delete activeSearchCriteria.bathsMin; delete activeSearchCriteria.bathsMax; }
-            else if (key === 'address') { delete activeSearchCriteria.address; }
-            else if (key === 'neighborhood' && value && activeSearchCriteria.neighborhoods) {
-                activeSearchCriteria.neighborhoods = activeSearchCriteria.neighborhoods.filter(function(n) { return n !== value; });
-            }
-            else if (key === 'status' && value && activeSearchCriteria.statuses) {
-                activeSearchCriteria.statuses = activeSearchCriteria.statuses.filter(function(s) { return s !== value; });
-            }
-            // Re-filter with updated criteria
-            var filtered = (typeof filterListings === 'function' && typeof listings !== 'undefined') ? filterListings(listings, activeSearchCriteria) : [];
-            searchResultsState.filteredListings = filtered;
-            searchResultsState.currentPage = 1;
-            if (typeof initializeSearchResults === 'function') initializeSearchResults();
-            if (typeof updateResultsCount === 'function') updateResultsCount();
-        }
-
-        function clearAllFiltersAndRerun() {
-            if (typeof clearSearchForm === 'function') clearSearchForm();
-            if (typeof backToSearch === 'function') backToSearch();
-        }
-
-        // ── Custom price input toggle ──────────────────────────────────────────────
-        function clearCustomPrice(prefix) {
-            var minSel = document.getElementById(prefix === 'rental' ? 'rentalMinRent' : prefix + 'MinPrice');
-            var maxSel = document.getElementById(prefix === 'rental' ? 'rentalMaxRent' : prefix + 'MaxPrice');
-            var row = document.getElementById(prefix + 'CustomPriceRow');
-            var minInput = document.getElementById(prefix + 'CustomMinPrice');
-            var maxInput = document.getElementById(prefix + 'CustomMaxPrice');
-            if (minSel) minSel.value = '';
-            if (maxSel) maxSel.value = '';
-            if (minInput) minInput.value = '';
-            if (maxInput) maxInput.value = '';
-            if (row) row.classList.add('hidden');
-        }
-
-        (function() {
-            var pairs = [
-                ['saleMinPrice', 'saleMaxPrice', 'saleCustomPriceRow', 'saleCustomMinPrice', 'saleCustomMaxPrice'],
-                ['rentalMinRent', 'rentalMaxRent', 'rentalCustomPriceRow', 'rentalCustomMinPrice', 'rentalCustomMaxPrice'],
-            ];
-            pairs.forEach(function(p) {
-                var minSel = document.getElementById(p[0]);
-                var maxSel = document.getElementById(p[1]);
-                var row = document.getElementById(p[2]);
-                if (!minSel || !maxSel || !row) return;
-                function check() {
-                    if (minSel.value === 'custom' || maxSel.value === 'custom') {
-                        row.classList.remove('hidden');
-                        // Auto-focus the appropriate custom input
-                        var focusId = minSel.value === 'custom' ? p[3] : p[4];
-                        var focusEl = document.getElementById(focusId);
-                        if (focusEl) setTimeout(function() { focusEl.focus(); }, 50);
-                    } else {
-                        row.classList.add('hidden');
-                    }
-                }
-                minSel.addEventListener('change', check);
-                maxSel.addEventListener('change', check);
-            });
-        })();
-
-        // ── Enter key to search ────────────────────────────────────────────────────
-        (function() {
-            var formContainer = document.getElementById('searchFormContainer');
-            if (!formContainer) return;
-            formContainer.addEventListener('keydown', function(e) {
-                if (e.key !== 'Enter') return;
-                var tag = e.target.tagName.toLowerCase();
-                // Skip if user is in a textarea or autocomplete dropdown
-                if (tag === 'textarea') return;
-                // Skip if an autocomplete dropdown is visible
-                var dropdowns = formContainer.querySelectorAll('.absolute.z-50:not(.hidden)');
-                if (dropdowns.length > 0) return;
-                e.preventDefault();
-                if (typeof performSearch === 'function') performSearch();
-            });
-        })();
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // COMPREHENSIVE FIELD DICTIONARIES FOR REPORTS - ALL REBNY RLS FIELDS
@@ -19946,7 +19654,7 @@ var ClientNormalizer = (function () {
 // No hardcoded demo/mock clients — real data only.
 // Uses escapeHtml() from nav.js for XSS prevention.
 // Uses ClientNormalizer from core/client-normalizer.js.
-// NOTE: customerDB is declared in data-loader.js — do NOT re-declare here
+var customerDB = {};
 
 // Agent-scoped client filtering — broker sees all, agent sees only their own
 function getMyClients() {
@@ -20980,7 +20688,7 @@ function parseBudgetValue(td) {
 // ═══ js/render/grid-column-defs.js ═══
         var gridColumnDefs = {
             // Core fields — each render includes data-reso-field/data-reso-value attributes
-            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); showListingDetail(' + l.id + ')">' + addr + '</span>'; } },
+            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(' + l.id + ')">' + addr + '</span>'; } },
             unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
             price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
             totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
@@ -21113,7 +20821,7 @@ function parseBudgetValue(td) {
                             if (!listing.permissions) listing.permissions = {};
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
-                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="showListingDetail(' + listing.id + ')" style="cursor:pointer;">';
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + ')" style="cursor:pointer;">';
                             tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(' + listing.id + ')"></td>';
                             tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
                             if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
@@ -21364,7 +21072,7 @@ function parseBudgetValue(td) {
                 return `
                 <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
-                    <div class="relative cursor-pointer group" onclick="showListingDetail(${listing.id})">
+                    <div class="relative cursor-pointer group" onclick="openListingInNewTab(${listing.id})">
                         <div class="cm-photo-wrap cm-card-photo">
                             <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                         </div>
@@ -21420,7 +21128,7 @@ function parseBudgetValue(td) {
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingDetail(${listing.id})">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab(${listing.id})">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
@@ -21523,7 +21231,7 @@ function parseBudgetValue(td) {
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
-                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="showListingDetail(${listing.id})">
+                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab(${listing.id})">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
                                 <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                             </div>
@@ -21546,7 +21254,7 @@ function parseBudgetValue(td) {
                             <div>
                                 <div class="flex items-start justify-between gap-3 mb-2">
                                     <div class="min-w-0">
-                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="showListingDetail(${listing.id})">${displayAddress}${displayUnit}</h3>
+                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab(${listing.id})">${displayAddress}${displayUnit}</h3>
                                         <div class="flex items-center gap-2 mt-1 flex-wrap">
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${escapeHtml(listing.era || 'Pre-War')}</span>
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${ownershipLabel(listing.ownership)}</span>
@@ -22857,109 +22565,6 @@ function parseBudgetValue(td) {
             backToSearch();
         }
 
-        // ── Saved Searches panel in search form ──────────────────────────────────
-        function toggleSavedSearchesPanel() {
-            var panel = document.getElementById('savedSearchesFormPanel');
-            var body = document.getElementById('savedSearchesPanelBody');
-            var chevron = document.getElementById('savedSearchesPanelChevron');
-            if (!panel || !body) return;
-
-            if (panel.style.display === 'none') {
-                panel.style.display = '';
-                body.classList.remove('hidden');
-                if (chevron) chevron.style.transform = 'rotate(180deg)';
-                populateSavedSearchFormList();
-            } else if (body.classList.contains('hidden')) {
-                body.classList.remove('hidden');
-                if (chevron) chevron.style.transform = 'rotate(180deg)';
-            } else {
-                body.classList.add('hidden');
-                if (chevron) chevron.style.transform = '';
-            }
-        }
-
-        function populateSavedSearchFormList() {
-            var container = document.getElementById('savedSearchFormList');
-            var countBadge = document.getElementById('savedSearchFormCount');
-            if (!container) return;
-
-            container.innerHTML = '<p class="p-3 text-sm text-gray-400 text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</p>';
-
-            if (typeof MallanAPI === 'undefined') {
-                container.innerHTML = '<p class="p-3 text-xs text-gray-500 text-center">API not available</p>';
-                return;
-            }
-
-            MallanAPI.savedSearches.list().then(function(result) {
-                var searches = result.savedSearches || [];
-                if (countBadge) countBadge.textContent = searches.length;
-
-                if (searches.length === 0) {
-                    container.innerHTML = '<p class="p-3 text-xs text-gray-500 text-center">No saved searches yet. Use "Save" to create one.</p>';
-                    return;
-                }
-
-                // Group by client
-                var byClient = {};
-                var agentOnly = [];
-                searches.forEach(function(s) {
-                    if (s.lead_id && s.lead_name) {
-                        if (!byClient[s.lead_id]) byClient[s.lead_id] = { name: s.lead_name, searches: [] };
-                        byClient[s.lead_id].searches.push(s);
-                    } else {
-                        agentOnly.push(s);
-                    }
-                });
-
-                var html = '';
-                // Agent's own searches
-                if (agentOnly.length) {
-                    html += '<div class="px-3 py-1.5 bg-gray-50 border-b text-[10px] font-bold text-gray-500 uppercase tracking-wider">My Searches</div>';
-                    agentOnly.forEach(function(s) { html += _savedSearchFormItem(s); });
-                }
-                // Client searches
-                Object.keys(byClient).forEach(function(clientId) {
-                    var group = byClient[clientId];
-                    html += '<div class="px-3 py-1.5 bg-blue-50 border-b text-[10px] font-bold text-blue-600 uppercase tracking-wider"><i class="fas fa-user mr-1"></i>' + escapeHtml(group.name) + '</div>';
-                    group.searches.forEach(function(s) { html += _savedSearchFormItem(s); });
-                });
-
-                container.innerHTML = html;
-            }).catch(function(err) {
-                container.innerHTML = '<p class="p-3 text-xs text-red-500 text-center">Failed to load</p>';
-            });
-        }
-
-        function _savedSearchFormItem(search) {
-            var alertBadge = search.alert_enabled ? '<span class="ml-1 px-1 py-0.5 bg-green-100 text-green-700 text-[9px] font-semibold rounded-full">' + (search.alert_frequency || 'alert') + '</span>' : '';
-            var dateStr = search.updated_at ? new Date(search.updated_at).toLocaleDateString() : '';
-            return '<div class="flex items-center justify-between px-3 py-2 hover:bg-gray-50 border-b border-gray-100">'
-                + '<button onclick="loadSavedSearch(\'' + search.id + '\')" class="text-left flex-1 min-w-0">'
-                + '<div class="font-medium text-xs truncate">' + escapeHtml(search.name) + alertBadge + '</div>'
-                + '<div class="text-[10px] text-gray-400">' + dateStr + '</div>'
-                + '</button>'
-                + '<button onclick="deleteSavedSearch(\'' + search.id + '\');populateSavedSearchFormList();" class="ml-2 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete">'
-                + '<i class="fas fa-trash text-[10px]"></i>'
-                + '</button>'
-                + '</div>';
-        }
-
-        // Auto-show saved searches panel if there are any
-        (function() {
-            if (typeof MallanAPI === 'undefined') return;
-            MallanAPI.onReady(function() {
-                MallanAPI.savedSearches.list().then(function(result) {
-                    var searches = result.savedSearches || [];
-                    var panel = document.getElementById('savedSearchesFormPanel');
-                    var countBadge = document.getElementById('savedSearchFormCount');
-                    if (countBadge) countBadge.textContent = searches.length;
-                    if (searches.length > 0 && panel) {
-                        panel.style.display = '';
-                    }
-                }).catch(function() {});
-            });
-        })();
-
 
 </script>
 
@@ -23532,7 +23137,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       }
       _dbg('Insert before: ' + (firstSymbol || 'top'));
 
-      // Fill: faint by default so users can see clickable areas, stronger on hover/select
+      // Fill: invisible by default, visible only when selected or hovered
       _map.addLayer({
         id: 'nb-fill', type: 'fill', source: 'nb-source',
         paint: {
@@ -23547,14 +23152,14 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
           ],
           'fill-opacity': [
             'case',
-            ['boolean', ['feature-state', 'selected'], false], 0.3,
-            ['boolean', ['feature-state', 'hover'], false], 0.15,
-            0.04,
+            ['boolean', ['feature-state', 'selected'], false], 0.25,
+            ['boolean', ['feature-state', 'hover'], false], 0.12,
+            0,
           ],
         },
       }, firstSymbol || undefined);
 
-      // Borders: always visible so neighborhoods are clickable, bold when selected
+      // Borders: invisible by default, solid when selected, faint on hover
       _map.addLayer({
         id: 'nb-line', type: 'line', source: 'nb-source',
         paint: {
@@ -23567,12 +23172,12 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
             'Staten Island', '#7C3AED',
             '#374151'
           ],
-          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1],
+          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
           'line-opacity': [
             'case',
             ['boolean', ['feature-state', 'selected'], false], 1,
-            ['boolean', ['feature-state', 'hover'], false], 0.6,
-            0.25,
+            ['boolean', ['feature-state', 'hover'], false], 0.5,
+            0,
           ],
         },
       }, firstSymbol || undefined);
@@ -23778,33 +23383,12 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
   };
 
   // Load neighborhood centroids for listings without coordinates
-  var _centroidLookup = {}; // lowercase → centroid for case-insensitive matching
-  var _centroidsReady = false;
-  // Borough-level fallback centroids (used when neighborhood doesn't match any centroid)
-  var _boroughCentroids = {
-    'manhattan': { lat: 40.7580, lng: -73.9855 },
-    'brooklyn': { lat: 40.6782, lng: -73.9442 },
-    'queens': { lat: 40.7282, lng: -73.7949 },
-    'bronx': { lat: 40.8448, lng: -73.8648 },
-    'the bronx': { lat: 40.8448, lng: -73.8648 },
-    'staten island': { lat: 40.5795, lng: -74.1502 },
-    'new york': { lat: 40.7580, lng: -73.9855 },
-  };
   (function loadCentroids() {
     var base = window.location.pathname.replace(/\/[^/]*$/, '');
     var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'rls-neighborhood-centroids.v1.json';
     fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
-      if (data) {
-        _centroids = data;
-        // Build case-insensitive lookup
-        Object.keys(data).forEach(function (k) {
-          _centroidLookup[k.toLowerCase()] = data[k];
-        });
-      }
-      _centroidsReady = true;
-      // Re-render pins if map is already open (handles async timing)
-      if (_isOpen && _map) refreshMapPins();
-    }).catch(function() { _centroidsReady = true; });
+      if (data) _centroids = data;
+    }).catch(function() {});
   })();
 
   // ── Ensure MapLibre is loaded ──
@@ -23831,25 +23415,11 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       var lat = l.latitude || (l.geo && l.geo.lat);
       var lng = l.longitude || (l.geo && l.geo.lng);
       var approx = false;
-      if (!lat || !lng) {
-        // Trestle does not provide Latitude/Longitude — use neighborhood centroid fallback
-        var centroid = null;
-        if (_centroids && (l.neighborhood || l.neighborhoodCanonical)) {
-          // Try exact match, then case-insensitive, then canonical
-          centroid = _centroids[l.neighborhood]
-            || _centroids[l.neighborhoodCanonical]
-            || _centroidLookup[(l.neighborhood || '').toLowerCase()]
-            || _centroidLookup[(l.neighborhoodCanonical || '').toLowerCase()];
-        }
-        // Borough-level fallback (wider jitter so pins spread across borough)
-        if (!centroid && l.borough) {
-          centroid = _boroughCentroids[(l.borough || '').toLowerCase()];
-        }
+      if ((!lat || !lng) && _centroids && l.neighborhood) {
+        var centroid = _centroids[l.neighborhood] || _centroids[l.neighborhoodCanonical];
         if (centroid) {
-          // Neighborhood: tight jitter (±0.002°). Borough: wider jitter (±0.01°)
-          var jitter = centroid === _boroughCentroids[(l.borough || '').toLowerCase()] ? 0.02 : 0.004;
-          lat = centroid.lat + (Math.random() - 0.5) * jitter;
-          lng = centroid.lng + (Math.random() - 0.5) * jitter;
+          lat = centroid.lat + (Math.random() - 0.5) * 0.004;
+          lng = centroid.lng + (Math.random() - 0.5) * 0.004;
           approx = true;
         }
       }
@@ -24156,7 +23726,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       _map.getCanvas().style.cursor = '';
     });
 
-    // Click — toggle select/deselect a neighborhood polygon → filter results
+    // Click — toggle select/deselect a neighborhood polygon
     _map.on('click', 'neighborhood-hit', function (e) {
       if (e.features.length === 0) return;
 
@@ -24174,24 +23744,10 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: true });
       }
 
-      // Build list of selected neighborhood names from GeoJSON source
-      var selectedNames = [];
-      if (_geojsonSource && _geojsonSource.features) {
-        _geojsonSource.features.forEach(function (f) {
-          if (_selectedSlugs[f.properties.slug]) {
-            selectedNames.push(f.properties.name);
-          }
-        });
-      }
-
-      // Filter results to selected neighborhoods (or show all if none selected)
-      _filterByMapNeighborhoods(selectedNames);
-
       // Show popup with listing count
       var mapListings = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
       var count = mapListings.filter(function (l) { return l.neighborhood === name; }).length;
       var isSelected = !!_selectedSlugs[slug];
-      var totalSelected = selectedNames.length;
 
       new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
         .setLngLat(e.lngLat)
@@ -24201,9 +23757,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
           '<div style="font-size:11px;color:#6b7280;">' + borough + '</div>' +
           '<div style="font-size:12px;margin-top:4px;font-weight:600;">' + count + ' listing' + (count !== 1 ? 's' : '') + '</div>' +
           '<div style="font-size:11px;margin-top:4px;color:' + (isSelected ? '#2563EB' : '#9CA3AF') + ';font-weight:600;">' +
-          (isSelected ? '<i class="fas fa-check-circle"></i> Selected' : 'Deselected') +
-          (totalSelected > 0 ? ' &middot; ' + totalSelected + ' area' + (totalSelected !== 1 ? 's' : '') + ' filtered' : '') +
-          '</div>' +
+          (isSelected ? '<i class="fas fa-check-circle"></i> Selected' : 'Deselected') + '</div>' +
           '</div>'
         )
         .addTo(_map);
@@ -24249,43 +23803,12 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     }
   };
 
-  // ── Filter displayed results by map-selected neighborhoods ──
-  function _filterByMapNeighborhoods(selectedNames) {
-    if (!searchResultsState || !searchResultsState.filteredListings) return;
-    if (selectedNames.length === 0) {
-      // No neighborhoods selected — show all results (re-filter from source)
-      if (typeof listings !== 'undefined' && typeof activeSearchCriteria !== 'undefined' && typeof filterListings === 'function') {
-        searchResultsState.filteredListings = filterListings(listings, activeSearchCriteria);
-      }
-    } else {
-      // Filter to only selected neighborhoods
-      var nameSet = {};
-      selectedNames.forEach(function (n) { nameSet[n.toLowerCase()] = true; });
-      var base = (typeof listings !== 'undefined' && typeof activeSearchCriteria !== 'undefined' && typeof filterListings === 'function')
-        ? filterListings(listings, activeSearchCriteria)
-        : searchResultsState.filteredListings;
-      searchResultsState.filteredListings = base.filter(function (l) {
-        var nh = (l.neighborhood || '').toLowerCase();
-        var nhc = (l.neighborhoodCanonical || '').toLowerCase();
-        return nameSet[nh] || nameSet[nhc];
-      });
-    }
-    searchResultsState.currentPage = 1;
-    if (typeof initializeSearchResults === 'function') initializeSearchResults();
-    if (typeof updateResultsCount === 'function') updateResultsCount();
-    refreshMapPins();
-  }
-
   // ── Refresh pins from current filtered listings ──
   function refreshMapPins() {
     if (!_map || !_isOpen) return;
     var mapListings = (typeof getFilteredListings === 'function')
       ? getFilteredListings(true) // skipPagination = true to get ALL results
       : (searchResultsState && searchResultsState.filteredListings) || [];
-    var geojson = buildGeoJSON(mapListings);
-    var withCoords = mapListings.filter(function(l) { return l.latitude && l.longitude; }).length;
-    var withNh = mapListings.filter(function(l) { return l.neighborhood; }).length;
-    console.log('[ResultsMap] ' + mapListings.length + ' listings, ' + withCoords + ' with coords, ' + withNh + ' with neighborhood, ' + geojson.features.length + ' pins plotted, ' + Object.keys(_centroidLookup).length + ' centroids loaded');
     addMarkers(mapListings);
   }
 
@@ -27048,28 +26571,16 @@ function openPrintableWindow(html, options) {
             sel.innerHTML = '<option value="">— Choose a client —</option>';
             var clients = typeof customerDB !== 'undefined' ? customerDB : {};
             var configuredEmail = (typeof getConfiguredAgentEmail === 'function') ? getConfiguredAgentEmail() : '';
-            var hasClients = Object.keys(clients).length > 0;
-
-            if (hasClients) {
-                Object.keys(clients).forEach(function(id) {
-                    var c = clients[id];
-                    var email = c.email || (id === 'test-client' ? configuredEmail : '');
-                    if (!email) return;
-                    var opt = document.createElement('option');
-                    opt.value = id;
-                    opt.textContent = (c.name || c._displayName || 'Client') + ' (' + email + ')';
-                    sel.appendChild(opt);
-                });
-            } else if (typeof searchResultsState !== 'undefined' && searchResultsState.clients && searchResultsState.clients.length > 0) {
-                // Fallback: use searchResultsState.clients array if customerDB is empty
-                searchResultsState.clients.forEach(function(c) {
-                    if (!c.email) return;
-                    var opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = c.name + ' (' + c.email + ')';
-                    sel.appendChild(opt);
-                });
-            }
+            Object.keys(clients).forEach(function(id) {
+                var c = clients[id];
+                // Test client uses configured email from Email Settings
+                var email = c.email || (id === 'test-client' ? configuredEmail : '');
+                if (!email) return;
+                var opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = c.name + ' (' + email + ')';
+                sel.appendChild(opt);
+            });
         }
 
         // ── When a client is selected from dropdown, fill email + prepared-for ──
@@ -28393,32 +27904,14 @@ function emailCurrentCalc() {
                 }
             }
 
-            // Header right: status + price + financials (RealPlus-style)
+            // Header right: status + price + financials
             document.getElementById('detailHeaderRight').innerHTML =
                 '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + statusLabel + '</span>'
-                + '<span class="text-xl font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
-                + '<div class="hidden sm:flex items-center gap-4 ml-4 text-xs text-gray-500">'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400 tracking-wide">' + (isSale ? 'Common Charges' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
-                + (isSale ? '<div class="text-right"><div class="uppercase text-[10px] text-gray-400 tracking-wide">R.E. Taxes</div><div class="font-semibold text-gray-700">$' + (listing.reTaxes || 0).toLocaleString() + '</div></div>' : '')
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400 tracking-wide">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <button onclick="openCalculatorModal(\'mortgage\', ' + listing.id + ')" class="inline-flex items-center justify-center w-5 h-5 rounded hover:bg-blue-100 text-blue-500 hover:text-blue-700 transition-colors ml-0.5" title="Open Financial Calculator"><i class="fas fa-calculator text-xs"></i></button></div></div>'
+                + '<span class="text-lg font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
+                + '<div class="flex items-center gap-4 ml-4 text-xs text-gray-500">'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
                 + '</div>';
-
-            // Address bar (below nav, next to checkbox)
-            var addrBar = document.getElementById('detailAddressBar');
-            if (addrBar) {
-                addrBar.innerHTML = '<div class="flex items-center gap-2 flex-wrap">'
-                    + '<h1 class="text-base sm:text-lg font-bold text-gray-900 truncate">' + displayAddress + displayUnit + '</h1>'
-                    + '<span class="px-1.5 py-0.5 border border-gray-200 rounded text-[9px] text-gray-400 font-mono flex-shrink-0">L-' + (listing.lid || listing.id) + '</span>'
-                    + '</div>'
-                    + '<div class="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">'
-                    + '<span>' + escapeHtml(listing.neighborhood) + '</span>'
-                    + '<span class="text-gray-300">&bull;</span>'
-                    + '<span>' + ownershipLabel(listing.ownership) + '</span>'
-                    + (listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : '')
-                    + '<span class="text-gray-300">&bull;</span>'
-                    + '<span>' + escapeHtml(listing.zip) + '</span>'
-                    + '</div>';
-            }
 
             // ── Helper: only show a field row if it has real data ──
             function fld(label, value, cls) {
@@ -28451,7 +27944,23 @@ function emailCurrentCalc() {
                     </div>
                 </div>
 
-                <!-- Address & Tags are now in the sticky header info bar -->
+                <!-- Address & Tags -->
+                <div class="flex items-center gap-2 mb-0.5">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-amber-600" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="toggleListingSelection(${listing.id})">
+                    <h1 class="text-xl font-bold text-gray-900 tracking-tight">${displayAddress}${displayUnit}</h1>
+                    <span class="px-1.5 py-0.5 border border-gray-200 rounded text-[9px] text-gray-400 font-mono">L-${listing.lid || listing.id}</span>
+                </div>
+
+                <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+                    <span>${escapeHtml(listing.neighborhood)}</span>
+                    <span class="text-gray-300">&bull;</span>
+                    <span>${escapeHtml(listing.borough || 'Manhattan')}, NY ${escapeHtml(listing.zip)}</span>
+                    ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : ''}
+                    <span class="text-gray-300">&bull;</span>
+                    <span>${ownershipLabel(listing.ownership)}</span>
+                    ${listing.buildingName ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.buildingName) + '</span>' : ''}
+                    ${listing.crossStreet ? '<span class="text-gray-300">&bull;</span><span class="text-gray-400"><i class="fas fa-arrows-alt-h text-[10px] mr-0.5"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
+                </div>
 
                 <!-- Stats Bar -->
                 <div class="lux-stat-bar mb-4">
@@ -29340,7 +28849,7 @@ function emailCurrentCalc() {
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
                 var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
-                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="showListingDetail(' + l.id + ')">'
+                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(' + l.id + ')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
                     + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'
@@ -29355,50 +28864,11 @@ function emailCurrentCalc() {
 
             document.getElementById('listingDetailPage').classList.remove('hidden');
             document.getElementById('listingDetailPage').scrollTop = 0;
-            document.body.style.overflow = 'hidden'; // Lock body scroll so overlay scrolls
-
-            // Reset header controls (standalone mode may have changed/hidden them)
-            var _backBtn = document.getElementById('detailBackBtn');
-            var _navGroup = document.getElementById('detailNavGroup');
-            var _navSep = document.getElementById('detailNavSep');
-            var _selLabel = document.getElementById('detailSelectLabel');
-            var _infoBar = document.getElementById('detailInfoBar');
-            var _actionIcons = document.getElementById('detailActionIcons');
-            // Restore Back button (standalone mode changes it to "× Close")
-            if (_backBtn) {
-                _backBtn.innerHTML = '<i class="fas fa-arrow-left text-xs"></i> <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span>';
-                _backBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors';
-                _backBtn.onclick = function() { closeListingDetail(); };
-            }
-            if (_navGroup) _navGroup.style.display = '';
-            if (_navSep) _navSep.style.display = '';
-            if (_selLabel) _selLabel.style.display = '';
-            if (_infoBar) _infoBar.style.display = '';
-            if (_actionIcons) _actionIcons.style.display = '';
-
-            // Update selection checkbox
-            var detailCb = document.getElementById('detailSelectCheckbox');
-            var _isSelected = searchResultsState.selectedListings.includes(listingId);
-            if (detailCb) {
-                detailCb.checked = _isSelected;
-            }
-
-            // Update nav position (e.g., "3 / 89")
-            var navPos = document.getElementById('detailNavPosition');
-            if (navPos) {
-                var allListings = getFilteredListings(true);
-                var posIdx = allListings.findIndex(function(l) { return l.id === listingId; });
-                navPos.textContent = posIdx >= 0 ? (posIdx + 1) + ' / ' + allListings.length : '';
-            }
 
             // Update hash to reflect detail view
             if (!window._suppressHashUpdate) {
                 history.pushState(null, '', '#detail/' + listingId);
             }
-
-            // Activate keyboard navigation (arrow keys, Escape)
-            document.removeEventListener('keydown', _detailKeyHandler); // prevent duplicates
-            document.addEventListener('keydown', _detailKeyHandler);
             } catch(e) { console.error('showListingDetail error:', e); }
         }
 
@@ -29472,25 +28942,10 @@ function emailCurrentCalc() {
 
         function closeListingDetail() {
             document.getElementById('listingDetailPage').classList.add('hidden');
-            document.body.style.overflow = ''; // Restore body scroll
             _detailCurrentId = null;
-            document.removeEventListener('keydown', _detailKeyHandler);
 
             // Go back to results
             history.pushState(null, '', '#results');
-        }
-
-        // Header action button wrappers
-        function detailEmailListing() { if (typeof emailListingDetail === 'function') emailListingDetail(); }
-        function detailPrintListing() { if (typeof printListingDetail === 'function') printListingDetail(); }
-        function detailShareListing() { if (_detailCurrentId) shareListing(_detailCurrentId); }
-
-        function _detailKeyHandler(e) {
-            // Skip if user is typing in an input
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            if (e.key === 'ArrowLeft') { e.preventDefault(); detailPanelPrev(); }
-            if (e.key === 'ArrowRight') { e.preventDefault(); detailPanelNext(); }
-            if (e.key === 'Escape') { e.preventDefault(); closeListingDetail(); }
         }
 
         // ── Build mailto body with listing thumbnail for agent inquiry ──
@@ -29748,16 +29203,6 @@ function emailCurrentCalc() {
             if (e.key === 'Escape') closePhotoLightbox();
             if (e.key === 'ArrowLeft') lightboxPrev();
             if (e.key === 'ArrowRight') lightboxNext();
-        }
-
-        function toggleDetailSelection() {
-            if (!_detailCurrentId) return;
-            if (typeof toggleListingSelection === 'function') toggleListingSelection(_detailCurrentId);
-            // Sync checkbox visual with actual state
-            var cb = document.getElementById('detailSelectCheckbox');
-            if (cb) {
-                cb.checked = searchResultsState.selectedListings.includes(_detailCurrentId);
-            }
         }
 
         function detailPanelPrev() {
@@ -32392,14 +31837,7 @@ function emailCurrentCalc() {
                         }
                         if (listing) {
                             showListingDetail(listing.id);
-                            // If there are filtered results (user came from search), keep nav controls.
-                            // Only hide nav in true standalone mode (no search session).
-                            var hasResults = typeof searchResultsState !== 'undefined'
-                                && searchResultsState.filteredListings
-                                && searchResultsState.filteredListings.length > 1;
-                            if (!hasResults) {
-                                _setupStandaloneDetail();
-                            }
+                            _setupStandaloneDetail();
                             return true;
                         }
                     }
@@ -32407,20 +31845,18 @@ function emailCurrentCalc() {
                 }
 
                 function _setupStandaloneDetail() {
-                    // Adjust header for standalone mode — hide nav & select (no result set to navigate)
+                    // Adjust header for standalone mode
                     var backBtn = document.getElementById('detailBackBtn');
-                    var navGroup = document.getElementById('detailNavGroup');
                     var navSep = document.getElementById('detailNavSep');
-                    var selLabel = document.getElementById('detailSelectLabel');
-                    var actionIcons = document.getElementById('detailActionIcons');
+                    var prevBtn = document.getElementById('detailPrevBtn');
+                    var nextBtn = document.getElementById('detailNextBtn');
                     if (backBtn) {
                         backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
                         backBtn.onclick = function() { window.close(); };
                     }
-                    if (navGroup) navGroup.style.display = 'none';
                     if (navSep) navSep.style.display = 'none';
-                    if (selLabel) selLabel.style.display = 'none';
-                    if (actionIcons) actionIcons.style.display = 'none';
+                    if (prevBtn) prevBtn.style.display = 'none';
+                    if (nextBtn) nextBtn.style.display = 'none';
                 }
 
                 // Try immediately (data might already be loaded)
@@ -32467,13 +31903,7 @@ function emailCurrentCalc() {
                                     }
                                     _markResolved();
                                     showListingDetail(fetched.id);
-                                    // Only go standalone if no search results to navigate
-                                    var hasResults2 = typeof searchResultsState !== 'undefined'
-                                        && searchResultsState.filteredListings
-                                        && searchResultsState.filteredListings.length > 1;
-                                    if (!hasResults2) {
-                                        _setupStandaloneDetail();
-                                    }
+                                    _setupStandaloneDetail();
                                 }
                             }).catch(function() { /* let other paths handle it */ });
                         });
