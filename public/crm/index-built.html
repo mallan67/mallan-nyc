@@ -2519,7 +2519,8 @@ button[id^="filterBtn_"][aria-pressed="true"] {
   overflow-y: auto !important;
   overflow-x: hidden !important;
   -webkit-overflow-scrolling: touch;
-  height: 100% !important;
+  height: 100vh !important;
+  overscroll-behavior: contain;
 }
 
 /* Detail photo grid */
@@ -3542,10 +3543,11 @@ function toggleSection(header) {
                                         <option value="100000000">$100M+</option>
                                     </select>
                                 </div>
-                                <div id="saleCustomPriceRow" class="hidden flex gap-1">
-                                    <input type="number" id="saleCustomMinPrice" placeholder="Min $" class="flex-1 min-w-0 border border-blue-300 rounded px-1.5 py-1 text-xs bg-blue-50" step="1000">
-                                    <span class="text-gray-400 text-xs flex-shrink-0">—</span>
-                                    <input type="number" id="saleCustomMaxPrice" placeholder="Max $" class="flex-1 min-w-0 border border-blue-300 rounded px-1.5 py-1 text-xs bg-blue-50" step="1000">
+                                <div id="saleCustomPriceRow" class="hidden flex gap-1 mt-1">
+                                    <input type="text" id="saleCustomMinPrice" placeholder="e.g. 850000" class="flex-1 min-w-0 border-2 border-blue-400 rounded px-2 py-1 text-xs bg-blue-50 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" inputmode="numeric">
+                                    <span class="text-gray-400 text-xs flex-shrink-0 self-center">to</span>
+                                    <input type="text" id="saleCustomMaxPrice" placeholder="e.g. 1500000" class="flex-1 min-w-0 border-2 border-blue-400 rounded px-2 py-1 text-xs bg-blue-50 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" inputmode="numeric">
+                                    <button type="button" onclick="clearCustomPrice('sale')" class="text-red-400 hover:text-red-600 text-xs px-1" title="Clear custom price">&times;</button>
                                 </div>
                                 <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1">Beds / Baths</label>
                                 <div class="flex gap-1">
@@ -11181,10 +11183,16 @@ function toggleSection(header) {
                 <!-- Sticky header bar -->
                 <div class="sticky top-0 bg-white border-b z-10 px-6 py-2 flex items-center justify-between shadow-sm">
                     <div class="flex items-center gap-3">
-                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"><i class="fas fa-arrow-left text-xs"></i> Back to Results</button>
+                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"><i class="fas fa-arrow-left text-xs"></i> Back</button>
                         <span id="detailNavSep" class="text-gray-300">|</span>
                         <button id="detailPrevBtn" onclick="detailPanelPrev()" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Previous listing"><i class="fas fa-chevron-left text-xs"></i></button>
+                        <span id="detailNavPosition" class="text-xs text-gray-400 font-medium"></span>
                         <button id="detailNextBtn" onclick="detailPanelNext()" class="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Next listing"><i class="fas fa-chevron-right text-xs"></i></button>
+                        <span class="text-gray-200">|</span>
+                        <label id="detailSelectLabel" class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600 hover:text-blue-600">
+                            <input type="checkbox" id="detailSelectCheckbox" class="w-4 h-4 rounded" onchange="toggleDetailSelection()">
+                            <span class="text-xs font-medium">Select</span>
+                        </label>
                     </div>
                     <div id="detailHeaderRight" class="flex items-center gap-3">
                         <!-- Populated by JS: status badge + price -->
@@ -19752,9 +19760,22 @@ function manageShowToast(msg) {
         }
 
         // ── Custom price input toggle ──────────────────────────────────────────────
+        function clearCustomPrice(prefix) {
+            var minSel = document.getElementById(prefix === 'rental' ? 'rentalMinRent' : prefix + 'MinPrice');
+            var maxSel = document.getElementById(prefix === 'rental' ? 'rentalMaxRent' : prefix + 'MaxPrice');
+            var row = document.getElementById(prefix + 'CustomPriceRow');
+            var minInput = document.getElementById(prefix + 'CustomMinPrice');
+            var maxInput = document.getElementById(prefix + 'CustomMaxPrice');
+            if (minSel) minSel.value = '';
+            if (maxSel) maxSel.value = '';
+            if (minInput) minInput.value = '';
+            if (maxInput) maxInput.value = '';
+            if (row) row.classList.add('hidden');
+        }
+
         (function() {
             var pairs = [
-                ['saleMinPrice', 'saleMaxPrice', 'saleCustomPriceRow', 'saleCustomMinPrice', 'saleCustomMaxPrice'],
+                ['saleMinPrice', 'saleMaxPrice', 'saleCustomPriceRow'],
             ];
             pairs.forEach(function(p) {
                 var minSel = document.getElementById(p[0]);
@@ -20922,7 +20943,7 @@ function parseBudgetValue(td) {
 // ═══ js/render/grid-column-defs.js ═══
         var gridColumnDefs = {
             // Core fields — each render includes data-reso-field/data-reso-value attributes
-            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(' + l.id + ')">' + addr + '</span>'; } },
+            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); showListingDetail(' + l.id + ')">' + addr + '</span>'; } },
             unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
             price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
             totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
@@ -21055,7 +21076,7 @@ function parseBudgetValue(td) {
                             if (!listing.permissions) listing.permissions = {};
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
-                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + ')" style="cursor:pointer;">';
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="showListingDetail(' + listing.id + ')" style="cursor:pointer;">';
                             tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(' + listing.id + ')"></td>';
                             tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
                             if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
@@ -21306,7 +21327,7 @@ function parseBudgetValue(td) {
                 return `
                 <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
-                    <div class="relative cursor-pointer group" onclick="openListingInNewTab(${listing.id})">
+                    <div class="relative cursor-pointer group" onclick="showListingDetail(${listing.id})">
                         <div class="cm-photo-wrap cm-card-photo">
                             <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                         </div>
@@ -21362,7 +21383,7 @@ function parseBudgetValue(td) {
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab(${listing.id})">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingDetail(${listing.id})">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
@@ -21465,7 +21486,7 @@ function parseBudgetValue(td) {
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
-                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab(${listing.id})">
+                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="showListingDetail(${listing.id})">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
                                 <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                             </div>
@@ -21488,7 +21509,7 @@ function parseBudgetValue(td) {
                             <div>
                                 <div class="flex items-start justify-between gap-3 mb-2">
                                     <div class="min-w-0">
-                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab(${listing.id})">${displayAddress}${displayUnit}</h3>
+                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="showListingDetail(${listing.id})">${displayAddress}${displayUnit}</h3>
                                         <div class="flex items-center gap-2 mt-1 flex-wrap">
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${escapeHtml(listing.era || 'Pre-War')}</span>
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${ownershipLabel(listing.ownership)}</span>
@@ -23474,7 +23495,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       }
       _dbg('Insert before: ' + (firstSymbol || 'top'));
 
-      // Fill: invisible by default, visible only when selected or hovered
+      // Fill: faint by default so users can see clickable areas, stronger on hover/select
       _map.addLayer({
         id: 'nb-fill', type: 'fill', source: 'nb-source',
         paint: {
@@ -23489,14 +23510,14 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
           ],
           'fill-opacity': [
             'case',
-            ['boolean', ['feature-state', 'selected'], false], 0.25,
-            ['boolean', ['feature-state', 'hover'], false], 0.12,
-            0,
+            ['boolean', ['feature-state', 'selected'], false], 0.3,
+            ['boolean', ['feature-state', 'hover'], false], 0.15,
+            0.04,
           ],
         },
       }, firstSymbol || undefined);
 
-      // Borders: invisible by default, solid when selected, faint on hover
+      // Borders: always visible so neighborhoods are clickable, bold when selected
       _map.addLayer({
         id: 'nb-line', type: 'line', source: 'nb-source',
         paint: {
@@ -23509,12 +23530,12 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
             'Staten Island', '#7C3AED',
             '#374151'
           ],
-          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
+          'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1],
           'line-opacity': [
             'case',
             ['boolean', ['feature-state', 'selected'], false], 1,
-            ['boolean', ['feature-state', 'hover'], false], 0.5,
-            0,
+            ['boolean', ['feature-state', 'hover'], false], 0.6,
+            0.25,
           ],
         },
       }, firstSymbol || undefined);
@@ -29280,7 +29301,7 @@ function emailCurrentCalc() {
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
                 var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
-                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(' + l.id + ')">'
+                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="showListingDetail(' + l.id + ')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
                     + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'
@@ -29297,10 +29318,28 @@ function emailCurrentCalc() {
             document.getElementById('listingDetailPage').scrollTop = 0;
             document.body.style.overflow = 'hidden'; // Lock body scroll so overlay scrolls
 
+            // Update selection checkbox
+            var detailCb = document.getElementById('detailSelectCheckbox');
+            if (detailCb) {
+                detailCb.checked = searchResultsState.selectedListings.includes(listingId);
+            }
+
+            // Update nav position (e.g., "3 / 89")
+            var navPos = document.getElementById('detailNavPosition');
+            if (navPos) {
+                var allListings = getFilteredListings(true);
+                var posIdx = allListings.findIndex(function(l) { return l.id === listingId; });
+                navPos.textContent = posIdx >= 0 ? (posIdx + 1) + ' / ' + allListings.length : '';
+            }
+
             // Update hash to reflect detail view
             if (!window._suppressHashUpdate) {
                 history.pushState(null, '', '#detail/' + listingId);
             }
+
+            // Activate keyboard navigation (arrow keys, Escape)
+            document.removeEventListener('keydown', _detailKeyHandler); // prevent duplicates
+            document.addEventListener('keydown', _detailKeyHandler);
             } catch(e) { console.error('showListingDetail error:', e); }
         }
 
@@ -29376,9 +29415,18 @@ function emailCurrentCalc() {
             document.getElementById('listingDetailPage').classList.add('hidden');
             document.body.style.overflow = ''; // Restore body scroll
             _detailCurrentId = null;
+            document.removeEventListener('keydown', _detailKeyHandler);
 
             // Go back to results
             history.pushState(null, '', '#results');
+        }
+
+        function _detailKeyHandler(e) {
+            // Skip if user is typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'ArrowLeft') { e.preventDefault(); detailPanelPrev(); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); detailPanelNext(); }
+            if (e.key === 'Escape') { e.preventDefault(); closeListingDetail(); }
         }
 
         // ── Build mailto body with listing thumbnail for agent inquiry ──
@@ -29636,6 +29684,11 @@ function emailCurrentCalc() {
             if (e.key === 'Escape') closePhotoLightbox();
             if (e.key === 'ArrowLeft') lightboxPrev();
             if (e.key === 'ArrowRight') lightboxNext();
+        }
+
+        function toggleDetailSelection() {
+            if (!_detailCurrentId) return;
+            if (typeof toggleListingSelection === 'function') toggleListingSelection(_detailCurrentId);
         }
 
         function detailPanelPrev() {
