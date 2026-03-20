@@ -19339,9 +19339,39 @@ function manageShowToast(msg) {
             };
         }
 
+        // ── Load clients from API for email/reports ──────────────────────────────
+        function _loadClients() {
+            if (typeof MallanAPI === 'undefined') return;
+            MallanAPI.onReady(function() {
+                MallanAPI._fetch('/api/crm/leads?limit=200').then(function(data) {
+                    var leads = data.leads || data || [];
+                    if (!Array.isArray(leads)) return;
+                    leads.forEach(function(cl) {
+                        if (typeof ClientNormalizer !== 'undefined') ClientNormalizer.normalize(cl);
+                        var id = cl.id || cl._id;
+                        if (!id) return;
+                        customerDB[id] = cl;
+                        searchResultsState.clients.push({
+                            id: id,
+                            name: cl.name || cl._displayName || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || 'Unknown',
+                            email: cl.email || '',
+                            type: cl.type || cl.client_type || 'buyer',
+                            agentId: cl.assigned_agent_id || cl.agentId
+                        });
+                    });
+                    if (typeof populateReportRecipientDropdown === 'function') populateReportRecipientDropdown();
+                    if (typeof populateClientList === 'function') populateClientList();
+                    console.log('[DataLoader] Loaded ' + searchResultsState.clients.length + ' clients');
+                }).catch(function(err) {
+                    console.warn('[DataLoader] Client load failed:', err && err.message);
+                });
+            });
+        }
+
         // ── Data loading ─────────────────────────────────────────────────────────
         // Priority: 1) IDX/Trestle search  2) Prisma DB  3) show error
         if (typeof MallanAPI !== 'undefined') {
+            _loadClients();
             MallanAPI.onReady(function() {
                 _loadFromIDX().catch(function(idxErr) {
                     // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
