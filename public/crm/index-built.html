@@ -31746,11 +31746,14 @@ function emailCurrentCalc() {
                 if (searchFormContainer) searchFormContainer.style.display = 'none';
                 if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-                // Show a loading indicator
+                // Show a loading indicator inside content area (preserve header DOM)
                 var detailPage = document.getElementById('listingDetailPage');
                 if (detailPage) {
                     detailPage.classList.remove('hidden');
-                    detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><div class="animate-spin w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full mx-auto mb-4"></div><p class="text-gray-500 text-sm">Loading listing...</p></div></div>';
+                    var detailContent = document.getElementById('listingDetailContent');
+                    if (detailContent) {
+                        detailContent.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><div class="animate-spin w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full mx-auto mb-4"></div><p class="text-gray-500 text-sm">Loading listing...</p></div></div>';
+                    }
                 }
 
                 function _tryShowDetail() {
@@ -31845,8 +31848,9 @@ function emailCurrentCalc() {
                     // Path 3: safety timeout — 10 seconds
                     setTimeout(function() {
                         if (_markResolved()) return;
-                        if (detailPage) {
-                            detailPage.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Unable to load listing. Please try again.</p><button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Retry</button></div></div>';
+                        var errTarget = document.getElementById('listingDetailContent') || detailPage;
+                        if (errTarget) {
+                            errTarget.innerHTML = '<div class="flex items-center justify-center min-h-[60vh]"><div class="text-center"><i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-4"></i><p class="text-gray-500">Unable to load listing. Please try again.</p><button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm">Retry</button></div></div>';
                         }
                     }, 10000);
                 }
