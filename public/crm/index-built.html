@@ -3543,11 +3543,12 @@ function toggleSection(header) {
                                         <option value="100000000">$100M+</option>
                                     </select>
                                 </div>
-                                <div id="saleCustomPriceRow" class="hidden flex gap-1 mt-1">
-                                    <input type="text" id="saleCustomMinPrice" placeholder="e.g. 850000" class="flex-1 min-w-0 border-2 border-blue-400 rounded px-2 py-1 text-xs bg-blue-50 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" inputmode="numeric">
-                                    <span class="text-gray-400 text-xs flex-shrink-0 self-center">to</span>
-                                    <input type="text" id="saleCustomMaxPrice" placeholder="e.g. 1500000" class="flex-1 min-w-0 border-2 border-blue-400 rounded px-2 py-1 text-xs bg-blue-50 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" inputmode="numeric">
-                                    <button type="button" onclick="clearCustomPrice('sale')" class="text-red-400 hover:text-red-600 text-xs px-1" title="Clear custom price">&times;</button>
+                                <div id="saleCustomPriceRow" class="hidden flex gap-1 items-center mt-1 p-1.5 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                                    <span class="text-[10px] text-blue-600 font-semibold flex-shrink-0">$</span>
+                                    <input type="text" id="saleCustomMinPrice" placeholder="Min (e.g. 850000)" class="flex-1 min-w-0 border border-blue-300 rounded px-2 py-1.5 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" inputmode="numeric">
+                                    <span class="text-gray-500 text-xs font-semibold flex-shrink-0 px-1">to $</span>
+                                    <input type="text" id="saleCustomMaxPrice" placeholder="Max (e.g. 1500000)" class="flex-1 min-w-0 border border-blue-300 rounded px-2 py-1.5 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" inputmode="numeric">
+                                    <button type="button" onclick="clearCustomPrice('sale')" class="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-500 hover:bg-red-200 hover:text-red-700 text-xs flex-shrink-0" title="Clear custom price">&times;</button>
                                 </div>
                                 <label class="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1">Beds / Baths</label>
                                 <div class="flex gap-1">
@@ -3752,7 +3753,7 @@ function toggleSection(header) {
                                         <i class="fas fa-subway text-sm"></i>
                                     </button>
                                 </div>
-                                <div id="saleNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
+                                <div id="saleNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5 max-h-[72px] overflow-y-auto"></div>
                                 <!-- Transit expandable (slides down below neighborhood row) -->
                                 <div id="saleTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
                                     <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
@@ -11183,26 +11184,26 @@ function toggleSection(header) {
                 <!-- TOP BAR: dark nav bar like RealPlus -->
                 <div class="sticky top-0 z-10" style="font-family:Inter,system-ui,sans-serif;">
                     <!-- Row 1: Navigation bar (dark) -->
-                    <div id="detailNavBar" class="bg-gray-900 text-white px-4 py-2 flex items-center gap-3">
+                    <div id="detailNavBar" class="bg-gray-900 text-white px-4 py-2.5 flex items-center gap-3">
                         <!-- Left: Back -->
-                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-200 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
+                        <button id="detailBackBtn" onclick="closeListingDetail()" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors">
                             <i class="fas fa-arrow-left text-xs"></i>
                             <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span>
                         </button>
-                        <span id="detailNavSep" class="text-gray-600">|</span>
+                        <span id="detailNavSep" class="text-gray-500">|</span>
                         <!-- Center: Nav arrows + position -->
                         <div class="flex-1 flex justify-center">
-                            <div id="detailNavGroup" class="flex items-center gap-0.5">
-                                <button id="detailPrevBtn" onclick="detailPanelPrev()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white transition-colors" title="Previous listing (←)"><i class="fas fa-chevron-left"></i></button>
-                                <span id="detailNavPosition" class="text-sm font-semibold text-white px-3 min-w-[60px] text-center tabular-nums"></span>
-                                <button id="detailNextBtn" onclick="detailPanelNext()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white transition-colors" title="Next listing (→)"><i class="fas fa-chevron-right"></i></button>
+                            <div id="detailNavGroup" class="flex items-center gap-1 bg-gray-800 rounded-lg px-1 py-0.5">
+                                <button id="detailPrevBtn" onclick="detailPanelPrev()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-600 text-white transition-colors" title="Previous listing (←)"><i class="fas fa-chevron-left text-sm"></i></button>
+                                <span id="detailNavPosition" class="text-sm font-bold text-white px-3 min-w-[60px] text-center tabular-nums"></span>
+                                <button id="detailNextBtn" onclick="detailPanelNext()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-600 text-white transition-colors" title="Next listing (→)"><i class="fas fa-chevron-right text-sm"></i></button>
                             </div>
                         </div>
                         <!-- Right: action icons -->
                         <div id="detailActionIcons" class="flex items-center gap-1">
-                            <button onclick="detailEmailListing()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white" title="Email"><i class="fas fa-envelope text-sm"></i></button>
-                            <button onclick="detailPrintListing()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white" title="Print"><i class="fas fa-print text-sm"></i></button>
-                            <button onclick="detailShareListing()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700 text-gray-300 hover:text-white" title="Share"><i class="fas fa-share-alt text-sm"></i></button>
+                            <button onclick="detailEmailListing()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-700 text-white" title="Email"><i class="fas fa-envelope text-sm"></i></button>
+                            <button onclick="detailPrintListing()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-700 text-white" title="Print"><i class="fas fa-print text-sm"></i></button>
+                            <button onclick="detailShareListing()" class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-700 text-white" title="Share"><i class="fas fa-share-alt text-sm"></i></button>
                         </div>
                     </div>
                     <!-- Row 2: Address + Select + Status + Price + Financials -->
@@ -19147,8 +19148,17 @@ function manageShowToast(msg) {
         // Helper: get primary photo URL for a listing (Cinematic Minimalism)
         function getListingPhoto(listing) {
             if (listing.images && listing.images.length > 0) {
+                // Prefer the primary photo; skip floor plans
                 var primary = listing.images.find(function(img) { return img.isPrimary; });
-                var url = (primary || listing.images[0]).url;
+                if (primary && primary.url) return primary.url;
+                // Find first non-floor-plan image
+                var photo = listing.images.find(function(img) {
+                    return img.mediaCategory !== 'FloorPlan' && img.imageOf !== 'FloorPlan'
+                        && img.mediaType !== 'FloorPlan';
+                });
+                if (photo && photo.url) return photo.url;
+                // Last resort: any image
+                var url = listing.images[0].url;
                 if (url) return url;
             }
             // SVG placeholder — matches frontend aesthetic
@@ -19797,7 +19807,8 @@ function manageShowToast(msg) {
 
         (function() {
             var pairs = [
-                ['saleMinPrice', 'saleMaxPrice', 'saleCustomPriceRow'],
+                ['saleMinPrice', 'saleMaxPrice', 'saleCustomPriceRow', 'saleCustomMinPrice', 'saleCustomMaxPrice'],
+                ['rentalMinRent', 'rentalMaxRent', 'rentalCustomPriceRow', 'rentalCustomMinPrice', 'rentalCustomMaxPrice'],
             ];
             pairs.forEach(function(p) {
                 var minSel = document.getElementById(p[0]);
@@ -19807,6 +19818,10 @@ function manageShowToast(msg) {
                 function check() {
                     if (minSel.value === 'custom' || maxSel.value === 'custom') {
                         row.classList.remove('hidden');
+                        // Auto-focus the appropriate custom input
+                        var focusId = minSel.value === 'custom' ? p[3] : p[4];
+                        var focusEl = document.getElementById(focusId);
+                        if (focusEl) setTimeout(function() { focusEl.focus(); }, 50);
                     } else {
                         row.classList.add('hidden');
                     }
@@ -29352,6 +29367,7 @@ function emailCurrentCalc() {
             // Restore Back button (standalone mode changes it to "× Close")
             if (_backBtn) {
                 _backBtn.innerHTML = '<i class="fas fa-arrow-left text-xs"></i> <span class="hidden sm:inline">Back to Results</span><span class="sm:hidden">Back</span>';
+                _backBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors';
                 _backBtn.onclick = function() { closeListingDetail(); };
             }
             if (_navGroup) _navGroup.style.display = '';
