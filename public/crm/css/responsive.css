@@ -256,3 +256,32 @@
 @media (min-width: 2560px) {
     .main-content > .tab-content { max-width: 2200px; }
 }
+
+/* ── SPLIT LAYOUT MOBILE (<768px) ────────────────────────────────── */
+@media (max-width: 767px) {
+    #filterPanel {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 100% !important;
+        min-width: unset !important;
+        height: 100vh;
+        z-index: 100;
+        transition: left 0.25s ease;
+    }
+
+    #filterPanel.mobile-open {
+        left: 0;
+    }
+
+    #filterPanel.collapsed {
+        left: -100%;
+        width: 100% !important;
+    }
+
+    #filterCollapseBtn { display: none; }
+
+    #mobileFilterToggle { display: flex !important; }
+
+    #resultsPanel { padding: 8px; }
+}

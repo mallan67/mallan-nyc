@@ -179,17 +179,16 @@
             // Save for "Last Search" recall
             if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
 
-            // Hide the entire search form container
-            var searchFormContainer = document.getElementById('searchFormContainer');
-            if (searchFormContainer) searchFormContainer.style.display = 'none';
-
-            // Show search results section
-            var searchResultsSection = document.getElementById('searchResultsSection');
-            if (searchResultsSection) {
-                searchResultsSection.style.display = 'block';
-                searchResultsSection.classList.remove('hidden');
+            // Show results panel, hide placeholder — filter panel stays visible
+            var placeholder = document.getElementById('resultsPlaceholder');
+            var resultsSection = document.getElementById('searchResultsSection');
+            if (placeholder) placeholder.style.display = 'none';
+            if (resultsSection) {
+                resultsSection.style.display = 'block';
+                resultsSection.classList.remove('hidden');
                 initializeSearchResults();
             }
+            // Do NOT hide searchFormContainer — filter panel is always visible
 
             // Update results count
             updateResultsCount();

@@ -1589,6 +1589,77 @@ header {
     .lux-btn-gold { display: none !important; }
 }
 
+/* ── ACTIVE FILTER PILLS ──────────────────────────────────────────── */
+#activeFilterPills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 0;
+    min-height: 36px;
+}
+
+#activeFilterPills:empty { display: none; }
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px 3px 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1d4ed8;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.filter-pill span { overflow: hidden; text-overflow: ellipsis; }
+
+.filter-pill-remove {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #bfdbfe;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #1d4ed8;
+    flex-shrink: 0;
+    transition: background 0.1s;
+}
+
+.filter-pill-remove:hover { background: #93c5fd; }
+
+/* ── RESULTS PLACEHOLDER ────────────────────────────────────────── */
+#resultsPlaceholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    text-align: center;
+    color: #9ca3af;
+}
+
+/* ── SKELETON LOADER ────────────────────────────────────────────── */
+/* skeletonPulse keyframe already in base.css — do not duplicate */
+.skeleton-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+.skeleton-img  { height: 180px; background: #f3f4f6; }
+.skeleton-line { height: 12px; background: #f3f4f6; border-radius: 6px; margin: 12px 16px; }
+.skeleton-line.short { width: 60%; }
+.skeleton-line.medium { width: 80%; }
+
     /* ═══ css/manage.css ═══ */
 /* ═══════════════════════════════════════════════════════
    MANAGE — Manage listings styles
@@ -1883,6 +1954,35 @@ header {
 /* ========================================= */
 @media (min-width: 2560px) {
     .main-content > .tab-content { max-width: 2200px; }
+}
+
+/* ── SPLIT LAYOUT MOBILE (<768px) ────────────────────────────────── */
+@media (max-width: 767px) {
+    #filterPanel {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 100% !important;
+        min-width: unset !important;
+        height: 100vh;
+        z-index: 100;
+        transition: left 0.25s ease;
+    }
+
+    #filterPanel.mobile-open {
+        left: 0;
+    }
+
+    #filterPanel.collapsed {
+        left: -100%;
+        width: 100% !important;
+    }
+
+    #filterCollapseBtn { display: none; }
+
+    #mobileFilterToggle { display: flex !important; }
+
+    #resultsPanel { padding: 8px; }
 }
 
     /* ═══ css/print.css ═══ */
@@ -3288,7 +3388,73 @@ function toggleSection(header) {
 <!-- ═══ html/search-form-and-results.html ═══ -->
 <!-- SECTION: NEW SEARCH (MAIN) -->
 <!-- Modals extracted to html/modals/ directory -->
-<div id="section-main" class="p-6">
+<div id="searchPageLayout">
+
+  <!-- ═══ FILTER PANEL (left, always visible) ═══ -->
+  <div id="filterPanel">
+
+    <!-- Collapse toggle -->
+    <button id="filterCollapseBtn" onclick="toggleFilterPanel()" title="Collapse filters">
+      <i id="filterCollapseBtnIcon" class="fas fa-chevron-left text-xs text-gray-400"></i>
+    </button>
+
+    <!-- Icon rail (collapsed state) -->
+    <div id="filterPanelIconRail">
+      <button onclick="toggleFilterPanel()" title="Expand" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600">
+        <i class="fas fa-sliders-h"></i>
+      </button>
+      <button onclick="toggleFilterPanel(); filterTabSwitch('sale')" title="Sales" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600">
+        <i class="fas fa-home"></i>
+      </button>
+      <button onclick="toggleFilterPanel(); filterTabSwitch('rent')" title="Rentals" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-green-600">
+        <i class="fas fa-building"></i>
+      </button>
+      <button onclick="toggleFilterPanel(); filterTabSwitch('building')" title="Buildings" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-purple-600">
+        <i class="fas fa-city"></i>
+      </button>
+      <button onclick="toggleFilterPanel(); filterTabSwitch('comparables')" title="Comparables" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-amber-600">
+        <i class="fas fa-chart-bar"></i>
+      </button>
+    </div>
+
+    <!-- Panel header: tabs + mode toggle -->
+    <div id="filterPanelHeader" class="border-b bg-white px-3 pt-3 pb-0">
+
+      <!-- Search type tabs -->
+      <div class="flex gap-0 mb-0 -mx-3 px-3 overflow-x-auto">
+        <button id="filterTabSale" onclick="filterTabSwitch('sale')"
+          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-blue-600 text-blue-700 bg-white flex-shrink-0">
+          <i class="fas fa-home mr-1 text-[10px]"></i>SALES
+        </button>
+        <button id="filterTabRent" onclick="filterTabSwitch('rent')"
+          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-white flex-shrink-0">
+          <i class="fas fa-building mr-1 text-[10px]"></i>RENTALS
+        </button>
+        <button id="filterTabBuilding" onclick="filterTabSwitch('building')"
+          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-white flex-shrink-0">
+          <i class="fas fa-city mr-1 text-[10px]"></i>BUILDINGS
+        </button>
+        <button id="filterTabComps" onclick="filterTabSwitch('comparables')"
+          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-white flex-shrink-0">
+          <i class="fas fa-chart-bar mr-1 text-[10px]"></i>COMPS
+        </button>
+      </div>
+
+      <!-- Basic / Advanced toggle -->
+      <div id="filterModeToggle" class="flex items-center gap-3 py-2">
+        <div class="flex bg-gray-100 rounded-lg p-0.5">
+          <button id="btnSearchBasic" class="px-3 py-1 bg-gray-900 text-white rounded-md text-xs font-bold" onclick="toggleSearchMode('basic')">Basic</button>
+          <button id="btnSearchAdvanced" class="px-3 py-1 text-gray-500 rounded-md text-xs font-bold hover:text-gray-700" onclick="toggleSearchMode('advanced')">Advanced</button>
+        </div>
+        <div id="expandCollapseControls" class="hidden flex items-center gap-1 text-xs">
+          <button onclick="expandAllSections()" class="text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded text-[10px] font-medium">Expand All</button>
+          <button onclick="collapseAllSections()" class="text-gray-500 hover:bg-gray-100 px-1.5 py-0.5 rounded text-[10px] font-medium">Collapse All</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scrollable filter content -->
+    <div id="filterPanelScroll">
                 <div id="searchFormContainer">
                     <!-- RLS Listing Tracker — total active listings from REBNY RLS -->
                     <div id="rlsListingTracker" class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl shadow-md mb-4 px-5 py-3.5 flex items-center justify-between flex-wrap gap-3">
@@ -9889,6 +10055,40 @@ function toggleSection(header) {
                         </div>
                     </div>
                 </div><!-- End searchFormContainer -->
+    </div><!-- end filterPanelScroll -->
+
+    <!-- Pinned search actions -->
+    <div id="filterPanelActions">
+      <button onclick="recallLastSearch()" class="text-xs text-gray-400 hover:text-blue-600 flex items-center gap-1 flex-shrink-0">
+        <i class="fas fa-history text-[10px]"></i>Last
+      </button>
+      <button onclick="openSaveSearchModal()" class="text-xs text-gray-400 hover:text-blue-600 flex items-center gap-1 flex-shrink-0">
+        <i class="far fa-bookmark text-[10px]"></i>Save
+      </button>
+      <div class="flex-1"></div>
+      <button onclick="clearSearchForm()" class="px-3 py-2 text-sm text-gray-500 hover:text-red-500 font-medium border rounded-lg">Clear</button>
+      <button onclick="performSearch()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm">
+        <i class="fas fa-search mr-1.5 text-xs"></i>Search
+      </button>
+    </div>
+
+  </div><!-- end filterPanel -->
+
+  <!-- ═══ RESULTS PANEL (right) ═══ -->
+  <div id="resultsPanel">
+
+    <!-- Mobile filter toggle (hidden on desktop) -->
+    <button id="mobileFilterToggle" onclick="toggleFilterPanel()"
+      class="hidden mb-3 px-3 py-2 bg-white border rounded-lg text-sm font-medium text-gray-700 flex items-center gap-2 shadow-sm">
+      <i class="fas fa-sliders-h text-gray-500"></i> Filters
+    </button>
+
+    <!-- Results placeholder (shown before first search) -->
+    <div id="resultsPlaceholder">
+      <i class="fas fa-search text-5xl mb-4 text-gray-300"></i>
+      <p class="text-lg font-semibold text-gray-400">Set your criteria and search</p>
+      <p class="text-sm text-gray-400 mt-1">Results will appear here</p>
+    </div>
 
                 <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                 <!-- SEARCH RESULTS SECTION - REBNY-Style Client Delivery System -->
@@ -11082,6 +11282,10 @@ function toggleSection(header) {
                     </div>
                 </div>
 
+  </div><!-- end resultsPanel -->
+
+</div><!-- end searchPageLayout -->
+
             <!-- [MODALS REMOVED — see html/modals/ for: client-delivery, grid-layouts, reports, add-edit-client, save-search, report-preview, client-feedback, client-report-view, filter] -->
 
             <!-- Listing Detail Full Page -->
@@ -11103,7 +11307,7 @@ function toggleSection(header) {
                 </div>
             </div>
 
-            </div>
+
 
 <!-- ═══ html/my-searches.html ═══ -->
 <!-- SECTION: MY SEARCHES -->
@@ -16329,17 +16533,16 @@ function manageShowToast(msg) {
             // Save for "Last Search" recall
             if (typeof saveLastSearchCriteria === 'function') saveLastSearchCriteria();
 
-            // Hide the entire search form container
-            var searchFormContainer = document.getElementById('searchFormContainer');
-            if (searchFormContainer) searchFormContainer.style.display = 'none';
-
-            // Show search results section
-            var searchResultsSection = document.getElementById('searchResultsSection');
-            if (searchResultsSection) {
-                searchResultsSection.style.display = 'block';
-                searchResultsSection.classList.remove('hidden');
+            // Show results panel, hide placeholder — filter panel stays visible
+            var placeholder = document.getElementById('resultsPlaceholder');
+            var resultsSection = document.getElementById('searchResultsSection');
+            if (placeholder) placeholder.style.display = 'none';
+            if (resultsSection) {
+                resultsSection.style.display = 'block';
+                resultsSection.classList.remove('hidden');
                 initializeSearchResults();
             }
+            // Do NOT hide searchFormContainer — filter panel is always visible
 
             // Update results count
             updateResultsCount();
