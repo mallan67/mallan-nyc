@@ -561,6 +561,110 @@
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
 
+            // ── ADVANCED FORM READS ──────────────────────────────────────────
+            var isAdvanced = false;
+            try { isAdvanced = sessionStorage.getItem('searchMode') === 'advanced'; } catch(e) {}
+
+            if (isAdvanced) {
+                var getVal = function(id) {
+                    var el = document.getElementById(id);
+                    return el ? el.value : '';
+                };
+                var getNum = function(id) {
+                    var v = getVal(id);
+                    if (!v || v === 'custom' || v === '') return undefined;
+                    var n = Number(v);
+                    return isNaN(n) ? undefined : n;
+                };
+                var getFloat = function(id) {
+                    var v = getVal(id);
+                    if (!v || v === 'custom' || v === '') return undefined;
+                    var n = parseFloat(v);
+                    return isNaN(n) ? undefined : n;
+                };
+
+                // Price
+                if (currentSearchTab === 'rent') {
+                    criteria.priceMin = getNum('adv-min-rent');
+                    criteria.priceMax = getNum('adv-max-rent');
+                } else {
+                    criteria.priceMin = getNum('adv-min-price');
+                    criteria.priceMax = getNum('adv-max-price');
+                }
+
+                criteria.bedsMin  = getNum('adv-min-beds');
+                criteria.bedsMax  = getNum('adv-max-beds');
+                criteria.bathsMin = getFloat('adv-min-baths');
+                criteria.bathsMax = getFloat('adv-max-baths');
+                criteria.roomsMin = getNum('adv-min-rooms');
+                criteria.roomsMax = getNum('adv-max-rooms');
+                criteria.sqftMin  = getNum('adv-min-sqft');
+                criteria.sqftMax  = getNum('adv-max-sqft');
+                criteria.keyword  = getVal('adv-keyword') || undefined;
+                criteria.domMin   = getNum('adv-dom-min');
+                criteria.domMax   = getNum('adv-dom-max');
+                criteria.yearBuiltFrom = getNum('adv-year-built-from');
+                criteria.yearBuiltTo   = getNum('adv-year-built-to');
+                criteria.floorsMin     = getNum('adv-floors-min');
+                criteria.floorsMax     = getNum('adv-floors-max');
+
+                // Date ranges
+                criteria.listedFrom  = getVal('adv-listed-from')  || undefined;
+                criteria.listedTo    = getVal('adv-listed-to')    || undefined;
+                criteria.updatedFrom = getVal('adv-updated-from') || undefined;
+                criteria.updatedTo   = getVal('adv-updated-to')   || undefined;
+                if (currentSearchTab === 'rent') {
+                    criteria.leaseSignedFrom = getVal('adv-lease-signed-from') || undefined;
+                    criteria.leaseSignedTo   = getVal('adv-lease-signed-to')   || undefined;
+                    criteria.rentedFrom      = getVal('adv-rented-from')       || undefined;
+                    criteria.rentedTo        = getVal('adv-rented-to')         || undefined;
+                } else {
+                    criteria.contractFrom = getVal('adv-contract-from') || undefined;
+                    criteria.contractTo   = getVal('adv-contract-to')   || undefined;
+                    criteria.soldFrom     = getVal('adv-sold-from')     || undefined;
+                    criteria.soldTo       = getVal('adv-sold-to')       || undefined;
+                }
+
+                // Status checkboxes from advanced form
+                var advMode = document.getElementById('searchAdvancedMode');
+                if (advMode) {
+                    var statusChecks = advMode.querySelectorAll('[data-field="MlsStatus"]:checked');
+                    if (statusChecks.length > 0) {
+                        criteria.statuses = Array.from(statusChecks).map(function(cb) {
+                            return cb.getAttribute('data-value');
+                        }).filter(Boolean);
+                    }
+                    var ownerChecks = advMode.querySelectorAll('[data-field="CommonInterest"]:checked');
+                    if (ownerChecks.length > 0) {
+                        criteria.ownership = Array.from(ownerChecks).map(function(cb) {
+                            return cb.getAttribute('data-value') || cb.value;
+                        });
+                    }
+                }
+
+                // Neighborhood tags from advanced form
+                var advTags = document.getElementById('advancedNeighborhoodTags');
+                if (advTags) {
+                    var nbTags = advTags.querySelectorAll('[data-neighborhood]');
+                    if (nbTags.length > 0) {
+                        criteria.neighborhoods = Array.from(nbTags).map(function(t) {
+                            return t.getAttribute('data-neighborhood');
+                        });
+                    }
+                }
+
+                // Remove undefined values
+                Object.keys(criteria).forEach(function(k) {
+                    if (criteria[k] === undefined || criteria[k] === null || criteria[k] === '') {
+                        delete criteria[k];
+                    }
+                });
+
+                return criteria;
+            }
+
+            // ── BASIC FORM READS (existing code below — do not change) ──────
+
             // Determine which basic form is active
             var activeBasicForm;
             if (currentSearchTab === 'rent') {
@@ -2160,4 +2264,80 @@
                 });
             });
         })();
+
+        /**
+         * filterTabSwitch(tab) — bridges filter panel tab buttons to existing toggleSearchTab().
+         * Must live in search-engine.js to share closure with toggleSearchTab().
+         */
+        function filterTabSwitch(tab) {
+            var tabs = ['sale','rent','building','comparables'];
+            var ids  = ['filterTabSale','filterTabRent','filterTabBuilding','filterTabComps'];
+
+            tabs.forEach(function(t, i) {
+                var btn = document.getElementById(ids[i]);
+                if (!btn) return;
+                var isActive = t === tab;
+                btn.classList.toggle('border-blue-600', isActive);
+                btn.classList.toggle('text-blue-700', isActive);
+                btn.classList.toggle('border-transparent', !isActive);
+                btn.classList.toggle('text-gray-500', !isActive);
+            });
+
+            // Show/hide Basic/Advanced toggle (hidden on Comps tab)
+            var modeToggle = document.getElementById('filterModeToggle');
+            if (modeToggle) modeToggle.style.display = tab === 'comparables' ? 'none' : '';
+
+            // Show Comparables panel or search forms
+            var comparablesPanel = document.getElementById('comparablesPanel');
+            var sectionMain = document.getElementById('section-main');
+            var searchFormContainer = document.getElementById('searchFormContainer');
+            if (tab === 'comparables') {
+                if (comparablesPanel) comparablesPanel.style.display = 'block';
+                if (searchFormContainer) searchFormContainer.style.display = 'none';
+            } else {
+                if (comparablesPanel) comparablesPanel.style.display = 'none';
+                if (searchFormContainer) searchFormContainer.style.display = 'block';
+                if (typeof toggleSearchTab === 'function') toggleSearchTab(tab);
+            }
+        }
+
+        var _filterPanelCollapsed = false;
+
+        function toggleFilterPanel() {
+            var panel = document.getElementById('filterPanel');
+            if (!panel) return;
+            _filterPanelCollapsed = !_filterPanelCollapsed;
+
+            if (window.innerWidth < 768) {
+                // Mobile: slide in/out as overlay
+                panel.classList.toggle('mobile-open', !_filterPanelCollapsed);
+                panel.classList.remove('collapsed');
+            } else {
+                // Desktop: collapse to icon rail
+                panel.classList.toggle('collapsed', _filterPanelCollapsed);
+            }
+
+            var icon = document.getElementById('filterCollapseBtnIcon');
+            if (icon) {
+                icon.classList.toggle('fa-chevron-left', !_filterPanelCollapsed);
+                icon.classList.toggle('fa-chevron-right', _filterPanelCollapsed);
+            }
+        }
+
+        // Expose for HTML onclick attributes (functions defined in closure need window exposure)
+        window.filterTabSwitch = filterTabSwitch;
+        window.toggleFilterPanel = toggleFilterPanel;
+
+        // Global bridges so client-database.js can access closure-scoped variables
+        window._crmRenderSearchResults = function() {
+            if (typeof renderSearchResults === 'function') renderSearchResults();
+        };
+        window._setCWCId = function(id) {
+            if (typeof currentWorkspaceClientId !== 'undefined') {
+                currentWorkspaceClientId = id;
+            }
+        };
+        window._getCWCId = function() {
+            return typeof currentWorkspaceClientId !== 'undefined' ? currentWorkspaceClientId : null;
+        };
 

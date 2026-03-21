@@ -256,3 +256,74 @@ function parseBudgetValue(td) {
     else if (text.toUpperCase().indexOf('K') !== -1) num *= 1000;
     return num;
 }
+
+// ── HEADER CLIENT SELECTOR ──────────────────────────────────────────
+function toggleHeaderClientDropdown() {
+    var dd = document.getElementById('headerClientDropdown');
+    if (!dd) return;
+    var isHidden = dd.classList.contains('hidden');
+    dd.classList.toggle('hidden');
+    if (isHidden) populateHeaderClientList();
+}
+
+function populateHeaderClientList(filter) {
+    var container = document.getElementById('headerClientList');
+    if (!container) return;
+    var clients = Object.values(getMyClients());
+    if (filter) {
+        var f = filter.toLowerCase();
+        clients = clients.filter(function(c) {
+            return (c.name||'').toLowerCase().indexOf(f) !== -1 ||
+                   (c.email||'').toLowerCase().indexOf(f) !== -1;
+        });
+    }
+    if (clients.length === 0) {
+        container.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400 text-center">No clients found</div>';
+        return;
+    }
+    var E = typeof escapeHtml === 'function' ? escapeHtml : function(s){ return String(s||''); };
+    container.innerHTML = clients.map(function(c) {
+        var typeColor = c.type === 'Buyer' ? 'blue' : c.type === 'Renter' ? 'green' : 'gray';
+        return '<button onclick="selectHeaderClient(\'' + E(c.id||c._id) + '\')" ' +
+            'class="w-full text-left px-3 py-2.5 hover:bg-blue-50 text-sm flex items-center gap-3">' +
+            '<div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">' +
+            E((c.name||'?').charAt(0)) + '</div>' +
+            '<div class="flex-1 min-w-0"><div class="font-medium text-gray-900 truncate">' + E(c.name) + '</div>' +
+            '<div class="text-xs text-gray-400 truncate">' + E(c.email||'') + '</div></div>' +
+            '<span class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-' + typeColor + '-100 text-' + typeColor + '-700">' +
+            E(c.type||'') + '</span></button>';
+    }).join('');
+}
+
+function filterHeaderClients(event) {
+    populateHeaderClientList(event.target.value);
+}
+
+function selectHeaderClient(clientId) {
+    var client = (typeof customerDB !== 'undefined') ? customerDB[clientId] : null;
+    if (!client) return;
+    // Use global bridge to set currentWorkspaceClientId inside search-engine.js closure
+    if (typeof window._setCWCId === 'function') window._setCWCId(clientId);
+    // Update header label
+    var label = document.getElementById('headerClientLabel');
+    if (label) label.textContent = client.name || 'Client';
+    // Update working-with banner
+    var banner = document.getElementById('workingWithClientBanner');
+    var bannerLabel = document.getElementById('workingClientLabel');
+    if (banner) { banner.classList.remove('hidden'); banner.style.display = ''; }
+    if (bannerLabel) bannerLabel.textContent = client.name || '';
+    // Close dropdown
+    var dd = document.getElementById('headerClientDropdown');
+    if (dd) dd.classList.add('hidden');
+    // Re-render via global bridge
+    if (typeof window._crmRenderSearchResults === 'function') window._crmRenderSearchResults();
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('headerClientSelectorWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        var dd = document.getElementById('headerClientDropdown');
+        if (dd) dd.classList.add('hidden');
+    }
+});
