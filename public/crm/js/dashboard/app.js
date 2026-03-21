@@ -117,6 +117,9 @@ var CRM = (function () {
     Router.register('/rentals/activity',        function () { RentalsCRM.rentalsActivity(); });
     Router.register('/rentals/automation',      function () { RentalsCRM.rentalsAutomation(); });
 
+    // A3b. Broker-only: Lead Distribution
+    Router.register('/broker/leads',         function () { _renderBrokerLeadDistribution(); });
+
     // A4. Operations
     Router.register('/ops/dashboard',        function () { if (typeof HomeScreen !== 'undefined') { HomeScreen.render(); } else { Panels.opsDashboard(); } });
     Router.register('/ops/search',           function () { Panels.propertySearch(); });
@@ -415,6 +418,14 @@ var CRM = (function () {
       { route: '/rentals/activity', icon: 'fa-stream', label: 'Activity' },
       { route: '/rentals/automation', icon: 'fa-robot', label: 'Automation' },
     ]);
+
+    // BROKER ADMIN (broker only)
+    var isBroker = typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT.role === 'broker';
+    if (isBroker) {
+      html += _sidebarGroup('BROKER ADMIN', 'broker', [
+        { route: '/broker/leads', icon: 'fa-user-plus', label: 'Unassigned Leads', badge: '!' },
+      ]);
+    }
 
     // OPERATIONS (agent view; broker sees expanded/all)
     html += _sidebarGroup('OPERATIONS', 'ops', [
@@ -1863,6 +1874,148 @@ window.addEventListener('message', function (event) {
     }
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// BROKER LEAD DISTRIBUTION PANEL
+// Full panel for reviewing and distributing unassigned self-signup leads
+// ═══════════════════════════════════════════════════════════════════════
+function _renderBrokerLeadDistribution() {
+  CRM.setPanelTitle('Lead Distribution');
+  var c = CRM.getContent();
+  c.innerHTML = '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
+
+  MallanAPI._fetch('/api/crm/unassigned-leads').then(function (data) {
+    var leads = data.leads || [];
+    var agents = data.agents || [];
+    var E = Utils.esc;
+    var $ = Utils.formatMoney;
+
+    var h = '<div class="space-y-6">';
+
+    // Header
+    h += '<div class="flex items-center justify-between">';
+    h += '<div><h2 class="text-xl font-bold text-gray-900">Unassigned Leads</h2>';
+    h += '<p class="text-sm text-gray-500">Self-registered on mallan.nyc — assign to an agent to activate their portal</p></div>';
+    h += '<span class="text-3xl font-black text-red-600">' + leads.length + '</span>';
+    h += '</div>';
+
+    if (leads.length === 0) {
+      h += '<div class="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">';
+      h += '<i class="fas fa-check-circle text-5xl text-green-400 mb-4"></i>';
+      h += '<p class="text-lg font-semibold text-gray-600">All caught up — no unassigned leads</p>';
+      h += '</div>';
+    } else {
+      // Role filter tabs
+      var roleGroups = {};
+      leads.forEach(function (l) { var r = l.portal_role || 'unknown'; if (!roleGroups[r]) roleGroups[r] = []; roleGroups[r].push(l); });
+      h += '<div class="flex gap-2 flex-wrap">';
+      h += '<button onclick="_filterUnassigned(\'all\')" id="ufl-all" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-900 text-white">All (' + leads.length + ')</button>';
+      Object.keys(roleGroups).forEach(function (role) {
+        var label = role === 'tenant' ? 'Renters' : (role.charAt(0).toUpperCase() + role.slice(1) + 's');
+        h += '<button onclick="_filterUnassigned(\'' + role + '\')" id="ufl-' + role + '" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-gray-200 text-gray-600 hover:border-gray-400">' + E(label) + ' (' + roleGroups[role].length + ')</button>';
+      });
+      h += '</div>';
+
+      h += '<div id="ufl-list" class="space-y-3">';
+      leads.forEach(function (lead) {
+        var roleColor = { buyer: 'blue', tenant: 'purple', seller: 'green', landlord: 'teal' }[lead.portal_role] || 'gray';
+        var roleLabel = lead.portal_role === 'tenant' ? 'Renter' : lead.portal_role ? (lead.portal_role.charAt(0).toUpperCase() + lead.portal_role.slice(1)) : '?';
+        var urgencyClass = lead.hours_since_signup <= 1 ? 'border-red-300 bg-red-50'
+          : lead.hours_since_signup <= 24 ? 'border-amber-200 bg-amber-50'
+          : 'border-gray-200 bg-white';
+
+        h += '<div class="border-2 rounded-2xl p-5 ' + urgencyClass + '" data-role="' + E(lead.portal_role || '') + '" id="lead-row-' + E(lead.id) + '">';
+        h += '<div class="flex items-start gap-4">';
+
+        // Avatar
+        var init = ((lead.first_name || '?')[0] + (lead.last_name || '?')[0]).toUpperCase();
+        h += '<div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#374151;flex-shrink:0;">' + E(init) + '</div>';
+
+        h += '<div class="flex-1 min-w-0">';
+        // Name + role + timing
+        h += '<div class="flex items-center gap-2 flex-wrap">';
+        h += '<span class="font-bold text-gray-900">' + E(lead.first_name + ' ' + lead.last_name) + '</span>';
+        h += '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-' + roleColor + '-100 text-' + roleColor + '-700">' + E(roleLabel) + '</span>';
+        var timeLabel = lead.hours_since_signup <= 1 ? '<span class="text-[10px] text-red-600 font-bold">🔴 Just now</span>'
+          : lead.hours_since_signup <= 24 ? '<span class="text-[10px] text-amber-600 font-bold">🟡 ' + lead.hours_since_signup + 'h ago</span>'
+          : '<span class="text-[10px] text-gray-400">⚪ ' + Math.floor(lead.hours_since_signup / 24) + 'd ago</span>';
+        h += timeLabel;
+        h += '</div>';
+
+        // Contact
+        h += '<div class="text-xs text-gray-500 mt-1">';
+        h += '<i class="fas fa-envelope mr-1 text-gray-300"></i>' + E(lead.email);
+        h += ' · <i class="fas fa-phone mr-1 text-gray-300"></i>' + E(lead.phone);
+        if (lead.tenant_origin) h += ' · <i class="fas fa-globe mr-1 text-gray-300"></i>' + E(lead.tenant_origin);
+        h += '</div>';
+
+        // Sign-up message / notes
+        if (lead.notes) {
+          var msg = lead.notes.replace('[Sign-up message]: ', '').split('\n')[0];
+          h += '<div class="mt-1.5 text-xs text-gray-600 bg-white/70 rounded-lg px-2 py-1.5 border border-gray-100 italic">' + E(msg) + '</div>';
+        }
+
+        // Assignment row
+        h += '<div class="flex items-center gap-2 mt-3 flex-wrap">';
+        h += '<select id="assign-agent-full-' + E(lead.id) + '" class="border rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white flex-1 min-w-[180px]">';
+        h += '<option value="">— Select Agent —</option>';
+        agents.forEach(function (agent) {
+          var load = agent.active_lead_count;
+          var loadColor = load > 20 ? ' 🔴' : load > 10 ? ' 🟡' : ' 🟢';
+          h += '<option value="' + E(agent.id) + '">' + E(agent.name) + ' · ' + load + ' leads' + loadColor + '</option>';
+        });
+        h += '</select>';
+        h += '<input type="text" id="assign-note-full-' + E(lead.id) + '" placeholder="Note to agent..." class="border rounded-lg px-2 py-1.5 text-xs flex-1 min-w-[160px]">';
+        h += '<button onclick="_assignLeadFromPanel(\'' + E(lead.id) + '\')" class="px-4 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-gray-800 flex-shrink-0"><i class="fas fa-paper-plane mr-1"></i>Assign</button>';
+        h += '</div>';
+        h += '</div></div></div>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+    c.innerHTML = h;
+  }).catch(function (err) {
+    c.innerHTML = '<div class="text-center py-12 text-red-500">' + Utils.esc(err.message || 'Failed to load') + '</div>';
+  });
+}
+
+function _filterUnassigned(role) {
+  var rows = document.querySelectorAll('#ufl-list > div');
+  rows.forEach(function (row) {
+    row.style.display = (role === 'all' || row.dataset.role === role) ? '' : 'none';
+  });
+  document.querySelectorAll('[id^="ufl-"]').forEach(function (btn) {
+    btn.classList.remove('bg-gray-900', 'text-white');
+    btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
+  });
+  var activeBtn = document.getElementById('ufl-' + role);
+  if (activeBtn) {
+    activeBtn.classList.add('bg-gray-900', 'text-white');
+    activeBtn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
+  }
+}
+
+function _assignLeadFromPanel(leadId) {
+  var sel = document.getElementById('assign-agent-full-' + leadId);
+  var noteEl = document.getElementById('assign-note-full-' + leadId);
+  if (!sel || !sel.value) { CRM.toast('Select an agent first', 'warning'); return; }
+
+  var body = { assigned_agent_id: sel.value };
+  var note = noteEl ? noteEl.value.trim() : '';
+  if (note) body.broker_note = note;
+
+  MallanAPI._fetch('/api/crm/leads/' + leadId, { method: 'PATCH', body: JSON.stringify(body) })
+    .then(function () {
+      CRM.toast('Assigned — agent notified', 'success');
+      var row = document.getElementById('lead-row-' + leadId);
+      if (row) {
+        row.style.transition = 'opacity 0.3s, max-height 0.3s';
+        row.style.opacity = '0';
+        setTimeout(function () { row.remove(); }, 300);
+      }
+    })
+    .catch(function (err) { CRM.toast('Failed: ' + Utils.esc(err.message || ''), 'error'); });
+}
 
 // ── Boot ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', CRM.init);

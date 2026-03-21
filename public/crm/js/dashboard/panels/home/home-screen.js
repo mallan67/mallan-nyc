@@ -8,7 +8,8 @@ var HomeScreen = (function () {
     var c = CRM.getContent();
     c.innerHTML = UI.loading();
 
-    // Fetch data for both cards
+    var isBroker = typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT.role === 'broker';
+
     Promise.all([
       MallanAPI._fetch('/api/crm/sales/sellers').catch(function () { return { sellers: [] }; }),
       MallanAPI._fetch('/api/crm/sales/buyers').catch(function () { return { buyers: [] }; }),
@@ -16,20 +17,26 @@ var HomeScreen = (function () {
       MallanAPI._fetch('/api/crm/rentals/tenants').catch(function () { return { tenants: [] }; }),
       MallanAPI._fetch('/api/crm/rentals/prospects').catch(function () { return { prospects: [] }; }),
       MallanAPI.deals.list({ limit: 200 }).catch(function () { return { deals: [] }; }),
+      // Broker only: unassigned self-signup leads
+      isBroker
+        ? MallanAPI._fetch('/api/crm/unassigned-leads').catch(function () { return { leads: [], agents: [] }; })
+        : Promise.resolve({ leads: [], agents: [] }),
     ]).then(function (results) {
-      _renderCards(c, results);
+      _renderCards(c, results, isBroker);
     }).catch(function () {
       c.innerHTML = '<div class="text-center py-20 text-gray-500">Unable to load dashboard data</div>';
     });
   }
 
-  function _renderCards(c, results) {
+  function _renderCards(c, results, isBroker) {
     var sellers = results[0].sellers || [];
     var buyers = results[1].buyers || results[1].clients || [];
     var landlords = results[2].landlords || results[2].clients || [];
     var tenants = results[3].tenants || results[3].clients || [];
     var prospects = results[4].prospects || results[4].clients || [];
     var deals = results[5].deals || [];
+    var unassignedLeads = results[6].leads || [];
+    var agentRoster = results[6].agents || [];
 
     // Calculate counts for Sales card
     var sellersNeedingResponse = sellers.filter(function (s) { return s.unread_comments > 0 || s.pending_approvals > 0; }).length;
@@ -105,7 +112,85 @@ var HomeScreen = (function () {
     html += '</div></div>';
     html += '</div>';
 
+    // BROKER ONLY: Unassigned Leads Card
+    if (isBroker && unassignedLeads.length > 0) {
+      html += '<div class="max-w-5xl mx-auto mt-6">';
+      html += '<div class="bg-white rounded-2xl border-2 border-red-200 shadow-sm overflow-hidden">';
+      html += '<div class="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center justify-between">';
+      html += '<div class="flex items-center gap-3"><div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i class="fas fa-user-plus text-white text-lg"></i></div>';
+      html += '<div><h2 class="text-lg font-bold text-white">Unassigned Leads</h2><p class="text-red-200 text-xs">Self-registered on mallan.nyc — awaiting distribution</p></div></div>';
+      html += '<span class="text-3xl font-black text-white">' + unassignedLeads.length + '</span>';
+      html += '</div>';
+      html += '<div class="p-6">';
+      html += '<div class="space-y-3" id="unassigned-leads-list">';
+
+      unassignedLeads.forEach(function (lead) {
+        var roleColor = { buyer: 'blue', tenant: 'purple', seller: 'green', landlord: 'teal' }[lead.portal_role] || 'gray';
+        var roleLabel = lead.portal_role === 'tenant' ? 'Renter'
+          : lead.portal_role ? (lead.portal_role.charAt(0).toUpperCase() + lead.portal_role.slice(1)) : 'Unknown';
+        var urgency = lead.hours_since_signup <= 1 ? '🔴 Just now'
+          : lead.hours_since_signup <= 24 ? '🟡 ' + lead.hours_since_signup + 'h ago'
+          : '⚪ ' + Math.floor(lead.hours_since_signup / 24) + 'd ago';
+
+        html += '<div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">';
+
+        // Lead info
+        html += '<div class="flex-1 min-w-0">';
+        html += '<div class="flex items-center gap-2">';
+        html += '<span class="font-semibold text-gray-900">' + E(lead.first_name + ' ' + lead.last_name) + '</span>';
+        html += '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-' + roleColor + '-100 text-' + roleColor + '-700">' + E(roleLabel) + '</span>';
+        html += '<span class="text-[10px] text-gray-400">' + urgency + '</span>';
+        html += '</div>';
+        html += '<div class="text-xs text-gray-500 mt-0.5">' + E(lead.email) + ' · ' + E(lead.phone) + '</div>';
+        if (lead.notes) {
+          html += '<div class="text-xs text-gray-600 mt-1 italic truncate">' + E(lead.notes.replace('[Sign-up message]: ', '').split('\n')[0]) + '</div>';
+        }
+        html += '</div>';
+
+        // Agent selector + assign button
+        html += '<div class="flex items-center gap-2 flex-shrink-0">';
+        html += '<select id="assign-agent-' + E(lead.id) + '" class="border rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white min-w-[160px]">';
+        html += '<option value="">— Select Agent —</option>';
+        agentRoster.forEach(function (agent) {
+          html += '<option value="' + E(agent.id) + '">' + E(agent.name) + ' (' + agent.active_lead_count + ' leads)</option>';
+        });
+        html += '</select>';
+        html += '<input type="text" id="assign-note-' + E(lead.id) + '" placeholder="Note to agent (optional)" class="border rounded-lg px-2 py-1.5 text-xs w-40 hidden">';
+        html += '<button onclick="HomeScreen.assignLead(\'' + E(lead.id) + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors">Assign</button>';
+        html += '</div>';
+        html += '</div>';
+      });
+
+      html += '</div>';
+      html += '<div class="mt-3 flex justify-end"><button onclick="Router.navigate(\'/broker/leads\')" class="text-xs text-red-600 hover:text-red-800 font-semibold"><i class="fas fa-external-link-alt mr-1"></i>Full Distribution Panel</button></div>';
+      html += '</div></div></div>';
+    }
+
     c.innerHTML = html;
+  }
+
+  function assignLead(leadId) {
+    var sel = document.getElementById('assign-agent-' + leadId);
+    var noteEl = document.getElementById('assign-note-' + leadId);
+    var agentId = sel ? sel.value : '';
+    if (!agentId) { CRM.toast('Please select an agent', 'warning'); return; }
+
+    var body = { assigned_agent_id: agentId };
+    var note = noteEl ? noteEl.value.trim() : '';
+    if (note) body.broker_note = note;
+
+    MallanAPI._fetch('/api/crm/leads/' + leadId, { method: 'PATCH', body: JSON.stringify(body) })
+      .then(function () {
+        CRM.toast('Lead assigned — agent notified', 'success');
+        // Remove the row
+        var row = sel ? sel.closest('.flex.items-center.gap-4') : null;
+        if (row) {
+          row.style.transition = 'opacity 0.3s';
+          row.style.opacity = '0';
+          setTimeout(function () { row.remove(); }, 300);
+        }
+      })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
   function _statRow(icon, iconColor, label, value, valueClass) {
@@ -118,5 +203,5 @@ var HomeScreen = (function () {
     '</div>';
   }
 
-  return { render: render };
+  return { render: render, assignLead: assignLead };
 })();

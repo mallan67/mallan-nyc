@@ -136,7 +136,10 @@ export async function POST(req: NextRequest) {
       : validRoles.includes('landlord') ? 'landlord'
       : 'buyer';
 
-    // Create lead
+    // Capture optional intake fields from sign-up form
+    const { budget, neighborhood, borough, moveInDate, message } = body;
+
+    // Create lead — unassigned (agent_id = null), broker distributes
     const lead = await prisma.lead.create({
       data: {
         first_name: firstName.trim(),
@@ -146,17 +149,62 @@ export async function POST(req: NextRequest) {
         password_hash: passwordHash,
         roles: validRoles,
         portal_role: portalRole,
+        primary_portal_role: portalRole,
+        enabled_workspaces: [portalRole],
         status: 'new',
         source: 'website',
         consent_captured_at: new Date(),
-      },
+        // Optional intake fields captured at sign-up
+        notes: message ? `[Sign-up message]: ${message}` : null,
+      } as any,
     });
+
+    // Notify ALL brokers of the new unassigned lead
+    const brokers = await prisma.agent.findMany({
+      where: { role: 'BROKER' },
+      select: { id: true },
+    });
+
+    const roleLabel = portalRole === 'tenant' ? 'Renter'
+      : portalRole.charAt(0).toUpperCase() + portalRole.slice(1);
+
+    const notificationBody: Record<string, unknown> = {
+      name: `${firstName.trim()} ${lastName.trim()}`,
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      role: roleLabel,
+      source: 'Website self-registration',
+      lead_id: lead.id.toString(),
+    };
+    if (budget) notificationBody.budget = budget;
+    if (neighborhood) notificationBody.neighborhood = neighborhood;
+    if (borough) notificationBody.borough = borough;
+    if (moveInDate) notificationBody.move_in_date = moveInDate;
+    if (message) notificationBody.message = message;
+
+    await Promise.allSettled(
+      brokers.map(broker =>
+        prisma.notification.create({
+          data: {
+            recipient_type: 'agent',
+            recipient_id: broker.id,
+            channel: 'in_app',
+            type: 'new_self_signup_lead',
+            title: `New ${roleLabel} Lead — ${firstName.trim()} ${lastName.trim()}`,
+            body: `${roleLabel} signed up on mallan.nyc. Unassigned — please distribute.`,
+            data: notificationBody as Record<string, string>,
+            status: 'pending',
+          },
+        })
+      )
+    );
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Account created successfully',
+        message: 'Account created successfully. You will be contacted shortly.',
         id: lead.id.toString(),
+        role: portalRole,
       },
       { status: 201 }
     );
