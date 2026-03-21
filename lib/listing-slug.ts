@@ -113,10 +113,9 @@ export function parseAddressSlug(slug: string): {
     postalCode = parts.pop()!;
   }
 
-  // Extract state (last remaining part, typically 2 chars)
-  let state = '';
+  // Extract state (last remaining part, typically 2 chars) — consumed but not used in lookup
   if (parts.length > 0 && /^[a-z]{2}$/.test(parts[parts.length - 1])) {
-    state = parts.pop()!;
+    parts.pop();
   }
 
   // Extract street number (first part, numeric)

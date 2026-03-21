@@ -73,7 +73,7 @@ export async function fetchFromTrestle(
     return `${getPropertyEndpoint()}?${params.toString()}`;
   }
 
-  let url = buildUrl();
+  const url = buildUrl();
   const firstResponse = await fetchPage(url, token);
 
   const maxTotal = options.maxTotal || 1000;
@@ -171,7 +171,7 @@ export async function fetchSingleListing(
     return `${getPropertyEndpoint()}?${params.toString()}`;
   }
 
-  let url = buildUrl();
+  const url = buildUrl();
   let response = await fetchWithRetry(url, token);
 
   if (!response.ok) {
@@ -247,32 +247,21 @@ export async function fetchListingByAddress(address: {
     const safe = sanitizeOData(address.postalCode, 10);
     if (safe) filterParts.push(`PostalCode eq '${safe}'`);
   }
-  // Unit number filter — use contains() because slug generation strips hyphens
-  // (e.g., Trestle "2-F" → slug "2f"), so exact match would fail for "2-f" vs "2f".
-  // contains(replace(tolower(UnitNumber),'-',''), 'safe') handles both formats.
-  let unitFilter = '';
-  if (address.unitNumber) {
-    const safe = sanitizeOData(address.unitNumber, 20).toLowerCase().replace(/[-\s]/g, '');
-    if (safe) {
-      unitFilter = `contains(replace(replace(tolower(UnitNumber),'-',''),' ',''), '${safe}')`;
-      filterParts.push(unitFilter);
-    }
-  }
+  // Unit number is NOT included in the OData query — slug generation strips
+  // hyphens (Trestle "2-F" → slug "2f") and OData replace() isn't universally
+  // supported. Instead, fetch by street/zip, then match unit in JavaScript.
 
   // Only active listings
   filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
 
-  function buildUrl(parts: string[]): string {
-    const params = new URLSearchParams();
-    params.set("$filter", parts.join(" and "));
-    params.set("$select", selectFields);
-    // Skip $expand=Media — photos fetched separately.
-    params.set("$top", "1");
-    params.set("$orderby", "ModificationTimestamp desc");
-    return `${getPropertyEndpoint()}?${params.toString()}`;
-  }
+  const params = new URLSearchParams();
+  params.set("$filter", filterParts.join(" and "));
+  params.set("$select", selectFields);
+  // Fetch up to 10 results when unit number needs JS matching, 1 otherwise
+  params.set("$top", address.unitNumber ? "10" : "1");
+  params.set("$orderby", "ModificationTimestamp desc");
+  const url = `${getPropertyEndpoint()}?${params.toString()}`;
 
-  let url = buildUrl(filterParts);
   let response = await fetchWithRetry(url, token);
 
   if (!response.ok) {
@@ -286,23 +275,23 @@ export async function fetchListingByAddress(address: {
     }
   }
 
-  let data = await response.json();
-  let records = data.value || [];
+  const data = await response.json();
+  const records: Record<string, unknown>[] = data.value || [];
+  if (records.length === 0) return null;
 
-  // Retry without unit number if no results — OData replace() may not be supported
-  // on all Trestle deployments, and unit normalization can differ
-  if (records.length === 0 && unitFilter) {
-    const withoutUnit = filterParts.filter(p => p !== unitFilter);
-    const retryUrl = buildUrl(withoutUnit);
-    const retryToken = await getAccessToken();
-    const retryResponse = await fetchWithRetry(retryUrl, retryToken);
-    if (retryResponse.ok) {
-      data = await retryResponse.json();
-      records = data.value || [];
-    }
-  }
+  // If no unit number filter, return best match
+  if (!address.unitNumber) return records[0];
 
-  return records.length > 0 ? records[0] : null;
+  // Match unit number in JavaScript — normalize by stripping hyphens, spaces, dots
+  const normalize = (u: string) => u.toLowerCase().replace(/[-\s.]/g, '');
+  const targetUnit = normalize(address.unitNumber);
+  const match = records.find(r => {
+    const unit = r.UnitNumber ? normalize(String(r.UnitNumber)) : '';
+    return unit === targetUnit;
+  });
+
+  // Return exact unit match, or first result as fallback (same address, different unit)
+  return match || records[0];
 }
 
 /**
