@@ -1,4 +1,5 @@
-const { withSentryConfig } = require("@sentry/nextjs");
+// Sentry wrapping temporarily disabled — testing React 19 hydration fix
+// const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -28,4 +29,4 @@ const nextConfig = {
   // No headers() function needed — all headers set in middleware
 };
 
-module.exports = withSentryConfig(nextConfig);
+module.exports = nextConfig;
