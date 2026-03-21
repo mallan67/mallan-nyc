@@ -2507,19 +2507,13 @@ button[id^="filterBtn_"][aria-pressed="true"] {
 }
 
 /* Detail panel — glass card */
-.detail-panel {
+.detail-panel,
+#listingDetailPage {
   background: white !important;
   border-radius: 20px !important;
   box-shadow: var(--float-shadow) !important;
   border: none !important;
   overflow: hidden;
-}
-#listingDetailPage {
-  background: white !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  -webkit-overflow-scrolling: touch;
-  height: 100% !important;
 }
 
 /* Detail photo grid */
@@ -9895,25 +9889,25 @@ function toggleSection(header) {
                                 <span class="hidden sm:inline">Back</span>
                             </button>
                             <div class="w-px h-5 bg-gray-600 hidden sm:block"></div>
-                            <button onclick="jumpToSearch('sale','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition" id="stickyNavSaleBasic">
+                            <button onclick="jumpToSearch('sale','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition" id="stickyNavSaleBasic">
                                 <i class="fas fa-home mr-1 text-[10px]"></i>Sales
                             </button>
-                            <button onclick="jumpToSearch('sale','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition hidden sm:inline-flex" id="stickyNavSaleAdv">
+                            <button onclick="jumpToSearch('sale','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition hidden sm:inline-flex" id="stickyNavSaleAdv">
                                 <i class="fas fa-sliders-h mr-1 text-[10px]"></i>Sales Adv
                             </button>
-                            <div class="w-px h-4 bg-gray-500"></div>
-                            <button onclick="jumpToSearch('rent','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition" id="stickyNavRentBasic">
+                            <div class="w-px h-4 bg-gray-600"></div>
+                            <button onclick="jumpToSearch('rent','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition" id="stickyNavRentBasic">
                                 <i class="fas fa-building mr-1 text-[10px]"></i>Rentals
                             </button>
-                            <button onclick="jumpToSearch('rent','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition hidden sm:inline-flex" id="stickyNavRentAdv">
+                            <button onclick="jumpToSearch('rent','advanced')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition hidden sm:inline-flex" id="stickyNavRentAdv">
                                 <i class="fas fa-sliders-h mr-1 text-[10px]"></i>Rentals Adv
                             </button>
-                            <div class="w-px h-4 bg-gray-500"></div>
-                            <button onclick="jumpToSearch('building','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-200 hover:bg-white/15 hover:text-white transition">
+                            <div class="w-px h-4 bg-gray-600"></div>
+                            <button onclick="jumpToSearch('building','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition">
                                 <i class="fas fa-city mr-1 text-[10px]"></i>Buildings
                             </button>
-                            <div class="w-px h-4 bg-gray-500"></div>
-                            <button onclick="jumpToComparables()" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 transition">
+                            <div class="w-px h-4 bg-gray-600"></div>
+                            <button onclick="jumpToComparables()" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-amber-400/80 hover:bg-amber-500/20 hover:text-amber-300 transition">
                                 <i class="fas fa-chart-bar mr-1 text-[10px]"></i>Comps
                             </button>
                         </div>
@@ -10132,16 +10126,9 @@ function toggleSection(header) {
                                     </span>
                                     <div class="w-px h-5 bg-blue-200"></div>
                                     <div class="flex items-center gap-1">
-                                        <div class="relative">
-                                            <button onclick="openWorkWithSelected()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
-                                                <i class="fas fa-check-circle"></i> Work With <i class="fas fa-chevron-down text-[9px] ml-0.5"></i>
-                                            </button>
-                                            <div id="workWithCustomerDropdown" class="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-2xl border z-50 hidden" style="max-height:350px">
-                                                <div class="p-2.5 border-b"><input type="text" id="clientSearchInput" placeholder="Search clients..." class="w-full border rounded-lg px-3 py-2 text-sm" oninput="filterClients(event)"></div>
-                                                <div id="clientList" class="overflow-y-auto" style="max-height:260px"></div>
-                                                <div class="p-2 border-t text-center"><a href="/crm/dashboard.html#clients" class="text-xs text-blue-600 hover:underline">Manage Clients</a></div>
-                                            </div>
-                                        </div>
+                                        <button onclick="openWorkWithSelected()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+                                            <i class="fas fa-check-circle"></i> Work With
+                                        </button>
                                         <button onclick="printListingSheet()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
                                             <i class="fas fa-print"></i> Print
                                         </button>
@@ -10269,53 +10256,6 @@ function toggleSection(header) {
                                         <option value="3">3 BA</option>
                                         <option value="4">4+ BA</option>
                                     </select>
-                                </div>
-                            </div>
-                            <!-- Sq Ft, Neighborhood, Property Type -->
-                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-100">
-                                <div>
-                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Min Sq Ft</label>
-                                    <select id="refineMinSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
-                                        <option value="">Any</option>
-                                        <option value="400">400+ sf</option>
-                                        <option value="600">600+ sf</option>
-                                        <option value="800">800+ sf</option>
-                                        <option value="1000">1,000+ sf</option>
-                                        <option value="1500">1,500+ sf</option>
-                                        <option value="2000">2,000+ sf</option>
-                                        <option value="3000">3,000+ sf</option>
-                                        <option value="5000">5,000+ sf</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Max Sq Ft</label>
-                                    <select id="refineMaxSqft" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
-                                        <option value="">Any</option>
-                                        <option value="600">Up to 600 sf</option>
-                                        <option value="800">Up to 800 sf</option>
-                                        <option value="1000">Up to 1,000 sf</option>
-                                        <option value="1500">Up to 1,500 sf</option>
-                                        <option value="2000">Up to 2,000 sf</option>
-                                        <option value="3000">Up to 3,000 sf</option>
-                                        <option value="5000">Up to 5,000 sf</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Property Type</label>
-                                    <select id="refinePropertyType" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all">
-                                        <option value="">Any</option>
-                                        <option value="Condominium">Condo</option>
-                                        <option value="StockCooperative">Co-op</option>
-                                        <option value="Condop">Condop</option>
-                                        <option value="Townhouse">Townhouse</option>
-                                        <option value="MultiFamily">Multi-Family</option>
-                                        <option value="SingleFamily">Single Family</option>
-                                        <option value="Land">Land</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Neighborhood</label>
-                                    <input type="text" id="refineNeighborhood" placeholder="e.g. Upper East Side" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all placeholder:text-gray-400">
                                 </div>
                             </div>
                             <!-- Status quick-toggles -->
@@ -10446,8 +10386,8 @@ function toggleSection(header) {
                         </div>
                     </div>
                     <!-- Split-View Results Map (hidden by default, toggled via toolbar) -->
-                    <div id="resultsMapWrapper" style="display:none; width:45%; min-width:360px; flex-shrink:0; position:relative; border-left:1px solid #e5e7eb; min-height:600px;">
-                        <div id="resultsMapContainer" style="position:absolute; inset:0; min-height:600px;"></div>
+                    <div id="resultsMapWrapper" style="display:none; width:45%; min-width:360px; flex-shrink:0; position:relative; border-left:1px solid #e5e7eb;">
+                        <div id="resultsMapContainer" style="position:absolute; inset:0; min-height:500px;"></div>
                     </div>
                     </div><!-- end resultsSplitWrapper -->
 
@@ -11131,7 +11071,7 @@ function toggleSection(header) {
             <!-- [MODALS REMOVED — see html/modals/ for: client-delivery, grid-layouts, reports, add-edit-client, save-search, report-preview, client-feedback, client-report-view, filter] -->
 
             <!-- Listing Detail Full Page -->
-            <div id="listingDetailPage" class="fixed inset-0 bg-white z-[60] hidden" style="overflow-y:auto;-webkit-overflow-scrolling:touch">
+            <div id="listingDetailPage" class="fixed inset-0 bg-white z-[60] overflow-y-auto hidden">
                 <!-- Sticky header bar -->
                 <div class="sticky top-0 bg-white border-b z-10 px-6 py-2 flex items-center justify-between shadow-sm">
                     <div class="flex items-center gap-3">
@@ -17608,30 +17548,6 @@ function manageShowToast(msg) {
             if (baMin && baMin.value !== '') c.bathsMin = parseFloat(baMin.value); else delete c.bathsMin;
             if (baMax && baMax.value !== '') c.bathsMax = parseFloat(baMax.value); else delete c.bathsMax;
 
-            // Sq Ft
-            var sqMin = document.getElementById('refineMinSqft');
-            var sqMax = document.getElementById('refineMaxSqft');
-            if (sqMin && sqMin.value) c.sqftMin = parseInt(sqMin.value); else delete c.sqftMin;
-            if (sqMax && sqMax.value) c.sqftMax = parseInt(sqMax.value); else delete c.sqftMax;
-
-            // Property Type (CommonInterest)
-            var propType = document.getElementById('refinePropertyType');
-            if (propType && propType.value) {
-                c.ownership = [propType.value === 'Townhouse' || propType.value === 'MultiFamily' || propType.value === 'SingleFamily' || propType.value === 'Land' ? propType.value : propType.value];
-                c.propertySubType = propType.value;
-            } else {
-                delete c.ownership;
-                delete c.propertySubType;
-            }
-
-            // Neighborhood
-            var nhood = document.getElementById('refineNeighborhood');
-            if (nhood && nhood.value.trim()) {
-                c.neighborhoods = [nhood.value.trim()];
-            } else {
-                delete c.neighborhoods;
-            }
-
             // Statuses
             var statuses = [];
             if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('ACTIVE');
@@ -18822,11 +18738,11 @@ function manageShowToast(msg) {
         // Close modal on escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                closeDeliveryModal();
-                closeGridLayoutsModal();
-                closeReportsModal();
-                closeAddClientModal();
-                closeSaveSearchModal();
+                if (typeof closeDeliveryModal === 'function') closeDeliveryModal();
+                if (typeof closeGridLayoutsModal === 'function') closeGridLayoutsModal();
+                if (typeof closeReportsModal === 'function') closeReportsModal();
+                if (typeof closeAddClientModal === 'function') closeAddClientModal();
+                if (typeof closeSaveSearchModal === 'function') closeSaveSearchModal();
             }
         });
 
@@ -18893,7 +18809,7 @@ function manageShowToast(msg) {
         // Reference: Trestle/CoreLogic Property entity (REBNY RLS)
         //
         // VERIFIED 2026-02-19 against:
-        //   data/rebny-rls-property-fields.csv (448 REBNY RLS fields)
+        //   data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)
         //   data/trestle-dictionary/property-fields.csv (744 Trestle fields)
         //   data/trestle-excel/02_PROPERTY.csv
         //
@@ -19376,6 +19292,7 @@ function manageShowToast(msg) {
                             agentId: cl.assigned_agent_id || cl.agentId
                         });
                     });
+                    // Populate report recipient dropdown if it exists
                     if (typeof populateReportRecipientDropdown === 'function') populateReportRecipientDropdown();
                     if (typeof populateClientList === 'function') populateClientList();
                     console.log('[DataLoader] Loaded ' + searchResultsState.clients.length + ' clients');
@@ -19388,7 +19305,7 @@ function manageShowToast(msg) {
         // ── Data loading ─────────────────────────────────────────────────────────
         // Priority: 1) IDX/Trestle search  2) Prisma DB  3) show error
         if (typeof MallanAPI !== 'undefined') {
-            _loadClients();
+            _loadClients(); // Load clients for email/report recipient selectors
             MallanAPI.onReady(function() {
                 _loadFromIDX().catch(function(idxErr) {
                     // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
@@ -21072,13 +20989,13 @@ function parseBudgetValue(td) {
                 return `
                 <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
-                    <div class="relative cursor-pointer group" onclick="openListingInNewTab(${listing.id})">
+                    <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}')">
                         <div class="cm-photo-wrap cm-card-photo">
                             <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                         </div>
                         <!-- Checkbox -->
                         <div class="absolute top-3 left-3 z-10">
-                            <input type="checkbox" class="w-4 h-4 rounded cursor-pointer" ${selected ? 'checked' : ''} onclick="event.stopPropagation();toggleListingSelection(${listing.id})">
+                            <input type="checkbox" class="w-4 h-4 rounded cursor-pointer" ${selected ? 'checked' : ''} onclick="event.stopPropagation();toggleListingSelection('${listing.id}')">
                         </div>
                         <!-- Badges -->
                         ${listing.priceChange === 'down' ? '<div class="absolute top-3 right-3 px-2 py-1 bg-red-500 text-white text-[10px] font-bold rounded-lg z-10"><i class="fas fa-arrow-down mr-0.5"></i>PRICE DROP</div>' : ''}
@@ -21128,13 +21045,13 @@ function parseBudgetValue(td) {
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab(${listing.id})">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}')">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
                     <div class="w-[180px] flex-shrink-0 cm-photo-wrap relative">
                         <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy">
-                        <div class="absolute top-2 left-2"><input type="checkbox" class="w-4 h-4" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection(${listing.id})"></div>
+                        <div class="absolute top-2 left-2"><input type="checkbox" class="w-4 h-4" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection('${listing.id}')"></div>
                         <div class="absolute bottom-2 right-2 flex items-center gap-1 text-white text-[10px]"><span class="font-bold">${listing.photoCount}</span><i class="fas fa-images"></i></div>
                         ${listing.priceChange === 'down' ? '<div class="absolute top-2 right-2 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded font-bold"><i class="fas fa-arrow-down"></i></div>' : ''}
                     </div>
@@ -21231,13 +21148,13 @@ function parseBudgetValue(td) {
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
-                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab(${listing.id})">
+                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab('${listing.id}')">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
                                 <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                             </div>
                             <!-- Checkbox overlay -->
                             <div class="absolute top-3 left-3 z-10">
-                                <input type="checkbox" class="w-4.5 h-4.5 rounded cursor-pointer" style="width:18px;height:18px;" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection(${listing.id})">
+                                <input type="checkbox" class="w-4.5 h-4.5 rounded cursor-pointer" style="width:18px;height:18px;" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection('${listing.id}')">
                             </div>
                             <!-- Photo count -->
                             <div class="absolute bottom-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-lg z-10">
@@ -21254,7 +21171,7 @@ function parseBudgetValue(td) {
                             <div>
                                 <div class="flex items-start justify-between gap-3 mb-2">
                                     <div class="min-w-0">
-                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab(${listing.id})">${displayAddress}${displayUnit}</h3>
+                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab('${listing.id}')">${displayAddress}${displayUnit}</h3>
                                         <div class="flex items-center gap-2 mt-1 flex-wrap">
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${escapeHtml(listing.era || 'Pre-War')}</span>
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${ownershipLabel(listing.ownership)}</span>
@@ -21337,7 +21254,7 @@ function parseBudgetValue(td) {
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
-                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel(${listing.id})">
+                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}')">
                     <div class="relative flex-shrink-0">
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
@@ -21347,7 +21264,7 @@ function parseBudgetValue(td) {
                             </div>
                         </div>
                         <div class="absolute top-1.5 left-1.5">
-                            <input type="checkbox" class="w-3.5 h-3.5" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection(${listing.id})">
+                            <input type="checkbox" class="w-3.5 h-3.5" ${selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleListingSelection('${listing.id}')">
                         </div>
                         ${selected ? '<span class="absolute top-1.5 left-7 w-4 h-4 bg-blue-500 text-white rounded text-[9px] flex items-center justify-center font-bold">' + selIdx + '</span>' : ''}
                     </div>
@@ -21408,7 +21325,7 @@ function parseBudgetValue(td) {
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-1.5">
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" class="w-4 h-4" ${selected ? 'checked' : ''} onclick="toggleListingSelection(${listing.id}); renderMasterDetailView();">
+                        <input type="checkbox" class="w-4 h-4" ${selected ? 'checked' : ''} onclick="toggleListingSelection('${listing.id}'); renderMasterDetailView();">
                         <h2 class="text-base font-bold">${displayAddress}${displayUnit}</h2>
                         <button class="text-gray-400 text-xs"><i class="fas fa-external-link-alt"></i></button>
                     </div>
@@ -21632,6 +21549,7 @@ function parseBudgetValue(td) {
             var cards = document.querySelectorAll('[data-listing-lid="' + listingId + '"] .cm-photo, [data-listing-lid="' + listingId + '"] .cm-photo-wrap img');
             cards.forEach(function(img) {
                 if (img.tagName === 'IMG') {
+                    // Replace if: showing SVG placeholder, hidden from onerror, or empty src
                     var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
                     var isHidden = img.style.display === 'none';
                     var isEmpty = !img.src || img.src === '' || img.src === window.location.href;
@@ -23375,7 +23293,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
   var _markers = [];
   var _isOpen = false;
   var _popup = null;
-  var _centroids = null;
+  var _centroids = null; // neighborhood → {lat, lng} fallback
 
   var STYLES = {
     positron: 'https://tiles.openfreemap.org/styles/positron',
@@ -23408,6 +23326,8 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
   }
 
   // ── Build GeoJSON from current listings ──
+  // Uses listing lat/lng if available, falls back to neighborhood centroid
+  // with small random offset so pins don't stack on the exact same point.
   function buildGeoJSON(listings) {
     var features = [];
     for (var i = 0; i < listings.length; i++) {
@@ -23415,9 +23335,11 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       var lat = l.latitude || (l.geo && l.geo.lat);
       var lng = l.longitude || (l.geo && l.geo.lng);
       var approx = false;
+      // Fallback: use neighborhood centroid if listing has no coordinates
       if ((!lat || !lng) && _centroids && l.neighborhood) {
         var centroid = _centroids[l.neighborhood] || _centroids[l.neighborhoodCanonical];
         if (centroid) {
+          // Add small random offset (±0.002° ≈ 1 block) so pins don't stack
           lat = centroid.lat + (Math.random() - 0.5) * 0.004;
           lng = centroid.lng + (Math.random() - 0.5) * 0.004;
           approx = true;
@@ -23835,6 +23757,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       }
 
       ensureMapLibre(function () {
+        // Set container to fill wrapper
         var container = document.getElementById('resultsMapContainer');
         if (container) container.style.cssText = 'width:100%; height:100%;';
         setTimeout(function () {
@@ -24411,6 +24334,34 @@ function openPrintableWindow(html, options) {
             if (listings.length === 0) {
                 document.getElementById('previewGrid').innerHTML = '<div style="padding:40px;text-align:center"><p style="color:#dc2626;font-weight:700;margin-bottom:8px">No Listings Available</p><p style="font-size:13px;color:#4b5563">No compliant listings found for the selected criteria.</p></div>';
                 return;
+            }
+
+            // Pre-fetch photos for listings missing images before rendering
+            var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
+            if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
+                var ids = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean).slice(0, 50);
+                if (ids.length > 0) {
+                    fetch('/api/media/batch?ids=' + encodeURIComponent(ids.join(',')) + '&detail=true', { credentials: 'same-origin' })
+                        .then(function(r) { return r.ok ? r.json() : null; })
+                        .then(function(data) {
+                            if (!data) return;
+                            var photos = data.photos || {};
+                            var media = data.media || {};
+                            needPhotos.forEach(function(l) {
+                                var lid = l.lid || l.id;
+                                if (media[lid] && media[lid].length > 0) {
+                                    l.images = media[lid].filter(function(m) { return m.mediaType === 'Photo'; }).sort(function(a, b) { return a.order - b.order; });
+                                    l.photoCount = l.images.length;
+                                } else if (photos[lid]) {
+                                    l.images = [{ url: photos[lid], isPrimary: true }];
+                                    if (!l.photoCount) l.photoCount = 1;
+                                }
+                            });
+                            // Re-render preview now that photos are loaded
+                            try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
+                        })
+                        .catch(function() { /* non-fatal — report shows without photos */ });
+                }
             }
 
             // Track address-suppressed listings for compliance warning banner
@@ -26246,7 +26197,6 @@ function openPrintableWindow(html, options) {
             var reportListings;
             if (reportSel === 'selected' && reportState.selectedListingIds.length > 0) {
                 var selIds = reportState.selectedListingIds;
-                // Match by id OR lid (Trestle returns string IDs)
                 reportListings = allListings.filter(function(l) {
                     return selIds.indexOf(l.id) > -1 || selIds.indexOf(l.lid) > -1 || selIds.indexOf(String(l.id)) > -1;
                 });
@@ -26259,7 +26209,6 @@ function openPrintableWindow(html, options) {
             } else {
                 reportListings = allListings;
             }
-            // Only fall back to all if "all" was explicitly chosen (not if selection matched nothing)
             if (reportListings.length === 0 && reportSel === 'all') reportListings = allListings;
             // IDX + Internet compliance filter — remove opted-out listings
             reportListings = reportListings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
@@ -27946,7 +27895,7 @@ function emailCurrentCalc() {
 
                 <!-- Address & Tags -->
                 <div class="flex items-center gap-2 mb-0.5">
-                    <input type="checkbox" class="w-3.5 h-3.5 accent-amber-600" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="toggleListingSelection(${listing.id})">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-amber-600" ${searchResultsState.selectedListings.includes(listing.id) ? 'checked' : ''} onclick="toggleListingSelection('${listing.id}')">
                     <h1 class="text-xl font-bold text-gray-900 tracking-tight">${displayAddress}${displayUnit}</h1>
                     <span class="px-1.5 py-0.5 border border-gray-200 rounded text-[9px] text-gray-400 font-mono">L-${listing.lid || listing.id}</span>
                 </div>
@@ -28736,10 +28685,10 @@ function emailCurrentCalc() {
 
                         <!-- ═══ Primary Actions: Email / Print / Share ═══ -->
                         <div class="flex items-center gap-1.5 mb-4">
-                            <button onclick="openReportsModal([${listing.id}])" class="sidebar-action-primary" title="Email report to client">
+                            <button onclick="openReportsModal(['${listing.id}'])" class="sidebar-action-primary" title="Email report to client">
                                 <i class="fas fa-envelope"></i><span>Email</span>
                             </button>
-                            <button onclick="openReportsModal([${listing.id}], 'print')" class="sidebar-action-primary" title="Print report in new tab">
+                            <button onclick="openReportsModal(['${listing.id}'], 'print')" class="sidebar-action-primary" title="Print report in new tab">
                                 <i class="fas fa-print"></i><span>Print</span>
                             </button>
                             <button onclick="shareListing('${listing.id}')" class="sidebar-action-primary" title="Share listing link">
@@ -28839,7 +28788,7 @@ function emailCurrentCalc() {
                 </div>
 
                 <!-- Attribution footer -->
-                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
+                <div class="text-[9px] text-gray-300 border-t pt-2 mt-4" data-rebny-attribution>Listing courtesy of ${escapeHtml(listing.company || 'REBNY RLS')} &middot; ${escapeHtml(listing.agentName || '')} &middot; Information deemed reliable but not guaranteed &middot; Equal Housing Opportunity</div>
             `;
 
             // Populate similar listings (neighborhood + nearby)
@@ -32752,10 +32701,12 @@ function printListingSheet() {
         showToast('Please select at least one listing to print.', 'warning');
         return;
     }
+    // Use the reports modal which has format/version/options
     if (typeof openReportsModal === 'function') {
         openReportsModal(ids, 'print');
         return;
     }
+    // Legacy fallback
     var compliance = checkListingCompliance(ids);
 
     // Show blocked listings warning
@@ -32834,17 +32785,19 @@ function previewListingSheet() {
     closeDeliveryModal();
 }
 
-// Email listing sheet — sends branded HTML email directly to client with status, formatCurrency, updatedDate, REBNY attribution
+// Email listing sheet — opens reports modal with email preset
 function emailListingSheet() {
     var ids = getSelectedListingIds();
     if (ids.length === 0) {
         showToast('Please select at least one listing to email.', 'warning');
         return;
     }
+    // Use the reports modal which has a working client selector + email delivery
     if (typeof openReportsModal === 'function') {
         openReportsModal(ids, 'email');
         return;
     }
+    // Legacy fallback (should not reach here)
     var compliance = checkListingCompliance(ids);
 
     if (compliance.blocked.length > 0 && compliance.passed.length === 0) {

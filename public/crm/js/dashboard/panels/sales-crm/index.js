@@ -288,6 +288,15 @@ var SalesCRM = (function () {
   function _wsResearch(el, cl) {
     var h = '<div class="space-y-6">';
 
+    // ── Live NYC Data Panel (ACRIS + DOB + DOF + PLUTO) ──────────────────
+    h += '<div class="bg-white border border-gray-200 rounded-xl p-5" id="research-live-data">';
+    h += '<div class="flex items-center justify-between mb-3">';
+    h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-database text-blue-500 mr-2"></i>NYC Public Records (Live)</h3>';
+    h += '<button class="btn btn-xs btn-outline" onclick="SalesCRM._loadPropertyResearch()"><i class="fas fa-sync-alt mr-1"></i>Load Data</button>';
+    h += '</div>';
+    h += '<div id="research-live-content"><p class="text-xs text-gray-400 italic">Enter the property address in the Property Details section below, then click "Load Data" to pull live ACRIS, DOB, and DOF records.</p></div>';
+    h += '</div>';
+
     // Ownership verification
     h += '<div class="bg-white border border-gray-200 rounded-xl p-5">';
     h += '<h3 class="text-sm font-bold text-gray-900 mb-4"><i class="fas fa-user-shield text-gold mr-2"></i>Ownership Verification</h3>';
@@ -700,6 +709,166 @@ var SalesCRM = (function () {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  // PROPERTY RESEARCH — live ACRIS + DOB + DOF + PLUTO
+  // ═══════════════════════════════════════════════════════════════════════
+  function _loadPropertyResearch() {
+    var cl = _s.ws.client;
+    if (!cl) return;
+
+    var container = document.getElementById('research-live-content');
+    if (!container) return;
+    container.innerHTML = '<div class="flex items-center gap-2 py-4 text-sm text-gray-500"><i class="fas fa-spinner fa-spin text-blue-500"></i> Loading NYC public records...</div>';
+
+    // Build query — prefer BBL if stored, otherwise use address
+    var params = [];
+    if (cl.bbl) {
+      params.push('bbl=' + encodeURIComponent(cl.bbl));
+    } else if (cl.id) {
+      params.push('client_id=' + encodeURIComponent(cl.id));
+    }
+    if (cl.property_address && !cl.bbl) {
+      params.push('address=' + encodeURIComponent(cl.property_address));
+    }
+
+    if (params.length === 0) {
+      container.innerHTML = '<p class="text-xs text-amber-600"><i class="fas fa-exclamation-triangle mr-1"></i>Enter a property address in the Property Details section to load live data.</p>';
+      return;
+    }
+
+    MallanAPI._fetch('/api/crm/property-research?' + params.join('&'))
+      .then(function (data) { _renderPropertyResearch(container, data); })
+      .catch(function (err) {
+        container.innerHTML = '<p class="text-xs text-red-500"><i class="fas fa-times-circle mr-1"></i>Failed to load: ' + E(err.message || 'Unknown error') + '</p>';
+      });
+  }
+
+  function _renderPropertyResearch(container, d) {
+    if (!d || !d.found) {
+      container.innerHTML = '<p class="text-xs text-gray-500">Property not found in public records. Verify address is complete (street number + street name).</p>';
+      return;
+    }
+
+    var fmtMoney = function (n) { return n ? '$' + Number(n).toLocaleString() : '-'; };
+    var fmtScore = function (s) {
+      var color = s >= 70 ? '#059669' : s >= 40 ? '#D97706' : '#6B7280';
+      var label = s >= 70 ? 'High' : s >= 40 ? 'Medium' : 'Low';
+      return '<span style="font-weight:700;color:' + color + ';">' + s + '/100 — ' + label + '</span>';
+    };
+
+    var h = '<div class="space-y-4">';
+
+    // Readiness score bar
+    var score = d.readiness && d.readiness.score != null ? d.readiness.score : null;
+    if (score !== null) {
+      var scoreColor = score >= 70 ? '#059669' : score >= 40 ? '#D97706' : '#6B7280';
+      h += '<div class="p-3 rounded-lg border" style="background:#f9fafb">';
+      h += '<div class="flex items-center justify-between mb-2">';
+      h += '<span class="text-xs font-bold text-gray-700">Seller Readiness Score</span>';
+      h += '<span class="text-sm font-bold" style="color:' + scoreColor + '">' + score + '/100</span>';
+      h += '</div>';
+      h += '<div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">';
+      h += '<div class="h-full rounded-full transition-all" style="width:' + score + '%;background:' + scoreColor + '"></div></div>';
+      // Signal pills
+      var sigs = d.readiness.signals || {};
+      h += '<div class="flex flex-wrap gap-1 mt-2">';
+      if (sigs.long_owner) h += '<span class="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-semibold">Long Owner</span>';
+      if (sigs.high_equity) h += '<span class="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">High Equity</span>';
+      if (sigs.recent_renovation) h += '<span class="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Recent Reno</span>';
+      if (sigs.building_issues) h += '<span class="text-[10px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-semibold">Bldg Issues</span>';
+      if (sigs.tax_burden) h += '<span class="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold">High Tax Burden</span>';
+      h += '</div></div>';
+    }
+
+    // 3-column data grid
+    h += '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
+
+    // ── ACRIS column ──
+    h += '<div class="border rounded-lg p-3 bg-blue-50 border-blue-200">';
+    h += '<div class="text-[10px] font-bold text-blue-600 uppercase tracking-wide mb-2"><i class="fas fa-landmark mr-1"></i>ACRIS — Ownership</div>';
+    var ow = d.ownership || {};
+    h += _liveField('Deed Owner', ow.deed_owner);
+    h += _liveField('Date Purchased', ow.deed_date ? new Date(ow.deed_date).toLocaleDateString() : null);
+    h += _liveField('Years Owned', ow.years_owned);
+    h += _liveField('Mortgage', ow.mortgage_exists ? 'Yes — ' + (ow.mortgage_date ? new Date(ow.mortgage_date).getFullYear() : '') : 'None on record');
+    if (ow.mortgage_amount) h += _liveField('Original Mortgage', fmtMoney(ow.mortgage_amount));
+    h += '</div>';
+
+    // ── DOB column ──
+    h += '<div class="border rounded-lg p-3 bg-amber-50 border-amber-200">';
+    h += '<div class="text-[10px] font-bold text-amber-600 uppercase tracking-wide mb-2"><i class="fas fa-hard-hat mr-1"></i>DOB — Building</div>';
+    var dob = d.dob || {};
+    var riskColor = dob.risk_level === 'High' ? 'text-red-600' : dob.risk_level === 'Medium' ? 'text-amber-600' : 'text-green-600';
+    h += _liveField('Risk Level', '<span class="font-bold ' + riskColor + '">' + (dob.risk_level || 'Unknown') + '</span>', true);
+    h += _liveField('Open Violations', dob.open_violations > 0 ? '<span class="text-red-600 font-bold">' + dob.open_violations + '</span>' : '0 (clean)', true);
+    h += _liveField('Total Violations', dob.total_violations || '0');
+    h += _liveField('Permits (3yr)', dob.total_permits || '0');
+    h += _liveField('Renovation Permits', dob.renovation_permits > 0 ? '<span class="text-green-600 font-semibold">' + dob.renovation_permits + ' (A1/A2/A3)</span>' : '0', true);
+    h += '</div>';
+
+    // ── DOF + Building column ──
+    h += '<div class="border rounded-lg p-3 bg-green-50 border-green-200">';
+    h += '<div class="text-[10px] font-bold text-green-600 uppercase tracking-wide mb-2"><i class="fas fa-file-invoice-dollar mr-1"></i>DOF — Property Tax</div>';
+    var tx = d.tax || {};
+    if (tx.tax_class) {
+      h += _liveField('Tax Class', tx.tax_class_label);
+      h += _liveField('DOF Market Value', fmtMoney(tx.market_value));
+      h += _liveField('Annual Tax (est)', tx.estimated_annual_tax ? '<span class="font-bold">' + fmtMoney(tx.estimated_annual_tax) + '/yr</span>' : '-', true);
+      h += _liveField('Monthly Tax (est)', fmtMoney(tx.estimated_monthly_tax));
+      if (tx.exemption_amount > 0) h += _liveField('Exemptions', fmtMoney(tx.exemption_amount) + ' (' + (tx.roll_year || '') + ')');
+    } else {
+      h += '<p class="text-xs text-gray-400">Tax data unavailable</p>';
+    }
+    if (d.building) {
+      h += '<div class="border-t border-green-200 mt-2 pt-2">';
+      h += '<div class="text-[10px] font-bold text-green-700 mb-1">PLUTO — Building Info</div>';
+      if (d.building.year_built) h += _liveField('Year Built', d.building.year_built);
+      if (d.building.num_floors) h += _liveField('Floors', d.building.num_floors);
+      if (d.building.units_residential) h += _liveField('Residential Units', d.building.units_residential);
+      if (d.building.building_class) h += _liveField('Building Class', d.building.building_class);
+      h += '</div>';
+    }
+    h += '</div>';
+
+    h += '</div>'; // end 3-col grid
+
+    // Calculator pre-fill button
+    if (d.calculator_prefill && (d.calculator_prefill.sale_price_estimate || d.calculator_prefill.mortgage_balance)) {
+      h += '<div class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">';
+      h += '<div class="text-xs text-gray-600"><i class="fas fa-calculator text-gray-400 mr-1"></i>Pre-fill net proceeds calculator with these values</div>';
+      h += '<button class="btn btn-xs btn-gold" onclick="SalesCRM._prefillCalculator(' + JSON.stringify(d.calculator_prefill) + ')">Pre-fill Calculator</button>';
+      h += '</div>';
+    }
+
+    // Last updated note
+    h += '<div class="text-[10px] text-gray-400 text-right">Live data from ACRIS, DOB, DOF, PLUTO via NYC Open Data &bull; ' + new Date().toLocaleDateString() + '</div>';
+    h += '</div>';
+
+    container.innerHTML = h;
+  }
+
+  function _liveField(label, value, isHtml) {
+    var display = value != null && value !== '' ? (isHtml ? value : E(String(value))) : '<span class="text-gray-400">—</span>';
+    return '<div class="flex justify-between items-start gap-2 py-1 border-b border-gray-100 last:border-0">' +
+      '<span class="text-[10px] text-gray-500 flex-shrink-0">' + E(label) + '</span>' +
+      '<span class="text-[11px] font-medium text-gray-800 text-right">' + display + '</span>' +
+    '</div>';
+  }
+
+  function _prefillCalculator(prefill) {
+    _s.ws.tab = 'tools';
+    _renderSellerWorkspace(CRM.getContent());
+    // Wait for DOM then set values
+    setTimeout(function () {
+      var inputs = document.querySelectorAll('[id*="-sale-price"]');
+      inputs.forEach(function (el) { if (prefill.sale_price_estimate) el.value = prefill.sale_price_estimate; });
+      inputs = document.querySelectorAll('[id*="-mortgage"]');
+      inputs.forEach(function (el) { if (prefill.mortgage_balance) el.value = prefill.mortgage_balance; });
+      if (typeof NetProceedsCalc !== 'undefined') NetProceedsCalc.calculate();
+      CRM.toast('Calculator pre-filled from NYC public records', 'success');
+    }, 150);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // WORKSPACE ACTIONS — real API calls
   // ═══════════════════════════════════════════════════════════════════════
   function _field(label, value, fieldKey) {
@@ -1025,5 +1194,6 @@ var SalesCRM = (function () {
     _generateCMA: _generateCMA, _generateMarketReport: _generateMarketReport, _findNeighborSales: _findNeighborSales,
     _scheduleShowing: _scheduleShowing, _createListing: _createListing,
     _editPricingStrategy: _editPricingStrategy, _editMarketingStrategy: _editMarketingStrategy,
+    _loadPropertyResearch: _loadPropertyResearch, _prefillCalculator: _prefillCalculator,
   };
 })();
