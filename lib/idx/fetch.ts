@@ -1,6 +1,6 @@
 // lib/idx/fetch.ts
 // OData v4 listing fetch from Trestle/REBNY RLS.
-// Handles pagination via @odata.nextLink. Selects all 448 fields.
+// Handles pagination via @odata.nextLink. Selects IDX Plus Property fields.
 
 import { getAccessToken, invalidateToken } from "./auth";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
@@ -16,7 +16,7 @@ const MAX_PAGE_SIZE = 500;
 export interface TrestleFetchOptions {
   /** OData $filter expression (e.g., "StandardStatus eq 'Active'") */
   filter?: string;
-  /** Override $select (defaults to all 448 fields) */
+  /** Override $select (defaults to IDX Plus Property fields) */
   select?: string[];
   /** Max records per page (default 200) */
   top?: number;
@@ -247,17 +247,24 @@ export async function fetchListingByAddress(address: {
     const safe = sanitizeOData(address.postalCode, 10);
     if (safe) filterParts.push(`PostalCode eq '${safe}'`);
   }
+  // Unit number filter — use contains() because slug generation strips hyphens
+  // (e.g., Trestle "2-F" → slug "2f"), so exact match would fail for "2-f" vs "2f".
+  // contains(replace(tolower(UnitNumber),'-',''), 'safe') handles both formats.
+  let unitFilter = '';
   if (address.unitNumber) {
-    const safe = sanitizeOData(address.unitNumber, 20).toLowerCase();
-    if (safe) filterParts.push(`tolower(UnitNumber) eq '${safe}'`);
+    const safe = sanitizeOData(address.unitNumber, 20).toLowerCase().replace(/[-\s]/g, '');
+    if (safe) {
+      unitFilter = `contains(replace(replace(tolower(UnitNumber),'-',''),' ',''), '${safe}')`;
+      filterParts.push(unitFilter);
+    }
   }
 
   // Only active listings
   filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
 
-  function buildUrl(): string {
+  function buildUrl(parts: string[]): string {
     const params = new URLSearchParams();
-    params.set("$filter", filterParts.join(" and "));
+    params.set("$filter", parts.join(" and "));
     params.set("$select", selectFields);
     // Skip $expand=Media — photos fetched separately.
     params.set("$top", "1");
@@ -265,7 +272,7 @@ export async function fetchListingByAddress(address: {
     return `${getPropertyEndpoint()}?${params.toString()}`;
   }
 
-  let url = buildUrl();
+  let url = buildUrl(filterParts);
   let response = await fetchWithRetry(url, token);
 
   if (!response.ok) {
@@ -279,8 +286,22 @@ export async function fetchListingByAddress(address: {
     }
   }
 
-  const data = await response.json();
-  const records = data.value || [];
+  let data = await response.json();
+  let records = data.value || [];
+
+  // Retry without unit number if no results — OData replace() may not be supported
+  // on all Trestle deployments, and unit normalization can differ
+  if (records.length === 0 && unitFilter) {
+    const withoutUnit = filterParts.filter(p => p !== unitFilter);
+    const retryUrl = buildUrl(withoutUnit);
+    const retryToken = await getAccessToken();
+    const retryResponse = await fetchWithRetry(retryUrl, retryToken);
+    if (retryResponse.ok) {
+      data = await retryResponse.json();
+      records = data.value || [];
+    }
+  }
+
   return records.length > 0 ? records[0] : null;
 }
 
