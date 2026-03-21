@@ -63,6 +63,8 @@ model Agent {
   outlook_refresh_token   String?  @db.Text @map("outlook_refresh_token")
   outlook_token_expires_at DateTime? @map("outlook_token_expires_at")
 
+  active_leases           ActiveLease[]
+
   created_at     DateTime  @default(now()) @map("created_at")
   updated_at     DateTime  @updatedAt @map("updated_at")
 
@@ -341,10 +343,18 @@ model Lead {
   fee_structure            String?   @map("fee_structure")             // "owner_pay" | "tenant_pay" | "no_fee"
 
   // --- Relations for new models ---
-  owned_listings           Listing[]  @relation("ListingOwner")
+  owned_listings           Listing[]    @relation("ListingOwner")
   showing_history          ShowingHistory[]
   campaigns_targeted       CampaignRecipient[]
   portal_events            PortalEvent[]
+  landlord_active_leases   ActiveLease[] @relation("LandlordActiveLeases")
+  tenant_active_leases     ActiveLease[] @relation("TenantActiveLeases")
+
+  // --- Custom fields (agent-defined, no migration needed) ---
+  // Stored as { "Field Name": "value", "Another Field": "value" }
+  // Agent adds/removes fields directly from the CRM workspace.
+  // Use for any information not covered by the structured fields above.
+  custom_fields            Json?     @map("custom_fields")
 
   created_at      DateTime @default(now()) @map("created_at")
   updated_at      DateTime @updatedAt @map("updated_at")
@@ -438,6 +448,9 @@ model Listing {
   @@index([borough, neighborhood])
   @@index([property_type])
   @@index([rls_eligible])
+  // Agent-defined custom fields — no migration needed to add new data
+  custom_fields            Json?     @map("custom_fields")
+
   @@index([bedrooms_total])
   @@index([modification_timestamp])
   @@index([idx_display_yn, owner_opt_out])
@@ -690,6 +703,98 @@ model LeadParty {
 
   @@index([lead_id])
   @@map("lead_parties")
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIVE LEASE — Already-leased/rented units
+//
+// Separate from Listing (which is an active market listing).
+// Tracks existing tenancies: address, tenant, lease terms,
+// renewal status, outreach schedule (90/60/30 days before expiry),
+// seller conversion outreach (6-month valuation).
+//
+// One landlord can have many active leases (multi-unit portfolio).
+// ═══════════════════════════════════════════════════════════
+model ActiveLease {
+  id              BigInt    @id @default(autoincrement())
+
+  // ── The unit ──────────────────────────────────────────────
+  address         String    @map("address")
+  unit            String?   @map("unit")
+  borough         String?   @map("borough")
+  neighborhood    String?   @map("neighborhood")
+  zip             String?   @map("zip")
+  building_type   String?   @map("building_type")    // "condo" | "coop" | "condop" | "rental_building" | "townhouse"
+
+  // ── The landlord ──────────────────────────────────────────
+  landlord_lead_id BigInt   @map("landlord_lead_id")
+  landlord         Lead     @relation("LandlordActiveLeases", fields: [landlord_lead_id], references: [id])
+
+  // ── The tenant ────────────────────────────────────────────
+  tenant_lead_id   BigInt?  @map("tenant_lead_id")
+  tenant           Lead?    @relation("TenantActiveLeases", fields: [tenant_lead_id], references: [id])
+  // If tenant is not yet a Lead (existing tenant, not through this agency):
+  tenant_name      String?  @map("tenant_name")
+  tenant_email     String?  @map("tenant_email")
+  tenant_phone     String?  @map("tenant_phone")
+
+  // ── Lease terms ───────────────────────────────────────────
+  monthly_rent     Decimal  @db.Decimal(14,2) @map("monthly_rent")
+  lease_start_date DateTime @map("lease_start_date")
+  lease_end_date   DateTime @map("lease_end_date")
+  // "standard_1yr" | "standard_2yr" | "month_to_month" | "stabilized" | "commercial"
+  lease_type       String   @default("standard_1yr") @map("lease_type")
+  security_deposit Decimal? @db.Decimal(14,2) @map("security_deposit")
+  pets_allowed     Boolean  @default(false) @map("pets_allowed")
+  furnished        String   @default("unfurnished") @map("furnished")  // "furnished" | "unfurnished" | "partially"
+
+  // ── Renewal tracking ──────────────────────────────────────
+  // "unknown" | "renewing" | "not_renewing" | "pending_decision"
+  renewal_status   String   @default("unknown") @map("renewal_status")
+  renewal_notice_date DateTime? @map("renewal_notice_date")
+  renewal_rent     Decimal?  @db.Decimal(14,2) @map("renewal_rent")     // proposed renewal rent
+  relist_target_date DateTime? @map("relist_target_date")               // when to relist if not renewing
+
+  // ── Rent history ──────────────────────────────────────────
+  original_rent           Decimal?  @db.Decimal(14,2) @map("original_rent")
+  last_rent_increase_date DateTime? @map("last_rent_increase_date")
+  last_rent_increase_pct  Decimal?  @db.Decimal(5,2)  @map("last_rent_increase_pct")
+
+  // ── Outreach schedule (90/60/30 days before expiry) ───────
+  outreach_90d_sent_at       DateTime? @map("outreach_90d_sent_at")
+  outreach_60d_sent_at       DateTime? @map("outreach_60d_sent_at")
+  outreach_30d_sent_at       DateTime? @map("outreach_30d_sent_at")
+  // Seller conversion (6-month valuation + comps to landlord)
+  seller_comps_6mo_sent_at   DateTime? @map("seller_comps_6mo_sent_at")
+  seller_comps_1yr_sent_at   DateTime? @map("seller_comps_1yr_sent_at")
+
+  // ── Board/approval status (condo/coop/condop tenants) ─────
+  board_required   Boolean   @default(false) @map("board_required")
+  board_app_status String?   @map("board_app_status")
+  board_approved_at DateTime? @map("board_approved_at")
+
+  // ── Move-in record ────────────────────────────────────────
+  move_in_date     DateTime? @map("move_in_date")
+  keys_given       Boolean   @default(false) @map("keys_given")
+  walkthrough_done Boolean   @default(false) @map("walkthrough_done")
+  commission_paid  Boolean   @default(false) @map("commission_paid")
+
+  // ── Agent ─────────────────────────────────────────────────
+  agent_id         BigInt?   @map("agent_id")
+  agent            Agent?    @relation(fields: [agent_id], references: [id])
+
+  notes            String?   @db.Text
+  custom_fields    Json?     @map("custom_fields")
+
+  created_at       DateTime  @default(now()) @map("created_at")
+  updated_at       DateTime  @updatedAt @map("updated_at")
+
+  @@index([landlord_lead_id])
+  @@index([tenant_lead_id])
+  @@index([lease_end_date])
+  @@index([renewal_status])
+  @@index([agent_id])
+  @@map("active_leases")
 }
 
 // ═══════════════════════════════════════════════════════════
