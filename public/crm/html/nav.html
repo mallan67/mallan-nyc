@@ -32,8 +32,8 @@
       </div>
     </div>
 
-    <!-- Right: agent badge + settings -->
-    <div id="agentBadge" class="hidden sm:flex items-center gap-2 text-xs flex-shrink-0">
+    <!-- Right: agent badge + settings (CRM-internal, data-rls-ignore) -->
+    <div id="agentBadge" class="hidden sm:flex items-center gap-2 text-xs flex-shrink-0" data-rls-ignore="true">
       <div class="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 text-[10px] font-bold" id="agentBadgeInitials">--</div>
       <div class="text-gray-600"><span id="agentBadgeName" class="font-medium">--</span></div>
       <button onclick="openEmailSettings()" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-amber-600 transition-all" title="Email Settings">
