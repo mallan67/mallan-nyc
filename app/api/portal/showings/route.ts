@@ -195,12 +195,20 @@ export async function POST(req: NextRequest) {
   // Resolve agent from lead's assigned agent
   const lead = await prisma.lead.findUnique({
     where: { id: auth.userId },
-    select: { agent_id: true, buyer_rep_agreement: true, buyer_rep_agreement_date: true },
+    select: { agent_id: true, portal_role: true, buyer_rep_agreement: true, buyer_rep_agreement_date: true },
   });
   if (!lead?.agent_id) {
     return NextResponse.json(
       { error: "No agent assigned to your account" },
       { status: 400 }
+    );
+  }
+
+  // Sellers and landlords view showings on their listings — they do not request them
+  if (lead.portal_role === "seller" || lead.portal_role === "landlord") {
+    return NextResponse.json(
+      { error: "Sellers and landlords cannot request showings. Contact your agent directly." },
+      { status: 403 }
     );
   }
 
