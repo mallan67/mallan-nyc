@@ -1032,7 +1032,7 @@ function PreferencesTab({
         <PreferencesView preferences={preferences} />
       ) : (
         <div className="text-center py-16 text-gray-400 text-sm">
-          No preferences set yet. Click "Set Preferences" to get started.
+          No preferences set yet. Click &ldquo;Set Preferences&rdquo; to get started.
         </div>
       )}
     </div>
