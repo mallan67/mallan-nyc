@@ -1,0 +1,20 @@
+{
+  "name": "trestle-fields-mcp",
+  "version": "1.0.0",
+  "description": "MCP server — live Trestle field lookup for REBNY RLS (1,363 fields, auto-refreshed from $metadata)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "fast-xml-parser": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "trestle-fields": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/trestle-fields/dist/index.js"],
+      "env": {
+        "IDX_CLIENT_ID": "${IDX_CLIENT_ID}",
+        "IDX_CLIENT_SECRET": "${IDX_CLIENT_SECRET}",
+        "TRESTLE_API_URL": "${TRESTLE_API_URL}"
+      },
+      "description": "Live Trestle field lookup — 1,363 fields across 12 REBNY RLS resources. Auto-refreshed from $metadata every 24h."
+    }
+  }
+}
