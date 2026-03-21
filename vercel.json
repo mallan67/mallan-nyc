@@ -9,7 +9,8 @@
     { "path": "/api/cron/idx-sync", "schedule": "0 */4 * * *" },
     { "path": "/api/cron/listing-expiration", "schedule": "0 7 * * *" },
     { "path": "/api/cron/search-alerts", "schedule": "30 7 * * *" },
-    { "path": "/api/cron/data-retention", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/data-retention", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/prospect-triggers", "schedule": "0 9 * * *" }
   ],
   "functions": {
     "app/api/**/*.ts": {
