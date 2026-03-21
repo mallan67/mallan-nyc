@@ -146,13 +146,13 @@ export default function NeighborhoodExplorer({
   const diningScore = Math.min(10, Math.round((diningCount / 10) * 10) / 10);
   const shoppingScore = Math.min(10, Math.round((shoppingCount / 8) * 10) / 10);
 
-  if (!loading && categories.length === 0) return null;
-
   // Free Google Maps embed (no API key needed)
   const mapUrl = useMemo(
     () => `https://www.google.com/maps?q=${latitude},${longitude}&z=16&output=embed`,
     [latitude, longitude]
   );
+
+  if (!loading && categories.length === 0) return null;
 
   return (
     <section>
