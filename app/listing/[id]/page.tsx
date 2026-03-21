@@ -1127,16 +1127,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {listing.publicRemarks && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">About This Property</h2>
-                  <div
-                    className="text-brand-dark/85 text-[15px] leading-[1.85] max-w-none text-justify"
-                    dangerouslySetInnerHTML={{
-                      __html: listing.publicRemarks
-                        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                        .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-                        .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
-                        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                    }}
-                  />
+                  <p
+                    className="text-brand-dark/85 text-[15px] leading-[1.85] max-w-none text-justify whitespace-pre-wrap"
+                  >
+                    {listing.publicRemarks.replace(/<[^>]*>/g, '')}
+                  </p>
                 </section>
               )}
 
