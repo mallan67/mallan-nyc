@@ -882,9 +882,73 @@ model SellerLead {
   // --- Notes ---
   notes             String?   @db.Text
 
+  // --- Property details (from PLUTO/manual) ---
+  property_type         String?   @map("property_type")
+  beds                  Int?
+  baths                 Decimal?  @db.Decimal(3,1)
+  sqft                  Int?
+  year_built            Int?      @map("year_built")
+  building_name         String?   @map("building_name")
+  floors                Int?
+  units_total           Int?      @map("units_total")
+  lot_area              Int?      @map("lot_area")
+
+  // --- Ownership enrichment (from ACRIS) ---
+  entity_type           String?   @map("entity_type")
+  entity_name           String?   @map("entity_name")
+  ownership_years       Decimal?  @db.Decimal(4,1) @map("ownership_years")
+  last_purchase_price   Decimal?  @db.Decimal(14,2) @map("last_purchase_price")
+  last_purchase_date    DateTime? @map("last_purchase_date")
+  mortgage_amount       Decimal?  @db.Decimal(14,2) @map("mortgage_amount")
+  mortgage_date         DateTime? @map("mortgage_date")
+  equity_ratio          Decimal?  @db.Decimal(3,2) @map("equity_ratio")
+
+  // --- Tax (from DOF) ---
+  tax_class             String?   @map("tax_class")
+  annual_tax            Decimal?  @db.Decimal(12,2) @map("annual_tax")
+  market_value          Decimal?  @db.Decimal(14,2) @map("market_value")
+  assessed_value        Decimal?  @db.Decimal(14,2) @map("assessed_value")
+
+  // --- Building health (from DOB) ---
+  open_violations       Int?      @default(0) @map("open_violations")
+  recent_permits        Int?      @default(0) @map("recent_permits")
+  building_risk         Decimal?  @db.Decimal(3,2) @map("building_risk")
+
+  // --- Contact (secondary + professional) ---
+  secondary_name        String?   @map("secondary_name")
+  secondary_phone       String?   @map("secondary_phone")
+  secondary_email       String?   @map("secondary_email")
+  secondary_relationship String?  @map("secondary_relationship")
+  management_company    String?   @map("management_company")
+  attorney_name         String?   @map("attorney_name")
+  attorney_email        String?   @map("attorney_email")
+  attorney_phone        String?   @map("attorney_phone")
+  authorized_signatories Json?    @map("authorized_signatories")
+
+  // --- Prospecting ---
+  source                String?
+  source_detail         String?   @map("source_detail")
+  pitch_generated_at    DateTime? @map("pitch_generated_at")
+  pitch_sent_at         DateTime? @map("pitch_sent_at")
+  pitch_pdf_url         String?   @map("pitch_pdf_url")
+
+  // --- Conversion ---
+  converted_to_lead_id  BigInt?   @map("converted_to_lead_id")
+  converted_at          DateTime? @map("converted_at")
+
+  // --- Outreach scheduling ---
+  next_follow_up        DateTime? @map("next_follow_up")
+  last_contacted_at     DateTime? @map("last_contacted_at")
+  last_researched_at    DateTime? @map("last_researched_at")
+
+  // --- TCPA (align with Lead pattern) ---
+  consent_captured_at   DateTime? @map("consent_captured_at")
+  consent_opt_out_at    DateTime? @map("consent_opt_out_at")
+
   // --- Relations ---
   signals           ReadinessSignal[]
   outreach_events   OutreachEvent[]
+  cadence_steps     OutreachCadenceStep[]
 
   created_at        DateTime  @default(now()) @map("created_at")
   updated_at        DateTime  @updatedAt @map("updated_at")
@@ -894,6 +958,8 @@ model SellerLead {
   @@index([status])
   @@index([assigned_agent_id])
   @@index([bbl])
+  @@index([next_follow_up])
+  @@index([source])
   @@map("seller_leads")
 }
 
@@ -944,6 +1010,38 @@ model OutreachEvent {
   @@index([agent_id])
   @@index([created_at])
   @@map("outreach_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OUTREACH CADENCE STEP — Scheduled outreach for seller prospects
+// ═══════════════════════════════════════════════════════════════════════════════
+model OutreachCadenceStep {
+  id              BigInt    @id @default(autoincrement())
+  seller_lead_id  BigInt    @map("seller_lead_id")
+  seller_lead     SellerLead @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
+
+  day_offset      Int       @map("day_offset")
+  type            String
+  channel         String    @default("email")
+  subject         String?
+  content_preview String?   @db.Text @map("content_preview")
+
+  status          String    @default("pending")
+  scheduled_date  DateTime? @map("scheduled_date")
+  sent_at         DateTime? @map("sent_at")
+  opened_at       DateTime? @map("opened_at")
+  replied_at      DateTime? @map("replied_at")
+
+  content_type    String?   @map("content_type")
+  content_data    Json?     @map("content_data")
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([seller_lead_id])
+  @@index([scheduled_date])
+  @@index([status])
+  @@map("outreach_cadence_steps")
 }
 
 // ═══════════════════════════════════════════════════════════
