@@ -59,6 +59,7 @@ function showSearchSection(section) {
         }
     });
     if (section === 'manage') renderManageSection(currentManageMode);
+    if (section === 'my' && typeof populateSavedSearchesSection === 'function') populateSavedSearchesSection();
 
     // Update hash for section navigation (skip main — handled by performSearch/backToSearch)
     if (!window._suppressHashUpdate && section !== 'main') {

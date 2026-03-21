@@ -10273,6 +10273,9 @@ function toggleSection(header) {
                             <button onclick="clearWorkingClient()" class="px-2 py-1 text-xs border border-blue-300 rounded hover:bg-blue-100 text-blue-700"><i class="fas fa-times mr-1"></i>Clear</button>
                         </div>
                     </div>
+                    <!-- Active Filter Pills -->
+                    <div id="activeFilterPills" class="mb-3"></div>
+
                     <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                     <!-- RESULTS TOOLBAR — Consolidated 3-row design -->
                     <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
@@ -11427,55 +11430,40 @@ function toggleSection(header) {
 
 
 <!-- ═══ html/my-searches.html ═══ -->
-<!-- SECTION: MY SEARCHES -->
+<!-- SAVED SEARCHES SECTION (live data) -->
 <div id="section-my" class="p-6" style="display:none">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">My Saved Searches</h2>
-                    <p class="text-gray-600">Your saved search criteria and alerts</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
-                    <div class="divide-y">
-                        <div class="p-4 flex items-center justify-between hover:bg-gray-50">
-                            <div>
-                                <p class="font-semibold">Upper East Side Condos $5-10M</p>
-                                <p class="text-sm text-gray-500">3+ BR • Doorman • Park Views • Created Jan 15</p>
-                            </div>
-                            <div class="flex items-center gap-4">
-                                <span class="text-sm text-blue-600">24 matches</span>
-                                <button class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Run</button>
-                            </div>
-                        </div>
-                        <div class="p-4 flex items-center justify-between hover:bg-gray-50">
-                            <div>
-                                <p class="font-semibold">Tribeca Lofts Under $4M</p>
-                                <p class="text-sm text-gray-500">2+ BR • High Ceilings • Created Jan 8</p>
-                            </div>
-                            <div class="flex items-center gap-4">
-                                <span class="text-sm text-blue-600">18 matches</span>
-                                <button class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Run</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <div class="mb-4 flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-bold text-gray-900">My Saved Searches</h2>
+            <p class="text-gray-500 text-sm">Click to re-run any saved search</p>
+        </div>
+        <button onclick="openSaveSearchModal()" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+            <i class="fas fa-save mr-1.5"></i> Save Current
+        </button>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div id="savedSearchesSectionList" class="divide-y">
+            <div class="p-8 text-center text-gray-400">
+                <i class="fas fa-spinner fa-spin text-2xl mb-3 block"></i>
+                Loading saved searches...
             </div>
+        </div>
+    </div>
+</div>
 
 <!-- ═══ html/last-search.html ═══ -->
-<!-- SECTION: LAST SEARCH -->
+<!-- LAST SEARCH -->
 <div id="section-last" class="p-6" style="display:none">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Last Search Results</h2>
-                    <p class="text-gray-600">Resume your most recent search</p>
-                </div>
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="font-semibold text-blue-900">Last Search: Manhattan Condos $3-8M</p>
-                            <p class="text-sm text-blue-700">Run 2 hours ago • 47 results</p>
-                        </div>
-                        <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">View Results</button>
-                    </div>
-                </div>
-            </div>
+    <div class="mb-4">
+        <h2 class="text-xl font-bold text-gray-900">Last Search</h2>
+    </div>
+    <div id="lastSearchDisplay" class="bg-white rounded-xl shadow-sm border p-6 text-center text-gray-400">
+        <p>No recent search. Run a search first.</p>
+    </div>
+    <button onclick="recallLastSearch()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+        <i class="fas fa-history mr-1.5"></i> Recall Last Search
+    </button>
+</div>
 
 <!-- ═══ html/manage-listings.html ═══ -->
 <!-- SECTION: MANAGE MY LISTINGS -->
@@ -14572,6 +14560,7 @@ function showSearchSection(section) {
         }
     });
     if (section === 'manage') renderManageSection(currentManageMode);
+    if (section === 'my' && typeof populateSavedSearchesSection === 'function') populateSavedSearchesSection();
 
     // Update hash for section navigation (skip main — handled by performSearch/backToSearch)
     if (!window._suppressHashUpdate && section !== 'main') {
@@ -16617,7 +16606,27 @@ function manageShowToast(msg) {
                 .replace(/\s+/g, ' ').trim();
         }
 
+        function showSearchSkeleton() {
+            var placeholder = document.getElementById('resultsPlaceholder');
+            var resultsSection = document.getElementById('searchResultsSection');
+            var grid = document.getElementById('resultsGrid');
+            if (placeholder) placeholder.style.display = 'none';
+            if (resultsSection) { resultsSection.style.display = 'block'; resultsSection.classList.remove('hidden'); }
+            if (grid) {
+                grid.innerHTML = [0,1,2,3,4,5].map(function() {
+                    return '<div class="skeleton-card">' +
+                        '<div class="skeleton-img"></div>' +
+                        '<div class="skeleton-line medium"></div>' +
+                        '<div class="skeleton-line short"></div>' +
+                        '<div class="skeleton-line"></div>' +
+                        '</div>';
+                }).join('');
+                grid.classList.remove('hidden');
+            }
+        }
+
         function performSearch() {
+            showSearchSkeleton();
             try {
                 // Collect search criteria from the active form
                 activeSearchCriteria = collectSearchCriteria();
@@ -16658,6 +16667,7 @@ function manageShowToast(msg) {
                 resultsSection.style.display = 'block';
                 resultsSection.classList.remove('hidden');
                 initializeSearchResults();
+                if (typeof renderFilterPills === 'function') renderFilterPills();
             }
             // Do NOT hide searchFormContainer — filter panel is always visible
 
@@ -16807,6 +16817,7 @@ function manageShowToast(msg) {
                 searchResultsState.currentPage = 1;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof renderFilterPills === 'function') renderFilterPills();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
                     if (typeof refreshResultsMap === 'function') refreshResultsMap();
                 } catch(renderErr) {
@@ -18006,6 +18017,7 @@ function manageShowToast(msg) {
                 searchResultsState.filteredListings = filterListings(listings, c);
                 searchResultsState.currentPage = 1;
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof renderFilterPills === 'function') renderFilterPills();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
             }
 
@@ -23068,6 +23080,36 @@ document.addEventListener('click', function(e) {
             backToSearch();
         }
 
+        function populateSavedSearchesSection() {
+            var container = document.getElementById('savedSearchesSectionList');
+            if (!container || typeof MallanAPI === 'undefined') return;
+            container.innerHTML = '<div class="p-6 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
+            MallanAPI.savedSearches.list().then(function(result) {
+                var searches = result.savedSearches || [];
+                if (searches.length === 0) {
+                    container.innerHTML = '<div class="p-8 text-center text-gray-400">No saved searches yet. Run a search and click Save.</div>';
+                    return;
+                }
+                var E = typeof escapeHtml === 'function' ? escapeHtml : function(s){ return String(s||''); };
+                container.innerHTML = searches.map(function(s) {
+                    var dateStr = s.updated_at ? new Date(s.updated_at).toLocaleDateString() : '';
+                    var alertBadge = s.alert_enabled ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-semibold rounded-full ml-1">'+E(s.alert_frequency||'alert')+'</span>' : '';
+                    var clientBadge = s.lead_id ? '<span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-semibold rounded-full ml-1"><i class="fas fa-user text-[8px]"></i></span>' : '';
+                    return '<div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50">' +
+                        '<div class="flex-1 min-w-0">' +
+                        '<div class="font-semibold text-sm text-gray-900 truncate">'+E(s.name)+alertBadge+clientBadge+'</div>' +
+                        '<div class="text-xs text-gray-400">'+dateStr+'</div>' +
+                        '</div>' +
+                        '<div class="flex items-center gap-2 ml-3">' +
+                        '<button onclick="loadSavedSearch(\''+E(s.id)+'\')" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700">Run</button>' +
+                        '<button onclick="deleteSavedSearch(\''+E(s.id)+'\')" class="p-1 text-red-400 hover:bg-red-50 rounded"><i class="fas fa-trash text-xs"></i></button>' +
+                        '</div></div>';
+                }).join('');
+            }).catch(function() {
+                container.innerHTML = '<div class="p-6 text-center text-red-400">Failed to load. Check your connection.</div>';
+            });
+        }
+
 
 </script>
 
@@ -23276,6 +23318,74 @@ document.addEventListener('click', function(e) {
             }
         }
 
+
+</script>
+<script>
+// ═══ js/search/filter-pills.js ═══
+// ── ACTIVE FILTER PILLS ──────────────────────────────────────────────
+// Renders pills above results showing active filters.
+// Each pill has × to remove that filter and re-run search.
+
+var PILL_LABELS = {
+    priceMin:  function(v){ return 'Min $'+Number(v).toLocaleString(); },
+    priceMax:  function(v){ return 'Max $'+Number(v).toLocaleString(); },
+    bedsMin:   function(v){ return v === 0 ? 'Studio+' : v+'+ Beds'; },
+    bedsMax:   function(v){ return 'Max '+v+' Beds'; },
+    bathsMin:  function(v){ return v+'+ Baths'; },
+    roomsMin:  function(v){ return v+'+ Rooms'; },
+    sqftMin:   function(v){ return Number(v).toLocaleString()+' SF+'; },
+    sqftMax:   function(v){ return 'Max '+Number(v).toLocaleString()+' SF'; },
+    domMax:    function(v){ return 'DOM \u2264'+v; },
+    keyword:   function(v){ return '"'+v+'"'; },
+    statuses:  function(v){ return Array.isArray(v) ? v.join('/') : v; },
+    ownership: function(v){ return Array.isArray(v) ? v.join('/') : v; },
+    yearBuiltFrom: function(v){ return 'Built '+v+'+'; },
+};
+
+function renderFilterPills() {
+    var container = document.getElementById('activeFilterPills');
+    if (!container) return;
+    var c = (typeof activeSearchCriteria !== 'undefined') ? activeSearchCriteria : null;
+    if (!c) { container.innerHTML = ''; return; }
+
+    var pills = [];
+    Object.keys(PILL_LABELS).forEach(function(key) {
+        var val = c[key];
+        if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) return;
+        pills.push({ key: key, label: PILL_LABELS[key](val) });
+    });
+
+    // Neighborhoods
+    if (c.neighborhoods && c.neighborhoods.length > 0) {
+        c.neighborhoods.forEach(function(nb) {
+            pills.push({ key: 'neighborhood_'+nb, label: nb });
+        });
+    }
+
+    if (pills.length === 0) { container.innerHTML = ''; return; }
+
+    var E = typeof escapeHtml === 'function' ? escapeHtml : function(s){ return String(s||''); };
+    container.innerHTML = pills.map(function(p) {
+        return '<span class="filter-pill">' +
+            '<span>' + E(p.label) + '</span>' +
+            '<button class="filter-pill-remove" onclick="removePillFilter(\'' + p.key + '\')" title="Remove">&times;</button>' +
+            '</span>';
+    }).join('');
+}
+
+function removePillFilter(key) {
+    if (typeof activeSearchCriteria === 'undefined' || !activeSearchCriteria) return;
+    if (key.indexOf('neighborhood_') === 0) {
+        var nb = key.replace('neighborhood_', '');
+        if (activeSearchCriteria.neighborhoods) {
+            activeSearchCriteria.neighborhoods = activeSearchCriteria.neighborhoods.filter(function(n){ return n !== nb; });
+        }
+    } else {
+        delete activeSearchCriteria[key];
+    }
+    renderFilterPills();
+    if (typeof performSearch === 'function') performSearch();
+}
 
 </script>
 
@@ -24321,45 +24431,26 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 
   // ── Toggle map view ──
   window.toggleResultsMap = function () {
-    _isOpen = !_isOpen;
     var wrapper = document.getElementById('resultsMapWrapper');
-    var toggleBtn = document.getElementById('resultsMapToggleBtn');
-
     if (!wrapper) return;
-
-    if (_isOpen) {
-      // Show map panel above results
-      wrapper.style.cssText = 'display:block; width:100%; height:500px; position:relative; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:16px; overflow:hidden;';
-      if (toggleBtn) {
-        toggleBtn.classList.add('bg-blue-100', 'text-blue-700');
-        toggleBtn.classList.remove('text-gray-500');
-      }
-
-      // Move wrapper before resultsContainer for above-results layout
-      var resultsContainer = document.getElementById('resultsContainer');
-      if (resultsContainer && wrapper.parentElement) {
-        wrapper.parentElement.insertBefore(wrapper, resultsContainer);
-      }
-
+    var isOpen = wrapper.classList.contains('map-open');
+    wrapper.classList.toggle('map-open', !isOpen);
+    // Do NOT set inline width — CSS flex handles proportions via map-open class
+    var btn = document.getElementById('resultsMapToggleBtn');
+    if (btn) btn.classList.toggle('text-blue-600', !isOpen);
+    if (!isOpen) {
+      _isOpen = true;
       ensureMapLibre(function () {
-        // Set container to fill wrapper
         var container = document.getElementById('resultsMapContainer');
         if (container) container.style.cssText = 'width:100%; height:100%;';
         setTimeout(function () {
-          initMap();
-          if (_map) {
-            _map.resize();
-            refreshMapPins();
-          }
+          if (typeof initMap === 'function') initMap();
+          if (_map) _map.resize();
+          if (typeof refreshMapPins === 'function') refreshMapPins();
         }, 150);
       });
     } else {
-      // Hide map
-      wrapper.style.display = 'none';
-      if (toggleBtn) {
-        toggleBtn.classList.remove('bg-blue-100', 'text-blue-700');
-        toggleBtn.classList.add('text-gray-500');
-      }
+      _isOpen = false;
       clearMarkers();
     }
   };

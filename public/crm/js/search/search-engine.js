@@ -146,7 +146,27 @@
                 .replace(/\s+/g, ' ').trim();
         }
 
+        function showSearchSkeleton() {
+            var placeholder = document.getElementById('resultsPlaceholder');
+            var resultsSection = document.getElementById('searchResultsSection');
+            var grid = document.getElementById('resultsGrid');
+            if (placeholder) placeholder.style.display = 'none';
+            if (resultsSection) { resultsSection.style.display = 'block'; resultsSection.classList.remove('hidden'); }
+            if (grid) {
+                grid.innerHTML = [0,1,2,3,4,5].map(function() {
+                    return '<div class="skeleton-card">' +
+                        '<div class="skeleton-img"></div>' +
+                        '<div class="skeleton-line medium"></div>' +
+                        '<div class="skeleton-line short"></div>' +
+                        '<div class="skeleton-line"></div>' +
+                        '</div>';
+                }).join('');
+                grid.classList.remove('hidden');
+            }
+        }
+
         function performSearch() {
+            showSearchSkeleton();
             try {
                 // Collect search criteria from the active form
                 activeSearchCriteria = collectSearchCriteria();
@@ -187,6 +207,7 @@
                 resultsSection.style.display = 'block';
                 resultsSection.classList.remove('hidden');
                 initializeSearchResults();
+                if (typeof renderFilterPills === 'function') renderFilterPills();
             }
             // Do NOT hide searchFormContainer — filter panel is always visible
 
@@ -336,6 +357,7 @@
                 searchResultsState.currentPage = 1;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof renderFilterPills === 'function') renderFilterPills();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
                     if (typeof refreshResultsMap === 'function') refreshResultsMap();
                 } catch(renderErr) {
@@ -1535,6 +1557,7 @@
                 searchResultsState.filteredListings = filterListings(listings, c);
                 searchResultsState.currentPage = 1;
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof renderFilterPills === 'function') renderFilterPills();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
             }
 
