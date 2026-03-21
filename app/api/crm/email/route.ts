@@ -60,12 +60,33 @@ export async function POST(req: NextRequest) {
   const results: { clientId: string; success: boolean; error?: string; channel: string }[] = [];
 
   if (type === "sms") {
-    // SMS: log the send but don't actually deliver (no Twilio configured)
-    // This ensures the CRM tracks the communication even though delivery is manual
+    // SMS: send via Twilio if configured, otherwise log only
+    const hasTwilio = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER;
+    let twilioClient: { messages: { create: (opts: Record<string, string>) => Promise<unknown> } } | null = null;
+    if (hasTwilio) {
+      try {
+        const twilio = require("twilio");
+        twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      } catch { /* twilio not available */ }
+    }
+
     for (const client of clients) {
+      let channel = "sms_logged";
+      if (twilioClient && client.phone) {
+        try {
+          await twilioClient.messages.create({
+            body: bodyText.substring(0, 1600),
+            from: process.env.TWILIO_PHONE_NUMBER!,
+            to: client.phone,
+          });
+          channel = "sms_sent";
+        } catch {
+          channel = "sms_failed";
+        }
+      }
       await prisma.auditEvent.create({
         data: {
-          action: "sms:logged",
+          action: channel === "sms_sent" ? "sms:sent" : "sms:logged",
           entity_type: "lead",
           entity_id: client.id.toString(),
           user_type: auth.userType,
@@ -77,7 +98,7 @@ export async function POST(req: NextRequest) {
           } as Prisma.InputJsonValue,
         },
       });
-      results.push({ clientId: client.id.toString(), success: true, channel: "sms_logged" });
+      results.push({ clientId: client.id.toString(), success: true, channel });
     }
   } else {
     // Email or eBlast: actually send via SMTP
