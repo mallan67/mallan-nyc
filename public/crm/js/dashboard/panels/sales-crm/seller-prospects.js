@@ -336,11 +336,123 @@ var SellerProspects = (function () {
       });
   }
 
-  // ─── Import modal (placeholder for Task 12) ─────────────────────────
+  // ─── Import modal ────────────────────────────────────────────────────
+  var _importState = { preview: null, file: null, source: '' };
+
   function _importModal() {
-    CRM.openModal('Import Prospects', '<div class="p-6 text-center text-gray-500"><i class="fas fa-file-import text-3xl text-gray-300 mb-3"></i><p class="text-sm">Bulk import from CSV/Excel coming in next update.</p></div>', {
-      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Close</button>',
+    _importState = { preview: null, file: null, source: '' };
+    var h = '<div style="padding:16px;">' +
+      '<div style="margin-bottom:16px;">' +
+        '<label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Upload CSV or Excel File</label>' +
+        '<input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="font-size:13px;padding:8px;border:1px solid #D1D5DB;border-radius:6px;width:100%;">' +
+      '</div>' +
+      '<div style="margin-bottom:16px;">' +
+        '<label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Source Label</label>' +
+        '<input type="text" id="import-source" placeholder="e.g. UN List, Doctors List, LinkedIn Export" style="font-size:13px;padding:8px 12px;border:1px solid #D1D5DB;border-radius:6px;width:100%;">' +
+      '</div>' +
+      '<div id="import-preview" style="display:none;margin-bottom:16px;"></div>' +
+      '<div id="import-result" style="display:none;margin-bottom:16px;"></div>' +
+    '</div>';
+
+    CRM.openModal('Import Seller Prospects', h, {
+      width: 640,
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" id="import-preview-btn" onclick="SellerProspects._importPreview()">Preview</button>' +
+        '<button class="btn btn-gold" id="import-confirm-btn" style="display:none;" onclick="SellerProspects._importConfirm()">Import Now</button>',
     });
+  }
+
+  function _importPreview() {
+    var fileInput = document.getElementById('import-file');
+    var sourceInput = document.getElementById('import-source');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+      CRM.toast('Please select a file', 'warning'); return;
+    }
+    _importState.file = fileInput.files[0];
+    _importState.source = (sourceInput && sourceInput.value) || 'imported';
+
+    var fd = new FormData();
+    fd.append('file', _importState.file);
+    fd.append('source', _importState.source);
+
+    var previewDiv = document.getElementById('import-preview');
+    if (previewDiv) {
+      previewDiv.style.display = 'block';
+      previewDiv.innerHTML = '<div style="text-align:center;padding:12px;"><i class="fas fa-spinner fa-spin"></i> Analyzing file...</div>';
+    }
+
+    fetch('/api/crm/sales/prospects/import?preview=true', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { CRM.toast(data.error, 'danger'); return; }
+        _importState.preview = data;
+        var h = '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:12px;">' +
+          '<div style="font-size:13px;font-weight:700;color:#111;margin-bottom:8px;">' +
+            '<i class="fas fa-check-circle text-green-500 mr-1"></i> ' + data.total_rows + ' rows detected</div>' +
+          '<div style="font-size:11px;color:#6B7280;margin-bottom:8px;">Columns detected:</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
+        var cols = data.columns_detected || {};
+        Object.keys(cols).forEach(function (k) {
+          var v = cols[k];
+          h += '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:' +
+            (v ? '#ECFDF5;color:#059669' : '#FEF2F2;color:#EF4444') + ';">' +
+            E(k) + ': ' + (v ? E(v) : 'not found') + '</span>';
+        });
+        h += '</div>';
+        // Show sample rows
+        if (data.sample_rows && data.sample_rows.length > 0) {
+          h += '<div style="font-size:11px;color:#6B7280;margin-bottom:4px;">Sample (first 5 rows):</div>' +
+            '<div style="overflow-x:auto;max-height:200px;"><table style="width:100%;font-size:11px;border-collapse:collapse;">';
+          var headers = Object.keys(data.sample_rows[0]);
+          h += '<tr>';
+          headers.forEach(function (hd) { h += '<th style="padding:4px 8px;background:#F3F4F6;border:1px solid #E5E7EB;text-align:left;">' + E(hd) + '</th>'; });
+          h += '</tr>';
+          data.sample_rows.slice(0, 5).forEach(function (row) {
+            h += '<tr>';
+            headers.forEach(function (hd) { h += '<td style="padding:4px 8px;border:1px solid #E5E7EB;">' + E(String(row[hd] || '')) + '</td>'; });
+            h += '</tr>';
+          });
+          h += '</table></div>';
+        }
+        h += '</div>';
+        if (previewDiv) previewDiv.innerHTML = h;
+        // Show confirm button, hide preview button
+        var previewBtn = document.getElementById('import-preview-btn');
+        var confirmBtn = document.getElementById('import-confirm-btn');
+        if (previewBtn) previewBtn.style.display = 'none';
+        if (confirmBtn) confirmBtn.style.display = 'inline-flex';
+      })
+      .catch(function () { CRM.toast('Failed to preview file', 'danger'); });
+  }
+
+  function _importConfirm() {
+    if (!_importState.file) { CRM.toast('No file selected', 'warning'); return; }
+    var resultDiv = document.getElementById('import-result');
+    var confirmBtn = document.getElementById('import-confirm-btn');
+    if (confirmBtn) confirmBtn.disabled = true;
+    if (resultDiv) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<div style="text-align:center;padding:12px;"><i class="fas fa-spinner fa-spin"></i> Importing...</div>';
+    }
+
+    var fd = new FormData();
+    fd.append('file', _importState.file);
+    fd.append('source', _importState.source);
+
+    fetch('/api/crm/sales/prospects/import', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { CRM.toast(data.error, 'danger'); return; }
+        var h = '<div style="background:#ECFDF5;border:1px solid #059669;border-radius:8px;padding:16px;text-align:center;">' +
+          '<div style="font-size:24px;font-weight:800;color:#059669;margin-bottom:4px;">' + data.imported + '</div>' +
+          '<div style="font-size:12px;color:#374151;">contacts imported</div>' +
+          (data.skipped ? '<div style="font-size:11px;color:#6B7280;margin-top:4px;">' + data.skipped + ' duplicates skipped</div>' : '') +
+          (data.errors ? '<div style="font-size:11px;color:#EF4444;margin-top:4px;">' + data.errors + ' errors</div>' : '') +
+        '</div>';
+        if (resultDiv) resultDiv.innerHTML = h;
+        if (confirmBtn) { confirmBtn.textContent = 'Done'; confirmBtn.disabled = false; confirmBtn.onclick = function () { CRM.closeModal(); render(); }; }
+      })
+      .catch(function () { CRM.toast('Import failed', 'danger'); if (confirmBtn) confirmBtn.disabled = false; });
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -916,6 +1028,8 @@ var SellerProspects = (function () {
     _newProspect: _newProspect,
     _submitNew: _submitNew,
     _importModal: _importModal,
+    _importPreview: _importPreview,
+    _importConfirm: _importConfirm,
     _triggerResearch: _triggerResearch,
     _quickSend: _quickSend,
     _quickConvert: _quickConvert,
