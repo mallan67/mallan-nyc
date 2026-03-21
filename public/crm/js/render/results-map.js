@@ -460,26 +460,45 @@
 
   // ── Toggle map view ──
   window.toggleResultsMap = function () {
+    _isOpen = !_isOpen;
     var wrapper = document.getElementById('resultsMapWrapper');
+    var toggleBtn = document.getElementById('resultsMapToggleBtn');
+
     if (!wrapper) return;
-    var isOpen = wrapper.classList.contains('map-open');
-    wrapper.classList.toggle('map-open', !isOpen);
-    // Do NOT set inline width — CSS flex handles proportions via map-open class
-    var btn = document.getElementById('resultsMapToggleBtn');
-    if (btn) btn.classList.toggle('text-blue-600', !isOpen);
-    if (!isOpen) {
-      _isOpen = true;
+
+    if (_isOpen) {
+      // Show map panel above results
+      wrapper.style.cssText = 'display:block; width:100%; height:500px; position:relative; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:16px; overflow:hidden;';
+      if (toggleBtn) {
+        toggleBtn.classList.add('bg-blue-100', 'text-blue-700');
+        toggleBtn.classList.remove('text-gray-500');
+      }
+
+      // Move wrapper before resultsContainer for above-results layout
+      var resultsContainer = document.getElementById('resultsContainer');
+      if (resultsContainer && wrapper.parentElement) {
+        wrapper.parentElement.insertBefore(wrapper, resultsContainer);
+      }
+
       ensureMapLibre(function () {
+        // Set container to fill wrapper
         var container = document.getElementById('resultsMapContainer');
         if (container) container.style.cssText = 'width:100%; height:100%;';
         setTimeout(function () {
-          if (typeof initMap === 'function') initMap();
-          if (_map) _map.resize();
-          if (typeof refreshMapPins === 'function') refreshMapPins();
+          initMap();
+          if (_map) {
+            _map.resize();
+            refreshMapPins();
+          }
         }, 150);
       });
     } else {
-      _isOpen = false;
+      // Hide map
+      wrapper.style.display = 'none';
+      if (toggleBtn) {
+        toggleBtn.classList.remove('bg-blue-100', 'text-blue-700');
+        toggleBtn.classList.add('text-gray-500');
+      }
       clearMarkers();
     }
   };

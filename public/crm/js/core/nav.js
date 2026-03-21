@@ -41,15 +41,10 @@ function showSearchSection(section) {
         var el = document.getElementById('section-' + s);
         if (el) el.style.display = 'none';
     });
-    var target = document.getElementById('section-' + section);
-    if (target) target.style.display = 'block';
-
-    // New unified header is always visible — no show/hide needed
-    // (generalNavBar was replaced by searchHeader which is always sticky)
-    var gnb = document.getElementById('generalNavBar');
-    if (gnb) gnb.style.display = '';
-
-    // Update nav buttons if they exist
+    document.getElementById('section-' + section).style.display = 'block';
+    // Ensure general nav is shown when switching general tabs
+    document.getElementById('generalNavBar').style.display = '';
+    // Update active state on the nav buttons
     ['main','manage'].forEach(function(s) {
         var btn = document.getElementById('searchNav-' + s);
         if (!btn) return;
@@ -64,7 +59,6 @@ function showSearchSection(section) {
         }
     });
     if (section === 'manage') renderManageSection(currentManageMode);
-    if (section === 'my' && typeof populateSavedSearchesSection === 'function') populateSavedSearchesSection();
 
     // Update hash for section navigation (skip main — handled by performSearch/backToSearch)
     if (!window._suppressHashUpdate && section !== 'main') {

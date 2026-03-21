@@ -444,33 +444,3 @@
             backToSearch();
         }
 
-        function populateSavedSearchesSection() {
-            var container = document.getElementById('savedSearchesSectionList');
-            if (!container || typeof MallanAPI === 'undefined') return;
-            container.innerHTML = '<div class="p-6 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
-            MallanAPI.savedSearches.list().then(function(result) {
-                var searches = result.savedSearches || [];
-                if (searches.length === 0) {
-                    container.innerHTML = '<div class="p-8 text-center text-gray-400">No saved searches yet. Run a search and click Save.</div>';
-                    return;
-                }
-                var E = typeof escapeHtml === 'function' ? escapeHtml : function(s){ return String(s||''); };
-                container.innerHTML = searches.map(function(s) {
-                    var dateStr = s.updated_at ? new Date(s.updated_at).toLocaleDateString() : '';
-                    var alertBadge = s.alert_enabled ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-semibold rounded-full ml-1">'+E(s.alert_frequency||'alert')+'</span>' : '';
-                    var clientBadge = s.lead_id ? '<span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-semibold rounded-full ml-1"><i class="fas fa-user text-[8px]"></i></span>' : '';
-                    return '<div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50">' +
-                        '<div class="flex-1 min-w-0">' +
-                        '<div class="font-semibold text-sm text-gray-900 truncate">'+E(s.name)+alertBadge+clientBadge+'</div>' +
-                        '<div class="text-xs text-gray-400">'+dateStr+'</div>' +
-                        '</div>' +
-                        '<div class="flex items-center gap-2 ml-3">' +
-                        '<button onclick="loadSavedSearch(\''+E(s.id)+'\')" class="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700">Run</button>' +
-                        '<button onclick="deleteSavedSearch(\''+E(s.id)+'\')" class="p-1 text-red-400 hover:bg-red-50 rounded"><i class="fas fa-trash text-xs"></i></button>' +
-                        '</div></div>';
-                }).join('');
-            }).catch(function() {
-                container.innerHTML = '<div class="p-6 text-center text-red-400">Failed to load. Check your connection.</div>';
-            });
-        }
-

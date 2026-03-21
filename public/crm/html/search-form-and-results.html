@@ -1,72 +1,6 @@
 <!-- SECTION: NEW SEARCH (MAIN) -->
 <!-- Modals extracted to html/modals/ directory -->
-<div id="searchPageLayout">
-
-  <!-- ═══ FILTER PANEL (left, always visible) ═══ -->
-  <div id="filterPanel">
-
-    <!-- Collapse toggle -->
-    <button id="filterCollapseBtn" onclick="toggleFilterPanel()" title="Collapse filters">
-      <i id="filterCollapseBtnIcon" class="fas fa-chevron-left text-xs text-gray-400"></i>
-    </button>
-
-    <!-- Icon rail (collapsed state) -->
-    <div id="filterPanelIconRail">
-      <button onclick="toggleFilterPanel()" title="Expand" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600">
-        <i class="fas fa-sliders-h"></i>
-      </button>
-      <button onclick="toggleFilterPanel(); filterTabSwitch('sale')" title="Sales" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600">
-        <i class="fas fa-home"></i>
-      </button>
-      <button onclick="toggleFilterPanel(); filterTabSwitch('rent')" title="Rentals" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-green-600">
-        <i class="fas fa-building"></i>
-      </button>
-      <button onclick="toggleFilterPanel(); filterTabSwitch('building')" title="Buildings" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-purple-600">
-        <i class="fas fa-city"></i>
-      </button>
-      <button onclick="toggleFilterPanel(); filterTabSwitch('comparables')" title="Comparables" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-amber-600">
-        <i class="fas fa-chart-bar"></i>
-      </button>
-    </div>
-
-    <!-- Panel header: tabs + mode toggle -->
-    <div id="filterPanelHeader" class="border-b bg-white px-3 pt-3 pb-0">
-
-      <!-- Search type tabs -->
-      <div class="flex gap-0 mb-0 -mx-3 px-3 overflow-x-auto">
-        <button id="filterTabSale" onclick="filterTabSwitch('sale')"
-          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-blue-600 text-blue-700 bg-white flex-shrink-0">
-          <i class="fas fa-home mr-1 text-[10px]"></i>SALES
-        </button>
-        <button id="filterTabRent" onclick="filterTabSwitch('rent')"
-          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-white flex-shrink-0">
-          <i class="fas fa-building mr-1 text-[10px]"></i>RENTALS
-        </button>
-        <button id="filterTabBuilding" onclick="filterTabSwitch('building')"
-          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-white flex-shrink-0">
-          <i class="fas fa-city mr-1 text-[10px]"></i>BUILDINGS
-        </button>
-        <button id="filterTabComps" onclick="filterTabSwitch('comparables')"
-          class="px-3 py-2.5 text-[11px] font-bold tracking-wide border-b-2 border-transparent text-gray-500 hover:text-gray-700 bg-white flex-shrink-0">
-          <i class="fas fa-chart-bar mr-1 text-[10px]"></i>COMPS
-        </button>
-      </div>
-
-      <!-- Basic / Advanced toggle -->
-      <div id="filterModeToggle" class="flex items-center gap-3 py-2">
-        <div class="flex bg-gray-100 rounded-lg p-0.5">
-          <button id="btnSearchBasic" class="px-3 py-1 bg-gray-900 text-white rounded-md text-xs font-bold" onclick="toggleSearchMode('basic')">Basic</button>
-          <button id="btnSearchAdvanced" class="px-3 py-1 text-gray-500 rounded-md text-xs font-bold hover:text-gray-700" onclick="toggleSearchMode('advanced')">Advanced</button>
-        </div>
-        <div id="expandCollapseControls" class="hidden flex items-center gap-1 text-xs">
-          <button onclick="expandAllSections()" class="text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded text-[10px] font-medium">Expand All</button>
-          <button onclick="collapseAllSections()" class="text-gray-500 hover:bg-gray-100 px-1.5 py-0.5 rounded text-[10px] font-medium">Collapse All</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Scrollable filter content -->
-    <div id="filterPanelScroll">
+<div id="section-main" class="p-6">
                 <div id="searchFormContainer">
                     <!-- RLS Listing Tracker — total active listings from REBNY RLS -->
                     <div id="rlsListingTracker" class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl shadow-md mb-4 px-5 py-3.5 flex items-center justify-between flex-wrap gap-3">
@@ -3132,7 +3066,7 @@
                         </div>
                         <div class="section-content">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                <input type="text" id="adv-keyword" placeholder="Keyword Search" class="border rounded-lg px-3 py-2 text-sm">
+                                <input type="text" placeholder="Keyword Search" class="border rounded-lg px-3 py-2 text-sm">
                             </div>
 
                             <!-- Price & Financials Card -->
@@ -3146,7 +3080,7 @@
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;" id="priceLabel">Price</p>
                                         <div id="salePriceFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-price" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min Price</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="100000">$100K</option>
@@ -3180,7 +3114,7 @@
                                                 <option value="50000000">$50M</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-price" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max Price</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
@@ -3215,7 +3149,7 @@
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;" id="monthlyLabel">Expenses</p>
                                         <div id="monthlyExpensesFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">$500</option>
@@ -3231,7 +3165,7 @@
                                                 <option value="15000">$15,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -3255,7 +3189,7 @@
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;">Rent</p>
                                         <div id="rentPriceFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min Rent</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -3284,7 +3218,7 @@
                                                 <option value="50000">$50,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max Rent</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1500">$1,500</option>
@@ -3319,7 +3253,7 @@
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;">Net Rent</p>
                                         <div id="netMonthlyRentFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">$500</option>
@@ -3330,7 +3264,7 @@
                                                 <option value="5000">$5,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -3409,7 +3343,7 @@
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="0">Studio</option>
@@ -3425,7 +3359,7 @@
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="0">Studio</option>
@@ -3447,7 +3381,7 @@
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -3464,7 +3398,7 @@
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -3487,7 +3421,7 @@
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -3505,7 +3439,7 @@
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -3529,7 +3463,7 @@
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="300">300</option>
@@ -3554,7 +3488,7 @@
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="500">500</option>
@@ -4631,11 +4565,11 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input type="date" id="adv-listed-from" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input type="date" id="adv-listed-to" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -4645,11 +4579,11 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input type="date" id="adv-updated-from" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input type="date" id="adv-updated-to" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -4659,11 +4593,11 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input type="date" id="adv-contract-from" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input type="date" id="adv-contract-to" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -4673,11 +4607,11 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input type="date" id="adv-lease-signed-from" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input type="date" id="adv-lease-signed-to" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -4687,11 +4621,11 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input type="date" id="adv-sold-from" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input type="date" id="adv-sold-to" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -4701,11 +4635,11 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input type="date" id="adv-rented-from" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input type="date" id="adv-rented-to" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -4744,9 +4678,9 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Days on Market (DOM)</p>
                                     <div class="flex items-center gap-2 mb-2">
-                                        <input type="number" id="adv-dom-min" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
+                                        <input type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
                                         <span class="text-gray-400">—</span>
-                                        <input type="number" id="adv-dom-max" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
+                                        <input type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
                                     </div>
                                     <div class="space-y-1 text-xs">
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> New (≤7 days)</label>
@@ -4825,7 +4759,7 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Monthly Tax (Condos)</p>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <select id="adv-tax-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Min</option>
                                             <option value="custom">Custom</option>
                                             <option value="0">$0</option>
@@ -4838,7 +4772,7 @@
                                             <option value="5000">$5,000</option>
                                         </select>
                                         <span class="text-gray-400">—</span>
-                                        <select id="adv-tax-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Max</option>
                                             <option value="custom">Custom</option>
                                             <option value="500">$500</option>
@@ -4855,7 +4789,7 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Total Monthly (Maint + Tax)</p>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <select id="adv-monthly-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Min</option>
                                             <option value="custom">Custom</option>
                                             <option value="0">$0</option>
@@ -4868,7 +4802,7 @@
                                             <option value="10000">$10,000</option>
                                         </select>
                                         <span class="text-gray-400">—</span>
-                                        <select id="adv-monthly-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Max</option>
                                             <option value="custom">Custom</option>
                                             <option value="1000">$1,000</option>
@@ -4971,9 +4905,9 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Ceiling Height</p>
                                     <div class="flex items-center gap-2 mb-2">
-                                        <input type="number" id="adv-ceiling-min" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="7" step="0.5">
+                                        <input type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="7" step="0.5">
                                         <span class="text-gray-400">—</span>
-                                        <input type="number" id="adv-ceiling-max" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" step="0.5">
+                                        <input type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" step="0.5">
                                         <span class="text-xs text-gray-500">ft</span>
                                     </div>
                                     <div class="space-y-1 text-xs">
@@ -5182,9 +5116,9 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Year Built</p>
                                     <div class="flex items-center gap-2">
-                                        <input type="number" id="adv-year-built-from" placeholder="From" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
+                                        <input type="number" placeholder="From" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
                                         <span class="text-gray-400">—</span>
-                                        <input type="number" id="adv-year-built-to" placeholder="To" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
+                                        <input type="number" placeholder="To" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
                                     </div>
                                 </div>
                                 <!-- Year Renovated -->
@@ -5199,15 +5133,15 @@
                                     <div class="space-y-2">
                                         <div class="flex items-center gap-2 text-xs">
                                             <span class="w-12 text-gray-500">Floors:</span>
-                                            <input type="number" id="adv-floors-min" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
                                             <span class="text-gray-400">—</span>
-                                            <input type="number" id="adv-floors-max" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
                                         </div>
                                         <div class="flex items-center gap-2 text-xs">
                                             <span class="w-12 text-gray-500">Units:</span>
-                                            <input type="number" id="adv-bldg-units-min" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
                                             <span class="text-gray-400">—</span>
-                                            <input type="number" id="adv-bldg-units-max" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
                                         </div>
                                     </div>
                                 </div>
@@ -5256,7 +5190,7 @@
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2 text-xs">Width</p>
                                         <div class="flex items-center gap-2">
-                                            <select id="adv-th-width-min" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <select class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                                 <option value="">Any Min Width</option>
                                                 <option value="12">12 Ft</option>
                                                 <option value="15">15 Ft</option>
@@ -5265,7 +5199,7 @@
                                                 <option value="50">50 Ft</option>
                                             </select>
                                             <span class="text-gray-400">—</span>
-                                            <select id="adv-th-width-max" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <select class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                                 <option value="">Any Max Width</option>
                                                 <option value="15">15 Ft</option>
                                                 <option value="25">25 Ft</option>
@@ -5279,7 +5213,7 @@
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2 text-xs">Units</p>
                                         <div class="flex items-center gap-2">
-                                            <select id="adv-th-units-min" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <select class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                                 <option value="">Any Min Units</option>
                                                 <option value="1">1 Unit</option>
                                                 <option value="2">2 Units</option>
@@ -5289,7 +5223,7 @@
                                                 <option value="10">10 Units</option>
                                             </select>
                                             <span class="text-gray-400">—</span>
-                                            <select id="adv-th-units-max" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <select class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                                 <option value="">Any Max Units</option>
                                                 <option value="1">1 Unit</option>
                                                 <option value="2">2 Units</option>
@@ -5382,7 +5316,7 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Pet Deposit (Max)</p>
                                     <div class="space-y-2">
-                                        <select id="adv-pet-deposit-max" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                        <select class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                                             <option value="">Any</option>
                                             <option value="custom">Custom</option>
                                             <option value="0">$0 (No Deposit)</option>
@@ -5412,9 +5346,9 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Floor Range</p>
                                     <div class="flex items-center gap-2">
-                                        <input type="number" id="adv-floor-min" placeholder="Min" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <input type="number" placeholder="Min" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                         <span class="text-gray-400">—</span>
-                                        <input type="number" id="adv-floor-max" placeholder="Max" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <input type="number" placeholder="Max" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                     </div>
                                 </div>
                                 <!-- Floor Type -->
@@ -6667,40 +6601,6 @@
                         </div>
                     </div>
                 </div><!-- End searchFormContainer -->
-    </div><!-- end filterPanelScroll -->
-
-    <!-- Pinned search actions -->
-    <div id="filterPanelActions">
-      <button onclick="recallLastSearch()" class="text-xs text-gray-400 hover:text-blue-600 flex items-center gap-1 flex-shrink-0">
-        <i class="fas fa-history text-[10px]"></i>Last
-      </button>
-      <button onclick="openSaveSearchModal()" class="text-xs text-gray-400 hover:text-blue-600 flex items-center gap-1 flex-shrink-0">
-        <i class="far fa-bookmark text-[10px]"></i>Save
-      </button>
-      <div class="flex-1"></div>
-      <button onclick="clearSearchForm()" class="px-3 py-2 text-sm text-gray-500 hover:text-red-500 font-medium border rounded-lg">Clear</button>
-      <button onclick="performSearch()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm">
-        <i class="fas fa-search mr-1.5 text-xs"></i>Search
-      </button>
-    </div>
-
-  </div><!-- end filterPanel -->
-
-  <!-- ═══ RESULTS PANEL (right) ═══ -->
-  <div id="resultsPanel">
-
-    <!-- Mobile filter toggle (hidden on desktop) -->
-    <button id="mobileFilterToggle" onclick="toggleFilterPanel()"
-      class="hidden mb-3 px-3 py-2 bg-white border rounded-lg text-sm font-medium text-gray-700 flex items-center gap-2 shadow-sm">
-      <i class="fas fa-sliders-h text-gray-500"></i> Filters
-    </button>
-
-    <!-- Results placeholder (shown before first search) -->
-    <div id="resultsPlaceholder">
-      <i class="fas fa-search text-5xl mb-4 text-gray-300"></i>
-      <p class="text-lg font-semibold text-gray-400">Set your criteria and search</p>
-      <p class="text-sm text-gray-400 mt-1">Results will appear here</p>
-    </div>
 
                 <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                 <!-- SEARCH RESULTS SECTION - REBNY-Style Client Delivery System -->
@@ -6768,9 +6668,6 @@
                             <button onclick="clearWorkingClient()" class="px-2 py-1 text-xs border border-blue-300 rounded hover:bg-blue-100 text-blue-700"><i class="fas fa-times mr-1"></i>Clear</button>
                         </div>
                     </div>
-                    <!-- Active Filter Pills -->
-                    <div id="activeFilterPills" class="mb-3"></div>
-
                     <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
                     <!-- RESULTS TOOLBAR — Consolidated 3-row design -->
                     <!-- ═══════════════════════════════════════════════════════════════════════════════ -->
@@ -7897,10 +7794,6 @@
                     </div>
                 </div>
 
-  </div><!-- end resultsPanel -->
-
-</div><!-- end searchPageLayout -->
-
             <!-- [MODALS REMOVED — see html/modals/ for: client-delivery, grid-layouts, reports, add-edit-client, save-search, report-preview, client-feedback, client-report-view, filter] -->
 
             <!-- Listing Detail Full Page -->
@@ -7922,4 +7815,4 @@
                 </div>
             </div>
 
-
+            </div>
