@@ -289,8 +289,44 @@ model Lead {
 
   // --- Entity ownership (LLC, Trust, Corp, Inc) ---
   entity_name              String?   @map("entity_name")
-  entity_type              String?   @map("entity_type")               // "individual" | "llc" | "trust" | "corp" | "inc"
-  authorized_signatories   Json?     @map("authorized_signatories")    // [{ name, title, email, phone }]
+  entity_type              String?   @map("entity_type")               // "individual" | "llc" | "trust" | "corp" | "inc" | "lp" | "lllp"
+  entity_ein               String?   @map("entity_ein")                // EIN / Tax ID
+  entity_state             String?   @map("entity_state")              // State of formation (NY, DE, etc.)
+  entity_managing_member   String?   @map("entity_managing_member")    // Name of managing member / trustee / president
+  entity_formation_date    DateTime? @map("entity_formation_date")     // Date entity was formed
+  authorized_signatories   Json?     @map("authorized_signatories")    // LEGACY: [{ name, title, email, phone }] — superseded by LeadParty
+  lead_parties             LeadParty[]                                  // All parties on this transaction
+
+  // --- Buyer closing cost estimates (for Move-In Cost Calculator) ---
+  // Mortgage
+  mortgage_rate            Decimal?  @db.Decimal(5,3) @map("mortgage_rate")         // Locked rate %
+  mortgage_term_years      Int?      @map("mortgage_term_years")                     // 30, 20, 15
+  mortgage_lender          String?   @map("mortgage_lender")
+  mortgage_broker_name     String?   @map("mortgage_broker_name")
+  mortgage_broker_email    String?   @map("mortgage_broker_email")
+  mortgage_broker_phone    String?   @map("mortgage_broker_phone")
+  // Buyer closing cost estimates
+  mansion_tax_estimate     Decimal?  @db.Decimal(14,2) @map("mansion_tax_estimate")     // Buyer pays (1%-3.9%)
+  mortgage_recording_tax   Decimal?  @db.Decimal(14,2) @map("mortgage_recording_tax")   // ~1.8% of loan (<$500K) or 1.925%
+  title_insurance          Decimal?  @db.Decimal(14,2) @map("title_insurance")
+  attorney_fee_buyer       Decimal?  @db.Decimal(14,2) @map("attorney_fee_buyer")
+  board_app_fee            Decimal?  @db.Decimal(14,2) @map("board_app_fee")            // Co-op/condo board application fee
+  move_in_fee              Decimal?  @db.Decimal(14,2) @map("move_in_fee")              // Building move-in fee
+  // Buyer agent fee (NAR settlement — negotiated, never pre-set)
+  buyer_agent_fee_pct      Decimal?  @db.Decimal(5,2) @map("buyer_agent_fee_pct")       // % (negotiable, must be in buyer rep agreement)
+  buyer_agent_fee_note     String?   @map("buyer_agent_fee_note")                       // "As per buyer rep agreement — fully negotiable"
+  // Board application status
+  board_app_status         String?   @map("board_app_status")   // "not_started" | "in_progress" | "submitted" | "interview_scheduled" | "approved" | "rejected"
+  board_app_submitted_at   DateTime? @map("board_app_submitted_at")
+  board_interview_date     DateTime? @map("board_interview_date")
+  board_approved_at        DateTime? @map("board_approved_at")
+  board_rejection_reason   String?   @map("board_rejection_reason")
+  // Closing
+  closing_date             DateTime? @map("closing_date")
+  closing_celebrated       Boolean   @default(false) @map("closing_celebrated")
+  gift_sent_at             DateTime? @map("gift_sent_at")
+  anniversary_6mo_sent_at  DateTime? @map("anniversary_6mo_sent_at")
+  anniversary_1yr_sent_at  DateTime? @map("anniversary_1yr_sent_at")
 
   // --- Seller intake fields ---
   home_prep_checklist      Json?     @map("home_prep_checklist")
@@ -588,6 +624,72 @@ model FamilyMember {
   @@index([lead_id])
   @@index([member_lead_id])
   @@map("family_members")
+}
+
+// ═══════════════════════════════════════════════════════════
+// LEAD PARTY — All parties on a transaction
+//
+// Replaces the single secondary_* fields and authorized_signatories JSON.
+// Supports unlimited parties per lead: co-buyers, spouses, guarantors,
+// LLC members, trustees, family members, observers.
+//
+// Used for: buyers, sellers, renters, landlords, investors.
+// Anyone who needs to appear on the deed, lease, contract, or board package.
+// ═══════════════════════════════════════════════════════════
+model LeadParty {
+  id              BigInt    @id @default(autoincrement())
+  lead_id         BigInt    @map("lead_id")
+  lead            Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  // ── Who they are ──────────────────────────────────────────
+  first_name      String    @map("first_name")
+  last_name       String    @map("last_name")
+  email           String?
+  phone           String?
+  address         String?                              // Their personal address (if different from lead)
+
+  // ── Their role in this transaction ────────────────────────
+  // "co_buyer" | "co_renter" | "co_seller" | "co_owner" |
+  // "spouse" | "partner" | "parent" | "child" | "family_member" |
+  // "guarantor" | "co_signer" | "authorized_signatory" |
+  // "trustee" | "managing_member" | "llc_member" |
+  // "corporate_officer" | "observer"
+  role            String    @map("role")
+
+  // ── Signing authority ──────────────────────────────────────
+  signs_documents Boolean   @default(false) @map("signs_documents")
+  // "individually" | "as_trustee" | "as_managing_member" |
+  // "as_authorized_signatory" | "as_guarantor" | "as_corporate_officer"
+  signing_capacity String?  @map("signing_capacity")
+  appears_on_deed  Boolean  @default(false) @map("appears_on_deed")    // On deed/title
+  appears_on_lease Boolean  @default(false) @map("appears_on_lease")   // On lease agreement
+  appears_on_board Boolean  @default(false) @map("appears_on_board")   // On board application
+
+  // ── Entity purchase (buying as LLC / Trust / Corp) ─────────
+  is_entity       Boolean   @default(false) @map("is_entity")
+  // "llc" | "trust" | "corp" | "inc" | "lp" | "lllp"
+  entity_type     String?   @map("entity_type")
+  entity_name     String?   @map("entity_name")
+  entity_ein      String?   @map("entity_ein")         // EIN / Tax ID
+  entity_state    String?   @map("entity_state")       // State of formation
+
+  // ── Financial qualification (for co-buyers and guarantors) ─
+  annual_income        Decimal?  @db.Decimal(14,2) @map("annual_income")
+  credit_score_range   String?   @map("credit_score_range")
+  employer             String?
+  work_title           String?   @map("work_title")
+
+  // ── Portal access ──────────────────────────────────────────
+  has_portal_access  Boolean  @default(false) @map("has_portal_access")
+  portal_email       String?  @map("portal_email")  // email for portal login (may differ)
+
+  notes           String?   @db.Text
+
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([lead_id])
+  @@map("lead_parties")
 }
 
 // ═══════════════════════════════════════════════════════════

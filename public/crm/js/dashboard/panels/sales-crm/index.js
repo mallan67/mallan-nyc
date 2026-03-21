@@ -242,6 +242,7 @@ var SalesCRM = (function () {
       wsTabs.push({ id: 'offers', label: 'Offers', icon: 'fa-gavel' });
       wsTabs.push({ id: 'prep', label: 'Preparation', icon: 'fa-tasks' });
     }
+    wsTabs.push({ id: 'parties', label: 'Parties', icon: 'fa-users' });
     wsTabs.push({ id: 'documents', label: 'Documents', icon: 'fa-folder' });
     wsTabs.push({ id: 'tools', label: 'Tools', icon: 'fa-calculator' });
     wsTabs.push({ id: 'activity', label: 'Activity', icon: 'fa-stream' });
@@ -278,6 +279,7 @@ var SalesCRM = (function () {
     else if (tab === 'showings') _wsShowings(el, cl);
     else if (tab === 'offers') _wsOffers(el, cl);
     else if (tab === 'prep') _wsPrep(el, cl);
+    else if (tab === 'parties') _wsParties(el, cl);
     else if (tab === 'documents') _wsDocs(el, cl);
     else if (tab === 'tools') _wsTools(el, cl);
     else if (tab === 'activity') _wsActivity(el, cl);
@@ -671,20 +673,121 @@ var SalesCRM = (function () {
   }
 
   // ── TOOLS TAB ─────────────────────────────────────────────────────────
-  function _wsTools(el, cl) {
-    var h = '<div class="space-y-6">';
-    h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-calculator text-gold mr-2"></i>Seller Tools</h3>';
+  // ── PARTIES TAB ───────────────────────────────────────────────────────────
+  function _wsParties(el, cl) {
+    el.innerHTML = '<div id="parties-panel-content"></div>';
+    var panel = document.getElementById('parties-panel-content');
+    if (panel && typeof PartiesPanel !== 'undefined') {
+      PartiesPanel.render(panel, cl.id, { roleLabel: 'Seller' });
+    } else {
+      el.innerHTML = '<p class="text-xs text-gray-400 p-4">Parties panel not loaded.</p>';
+    }
+  }
 
-    // Net Proceeds Calculator — REAL
-    if (typeof NetProceedsCalc !== 'undefined' && typeof NetProceedsCalc.render === 'function') {
-      h += '<div class="bg-white border border-gray-200 rounded-xl p-5">';
-      h += '<h4 class="text-sm font-bold text-gray-900 mb-3">Net Proceeds Calculator</h4>';
-      h += NetProceedsCalc.render({ salePrice: Number(cl.list_price || 0) });
+  // ── TOOLS TAB — all calculators relevant to client role ───────────────────
+  function _wsTools(el, cl) {
+    var stage = cl.stage || 'prospect';
+    var isBuyer = (cl.roles || []).includes('buyer');
+    var isInvestor = cl.is_investor;
+    var h = '<div class="space-y-6">';
+
+    h += '<div class="text-xs text-gray-500 mb-2">Select a calculator. Values auto-populate from the client\'s profile where available.</div>';
+
+    // ── Tab picker for calculators ──
+    var calcs = [
+      { id: 'net-proceeds', label: 'Seller Net Proceeds', icon: 'fa-file-invoice-dollar', color: 'text-amber-600' },
+    ];
+    if (isBuyer || stage === 'exclusive' || stage === 'listed') {
+      calcs.push({ id: 'buyer-closing', label: 'Buyer Closing Costs', icon: 'fa-hand-holding-usd', color: 'text-blue-600' });
+    }
+    if (isInvestor) {
+      calcs.push({ id: 'cap-rate', label: 'Cap Rate', icon: 'fa-percentage', color: 'text-green-600' });
+      calcs.push({ id: 'cash-on-cash', label: 'Cash-on-Cash', icon: 'fa-coins', color: 'text-green-600' });
+      calcs.push({ id: 'roi', label: 'ROI', icon: 'fa-chart-line', color: 'text-green-600' });
+      calcs.push({ id: 'rental-yield', label: 'Rental Yield', icon: 'fa-building', color: 'text-purple-600' });
+      calcs.push({ id: 'exchange-1031', label: '1031 Exchange', icon: 'fa-exchange-alt', color: 'text-indigo-600' });
+    }
+    calcs.push({ id: 'vacancy-cost', label: 'Vacancy Cost', icon: 'fa-door-open', color: 'text-red-500' });
+
+    h += '<div class="flex flex-wrap gap-2 mb-4">';
+    calcs.forEach(function (c, i) {
+      h += '<button onclick="SalesCRM._showCalc(\'' + c.id + '\')" id="calc-btn-' + c.id + '" ' +
+        'class="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs font-semibold transition-colors ' +
+        (i === 0 ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') + '">' +
+        '<i class="fas ' + c.icon + ' ' + c.color + '"></i> ' + E(c.label) + '</button>';
+    });
+    h += '</div>';
+
+    h += '<div id="calc-area">';
+    // Default: show net proceeds
+    h += '<div id="calc-net-proceeds" class="bg-white border border-gray-200 rounded-xl p-5">';
+    if (typeof NetProceedsCalc !== 'undefined') {
+      h += NetProceedsCalc.render({
+        sale_price: Number(cl.list_price || cl.marketing_strategy && cl.marketing_strategy.target_price || 0),
+        mortgage_balance: cl.mortgage_balance || '',
+      });
+    }
+    h += '</div>';
+
+    if (isBuyer) {
+      h += '<div id="calc-buyer-closing" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
+      if (typeof BuyerClosingCalc !== 'undefined') {
+        h += BuyerClosingCalc.render({
+          price: Number(cl.list_price || 0),
+          down_pct: cl.down_payment && cl.pre_approved_amount
+            ? Math.round((cl.down_payment / (cl.down_payment + cl.pre_approved_amount)) * 100) : null,
+          rate: cl.mortgage_rate ? Number(cl.mortgage_rate) : null,
+          attorney: cl.attorney_fee_buyer ? Number(cl.attorney_fee_buyer) : null,
+          monthly_maint: cl.total_monthly_expense ? Number(cl.total_monthly_expense) : null,
+        });
+      } else {
+        h += '<p class="text-xs text-gray-400">Buyer Closing Costs calculator loading...</p>';
+      }
       h += '</div>';
     }
 
+    if (isInvestor) {
+      h += '<div id="calc-cap-rate" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
+        (typeof CapRateCalc !== 'undefined' ? CapRateCalc.render() : '') + '</div>';
+      h += '<div id="calc-cash-on-cash" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
+        (typeof CashOnCashCalc !== 'undefined' ? CashOnCashCalc.render() : '') + '</div>';
+      h += '<div id="calc-roi" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
+        (typeof ROICalc !== 'undefined' ? ROICalc.render() : '') + '</div>';
+      h += '<div id="calc-rental-yield" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
+        (typeof RentalYieldCalc !== 'undefined' ? RentalYieldCalc.render() : '') + '</div>';
+      h += '<div id="calc-exchange-1031" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
+        (typeof Exchange1031Calc !== 'undefined' ? Exchange1031Calc.render({
+          exchange_deadline: cl.exchange_1031_deadline,
+          relinquished_address: cl.property_address,
+        }) : '') + '</div>';
+    }
+
+    h += '<div id="calc-vacancy-cost" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
+      (typeof VacancyCostCalc !== 'undefined' ? VacancyCostCalc.render() : '') + '</div>';
+
+    h += '</div>'; // calc-area
     h += '</div>';
     el.innerHTML = h;
+  }
+
+  function _showCalc(id) {
+    // Hide all
+    document.querySelectorAll('[id^="calc-"]:not([id^="calc-btn"]):not([id="calc-area"])').forEach(function (el) {
+      el.style.display = 'none';
+    });
+    // Show selected
+    var target = document.getElementById('calc-' + id);
+    if (target) target.style.display = 'block';
+    // Update button styles
+    document.querySelectorAll('[id^="calc-btn-"]').forEach(function (btn) {
+      btn.classList.remove('bg-gray-900', 'text-white', 'border-gray-900');
+      btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
+    });
+    var activeBtn = document.getElementById('calc-btn-' + id);
+    if (activeBtn) {
+      activeBtn.classList.add('bg-gray-900', 'text-white', 'border-gray-900');
+      activeBtn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
+    }
   }
 
   // ── ACTIVITY TAB ──────────────────────────────────────────────────────
@@ -1195,5 +1298,6 @@ var SalesCRM = (function () {
     _scheduleShowing: _scheduleShowing, _createListing: _createListing,
     _editPricingStrategy: _editPricingStrategy, _editMarketingStrategy: _editMarketingStrategy,
     _loadPropertyResearch: _loadPropertyResearch, _prefillCalculator: _prefillCalculator,
+    _showCalc: _showCalc,
   };
 })();
