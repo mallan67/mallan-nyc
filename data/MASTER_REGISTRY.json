@@ -5,7 +5,7 @@
     "generated": "2026-02-14",
     "authority": "REBNY RLS via Trestle (CoreLogic)",
     "sources": [
-      "data/rebny-rls-property-fields.csv (448 REBNY RLS fields — NY-specific)",
+      "data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)",
       "data/rebny-rls-property-lookup.csv (105 REBNY enums / 1,942 picklist values)",
       "data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full RESO)",
       "data/FIELD_REGISTRY.json (65 CRM canonical mappings)",
@@ -14,7 +14,7 @@
     ],
     "stats": {
       "totalFields": 893,
-      "rebnyFields": 448,
+      "rebnyFields": 902,
       "trestleOnlyFields": 436,
       "supplementFields": 9,
       "totalEnums": 164,
@@ -17358,7 +17358,7 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": "FARE Act (NYC LL 119/2024) fee disclosure field. NOT in REBNY 448-field list (isRebny=false) but REBNY lookup CSV provides values (lookup isRebny=true). This is intentional: REBNY defines values for this Trestle-global field. Accessed on Trestle Property entity."
+      "complianceNotes": "FARE Act (NYC LL 119/2024) fee disclosure field. REBNY lookup CSV provides values (lookup isRebny=true). Accessed on Trestle Property entity."
     },
     "OpenHouseModificationTimestamp": {
       "isRebny": false,
@@ -19338,7 +19338,7 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": "FARE Act (NYC LL 119/2024) fee disclosure field. NOT in REBNY 448-field list (isRebny=false) but REBNY lookup CSV provides values (lookup isRebny=true). This is intentional: REBNY defines values for this Trestle-global field. Accessed on Trestle Property entity."
+      "complianceNotes": "FARE Act (NYC LL 119/2024) fee disclosure field. REBNY lookup CSV provides values (lookup isRebny=true). Accessed on Trestle Property entity."
     },
     "TenantPaysDescription": {
       "isRebny": false,
@@ -19360,7 +19360,7 @@
       "label": null,
       "allowedSurfaces": null,
       "searchDomIds": null,
-      "complianceNotes": "FARE Act (NYC LL 119/2024) companion field. NOT in REBNY 448-field list. Free-text description accompanying TenantPays picklist. Accessed on Trestle Property entity."
+      "complianceNotes": "FARE Act (NYC LL 119/2024) companion field. Free-text description accompanying TenantPays picklist. Accessed on Trestle Property entity."
     },
     "Topography": {
       "isRebny": false,

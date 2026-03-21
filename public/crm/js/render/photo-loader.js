@@ -47,7 +47,6 @@
             if (_photoBatchQueue.length > 0) _scheduleBatchFetch();
 
             var idsParam = batch.join(',');
-            if (typeof MallanAPI === 'undefined') return;
 
             fetch('/api/media/batch?ids=' + encodeURIComponent(idsParam), {
                 credentials: 'same-origin'
@@ -78,15 +77,24 @@
             // Find all img elements inside cards for this listing
             var cards = document.querySelectorAll('[data-listing-lid="' + listingId + '"] .cm-photo, [data-listing-lid="' + listingId + '"] .cm-photo-wrap img');
             cards.forEach(function(img) {
-                if (img.tagName === 'IMG' && img.src && img.src.indexOf('data:image/svg') !== -1) {
-                    img.src = photoUrl;
-                    img.style.display = '';
+                if (img.tagName === 'IMG') {
+                    // Replace if: showing SVG placeholder, hidden from onerror, or empty src
+                    var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
+                    var isHidden = img.style.display === 'none';
+                    var isEmpty = !img.src || img.src === '' || img.src === window.location.href;
+                    if (isSvg || isHidden || isEmpty) {
+                        img.src = photoUrl;
+                        img.style.display = '';
+                    }
                 }
             });
             // Also try by data-photo-lid attribute (set by renderers)
             var imgs = document.querySelectorAll('img[data-photo-lid="' + listingId + '"]');
             imgs.forEach(function(img) {
-                if (img.src && img.src.indexOf('data:image/svg') !== -1) {
+                var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
+                var isHidden = img.style.display === 'none';
+                var isEmpty = !img.src || img.src === '' || img.src === window.location.href;
+                if (isSvg || isHidden || isEmpty) {
                     img.src = photoUrl;
                     img.style.display = '';
                 }

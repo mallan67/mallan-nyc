@@ -647,7 +647,7 @@ The report references RESO alignment at field level but no machine-readable or t
 |---|---|---|
 | `field_name` | Canonical internal name | Partial — editors use prefixed IDs |
 | `reso_name` | RESO Data Dictionary 2.0 mapping | Partial — annotations in HTML comments |
-| `rls_name` | REBNY RLS field name (trumps RESO) | Partial — `data/rebny-rls-property-fields.csv` exists but not linked to form IDs |
+| `rls_name` | REBNY IDX Plus field name (per registry) | Partial — `data/rebny-rls-property-fields.csv` exists but not linked to form IDs |
 | `data_type` | string / int / decimal / date / boolean / enum | NOT DEFINED |
 | `required` | REBNY mandatory vs optional | Partial — validation function checks ~47 fields |
 | `validation_rules` | Regex, min/max, enum values, conditional requirements | NOT DEFINED systematically |
@@ -655,7 +655,7 @@ The report references RESO alignment at field level but no machine-readable or t
 | `display_context` | filter / form / detail / internal-only | NOT DEFINED |
 | `pii_flag` | Whether field contains personally identifiable information | NOT DEFINED |
 
-**Existing partial source:** `data/rebny-rls-property-fields.csv` (448 fields) and `compliance/fields.json` provide RLS field definitions, but these are not linked to the form field IDs in the 8 HTML files. A mapping table connecting form DOM IDs → RLS field names → RESO names → data types → validation rules is needed.
+**Existing partial source:** `data/rebny-rls-property-fields.csv` (902 IDX Plus fields) and `compliance/fields.json` provide RLS field definitions, but these are not linked to the form field IDs in the 8 HTML files. A mapping table connecting form DOM IDs → RLS field names → RESO names → data types → validation rules is needed.
 
 ---
 

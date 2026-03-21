@@ -130,13 +130,13 @@ All UI must work on: Desktop (1920px+), Laptop (1366px), Tablet (768px-1024px), 
 
 **Primary Data Feed:** REBNY RLS via Trestle (CoreLogic)
 **Data Dictionary:** `C:\Users\MayaAllan\Desktop\mallan nyc web\Trestle fields\Data_Migration_2025_RLS_Data_Rules.xlsx`
-**Total Available Fields:** 448 Property fields
+**Total Available Fields:** 902 IDX Plus fields across 7 resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39)
 **Picklist Values:** 2,066 lookup values
 
 ### Extracted Data Files
 | File | Contents |
 |------|----------|
-| `data/rebny-rls-property-fields.csv` | All 448 property fields with descriptions |
+| `data/rebny-rls-property-fields.csv` | All 902 IDX Plus fields with descriptions |
 | `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
 | `data/rebny-all-fields.txt` | Field names only (alphabetical) |
 
@@ -650,7 +650,7 @@ mallan-nyc/
 ├── MALLAN-NYC-CRM-PROJECT.md    # This document (master reference)
 ├── CRM-ENHANCEMENT-SPEC.md      # Detailed enhancement specifications
 ├── data/
-│   ├── rebny-rls-property-fields.csv   # All 448 fields
+│   ├── rebny-rls-property-fields.csv   # All 902 IDX Plus fields
 │   ├── rebny-rls-property-lookup.csv   # All 2,066 picklist values
 │   ├── rebny-all-fields.txt            # Field names only
 │   └── trestle-dictionary/             # Original Trestle exports

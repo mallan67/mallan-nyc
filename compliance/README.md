@@ -24,7 +24,7 @@
 
 | File | Purpose | Audience |
 |------|---------|----------|
-| [`FIELD-AUTHORITY.md`](FIELD-AUTHORITY.md) | Governance hierarchy, all 448 RLS fields by category, 23 RESO→RLS renames | Developers, Compliance |
+| [`FIELD-AUTHORITY.md`](FIELD-AUTHORITY.md) | Governance hierarchy, all 902 IDX Plus fields by category, 23 RESO→RLS renames | Developers, Compliance |
 | [`UCBA-2026.md`](UCBA-2026.md) | Full REBNY UCBA rules — 159 rules, 7 exhibits, penalties, enforcement | Broker, Agents, Developers |
 | [`NYC-NYS-REQUIREMENTS.md`](NYC-NYS-REQUIREMENTS.md) | NYC/NYS law — DOS advertising, Fair Housing, FARE Act, SHIELD Act, disclosures | All |
 | [`IDX-VOW-DISPLAY-RULES.md`](IDX-VOW-DISPLAY-RULES.md) | 6 distribution gates, IDX/VOW feed rules, display eligibility, suppression | Frontend, Backend |
@@ -46,7 +46,7 @@
 
 | File | Contents | Use |
 |------|----------|-----|
-| [`fields.json`](fields.json) | 448 RLS fields — required/conditional/optional, editable, searchable, categories | Form validation, field mapping |
+| [`fields.json`](fields.json) | 902 IDX Plus fields — required/conditional/optional, editable, searchable, categories | Form validation, field mapping |
 | [`lookups.json`](lookups.json) | 114 picklist fields, 1,993 official REBNY values | Dropdown validation, data quality |
 
 ### Canonical enforcement rules (machine-readable)

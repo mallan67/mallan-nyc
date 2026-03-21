@@ -1,4 +1,4 @@
-# REBNY RLS — COMPLETE FIELD REFERENCE (All 448 Fields + All 79 Mandatory + All Rules)
+# REBNY RLS — COMPLETE FIELD REFERENCE (902 IDX Plus Fields + All 79 Mandatory + All Rules)
 
 > **Single document. Every field has everything: Exhibit A ref, RESO name, distribution, rules, sharing, cross-references.**
 > **Source Data:** `data/rebny-rls-property-fields.csv` + `data/UCBA-2026-Requirements.md` + REBNY-MASTER.md Parts 1-3
@@ -236,7 +236,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no RESO
 ---
 ---
 
-## PART B — ALL 448 FIELDS (With Exhibit A References Embedded)
+## PART B — ALL RLS PROPERTY FIELDS (With Exhibit A References Embedded)
 
 > Every field marked **[I#]** is an Exhibit A mandatory field. The I-number, distribution channels, and sharing rules from Part 2 of REBNY-MASTER are embedded directly in the REBNY Rules column.
 
@@ -1008,4 +1008,4 @@ These fields are NOT in the RESO dictionary. They are CRM workflow fields requir
 
 ---
 
-*End of Comprehensive Field Reference — All 448 RESO fields + All 79 Exhibit A mandatory fields + All UCBA rules, merged in one document.*
+*End of Comprehensive Field Reference — 902 REBNY IDX Plus fields + All 79 Exhibit A mandatory fields + All UCBA rules, merged in one document.*

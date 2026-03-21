@@ -4,7 +4,7 @@
 > **Date:** 2026-02-09
 > **Form Audited:** Sale Listing Intake Form (`Desktop/1/Old/MALLAN-NYC-CRM-FINAL2.html`)
 > **Source Rules:** `data/UCBA-2026-Requirements.md` (UCBA January 2026 revision)
-> **Source Data:** `data/rebny-rls-property-fields.csv` (448 fields) + `data/rebny-rls-property-lookup.csv` (2,066 values)
+> **Source Data:** `data/rebny-rls-property-fields.csv` (902 IDX Plus fields) + `data/rebny-rls-property-lookup.csv` (2,066 values)
 
 ---
 

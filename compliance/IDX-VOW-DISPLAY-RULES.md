@@ -6,8 +6,8 @@
 ---
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY RLS rules + RLS fields** — **RLS TRUMPS ALL.**
-> 3. **RLS overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -48,7 +48,7 @@ Every listing must pass through ALL 6 gates before appearing on any public chann
 
 ### Gate 3: IDX Display
 
-| Field | `IDXEntireListingDisplayYN` |
+| Field | `InternetEntireListingDisplayYN` *(Trestle field; UCBA refers to "IDX Entire Listing Display" — no separate `IDXEntireListingDisplayYN` field exists on Trestle)* |
 |-------|------|
 | Source | Art. III, Sec. 2(C) |
 | Default | **True** (LMPs must default to True) |
@@ -58,7 +58,7 @@ Every listing must pass through ALL 6 gates before appearing on any public chann
 
 ### Gate 4: Syndication
 
-| Field | `SyndicateYN` |
+| Field | `SyndicateTo` *(Trestle field; UCBA refers to "SyndicateYN" as boolean — Trestle uses `SyndicateTo` for portal selection)* |
 |-------|------|
 | Source | UCBA General |
 | Default | **True** (LMPs must default to True) |
@@ -92,7 +92,6 @@ When `InternetEntireListingDisplayYN = False`, these fields AUTO-CASCADE to Fals
 
 | Field | Cascaded Value |
 |-------|---------------|
-| `IDXEntireListingDisplayYN` | False |
 | `InternetAddressDisplayYN` | False |
 | `InternetAutomatedValuationDisplayYN` | False |
 | `InternetConsumerCommentYN` | False |
@@ -104,15 +103,14 @@ When `InternetEntireListingDisplayYN = False`, these fields AUTO-CASCADE to Fals
 
 ## Display Control Flags (7 Total)
 
-| # | RLS Field | Required | Default | Effect When False |
+| # | Trestle Field | Required | Default | Effect When False |
 |---|-----------|----------|---------|-------------------|
-| 1 | `InternetEntireListingDisplayYN` | **REQ** | True | Master switch — cascades all below to False |
-| 2 | `IDXEntireListingDisplayYN` | **REQ** | True | Excluded from IDX broker websites |
-| 3 | `InternetAddressDisplayYN` | **REQ** | True | **Address MUST be suppressed.** Violation if displayed. |
-| 4 | `InternetAutomatedValuationDisplayYN` | **REQ** | True | AVM (Zestimate-style) display disabled |
-| 5 | `InternetConsumerCommentYN` | **REQ** | True | Consumer comments/blogs disabled |
-| 6 | `SyndicateYN` | **REQ** | True | Excluded from syndication portals |
-| 7 | `ListOfficeIDXParticipationYN` | SYS | -- | System-managed from REBNY membership |
+| 1 | `InternetEntireListingDisplayYN` | **REQ** | True | Master switch — cascades all below to False. Also serves as IDX display gate (no separate `IDXEntireListingDisplayYN` on Trestle). |
+| 2 | `InternetAddressDisplayYN` | **REQ** | True | **Address MUST be suppressed.** Violation if displayed. |
+| 3 | `InternetAutomatedValuationDisplayYN` | **REQ** | True | AVM (Zestimate-style) display disabled |
+| 4 | `InternetConsumerCommentYN` | **REQ** | True | Consumer comments/blogs disabled |
+| 5 | `SyndicateTo` | **REQ** | True | Excluded from syndication portals. *(UCBA references as `SyndicateYN`)* |
+| 6 | `ListOfficeIDXParticipationYN` | SYS | -- | System-managed from REBNY membership |
 
 ---
 
@@ -211,7 +209,7 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 
 ### Syndication Requirements
 
-- `SyndicateYN = True` for portal distribution
+- `SyndicateTo` enabled for portal distribution *(UCBA: `SyndicateYN`)*
 - All 6 gates must pass
 - Attribution required on all syndicated displays
 - Data update frequency per portal agreement
@@ -231,8 +229,8 @@ When a listing goes off-market:
 
 - [ ] Gate 1: Filter Owner Opt-Out from all public queries
 - [ ] Gate 2: Filter Participant Only from all public queries
-- [ ] Gate 3: Check `IDXEntireListingDisplayYN` before IDX display
-- [ ] Gate 4: Check `SyndicateYN` before syndication
+- [ ] Gate 3: Check `InternetEntireListingDisplayYN` before IDX display *(no separate IDX field on Trestle)*
+- [ ] Gate 4: Check `SyndicateTo` before syndication *(UCBA: `SyndicateYN`)*
 - [ ] Gate 5: Coming Soon badge on all Coming Soon listings
 - [ ] Gate 6: Closed listings removed/marked within 24hrs
 - [ ] Address suppression when `InternetAddressDisplayYN = False`

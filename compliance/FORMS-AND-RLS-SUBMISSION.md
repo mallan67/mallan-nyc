@@ -6,8 +6,8 @@
 ---
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY RLS rules + RLS fields** — **RLS TRUMPS ALL.**
-> 3. **RLS overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -87,9 +87,9 @@ Agent fills form → Auto-save (30s) → Validate (47+ fields) → Content scan
 - I28: Buyer Agent (at close only — BuyerAgentMlsId)
 
 **Gate Fields (I29-I31):**
-- I29: IDX Display (IDXEntireListingDisplayYN)
+- I29: IDX Display (`InternetEntireListingDisplayYN` — no separate IDX field on Trestle)
 - I30: Participant Only (Permissions)
-- I31: Syndication (SyndicateYN)
+- I31: Syndication (`SyndicateTo` — UCBA: `SyndicateYN`)
 
 **Status & Dates (I32-I39):**
 - I32: Closing Price (ClosePrice — at close)

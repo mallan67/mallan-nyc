@@ -376,19 +376,19 @@
         },
         {
           "id": "GATE-3", "name": "IDX Display", "ucbaRef": "Art. III, Sec. 2(C)",
-          "requirement": "IDXEntireListingDisplayYN=False → excluded from IDX websites",
+          "requirement": "InternetEntireListingDisplayYN=False → excluded from IDX websites (no separate IDXEntireListingDisplayYN on Trestle)",
           "verdict": "PASS",
           "verifyFiles": ["lib/idx/trestle-mapper.ts", "app/api/listings/route.ts", "lib/idx/db-to-public-dto.ts"],
-          "verifyPattern": "idx_display_yn|IDXEntireListingDisplayYN",
-          "verifyDescription": "Check idx_display_yn filtering at Trestle gate, DB queries, and DTO"
+          "verifyPattern": "idx_display_yn|IDXEntireListingDisplayYN|InternetEntireListingDisplayYN",
+          "verifyDescription": "Check idx_display_yn filtering at Trestle gate, DB queries, and DTO. Internal code uses IDXEntireListingDisplayYN; Trestle field is InternetEntireListingDisplayYN."
         },
         {
           "id": "GATE-4", "name": "Syndication", "ucbaRef": "UCBA General",
-          "requirement": "SyndicateYN=False → excluded from syndication portals",
+          "requirement": "SyndicateTo disabled → excluded from syndication portals (UCBA: SyndicateYN)",
           "verdict": "PASS",
           "verifyFiles": ["lib/compliance/rls-enforcement.ts"],
-          "verifyPattern": "SyndicateYN",
-          "verifyDescription": "Check SyndicateYN enforcement on write path. Correctly scoped to 3rd-party portals."
+          "verifyPattern": "SyndicateYN|SyndicateTo",
+          "verifyDescription": "Check syndication enforcement on write path. Internal code uses SyndicateYN; Trestle field is SyndicateTo."
         },
         {
           "id": "GATE-5", "name": "Coming Soon", "ucbaRef": "Art. I, Sec. 16",

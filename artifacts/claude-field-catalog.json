@@ -1,0 +1,4276 @@
+[
+  {
+    "entity": "Property",
+    "totalRecords": 500,
+    "totalFields": 745,
+    "fields": [
+      {
+        "field": "AboveGradeFinishedArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeFinishedAreaSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeFinishedAreaUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeUnfinishedArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeUnfinishedAreaSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeUnfinishedAreaUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AccessCode",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AccessibilityFeatures",
+        "count": 7,
+        "pct": 1,
+        "sample": "WheelchairAccess"
+      },
+      {
+        "field": "ActivationDate",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-19"
+      },
+      {
+        "field": "AdditionalParcelsDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AdditionalParcelsYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AnchorsCoTenants",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Appliances",
+        "count": 236,
+        "pct": 47,
+        "sample": "Dishwasher,TrashCompactor"
+      },
+      {
+        "field": "ArchitecturalStyle",
+        "count": 88,
+        "pct": 18,
+        "sample": "WalkUp"
+      },
+      {
+        "field": "AssociationAmenities",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationFee",
+        "count": 459,
+        "pct": 92,
+        "sample": "1987"
+      },
+      {
+        "field": "AssociationFee2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationFee2Frequency",
+        "count": 2,
+        "pct": 0,
+        "sample": "Monthly"
+      },
+      {
+        "field": "AssociationFee3",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationFee3Frequency",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationFeeFrequency",
+        "count": 450,
+        "pct": 90,
+        "sample": "Monthly"
+      },
+      {
+        "field": "AssociationFeeIncludes",
+        "count": 15,
+        "pct": 3,
+        "sample": "Electricity,Gas,Water"
+      },
+      {
+        "field": "AssociationName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationName2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationName3",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationPhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationPhone2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationPhone3",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationYN",
+        "count": 33,
+        "pct": 7,
+        "sample": "false"
+      },
+      {
+        "field": "AttachedGarageYN",
+        "count": 115,
+        "pct": 23,
+        "sample": "false"
+      },
+      {
+        "field": "AttributionContact",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AvailabilityDate",
+        "count": 74,
+        "pct": 15,
+        "sample": "2026-03-19"
+      },
+      {
+        "field": "AvailableLeaseType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BackOnMarketDate",
+        "count": 3,
+        "pct": 1,
+        "sample": "2026-03-19"
+      },
+      {
+        "field": "BackOnMarketTimestamp",
+        "count": 3,
+        "pct": 1,
+        "sample": "2026-03-19T00:00:00.000-00:00"
+      },
+      {
+        "field": "Basement",
+        "count": 267,
+        "pct": 53,
+        "sample": "Other"
+      },
+      {
+        "field": "BasementYN",
+        "count": 383,
+        "pct": 77,
+        "sample": "false"
+      },
+      {
+        "field": "BathroomsFull",
+        "count": 500,
+        "pct": 100,
+        "sample": "2"
+      },
+      {
+        "field": "BathroomsHalf",
+        "count": 500,
+        "pct": 100,
+        "sample": "1"
+      },
+      {
+        "field": "BathroomsOneQuarter",
+        "count": 1,
+        "pct": 0,
+        "sample": "0"
+      },
+      {
+        "field": "BathroomsPartial",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BathroomsThreeQuarter",
+        "count": 1,
+        "pct": 0,
+        "sample": "0"
+      },
+      {
+        "field": "BathroomsTotalInteger",
+        "count": 500,
+        "pct": 100,
+        "sample": "3"
+      },
+      {
+        "field": "BedroomsPossible",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BedroomsTotal",
+        "count": 500,
+        "pct": 100,
+        "sample": "2"
+      },
+      {
+        "field": "BelowGradeFinishedArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeFinishedAreaSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeFinishedAreaUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeUnfinishedArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeUnfinishedAreaSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeUnfinishedAreaUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BodyType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuilderModel",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuilderName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuildingAreaSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuildingAreaTotal",
+        "count": 92,
+        "pct": 18,
+        "sample": "893"
+      },
+      {
+        "field": "BuildingAreaUnits",
+        "count": 92,
+        "pct": 18,
+        "sample": "SquareFeet"
+      },
+      {
+        "field": "BuildingFeatures",
+        "count": 413,
+        "pct": 83,
+        "sample": "Elevators"
+      },
+      {
+        "field": "BuildingKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuildingName",
+        "count": 188,
+        "pct": 38,
+        "sample": "432 West 52Nd Stree"
+      },
+      {
+        "field": "BusinessName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BusinessType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentDesignation",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentDirectPhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentEmail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentFax",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentFirstName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentFullName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentHomePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentLastName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentMiddleName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentMlsId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentMobilePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentNamePrefix",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentNameSuffix",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentOfficePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentOfficePhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentPager",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentPreferredPhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentPreferredPhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentStateLicense",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentTollFreePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentURL",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentVoiceMail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerAgentVoiceMailExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerBrokerageCompensation",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerBrokerageCompensationType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerFinancing",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeEmail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeFax",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeMlsId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficePhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerOfficeURL",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerTeamKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerTeamKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuyerTeamName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CLIP",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CableTvExpense",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CancellationDate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CapRate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CarportSpaces",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CarportYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CarrierRoute",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "City",
+        "count": 500,
+        "pct": 100,
+        "sample": "New York City"
+      },
+      {
+        "field": "CityRegion",
+        "count": 500,
+        "pct": 100,
+        "sample": "Brooklyn"
+      },
+      {
+        "field": "CloseDate",
+        "count": 1,
+        "pct": 0,
+        "sample": "2026-03-19"
+      },
+      {
+        "field": "ClosePrice",
+        "count": 1,
+        "pct": 0,
+        "sample": "0"
+      },
+      {
+        "field": "CoBuyerAgentAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentDesignation",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentDirectPhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentEmail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentFax",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentFirstName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentFullName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentHomePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentLastName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentMiddleName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentMlsId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentMobilePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentNamePrefix",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentNameSuffix",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentOfficePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentOfficePhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentPager",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentPreferredPhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentPreferredPhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentStateLicense",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentTollFreePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentURL",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentVoiceMail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerAgentVoiceMailExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeEmail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeFax",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeMlsId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficePhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoBuyerOfficeURL",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgent2AOR",
+        "count": 78,
+        "pct": 16,
+        "sample": "RealEstateBoardOfNewYork"
+      },
+      {
+        "field": "CoListAgent2DirectPhone",
+        "count": 90,
+        "pct": 18,
+        "sample": "(631) 275-5810"
+      },
+      {
+        "field": "CoListAgent2Email",
+        "count": 90,
+        "pct": 18,
+        "sample": "aradomski@compass.com"
+      },
+      {
+        "field": "CoListAgent2FirstName",
+        "count": 90,
+        "pct": 18,
+        "sample": "Adrian"
+      },
+      {
+        "field": "CoListAgent2FullName",
+        "count": 90,
+        "pct": 18,
+        "sample": "Adrian Radomski"
+      },
+      {
+        "field": "CoListAgent2HomePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgent2Key",
+        "count": 90,
+        "pct": 18,
+        "sample": "25291895"
+      },
+      {
+        "field": "CoListAgent2LastName",
+        "count": 90,
+        "pct": 18,
+        "sample": "Radomski"
+      },
+      {
+        "field": "CoListAgent2MiddleName",
+        "count": 21,
+        "pct": 4,
+        "sample": "M"
+      },
+      {
+        "field": "CoListAgent2MlsId",
+        "count": 90,
+        "pct": 18,
+        "sample": "67957"
+      },
+      {
+        "field": "CoListAgent2MobilePhone",
+        "count": 79,
+        "pct": 16,
+        "sample": "(631) 275-5810"
+      },
+      {
+        "field": "CoListAgent2NationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgent2Nickname",
+        "count": 87,
+        "pct": 17,
+        "sample": "Adrian"
+      },
+      {
+        "field": "CoListAgent2OfficePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgent2PreferredPhone",
+        "count": 90,
+        "pct": 18,
+        "sample": "(631) 275-5810"
+      },
+      {
+        "field": "CoListAgent2StateLicense",
+        "count": 90,
+        "pct": 18,
+        "sample": "10401266904"
+      },
+      {
+        "field": "CoListAgent2URL",
+        "count": 10,
+        "pct": 2,
+        "sample": "https://www.compass.com/agents/carolyn-cedar/"
+      },
+      {
+        "field": "CoListAgent3AOR",
+        "count": 21,
+        "pct": 4,
+        "sample": "RealEstateBoardOfNewYork"
+      },
+      {
+        "field": "CoListAgent3DirectPhone",
+        "count": 24,
+        "pct": 5,
+        "sample": "(305) 607-3075"
+      },
+      {
+        "field": "CoListAgent3Email",
+        "count": 22,
+        "pct": 4,
+        "sample": "yghossein@compass.com"
+      },
+      {
+        "field": "CoListAgent3FirstName",
+        "count": 23,
+        "pct": 5,
+        "sample": "Julio"
+      },
+      {
+        "field": "CoListAgent3FullName",
+        "count": 24,
+        "pct": 5,
+        "sample": "Julio Izquierdo"
+      },
+      {
+        "field": "CoListAgent3HomePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgent3Key",
+        "count": 24,
+        "pct": 5,
+        "sample": "25244749"
+      },
+      {
+        "field": "CoListAgent3LastName",
+        "count": 23,
+        "pct": 5,
+        "sample": "Izquierdo"
+      },
+      {
+        "field": "CoListAgent3MiddleName",
+        "count": 6,
+        "pct": 1,
+        "sample": "Reynolds"
+      },
+      {
+        "field": "CoListAgent3MlsId",
+        "count": 24,
+        "pct": 5,
+        "sample": "76017"
+      },
+      {
+        "field": "CoListAgent3MobilePhone",
+        "count": 22,
+        "pct": 4,
+        "sample": "(305) 607-3075"
+      },
+      {
+        "field": "CoListAgent3NationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgent3Nickname",
+        "count": 23,
+        "pct": 5,
+        "sample": "Julio"
+      },
+      {
+        "field": "CoListAgent3OfficePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgent3PreferredPhone",
+        "count": 23,
+        "pct": 5,
+        "sample": "(305) 607-3075"
+      },
+      {
+        "field": "CoListAgent3StateLicense",
+        "count": 23,
+        "pct": 5,
+        "sample": "10401297934"
+      },
+      {
+        "field": "CoListAgent3URL",
+        "count": 2,
+        "pct": 0,
+        "sample": "eklundgomes.com"
+      },
+      {
+        "field": "CoListAgentAOR",
+        "count": 227,
+        "pct": 45,
+        "sample": "RealEstateBoardOfNewYork"
+      },
+      {
+        "field": "CoListAgentDesignation",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgentDirectPhone",
+        "count": 227,
+        "pct": 45,
+        "sample": "(978) 394-7602"
+      },
+      {
+        "field": "CoListAgentEmail",
+        "count": 227,
+        "pct": 45,
+        "sample": "nicholas.lounsbury@compass.com"
+      },
+      {
+        "field": "CoListAgentFax",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgentFirstName",
+        "count": 227,
+        "pct": 45,
+        "sample": "Nicholas"
+      },
+      {
+        "field": "CoListAgentFullName",
+        "count": 227,
+        "pct": 45,
+        "sample": "Nicholas Maclean Lounsbury"
+      },
+      {
+        "field": "CoListAgentHomePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CoListAgentKey",
+        "count": 227,
+        "pct": 45,
+        "sample": "25235756"
+      },
+      {
+        "field": "CoListAgentKeyNumeric",
+        "count": 227,
+        "pct": 45,
+        "sample": "25235756"
+      },
+      {
+        "field": "CoListAgentLastName",
+        "count": 227,
+        "pct": 45,
+        "sample": "Lounsbury"
+      }
+    ]
+  },
+  {
+    "entity": "CustomProperty",
+    "totalRecords": 500,
+    "totalFields": 140,
+    "fields": [
+      {
+        "field": "AboveGradeBedrooms",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeFinishedAreaRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeFinishedAreaRangeSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeFinishedAreaRangeUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeUnfinishedAreaRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeUnfinishedAreaRangeSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AboveGradeUnfinishedAreaRangeUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AdditionalFee",
+        "count": 1,
+        "pct": 0,
+        "sample": "20500"
+      },
+      {
+        "field": "AdditionalFeeDescription",
+        "count": 3,
+        "pct": 1,
+        "sample": "Application Fee,Credit Check,First Month Rent,Security Deposit"
+      },
+      {
+        "field": "AdditionalFeeFrequency",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AdditionalFeeYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "false"
+      },
+      {
+        "field": "AdditionalInfo1",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AdditionalInfo2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AdditionalInfo3",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ApplicationFee",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationFeeTotal",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AssociationFeeTotalFrequency",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Attic",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "AvailabilityType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeBedrooms",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeFinishedAreaRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeFinishedAreaRangeSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeFinishedAreaRangeUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeUnfinishedAreaRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeUnfinishedAreaRangeSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BelowGradeUnfinishedAreaRangeUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BoatDockAccommodates",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BoatDockHeight",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BoatDockSlipDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BoatDockSlipFeatures",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BoatDockYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BoatSlipYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BonusAmount",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuildingAreaTotalRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuildingAreaTotalRangeSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuildingAreaTotalRangeUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "BuildingSizeDimensions",
+        "count": 58,
+        "pct": 12,
+        "sample": "47.00x19.00"
+      },
+      {
+        "field": "CommunityDevelopmentDistrictYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ComplexName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ConsumerRemarks",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "CustomFields",
+        "count": 500,
+        "pct": 100,
+        "sample": "{\n  \"ElevatorsTotal\": \"1\",\n  \"PercentOfCommonElements\": \"1.00\",\n  \"FlipTax\": \"0.00\",\n  \"TaxMonthlyAmount\": \"1041.00\",\n  "
+      },
+      {
+        "field": "DevelopmentName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "DownPaymentAssistanceAmount",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "DownPaymentAssistanceCount",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "FractionalShare",
+        "count": 434,
+        "pct": 87,
+        "sample": "1.00"
+      },
+      {
+        "field": "GarageArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GarageAreaUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GarageDimensions",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GuestHouseAreaTotal",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GuestHouseAreaTotalSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GuestHouseAreaTotalUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GuestHouseDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GuestHouseYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GulfAccessType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "GulfAccessYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "HumanModifiedYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "InternetEntireListingDisplayYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "LakeChainName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LakeId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LakeName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LakeSize",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LandTenure",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Lang2_Type",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Lang3_Type",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LastMonthRentReqYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LeaseAmountPerArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LeaseAmountPerAreaUnit",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LeaseTermsDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ListAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ListOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "5658932"
+      },
+      {
+        "field": "ListOfficeMlsId",
+        "count": 500,
+        "pct": 100,
+        "sample": "7222"
+      },
+      {
+        "field": "ListingId",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS20078320"
+      },
+      {
+        "field": "ListingKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "1155528690"
+      },
+      {
+        "field": "ListingKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "1155528690"
+      },
+      {
+        "field": "LivingAreaRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LivingAreaRangeHigh",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LivingAreaRangeLow",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LivingAreaRangeSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LivingAreaRangeUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Location",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LotSizeAreaRangeHigh",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LotSizeAreaRangeLow",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LotSizeRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LotSizeRangeSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LotSizeRangeUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Membership",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MembershipFee",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MembershipFeeFrequency",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MembershipRequiredYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MineralRights",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ModificationTimestamp",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-19T22:06:45.773-00:00"
+      },
+      {
+        "field": "MonthlyRate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "NumberOfBoatDocks",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "NumberOfBoatSlips",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OffMarketDate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OffSeasonRate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OffersDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OffersReviewDate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginatingSystemKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33657189"
+      },
+      {
+        "field": "OriginatingSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS"
+      },
+      {
+        "field": "OriginatingSystemSubName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS_REBNY"
+      },
+      {
+        "field": "OtherExpenseDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Permission",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PotentialShortSale",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PricePerArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PricePerAreaUnit",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PrivateShowingInstructions",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ProjectName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PropertyAccess",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PropertyType",
+        "count": 500,
+        "pct": 100,
+        "sample": "Residential"
+      },
+      {
+        "field": "PublicRemarks_lang2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PublicRemarks_lang3",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RentSpreeURL",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RentSpreeYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Restrictions",
+        "count": 11,
+        "pct": 2,
+        "sample": "RentalAllowed"
+      },
+      {
+        "field": "RiverName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SaleOrLeaseIncludes",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SeasonRate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SecurityDepositDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SecurityDepositYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSupplementPublicCount",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "StandardStatus",
+        "count": 500,
+        "pct": 100,
+        "sample": "Active"
+      },
+      {
+        "field": "StoriesPartial",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "StoriesPartialTotal",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "StormProtection",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TaxAssessedValueImprovement",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TaxAssessedValueLand",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TaxAuthority",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TaxRate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TaxYearRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ThirdPartyIntegrationType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TitleCompanyAddress",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TitleCompanyName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TitleCompanyPhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "TitleCompanyPreferred",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitLocation",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "WaterAccessDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "WaterAccessYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "WeeklyRate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      }
+    ]
+  },
+  {
+    "entity": "Media",
+    "totalRecords": 500,
+    "totalFields": 55,
+    "fields": [
+      {
+        "field": "ChangedByMemberID",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ChangedByMemberKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ChangedByMemberKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ClassName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "HumanModifiedYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "false"
+      },
+      {
+        "field": "ImageHeight",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ImageOf",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ImageSizeDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ImageWidth",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "InternetEntireListingDisplayYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "ListAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ListAgentKey",
+        "count": 495,
+        "pct": 99,
+        "sample": "25242007"
+      },
+      {
+        "field": "ListOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "5667340"
+      },
+      {
+        "field": "ListOfficeMlsId",
+        "count": 500,
+        "pct": 100,
+        "sample": "4812"
+      },
+      {
+        "field": "ListingPermission",
+        "count": 494,
+        "pct": 99,
+        "sample": "IDX"
+      },
+      {
+        "field": "LongDescription",
+        "count": 27,
+        "pct": 5,
+        "sample": "Photo 5"
+      },
+      {
+        "field": "MediaAlteration",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MediaCategory",
+        "count": 500,
+        "pct": 100,
+        "sample": "Photo"
+      },
+      {
+        "field": "MediaClassification",
+        "count": 500,
+        "pct": 100,
+        "sample": "PHOTO"
+      },
+      {
+        "field": "MediaHTML",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MediaKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "2003905820472"
+      },
+      {
+        "field": "MediaKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "2003905820472"
+      },
+      {
+        "field": "MediaModificationTimestamp",
+        "count": 500,
+        "pct": 100,
+        "sample": "2025-11-20T19:01:25.793-00:00"
+      },
+      {
+        "field": "MediaObjectID",
+        "count": 460,
+        "pct": 92,
+        "sample": "PRCH-87335015.jpeg"
+      },
+      {
+        "field": "MediaStatus",
+        "count": 500,
+        "pct": 100,
+        "sample": "Active"
+      },
+      {
+        "field": "MediaStatusDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MediaType",
+        "count": 500,
+        "pct": 100,
+        "sample": "Jpeg"
+      },
+      {
+        "field": "MediaURL",
+        "count": 500,
+        "pct": 100,
+        "sample": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1111529001/16/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc3Mzk1ODI5MQ/I"
+      },
+      {
+        "field": "ModificationTimestamp",
+        "count": 500,
+        "pct": 100,
+        "sample": "2025-11-20T19:01:25.793-00:00"
+      },
+      {
+        "field": "OffMarketDate",
+        "count": 300,
+        "pct": 60,
+        "sample": "2025-09-24"
+      },
+      {
+        "field": "Order",
+        "count": 500,
+        "pct": 100,
+        "sample": "16"
+      },
+      {
+        "field": "OriginatingSystemID",
+        "count": 434,
+        "pct": 87,
+        "sample": "REBNY"
+      },
+      {
+        "field": "OriginatingSystemMediaKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "30367020"
+      },
+      {
+        "field": "OriginatingSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS"
+      },
+      {
+        "field": "OriginatingSystemResourceRecordId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginatingSystemResourceRecordKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "30367004"
+      },
+      {
+        "field": "OriginatingSystemSubName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS_REBNY"
+      },
+      {
+        "field": "Permission",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PreferredPhotoYN",
+        "count": 13,
+        "pct": 3,
+        "sample": "false"
+      },
+      {
+        "field": "PropertySubType",
+        "count": 500,
+        "pct": 100,
+        "sample": "SingleFamilyResidence"
+      },
+      {
+        "field": "PropertySubTypeAdditional",
+        "count": 450,
+        "pct": 90,
+        "sample": "Apartment"
+      },
+      {
+        "field": "PropertyType",
+        "count": 500,
+        "pct": 100,
+        "sample": "Residential"
+      },
+      {
+        "field": "RecordSignature",
+        "count": 500,
+        "pct": 100,
+        "sample": "1310474115"
+      },
+      {
+        "field": "ResourceName",
+        "count": 500,
+        "pct": 100,
+        "sample": "Property"
+      },
+      {
+        "field": "ResourceRecordID",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS20015295"
+      },
+      {
+        "field": "ResourceRecordKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "1111529001"
+      },
+      {
+        "field": "ResourceRecordKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "1111529001"
+      },
+      {
+        "field": "ShortDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemID",
+        "count": 500,
+        "pct": 100,
+        "sample": "TRESTLE"
+      },
+      {
+        "field": "SourceSystemMediaKey",
+        "count": 496,
+        "pct": 99,
+        "sample": "PRCH-87335015"
+      },
+      {
+        "field": "SourceSystemName",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemResourceRecordKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "StandardStatus",
+        "count": 500,
+        "pct": 100,
+        "sample": "Active"
+      },
+      {
+        "field": "SyndicateTo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "X_MediaStream",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      }
+    ]
+  },
+  {
+    "entity": "Member",
+    "totalRecords": 500,
+    "totalFields": 90,
+    "fields": [
+      {
+        "field": "HumanModifiedYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "false"
+      },
+      {
+        "field": "JobTitle",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "LastLoginTimestamp",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberAOR",
+        "count": 500,
+        "pct": 100,
+        "sample": "RealEstateBoardOfNewYork"
+      },
+      {
+        "field": "MemberAORMlsId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberAORkey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberAORkeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberAddress1",
+        "count": 434,
+        "pct": 87,
+        "sample": "3450 Wayne Avenue\n#13M"
+      },
+      {
+        "field": "MemberAddress2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberAlternateId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberAssociationComments",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberBillingPreference",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberBio",
+        "count": 7,
+        "pct": 1,
+        "sample": "A lifelong New Yorker with a deep connection to the city’s neighborhoods and cultural life, Jeremy Lyons brings thoughtf"
+      },
+      {
+        "field": "MemberCarrierRoute",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberCity",
+        "count": 434,
+        "pct": 87,
+        "sample": "3450 Wayne Avenue #13M"
+      },
+      {
+        "field": "MemberCityRegion",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberCommitteeCount",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberCountry",
+        "count": 500,
+        "pct": 100,
+        "sample": "US"
+      },
+      {
+        "field": "MemberCountyOrParish",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberDesignation",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberDirectPhone",
+        "count": 470,
+        "pct": 94,
+        "sample": "6787647557"
+      },
+      {
+        "field": "MemberEmail",
+        "count": 500,
+        "pct": 100,
+        "sample": "cmarcrum@bondnewyork.com"
+      },
+      {
+        "field": "MemberFax",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberFirstName",
+        "count": 500,
+        "pct": 100,
+        "sample": "Casper"
+      },
+      {
+        "field": "MemberFullName",
+        "count": 500,
+        "pct": 100,
+        "sample": "Casper Marcrum"
+      },
+      {
+        "field": "MemberHomePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberIsAssistantTo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "30164565"
+      },
+      {
+        "field": "MemberKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "30164565"
+      },
+      {
+        "field": "MemberLanguages",
+        "count": 6,
+        "pct": 1,
+        "sample": "Chinese"
+      },
+      {
+        "field": "MemberLastName",
+        "count": 500,
+        "pct": 100,
+        "sample": "Marcrum"
+      },
+      {
+        "field": "MemberLoginId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberMailOptOutYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberMiddleName",
+        "count": 91,
+        "pct": 18,
+        "sample": "Julia"
+      },
+      {
+        "field": "MemberMlsAccessYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberMlsId",
+        "count": 500,
+        "pct": 100,
+        "sample": "144042"
+      },
+      {
+        "field": "MemberMlsSecurityClass",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberMobilePhone",
+        "count": 484,
+        "pct": 97,
+        "sample": "6787647557"
+      },
+      {
+        "field": "MemberNamePrefix",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberNameSuffix",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberNationalAssociationEntryDate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberNickname",
+        "count": 22,
+        "pct": 4,
+        "sample": "Charlie"
+      },
+      {
+        "field": "MemberOfficePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberOfficePhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberOtherPhoneType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberPager",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberPhoneTTYTDD",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberPostalCode",
+        "count": 435,
+        "pct": 87,
+        "sample": "10467"
+      },
+      {
+        "field": "MemberPostalCodePlus4",
+        "count": 3,
+        "pct": 1,
+        "sample": "-666"
+      },
+      {
+        "field": "MemberPreferredMail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberPreferredMedia",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberPreferredPhone",
+        "count": 470,
+        "pct": 94,
+        "sample": "6787647557"
+      },
+      {
+        "field": "MemberPreferredPhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberPreferredPublication",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberPrimaryAorId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberStateLicense",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberStateLicenseExpirationDate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberStateLicenseState",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberStateLicenseType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberStateOrProvince",
+        "count": 431,
+        "pct": 86,
+        "sample": "NY"
+      },
+      {
+        "field": "MemberStatus",
+        "count": 500,
+        "pct": 100,
+        "sample": "Active"
+      },
+      {
+        "field": "MemberStreetAdditionalInfo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberTollFreePhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberTransferDate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberVoiceMail",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberVoiceMailExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "MemberVotingPrecinct",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ModificationTimestamp",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-19T19:21:07.277-00:00"
+      },
+      {
+        "field": "OfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "5658935"
+      },
+      {
+        "field": "OfficeKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "5658935"
+      },
+      {
+        "field": "OfficeMlsId",
+        "count": 500,
+        "pct": 100,
+        "sample": "5339"
+      },
+      {
+        "field": "OfficeName",
+        "count": 500,
+        "pct": 100,
+        "sample": "Bond New York Properties LLC"
+      },
+      {
+        "field": "OfficeNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginalEntryTimestamp",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginatingSystemID",
+        "count": 500,
+        "pct": 100,
+        "sample": "REBNY"
+      },
+      {
+        "field": "OriginatingSystemMemberKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33652979"
+      },
+      {
+        "field": "OriginatingSystemMemberMlsSecurityClass",
+        "count": 500,
+        "pct": 100,
+        "sample": "Salesperson"
+      },
+      {
+        "field": "OriginatingSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS"
+      },
+      {
+        "field": "OriginatingSystemOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "1276846"
+      },
+      {
+        "field": "OriginatingSystemSubName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS_REBNY"
+      },
+      {
+        "field": "Permission",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RecordSignature",
+        "count": 500,
+        "pct": 100,
+        "sample": "-2003521536"
+      },
+      {
+        "field": "SocialMediaType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemID",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemMemberKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33652979"
+      },
+      {
+        "field": "SourceSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "SalesforceRoster"
+      },
+      {
+        "field": "SyndicateTo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UniqueLicenseeIdentifier",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      }
+    ]
+  },
+  {
+    "entity": "Office",
+    "totalRecords": 500,
+    "totalFields": 79,
+    "fields": [
+      {
+        "field": "BillingOfficeKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "FranchiseAffiliation",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "FranchiseNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "HumanModifiedYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "false"
+      },
+      {
+        "field": "IDXOfficeParticipationYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "MainOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "6559729"
+      },
+      {
+        "field": "MainOfficeKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "6559729"
+      },
+      {
+        "field": "MainOfficeMlsId",
+        "count": 500,
+        "pct": 100,
+        "sample": "40034"
+      },
+      {
+        "field": "ModificationTimestamp",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-19T12:11:19.240-00:00"
+      },
+      {
+        "field": "NumberOfBranches",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "NumberOfNonMemberSalespersons",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeAOR",
+        "count": 500,
+        "pct": 100,
+        "sample": "RealEstateBoardOfNewYork"
+      },
+      {
+        "field": "OfficeAORMlsId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeAORkey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeAORkeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeAddress1",
+        "count": 266,
+        "pct": 53,
+        "sample": "3 Hutton Centre Drive #800"
+      },
+      {
+        "field": "OfficeAddress2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeAlternateId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeAssociationComments",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeBio",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeBranchType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeBrokerKey",
+        "count": 69,
+        "pct": 14,
+        "sample": "29782656"
+      },
+      {
+        "field": "OfficeBrokerKeyNumeric",
+        "count": 69,
+        "pct": 14,
+        "sample": "29782656"
+      },
+      {
+        "field": "OfficeBrokerMlsId",
+        "count": 69,
+        "pct": 14,
+        "sample": "142951"
+      },
+      {
+        "field": "OfficeBrokerNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeCity",
+        "count": 271,
+        "pct": 54,
+        "sample": "Santa Ana"
+      },
+      {
+        "field": "OfficeCityRegion",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeCorporateLicense",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeCountry",
+        "count": 500,
+        "pct": 100,
+        "sample": "US"
+      },
+      {
+        "field": "OfficeCountyOrParish",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeEmail",
+        "count": 75,
+        "pct": 15,
+        "sample": "gemini.patel@yardi.com"
+      },
+      {
+        "field": "OfficeFax",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "6559729"
+      },
+      {
+        "field": "OfficeKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "6559729"
+      },
+      {
+        "field": "OfficeMailAddress1",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailAddress2",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailCareOf",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailCity",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailCountry",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailCountyOrParish",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailPostalCode",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailPostalCodePlus4",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMailStateOrProvince",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeManagerKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeManagerKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeManagerMlsId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeMlsId",
+        "count": 500,
+        "pct": 100,
+        "sample": "40034"
+      },
+      {
+        "field": "OfficeName",
+        "count": 500,
+        "pct": 100,
+        "sample": "Gerner Kronick & Valcarcel Architects PC"
+      },
+      {
+        "field": "OfficeNationalAssociationId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeNationalAssociationIdInsertDate",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficePhone",
+        "count": 212,
+        "pct": 42,
+        "sample": "805.705.7987"
+      },
+      {
+        "field": "OfficePhoneExt",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficePostalCode",
+        "count": 272,
+        "pct": 54,
+        "sample": "92707"
+      },
+      {
+        "field": "OfficePostalCodePlus4",
+        "count": 33,
+        "pct": 7,
+        "sample": "-069"
+      },
+      {
+        "field": "OfficePreferredMedia",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficePrimaryAorId",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficePrimaryStateOrProvince",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeStateOrProvince",
+        "count": 271,
+        "pct": 54,
+        "sample": "CA"
+      },
+      {
+        "field": "OfficeStatus",
+        "count": 500,
+        "pct": 100,
+        "sample": "Inactive"
+      },
+      {
+        "field": "OfficeStreetAdditionalInfo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OfficeType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginalEntryTimestamp",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginatingSystemID",
+        "count": 500,
+        "pct": 100,
+        "sample": "REBNY"
+      },
+      {
+        "field": "OriginatingSystemMainOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33647324"
+      },
+      {
+        "field": "OriginatingSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS"
+      },
+      {
+        "field": "OriginatingSystemOfficeBrokerKey",
+        "count": 69,
+        "pct": 14,
+        "sample": "33426556"
+      },
+      {
+        "field": "OriginatingSystemOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33647324"
+      },
+      {
+        "field": "OriginatingSystemOfficeManagerKey",
+        "count": 43,
+        "pct": 9,
+        "sample": "33510367"
+      },
+      {
+        "field": "OriginatingSystemSubName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS_REBNY"
+      },
+      {
+        "field": "OtherPhone",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "Permission",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RecordSignature",
+        "count": 500,
+        "pct": 100,
+        "sample": "2108845266"
+      },
+      {
+        "field": "SocialMediaType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemID",
+        "count": 500,
+        "pct": 100,
+        "sample": "TRESTLE"
+      },
+      {
+        "field": "SourceSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "SalesforceRoster"
+      },
+      {
+        "field": "SourceSystemOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33647324"
+      },
+      {
+        "field": "SyndicateAgentOption",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SyndicateTo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "VirtualOfficeWebsiteYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      }
+    ]
+  },
+  {
+    "entity": "OpenHouse",
+    "totalRecords": 500,
+    "totalFields": 47,
+    "fields": [
+      {
+        "field": "AppointmentRequiredYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "HumanModifiedYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "InternetEntireListingDisplayYN",
+        "count": 500,
+        "pct": 100,
+        "sample": "false"
+      },
+      {
+        "field": "ListAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ListAgentKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "25215090"
+      },
+      {
+        "field": "ListOfficeKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "5658932"
+      },
+      {
+        "field": "ListOfficeMlsId",
+        "count": 500,
+        "pct": 100,
+        "sample": "7222"
+      },
+      {
+        "field": "ListingId",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS20073544"
+      },
+      {
+        "field": "ListingKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "1153504835"
+      },
+      {
+        "field": "ListingKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "1153504835"
+      },
+      {
+        "field": "ListingPermission",
+        "count": 449,
+        "pct": 90,
+        "sample": "IDX"
+      },
+      {
+        "field": "LivestreamOpenHouseURL",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ModificationTimestamp",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-19T22:07:42.317-00:00"
+      },
+      {
+        "field": "OffMarketDate",
+        "count": 4,
+        "pct": 1,
+        "sample": "2026-03-19"
+      },
+      {
+        "field": "OpenHouseAttendedBy",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OpenHouseDate",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-21"
+      },
+      {
+        "field": "OpenHouseEndTime",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-21T13:00:00.000-04:00"
+      },
+      {
+        "field": "OpenHouseId",
+        "count": 500,
+        "pct": 100,
+        "sample": "145444155"
+      },
+      {
+        "field": "OpenHouseKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "145444155"
+      },
+      {
+        "field": "OpenHouseKeyNumeric",
+        "count": 500,
+        "pct": 100,
+        "sample": "145444155"
+      },
+      {
+        "field": "OpenHouseRemarks",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OpenHouseStartTime",
+        "count": 500,
+        "pct": 100,
+        "sample": "2026-03-21T12:00:00.000-04:00"
+      },
+      {
+        "field": "OpenHouseStatus",
+        "count": 500,
+        "pct": 100,
+        "sample": "Active"
+      },
+      {
+        "field": "OpenHouseType",
+        "count": 461,
+        "pct": 92,
+        "sample": "Public"
+      },
+      {
+        "field": "OriginalEntryTimestamp",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginatingSystemID",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "OriginatingSystemKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33657222"
+      },
+      {
+        "field": "OriginatingSystemListingKey",
+        "count": 500,
+        "pct": 100,
+        "sample": "33508843"
+      },
+      {
+        "field": "OriginatingSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS"
+      },
+      {
+        "field": "OriginatingSystemSubName",
+        "count": 500,
+        "pct": 100,
+        "sample": "RLS_REBNY"
+      },
+      {
+        "field": "Permission",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PropertySubType",
+        "count": 500,
+        "pct": 100,
+        "sample": "Apartment"
+      },
+      {
+        "field": "PropertySubTypeAdditional",
+        "count": 443,
+        "pct": 89,
+        "sample": "Apartment"
+      },
+      {
+        "field": "PropertyType",
+        "count": 500,
+        "pct": 100,
+        "sample": "ResidentialLease"
+      },
+      {
+        "field": "RecordSignature",
+        "count": 500,
+        "pct": 100,
+        "sample": "-1933631483"
+      },
+      {
+        "field": "Refreshments",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ShowingAgentFirstName",
+        "count": 461,
+        "pct": 92,
+        "sample": "Caterina"
+      },
+      {
+        "field": "ShowingAgentKey",
+        "count": 465,
+        "pct": 93,
+        "sample": "1247529"
+      },
+      {
+        "field": "ShowingAgentKeyNumeric",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ShowingAgentLastName",
+        "count": 461,
+        "pct": 92,
+        "sample": "Smith"
+      },
+      {
+        "field": "ShowingAgentMlsID",
+        "count": 467,
+        "pct": 93,
+        "sample": "44116"
+      },
+      {
+        "field": "SourceSystemID",
+        "count": 500,
+        "pct": 100,
+        "sample": "TRESTLE"
+      },
+      {
+        "field": "SourceSystemKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemListingKey",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemName",
+        "count": 500,
+        "pct": 100,
+        "sample": "Compass"
+      },
+      {
+        "field": "StandardStatus",
+        "count": 500,
+        "pct": 100,
+        "sample": "Active"
+      },
+      {
+        "field": "SyndicateTo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      }
+    ]
+  },
+  {
+    "entity": "PropertyUnitTypes",
+    "totalRecords": 1,
+    "totalFields": 52,
+    "fields": [
+      {
+        "field": "HumanModifiedYN",
+        "count": 1,
+        "pct": 100,
+        "sample": "false"
+      },
+      {
+        "field": "InputEntryOrder",
+        "count": 1,
+        "pct": 100,
+        "sample": "1"
+      },
+      {
+        "field": "InternetEntireListingDisplayYN",
+        "count": 1,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "ListAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ListAgentKey",
+        "count": 1,
+        "pct": 100,
+        "sample": "25221348"
+      },
+      {
+        "field": "ListOfficeKey",
+        "count": 1,
+        "pct": 100,
+        "sample": "5658923"
+      },
+      {
+        "field": "ListOfficeMlsId",
+        "count": 1,
+        "pct": 100,
+        "sample": "1348"
+      },
+      {
+        "field": "ListingId",
+        "count": 1,
+        "pct": 100,
+        "sample": "RLS10998482"
+      },
+      {
+        "field": "ListingKey",
+        "count": 1,
+        "pct": 100,
+        "sample": "1092337071"
+      },
+      {
+        "field": "ListingKeyNumeric",
+        "count": 1,
+        "pct": 100,
+        "sample": "1092337071"
+      },
+      {
+        "field": "ListingPermission",
+        "count": 1,
+        "pct": 100,
+        "sample": "IDX"
+      },
+      {
+        "field": "ModificationTimestamp",
+        "count": 1,
+        "pct": 100,
+        "sample": "2025-03-05T00:56:43.247-00:00"
+      },
+      {
+        "field": "OffMarketDate",
+        "count": 1,
+        "pct": 100,
+        "sample": "2025-03-21"
+      },
+      {
+        "field": "OriginatingSystemListingKey",
+        "count": 1,
+        "pct": 100,
+        "sample": "3321767"
+      },
+      {
+        "field": "OriginatingSystemName",
+        "count": 1,
+        "pct": 100,
+        "sample": "RLS"
+      },
+      {
+        "field": "OriginatingSystemSubName",
+        "count": 1,
+        "pct": 100,
+        "sample": "RLS_REBNY"
+      },
+      {
+        "field": "Permission",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PropertySubType",
+        "count": 1,
+        "pct": 100,
+        "sample": "Duplex"
+      },
+      {
+        "field": "PropertySubTypeAdditional",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PropertyType",
+        "count": 1,
+        "pct": 100,
+        "sample": "ResidentialLease"
+      },
+      {
+        "field": "RecordSignature",
+        "count": 1,
+        "pct": 100,
+        "sample": "-568957415"
+      },
+      {
+        "field": "SourceSystemID",
+        "count": 1,
+        "pct": 100,
+        "sample": "TRESTLE"
+      },
+      {
+        "field": "StandardStatus",
+        "count": 1,
+        "pct": 100,
+        "sample": "Closed"
+      },
+      {
+        "field": "SyndicateTo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeActualRent",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeActualRentRange",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeArea",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeAreaSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeAreaUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeBathsTotal",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeBedsTotal",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeDeposit",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeFireplaceYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeFurnished",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeGarageAttachedYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeGarageSpaces",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeKey",
+        "count": 1,
+        "pct": 100,
+        "sample": "22369252"
+      },
+      {
+        "field": "UnitTypeKeyNumeric",
+        "count": 1,
+        "pct": 100,
+        "sample": "22369252"
+      },
+      {
+        "field": "UnitTypeLeaseExpires",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeLeasedYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeMonthToMonthYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeNumFullBaths",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeNumHalfBaths",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeOccupantType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypePetDeposit",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypePetDepositPerPetYN",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeProForma",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeTotalRent",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeType",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeUnitNum",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "UnitTypeUnitsTotal",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      }
+    ]
+  },
+  {
+    "entity": "PropertyRooms",
+    "totalRecords": 75,
+    "totalFields": 39,
+    "fields": [
+      {
+        "field": "HumanModifiedYN",
+        "count": 75,
+        "pct": 100,
+        "sample": "false"
+      },
+      {
+        "field": "InputEntryOrder",
+        "count": 75,
+        "pct": 100,
+        "sample": "1"
+      },
+      {
+        "field": "InternetEntireListingDisplayYN",
+        "count": 75,
+        "pct": 100,
+        "sample": "true"
+      },
+      {
+        "field": "ListAOR",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "ListAgentKey",
+        "count": 75,
+        "pct": 100,
+        "sample": "25738634"
+      },
+      {
+        "field": "ListOfficeKey",
+        "count": 75,
+        "pct": 100,
+        "sample": "5955706"
+      },
+      {
+        "field": "ListOfficeMlsId",
+        "count": 75,
+        "pct": 100,
+        "sample": "38798"
+      },
+      {
+        "field": "ListingId",
+        "count": 75,
+        "pct": 100,
+        "sample": "RLS20010497"
+      },
+      {
+        "field": "ListingKey",
+        "count": 75,
+        "pct": 100,
+        "sample": "1108963564"
+      },
+      {
+        "field": "ListingKeyNumeric",
+        "count": 75,
+        "pct": 100,
+        "sample": "1108963564"
+      },
+      {
+        "field": "ListingPermission",
+        "count": 75,
+        "pct": 100,
+        "sample": "IDX"
+      },
+      {
+        "field": "ModificationTimestamp",
+        "count": 75,
+        "pct": 100,
+        "sample": "2026-01-12T19:23:05.663-00:00"
+      },
+      {
+        "field": "OffMarketDate",
+        "count": 72,
+        "pct": 96,
+        "sample": "2025-10-10"
+      },
+      {
+        "field": "OriginatingSystemListingKey",
+        "count": 75,
+        "pct": 100,
+        "sample": "30224482"
+      },
+      {
+        "field": "OriginatingSystemName",
+        "count": 75,
+        "pct": 100,
+        "sample": "RLS"
+      },
+      {
+        "field": "OriginatingSystemSubName",
+        "count": 75,
+        "pct": 100,
+        "sample": "RLS_REBNY"
+      },
+      {
+        "field": "Permission",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "PropertySubType",
+        "count": 75,
+        "pct": 100,
+        "sample": "Apartment"
+      },
+      {
+        "field": "PropertySubTypeAdditional",
+        "count": 10,
+        "pct": 13,
+        "sample": "Apartment"
+      },
+      {
+        "field": "PropertyType",
+        "count": 75,
+        "pct": 100,
+        "sample": "Residential"
+      },
+      {
+        "field": "RecordSignature",
+        "count": 75,
+        "pct": 100,
+        "sample": "-335958362"
+      },
+      {
+        "field": "RoomArea",
+        "count": 44,
+        "pct": 59,
+        "sample": "400"
+      },
+      {
+        "field": "RoomAreaSource",
+        "count": 44,
+        "pct": 59,
+        "sample": "Builder"
+      },
+      {
+        "field": "RoomAreaUnits",
+        "count": 44,
+        "pct": 59,
+        "sample": "SquareFeet"
+      },
+      {
+        "field": "RoomDescription",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomDimensions",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomFeatures",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomFlooring",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomKey",
+        "count": 75,
+        "pct": 100,
+        "sample": "1579365974"
+      },
+      {
+        "field": "RoomKeyNumeric",
+        "count": 75,
+        "pct": 100,
+        "sample": "1579365974"
+      },
+      {
+        "field": "RoomLength",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomLengthWidthSource",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomLengthWidthUnits",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomLevel",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "RoomType",
+        "count": 64,
+        "pct": 85,
+        "sample": "LivingRoom"
+      },
+      {
+        "field": "RoomWidth",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      },
+      {
+        "field": "SourceSystemID",
+        "count": 75,
+        "pct": 100,
+        "sample": "TRESTLE"
+      },
+      {
+        "field": "StandardStatus",
+        "count": 75,
+        "pct": 100,
+        "sample": "Closed"
+      },
+      {
+        "field": "SyndicateTo",
+        "count": 0,
+        "pct": 0,
+        "sample": null
+      }
+    ]
+  },
+  {
+    "entity": "Teams",
+    "totalRecords": 0,
+    "totalFields": 0,
+    "fields": []
+  }
+]

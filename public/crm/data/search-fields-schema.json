@@ -844,7 +844,7 @@
     "flow": "openWorkWithSelected() → selectClient(clientId) → saveSelectedToClient()",
     "complianceGates": [
       {"gate":"ownerOptOut","rlsField":"InternetEntireListingDisplayYN","rule":"BLOCK — never display"},
-      {"gate":"internetDisplay","rlsField":"IDXEntireListingDisplayYN","rule":"BLOCK — not displayable in IDX"}
+      {"gate":"internetDisplay","rlsField":"InternetEntireListingDisplayYN","rule":"BLOCK — not displayable in IDX (no separate IDX field on Trestle)"}
     ],
     "portfolioStorage": "localStorage: clientPortfolio_{agentId}_{clientId}",
     "clientFeedback": {
@@ -931,8 +931,8 @@
   "distributionGates": [
     {"gate":1,"name":"Owner Opt-Out","rlsField":"InternetEntireListingDisplayYN","rule":"NEVER display if false","severity":"critical"},
     {"gate":2,"name":"Participant Only","rlsField":"RLSParticipantOnly","rule":"CRM only, NOT IDX/public","severity":"high"},
-    {"gate":3,"name":"IDX Display","rlsField":"IDXEntireListingDisplayYN","rule":"Context-aware: IDX vs VOW vs CRM","severity":"high"},
-    {"gate":4,"name":"Syndication","rlsField":"SyndicationOptOut","rule":"Badge only, no filter","severity":"low"},
+    {"gate":3,"name":"IDX Display","rlsField":"InternetEntireListingDisplayYN","rule":"Context-aware: IDX vs VOW vs CRM (no separate IDX field on Trestle)","severity":"high"},
+    {"gate":4,"name":"Syndication","rlsField":"SyndicateTo","rule":"Badge only, no filter (UCBA: SyndicateYN)","severity":"low"},
     {"gate":5,"name":"Coming Soon","rlsField":"StandardStatus","statusValue":"ComingSoon","rule":"Badge + disable showings","severity":"medium"},
     {"gate":6,"name":"Closed Status","rlsField":"StandardStatus","statusValue":"Closed","rule":"Suppress after 24 hours per REBNY","severity":"medium"}
   ],
@@ -958,7 +958,7 @@
     "mediaExpand": "$expand=Media",
     "requiredFields": 41,
     "conditionalFields": 86,
-    "totalFields": 448,
+    "totalFields": 902,
     "picklistValues": 2066
   }
 }

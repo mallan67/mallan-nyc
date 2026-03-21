@@ -249,8 +249,13 @@ export default function HeroSearch() {
       return;
     }
 
+    // Parse the original typed query for NL filters (beds, price, amenities, etc.)
+    // so clicking a suggestion like "Upper East Side" after typing "2 bed upper east side"
+    // preserves the beds/price/amenity filters in the URL.
+    const nlFilters = regexParse(query);
+
     const params = new URLSearchParams();
-    const tab = activeTab === 'rent' ? 'rent-residential' : 'buy-residential';
+    const tab = nlFilters.tab || (activeTab === 'rent' ? 'rent-residential' : 'buy-residential');
     params.set('tab', tab);
     if (suggestion.type === 'neighborhood') {
       params.set('neighborhood', suggestion.value);
@@ -259,6 +264,20 @@ export default function HeroSearch() {
     } else if (suggestion.type === 'address') {
       params.set('q', suggestion.value);
     }
+
+    // Carry over NL-parsed filters from the typed query
+    if (nlFilters.beds != null) params.set('beds', String(nlFilters.beds));
+    if (nlFilters.baths != null) params.set('baths', String(nlFilters.baths));
+    if (nlFilters.minPrice) params.set('minPrice', String(nlFilters.minPrice));
+    if (nlFilters.maxPrice) params.set('maxPrice', String(nlFilters.maxPrice));
+    if (nlFilters.propertySubTypes && (nlFilters.propertySubTypes as string[]).length) {
+      params.set('subTypes', (nlFilters.propertySubTypes as string[]).join(','));
+    }
+    if (nlFilters.amenities && (nlFilters.amenities as string[]).length) {
+      params.set('amenities', (nlFilters.amenities as string[]).join(','));
+    }
+    if (nlFilters.minSqft) params.set('minSqft', String(nlFilters.minSqft));
+
     router.push(`/search?${params.toString()}`);
   };
 

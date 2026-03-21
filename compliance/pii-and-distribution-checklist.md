@@ -43,8 +43,8 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 |------|-------|-------------|------------|
 | 1. Owner Opt-Out | `OwnerOptOutYN` | If true, exclude from all public feeds | Gray "Owner Opt-Out" badge |
 | 2. Participant Only | `ParticipantOnlyYN` | If true, exclude from IDX/VOW | Gray "Participant Only" badge |
-| 3. IDX Display | `IDXEntireListingDisplayYN` | If false, exclude from IDX search | Hidden from search results |
-| 4. Syndication | `SyndicateYN` | If false, exclude from syndication feeds | Orange "NOT SYNDICATED" badge |
+| 3. IDX Display | `InternetEntireListingDisplayYN` | If false, exclude from IDX search *(no separate IDX field on Trestle)* | Hidden from search results |
+| 4. Syndication | `SyndicateTo` | If disabled, exclude from syndication feeds *(UCBA: `SyndicateYN`)* | Orange "NOT SYNDICATED" badge |
 | 5. Coming Soon | `ComingSoonDate` | If set + future, show badge, block showings | Blue "Coming Soon" badge |
 | 6. Closed Status | `MlsStatus` = Closed/Expired | Remove/mark within 24 hours | Strike-through or hidden |
 
@@ -56,7 +56,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 
 | Requirement | Status |
 |-------------|--------|
-| Total RLS fields | 448 |
+| Total RLS fields | 902 |
 | Required fields | 41 |
 | Conditional fields | 86 |
 | RESO-to-RLS renames | 23 |

@@ -100,11 +100,11 @@
         // Close modal on escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                closeDeliveryModal();
-                closeGridLayoutsModal();
-                closeReportsModal();
-                closeAddClientModal();
-                closeSaveSearchModal();
+                if (typeof closeDeliveryModal === 'function') closeDeliveryModal();
+                if (typeof closeGridLayoutsModal === 'function') closeGridLayoutsModal();
+                if (typeof closeReportsModal === 'function') closeReportsModal();
+                if (typeof closeAddClientModal === 'function') closeAddClientModal();
+                if (typeof closeSaveSearchModal === 'function') closeSaveSearchModal();
             }
         });
 

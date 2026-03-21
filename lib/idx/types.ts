@@ -26,7 +26,7 @@ export interface TrestleAuthToken {
 }
 
 /**
- * Raw listing record from Trestle API (all 448 fields possible).
+ * Raw listing record from Trestle API (902 IDX Plus fields across 7 resources).
  */
 export type TrestleRawListing = Record<string, unknown>;
 

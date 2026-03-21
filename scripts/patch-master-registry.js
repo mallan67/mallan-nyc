@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * MASTER_REGISTRY.json Update Script — 2026-03-13
+ * patch-master-registry.js — Patches MASTER_REGISTRY.json with audit findings
  *
  * Applies all audit findings from the Trestle/REBNY CSV cross-reference audit.
  *
  * CHANGES MADE:
  *
  * == FIELD ENTRIES ==
- * 1.  TenantPays: isEnum→true, add complianceNotes (FARE Act, not in 448 list)
- * 2.  OngoingFees: isEnum→true, add complianceNotes (FARE Act, not in 448 list)
+ * 1.  TenantPays: isEnum→true, add complianceNotes (FARE Act)
+ * 2.  OngoingFees: isEnum→true, add complianceNotes (FARE Act)
  * 3.  TenantPaysDescription: add complianceNotes (FARE Act companion)
  * 4.  ADD AdditionalFee (CustomProperty entity, FARE Act)
  * 5.  ADD AdditionalFeeYN (CustomProperty entity, FARE Act)
@@ -61,7 +61,7 @@ const reg = JSON.parse(raw);
 // 1. TenantPays — fix isEnum, add complianceNotes
 if (reg.fields.TenantPays) {
   reg.fields.TenantPays.isEnum = true;
-  reg.fields.TenantPays.complianceNotes = "FARE Act (NYC LL 119/2024) fee disclosure field. NOT in REBNY 448-field list (isRebny=false) but REBNY lookup CSV provides values (lookup isRebny=true). This is intentional: REBNY defines values for this Trestle-global field. Accessed on Trestle Property entity.";
+  reg.fields.TenantPays.complianceNotes = "FARE Act (NYC LL 119/2024) fee disclosure field. REBNY lookup CSV provides values (lookup isRebny=true). Accessed on Trestle Property entity.";
 } else {
   console.error('MISSING: fields.TenantPays');
   process.exit(1);
@@ -70,7 +70,7 @@ if (reg.fields.TenantPays) {
 // 2. OngoingFees — fix isEnum, add complianceNotes
 if (reg.fields.OngoingFees) {
   reg.fields.OngoingFees.isEnum = true;
-  reg.fields.OngoingFees.complianceNotes = "FARE Act (NYC LL 119/2024) fee disclosure field. NOT in REBNY 448-field list (isRebny=false) but REBNY lookup CSV provides values (lookup isRebny=true). This is intentional: REBNY defines values for this Trestle-global field. Accessed on Trestle Property entity.";
+  reg.fields.OngoingFees.complianceNotes = "FARE Act (NYC LL 119/2024) fee disclosure field. REBNY lookup CSV provides values (lookup isRebny=true). Accessed on Trestle Property entity.";
 } else {
   console.error('MISSING: fields.OngoingFees');
   process.exit(1);
@@ -78,7 +78,7 @@ if (reg.fields.OngoingFees) {
 
 // 3. TenantPaysDescription — add complianceNotes
 if (reg.fields.TenantPaysDescription) {
-  reg.fields.TenantPaysDescription.complianceNotes = "FARE Act (NYC LL 119/2024) companion field. NOT in REBNY 448-field list. Free-text description accompanying TenantPays picklist. Accessed on Trestle Property entity.";
+  reg.fields.TenantPaysDescription.complianceNotes = "FARE Act (NYC LL 119/2024) companion field. Free-text description accompanying TenantPays picklist. Accessed on Trestle Property entity.";
 } else {
   console.error('MISSING: fields.TenantPaysDescription');
   process.exit(1);
@@ -364,7 +364,7 @@ reg._meta.trestleArchitecture = {
 
 // Update stats
 reg._meta.stats.totalFields += 4;  // Added 4 AdditionalFee* fields
-reg._meta.stats.trestleOnlyFields += 4;  // They're Trestle-only (not in REBNY 448)
+reg._meta.stats.trestleOnlyFields += 4;  // They're Trestle-only (CustomProperty entity)
 
 // ============================================================
 // WRITE

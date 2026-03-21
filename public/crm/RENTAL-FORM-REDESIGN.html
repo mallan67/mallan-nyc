@@ -1105,9 +1105,15 @@ body { font-family: Manrope, sans-serif; }
                     <select id="rentalFeeFrequency" class="field-input" data-rls-field="FeeFrequency">
                         <option value="">Select</option>
                         <option value="Monthly">Monthly</option>
+                        <option value="BiMonthly">Bi-Monthly</option>
                         <option value="Quarterly">Quarterly</option>
                         <option value="SemiAnnually">Semi-Annually</option>
+                        <option value="SemiMonthly">Semi-Monthly</option>
                         <option value="Annually">Annually</option>
+                        <option value="BiWeekly">Bi-Weekly</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Seasonal">Seasonal</option>
                         <option value="OneTime">One Time</option>
                     </select>
                     <p class="text-[10px] text-gray-400 mt-1">RLS: FeeFrequency — how often ongoing fees are charged</p>
@@ -1143,9 +1149,15 @@ body { font-family: Manrope, sans-serif; }
                     <select id="rentalAdditionalFeeFrequency" class="field-input" data-rls-field="AdditionalFeeFrequency">
                         <option value="">Select</option>
                         <option value="Monthly">Monthly</option>
+                        <option value="BiMonthly">Bi-Monthly</option>
                         <option value="Quarterly">Quarterly</option>
                         <option value="SemiAnnually">Semi-Annually</option>
+                        <option value="SemiMonthly">Semi-Monthly</option>
                         <option value="Annually">Annually</option>
+                        <option value="BiWeekly">Bi-Weekly</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Seasonal">Seasonal</option>
                         <option value="OneTime">One Time</option>
                     </select>
                     <p class="text-[10px] text-gray-400 mt-1">RLS: AdditionalFeeFrequency</p>
@@ -1654,7 +1666,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">City <span class="text-red-500">*</span></label>
-            <input type="text" id="rentalCityDisplay" value="New York" class="field-input" required onchange="document.getElementById('rentalCity').value = this.value;">
+            <input type="text" id="rentalCityDisplay" value="New York" class="field-input" required onchange="document.getElementById('rentalCity').value = this.value;" data-rls-ignore="true">
         </div>
         <div>
             <label class="field-label">State <span class="text-red-500">*</span></label>

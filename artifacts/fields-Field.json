@@ -1,0 +1,96 @@
+{
+  "totalRecords": 500,
+  "totalFields": 15,
+  "fields": [
+    {
+      "field": "Definition",
+      "count": 500,
+      "pct": 100,
+      "sample": "ClosePrice"
+    },
+    {
+      "field": "DisplayName",
+      "count": 500,
+      "pct": 100,
+      "sample": "ClosePrice"
+    },
+    {
+      "field": "FieldKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "99"
+    },
+    {
+      "field": "FieldName",
+      "count": 500,
+      "pct": 100,
+      "sample": "ClosePrice"
+    },
+    {
+      "field": "Length",
+      "count": 500,
+      "pct": 100,
+      "sample": "14"
+    },
+    {
+      "field": "LookupName",
+      "count": 128,
+      "pct": 26,
+      "sample": "City"
+    },
+    {
+      "field": "ModelKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "8"
+    },
+    {
+      "field": "ModificationTimestamp",
+      "count": 500,
+      "pct": 100,
+      "sample": "2026-02-26T06:27:02.173-00:00"
+    },
+    {
+      "field": "NumOccurrences",
+      "count": 483,
+      "pct": 97,
+      "sample": "1"
+    },
+    {
+      "field": "Precision",
+      "count": 35,
+      "pct": 7,
+      "sample": "2"
+    },
+    {
+      "field": "RESOStandardYN",
+      "count": 500,
+      "pct": 100,
+      "sample": "true"
+    },
+    {
+      "field": "ResourceName",
+      "count": 500,
+      "pct": 100,
+      "sample": "Property"
+    },
+    {
+      "field": "SystemReferenceCount",
+      "count": 500,
+      "pct": 100,
+      "sample": "125"
+    },
+    {
+      "field": "SystemReferences",
+      "count": 314,
+      "pct": 63,
+      "sample": "ACTRIS,AMELIA,AMLSNC,AOIR,ARKMLS,BCAR,BCS,BEACH,BIGBEAR,BMT,BRIGHTM,BROOKLYN,CANOPY,CAR,CCAR,CCMLS,CDR,CHSMLS,CIBR,CITRU"
+    },
+    {
+      "field": "Type",
+      "count": 500,
+      "pct": 100,
+      "sample": "Number"
+    }
+  ]
+}

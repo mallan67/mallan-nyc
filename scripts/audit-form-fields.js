@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // ═══════════════════════════════════════════════════════════════════════════
-// GENERATE RLS FORM BINDINGS
-// Parses all 6 HTML files, classifies every form element as:
-//   RLS_BOUND — mapped to a canonical RLS field
+// AUDIT FORM FIELDS — RLS Binding Classifier
+// Parses all CRM HTML files, classifies every form element as:
+//   RLS_BOUND — mapped to a canonical RLS/RESO field
 //   INTERNAL  — CRM-internal, no RLS equivalent
 //   UNKNOWN   — cannot classify (hard error)
 //
 // Outputs: data/rls-form-bindings.json
-// Usage:   node scripts/generate-rls-bindings.js
+// Usage:   node scripts/audit-form-fields.js
 // ═══════════════════════════════════════════════════════════════════════════
 
 const fs = require('fs');
@@ -316,14 +316,14 @@ const FIELD_ALIASES = {
 
   // Distribution / Syndication toggles
   'VOWOptOutYN':           'InternetEntireListingDisplayYN',
-  'SendToAll':             'SyndicateYN',
-  'Dist_IDX':              'IDXEntireListingDisplayYN',
-  'Dist_Listhub':          'SyndicateYN',
-  'Dist_NYMLS':            'SyndicateYN',
-  'Dist_Realtor':          'SyndicateYN',
-  'Dist_RPX':              'SyndicateYN',
+  'SendToAll':             'SyndicateTo',
+  'Dist_IDX':              'InternetEntireListingDisplayYN',    // No IDXEntireListingDisplayYN on Trestle
+  'Dist_Listhub':          'SyndicateTo',
+  'Dist_NYMLS':            'SyndicateTo',
+  'Dist_Realtor':          'SyndicateTo',
+  'Dist_RPX':              'SyndicateTo',
   'Dist_WWW':              'InternetEntireListingDisplayYN',
-  'Dist_RLS':              'SyndicateYN',
+  'Dist_RLS':              'SyndicateTo',
 
   // Building board
   'BoardApproval':         'BuildingFeatures',
@@ -333,6 +333,24 @@ const FIELD_ALIASES = {
   'CorpOwnAllowed':        'BuildingFeatures',
   'GiftsAllowed':          'BuildingFeatures',
 
+  // Direct RLS/RESO fields (on Trestle Property entity, beyond IDX Plus CSV)
+  'BathroomsTotal':           'BathroomsTotalInteger',
+  'InternetAddressDisplayYN': 'InternetAddressDisplayYN',       // Trestle Property, not in IDX Plus CSV
+  'InternetAutomatedValuationDisplayYN': 'InternetAutomatedValuationDisplayYN', // Trestle Property, not in IDX Plus CSV
+  'InternetConsumerCommentYN':'InternetConsumerCommentYN',       // Trestle Property, not in IDX Plus CSV
+  'InternetEntireListingDisplayYN': 'InternetEntireListingDisplayYN', // Trestle Property, not in IDX Plus CSV
+  'ShowingInstructions':      'ShowingInstructions',             // Trestle Property, not in IDX Plus CSV
+  'SyndicateYN':              'SyndicateTo',
+  'VideoUrl':                 'VirtualTourURLUnbranded',
+  'FlipTax':                  'FlipTaxType',
+
+  // CustomProperty.CustomFields (RLS fields, require $expand=CustomProperty)
+  'TaxMonthly':               'TaxMonthlyAmount',               // CustomFields JSON
+  'CapitalReservesYN':        'CapitalReservesYN',              // CustomFields JSON
+  'TaxAbatementYN':           'TaxAbatementYN',                 // CustomFields JSON
+  'TaxAbatementComments':     'TaxAbatementComments',           // CustomFields JSON
+  'TaxAbatementExpYear':      'TaxAbatementExpirationYear',     // CustomFields JSON
+
   // Search-specific aliases
   'ManagementCompany':     'ManagementCompanyName',
   'KeywordSearch':         'PublicRemarks',
@@ -341,7 +359,7 @@ const FIELD_ALIASES = {
   'SearchAddress':         'StreetName',
   'QuickUnit':             'UnitNumber',
 
-  // FARE Act fields (CustomProperty entity — not in 448-field CSV)
+  // FARE Act fields (on CustomProperty entity, requires $expand)
   'TenantPaysDescription':    'TenantPaysDescription',
   'AdditionalFeeYN':          'AdditionalFeeYN',
   'AdditionalFee':            'AdditionalFee',
@@ -351,7 +369,7 @@ const FIELD_ALIASES = {
   // Distribution — VOW opt-out toggle
   'Dist_VOW':                 'InternetEntireListingDisplayYN',
 
-  // REBNY custom fields (not in 448-field CSV, in CustomFields JSON)
+  // REBNY custom fields (CustomProperty entity, in CustomFields JSON)
   'LobbyAttendant':           'AttendanceType',
   'OwnershipType':            'OwnershipType',
 };
@@ -452,8 +470,11 @@ const INTERNAL_ONLY_FIELDS = new Set([
   'FreeRent', 'OwnerPaysFreeRent', 'FreeRentMonths',
   'Students', 'GuarantorsPolicy',
 
-  // Building details (CRM-internal, not in RLS field list)
-  'TotalShares', 'AnnualTaxes', 'TaxAbatementExpYear',
+  // Fields that don't exist on Trestle (CRM-internal)
+  'MoveInCostsAmountTotal', 'MoveInCostsComments',    // Not on Trestle; real field is MoveInCosts
+  'IDXEntireListingDisplayYN',                          // Not on Trestle; real field is InternetEntireListingDisplayYN
+  'YearRenovated', 'BuyerAgentRLSParticipantYN',
+  'TotalShares', 'AnnualTaxes',
   'AvgMaint', 'MinIncome', 'MinCreditScore', 'MaxOccupants',
   'MaxSubletYears', 'SubletFee', 'MinDownPayment', 'DTIRatio', 'PostCloseLiquidity',
   'PetWeightLimit', 'PetNotes', 'PiedATerre',
@@ -596,6 +617,7 @@ const INTERNAL_ONLY_FIELDS = new Set([
 
   // Saved search
   'savedSearchName', 'savedSearchNotes',
+  'savedSearchClientId', 'savedSearchAlertFreq',
 
   // Client workspace filters
   'filterPicked', 'filterLiked', 'filterShown', 'filterDisliked',
@@ -615,6 +637,11 @@ const INTERNAL_ONLY_FIELDS = new Set([
 
   // ── Form UI controls (sale/rental) ──
   'PhotoSortOrder', 'CityDisplay',
+
+  // Search filter controls
+  'clientSearchInput',
+  'refineMinSqft', 'refineMaxSqft',
+  'refinePropertyType', 'refineNeighborhood',
 
   // ── Search neighborhood/map inputs ──
   'saleNeighborhoodInput', 'rentalNeighborhoodInput',
@@ -843,7 +870,7 @@ function main() {
   const output = {
     _meta: {
       generated: new Date().toISOString().split('T')[0],
-      source: 'generate-rls-bindings.js (expanded aliases + internal)',
+      source: 'audit-form-fields.js',
     },
     files: {},
     summary: { totalElements: 0, rlsBound: 0, internal: 0, unknown: 0 },

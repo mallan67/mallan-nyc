@@ -374,6 +374,14 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Staten Island",
     "area": "West Brighton, New Brighton"
   },
+  "10306": {
+    "neighborhood": "New Dorp",
+    "borough": "Staten Island",
+    "area": "New Dorp, Midland Beach",
+    "alternateNames": [
+      "Midland Beach"
+    ]
+  },
   "10314": {
     "neighborhood": "Todt Hill",
     "borough": "Staten Island",
@@ -596,10 +604,26 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "borough": "Brooklyn",
     "area": "Ocean Hill border"
   },
+  "11230": {
+    "neighborhood": "Midwood",
+    "borough": "Brooklyn",
+    "area": "Midwood, Ocean Avenue corridor",
+    "alternateNames": [
+      "Flatbush south"
+    ]
+  },
   "11236": {
     "neighborhood": "Canarsie",
     "borough": "Brooklyn",
     "area": "Canarsie, Bergen Beach"
+  },
+  "11237": {
+    "neighborhood": "Bushwick",
+    "borough": "Brooklyn",
+    "area": "Bushwick, East Williamsburg",
+    "alternateNames": [
+      "East Williamsburg"
+    ]
   },
   "11238": {
     "neighborhood": "Prospect Heights",
@@ -666,6 +690,14 @@ export const NYC_ZIP_MAP: Record<string, ZipEntry> = {
     "neighborhood": "Elmhurst",
     "borough": "Queens",
     "area": "Elmhurst"
+  },
+  "11374": {
+    "neighborhood": "Rego Park",
+    "borough": "Queens",
+    "area": "Rego Park",
+    "alternateNames": [
+      "Forest Hills west"
+    ]
   },
   "11375": {
     "neighborhood": "Forest Hills",

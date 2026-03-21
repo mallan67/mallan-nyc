@@ -6,8 +6,8 @@
 ---
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY RLS rules + RLS fields** — **RLS TRUMPS ALL.**
-> 3. **RLS overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -44,7 +44,7 @@ Key mandatory fields:
 - **Unit:** BathroomsFull, BathroomsHalf, BathroomsTotal, BedroomsTotal, RoomsTotal, PetsAllowed
 - **Agent:** ListAgentMlsId, BuyerAgentMlsId (at close)
 - **Status:** MlsStatus, OnMarketDate, ExpirationDate, ListPrice
-- **Display:** IDXEntireListingDisplayYN, InternetAddressDisplayYN, InternetAutomatedValuationDisplayYN, InternetConsumerCommentYN, InternetEntireListingDisplayYN, SyndicateYN
+- **Display:** InternetEntireListingDisplayYN *(also gates IDX — no separate IDX field on Trestle)*, InternetAddressDisplayYN, InternetAutomatedValuationDisplayYN, InternetConsumerCommentYN, SyndicateTo *(UCBA: SyndicateYN)*
 - **Description:** PublicRemarks, ShowingInstructions
 - **Compliance:** CoBrokeAgreement, ListingAgreement, Concessions
 
@@ -146,7 +146,8 @@ When `InternetEntireListingDisplayYN` is set to `False`, server MUST auto-set:
 
 ```javascript
 if (listing.InternetEntireListingDisplayYN === false) {
-  listing.IDXEntireListingDisplayYN = false;
+  // Note: IDXEntireListingDisplayYN is an internal name — does not exist on Trestle
+  listing.IDXEntireListingDisplayYN = false;  // internal cascade only
   listing.InternetAddressDisplayYN = false;
   listing.InternetAutomatedValuationDisplayYN = false;
   listing.InternetConsumerCommentYN = false;

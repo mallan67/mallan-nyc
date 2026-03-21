@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-03-19T22:11:54.716Z",
+  "total_trestle_fields": 1247,
+  "total_rebny_fields": 815,
+  "matched_top_level": 530,
+  "matched_custom_property": 95,
+  "matched_media": 29,
+  "matched_custom_fields": 0,
+  "matched_other": 0,
+  "unmapped": 161,
+  "coverage_pct": 80.2,
+  "warnings": [
+    "95 REBNY fields are in CustomProperty (requires $expand)",
+    "66 fields have <10% population rate"
+  ]
+}

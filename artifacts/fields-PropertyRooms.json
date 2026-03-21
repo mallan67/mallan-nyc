@@ -1,0 +1,240 @@
+{
+  "totalRecords": 75,
+  "totalFields": 39,
+  "fields": [
+    {
+      "field": "HumanModifiedYN",
+      "count": 75,
+      "pct": 100,
+      "sample": "false"
+    },
+    {
+      "field": "InputEntryOrder",
+      "count": 75,
+      "pct": 100,
+      "sample": "1"
+    },
+    {
+      "field": "InternetEntireListingDisplayYN",
+      "count": 75,
+      "pct": 100,
+      "sample": "true"
+    },
+    {
+      "field": "ListAOR",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "ListAgentKey",
+      "count": 75,
+      "pct": 100,
+      "sample": "25738634"
+    },
+    {
+      "field": "ListOfficeKey",
+      "count": 75,
+      "pct": 100,
+      "sample": "5955706"
+    },
+    {
+      "field": "ListOfficeMlsId",
+      "count": 75,
+      "pct": 100,
+      "sample": "38798"
+    },
+    {
+      "field": "ListingId",
+      "count": 75,
+      "pct": 100,
+      "sample": "RLS20010497"
+    },
+    {
+      "field": "ListingKey",
+      "count": 75,
+      "pct": 100,
+      "sample": "1108963564"
+    },
+    {
+      "field": "ListingKeyNumeric",
+      "count": 75,
+      "pct": 100,
+      "sample": "1108963564"
+    },
+    {
+      "field": "ListingPermission",
+      "count": 75,
+      "pct": 100,
+      "sample": "IDX"
+    },
+    {
+      "field": "ModificationTimestamp",
+      "count": 75,
+      "pct": 100,
+      "sample": "2026-01-12T19:23:05.663-00:00"
+    },
+    {
+      "field": "OffMarketDate",
+      "count": 72,
+      "pct": 96,
+      "sample": "2025-10-10"
+    },
+    {
+      "field": "OriginatingSystemListingKey",
+      "count": 75,
+      "pct": 100,
+      "sample": "30224482"
+    },
+    {
+      "field": "OriginatingSystemName",
+      "count": 75,
+      "pct": 100,
+      "sample": "RLS"
+    },
+    {
+      "field": "OriginatingSystemSubName",
+      "count": 75,
+      "pct": 100,
+      "sample": "RLS_REBNY"
+    },
+    {
+      "field": "Permission",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "PropertySubType",
+      "count": 75,
+      "pct": 100,
+      "sample": "Apartment"
+    },
+    {
+      "field": "PropertySubTypeAdditional",
+      "count": 10,
+      "pct": 13,
+      "sample": "Apartment"
+    },
+    {
+      "field": "PropertyType",
+      "count": 75,
+      "pct": 100,
+      "sample": "Residential"
+    },
+    {
+      "field": "RecordSignature",
+      "count": 75,
+      "pct": 100,
+      "sample": "-335958362"
+    },
+    {
+      "field": "RoomArea",
+      "count": 44,
+      "pct": 59,
+      "sample": "400"
+    },
+    {
+      "field": "RoomAreaSource",
+      "count": 44,
+      "pct": 59,
+      "sample": "Builder"
+    },
+    {
+      "field": "RoomAreaUnits",
+      "count": 44,
+      "pct": 59,
+      "sample": "SquareFeet"
+    },
+    {
+      "field": "RoomDescription",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomDimensions",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomFeatures",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomFlooring",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomKey",
+      "count": 75,
+      "pct": 100,
+      "sample": "1579365974"
+    },
+    {
+      "field": "RoomKeyNumeric",
+      "count": 75,
+      "pct": 100,
+      "sample": "1579365974"
+    },
+    {
+      "field": "RoomLength",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomLengthWidthSource",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomLengthWidthUnits",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomLevel",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "RoomType",
+      "count": 64,
+      "pct": 85,
+      "sample": "LivingRoom"
+    },
+    {
+      "field": "RoomWidth",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "SourceSystemID",
+      "count": 75,
+      "pct": 100,
+      "sample": "TRESTLE"
+    },
+    {
+      "field": "StandardStatus",
+      "count": 75,
+      "pct": 100,
+      "sample": "Closed"
+    },
+    {
+      "field": "SyndicateTo",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    }
+  ]
+}

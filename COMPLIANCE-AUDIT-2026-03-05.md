@@ -472,8 +472,8 @@ To fix the above, add to $select query:
 - `Permissions` (for owner opt-out determination)
 - `SyndicateYN` or verify `SyndicateTo` covers the use case
 
-### 4D. 448-Field Coverage
-`IDX_PLUS_SELECT_FIELDS` covers 363 of 448 fields. The 85 excluded are justified (gate pre-filters, $expand needed, not provisioned by IDX Plus feed).
+### 4D. IDX Plus Field Coverage
+`IDX_PLUS_SELECT_FIELDS` covers 273 of 527 Property fields in IDX Plus. The 85 excluded are justified (gate pre-filters, $expand needed, not provisioned by IDX Plus feed). Total REBNY IDX Plus: 902 fields across 7 resources.
 
 ---
 

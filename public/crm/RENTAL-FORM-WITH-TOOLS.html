@@ -4748,7 +4748,7 @@ function applyRentalRoleMasking() {
 
         document.querySelectorAll('.form-card-header').forEach(function(h) {
             var txt = h.textContent;
-            if (txt.includes('Showing') || txt.includes('Broker Remarks') || txt.includes('Agent Notes')) {
+            if (txt.includes('Showing') || txt.includes('Broker Remarks') || txt.includes('Agent Notes') || txt.includes('Listing URL')) {
                 h.closest('.form-card').classList.add('viewer-hidden');
             }
         });

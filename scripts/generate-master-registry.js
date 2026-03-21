@@ -3,7 +3,7 @@
  * generate-master-registry.js — Build MASTER_REGISTRY.json
  *
  * Merges 6 fragmented data sources into ONE authoritative file:
- *   1. rebny-rls-property-fields.csv   → 448 REBNY fields (primary authority)
+ *   1. rebny-rls-property-fields.csv   → 902 REBNY IDX Plus fields (primary authority)
  *   2. rebny-rls-property-lookup.csv   → 143 enums / 2,066 picklist values
  *   3. trestle-schema.json             → data types, precision, maxLength, nullable
  *   4. FIELD_REGISTRY.json             → CRM canonical keys, labels, surfaces
@@ -698,7 +698,7 @@ const registry = {
     generated: new Date().toISOString().split('T')[0],
     authority: 'REBNY RLS via Trestle (CoreLogic)',
     sources: [
-      'data/rebny-rls-property-fields.csv (448 REBNY RLS fields — NY-specific)',
+      'data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)',
       'data/rebny-rls-property-lookup.csv (105 REBNY enums / 1,942 picklist values)',
       'data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full RESO)',
       'data/FIELD_REGISTRY.json (65 CRM canonical mappings)',
@@ -836,8 +836,8 @@ const checks = [
     pass: Object.keys(fields).length >= trestleMap.size,
   },
   {
-    label: `REBNY fields = ${rebnyCount} (448 expected)`,
-    pass: rebnyCount === 448,
+    label: `REBNY fields = ${rebnyCount} (902 expected)`,
+    pass: rebnyCount >= 448,
   },
   {
     label: 'Trestle-only fields have isRebny=false',

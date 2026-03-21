@@ -7,8 +7,8 @@
 ---
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY RLS rules + RLS fields** — **RLS TRUMPS ALL.**
-> 3. **RLS overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -88,7 +88,7 @@ Layer 1 (`data-rls-field`) is the authoritative source. Layers 2-3 are fallbacks
 |--------|-------------|---------|
 | `scripts/validate-rls-compliance.js` | `npm run rls:validate` | Run full 10-section compliance check |
 | `scripts/test-rls-bindings.js` | `npm run test:rls` | Run 42 regression tests |
-| `scripts/generate-rls-bindings.js` | `npm run rls:generate` | Regenerate binding map from HTML files |
+| `scripts/audit-form-fields.js` | `npm run rls:generate` | Audit all form elements against RLS fields |
 | `scripts/inject-rls-attributes.js` | `npm run rls:inject` | Inject `data-rls-*` attributes into HTML |
 
 ### Workflow
@@ -121,7 +121,7 @@ node scripts/validate-rls-compliance.js --html
 | `data/rls-field-aliases.json` | Form element ID → RLS field name | 239 aliases |
 | `data/rls-internal-only.json` | Internal-only field identifiers | 491 entries |
 | `data/rls-crm-overlays.json` | CRM pipeline overlay values | 5 fields, 40 values |
-| `data/rebny-rls-property-fields.csv` | RLS field definitions (source of truth) | 448 fields |
+| `data/rebny-rls-property-fields.csv` | RLS field definitions (source of truth) | 902 IDX Plus fields |
 | `data/rebny-rls-property-lookup.csv` | Official REBNY picklist values | 2,066 values |
 
 ---

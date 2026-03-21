@@ -3,7 +3,7 @@
  *
  * COMPLIANCE NOTE:
  * Maps RESO Data Dictionary field names to our internal canonical representation.
- * All 448 REBNY RLS fields are covered. 23 RESO-to-RLS renames handled.
+ * 902 REBNY IDX Plus fields across 7 resources. 23 RESO-to-RLS renames handled.
  *
  * @see https://www.reso.org/data-dictionary/
  */

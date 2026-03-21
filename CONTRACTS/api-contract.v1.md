@@ -182,7 +182,7 @@ No tokens, API keys, or credentials should appear in HTML/JS source.
     "participant_only": false,
     "coming_soon_date": null
   },
-  "rls_fields": { "...448 mapped fields..." },
+  "rls_fields": { "...902 IDX Plus mapped fields..." },
   "created_at": "ISO8601",
   "updated_at": "ISO8601"
 }

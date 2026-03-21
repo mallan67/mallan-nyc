@@ -270,6 +270,19 @@
                 <button type="submit" id="submitBtn" class="submit-btn">Sign In</button>
             </form>
 
+            <!-- Dev bypass (localhost only) -->
+            <script>
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+              document.write('<div style="margin:16px 0"><button onclick="devLogin()" style="width:100%;padding:12px;background:#B8860B;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">Dev Login (Maya - Broker)</button></div>');
+            }
+            function devLogin() {
+              fetch('/api/auth/dev-login', { method: 'POST', credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(d) { if (d.success) window.location.href = '/crm/dashboard.html'; else alert(d.error); })
+                .catch(function(e) { alert('Dev login failed: ' + e.message); });
+            }
+            </script>
+
             <!-- OAuth -->
             <div class="divider"><span>or continue with</span></div>
             <div style="display:flex;gap:8px;">

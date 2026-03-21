@@ -14,7 +14,7 @@
 1. [UCBA 2026 — Core Rules](#1-ucba-2026--core-rules)
 2. [Listing Types & Status Lifecycle](#2-listing-types--status-lifecycle)
 3. [Mandatory Fields (Exhibit A)](#3-mandatory-fields-exhibit-a)
-4. [All 448 RLS Fields — 29 Categories](#4-all-448-rls-fields--29-categories)
+4. [All RLS Fields — 29 Categories](#4-all-rls-fields--29-categories)
 5. [Distribution Gates — What to Share vs. Not Share](#5-distribution-gates--what-to-share-vs-not-share)
 6. [IDX / VOW / Internet Display Rules](#6-idx--vow--internet-display-rules)
 7. [Content Restrictions — What Can NEVER Appear](#7-content-restrictions--what-can-never-appear)
@@ -257,7 +257,7 @@ DRAFT → COMING SOON (sales only, max 14 days)
 
 ---
 
-# 4. All 448 RLS Fields — 29 Categories
+# 4. All RLS Fields — 29 Categories
 
 > Full field details in `memory/REBNY-MASTER.md` (Parts B1–B29).
 > Below is the category summary with counts and key fields.
@@ -542,7 +542,7 @@ The Data Dictionary is organized: **Resources > Fields > Lookups (Enumerations)*
 
 | Resource | Primary Key | Description |
 |----------|------------|-------------|
-| **Property** | ListingKey | All listing data (448+ fields for REBNY) — the largest resource |
+| **Property** | ListingKey | All listing data (527 Property fields for REBNY IDX Plus) — the largest resource |
 | **Member** | MemberKey | Agent/broker records |
 | **Office** | OfficeKey | Brokerage office records |
 | **Media** | MediaKey | Photos, videos, documents |
@@ -1210,7 +1210,7 @@ Owner Opt-Out Form must include:
 
 ### Field Mapping
 - [ ] All 79 mandatory fields (I1–I79) mapped to RESO names
-- [ ] All 448 RLS fields categorized by distribution profile
+- [ ] All RLS fields categorized by distribution profile
 - [ ] Conditional fields validated (e.g., FurnishedListPrice if Furnished ≠ Unfurnished)
 - [ ] Street Dictionary validation for address fields
 - [ ] Borough/County matching validation

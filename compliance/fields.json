@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "source": "data/rebny-rls-property-fields.csv",
     "generated": "2026-02-22",
-    "totalFields": 448,
+    "totalFields": 902,
     "fieldAuthorityOrder": [
       "1. UCBA governs everything (contractual obligations, timing, statuses, agent conduct)",
       "2. REBNY RLS rules + RLS fields (permissions, timing, statuses, mapping, IDs, dissemination)",
@@ -2459,8 +2459,9 @@
       "authority": "RLS"
     },
     "IDXEntireListingDisplayYN": {
+      "_trestleNote": "This field does NOT exist on Trestle. Internal code name mapped to InternetEntireListingDisplayYN. Kept for backward compatibility with internal validation logic.",
       "reso": "IDXEntireListingDisplayYN",
-      "rls": "IDXEntireListingDisplayYN",
+      "rls": "InternetEntireListingDisplayYN",
       "description": "If this is True and the ListOfficeIDXParticipationYN is True, then the listing can be sent to an IDX website.",
       "required": "optional",
       "editable": true,
@@ -4472,8 +4473,9 @@
       "authority": "RLS"
     },
     "SyndicateYN": {
+      "_trestleNote": "UCBA references SyndicateYN as boolean. Trestle field is SyndicateTo (portal selection). Kept for backward compatibility with internal validation logic.",
       "reso": "SyndicateYN",
-      "rls": "SyndicateYN",
+      "rls": "SyndicateTo",
       "description": "Indicates whether a listing can be syndicated to approved data license portals. The Principal Broker, on behalf of the firm, are permitted to select the vendors they wish to opt-in to through the Trestle platform.",
       "required": "optional",
       "editable": true,

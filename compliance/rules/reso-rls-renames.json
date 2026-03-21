@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "23 fields where RESO name differs from RLS (Matrix) name. Always use the RLS name. RLS TRUMPS.",
+    "description": "23 fields where RESO name differs from RLS (Matrix) name. Always use the RLS name. REBNY IDX Plus is the authority.",
     "source": "data/rebny-rls-property-fields.csv",
     "version": "1.0.0",
     "updated": "2026-02-25",

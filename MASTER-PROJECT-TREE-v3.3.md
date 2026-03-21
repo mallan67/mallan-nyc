@@ -331,7 +331,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 ### Depends on: Phase 0 complete
 
 - [ ] **BLK D-01:** Canonical data model — 5 schemas + 1 financial ledger:
-  1. **Listing** — all 448 RLS fields, status state machine, distribution gates
+  1. **Listing** — all 902 IDX Plus fields, status state machine, distribution gates
   2. **Agent** — license, team, brokerage association, portal access
   3. **Client** (Lead) — dedupe, consent, source tracking, agent ownership
   4. **Deal** (Transaction) — listing link, parties, timeline, status
@@ -341,7 +341,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
   - [ ] D-01b: Consent timestamp on every client record (`consent_captured_at`) — required before storing/displaying PII
   - [ ] D-01c: `agent_id` foreign key on all client records (ownership enforcement)
   - [ ] D-01d: Client intake form as required build artifact (captures consent + contact + source)
-- [ ] **BLK D-02:** Database schema (PostgreSQL + Prisma) — all 448 RLS fields mapped
+- [ ] **BLK D-02:** Database schema (PostgreSQL + Prisma) — all 902 IDX Plus fields mapped
 - [ ] **BLK D-03:** Enum dictionary — all 1,993 REBNY lookup values normalized
 - [ ] **BLK D-04:** State machine schemas — listing lifecycle (17 states), deal pipeline, commission request (pending/approved/denied/paid)
 - [ ] **BLK D-05:** RBAC matrix — field-level visibility per portal type (broker sees all, agent sees own, buyer/renter sees masked listing agent)
@@ -524,7 +524,7 @@ This is an **existential system dependency**.
 |---|------|-------|--------|
 | 1 | Canonical data model finalized | 1 | [ ] |
 | 2 | Database schema deployed | 1 | [ ] |
-| 3 | All 448 RLS fields mapped | 1 | [ ] |
+| 3 | All 902 IDX Plus fields mapped | 1 | [ ] |
 | 4 | RBAC matrix enforced (6 portal types) | 2 | [ ] |
 | 5 | 6 login types working | 2 | [ ] |
 | 6 | Agent data isolation verified (row-level DB scope) | 2 | [ ] |
@@ -582,7 +582,7 @@ See full details in `compliance/MASTER-AUDIT-REPORT-v3.md`.
 | `MASTER-PROJECT-TREE-v3.3.md` | THIS file — roles, portals, progress, phases, go-live gates, enforcement |
 | `CLAUDE.md` | Project instructions for Claude Code agents |
 | `compliance/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes) |
-| `compliance/fields.json` | 448 RLS fields — machine-readable |
+| `compliance/fields.json` | 902 IDX Plus fields — machine-readable |
 | `compliance/lookups.json` | 114 picklists, 1,993 REBNY values |
 
 ---

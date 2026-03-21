@@ -1,0 +1,288 @@
+{
+  "totalRecords": 500,
+  "totalFields": 47,
+  "fields": [
+    {
+      "field": "AppointmentRequiredYN",
+      "count": 500,
+      "pct": 100,
+      "sample": "true"
+    },
+    {
+      "field": "HumanModifiedYN",
+      "count": 500,
+      "pct": 100,
+      "sample": "true"
+    },
+    {
+      "field": "InternetEntireListingDisplayYN",
+      "count": 500,
+      "pct": 100,
+      "sample": "false"
+    },
+    {
+      "field": "ListAOR",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "ListAgentKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "25215090"
+    },
+    {
+      "field": "ListOfficeKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "5658932"
+    },
+    {
+      "field": "ListOfficeMlsId",
+      "count": 500,
+      "pct": 100,
+      "sample": "7222"
+    },
+    {
+      "field": "ListingId",
+      "count": 500,
+      "pct": 100,
+      "sample": "RLS20073544"
+    },
+    {
+      "field": "ListingKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "1153504835"
+    },
+    {
+      "field": "ListingKeyNumeric",
+      "count": 500,
+      "pct": 100,
+      "sample": "1153504835"
+    },
+    {
+      "field": "ListingPermission",
+      "count": 449,
+      "pct": 90,
+      "sample": "IDX"
+    },
+    {
+      "field": "LivestreamOpenHouseURL",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "ModificationTimestamp",
+      "count": 500,
+      "pct": 100,
+      "sample": "2026-03-19T22:07:42.317-00:00"
+    },
+    {
+      "field": "OffMarketDate",
+      "count": 4,
+      "pct": 1,
+      "sample": "2026-03-19"
+    },
+    {
+      "field": "OpenHouseAttendedBy",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "OpenHouseDate",
+      "count": 500,
+      "pct": 100,
+      "sample": "2026-03-21"
+    },
+    {
+      "field": "OpenHouseEndTime",
+      "count": 500,
+      "pct": 100,
+      "sample": "2026-03-21T13:00:00.000-04:00"
+    },
+    {
+      "field": "OpenHouseId",
+      "count": 500,
+      "pct": 100,
+      "sample": "145444155"
+    },
+    {
+      "field": "OpenHouseKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "145444155"
+    },
+    {
+      "field": "OpenHouseKeyNumeric",
+      "count": 500,
+      "pct": 100,
+      "sample": "145444155"
+    },
+    {
+      "field": "OpenHouseRemarks",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "OpenHouseStartTime",
+      "count": 500,
+      "pct": 100,
+      "sample": "2026-03-21T12:00:00.000-04:00"
+    },
+    {
+      "field": "OpenHouseStatus",
+      "count": 500,
+      "pct": 100,
+      "sample": "Active"
+    },
+    {
+      "field": "OpenHouseType",
+      "count": 461,
+      "pct": 92,
+      "sample": "Public"
+    },
+    {
+      "field": "OriginalEntryTimestamp",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "OriginatingSystemID",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "OriginatingSystemKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "33657222"
+    },
+    {
+      "field": "OriginatingSystemListingKey",
+      "count": 500,
+      "pct": 100,
+      "sample": "33508843"
+    },
+    {
+      "field": "OriginatingSystemName",
+      "count": 500,
+      "pct": 100,
+      "sample": "RLS"
+    },
+    {
+      "field": "OriginatingSystemSubName",
+      "count": 500,
+      "pct": 100,
+      "sample": "RLS_REBNY"
+    },
+    {
+      "field": "Permission",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "PropertySubType",
+      "count": 500,
+      "pct": 100,
+      "sample": "Apartment"
+    },
+    {
+      "field": "PropertySubTypeAdditional",
+      "count": 443,
+      "pct": 89,
+      "sample": "Apartment"
+    },
+    {
+      "field": "PropertyType",
+      "count": 500,
+      "pct": 100,
+      "sample": "ResidentialLease"
+    },
+    {
+      "field": "RecordSignature",
+      "count": 500,
+      "pct": 100,
+      "sample": "-1933631483"
+    },
+    {
+      "field": "Refreshments",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "ShowingAgentFirstName",
+      "count": 461,
+      "pct": 92,
+      "sample": "Caterina"
+    },
+    {
+      "field": "ShowingAgentKey",
+      "count": 465,
+      "pct": 93,
+      "sample": "1247529"
+    },
+    {
+      "field": "ShowingAgentKeyNumeric",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "ShowingAgentLastName",
+      "count": 461,
+      "pct": 92,
+      "sample": "Smith"
+    },
+    {
+      "field": "ShowingAgentMlsID",
+      "count": 467,
+      "pct": 93,
+      "sample": "44116"
+    },
+    {
+      "field": "SourceSystemID",
+      "count": 500,
+      "pct": 100,
+      "sample": "TRESTLE"
+    },
+    {
+      "field": "SourceSystemKey",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "SourceSystemListingKey",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "SourceSystemName",
+      "count": 500,
+      "pct": 100,
+      "sample": "Compass"
+    },
+    {
+      "field": "StandardStatus",
+      "count": 500,
+      "pct": 100,
+      "sample": "Active"
+    },
+    {
+      "field": "SyndicateTo",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    }
+  ]
+}

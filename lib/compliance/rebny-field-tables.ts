@@ -1,7 +1,7 @@
 /**
  * REBNY_FIELD_TABLES — Single Canonical Field Authority
  *
- * Source of truth: data/rebny-rls-property-fields.csv (448 fields)
+ * Source of truth: data/rebny-rls-property-fields.csv (902 IDX Plus fields)
  *                  data/rebny-rls-property-lookup.csv (2,066 picklist values)
  *                  UCBA 2026 (January revision)
  *                  NAR Settlement (August 2024, effective August 2025)

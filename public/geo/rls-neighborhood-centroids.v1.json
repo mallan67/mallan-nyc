@@ -140,8 +140,8 @@
     "borough": "Brooklyn"
   },
   "Greenwich Village": {
-    "lng": -73.995523,
-    "lat": 40.729698,
+    "lng": -73.995129,
+    "lat": 40.729996,
     "borough": "Manhattan"
   },
   "Hamilton Heights": {
@@ -391,7 +391,7 @@
   },
   "Williamsburg": {
     "lng": -73.959829,
-    "lat": 40.715395,
+    "lat": 40.715394,
     "borough": "Brooklyn"
   },
   "Windsor Terrace": {

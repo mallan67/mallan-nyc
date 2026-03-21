@@ -7,7 +7,7 @@
       "RESO_FIELD_MAP in SEARCH-STANDALONE.html (70 mappings)",
       "gridColumnDefs in SEARCH-STANDALONE.html (80 columns)",
       "mockListings data shape (45 keys)",
-      "data/rebny-rls-property-fields.csv (448 REBNY fields)",
+      "data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)",
       "data/rebny-rls-property-lookup.csv (2,066 picklist values)"
     ]
   },

@@ -1,0 +1,318 @@
+{
+  "totalRecords": 1,
+  "totalFields": 52,
+  "fields": [
+    {
+      "field": "HumanModifiedYN",
+      "count": 1,
+      "pct": 100,
+      "sample": "false"
+    },
+    {
+      "field": "InputEntryOrder",
+      "count": 1,
+      "pct": 100,
+      "sample": "1"
+    },
+    {
+      "field": "InternetEntireListingDisplayYN",
+      "count": 1,
+      "pct": 100,
+      "sample": "true"
+    },
+    {
+      "field": "ListAOR",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "ListAgentKey",
+      "count": 1,
+      "pct": 100,
+      "sample": "25221348"
+    },
+    {
+      "field": "ListOfficeKey",
+      "count": 1,
+      "pct": 100,
+      "sample": "5658923"
+    },
+    {
+      "field": "ListOfficeMlsId",
+      "count": 1,
+      "pct": 100,
+      "sample": "1348"
+    },
+    {
+      "field": "ListingId",
+      "count": 1,
+      "pct": 100,
+      "sample": "RLS10998482"
+    },
+    {
+      "field": "ListingKey",
+      "count": 1,
+      "pct": 100,
+      "sample": "1092337071"
+    },
+    {
+      "field": "ListingKeyNumeric",
+      "count": 1,
+      "pct": 100,
+      "sample": "1092337071"
+    },
+    {
+      "field": "ListingPermission",
+      "count": 1,
+      "pct": 100,
+      "sample": "IDX"
+    },
+    {
+      "field": "ModificationTimestamp",
+      "count": 1,
+      "pct": 100,
+      "sample": "2025-03-05T00:56:43.247-00:00"
+    },
+    {
+      "field": "OffMarketDate",
+      "count": 1,
+      "pct": 100,
+      "sample": "2025-03-21"
+    },
+    {
+      "field": "OriginatingSystemListingKey",
+      "count": 1,
+      "pct": 100,
+      "sample": "3321767"
+    },
+    {
+      "field": "OriginatingSystemName",
+      "count": 1,
+      "pct": 100,
+      "sample": "RLS"
+    },
+    {
+      "field": "OriginatingSystemSubName",
+      "count": 1,
+      "pct": 100,
+      "sample": "RLS_REBNY"
+    },
+    {
+      "field": "Permission",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "PropertySubType",
+      "count": 1,
+      "pct": 100,
+      "sample": "Duplex"
+    },
+    {
+      "field": "PropertySubTypeAdditional",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "PropertyType",
+      "count": 1,
+      "pct": 100,
+      "sample": "ResidentialLease"
+    },
+    {
+      "field": "RecordSignature",
+      "count": 1,
+      "pct": 100,
+      "sample": "-568957415"
+    },
+    {
+      "field": "SourceSystemID",
+      "count": 1,
+      "pct": 100,
+      "sample": "TRESTLE"
+    },
+    {
+      "field": "StandardStatus",
+      "count": 1,
+      "pct": 100,
+      "sample": "Closed"
+    },
+    {
+      "field": "SyndicateTo",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeActualRent",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeActualRentRange",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeArea",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeAreaSource",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeAreaUnits",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeBathsTotal",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeBedsTotal",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeDeposit",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeDescription",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeFireplaceYN",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeFurnished",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeGarageAttachedYN",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeGarageSpaces",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeKey",
+      "count": 1,
+      "pct": 100,
+      "sample": "22369252"
+    },
+    {
+      "field": "UnitTypeKeyNumeric",
+      "count": 1,
+      "pct": 100,
+      "sample": "22369252"
+    },
+    {
+      "field": "UnitTypeLeaseExpires",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeLeasedYN",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeMonthToMonthYN",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeNumFullBaths",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeNumHalfBaths",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeOccupantType",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypePetDeposit",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypePetDepositPerPetYN",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeProForma",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeTotalRent",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeType",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeUnitNum",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    },
+    {
+      "field": "UnitTypeUnitsTotal",
+      "count": 0,
+      "pct": 0,
+      "sample": null
+    }
+  ]
+}

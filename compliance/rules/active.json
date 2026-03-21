@@ -32,7 +32,7 @@
   },
   "validator": {
     "script": "scripts/validate-rls-compliance.js",
-    "bindings": "scripts/generate-rls-bindings.js",
+    "bindings": "scripts/audit-form-fields.js",
     "injector": "scripts/inject-rls-attributes.js",
     "tests": "scripts/test-rls-bindings.js",
     "run": "npm run rls:validate",

@@ -28,7 +28,7 @@
 
 ---
 
-### MISSING HIGH-VALUE FIELDS FROM REBNY RLS (448 Total Fields)
+### MISSING HIGH-VALUE FIELDS FROM REBNY RLS (902 IDX Plus Fields)
 
 #### CRITICAL ADDITIONS FOR POWERFUL SEARCH
 
@@ -284,12 +284,11 @@ Based on REBNY RLS Data Rules, the following syndication fields exist:
 
 **Core Syndication Controls:**
 ```
-- SyndicateYN - Master syndication toggle
-- InternetEntireListingDisplayYN - Allow on any internet site
+- SyndicateTo - Master syndication toggle (UCBA: SyndicateYN — Trestle uses SyndicateTo for portal selection)
+- InternetEntireListingDisplayYN - Master internet display switch (also serves as IDX gate — no separate IDX field on Trestle)
 - InternetAddressDisplayYN - Show address online
 - InternetAutomatedValuationDisplayYN - Allow AVM display
 - InternetConsumerCommentYN - Allow comments/reviews
-- IDXEntireListingDisplayYN - Allow on IDX sites
 - ListOfficeIDXParticipationYN - Office participates in IDX
 ```
 
@@ -433,7 +432,7 @@ NYS MLS           Not Published [Publish]
 
 ---
 
-## PART 6: QUICK REFERENCE - ALL 448 REBNY RLS FIELDS BY CATEGORY
+## PART 6: QUICK REFERENCE - REBNY RLS FIELDS BY CATEGORY
 
 ### PROPERTY BASICS
 BedroomsTotal, BathroomsTotal, BathroomsFull, BathroomsHalf, BathroomsPartial, RoomsTotal, LegalRoomsTotal, ClosetsTotal, Stories, Levels, FloorNumber, UnitLine, UnitNumber
@@ -478,7 +477,7 @@ Concessions, ConcessionsAmount, ConcessionsComments, ConcessionsBuyerBrokerFee, 
 StandardStatus, MlsStatus, PreviousStatus, DevelopmentStatus, NewDevelopmentYN, NewConstructionYN, SponsorUnitYN, NewlyConvertedUnitYN
 
 ### SYNDICATION
-SyndicateYN, InternetEntireListingDisplayYN, InternetAddressDisplayYN, IDXEntireListingDisplayYN, ListOfficeIDXParticipationYN, Permissions
+SyndicateTo (UCBA: SyndicateYN), InternetEntireListingDisplayYN (also gates IDX), InternetAddressDisplayYN, ListOfficeIDXParticipationYN, Permissions
 
 ### LOCATION
 StreetNumber, StreetName, StreetSuffix, UnitNumber, City, CityRegion, CountyOrParish, PostalCode, StateOrProvince, SubdivisionName, TaxBlock, TaxLot, BuildingTaxLot, CrossStreet, Latitude, Longitude

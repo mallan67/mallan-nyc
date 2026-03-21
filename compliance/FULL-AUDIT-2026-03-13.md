@@ -217,7 +217,7 @@
 
 ### InternetEntireListingDisplayYN Cascade — PASS
 
-`rls-enforcement.ts:200-218` — enforces cascade of 4 fields (`IDXEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`) to False when master switch is False. BLOCKER on write.
+`rls-enforcement.ts:200-218` — enforces cascade of 3 Trestle fields (`InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`) plus internal `IDXEntireListingDisplayYN` *(not a Trestle field — internal code name)* to False when master switch is False. BLOCKER on write.
 
 ### Exhibit A Mandatory Fields (55/61 PASS)
 

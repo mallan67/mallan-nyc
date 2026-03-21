@@ -1,0 +1,3727 @@
+{
+  "AboveGradeFinishedArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AboveGradeFinishedAreaSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AboveGradeFinishedAreaUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AboveGradeUnfinishedArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AboveGradeUnfinishedAreaSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AboveGradeUnfinishedAreaUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AccessCode": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AccessibilityFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ActivationDate": {
+    "saleValue": "2026-03-19",
+    "rentValue": "2026-03-19",
+    "type": "string"
+  },
+  "AdditionalParcelsDescription": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AdditionalParcelsYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AnchorsCoTenants": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Appliances": {
+    "saleValue": "Dishwasher",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "ArchitecturalStyle": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationAmenities": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationFee": {
+    "saleValue": 4724,
+    "rentValue": 0,
+    "type": "number"
+  },
+  "AssociationFee2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationFee2Frequency": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationFee3": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationFee3Frequency": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationFeeFrequency": {
+    "saleValue": "Monthly",
+    "rentValue": "Monthly",
+    "type": "string"
+  },
+  "AssociationFeeIncludes": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationName2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationName3": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationPhone2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationPhone3": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AssociationYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AttachedGarageYN": {
+    "saleValue": false,
+    "rentValue": "null",
+    "type": "boolean"
+  },
+  "AttributionContact": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "AvailabilityDate": {
+    "saleValue": "null",
+    "rentValue": "2026-03-19",
+    "type": "string"
+  },
+  "AvailableLeaseType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BackOnMarketDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BackOnMarketTimestamp": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Basement": {
+    "saleValue": "null",
+    "rentValue": "Other",
+    "type": "string"
+  },
+  "BasementYN": {
+    "saleValue": false,
+    "rentValue": true,
+    "type": "boolean"
+  },
+  "BathroomsFull": {
+    "saleValue": 2,
+    "rentValue": 2,
+    "type": "number"
+  },
+  "BathroomsHalf": {
+    "saleValue": 1,
+    "rentValue": 0,
+    "type": "number"
+  },
+  "BathroomsOneQuarter": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BathroomsPartial": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BathroomsThreeQuarter": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BathroomsTotalInteger": {
+    "saleValue": 3,
+    "rentValue": 2,
+    "type": "number"
+  },
+  "BedroomsPossible": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BedroomsTotal": {
+    "saleValue": 3,
+    "rentValue": 1,
+    "type": "number"
+  },
+  "BelowGradeFinishedArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BelowGradeFinishedAreaSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BelowGradeFinishedAreaUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BelowGradeUnfinishedArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BelowGradeUnfinishedAreaSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BelowGradeUnfinishedAreaUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BodyType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuilderModel": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuilderName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuildingAreaSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuildingAreaTotal": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuildingAreaUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuildingFeatures": {
+    "saleValue": "Elevators",
+    "rentValue": "BikeStorage,Concierge,Elevators",
+    "type": "string"
+  },
+  "BuildingKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuildingName": {
+    "saleValue": "null",
+    "rentValue": "OLYMPIC TOWER",
+    "type": "string"
+  },
+  "BusinessName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BusinessType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentAOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentDesignation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentDirectPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentEmail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentFirstName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentFullName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentHomePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentLastName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentMiddleName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentMlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentMobilePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentNamePrefix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentNameSuffix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentOfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentPager": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentPreferredPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentPreferredPhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentStateLicense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentTollFreePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentURL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentVoiceMail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerAgentVoiceMailExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerBrokerageCompensation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerBrokerageCompensationType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerFinancing": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeAOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeEmail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeMlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerOfficeURL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerTeamKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerTeamKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "BuyerTeamName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CLIP": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CableTvExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CancellationDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CapRate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CarportSpaces": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CarportYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CarrierRoute": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "City": {
+    "saleValue": "New York City",
+    "rentValue": "New York City",
+    "type": "string"
+  },
+  "CityRegion": {
+    "saleValue": "Manhattan",
+    "rentValue": "Manhattan",
+    "type": "string"
+  },
+  "CloseDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ClosePrice": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentAOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentDesignation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentDirectPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentEmail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentFirstName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentFullName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentHomePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentLastName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentMiddleName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentMlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentMobilePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentNamePrefix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentNameSuffix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentOfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentPager": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentPreferredPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentPreferredPhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentStateLicense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentTollFreePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentURL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentVoiceMail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerAgentVoiceMailExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeAOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeEmail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeMlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoBuyerOfficeURL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2AOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2DirectPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2Email": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2FirstName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2FullName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2HomePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2Key": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2LastName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2MiddleName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2MlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2MobilePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2NationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2Nickname": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2OfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2PreferredPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2StateLicense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent2URL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3AOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3DirectPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3Email": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3FirstName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3FullName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3HomePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3Key": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3LastName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3MiddleName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3MlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3MobilePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3NationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3Nickname": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3OfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3PreferredPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3StateLicense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgent3URL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentAOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentDesignation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentDirectPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentEmail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentFirstName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentFullName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentHomePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentLastName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentMiddleName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentMlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentMobilePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentNamePrefix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentNameSuffix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentNickname": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentOfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentPager": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentPreferredPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentPreferredPhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentStateLicense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentTollFreePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentURL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentVoiceMail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListAgentVoiceMailExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOffice2AOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOffice2Email": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOffice2Key": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOffice2MlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOffice2Name": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOffice2Phone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOffice2URL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeAOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeEmail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeMlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CoListOfficeURL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CommonInterest": {
+    "saleValue": "StockCooperative",
+    "rentValue": "Condominium",
+    "type": "string"
+  },
+  "CommonWalls": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CommunityFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CompSaleYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CompensationComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionInPrice": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionInPriceType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Concessions": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionsAmount": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionsBuyerBrokerFee": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionsClosingCosts": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionsComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionsFinancingCosts": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionsOtherCosts": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConcessionsPropertyImprovementCosts": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ConstructionMaterials": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ContinentRegion": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Contingency": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ContingentDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ContractStatusChangeDate": {
+    "saleValue": "2026-03-19",
+    "rentValue": "2026-03-19",
+    "type": "string"
+  },
+  "Cooling": {
+    "saleValue": "Other",
+    "rentValue": "CentralAir",
+    "type": "string"
+  },
+  "CoolingYN": {
+    "saleValue": true,
+    "rentValue": true,
+    "type": "boolean"
+  },
+  "CopyrightNotice": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Country": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CountryRegion": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CountrySubdivision": {
+    "saleValue": "36061",
+    "rentValue": "36061",
+    "type": "string"
+  },
+  "CountyOrParish": {
+    "saleValue": "New York",
+    "rentValue": "New York",
+    "type": "string"
+  },
+  "CoveredSpaces": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CropsIncludedYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CrossStreet": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CultivatedArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CumulativeDaysOnMarket": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CurrentFinancing": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "CurrentPrice": {
+    "saleValue": 2495000,
+    "rentValue": 12000,
+    "type": "number"
+  },
+  "CurrentUse": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DOH1": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DOH2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DOH3": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DaysOnMarket": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DaysOnMarketReplication": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DaysOnMarketReplicationDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DaysOnMarketReplicationIncreasingYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DelayedMarketingDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DelayedMarketingYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DevelopmentStatus": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DirectionFaces": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Directions": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Disclaimer": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Disclosures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToBusComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToBusNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToBusUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToElectricComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToElectricNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToElectricUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToFreewayComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToFreewayNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToFreewayUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToGasComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToGasNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToGasUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToPhoneServiceComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToPhoneServiceNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToPhoneServiceUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToPlaceofWorshipComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToPlaceofWorshipNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToPlaceofWorshipUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSchoolBusComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSchoolBusNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSchoolBusUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSchoolsComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSchoolsNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSchoolsUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSewerComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSewerNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToSewerUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToShoppingComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToShoppingNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToShoppingUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToStreetComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToStreetNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToStreetUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToWaterComments": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToWaterNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DistanceToWaterUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DocumentsAvailable": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DocumentsChangeTimestamp": {
+    "saleValue": "2026-03-19T17:38:33.000-00:00",
+    "rentValue": "2026-03-19T17:03:29.000-00:00",
+    "type": "string"
+  },
+  "DocumentsCount": {
+    "saleValue": 1,
+    "rentValue": 1,
+    "type": "number"
+  },
+  "DoorFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "DualOrVariableRateCommissionYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Electric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ElectricExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ElectricOnPropertyYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ElementarySchool": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ElementarySchoolDistrict": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Elevation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ElevationUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "EntryLevel": {
+    "saleValue": 5,
+    "rentValue": 40,
+    "type": "number"
+  },
+  "EntryLocation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "EstimatedCloseDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Exclusions": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ExistingLeaseType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ExpirationDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Exposures": {
+    "saleValue": "North,West",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "ExteriorFeatures": {
+    "saleValue": "null",
+    "rentValue": "PrivateOutdoorSpaceUnder60Sqft",
+    "type": "string"
+  },
+  "FarmCreditServiceInclYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FarmLandAreaSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FarmLandAreaUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Fencing": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FhaEligibility": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FinancialDataSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FireplaceFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FireplaceYN": {
+    "saleValue": false,
+    "rentValue": false,
+    "type": "boolean"
+  },
+  "FireplacesTotal": {
+    "saleValue": 0,
+    "rentValue": "null",
+    "type": "number"
+  },
+  "Flooring": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FoundationArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FoundationDetails": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FrontageLength": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FrontageLengthRemarks": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FrontageLengthUnit": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FrontageType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "FuelExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Furnished": {
+    "saleValue": "Unfurnished",
+    "rentValue": "Unfurnished",
+    "type": "string"
+  },
+  "FurnitureReplacementExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GarageSpaces": {
+    "saleValue": "null",
+    "rentValue": 0,
+    "type": "number"
+  },
+  "GarageYN": {
+    "saleValue": false,
+    "rentValue": false,
+    "type": "boolean"
+  },
+  "GardenerExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GrazingPermitsBlmYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GrazingPermitsForestServiceYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GrazingPermitsPrivateYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenBuildingVerificationType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenEnergyEfficient": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenEnergyGeneration": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenIndoorAirQuality": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenLocation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenSustainability": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenVerificationYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GreenWaterConservation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GrossIncome": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "GrossScheduledIncome": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HabitableResidenceYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HeadBrokerMemberKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HeadBrokerMemberMlsId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Heating": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HeatingYN": {
+    "saleValue": false,
+    "rentValue": "null",
+    "type": "boolean"
+  },
+  "HighSchool": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HighSchoolDistrict": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HomeWarrantyYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HorseAmenities": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HorseYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HoursDaysOfOperation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HoursDaysOfOperationDescription": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "HumanModifiedYN": {
+    "saleValue": true,
+    "rentValue": true,
+    "type": "boolean"
+  },
+  "Inclusions": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "IncomeIncludes": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "InsuranceExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "InteriorFeatures": {
+    "saleValue": "HighCeilings",
+    "rentValue": "SeparateFormalDiningRoom",
+    "type": "string"
+  },
+  "InternetAddressDisplayYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "InternetAutomatedValuationDisplayYN": {
+    "saleValue": true,
+    "rentValue": true,
+    "type": "boolean"
+  },
+  "InternetConsumerCommentYN": {
+    "saleValue": true,
+    "rentValue": true,
+    "type": "boolean"
+  },
+  "InternetEntireListingDisplayYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "IrrigationSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "IrrigationWaterRightsAcres": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "IrrigationWaterRightsYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LaborInformation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LandLeaseAmount": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LandLeaseAmountFrequency": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LandLeaseExpirationDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LandLeaseYN": {
+    "saleValue": "null",
+    "rentValue": false,
+    "type": "boolean"
+  },
+  "Latitude": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LaundryFeatures": {
+    "saleValue": "CommonOnFloor,CommonArea,LaundryRoom,InUnit",
+    "rentValue": "BuildingOther",
+    "type": "string"
+  },
+  "LeasableArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeasableAreaUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseAmount": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseAmountFrequency": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseAssignableYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseConsideredYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseExpiration": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseRenewalCompensation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseRenewalOptionYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseTerm": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LeaseTermOptions": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Levels": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "License1": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "License2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "License3": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LicensesExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAOR": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentAOR": {
+    "saleValue": "RealEstateBoardOfNewYork",
+    "rentValue": "RealEstateBoardOfNewYork",
+    "type": "string"
+  },
+  "ListAgentDesignation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentDirectPhone": {
+    "saleValue": "(917) 363-7494",
+    "rentValue": "(917) 407-6295",
+    "type": "string"
+  },
+  "ListAgentEmail": {
+    "saleValue": "stacey.bradie@compass.com",
+    "rentValue": "shaskell@elliman.com",
+    "type": "string"
+  },
+  "ListAgentFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentFirstName": {
+    "saleValue": "Stacey",
+    "rentValue": "Sule",
+    "type": "string"
+  },
+  "ListAgentFullName": {
+    "saleValue": "Stacey Bradie",
+    "rentValue": "Sule Haskell",
+    "type": "string"
+  },
+  "ListAgentHomePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentKey": {
+    "saleValue": "25288712",
+    "rentValue": "25275981",
+    "type": "string"
+  },
+  "ListAgentKeyNumeric": {
+    "saleValue": 25288712,
+    "rentValue": 25275981,
+    "type": "number"
+  },
+  "ListAgentLastName": {
+    "saleValue": "Bradie",
+    "rentValue": "Haskell",
+    "type": "string"
+  },
+  "ListAgentMiddleName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentMlsId": {
+    "saleValue": "57144",
+    "rentValue": "33475",
+    "type": "string"
+  },
+  "ListAgentMobilePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentNamePrefix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentNameSuffix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentNickname": {
+    "saleValue": "Stacey",
+    "rentValue": "Sule",
+    "type": "string"
+  },
+  "ListAgentOfficePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentPager": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentPreferredPhone": {
+    "saleValue": "(917) 363-7494",
+    "rentValue": "(917) 407-6295",
+    "type": "string"
+  },
+  "ListAgentPreferredPhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentStateLicense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentTollFreePhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentURL": {
+    "saleValue": "https://www.compass.com/agents/stacey-bradie/?referrer=omnibox",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "ListAgentVoiceMail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListAgentVoiceMailExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListOfficeAOR": {
+    "saleValue": "RealEstateBoardOfNewYork",
+    "rentValue": "RealEstateBoardOfNewYork",
+    "type": "string"
+  },
+  "ListOfficeEmail": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListOfficeFax": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListOfficeKey": {
+    "saleValue": "5658932",
+    "rentValue": "5658911",
+    "type": "string"
+  },
+  "ListOfficeKeyNumeric": {
+    "saleValue": 5658932,
+    "rentValue": 5658911,
+    "type": "number"
+  },
+  "ListOfficeMlsId": {
+    "saleValue": "7222",
+    "rentValue": "51",
+    "type": "string"
+  },
+  "ListOfficeName": {
+    "saleValue": "Compass",
+    "rentValue": "Douglas Elliman Real Estate",
+    "type": "string"
+  },
+  "ListOfficeNationalAssociationId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListOfficePhone": {
+    "saleValue": "(212) 913-9058",
+    "rentValue": "(212) 891-7000",
+    "type": "string"
+  },
+  "ListOfficePhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListOfficeURL": {
+    "saleValue": "www.compass.com",
+    "rentValue": "www.elliman.com",
+    "type": "string"
+  },
+  "ListPrice": {
+    "saleValue": 2495000,
+    "rentValue": 12000,
+    "type": "number"
+  },
+  "ListPriceLow": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListTeamKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListTeamKeyNumeric": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListTeamName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListingAgreement": {
+    "saleValue": "ExclusiveAgency",
+    "rentValue": "ExclusiveAgency",
+    "type": "string"
+  },
+  "ListingContractDate": {
+    "saleValue": "2026-03-19",
+    "rentValue": "2026-03-19",
+    "type": "string"
+  },
+  "ListingId": {
+    "saleValue": "RLS20078311",
+    "rentValue": "RLS20078302",
+    "type": "string"
+  },
+  "ListingKey": {
+    "saleValue": "1155526743",
+    "rentValue": "1155523012",
+    "type": "string"
+  },
+  "ListingKeyNumeric": {
+    "saleValue": 1155526743,
+    "rentValue": 1155523012,
+    "type": "number"
+  },
+  "ListingService": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListingTerms": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ListingURL": {
+    "saleValue": "https://www.compass.com/listing/2064812980543847033/view",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "ListingURLDescription": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LivingArea": {
+    "saleValue": 0,
+    "rentValue": "null",
+    "type": "number"
+  },
+  "LivingAreaSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LivingAreaUnits": {
+    "saleValue": "SquareFeet",
+    "rentValue": "SquareFeet",
+    "type": "string"
+  },
+  "LockBoxLocation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LockBoxSerialNumber": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LockBoxType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Longitude": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LotDimensionsSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LotFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LotSizeAcres": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LotSizeArea": {
+    "saleValue": 0,
+    "rentValue": "null",
+    "type": "number"
+  },
+  "LotSizeDimensions": {
+    "saleValue": "123.830000x135.000000",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "LotSizeSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LotSizeSquareFeet": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "LotSizeUnits": {
+    "saleValue": "SquareFeet",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "MLSAreaMajor": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MLSAreaMinor": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MainLevelBathrooms": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MainLevelBedrooms": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MaintenanceExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MajorChangeTimestamp": {
+    "saleValue": "2026-03-19T17:35:07.000-00:00",
+    "rentValue": "2026-03-19T17:03:27.000-00:00",
+    "type": "string"
+  },
+  "MajorChangeType": {
+    "saleValue": "NewListing",
+    "rentValue": "NewListing",
+    "type": "string"
+  },
+  "Make": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ManagerExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MapCoordinate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MapCoordinateSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MapURL": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MaximumNumberOfPets": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MaximumPetWeight": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MiddleOrJuniorSchool": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MiddleOrJuniorSchoolDistrict": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MlsStatus": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MobileDimUnits": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MobileHomeRemainsYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MobileLength": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "MobileWidth": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Model": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ModificationTimestamp": {
+    "saleValue": "2026-03-19T21:38:57.180-00:00",
+    "rentValue": "2026-03-19T21:03:54.157-00:00",
+    "type": "string"
+  },
+  "MoveInCosts": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NetOperatingIncome": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NewConstructionYN": {
+    "saleValue": false,
+    "rentValue": false,
+    "type": "boolean"
+  },
+  "NewTaxesExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfBuildings": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfFullTimeEmployees": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfLots": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfPads": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfPartTimeEmployees": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfSeparateElectricMeters": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfSeparateGasMeters": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfSeparateWaterMeters": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfUnitsInCommunity": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfUnitsLeased": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfUnitsMoMo": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "NumberOfUnitsTotal": {
+    "saleValue": 80,
+    "rentValue": 225,
+    "type": "number"
+  },
+  "NumberOfUnitsVacant": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OccupantName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OccupantPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OccupantType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OffMarketDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OffMarketTimestamp": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OnMarketDate": {
+    "saleValue": "2026-03-19",
+    "rentValue": "2026-03-19",
+    "type": "string"
+  },
+  "OnMarketTimestamp": {
+    "saleValue": "2026-03-19T00:00:00.000-00:00",
+    "rentValue": "2026-03-19T00:00:00.000-00:00",
+    "type": "string"
+  },
+  "OngoingFees": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OpenHouseModificationTimestamp": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OpenParkingSpaces": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OpenParkingYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OperatingExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OperatingExpenseIncludes": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginalEntryTimestamp": {
+    "saleValue": "2026-03-19T17:35:07.000-00:00",
+    "rentValue": "2026-03-19T17:03:27.000-00:00",
+    "type": "string"
+  },
+  "OriginalListPrice": {
+    "saleValue": 2495000,
+    "rentValue": 12000,
+    "type": "number"
+  },
+  "OriginatingSystemBuyerAgentMemberKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemBuyerOfficeKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemBuyerTeamKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemCoBuyerAgentMemberKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemCoBuyerOfficeKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemCoListAgent2MemberKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemCoListAgent3MemberKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemCoListAgentMemberKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemCoListOffice2Key": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemCoListOfficeKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemID": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemKey": {
+    "saleValue": "33656922",
+    "rentValue": "33656698",
+    "type": "string"
+  },
+  "OriginatingSystemListAgentMemberKey": {
+    "saleValue": "1254950",
+    "rentValue": "1240507",
+    "type": "string"
+  },
+  "OriginatingSystemListOfficeKey": {
+    "saleValue": "1276674",
+    "rentValue": "1275394",
+    "type": "string"
+  },
+  "OriginatingSystemListTeamKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OriginatingSystemModificationTimestamp": {
+    "saleValue": "2026-03-19T17:38:33.120-00:00",
+    "rentValue": "2026-03-19T17:03:29.703-00:00",
+    "type": "string"
+  },
+  "OriginatingSystemName": {
+    "saleValue": "RLS",
+    "rentValue": "RLS",
+    "type": "string"
+  },
+  "OriginatingSystemSubName": {
+    "saleValue": "RLS_REBNY",
+    "rentValue": "RLS_REBNY",
+    "type": "string"
+  },
+  "OtherEquipment": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OtherExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OtherParking": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OtherStructures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OwnerName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OwnerName2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OwnerPays": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OwnerPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Ownership": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "OwnershipType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ParcelNumber": {
+    "saleValue": "1184-0019-00277-000-000005D",
+    "rentValue": "1287-1147",
+    "type": "string"
+  },
+  "ParcelSubcomponent": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ParkManagerName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ParkManagerPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ParkName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ParkingFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ParkingTotal": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PastureArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PatioAndPorchFeatures": {
+    "saleValue": "null",
+    "rentValue": "None",
+    "type": "string"
+  },
+  "PendingTimestamp": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Permission": {
+    "saleValue": "IDX",
+    "rentValue": "IDX",
+    "type": "string"
+  },
+  "PestControlExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PetDeposit": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PetsAllowed": {
+    "saleValue": "BuildingYes,CatsOk,DogsOk",
+    "rentValue": "BuildingCatsOk,BuildingYes,CatsOk,Yes",
+    "type": "string"
+  },
+  "PetsAllowedYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PetsComments": {
+    "saleValue": ",",
+    "rentValue": "Allowed,Building Pets Allowed Comments:Service Dog",
+    "type": "string"
+  },
+  "PhotosChangeTimestamp": {
+    "saleValue": "2026-03-19T21:40:07.563-00:00",
+    "rentValue": "2026-03-19T21:33:10.747-00:00",
+    "type": "string"
+  },
+  "PhotosCount": {
+    "saleValue": 15,
+    "rentValue": 14,
+    "type": "number"
+  },
+  "PoolExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PoolFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PoolPrivateYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Possession": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PossibleUse": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PostalCity": {
+    "saleValue": "New York",
+    "rentValue": "New York",
+    "type": "string"
+  },
+  "PostalCode": {
+    "saleValue": "10023",
+    "rentValue": "10022",
+    "type": "string"
+  },
+  "PostalCodePlus4": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PowerProductionType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PowerProductionYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PreviousListPrice": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PreviousStandardStatus": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PriceChangeTimestamp": {
+    "saleValue": "2026-03-19T17:35:07.000-00:00",
+    "rentValue": "2026-03-19T17:03:27.000-00:00",
+    "type": "string"
+  },
+  "PrivateOfficeRemarks": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PrivateRemarks": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ProfessionalManagementExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PropertyAttachedYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PropertyCondition": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PropertySubType": {
+    "saleValue": "Apartment",
+    "rentValue": "Apartment",
+    "type": "string"
+  },
+  "PropertySubTypeAdditional": {
+    "saleValue": "Apartment",
+    "rentValue": "Apartment",
+    "type": "string"
+  },
+  "PropertyType": {
+    "saleValue": "Residential",
+    "rentValue": "ResidentialLease",
+    "type": "string"
+  },
+  "PublicRemarks": {
+    "saleValue": "Located in the heart of the Upper West Side, this expansive three bedroom reside...",
+    "rentValue": "<p>Majestic views surround you from the 40th Floor of the prestigious Olympic To...",
+    "type": "string"
+  },
+  "PublicSurveyRange": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PublicSurveySection": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PublicSurveyTownship": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "PurchaseContractDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RVParkingDimensions": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RangeArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RecordSignature": {
+    "saleValue": 2137715388,
+    "rentValue": 1811149228,
+    "type": "number"
+  },
+  "RentControlYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RentIncludes": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RoadFrontageType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RoadResponsibility": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RoadSurfaceType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Roof": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RoomType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "RoomsTotal": {
+    "saleValue": 6,
+    "rentValue": 4,
+    "type": "number"
+  },
+  "SaleOrLeaseIndicator": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SeatingCapacity": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SecurityDeposit": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SecurityFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SellerConsiderConcessionYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SeniorCommunityYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SerialU": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SerialX": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SerialXX": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Sewer": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingAdvanceNotice": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingAttendedYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingConsiderations": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingContactName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingContactPhone": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingContactPhoneExt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingContactType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingDays": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingEndTime": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingInstructions": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingRequirements": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingServiceName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ShowingStartTime": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SignOnPropertyYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Skirt": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SourceSystemID": {
+    "saleValue": "TRESTLE",
+    "rentValue": "TRESTLE",
+    "type": "string"
+  },
+  "SourceSystemKey": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SourceSystemName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SpaFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SpaYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SpecialLicenses": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SpecialListingConditions": {
+    "saleValue": "Standard",
+    "rentValue": "Standard",
+    "type": "string"
+  },
+  "StandardStatus": {
+    "saleValue": "Active",
+    "rentValue": "Active",
+    "type": "string"
+  },
+  "StartShowingDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "StateOrProvince": {
+    "saleValue": "NY",
+    "rentValue": "NY",
+    "type": "string"
+  },
+  "StateRegion": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "StatusChangeTimestamp": {
+    "saleValue": "2026-03-19T17:35:07.000-00:00",
+    "rentValue": "2026-03-19T17:03:27.000-00:00",
+    "type": "string"
+  },
+  "Stories": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "StoriesTotal": {
+    "saleValue": 15,
+    "rentValue": 52,
+    "type": "number"
+  },
+  "StreetAdditionalInfo": {
+    "saleValue": "null",
+    "rentValue": "40",
+    "type": "string"
+  },
+  "StreetDirPrefix": {
+    "saleValue": "W",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "StreetDirSuffix": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "StreetName": {
+    "saleValue": "End",
+    "rentValue": "5TH",
+    "type": "string"
+  },
+  "StreetNumber": {
+    "saleValue": "277",
+    "rentValue": "641",
+    "type": "string"
+  },
+  "StreetNumberNumeric": {
+    "saleValue": 277,
+    "rentValue": 641,
+    "type": "number"
+  },
+  "StreetSuffix": {
+    "saleValue": "Avenue",
+    "rentValue": "Avenue",
+    "type": "string"
+  },
+  "StreetSuffixModifier": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "StructureType": {
+    "saleValue": "MultiFamily",
+    "rentValue": "HighRise",
+    "type": "string"
+  },
+  "SubAgencyCompensation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SubAgencyCompensationType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SubdivisionName": {
+    "saleValue": "Upper West Side",
+    "rentValue": "Midtown East",
+    "type": "string"
+  },
+  "SuppliesExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SyndicateTo": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "SyndicationRemarks": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxAnnualAmount": {
+    "saleValue": 0,
+    "rentValue": "null",
+    "type": "number"
+  },
+  "TaxAssessedValue": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxBlock": {
+    "saleValue": "01184",
+    "rentValue": "01287",
+    "type": "string"
+  },
+  "TaxBookNumber": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxLegalDescription": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxLot": {
+    "saleValue": "0019",
+    "rentValue": "7501",
+    "type": "string"
+  },
+  "TaxMapNumber": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxOtherAnnualAssessmentAmount": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxParcelLetter": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxStatusCurrent": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxTract": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TaxYear": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TenantPays": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TenantPaysDescription": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Topography": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TotalActualRent": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Township": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TransactionBrokerCompensation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TransactionBrokerCompensationType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "TrashExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "UnitNumber": {
+    "saleValue": "5D",
+    "rentValue": "40C",
+    "type": "string"
+  },
+  "UnitTypeType": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "UnitsFurnished": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "UniversalParcelId": {
+    "saleValue": "urn:reso:upi:2.0:US:36061:1184-0019-00277-000-000005D",
+    "rentValue": "urn:reso:upi:2.0:US:36061:1287-1147",
+    "type": "string"
+  },
+  "UniversalPropertyId": {
+    "saleValue": "US-36061-N-1184001900277000000005D-R-N",
+    "rentValue": "US-36061-N-12871147-R-N",
+    "type": "string"
+  },
+  "UniversalPropertySubId": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "UnparsedAddress": {
+    "saleValue": "277 W End Avenue 5D",
+    "rentValue": "641 5TH Avenue 40C",
+    "type": "string"
+  },
+  "Utilities": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "UtilitiesExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "VacancyAllowance": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "VacancyAllowanceRate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Vegetation": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "VideosChangeTimestamp": {
+    "saleValue": "2026-03-19T21:40:07.563-00:00",
+    "rentValue": "2026-03-19T21:33:10.747-00:00",
+    "type": "string"
+  },
+  "VideosCount": {
+    "saleValue": 0,
+    "rentValue": 0,
+    "type": "number"
+  },
+  "View": {
+    "saleValue": "null",
+    "rentValue": "CityLights,City,Panoramic",
+    "type": "string"
+  },
+  "ViewYN": {
+    "saleValue": false,
+    "rentValue": true,
+    "type": "boolean"
+  },
+  "VirtualTourURLBranded": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "VirtualTourURLBranded2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "VirtualTourURLBranded3": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "VirtualTourURLUnbranded": {
+    "saleValue": "https://vimeo.com/1175148408?share=copy&fl=sv&fe=ci",
+    "rentValue": "null",
+    "type": "string"
+  },
+  "VirtualTourURLUnbranded2": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "VirtualTourURLUnbranded3": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WalkScore": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WaterBodyName": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WaterHeater": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WaterSewerExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WaterSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WaterfrontFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WaterfrontYN": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WindowFeatures": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WithdrawnDate": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WoodedArea": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "WorkmansCompensationExpense": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "X_GeocodeSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "YearBuilt": {
+    "saleValue": 1926,
+    "rentValue": 1975,
+    "type": "number"
+  },
+  "YearBuiltDetails": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "YearBuiltEffective": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "YearBuiltSource": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "YearEstablished": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "YearsCurrentOwner": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "Zoning": {
+    "saleValue": "null",
+    "rentValue": "null",
+    "type": "object"
+  },
+  "ZoningDescription": {
+    "saleValue": "null",
+    "rentValue": "RC",
+    "type": "string"
+  }
+}

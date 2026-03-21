@@ -4,7 +4,7 @@
         // Reference: Trestle/CoreLogic Property entity (REBNY RLS)
         //
         // VERIFIED 2026-02-19 against:
-        //   data/rebny-rls-property-fields.csv (448 REBNY RLS fields)
+        //   data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)
         //   data/trestle-dictionary/property-fields.csv (744 Trestle fields)
         //   data/trestle-excel/02_PROPERTY.csv
         //

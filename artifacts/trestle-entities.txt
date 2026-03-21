@@ -1,0 +1,17 @@
+Building
+CustomProperty
+DataSystem
+Enumeration
+Field
+Lookup
+Media
+Member
+Model
+Office
+OpenHouse
+Property
+PropertyGreenVerification
+PropertyRooms
+PropertyUnitTypes
+TeamMembers
+Teams

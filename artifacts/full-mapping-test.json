@@ -1,0 +1,7226 @@
+{
+  "timestamp": "2026-03-20T12:21:59.466Z",
+  "source": "api.cotality.com/trestle (live)",
+  "totalRebnyFields": 902,
+  "totalFound": 902,
+  "totalNotFound": 0,
+  "coveragePct": 100,
+  "results": [
+    {
+      "rebnyField": "AboveGradeFinishedArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeFinishedAreaSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeFinishedAreaUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeUnfinishedArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeUnfinishedAreaSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeUnfinishedAreaUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AccessibilityFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ActivationDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20",
+      "type": "string"
+    },
+    {
+      "rebnyField": "AdditionalParcelsDescription",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AdditionalParcelsYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AnchorsCoTenants",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Appliances",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "WasherDryerAllowed",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ArchitecturalStyle",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Loft",
+      "type": "string"
+    },
+    {
+      "rebnyField": "AssociationAmenities",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationFee",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "549",
+      "type": "number"
+    },
+    {
+      "rebnyField": "AssociationFee2",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationFee2Frequency",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationFee3",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationFee3Frequency",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationFeeFrequency",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Monthly",
+      "type": "string"
+    },
+    {
+      "rebnyField": "AssociationFeeIncludes",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationName2",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationName3",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationPhone2",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationPhone3",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "AttachedGarageYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AttributionContact",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AvailabilityDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-04-01",
+      "type": "string"
+    },
+    {
+      "rebnyField": "AvailableLeaseType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BackOnMarketDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BackOnMarketTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Basement",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Other",
+      "type": "string"
+    },
+    {
+      "rebnyField": "BasementYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "BathroomsFull",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1",
+      "type": "number"
+    },
+    {
+      "rebnyField": "BathroomsHalf",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0",
+      "type": "number"
+    },
+    {
+      "rebnyField": "BathroomsOneQuarter",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BathroomsPartial",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BathroomsThreeQuarter",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BathroomsTotalInteger",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1",
+      "type": "number"
+    },
+    {
+      "rebnyField": "BedroomsPossible",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BedroomsTotal",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1",
+      "type": "number"
+    },
+    {
+      "rebnyField": "BelowGradeFinishedArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeFinishedAreaSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeFinishedAreaUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeUnfinishedArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeUnfinishedAreaSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeUnfinishedAreaUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BodyType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuilderModel",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuilderName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuildingAreaSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuildingAreaTotal",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0",
+      "type": "number"
+    },
+    {
+      "rebnyField": "BuildingAreaUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "SquareFeet",
+      "type": "string"
+    },
+    {
+      "rebnyField": "BuildingFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Elevators",
+      "type": "string"
+    },
+    {
+      "rebnyField": "BuildingName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "The Welz",
+      "type": "string"
+    },
+    {
+      "rebnyField": "BusinessName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BusinessType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuyerAgentKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuyerAgentMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuyerFinancing",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuyerOfficeKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuyerOfficeMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuyerTeamKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CableTvExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CapRate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CarportSpaces",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CarportYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CarrierRoute",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "City",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "New York City",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CityRegion",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Brooklyn",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CLIP",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CloseDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ClosePrice",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoBuyerAgentKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoBuyerAgentMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoBuyerOfficeKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoBuyerOfficeMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent2AOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2DirectPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(847) 409-7350",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2Email",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "albi.zhubi@corcoran.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2FirstName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Albiona",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2FullName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Albiona Zhubi",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2HomePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent2Key",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "25260490",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2LastName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Zhubi",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2MiddleName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent2MlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "75076",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2MobilePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(847) 409-7350",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2NationalAssociationId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent2Nickname",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Albi",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2OfficePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent2PreferredPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(847) 409-7350",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2StateLicense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "10401272499",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent2URL",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent3AOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3DirectPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(646) 269-5927",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3Email",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "dario.nolfi@corcoran.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3FirstName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Dario",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3FullName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Dario Nolfi",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3HomePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent3Key",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "25260231",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3LastName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Nolfi",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3MiddleName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent3MlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "71020",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3MobilePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(646) 269-5927",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3NationalAssociationId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent3Nickname",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Dario",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3OfficePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgent3PreferredPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(646) 269-5927",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3StateLicense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "10401279740",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgent3URL",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentAOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentDesignation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentDirectPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(917) 685-3231",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentEmail",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "sarah.shuken@corcoran.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentFax",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentFirstName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Sarah",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentFullName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Sarah Deidre Shuken",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "25268811",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentKeyNumeric",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "25268811",
+      "type": "number"
+    },
+    {
+      "rebnyField": "CoListAgentLastName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Shuken",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentMiddleName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Deidre",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "52727",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentNamePrefix",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentNameSuffix",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentNationalAssociationId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentNickname",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Sarah",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentOfficePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentOfficePhoneExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentPager",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentPreferredPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(917) 685-3231",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListAgentPreferredPhoneExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentTollFreePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentVoiceMail",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListAgentVoiceMailExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListOffice2AOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOffice2Email",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListOffice2Key",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "5658936",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOffice2MlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "334",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOffice2Name",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Corcoran Group",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOffice2Phone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(212) 355-3550",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOffice2URL",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "https://www.corcoran.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOfficeAOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOfficeEmail",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListOfficeFax",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListOfficeKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "5658936",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOfficeKeyNumeric",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "5658936",
+      "type": "number"
+    },
+    {
+      "rebnyField": "CoListOfficeMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "334",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOfficeName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Corcoran Group",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOfficePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(212) 355-3550",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoListOfficePhoneExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CoListOfficeURL",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "https://www.corcoran.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CommonInterest",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "None",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CommonWalls",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CommunityFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CompSaleYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ConstructionMaterials",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ContinentRegion",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Contingency",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ContingentDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ContractStatusChangeDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20",
+      "type": "string"
+    },
+    {
+      "rebnyField": "Cooling",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Other",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoolingYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "CountrySubdivision",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "36047",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CountyOrParish",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Kings",
+      "type": "string"
+    },
+    {
+      "rebnyField": "CoveredSpaces",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CrossStreet",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CurrentFinancing",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CurrentPrice",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "3820",
+      "type": "number"
+    },
+    {
+      "rebnyField": "CurrentUse",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DelayedMarketingDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DelayedMarketingYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DevelopmentStatus",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DirectionFaces",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Directions",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Disclaimer",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DocumentsAvailable",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DocumentsChangeTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T07:33:50.000-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "DocumentsCount",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0",
+      "type": "number"
+    },
+    {
+      "rebnyField": "DOH1",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DOH2",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DOH3",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "DoorFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Electric",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ElectricExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ElectricOnPropertyYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ElementarySchool",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ElementarySchoolDistrict",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Elevation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ElevationUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "EntryLevel",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2",
+      "type": "number"
+    },
+    {
+      "rebnyField": "EntryLocation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "EstimatedCloseDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Exclusions",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ExistingLeaseType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Exposures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "North,South,West",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ExteriorFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "BuildingRoofDeck,PrivateOutdoorSpaceOver60Sqft",
+      "type": "string"
+    },
+    {
+      "rebnyField": "Fencing",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FhaEligibility",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FinancialDataSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FireplaceFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Decorative,Library",
+      "type": "string"
+    },
+    {
+      "rebnyField": "FireplacesTotal",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "4",
+      "type": "number"
+    },
+    {
+      "rebnyField": "FireplaceYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "Flooring",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FoundationArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FoundationDetails",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FrontageLength",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FrontageLengthRemarks",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FrontageLengthUnit",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FrontageType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FuelExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Furnished",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Unfurnished",
+      "type": "string"
+    },
+    {
+      "rebnyField": "FurnitureReplacementExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GarageSpaces",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0",
+      "type": "number"
+    },
+    {
+      "rebnyField": "GarageYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "GardenerExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenBuildingVerificationType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenEnergyEfficient",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenEnergyGeneration",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenIndoorAirQuality",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenLocation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenSustainability",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenVerificationYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GreenWaterConservation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GrossIncome",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GrossScheduledIncome",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HabitableResidenceYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Heating",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HeatingYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HighSchool",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HighSchoolDistrict",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HomeWarrantyYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HoursDaysOfOperation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HoursDaysOfOperationDescription",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HumanModifiedYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "Inclusions",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "IncomeIncludes",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "InsuranceExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "InteriorFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "DiningArea",
+      "type": "string"
+    },
+    {
+      "rebnyField": "InternetAutomatedValuationDisplayYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "InternetConsumerCommentYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "LaborInformation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LandLeaseAmount",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LandLeaseAmountFrequency",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LandLeaseExpirationDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LandLeaseYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "LaundryFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "InUnit",
+      "type": "string"
+    },
+    {
+      "rebnyField": "LeasableArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeasableAreaUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseAmount",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseAmountFrequency",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseAssignableYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseConsideredYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseRenewalOptionYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseTerm",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseTermOptions",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Levels",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "License1",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "License2",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "License3",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LicensesExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentAOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentDesignation",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentDirectPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(917) 373-0862",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentEmail",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "acaro@abode-nyc.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentFax",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentFirstName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "ABRAHAM",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentFullName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "ABRAHAM CARO",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "25263190",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentKeyNumeric",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "25263190",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ListAgentLastName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "CARO",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentMiddleName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Lee",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "52990",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentNamePrefix",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentNameSuffix",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentNationalAssociationId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentNickname",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Abe Caro",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentOfficePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentOfficePhoneExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentPager",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentPreferredPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(917) 373-0862",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentPreferredPhoneExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentTollFreePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentURL",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Serhant.com/agents/tonya-canady",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAgentVoiceMail",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAgentVoiceMailExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListingAgreement",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "ExclusiveAgency",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingContractDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RLS20078381",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingKeyNumeric",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1155549234",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ListingService",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListingTerms",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListingURL",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "https://www.abode-nyc.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingURLDescription",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListOfficeAOR",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeEmail",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListOfficeFax",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListOfficeKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "5665835",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeKeyNumeric",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "5665835",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ListOfficeMlsId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "8253",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Abode Residential LLC",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeNationalAssociationId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListOfficePhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "(631) 431-3659",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficePhoneExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListOfficeURL",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "www.abode-nyc.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListPrice",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "3820",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ListPriceLow",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListTeamKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListTeamName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LivingArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "977",
+      "type": "number"
+    },
+    {
+      "rebnyField": "LivingAreaSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LivingAreaUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "SquareFeet",
+      "type": "string"
+    },
+    {
+      "rebnyField": "LotDimensionsSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeAcres",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0",
+      "type": "number"
+    },
+    {
+      "rebnyField": "LotSizeDimensions",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0.0 x 0.0",
+      "type": "string"
+    },
+    {
+      "rebnyField": "LotSizeSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeSquareFeet",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeUnits",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "SquareFeet",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MainLevelBathrooms",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MainLevelBedrooms",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MaintenanceExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MajorChangeType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "NewListing",
+      "type": "string"
+    },
+    {
+      "rebnyField": "Make",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ManagerExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MaximumNumberOfPets",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MaximumPetWeight",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MiddleOrJuniorSchool",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MiddleOrJuniorSchoolDistrict",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ModificationTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T11:33:56.480-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MoveInCosts",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NetOperatingIncome",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NewConstructionYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "NewTaxesExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfBuildings",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfFullTimeEmployees",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfLots",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfPads",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfPartTimeEmployees",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfSeparateElectricMeters",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfSeparateGasMeters",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfSeparateWaterMeters",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfUnitsInCommunity",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfUnitsLeased",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfUnitsMoMo",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfUnitsTotal",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "162",
+      "type": "number"
+    },
+    {
+      "rebnyField": "NumberOfUnitsVacant",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OffMarketDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OffMarketTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OngoingFees",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OnMarketDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OnMarketTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T00:00:00.000-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OpenHouseModificationTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OpenParkingSpaces",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OpenParkingYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OperatingExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OperatingExpenseIncludes",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginalEntryTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T07:33:25.000-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginalListPrice",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "3820",
+      "type": "number"
+    },
+    {
+      "rebnyField": "OriginatingSystemBuyerTeamKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemCoListAgent2MemberKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1264343",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemCoListAgent3MemberKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1262116",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemCoListAgentMemberKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1252311",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemCoListOffice2Key",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemCoListOfficeKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1276887",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemID",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "33659608",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemListAgentMemberKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1293961",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemListOfficeKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "1277834",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemListTeamKey",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemModificationTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T07:33:50.143-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemSubName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "RLS_REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OtherEquipment",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OtherExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OtherParking",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OtherStructures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OwnerPays",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Ownership",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OwnershipType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ParcelNumber",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "03071-0040",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ParcelSubcomponent",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ParkingFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ParkingTotal",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ParkManagerName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ParkManagerPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ParkName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PatioAndPorchFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Terrace",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PendingTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Permission",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "IDX",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PestControlExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PetDeposit",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PetsAllowed",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "BuildingYes,Yes",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PetsAllowedYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PetsComments",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": ",",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PhotosChangeTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T11:37:51.007-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PhotosCount",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "10",
+      "type": "number"
+    },
+    {
+      "rebnyField": "PoolExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PoolFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PoolPrivateYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Possession",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PossibleUse",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PostalCity",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Kings",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PostalCode",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "11206",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PostalCodePlus4",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PowerProductionType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PowerProductionYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PreviousListPrice",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PriceChangeTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T07:33:25.000-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ProfessionalManagementExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PropertyAttachedYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PropertySubType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Apartment",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertySubTypeAdditional",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Apartment",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertyType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "ResidentialLease",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PublicRemarks",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Welcome to The Welz, a brand-new 19-story luxury tower in the heart of East Williamsburg. Offering modern, light-filled residences with sweeping Manha",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PublicSurveySection",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PublicSurveyTownship",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PurchaseContractDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "RecordSignature",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "511199238",
+      "type": "number"
+    },
+    {
+      "rebnyField": "RentControlYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "RentIncludes",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "RoadFrontageType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "RoadResponsibility",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "RoadSurfaceType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Roof",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "RoomsTotal",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "3",
+      "type": "number"
+    },
+    {
+      "rebnyField": "RoomType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SaleOrLeaseIndicator",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SeatingCapacity",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SecurityDeposit",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SecurityFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SeniorCommunityYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SerialU",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SerialX",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SerialXX",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Sewer",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ShowingContactName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ShowingContactPhone",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ShowingContactPhoneExt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ShowingContactType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SignOnPropertyYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Skirt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SourceSystemID",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "TRESTLE",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SpaFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SpaYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SpecialLicenses",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SpecialListingConditions",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Standard",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StandardStatus",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Active",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StartShowingDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StateOrProvince",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "NY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StateRegion",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StatusChangeTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T07:33:25.000-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "Stories",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StoriesTotal",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "19",
+      "type": "number"
+    },
+    {
+      "rebnyField": "StreetAdditionalInfo",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StreetDirPrefix",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "W",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StreetDirSuffix",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StreetName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Boerum",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StreetNumber",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "159",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StreetNumberNumeric",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "159",
+      "type": "number"
+    },
+    {
+      "rebnyField": "StreetSuffix",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Street",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StreetSuffixModifier",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StructureType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "HighRise",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SubdivisionName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Williamsburg",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SuppliesExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SyndicateTo",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxAnnualAmount",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxAssessedValue",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxBlock",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "03071",
+      "type": "string"
+    },
+    {
+      "rebnyField": "TaxBookNumber",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxLegalDescription",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxLot",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0040",
+      "type": "string"
+    },
+    {
+      "rebnyField": "TaxMapNumber",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxOtherAnnualAssessmentAmount",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxParcelLetter",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxStatusCurrent",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxTract",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxYear",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TenantPays",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TenantPaysDescription",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Topography",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TotalActualRent",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Township",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TrashExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitNumber",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "10h",
+      "type": "string"
+    },
+    {
+      "rebnyField": "UnitsFurnished",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeType",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UniversalParcelId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "urn:reso:upi:2.0:US:36047:03071-0040",
+      "type": "string"
+    },
+    {
+      "rebnyField": "UniversalPropertyId",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "US-36047-N-030710040-R-N",
+      "type": "string"
+    },
+    {
+      "rebnyField": "UnparsedAddress",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "159 Boerum Street 10h",
+      "type": "string"
+    },
+    {
+      "rebnyField": "Utilities",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UtilitiesExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "VacancyAllowance",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "VacancyAllowanceRate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "VideosChangeTimestamp",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2026-03-20T11:37:51.007-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "VideosCount",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "0",
+      "type": "number"
+    },
+    {
+      "rebnyField": "View",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "Other",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ViewYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "VirtualTourURLBranded",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "https://youtu.be/-bGfd6i0AG4",
+      "type": "string"
+    },
+    {
+      "rebnyField": "VirtualTourURLBranded2",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "VirtualTourURLBranded3",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "VirtualTourURLUnbranded",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "https://youtu.be/-bGfd6i0AG4",
+      "type": "string"
+    },
+    {
+      "rebnyField": "VirtualTourURLUnbranded2",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "VirtualTourURLUnbranded3",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WalkScore",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterBodyName",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterfrontFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterfrontYN",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterHeater",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterSewerExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WindowFeatures",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WithdrawnDate",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WoodedArea",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WorkmansCompensationExpense",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "YearBuilt",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": "2024",
+      "type": "number"
+    },
+    {
+      "rebnyField": "YearBuiltDetails",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "YearBuiltEffective",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "YearBuiltSource",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "YearEstablished",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "YearsCurrentOwner",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Zoning",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ZoningDescription",
+      "resource": "Property",
+      "found": true,
+      "location": "Property (top-level)",
+      "value": ",R6B",
+      "type": "string"
+    },
+    {
+      "rebnyField": "AboveGradeBedrooms",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeFinishedAreaRange",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeFinishedAreaRangeSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeFinishedAreaRangeUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeUnfinishedAreaRange",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeUnfinishedAreaRangeSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AboveGradeUnfinishedAreaRangeUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AdditionalFee",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AdditionalFeeDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AdditionalFeeFrequency",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AdditionalFeeYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "AssociationFeeTotal",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AssociationFeeTotalFrequency",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Attic",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AvailabilityType",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeBedrooms",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeFinishedAreaRange",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeFinishedAreaRangeSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeFinishedAreaRangeUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeUnfinishedAreaRange",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeUnfinishedAreaRangeSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BelowGradeUnfinishedAreaRangeUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BoatDockAccommodates",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BoatDockHeight",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BoatDockSlipDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BoatDockSlipFeatures",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BoatDockYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BoatSlipYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BonusAmount",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuildingAreaTotalRange",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuildingAreaTotalRangeSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuildingAreaTotalRangeUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BuildingSizeDimensions",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ComplexName",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "CustomFields",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "{\n  \"ElevatorsTotal\": \"2\",\n  \"GuarantorsAcceptedYN\": \"0\",\n  \"CertificateOfOccupancyYN\": \"0\",\n  \"CommercialUnitsYN\": \"0\",\n  \"MaxLeaseMonths\": \"24\",\n  \"",
+      "type": "string"
+    },
+    {
+      "rebnyField": "DevelopmentName",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FractionalShare",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "0.00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "GarageArea",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GarageAreaUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GarageDimensions",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GuestHouseAreaTotal",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GuestHouseAreaTotalSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GuestHouseAreaTotalUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GuestHouseDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "GuestHouseYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HumanModifiedYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "InternetEntireListingDisplayYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "Lang2_Type",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Lang3_Type",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LastMonthRentReqYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseAmountPerArea",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseAmountPerAreaUnit",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LeaseTermsDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListAOR",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListingId",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "RLS20078381",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingKeyNumeric",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "1155549234",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ListOfficeKey",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "5665835",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeMlsId",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "8253",
+      "type": "string"
+    },
+    {
+      "rebnyField": "LivingAreaRange",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LivingAreaRangeHigh",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LivingAreaRangeLow",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LivingAreaRangeSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LivingAreaRangeUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Location",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeAreaRangeHigh",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeAreaRangeLow",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeRange",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeRangeSource",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "LotSizeRangeUnits",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MembershipFeeFrequency",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MonthlyRate",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfBoatDocks",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfBoatSlips",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OffersDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OffersReviewDate",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemKey",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "33659608",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemSubName",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "RLS_REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OtherExpenseDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PotentialShortSale",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PricePerArea",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PricePerAreaUnit",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ProjectName",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PropertyAccess",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PropertyType",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "ResidentialLease",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PublicRemarks_lang2",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PublicRemarks_lang3",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "Restrictions",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SaleOrLeaseIncludes",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SecurityDepositDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SecurityDepositYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StandardStatus",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (top-level)",
+      "value": "Active",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StoriesPartial",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StoriesPartialTotal",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StormProtection",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxAssessedValueImprovement",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxAssessedValueLand",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxAuthority",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TaxRate",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ThirdPartyIntegrationType",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TitleCompanyAddress",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TitleCompanyName",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TitleCompanyPhone",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "TitleCompanyPreferred",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterAccessDescription",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WaterAccessYN",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "WeeklyRate",
+      "resource": "Custom Property",
+      "found": true,
+      "location": "CustomProperty (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ChangedByMemberID",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ChangedByMemberKey",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ChangedByMemberKeyNumeric",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ClassName",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HumanModifiedYN",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "ImageHeight",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ImageOf",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ImageSizeDescription",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ImageWidth",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "InternetEntireListingDisplayYN",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "ListAgentKey",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "25204565",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAOR",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListingPermission",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "IDX",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeKey",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "5658936",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeMlsId",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "334",
+      "type": "string"
+    },
+    {
+      "rebnyField": "LongDescription",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MediaCategory",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Photo",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MediaClassification",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "PHOTO",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MediaHTML",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MediaKeyNumeric",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "2004082205428",
+      "type": "number"
+    },
+    {
+      "rebnyField": "MediaModificationTimestamp",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "2025-11-20T11:41:52.613-00:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MediaObjectID",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "RPLU-4186949.Jpeg",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MediaStatus",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Active",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MediaType",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Jpeg",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MediaURL",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1118527078/2/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc3NDAwOTMxOA/VYRUeHeaFuNWHHZWBtEk0dUQ32dZkMDm",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OffMarketDate",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "2025-11-20",
+      "type": "string"
+    },
+    {
+      "rebnyField": "Order",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "2",
+      "type": "number"
+    },
+    {
+      "rebnyField": "OriginatingSystemID",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemMediaKey",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "32118262",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemResourceRecordKey",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "32118260",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemSubName",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "RLS_REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PreferredPhotoYN",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PropertySubType",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Duplex",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertySubTypeAdditional",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Apartment",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertyType",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Residential",
+      "type": "string"
+    },
+    {
+      "rebnyField": "RecordSignature",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "1405761521",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ResourceName",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Property",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ResourceRecordID",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "RLS20033821",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ResourceRecordKey",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "1118527078",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ResourceRecordKeyNumeric",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "1118527078",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ShortDescription",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "SourceSystemID",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "TRESTLE",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SourceSystemMediaKey",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "RPLU-5008643",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SourceSystemName",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "StandardStatus",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (top-level)",
+      "value": "Pending",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SyndicateTo",
+      "resource": "Media",
+      "found": true,
+      "location": "Media (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HumanModifiedYN",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "MemberAddress1",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "3450 Wayne Avenue\n#13M",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberAddress2",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberAlternateId",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberAOR",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberAORkey",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberAORkeyNumeric",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberAORMlsId",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberBio",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberCarrierRoute",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberCity",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "3450 Wayne Avenue #13M",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberCityRegion",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberCommitteeCount",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberCountry",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "US",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberCountyOrParish",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberDesignation",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberDirectPhone",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "6787647557",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberEmail",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "cmarcrum@bondnewyork.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberFax",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberFirstName",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "Casper",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberFullName",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "Casper Marcrum",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberIsAssistantTo",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberKeyNumeric",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "30164565",
+      "type": "number"
+    },
+    {
+      "rebnyField": "MemberLanguages",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberLastName",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "Marcrum",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberMailOptOutYN",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberMiddleName",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "Julia",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberMlsAccessYN",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberMlsId",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "144042",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberMobilePhone",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "6787647557",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberNamePrefix",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberNameSuffix",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberNationalAssociationEntryDate",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberNationalAssociationId",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberNickname",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberOfficePhone",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberOfficePhoneExt",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberOtherPhoneType",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberPhoneTTYTDD",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberPostalCode",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "10467",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberPostalCodePlus4",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberPreferredMail",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberPreferredMedia",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberPreferredPhone",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "6787647557",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberPreferredPhoneExt",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberPreferredPublication",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberPrimaryAorId",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberStateLicenseExpirationDate",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberStateOrProvince",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "NY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberStatus",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "Active",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MemberStreetAdditionalInfo",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberTollFreePhone",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberTransferDate",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberType",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberVoiceMail",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberVoiceMailExt",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "MemberVotingPrecinct",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeKey",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "5658935",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeKeyNumeric",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "5658935",
+      "type": "number"
+    },
+    {
+      "rebnyField": "OfficeMlsId",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "5339",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeName",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "Bond New York Properties LLC",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeNationalAssociationId",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginalEntryTimestamp",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemID",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemMemberKey",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "33652979",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemMemberMlsSecurityClass",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "Salesperson",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemOfficeKey",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "1276846",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemSubName",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "RLS_REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "RecordSignature",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "-2003521536",
+      "type": "number"
+    },
+    {
+      "rebnyField": "SourceSystemMemberKey",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "33652979",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SourceSystemName",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (top-level)",
+      "value": "SalesforceRoster",
+      "type": "string"
+    },
+    {
+      "rebnyField": "UniqueLicenseeIdentifier",
+      "resource": "Member",
+      "found": true,
+      "location": "Member (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "BillingOfficeKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "FranchiseNationalAssociationId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HumanModifiedYN",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "IDXOfficeParticipationYN",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "MainOfficeKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "6559729",
+      "type": "string"
+    },
+    {
+      "rebnyField": "MainOfficeKeyNumeric",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "6559729",
+      "type": "number"
+    },
+    {
+      "rebnyField": "MainOfficeMlsId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "40034",
+      "type": "string"
+    },
+    {
+      "rebnyField": "NumberOfBranches",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "NumberOfNonMemberSalespersons",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeAddress1",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "3 Hutton Centre Drive #800",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeAddress2",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeAlternateId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeAOR",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "RealEstateBoardOfNewYork",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeAORkey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeAORkeyNumeric",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeAORMlsId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeBio",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeBranchType",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeBrokerKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeBrokerKeyNumeric",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeBrokerMlsId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeBrokerNationalAssociationId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeCity",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "Santa Ana",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeCityRegion",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeCountry",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "US",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeCountyOrParish",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeEmail",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "gemini.patel@yardi.com",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeFax",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeKeyNumeric",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "6559729",
+      "type": "number"
+    },
+    {
+      "rebnyField": "OfficeMailAddress1",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailAddress2",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailCareOf",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailCity",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailCountry",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailCountyOrParish",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailPostalCode",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailPostalCodePlus4",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMailStateOrProvince",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeMlsId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "40034",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeName",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "Gerner Kronick & Valcarcel Architects PC",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeNationalAssociationId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeNationalAssociationIdInsertDate",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficePhone",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "805.705.7987",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficePhoneExt",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficePostalCode",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "92707",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficePostalCodePlus4",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficePreferredMedia",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficePrimaryAorId",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficePrimaryStateOrProvince",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeStateOrProvince",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "CA",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeStatus",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "Inactive",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OfficeStreetAdditionalInfo",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OfficeType",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginalEntryTimestamp",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemID",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemMainOfficeKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "33647324",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemOfficeBrokerKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemOfficeKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "33647324",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemOfficeManagerKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemSubName",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "RLS_REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OtherPhone",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "RecordSignature",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "2108845266",
+      "type": "number"
+    },
+    {
+      "rebnyField": "SourceSystemID",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "TRESTLE",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SourceSystemName",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "SalesforceRoster",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SourceSystemOfficeKey",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (top-level)",
+      "value": "33647324",
+      "type": "string"
+    },
+    {
+      "rebnyField": "VirtualOfficeWebsiteYN",
+      "resource": "Office",
+      "found": true,
+      "location": "Office (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "AppointmentRequiredYN",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "HumanModifiedYN",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "InternetEntireListingDisplayYN",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "ListAgentKey",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "25234168",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAOR",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListingId",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "RLS20071711",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingKey",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "1152898203",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingKeyNumeric",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "1152898203",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ListingPermission",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "IDX",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeKey",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "5658936",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeMlsId",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "334",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OffMarketDate",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OpenHouseAttendedBy",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OpenHouseDate",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "2026-03-22",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OpenHouseEndTime",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "2026-03-22T15:00:00.000-04:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OpenHouseId",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "145470464",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OpenHouseKeyNumeric",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "145470464",
+      "type": "number"
+    },
+    {
+      "rebnyField": "OpenHouseStartTime",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "2026-03-22T14:00:00.000-04:00",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OpenHouseStatus",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "Active",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OpenHouseType",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "Public",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginalEntryTimestamp",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemID",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "OriginatingSystemKey",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "33659676",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemListingKey",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "33453526",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemSubName",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "RLS_REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertySubType",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "Apartment",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertySubTypeAdditional",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "Apartment",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertyType",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "Residential",
+      "type": "string"
+    },
+    {
+      "rebnyField": "RecordSignature",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "886698206",
+      "type": "number"
+    },
+    {
+      "rebnyField": "Refreshments",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ShowingAgentFirstName",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "David",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ShowingAgentKey",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "1270613",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ShowingAgentKeyNumeric",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ShowingAgentLastName",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "Eskander",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ShowingAgentMlsID",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "103004",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SourceSystemID",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "TRESTLE",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SourceSystemName",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "RealPlus",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StandardStatus",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (top-level)",
+      "value": "Active",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SyndicateTo",
+      "resource": "Open House",
+      "found": true,
+      "location": "OpenHouse (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "HumanModifiedYN",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "false",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "InputEntryOrder",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "1",
+      "type": "number"
+    },
+    {
+      "rebnyField": "InternetEntireListingDisplayYN",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "true",
+      "type": "boolean"
+    },
+    {
+      "rebnyField": "ListAgentKey",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "25221348",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListAOR",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "ListingId",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "RLS10998482",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingKey",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "1092337071",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListingKeyNumeric",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "1092337071",
+      "type": "number"
+    },
+    {
+      "rebnyField": "ListingPermission",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "IDX",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeKey",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "5658923",
+      "type": "string"
+    },
+    {
+      "rebnyField": "ListOfficeMlsId",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "1348",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OffMarketDate",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "2025-03-21",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemListingKey",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "3321767",
+      "type": "string"
+    },
+    {
+      "rebnyField": "OriginatingSystemSubName",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "RLS_REBNY",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertySubType",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "Duplex",
+      "type": "string"
+    },
+    {
+      "rebnyField": "PropertySubTypeAdditional",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "PropertyType",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "ResidentialLease",
+      "type": "string"
+    },
+    {
+      "rebnyField": "RecordSignature",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "-568957415",
+      "type": "number"
+    },
+    {
+      "rebnyField": "SourceSystemID",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "TRESTLE",
+      "type": "string"
+    },
+    {
+      "rebnyField": "StandardStatus",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "Closed",
+      "type": "string"
+    },
+    {
+      "rebnyField": "SyndicateTo",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeActualRent",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeActualRentRange",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeArea",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeAreaSource",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeAreaUnits",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeBathsTotal",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeBedsTotal",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeDeposit",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeFireplaceYN",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeFurnished",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeGarageAttachedYN",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeGarageSpaces",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeKeyNumeric",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (top-level)",
+      "value": "22369252",
+      "type": "number"
+    },
+    {
+      "rebnyField": "UnitTypeLeasedYN",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeMonthToMonthYN",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeNumFullBaths",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeNumHalfBaths",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeOccupantType",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypePetDeposit",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypePetDepositPerPetYN",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeProForma",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeTotalRent",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeType",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeUnitNum",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    },
+    {
+      "rebnyField": "UnitTypeUnitsTotal",
+      "resource": "Property UnitTypes",
+      "found": true,
+      "location": "PropertyUnitTypes (exists, all null in sample)",
+      "value": null,
+      "type": "null"
+    }
+  ]
+}

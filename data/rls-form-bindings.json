@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "generated": "2026-03-13",
-    "source": "generate-rls-bindings.js (expanded aliases + internal)"
+    "generated": "2026-03-20",
+    "source": "audit-form-fields.js"
   },
   "files": {
     "SALE-FORM-REDESIGN.html": {
@@ -157,6 +157,10 @@
         },
         "saleRETaxes": {
           "rlsField": "TaxAnnualAmount",
+          "elementType": "number"
+        },
+        "saleTaxMonthly": {
+          "rlsField": "TaxMonthlyAmount",
           "elementType": "number"
         },
         "saleTotalMonthly": {
@@ -480,8 +484,12 @@
           "elementType": "number"
         },
         "saleBathroomsTotal": {
-          "rlsField": "BathroomsTotal",
+          "rlsField": "BathroomsTotalInteger",
           "elementType": "number"
+        },
+        "saleCondition": {
+          "rlsField": "PropertyCondition",
+          "elementType": "select"
         },
         "saleInteriorSqFt": {
           "rlsField": "LivingArea",
@@ -648,7 +656,7 @@
           "elementType": "select"
         },
         "saleTHZoning": {
-          "rlsField": "ZoningDescription",
+          "rlsField": "Zoning",
           "elementType": "text"
         },
         "saleTHOverFAR": {
@@ -852,15 +860,15 @@
           "elementType": "checkbox"
         },
         "saleSyndicateYN": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleSendToAll": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_IDX": {
-          "rlsField": "IDXEntireListingDisplayYN",
+          "rlsField": "InternetEntireListingDisplayYN",
           "elementType": "checkbox"
         },
         "saleDist_VOW": {
@@ -868,19 +876,19 @@
           "elementType": "checkbox"
         },
         "saleDist_Listhub": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_NYMLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_Realtor": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_RPX": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_WWW": {
@@ -888,7 +896,7 @@
           "elementType": "checkbox"
         },
         "saleDist_RLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleHistoryType": {
@@ -1000,7 +1008,7 @@
           "elementType": "number"
         },
         "saleVideoUrl": {
-          "rlsField": "VideoURL",
+          "rlsField": "VirtualTourURLUnbranded",
           "elementType": "url"
         },
         "saleVideoTourUrl": {
@@ -1092,7 +1100,7 @@
           "elementType": "number"
         },
         "saleBldgYearRenovated": {
-          "rlsField": "YearRenovated",
+          "internal": true,
           "elementType": "number"
         },
         "saleBldgTotalFloors": {
@@ -1268,7 +1276,7 @@
           "elementType": "text"
         },
         "saleBldgTaxLot": {
-          "rlsField": "BuildingTaxLot",
+          "rlsField": "TaxLot",
           "elementType": "text"
         },
         "saleBldgAnnualTaxes": {
@@ -1280,7 +1288,7 @@
           "elementType": "select"
         },
         "saleBldgTaxAbatementExpYear": {
-          "internal": true,
+          "rlsField": "TaxAbatementExpirationYear",
           "elementType": "number"
         },
         "saleBldgTaxAbatementComments": {
@@ -1429,8 +1437,8 @@
         }
       },
       "stats": {
-        "total": 355,
-        "rlsBound": 188,
+        "total": 357,
+        "rlsBound": 190,
         "internal": 167,
         "unknown": 0
       }
@@ -1571,7 +1579,7 @@
           "elementType": "number"
         },
         "rentalSecurityDeposit": {
-          "rlsField": "DepositAmount",
+          "rlsField": "SecurityDeposit",
           "elementType": "number"
         },
         "rentalRentedPrice": {
@@ -1707,11 +1715,11 @@
           "elementType": "text"
         },
         "rentalMoveInCostsAmountTotal": {
-          "rlsField": "MoveInCostsAmountTotal",
+          "internal": true,
           "elementType": "number"
         },
         "rentalMoveInCostsComments": {
-          "rlsField": "MoveInCostsComments",
+          "internal": true,
           "elementType": "textarea"
         },
         "rentalOngoingFees": {
@@ -1883,7 +1891,7 @@
           "elementType": "hidden"
         },
         "rentalBuyerAgentRLSParticipantYN": {
-          "rlsField": "BuyerAgentRLSParticipantYN",
+          "internal": true,
           "elementType": "checkbox"
         },
         "rentalOwnerName": {
@@ -1955,7 +1963,7 @@
           "elementType": "select"
         },
         "rentalBathroomsTotal": {
-          "rlsField": "BathroomsTotal",
+          "rlsField": "BathroomsTotalInteger",
           "elementType": "number"
         },
         "rentalTotalRooms": {
@@ -2347,7 +2355,7 @@
           "elementType": "select"
         },
         "rentalTHZoning": {
-          "rlsField": "ZoningDescription",
+          "rlsField": "Zoning",
           "elementType": "text"
         },
         "rentalTHOverFAR": {
@@ -2543,7 +2551,7 @@
           "elementType": "number"
         },
         "rentalIDXEntireListingDisplayYN": {
-          "rlsField": "IDXEntireListingDisplayYN",
+          "internal": true,
           "elementType": "checkbox"
         },
         "rentalVOWOptOutYN": {
@@ -2551,15 +2559,15 @@
           "elementType": "checkbox"
         },
         "rentalSyndicateYN": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalSendToAll": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_IDX": {
-          "rlsField": "IDXEntireListingDisplayYN",
+          "rlsField": "InternetEntireListingDisplayYN",
           "elementType": "checkbox"
         },
         "rentalDist_VOW": {
@@ -2567,19 +2575,19 @@
           "elementType": "checkbox"
         },
         "rentalDist_Listhub": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_NYMLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_Realtor": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_RPX": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_WWW": {
@@ -2587,7 +2595,7 @@
           "elementType": "checkbox"
         },
         "rentalDist_RLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "commRentalRlsId": {
@@ -2695,7 +2703,7 @@
           "elementType": "file"
         },
         "rentalVideoUrl": {
-          "rlsField": "VideoURL",
+          "rlsField": "VirtualTourURLUnbranded",
           "elementType": "url"
         },
         "rentalVideoTourUrl": {
@@ -2787,7 +2795,7 @@
           "elementType": "number"
         },
         "bldgYearRenovated": {
-          "rlsField": "YearRenovated",
+          "internal": true,
           "elementType": "number"
         },
         "bldgArchitecturalStyle": {
@@ -2983,7 +2991,7 @@
           "elementType": "text"
         },
         "bldgTaxLot": {
-          "rlsField": "BuildingTaxLot",
+          "rlsField": "TaxLot",
           "elementType": "text"
         },
         "bldgAnnualTaxes": {
@@ -2995,7 +3003,7 @@
           "elementType": "select"
         },
         "bldgTaxAbatementExpYear": {
-          "internal": true,
+          "rlsField": "TaxAbatementExpirationYear",
           "elementType": "number"
         },
         "bldgTaxAbatementComments": {
@@ -3003,7 +3011,7 @@
           "elementType": "text"
         },
         "bldgFlipTax": {
-          "rlsField": "FlipTax",
+          "rlsField": "FlipTaxType",
           "elementType": "select"
         },
         "bldgFlipTaxAmount": {
@@ -3165,8 +3173,8 @@
       },
       "stats": {
         "total": 431,
-        "rlsBound": 262,
-        "internal": 169,
+        "rlsBound": 258,
+        "internal": 173,
         "unknown": 0
       }
     },
@@ -3606,7 +3614,7 @@
           "elementType": "number"
         },
         "saleBathroomsTotal": {
-          "rlsField": "BathroomsTotal",
+          "rlsField": "BathroomsTotalInteger",
           "elementType": "number"
         },
         "saleInteriorSqFt": {
@@ -3774,7 +3782,7 @@
           "elementType": "select"
         },
         "saleTHZoning": {
-          "rlsField": "ZoningDescription",
+          "rlsField": "Zoning",
           "elementType": "text"
         },
         "saleTHOverFAR": {
@@ -3978,15 +3986,15 @@
           "elementType": "checkbox"
         },
         "saleSyndicateYN": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleSendToAll": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_IDX": {
-          "rlsField": "IDXEntireListingDisplayYN",
+          "rlsField": "InternetEntireListingDisplayYN",
           "elementType": "checkbox"
         },
         "saleDist_VOW": {
@@ -3994,19 +4002,19 @@
           "elementType": "checkbox"
         },
         "saleDist_Listhub": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_NYMLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_Realtor": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_RPX": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleDist_WWW": {
@@ -4014,7 +4022,7 @@
           "elementType": "checkbox"
         },
         "saleDist_RLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "saleCommuteAddress": {
@@ -4126,7 +4134,7 @@
           "elementType": "file"
         },
         "saleVideoUrl": {
-          "rlsField": "VideoURL",
+          "rlsField": "VirtualTourURLUnbranded",
           "elementType": "url"
         },
         "saleVideoTourUrl": {
@@ -4218,7 +4226,7 @@
           "elementType": "number"
         },
         "saleBldgYearRenovated": {
-          "rlsField": "YearRenovated",
+          "internal": true,
           "elementType": "number"
         },
         "saleBldgTotalFloors": {
@@ -4394,7 +4402,7 @@
           "elementType": "text"
         },
         "saleBldgTaxLot": {
-          "rlsField": "BuildingTaxLot",
+          "rlsField": "TaxLot",
           "elementType": "text"
         },
         "saleBldgAnnualTaxes": {
@@ -4406,7 +4414,7 @@
           "elementType": "select"
         },
         "saleBldgTaxAbatementExpYear": {
-          "internal": true,
+          "rlsField": "TaxAbatementExpirationYear",
           "elementType": "number"
         },
         "saleBldgTaxAbatementComments": {
@@ -4777,7 +4785,7 @@
           "elementType": "number"
         },
         "rentalSecurityDeposit": {
-          "rlsField": "DepositAmount",
+          "rlsField": "SecurityDeposit",
           "elementType": "number"
         },
         "rentalRentedPrice": {
@@ -4905,11 +4913,11 @@
           "elementType": "text"
         },
         "rentalMoveInCostsAmountTotal": {
-          "rlsField": "MoveInCostsAmountTotal",
+          "internal": true,
           "elementType": "number"
         },
         "rentalMoveInCostsComments": {
-          "rlsField": "MoveInCostsComments",
+          "internal": true,
           "elementType": "textarea"
         },
         "rentalOngoingFees": {
@@ -5081,7 +5089,7 @@
           "elementType": "hidden"
         },
         "rentalBuyerAgentRLSParticipantYN": {
-          "rlsField": "BuyerAgentRLSParticipantYN",
+          "internal": true,
           "elementType": "checkbox"
         },
         "rentalOwnerName": {
@@ -5153,7 +5161,7 @@
           "elementType": "select"
         },
         "rentalBathroomsTotal": {
-          "rlsField": "BathroomsTotal",
+          "rlsField": "BathroomsTotalInteger",
           "elementType": "number"
         },
         "rentalTotalRooms": {
@@ -5553,7 +5561,7 @@
           "elementType": "select"
         },
         "rentalTHZoning": {
-          "rlsField": "ZoningDescription",
+          "rlsField": "Zoning",
           "elementType": "text"
         },
         "rentalTHOverFAR": {
@@ -5749,7 +5757,7 @@
           "elementType": "number"
         },
         "rentalIDXEntireListingDisplayYN": {
-          "rlsField": "IDXEntireListingDisplayYN",
+          "internal": true,
           "elementType": "checkbox"
         },
         "rentalVOWOptOutYN": {
@@ -5757,15 +5765,15 @@
           "elementType": "checkbox"
         },
         "rentalSyndicateYN": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalSendToAll": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_IDX": {
-          "rlsField": "IDXEntireListingDisplayYN",
+          "rlsField": "InternetEntireListingDisplayYN",
           "elementType": "checkbox"
         },
         "rentalDist_VOW": {
@@ -5773,19 +5781,19 @@
           "elementType": "checkbox"
         },
         "rentalDist_Listhub": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_NYMLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_Realtor": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_RPX": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalDist_WWW": {
@@ -5793,7 +5801,7 @@
           "elementType": "checkbox"
         },
         "rentalDist_RLS": {
-          "rlsField": "SyndicateYN",
+          "rlsField": "SyndicateTo",
           "elementType": "checkbox"
         },
         "rentalCommuteAddress": {
@@ -5905,7 +5913,7 @@
           "elementType": "file"
         },
         "rentalVideoUrl": {
-          "rlsField": "VideoURL",
+          "rlsField": "VirtualTourURLUnbranded",
           "elementType": "url"
         },
         "rentalVideoTourUrl": {
@@ -5997,7 +6005,7 @@
           "elementType": "number"
         },
         "bldgYearRenovated": {
-          "rlsField": "YearRenovated",
+          "internal": true,
           "elementType": "number"
         },
         "bldgArchitecturalStyle": {
@@ -6185,7 +6193,7 @@
           "elementType": "text"
         },
         "bldgTaxLot": {
-          "rlsField": "BuildingTaxLot",
+          "rlsField": "TaxLot",
           "elementType": "text"
         },
         "bldgAnnualTaxes": {
@@ -6197,7 +6205,7 @@
           "elementType": "select"
         },
         "bldgTaxAbatementExpYear": {
-          "internal": true,
+          "rlsField": "TaxAbatementExpirationYear",
           "elementType": "number"
         },
         "bldgTaxAbatementComments": {
@@ -6205,7 +6213,7 @@
           "elementType": "text"
         },
         "bldgFlipTax": {
-          "rlsField": "FlipTax",
+          "rlsField": "FlipTaxType",
           "elementType": "select"
         },
         "bldgFlipTaxAmount": {
@@ -6475,8 +6483,8 @@
       },
       "stats": {
         "total": 448,
-        "rlsBound": 252,
-        "internal": 196,
+        "rlsBound": 248,
+        "internal": 200,
         "unknown": 0
       }
     },
@@ -6919,6 +6927,10 @@
           "internal": true,
           "elementType": "text"
         },
+        "clientSearchInput": {
+          "internal": true,
+          "elementType": "text"
+        },
         "refineMinPrice": {
           "internal": true,
           "elementType": "select"
@@ -6942,6 +6954,22 @@
         "refineMaxBaths": {
           "internal": true,
           "elementType": "select"
+        },
+        "refineMinSqft": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "refineMaxSqft": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "refinePropertyType": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "refineNeighborhood": {
+          "internal": true,
+          "elementType": "text"
         },
         "refineStatusActive": {
           "internal": true,
@@ -7051,6 +7079,14 @@
           "internal": true,
           "elementType": "text"
         },
+        "savedSearchClientId": {
+          "internal": true,
+          "elementType": "select"
+        },
+        "savedSearchAlertFreq": {
+          "internal": true,
+          "elementType": "select"
+        },
         "savedSearchNotes": {
           "internal": true,
           "elementType": "textarea"
@@ -7129,17 +7165,17 @@
         }
       },
       "stats": {
-        "total": 161,
+        "total": 168,
         "rlsBound": 13,
-        "internal": 148,
+        "internal": 155,
         "unknown": 0
       }
     }
   },
   "summary": {
-    "totalElements": 2630,
-    "rlsBound": 1313,
-    "internal": 1317,
+    "totalElements": 1778,
+    "rlsBound": 888,
+    "internal": 890,
     "unknown": 0
   }
 }

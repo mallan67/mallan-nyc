@@ -17,7 +17,7 @@
     "Active": {
       "domAccrues": true,
       "publicDisplay": true,
-      "displayCondition": "If IDXEntireListingDisplayYN = true",
+      "displayCondition": "If InternetEntireListingDisplayYN = true (no separate IDX field on Trestle)",
       "restrictions": [],
       "allowedTransitions": ["Pending", "TemporarilyOffMarket", "Withdrawn", "Cancelled", "Closed"]
     },

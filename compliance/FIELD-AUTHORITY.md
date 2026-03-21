@@ -1,6 +1,6 @@
 # Field Authority — Governance Hierarchy & RLS Field Registry
 
-> **RLS TRUMPS ABOVE ALL.** Every field decision, display rule, permission check, and validation in this project
+> **REBNY IDX Plus is the single source of truth.** Every field decision, display rule, permission check, and validation in this project
 > is governed by the REBNY RLS. No RESO standard, IDX convention, or vendor default may override an RLS rule or field.
 
 ---
@@ -13,11 +13,11 @@
 │     Governs: contractual obligations, agent conduct,    │
 │     timing, penalties, exhibits                         │
 ├─────────────────────────────────────────────────────────┤
-│  2. REBNY RLS RULES + RLS FIELDS  ◄── TRUMPS ALL       │
+│  2. REBNY IDX Plus (902 fields)  ◄── SINGLE SOURCE       │
 │     Governs: permissions, timing, statuses, mapping,    │
 │     IDs, dissemination, field names, picklist values,   │
 │     validation rules, rejection criteria                │
-│     Source: rebny-rls-property-fields.csv (448 fields)  │
+│     Source: rebny-rls-property-fields.csv (902 IDX Plus fields)  │
 │     Source: rebny-rls-property-lookup.csv (1,993 values)│
 ├─────────────────────────────────────────────────────────┤
 │  3. RLS OVERRIDES RESO/IDX                              │
@@ -62,7 +62,7 @@ All field references across forms, CRM, search, and code use:
 RLS/RESO/IDX: FieldName
 ```
 
-- **RLS** = REBNY RLS field name from CSV (448 fields) — **PRIMARY / TRUMPS**
+- **RLS** = REBNY REBNY field name from IDX Plus registry (902 fields) — **PRIMARY — per REBNY IDX Plus 3.15.26**
 - **RESO** = RESO Data Dictionary name (same in most cases) — **SECONDARY**
 - **IDX** = IDX/VOW display feed (indicates field appears in public feeds) — **TERTIARY**
 
@@ -106,7 +106,7 @@ These fields have DIFFERENT names in RESO vs RLS. **Always use the RLS name.**
 
 | Metric | Count |
 |--------|-------|
-| **Total RLS fields** | **448** |
+| **Total RLS fields** | **902** |
 | Mandatory (required) | 41 |
 | Conditional (required when conditions met) | 86 |
 | Optional | 321 |
@@ -142,7 +142,7 @@ These fields MUST be populated for every listing submitted to the RLS. Missing a
 | 16 | `ElevatorsTotal` | Building | Integer |
 | 17 | `ExpirationDate` | Status | Listing expiration |
 | 18 | `GarageYN` | Building | Boolean |
-| 19 | `IDXEntireListingDisplayYN` | Display | **Distribution gate** |
+| 19 | `InternetEntireListingDisplayYN` | Display | **Distribution gate** *(also gates IDX — `IDXEntireListingDisplayYN` does not exist on Trestle)* |
 | 20 | `InternetAddressDisplayYN` | Display | **Address suppression gate** |
 | 21 | `InternetAutomatedValuationDisplayYN` | Display | AVM gate |
 | 22 | `InternetConsumerCommentYN` | Display | Comment gate |
@@ -172,7 +172,7 @@ These fields MUST be populated for every listing submitted to the RLS. Missing a
 | 46 | `StreetNumber` | Address | |
 | 47 | `StructureType` | Classification | |
 | 48 | `SubdivisionName` | Location | **REBNY neighborhood picklist enforced** |
-| 49 | `SyndicateYN` | Distribution | |
+| 49 | `SyndicateTo` | Distribution | *(UCBA: `SyndicateYN`)* |
 | 50 | `TaxBlock` | Tax | |
 | 51 | `UnParsedAddress` | Address | RESO: UnparsedAddress |
 | 52 | `YearBuilt` | Building | Integer |
@@ -184,7 +184,7 @@ These fields MUST be populated for every listing submitted to the RLS. Missing a
 ### Display & Distribution (5 fields) — CRITICAL COMPLIANCE
 | Field | Required | Description |
 |-------|----------|-------------|
-| **`IDXEntireListingDisplayYN`** | R | Controls IDX feed inclusion |
+| **`InternetEntireListingDisplayYN`** | R | Master gate — also controls IDX feed inclusion *(no separate `IDXEntireListingDisplayYN` on Trestle)* |
 | **`InternetAddressDisplayYN`** | R | Controls address display — suppress if False |
 | **`InternetAutomatedValuationDisplayYN`** | R | Controls AVM display |
 | **`InternetConsumerCommentYN`** | R | Controls consumer comments |
@@ -293,7 +293,7 @@ These fields were **permanently removed** from the RLS feed and must NEVER appea
 
 ## Machine-Readable Reference
 
-- **`fields.json`** — All 448 fields with required/conditional/optional, editable, searchable, category, and RESO→RLS mapping
+- **`fields.json`** — All 902 IDX Plus fields with required/conditional/optional, editable, searchable, category, and RESO→RLS mapping
 - **`lookups.json`** — All 114 picklist fields with 1,993 official REBNY-approved values
 
 Import in Next.js:

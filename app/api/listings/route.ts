@@ -600,40 +600,64 @@ export async function GET(request: Request) {
 
         // Address/text search — Trestle stores: StreetNumber, StreetDirPrefix (E/W/N/S), StreetName, StreetSuffix
         // Must split input into components to match correctly.
+        // Uses tolower() for case-insensitive OData matching (Trestle stores uppercase but we normalize).
         if (addressParam) {
-          const raw = addressParam.trim().toUpperCase();
-          const dirPattern = /^(\d+)\s+(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i;
+          const raw = addressParam.trim();
+
+          // Strip street suffixes (Street, Ave, etc.) from the end
+          const stripSuffix = (s: string): string =>
+            s.replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|COURT|CT|WAY|TERRACE|TER)\s*$/i, '').trim();
+
+          // Strip ordinal suffixes from street numbers (1ST→1, 2ND→2, 90TH→90)
+          // Only strip when preceded by a digit to avoid removing "ST" from "PARK"
+          const stripOrdinal = (s: string): string =>
+            s.replace(/(\d+)(ST|ND|RD|TH)\b/gi, '$1').trim();
+
+          // OData-safe string: lowercase, single-quote escaping
+          const odataSafe = (s: string): string =>
+            s.toLowerCase().replace(/'/g, "''");
+
+          // Pattern 1: "400 E 90TH ST" or "400 EAST 90TH STREET" — number + direction + street
+          const dirWithNumPattern = /^(\d+)\s+(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i;
+          // Pattern 2: "E 90TH ST" or "EAST 90TH STREET" — direction + street (no number)
+          const dirNoNumPattern = /^(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i;
+          // Pattern 3: "400 PARK AVE" — number + street (no direction)
           const numOnlyPattern = /^(\d+)\s+(.*)/;
 
-          function stripSuffix(s: string): string {
-            return s.replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|COURT|CT|WAY|TERRACE|TER)\s*$/i, '').trim();
-          }
-
-          const dirMatch = raw.match(dirPattern);
-          if (dirMatch) {
-            // "400 E 90TH ST" → num=400, dir=E, street=90TH
-            const streetNum = dirMatch[1];
-            const direction = dirMatch[2].charAt(0); // Normalize to single letter
-            const streetPart = stripSuffix(dirMatch[3]).replace(/(ST|ND|RD|TH)\b/gi, '').trim().replace(/'/g, "''");
+          const dirWithNumMatch = raw.match(dirWithNumPattern);
+          if (dirWithNumMatch) {
+            const streetNum = dirWithNumMatch[1];
+            const direction = dirWithNumMatch[2].charAt(0).toUpperCase();
+            const streetPart = odataSafe(stripOrdinal(stripSuffix(dirWithNumMatch[3])));
             const conditions = [`startswith(StreetNumber,'${streetNum}')`, `StreetDirPrefix eq '${direction}'`];
-            if (streetPart) conditions.push(`contains(StreetName,'${streetPart}')`);
+            if (streetPart) conditions.push(`contains(tolower(StreetName),'${streetPart}')`);
             filterParts.push(`(${conditions.join(' and ')})`);
           } else {
-            const numMatch = raw.match(numOnlyPattern);
-            if (numMatch && numMatch[1]) {
-              // "400 Park" or "400 90th" — no direction
-              const streetNum = numMatch[1];
-              const streetPart = stripSuffix(numMatch[2] || '').replace(/(ST|ND|RD|TH)\b/gi, '').trim().replace(/'/g, "''");
-              if (streetPart) {
-                filterParts.push(`(startswith(StreetNumber,'${streetNum}') and contains(StreetName,'${streetPart}'))`);
-              } else {
-                filterParts.push(`startswith(StreetNumber,'${streetNum}')`);
-              }
+            const dirNoNumMatch = raw.match(dirNoNumPattern);
+            if (dirNoNumMatch) {
+              // "East 90th Street" — direction + street, no number
+              const direction = dirNoNumMatch[1].charAt(0).toUpperCase();
+              const streetPart = odataSafe(stripOrdinal(stripSuffix(dirNoNumMatch[2])));
+              const conditions = [`StreetDirPrefix eq '${direction}'`];
+              if (streetPart) conditions.push(`contains(tolower(StreetName),'${streetPart}')`);
+              filterParts.push(`(${conditions.join(' and ')})`);
             } else {
-              // Text only — street name or building name
-              const cleaned = stripSuffix(raw).replace(/'/g, "''");
-              if (cleaned) {
-                filterParts.push(`(contains(StreetName,'${cleaned}') or contains(BuildingName,'${raw.replace(/'/g, "''")}'))`);
+              const numMatch = raw.match(numOnlyPattern);
+              if (numMatch && numMatch[1]) {
+                // "400 Park Ave" or "400 90th" — number + street, no direction
+                const streetNum = numMatch[1];
+                const streetPart = odataSafe(stripOrdinal(stripSuffix(numMatch[2] || '')));
+                if (streetPart) {
+                  filterParts.push(`(startswith(StreetNumber,'${streetNum}') and contains(tolower(StreetName),'${streetPart}'))`);
+                } else {
+                  filterParts.push(`startswith(StreetNumber,'${streetNum}')`);
+                }
+              } else {
+                // Text only — street name or building name
+                const cleaned = odataSafe(stripSuffix(raw));
+                if (cleaned) {
+                  filterParts.push(`(contains(tolower(StreetName),'${cleaned}') or contains(tolower(BuildingName),'${cleaned}'))`);
+                }
               }
             }
           }

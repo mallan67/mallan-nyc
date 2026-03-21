@@ -7,7 +7,7 @@
     "counts": {
       "alwaysRequired": 52,
       "conditional": 86,
-      "totalRlsFields": 448
+      "totalRlsFields": 902
     }
   },
   "alwaysRequired": [
@@ -29,7 +29,7 @@
     { "field": "ElevatorsTotal", "category": "Building", "dist": "PUB" },
     { "field": "ExpirationDate", "category": "Status", "dist": "HID" },
     { "field": "GarageYN", "category": "Building", "dist": "PUB" },
-    { "field": "IDXEntireListingDisplayYN", "category": "Display", "dist": "CTL" },
+    { "field": "IDXEntireListingDisplayYN", "category": "Display", "dist": "CTL", "_trestleNote": "Internal code name. Does not exist on Trestle — mapped to InternetEntireListingDisplayYN." },
     { "field": "InternetAddressDisplayYN", "category": "Display", "dist": "CTL" },
     { "field": "InternetAutomatedValuationDisplayYN", "category": "Display", "dist": "CTL" },
     { "field": "InternetConsumerCommentYN", "category": "Display", "dist": "CTL" },
@@ -60,7 +60,7 @@
     { "field": "StreetNumber", "category": "Address", "dist": "PUB-A" },
     { "field": "StructureType", "category": "Classification", "dist": "PUB" },
     { "field": "SubdivisionName", "category": "Location", "dist": "PUB" },
-    { "field": "SyndicateYN", "category": "Distribution", "dist": "CTL" },
+    { "field": "SyndicateYN", "category": "Distribution", "dist": "CTL", "_trestleNote": "Internal code name. Trestle field is SyndicateTo (portal selection, not boolean)." },
     { "field": "TaxBlock", "category": "Tax", "dist": "AGT" },
     { "field": "UnParsedAddress", "category": "Address", "dist": "PUB-A" },
     { "field": "YearBuilt", "category": "Building", "dist": "PUB" }

@@ -200,29 +200,51 @@ export async function GET(request: Request) {
         filterParts.push(`startswith(PostalCode, '${escapedQuery}')`);
       } else if (!isListingId) {
         // Address search — split into StreetNumber + StreetDirPrefix + StreetName
-        // Trestle stores these as separate fields, not one combined string
-        const raw = query.trim().toUpperCase();
-        const dirMatch = raw.match(/^(\d+)\s+(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i);
-        const numMatch = raw.match(/^(\d+)\s+(.*)/);
+        // Trestle stores these as separate fields, not one combined string.
+        // Uses tolower() for case-insensitive OData matching.
+        const rawAddr = query.trim();
 
-        if (dirMatch) {
-          const streetNum = dirMatch[1];
-          const dir = dirMatch[2].charAt(0);
-          const street = dirMatch[3].replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|WAY|COURT|CT)\s*$/i, '').replace(/(ST|ND|RD|TH)\b/gi, '').trim().replace(/'/g, "''");
+        function stripSuffix(s: string): string {
+          return s.replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|WAY|COURT|CT)\s*$/i, '').trim();
+        }
+        function stripOrdinal(s: string): string {
+          return s.replace(/(\d+)(ST|ND|RD|TH)\b/gi, '$1').trim();
+        }
+        function odataSafe(s: string): string {
+          return s.toLowerCase().replace(/'/g, "''");
+        }
+
+        const dirWithNum = rawAddr.match(/^(\d+)\s+(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i);
+        const dirNoNum = rawAddr.match(/^(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i);
+        const numOnly = rawAddr.match(/^(\d+)\s+(.*)/);
+
+        if (dirWithNum) {
+          const streetNum = dirWithNum[1];
+          const dir = dirWithNum[2].charAt(0).toUpperCase();
+          const street = odataSafe(stripOrdinal(stripSuffix(dirWithNum[3])));
           const conds = [`startswith(StreetNumber,'${streetNum}')`, `StreetDirPrefix eq '${dir}'`];
-          if (street) conds.push(`contains(StreetName,'${street}')`);
+          if (street) conds.push(`contains(tolower(StreetName),'${street}')`);
           filterParts.push(`(${conds.join(' and ')})`);
-        } else if (numMatch && numMatch[1]) {
-          const streetNum = numMatch[1];
-          const street = (numMatch[2] || '').replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|WAY|COURT|CT)\s*$/i, '').replace(/(ST|ND|RD|TH)\b/gi, '').trim().replace(/'/g, "''");
+        } else if (dirNoNum) {
+          const dir = dirNoNum[1].charAt(0).toUpperCase();
+          const street = odataSafe(stripOrdinal(stripSuffix(dirNoNum[2])));
+          const conds = [`StreetDirPrefix eq '${dir}'`];
+          if (street) conds.push(`contains(tolower(StreetName),'${street}')`);
+          filterParts.push(`(${conds.join(' and ')})`);
+        } else if (numOnly && numOnly[1]) {
+          const streetNum = numOnly[1];
+          const street = odataSafe(stripOrdinal(stripSuffix(numOnly[2] || '')));
           if (street) {
-            filterParts.push(`(startswith(StreetNumber,'${streetNum}') and contains(StreetName,'${street}'))`);
+            filterParts.push(`(startswith(StreetNumber,'${streetNum}') and contains(tolower(StreetName),'${street}'))`);
           } else {
             filterParts.push(`startswith(StreetNumber,'${streetNum}')`);
           }
         } else {
           // Text only — street name or building name
-          filterParts.push(`(contains(StreetName,'${escapedQuery}') or contains(BuildingName,'${escapedQuery}'))`);
+          const cleaned = odataSafe(stripSuffix(rawAddr));
+          if (cleaned) {
+            filterParts.push(`(contains(tolower(StreetName),'${cleaned}') or contains(tolower(BuildingName),'${cleaned}'))`);
+          }
         }
       } else {
         // Skip address search for listing IDs — already handled above

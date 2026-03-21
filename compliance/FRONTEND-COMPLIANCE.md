@@ -6,8 +6,8 @@
 ---
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY RLS rules + RLS fields** — **RLS TRUMPS ALL.**
-> 3. **RLS overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -27,7 +27,7 @@ Listing Query → Gate 1 (Owner Opt-Out?) → Gate 2 (Participant Only?)
 |------|--------|----------------|
 | Gate 1 | Exclude `Permissions = Owner Opt-Out` | WHERE clause |
 | Gate 2 | Exclude `Permissions = Participant Only` | WHERE clause |
-| Gate 3 | Require `IDXEntireListingDisplayYN = True` | WHERE clause |
+| Gate 3 | Require `InternetEntireListingDisplayYN = True` *(no separate IDX field on Trestle)* | WHERE clause |
 | Gate 5 | Coming Soon: add badge, disable showings | Conditional render |
 | Gate 6 | Closed: remove or mark within 24hrs | Cron/webhook |
 

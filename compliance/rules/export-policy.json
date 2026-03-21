@@ -31,14 +31,16 @@
       "ucbaRef": "Definition (W)"
     },
     "gate3_idxDisplay": {
-      "trigger": "IDXEntireListingDisplayYN",
+      "trigger": "InternetEntireListingDisplayYN",
+      "_trestleNote": "IDXEntireListingDisplayYN does not exist on Trestle. InternetEntireListingDisplayYN serves as both master gate and IDX gate. UCBA refers to 'IDX Entire Listing Display'.",
       "trueEffect": "All PUB-eligible fields flow to IDX broker websites. Attribution required.",
       "falseEffect": "Excluded from all IDX. Remains on RLS.",
       "default": true,
       "ucbaRef": "Art. III, Sec. 2(C)"
     },
     "gate4_syndication": {
-      "trigger": "SyndicateYN",
+      "trigger": "SyndicateTo",
+      "_trestleNote": "UCBA references SyndicateYN as boolean. Trestle field is SyndicateTo (portal selection).",
       "trueEffect": "All PUB-eligible fields flow to opted-in third-party portals.",
       "falseEffect": "Excluded from all syndication portals. Remains on RLS.",
       "default": true,
@@ -58,6 +60,7 @@
   },
   "displayCascade": {
     "trigger": "InternetEntireListingDisplayYN = false",
+    "_trestleNote": "IDXEntireListingDisplayYN is internal code name only — does not exist on Trestle. Cascade targets are the 3 Internet*YN fields.",
     "autoSet": {
       "IDXEntireListingDisplayYN": false,
       "InternetAddressDisplayYN": false,

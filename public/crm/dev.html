@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mallan CRM — Dev</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    gold: { DEFAULT: '#B8860B', light: '#D4A017', dark: '#8B6508', bg: '#FFFBF0' },
+                    sidebar: { DEFAULT: '#111827', hover: '#1F2937', active: '#1E293B' }
+                },
+                fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'] }
+            }
+        }
+    }
+    </script>
+    <link rel="stylesheet" href="/crm/css/dashboard.css">
+    <meta name="theme-color" content="#B8860B">
+    <style>
+      #devBanner { position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:99999;
+        background:#059669;color:#fff;padding:2px 16px;font-size:11px;font-weight:700;
+        border-radius:0 0 8px 8px;letter-spacing:.5px;box-shadow:0 2px 8px rgba(5,150,105,.3); }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900 antialiased">
+
+<div id="devBanner">DEV — Real Backend · Real Data</div>
+
+<!-- ═══ APP SHELL ═══ -->
+<div id="app" class="flex h-screen overflow-hidden">
+    <nav id="sidebar" class="sidebar">
+        <div class="sidebar-brand">
+            <div>
+                <div class="text-sm font-bold text-white tracking-tight">MALLAN</div>
+                <div class="text-[10px] text-gray-400 tracking-wider uppercase">Real Estate</div>
+            </div>
+        </div>
+        <div class="sidebar-nav" id="sidebarNav"></div>
+        <div class="sidebar-bottom">
+            <div id="sidebarUser" class="sidebar-user"></div>
+            <button onclick="CRM.logout()" class="sidebar-item text-gray-400 hover:text-red-400">
+                <i class="fas fa-sign-out-alt w-5 text-center"></i>
+                <span>Sign Out</span>
+            </button>
+        </div>
+    </nav>
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="CRM.toggleSidebar()"></div>
+    <main id="main" class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header id="topbar" class="topbar">
+            <div class="flex items-center gap-3">
+                <button id="menuBtn" class="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700" onclick="CRM.toggleSidebar()">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <h1 id="panelTitle" class="text-lg font-bold text-gray-900 tracking-tight"></h1>
+                <span id="panelBadge" class="hidden px-2 py-0.5 bg-gold-bg text-gold-dark text-xs font-bold rounded-full"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="relative hidden sm:block">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input id="globalSearch" type="text" placeholder="Search clients, listings..."
+                        class="pl-9 pr-4 py-2 w-56 text-sm bg-gray-100 border-0 rounded-lg focus:bg-white focus:ring-2 focus:ring-gold/30 focus:outline-none transition-all">
+                </div>
+                <button onclick="CRM.showNotifications()" class="relative p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
+                    <i class="fas fa-bell"></i>
+                    <span id="notifBadge" class="hidden absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"></span>
+                </button>
+            </div>
+        </header>
+        <div id="content" class="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div id="loadingState" class="flex items-center justify-center h-64">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin text-2xl text-gold mb-3"></i>
+                    <p class="text-sm text-gray-500">Logging in...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div id="modalOverlay" class="modal-overlay hidden" onclick="CRM.closeModal(event)" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div id="modalContainer" class="modal-container" onclick="event.stopPropagation()">
+        <div id="modalHeader" class="modal-header">
+            <h2 id="modalTitle" class="text-lg font-bold"></h2>
+            <button onclick="CRM.closeModal()" class="p-1 text-gray-400 hover:text-gray-600 rounded" aria-label="Close dialog"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+        <div id="modalFooter" class="modal-footer hidden"></div>
+    </div>
+</div>
+
+<nav id="mobileNav" class="mobile-nav">
+    <button onclick="Router.navigate('/ops/dashboard')" class="mobile-nav-btn" data-route="/ops/dashboard">
+        <i class="fas fa-tachometer-alt"></i><span>Home</span>
+    </button>
+    <button onclick="Router.navigate('/sales/sellers')" class="mobile-nav-btn" data-route="/sales/sellers">
+        <i class="fas fa-home"></i><span>Sales</span>
+    </button>
+    <button onclick="Router.navigate('/rentals/landlords')" class="mobile-nav-btn" data-route="/rentals/landlords">
+        <i class="fas fa-key"></i><span>Rentals</span>
+    </button>
+    <button onclick="Router.navigate('/ops/listings')" class="mobile-nav-btn" data-route="/ops/listings">
+        <i class="fas fa-building"></i><span>Listings</span>
+    </button>
+    <button onclick="Router.navigate('/ops/tasks')" class="mobile-nav-btn" data-route="/ops/tasks">
+        <i class="fas fa-tasks"></i><span>Tasks</span>
+    </button>
+</nav>
+
+<div id="toasts" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- ═══ STEP 1: Login first, THEN load CRM scripts ═══ -->
+<script>
+(function() {
+  var scripts = [
+    '/crm/js/core/api-client.js',
+    '/crm/js/core/client-normalizer.js',
+    '/crm/js/dashboard/utils.js',
+    '/crm/js/dashboard/store.js',
+    '/crm/js/dashboard/permissions.js',
+    '/crm/js/dashboard/router.js',
+    '/crm/js/dashboard/events.js',
+    '/crm/js/dashboard/alerts.js',
+    '/crm/js/dashboard/documents.js',
+    '/crm/js/dashboard/ui-components.js',
+    '/crm/js/dashboard/panels.js',
+    '/crm/js/dashboard/workspace.js',
+    '/crm/js/dashboard/portals.js',
+    '/crm/js/dashboard/panels/shared/filter-bar.js',
+    '/crm/js/dashboard/panels/shared/activity-table.js',
+    '/crm/js/dashboard/panels/sales-crm/index.js',
+    '/crm/js/dashboard/panels/rentals-crm/index.js',
+    '/crm/js/dashboard/app.js'
+  ];
+
+  function loadScriptsSequentially(list, idx) {
+    if (idx >= list.length) return;
+    var s = document.createElement('script');
+    s.src = list[idx];
+    s.onload = function() { loadScriptsSequentially(list, idx + 1); };
+    s.onerror = function() { console.error('Failed to load:', list[idx]); loadScriptsSequentially(list, idx + 1); };
+    document.body.appendChild(s);
+  }
+
+  // Step 1: Login to get real session cookie
+  fetch('/api/auth/dev-login', { method: 'POST', credentials: 'include' })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.success) {
+        document.getElementById('loadingState').querySelector('p').textContent = 'Logged in as ' + data.user.name + ' — loading CRM...';
+        // Step 2: Now load all CRM scripts (session cookie is set)
+        loadScriptsSequentially(scripts, 0);
+      } else {
+        document.getElementById('loadingState').innerHTML =
+          '<div class="text-center"><i class="fas fa-exclamation-circle text-2xl text-red-500 mb-3"></i>' +
+          '<p class="text-sm text-red-600 font-semibold">Login failed: ' + (data.error || 'Unknown error') + '</p>' +
+          '<p class="text-xs text-gray-500 mt-2">Make sure the dev server is connected to the database.</p></div>';
+      }
+    })
+    .catch(function(err) {
+      document.getElementById('loadingState').innerHTML =
+        '<div class="text-center"><i class="fas fa-exclamation-circle text-2xl text-red-500 mb-3"></i>' +
+        '<p class="text-sm text-red-600 font-semibold">Cannot connect: ' + err.message + '</p>' +
+        '<p class="text-xs text-gray-500 mt-2">Is the dev server running? (npm run dev)</p></div>';
+    });
+})();
+</script>
+
+</body>
+</html>

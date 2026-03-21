@@ -37,7 +37,7 @@ function main() {
   if (DRY_RUN) console.log('  (DRY RUN — no files will be modified)\n');
 
   if (!fs.existsSync(BINDINGS_PATH)) {
-    console.error('Binding map not found. Run: node scripts/generate-rls-bindings.js');
+    console.error('Binding map not found. Run: node scripts/audit-form-fields.js');
     process.exit(1);
   }
 
