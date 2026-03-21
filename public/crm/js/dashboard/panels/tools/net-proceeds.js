@@ -252,8 +252,9 @@ var NetProceedsCalc = (function () {
           '<div class="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wide">Costs &amp; Fees</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">' +
             '<div>' +
-              '<label class="block text-xs font-semibold text-gray-700 mb-1">Commission Rate (%)</label>' +
-              '<input id="' + _formId + '-commission-rate" type="number" value="' + E(opts.broker_commission_rate || '6') + '" placeholder="6" step="0.1" min="0" max="10" oninput="NetProceedsCalc.calculate()" class="w-full px-3 py-2 border rounded text-sm font-medium focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
+              '<label class="block text-xs font-semibold text-gray-700 mb-1">Broker Fee % <span class="text-gray-400 font-normal">(negotiable)</span></label>' +
+              '<input id="' + _formId + '-commission-rate" type="number" value="' + E(opts.broker_commission_rate || '') + '" placeholder="Enter agreed %" step="0.1" min="0" max="100" oninput="NetProceedsCalc.calculate()" class="w-full px-3 py-2 border rounded text-sm font-medium focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
+              '<div class="text-[10px] text-gray-400 mt-1">Broker fees are fully negotiable and not set by law.</div>' +
             '</div>' +
             '<div>' +
               '<label class="block text-xs font-semibold text-gray-700 mb-1">Attorney Fees</label>' +

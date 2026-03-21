@@ -14,6 +14,7 @@ export const SIGNAL_TYPES = [
   'dob_permits',
   'renovation_signal',
   'building_risk',
+  'property_tax',
   'page_visit',
   'cma_request',
   'valuation_form',
@@ -63,7 +64,7 @@ export interface SignalInput {
   signal_type: SignalType;
   raw_value: string | null;
   normalized: number;   // 0.0 – 1.0
-  source: 'acris' | 'dob' | 'first_party' | 'manual';
+  source: 'acris' | 'dob' | 'dof' | 'first_party' | 'manual';
   metadata?: Record<string, unknown>;
 }
 

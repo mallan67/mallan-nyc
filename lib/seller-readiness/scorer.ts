@@ -4,7 +4,7 @@
  * Weighted logistic scoring model using non-MLS public data signals.
  * Computes a 0-100 readiness score and A-F grade for each address.
  *
- * COMPLIANCE: Uses ONLY public data (ACRIS, DOB) and first-party behavior.
+ * COMPLIANCE: Uses ONLY public data (ACRIS, DOB, DOF) and first-party behavior.
  * No MLS/IDX data is ever used in scoring.
  */
 
@@ -15,6 +15,7 @@ import { gradeFromScore } from './types';
 import type { SignalInput, ScoredResult, SignalType } from './types';
 import { collectAcrisSignals } from './signals/acris';
 import { collectDobSignals } from './signals/dob';
+import { collectDofSignals } from './signals/dof-tax';
 import { collectFirstPartySignals } from './signals/first-party';
 
 /**
@@ -39,6 +40,12 @@ export async function scoreSellerLead(sellerLeadId: bigint): Promise<ScoredResul
   if (lead.bbl || lead.bin) {
     const dobSignals = await collectDobSignals(lead.bbl || '', lead.bin);
     allSignals.push(...dobSignals);
+  }
+
+  // DOF signals (property tax burden — condos, townhouses, mixed-use)
+  if (lead.bbl) {
+    const dofSignals = await collectDofSignals(lead.bbl);
+    allSignals.push(...dofSignals);
   }
 
   // First-party behavioral signals

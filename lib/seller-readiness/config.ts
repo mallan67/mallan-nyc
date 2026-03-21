@@ -13,9 +13,10 @@ export const SIGNAL_WEIGHTS: Record<SignalType, number> = {
   ownership_duration: 0.20,
   mortgage_age:       0.15,
   equity_estimate:    0.15,
-  dob_permits:        0.10,
-  renovation_signal:  0.10,
-  building_risk:      0.05,
+  dob_permits:        0.08,
+  renovation_signal:  0.08,
+  building_risk:      0.04,
+  property_tax:       0.05,  // DOF: high tax burden = carrying cost motivation
   page_visit:         0.10,
   cma_request:        0.10,
   valuation_form:     0.05,
