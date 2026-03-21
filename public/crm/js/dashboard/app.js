@@ -98,7 +98,8 @@ var CRM = (function () {
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
 
-    // A2. Sales CRM — 7 tabs
+    // A2. Sales CRM — 8 tabs (Seller Prospects + 7 lifecycle tabs)
+    Router.register('/sales/prospects',         function () { SellerProspects.render(); });
     Router.register('/sales/sellers',           function () { SalesCRM.activeSellers(); });
     Router.register('/sales/buyers',            function () { SalesCRM.activeBuyers(); });
     Router.register('/sales/landlord-sellers',  function () { SalesCRM.landlordSellers(); });
@@ -396,8 +397,9 @@ var CRM = (function () {
       ]);
     }
 
-    // SALES CRM (Seller / Buyer) — 7 tabs
+    // SALES CRM (Seller / Buyer) — 8 tabs
     html += _sidebarGroup('SALES CRM', 'sales', [
+      { route: '/sales/prospects', icon: 'fa-crosshairs', label: 'Seller Prospects' },
       { route: '/sales/sellers', icon: 'fa-home', label: 'Active Sellers' },
       { route: '/sales/buyers', icon: 'fa-user-tag', label: 'Active Buyers' },
       { route: '/sales/landlord-sellers', icon: 'fa-exchange-alt', label: 'Landlord Sellers' },

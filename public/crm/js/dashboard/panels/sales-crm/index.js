@@ -17,6 +17,7 @@ var SalesCRM = (function () {
 
   // ─── Subnav (7 tabs across top) ──────────────────────────────────────
   var TABS = [
+    { id: 'prospects', route: '/sales/prospects', label: 'Seller Prospects', icon: 'fa-crosshairs' },
     { id: 'sellers', route: '/sales/sellers', label: 'Active Sellers', icon: 'fa-home' },
     { id: 'buyers', route: '/sales/buyers', label: 'Active Buyers', icon: 'fa-user-tag' },
     { id: 'landlord-sellers', route: '/sales/landlord-sellers', label: 'Landlord Sellers', icon: 'fa-exchange-alt' },
