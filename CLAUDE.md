@@ -109,7 +109,7 @@ This project handles **licensed MLS/IDX data from REBNY RLS via Trestle/Cotality
 - Scraping, bulk export, redistribution
 - Using MLS data for AI training, embeddings, or vector databases
 - Exposing credentials in frontend code
-- Displaying listings where `IDXEntireListingDisplayYN = False`
+- Displaying listings where `InternetEntireListingDisplayYN = False`
 - Showing addresses where `InternetAddressDisplayYN = False`
 - Displaying Owner Opt-Out or Participant Only listings publicly
 - Using "Off-Market" language in any listing description
@@ -197,8 +197,10 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `compliance/FULL-AUDIT-2026-03-13.md` | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY |
 | `compliance/rules/ucba-audit-checklist.json` | Machine-readable audit checklist — used by `scripts/ucba-compliance-audit.js` for regression detection |
 | `scripts/ucba-compliance-audit.js` | UCBA compliance validator — `npm run ucba:audit` — detects regressions if passing rules break |
-| `data/rebny-rls-property-fields.csv` | All 448 REBNY RLS property fields |
+| `data/rebny-rls-property-fields.csv` | **902 REBNY IDX Plus fields** across 7 resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Replaced 2026-03-19 from REBNY official "IDX PLUS 3.15.26" document. 100% match against Trestle live feed. |
 | `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
+| `data/RLS-FIELD-REGISTRY.md` | **Complete Trestle resource map** — all 12 data resources, distribution gates, media/video/3D, Building, PropertyRooms, Teams, CustomFields, field corrections |
+| `artifacts/metadata.xml` | Full Trestle OData metadata (all entity types, field definitions, enum values) |
 | `data/UCBA-2026-Requirements.md` | UCBA 2026 rules extracted (56 pages) — all compliance requirements |
 | `data/RLS-Syndication-Research.md` | RLS feed types, syndication portals, costs, pre-licensed providers |
 
@@ -209,9 +211,14 @@ Every UI change should work seamlessly across all screen sizes and device types.
 - **Primary Feed:** REBNY RLS via Trestle (Cotality, formerly CoreLogic) — migrated Feb 2025 from Perchwell
 - **Trestle API:** `api.cotality.com/trestle` — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated, hard deadline March 31, 2026. Media proxy allowlists all 3 domains during transition.
 - **Trestle License:** IDX Plus - WebAPI (direct, independent — NOT through RealPlus or any LMP)
-- **Total Fields:** 448 Property fields
+- **IDX Plus Fields:** 902 across 7 REBNY-specified resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39)
+- **Additional Trestle Resources:** 5 beyond IDX Plus — PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only, empty shell)
+- **Total Trestle Fields:** ~1,364 across 12 data resources
+- **Critical Beyond-CSV Fields:** Distribution gates (`InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`) + `ShowingInstructions` are on Trestle Property but NOT in the IDX Plus CSV
+- **Fields NOT on Trestle:** `IDXEntireListingDisplayYN` (use `InternetEntireListingDisplayYN`), `SyndicateYN` (use `SyndicateTo`), all VOW-prefixed gate fields
 - **Picklist Values:** 2,066 lookup values
 - **Data Dictionary:** `Desktop/mallan nyc web/Trestle fields/Data_Migration_2025_RLS_Data_Rules.xlsx`
+- **Full Registry:** `data/RLS-FIELD-REGISTRY.md` — all 12 resources, media/video/3D, field corrections
 - **UCBA Rules:** `data/UCBA-2026-Requirements.md` (extracted from 56-page PDF)
 
 ### Feed Types
@@ -233,9 +240,10 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | openigloo, Samaki.com, TBI Listings | FREE | Trestle IDX Plus opt-in toggles (all ON) |
 
 ### Direct Data License (mallan.nyc)
-- Applying for Direct Data License to pull RLS data into mallan.nyc (like Compass)
-- Contact: rlssupport@rebny.com / 212-616-5270
-- Need both IDX feed (public search) and VOW feed (client portal)
+- Trestle IDX Plus WebAPI (Trestle-11371-20) provides all 1,363 fields — IDX and VOW both active
+- VOW-enriched fields (ClosePrice, DaysOnMarket, OriginalListPrice, etc.) served to logged-in portal clients via sanitizeForVOW() in lib/compliance/dto.ts
+- Public site (mallan.nyc) uses IDX-tier data. Portal (logged-in clients) uses VOW-tier data.
+- Contact for any feed questions: rlssupport@rebny.com / 212-616-5270
 
 ---
 
@@ -299,5 +307,5 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 - `MALLAN-NYC-CRM-PROJECT.md` — Master project document
 - `data/UCBA-2026-Requirements.md` — UCBA 2026 compliance rules (extracted from PDF)
 - `data/RLS-Syndication-Research.md` — Feed types, syndication, costs, providers
-- `data/rebny-rls-property-fields.csv` — All 448 REBNY RLS fields
+- `data/rebny-rls-property-fields.csv` — All 902 REBNY IDX Plus fields (replaced 2026-03-19)
 - `data/rebny-rls-property-lookup.csv` — All 2,066 picklist values

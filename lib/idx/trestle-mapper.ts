@@ -1,5 +1,5 @@
 // lib/idx/trestle-mapper.ts
-// Complete 448-field mapper from Trestle/REBNY RLS to Prisma Listing model.
+// Trestle/REBNY RLS to Prisma Listing model mapper (902 IDX Plus fields across 7 resources).
 // Maps ALL 29 RLS categories. Handles 23 RESO-to-RLS renames.
 // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
 
@@ -35,7 +35,7 @@ export const RESO_TO_RLS_RENAMES: Record<string, string> = {
 // Handled specially in mapTrestleToPrisma
 
 // ═══════════════════════════════════════════════════════════
-// ALL 448 RLS FIELD NAMES (for $select query)
+// ALL RLS PROPERTY FIELD NAMES (for $select query)
 // Grouped by the 29 RLS categories (B1–B29)
 // ═══════════════════════════════════════════════════════════
 
@@ -57,7 +57,7 @@ const B2_CLASSIFICATION = [
   "NewDevelopmentYN", "DevelopmentStatus", "NumberOfUnitsTotal",
   "NumberOfUnitsVacant", "NumberOfUnitsLeased", "NumberOfBuildings",
   "StoriesTotal", "NumberOfSeparateElectricMeters", "NumberOfSeparateGasMeters",
-  "NumberOfSeparateWaterMeters",
+  "NumberOfSeparateWaterMeters", "BusinessType",
 ];
 
 // B3: Listing Agreement (12 fields)
@@ -98,9 +98,11 @@ const B5_PRICING = [
 // B6: Display Flags / Distribution (8 fields)
 const B6_DISPLAY_FLAGS = [
   "IDXEntireListingDisplayYN", "IDXAutomatedValuationDisplayYN",
+  "InternetAutomatedValuationDisplayYN", "InternetConsumerCommentYN",
   "VOWEntireListingDisplayYN", "VOWAutomatedValuationDisplayYN",
   "VOWConsumerCommentYN", "SyndicateTo",
   "IDXParticipationYN", "ParticipantOnlyYN",
+  "ListingURL",
 ];
 
 // B7: Remarks (8 fields)
@@ -164,10 +166,10 @@ const B12_UNIT_ROOMS = [
   "AboveGradeFinishedArea", "AboveGradeFinishedAreaSource",
   "AboveGradeFinishedAreaUnits", "BelowGradeFinishedArea",
   "BelowGradeFinishedAreaSource", "BelowGradeFinishedAreaUnits",
-  "BuildingAreaTotal", "BuildingAreaSource",
+  "BuildingAreaTotal", "BuildingAreaSource", "BuildingAreaUnits",
   "RoomsTotal", "NumberOfDiningAreas", "NumberOfMasterBathrooms",
   "CeilingHeightFeet", "CeilingHeightInches",
-  "TotalLegalRooms",
+  "TotalLegalRooms", "Levels", "Stories", "EntryLevel",
 ];
 
 // B13: Building Details (19 fields)
@@ -178,7 +180,7 @@ const B13_BUILDING = [
   "Roof", "Foundation", "Heating", "Cooling",
   "ElectricOnPropertyYN", "Sewer", "WaterSource",
   "OtherStructures", "FloorNumber", "FloorNumberInBuilding",
-  "BuildingKeyNumeric",
+  "BuildingKeyNumeric", "BasementYN", "FoundationArea", "FoundationDetails",
 ];
 
 // B14: Building Amenities (20 fields)
@@ -235,6 +237,8 @@ const B19_LOT_LAND = [
   "LotFeatures", "FrontageLength", "FrontageLengthUnits",
   "FrontageType", "RoadSurfaceType", "RoadFrontageType",
   "Topography", "Vegetation", "WaterfrontFeatures",
+  "LandLeaseYN", "LandLeaseAmount", "LandLeaseAmountFrequency", "LandLeaseExpirationDate",
+  "ZoningDescription",
 ];
 
 // B20: Unit Features (18 fields)
@@ -245,14 +249,14 @@ const B20_UNIT_FEATURES = [
   "Fencing", "View", "ViewYN",
   "BathroomCondition", "KitchenCondition",
   "AreaOverFAR", "AreaUnderFAR",
-  "Furnished", "PropertyCondition",
+  "Furnished", "PropertyCondition", "CurrentUse",
 ];
 
 // B21: Parking (8 fields)
 const B21_PARKING = [
   "ParkingFeatures", "ParkingTotal", "GarageSpaces",
   "GarageYN", "AttachedGarageYN", "CarportSpaces", "CarportYN",
-  "OpenParkingSpaces",
+  "OpenParkingSpaces", "OpenParkingYN",
 ];
 
 // B22: Outdoor & Pets (8 fields)
@@ -290,7 +294,7 @@ const B25_GREEN = [
 const B26_MEDIA = [
   "PhotosCount", "PhotosChangeTimestamp",
   "VideosCount", "VideoURL",
-  "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   "ListingSocialMediaURL", "BuildingSocialMediaURL",
   "DocumentsAvailable", "DocumentsCount", "DocumentsChangeTimestamp",
   "FloorPlanURL", "InteractiveFloorPlanURL",
@@ -332,7 +336,7 @@ const B29_OTHER = [
   "WaterfrontYN",
 ];
 
-/** All 448 RLS field names combined (full spec). Deduplicated. */
+/** All REBNY IDX Plus Property field names combined. Deduplicated. */
 export const ALL_RLS_FIELDS: string[] = [...new Set([
   ...B1_ADDRESS, ...B2_CLASSIFICATION, ...B3_LISTING_AGREEMENT,
   ...B4_STATUS_DATES, ...B5_PRICING, ...B6_DISPLAY_FLAGS,
@@ -357,8 +361,9 @@ export const ALL_RLS_FIELDS: string[] = [...new Set([
 //   - Media: navigation property — requires $expand=Media, not $select
 //   - Team MLS IDs, some building/rental details: not provisioned on IDX Plus
 //
-// When upgrading to Direct Data License or VOW feed, re-validate and
-// shrink this set accordingly.
+// Trestle IDX Plus WebAPI provides all 1,363 fields. VOW-enriched fields
+// (ClosePrice, DaysOnMarket, etc.) are served to authenticated portal users
+// via sanitizeForVOW() in lib/compliance/dto.ts — no license upgrade needed.
 // ═══════════════════════════════════════════════════════════
 const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   // Gate fields (pre-filtered by Trestle on IDX feed)

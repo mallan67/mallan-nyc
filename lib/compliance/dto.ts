@@ -13,7 +13,8 @@
  *
  * VOW (Virtual Office Website) provides authenticated consumers with additional data
  * beyond IDX, such as sold/closed price, days on market, and listing history.
- * Requires REBNY VOW feed authorization (pending Direct Data License).
+ * Active — Trestle IDX Plus WebAPI provides all 1,363 fields. VOW display is
+ * authorized for registered/logged-in portal consumers per REBNY RLS rules.
  *
  * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
  */
@@ -60,6 +61,9 @@ const IDX_SUPPRESSED_FIELDS = [
   "ListAgentEmail",
   "ListAgentDirectPhone",
   "ListAgentKey",
+  // ListingURL is the listing broker's website URL (e.g., bhsusa.com/listing/123).
+  // Must never be shown to buyer/tenant clients — CRM/agent view only.
+  "ListingURL",
   ...REMOVED_FIELDS,
 ] as const;
 
