@@ -1,0 +1,177 @@
+/**
+ * /api/crm/sales/prospects/[id] — GET / PUT / DELETE a single seller prospect
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { serializeBigInts } from "@/lib/api/serialize";
+
+type RouteParams = { params: Promise<{ id: string }> };
+
+/** Explicit allowlist of fields that can be updated via PUT */
+const ALLOWED_UPDATE_FIELDS = new Set([
+  "address",
+  "unit",
+  "borough",
+  "bbl",
+  "bin",
+  "owner_name",
+  "owner_email",
+  "owner_phone",
+  "property_type",
+  "beds",
+  "baths",
+  "sqft",
+  "building_name",
+  "management_company",
+  "entity_type",
+  "entity_name",
+  "authorized_signatories",
+  "secondary_name",
+  "secondary_phone",
+  "secondary_email",
+  "secondary_relationship",
+  "attorney_name",
+  "attorney_email",
+  "attorney_phone",
+  "source",
+  "source_detail",
+  "status",
+  "notes",
+  "consent_captured_at",
+  "consent_opt_out_at",
+  "next_follow_up",
+  "last_contacted_at",
+]);
+
+export async function GET(req: NextRequest, { params }: RouteParams) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+
+  const { id } = await params;
+  const prospectId = safeBigInt(id);
+  if (!prospectId) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+
+  const prospect = await prisma.sellerLead.findFirst({
+    where: {
+      id: prospectId,
+      ...(auth.role !== "BROKER" ? { assigned_agent_id: auth.userId } : {}),
+    },
+    include: {
+      signals: { orderBy: { collected_at: "desc" } },
+      outreach_events: { orderBy: { created_at: "desc" }, take: 50 },
+      cadence_steps: { orderBy: { day_offset: "asc" } },
+    },
+  });
+
+  if (!prospect) {
+    return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ prospect: serializeBigInts(prospect) });
+}
+
+export async function PUT(req: NextRequest, { params }: RouteParams) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const { id } = await params;
+  const prospectId = safeBigInt(id);
+  if (!prospectId) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+
+  // Ownership check
+  const existing = await prisma.sellerLead.findFirst({
+    where: {
+      id: prospectId,
+      ...(auth.role !== "BROKER" ? { assigned_agent_id: auth.userId } : {}),
+    },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
+  }
+
+  const body = await req.json();
+
+  // Filter through allowlist
+  const data: Record<string, unknown> = {};
+  for (const key of ALLOWED_UPDATE_FIELDS) {
+    if (key in body) {
+      // Convert ISO date strings to Date objects for DateTime fields
+      if (
+        (key === "consent_captured_at" ||
+          key === "consent_opt_out_at" ||
+          key === "next_follow_up" ||
+          key === "last_contacted_at") &&
+        body[key]
+      ) {
+        data[key] = new Date(body[key]);
+      } else {
+        data[key] = body[key];
+      }
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  const updated = await prisma.sellerLead.update({
+    where: { id: prospectId },
+    data,
+    include: {
+      cadence_steps: { orderBy: { day_offset: "asc" } },
+    },
+  });
+
+  await logAuditEvent(
+    "seller_prospect_updated",
+    "seller_lead",
+    String(updated.id),
+    auth,
+    { fields: Object.keys(data) },
+  );
+
+  return NextResponse.json({ prospect: serializeBigInts(updated) });
+}
+
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const { id } = await params;
+  const prospectId = safeBigInt(id);
+  if (!prospectId) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+
+  // Ownership check
+  const existing = await prisma.sellerLead.findFirst({
+    where: {
+      id: prospectId,
+      ...(auth.role !== "BROKER" ? { assigned_agent_id: auth.userId } : {}),
+    },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
+  }
+
+  // Cascade delete handled by Prisma schema (signals, outreach_events, cadence_steps)
+  await prisma.sellerLead.delete({ where: { id: prospectId } });
+
+  await logAuditEvent(
+    "seller_prospect_deleted",
+    "seller_lead",
+    String(prospectId),
+    auth,
+    { address: existing.address },
+  );
+
+  return NextResponse.json({ deleted: true, id: String(prospectId) });
+}
