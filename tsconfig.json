@@ -47,6 +47,7 @@
     "node_modules",
     "scripts",
     "public/crm",
+    "mcp",
     "lib/rls-validator",
     "lib/compliance/__tests__"
   ]
