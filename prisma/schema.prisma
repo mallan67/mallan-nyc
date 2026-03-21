@@ -229,6 +229,17 @@ model Lead {
   active_sale_listing_id   String?   @map("active_sale_listing_id")
   active_rental_listing_id String?   @map("active_rental_listing_id")
 
+  // --- Financial profile (all client types — especially tenants/renters) ---
+  // Used to flag high-net-worth individuals for sales pursuit
+  net_worth_estimate       Decimal?  @db.Decimal(16,2) @map("net_worth_estimate")
+  net_worth_source         String?   @map("net_worth_source")    // "stated" | "verified" | "estimated"
+  liquid_assets_total      Decimal?  @db.Decimal(16,2) @map("liquid_assets_total")   // total liquid (cash + investments)
+  investment_properties    Int?      @default(0) @map("investment_properties")        // # of properties owned
+  portfolio_value_estimate Decimal?  @db.Decimal(16,2) @map("portfolio_value_estimate") // total real estate portfolio value
+  is_high_net_worth        Boolean   @default(false) @map("is_high_net_worth")        // flagged for priority sales pursuit
+  hnw_pursuit_level        String?   @map("hnw_pursuit_level")   // "standard" | "active" | "priority"
+  hnw_notes                String?   @map("hnw_notes")            // notes on why flagged, what they own
+
   // --- Investor fields ---
   is_investor              Boolean   @default(false) @map("is_investor")
   investment_strategy      String?   @map("investment_strategy")       // "cash_flow" | "appreciation" | "value_add" | "1031_exchange"
@@ -251,6 +262,18 @@ model Lead {
   building_type_pref       String[]  @map("building_type_pref")        // ["condo", "coop", "condop", "rental"]
   guarantor_needed         Boolean   @default(false) @map("guarantor_needed")
   docs_readiness           Json?     @map("docs_readiness")            // { pay_stubs: true, tax_returns: false, ... }
+  // Tenant origin + fee situation
+  tenant_origin            String?   @map("tenant_origin")             // "local" | "out_of_state" | "international" | "relocation"
+  relocation_company       String?   @map("relocation_company")        // if relocation, who is paying
+  fee_tolerance            String?   @map("fee_tolerance")             // "no_fee_only" | "owner_pay_only" | "will_pay_fee" | "relocation_pays"
+  is_international         Boolean   @default(false) @map("is_international")  // international tenant (needs guarantor or 40x income)
+  guarantor_type           String?   @map("guarantor_type")            // "personal" | "third_party" (Insurent/TheGuarantors) | "none"
+  guarantor_name           String?   @map("guarantor_name")
+  guarantor_company        String?   @map("guarantor_company")         // Insurent, TheGuarantors, etc.
+  understands_board_process Boolean  @default(false) @map("understands_board_process")
+  income_multiple          Decimal?  @db.Decimal(5,1) @map("income_multiple")  // annual income / annual rent (40x = standard NYC)
+  move_in_date             DateTime? @map("move_in_date")              // desired move-in date
+  move_in_flexibility      String?   @map("move_in_flexibility")       // "exact" | "flexible_1wk" | "flexible_1mo"
 
   // --- Viewed/did-not-rent tracking ---
   viewed_addresses         Json?     @map("viewed_addresses")
@@ -718,6 +741,12 @@ model LeadParty {
 model ActiveLease {
   id              BigInt    @id @default(autoincrement())
 
+  // ── Lease status ──────────────────────────────────────────
+  // "active"    — currently rented, lease ongoing
+  // "historical" — past rental, lease ended (for outreach timing)
+  // "pending"   — signed, not yet moved in
+  status          String    @default("active") @map("status")
+
   // ── The unit ──────────────────────────────────────────────
   address         String    @map("address")
   unit            String?   @map("unit")
@@ -793,6 +822,7 @@ model ActiveLease {
   @@index([tenant_lead_id])
   @@index([lease_end_date])
   @@index([renewal_status])
+  @@index([status])
   @@index([agent_id])
   @@map("active_leases")
 }

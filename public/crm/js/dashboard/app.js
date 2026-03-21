@@ -13,11 +13,8 @@ var CRM = (function () {
 
   // ─── Init ────────────────────────────────────────────────────────────
   function init() {
-    var origin = window.location.origin;
-    var isLocal = origin.indexOf('localhost') !== -1 || origin.indexOf('127.0.0.1') !== -1;
-    if (isLocal) {
-      MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
-    }
+    // Use same origin on localhost so session cookies work
+    // On production (mallan.nyc), baseUrl stays empty (same origin)
 
     window.addEventListener('mallan:auth:unauthorized', function () {
       window.location.href = '/crm/login.html';
@@ -110,8 +107,9 @@ var CRM = (function () {
     Router.register('/sales/activity',          function () { SalesCRM.salesActivity(); });
     Router.register('/sales/automation',        function () { SalesCRM.salesAutomation(); });
 
-    // A3. Rentals CRM — 7 tabs
+    // A3. Rentals CRM — 8 tabs
     Router.register('/rentals/landlords',       function () { RentalsCRM.landlords(); });
+    Router.register('/rentals/active-leases',   function () { RentalsCRM.activeLeases(); });
     Router.register('/rentals/listings',        function () { RentalsCRM.rentalListings(); });
     Router.register('/rentals/viewed',          function () { RentalsCRM.viewedDidNotRent(); });
     Router.register('/rentals/tenants',         function () { RentalsCRM.currentTenants(); });
@@ -406,9 +404,10 @@ var CRM = (function () {
       { route: '/sales/automation', icon: 'fa-robot', label: 'Automation' },
     ]);
 
-    // RENTALS CRM (Landlord / Tenant) — 7 tabs
+    // RENTALS CRM (Landlord / Tenant) — 8 tabs
     html += _sidebarGroup('RENTALS CRM', 'rentals', [
       { route: '/rentals/landlords', icon: 'fa-key', label: 'Landlords' },
+      { route: '/rentals/active-leases', icon: 'fa-file-contract', label: 'Active Leases' },
       { route: '/rentals/listings', icon: 'fa-building', label: 'Rental Listings' },
       { route: '/rentals/viewed', icon: 'fa-eye-slash', label: 'Viewed / Did Not Rent' },
       { route: '/rentals/tenants', icon: 'fa-user-check', label: 'Current Tenants' },
