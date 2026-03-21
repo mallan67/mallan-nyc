@@ -1,6 +1,7 @@
 // /api/cron/prospect-triggers — Daily 9am: cadence readiness, overdue alerts, follow-up sync, building activity
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { getAccessToken } from "@/lib/idx/auth";
 
 export const dynamic = "force-dynamic";
@@ -154,7 +155,7 @@ export async function GET(req: NextRequest) {
               entity_type: string;
               entity_id: string;
               user_type: string;
-              changes: Record<string, unknown>;
+              changes: Prisma.InputJsonValue;
             }> = [];
 
             for (const listing of listings) {
@@ -179,7 +180,7 @@ export async function GET(req: NextRequest) {
                     address,
                     list_price: listing.ListPrice,
                     status,
-                  },
+                  } as Prisma.InputJsonValue,
                 });
               } else if (status === "Closed") {
                 auditEvents.push({
