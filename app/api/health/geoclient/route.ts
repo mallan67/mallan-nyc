@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 export const runtime = "nodejs";
-const mask = (s?: string | null) => (s ? `${s.slice(0,4)}…${s.slice(-4)}` : null);
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+
   const k1 = (process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY || "").trim() || null;
   const k2 = (process.env.NYC_GEOCLIENT_SUBSCRIPTION_KEY_2 || "").trim() || null;
   const kp = (process.env.GEOCLIENT_PRIMARY_KEY || "").trim() || null;
@@ -22,11 +25,5 @@ export async function GET() {
       NYC_GEOCLIENT_APP_ID: !!v1id,
       NYC_GEOCLIENT_APP_KEY: !!v1key,
     },
-    masked: {
-      v2_primary: mask(k1 || kp),
-      v2_secondary: mask(k2 || ks),
-      v1_id: mask(v1id),
-      v1_key: mask(v1key),
-    }
   });
 }

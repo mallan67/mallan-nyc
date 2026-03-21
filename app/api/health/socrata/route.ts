@@ -1,22 +1,22 @@
-// app/api/health/socrata/route.ts
-import { NextResponse } from "next/server";
-import { sodaFetch, sodaTokenMasked } from "@/lib/soda";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
+import { sodaFetch } from "@/lib/soda";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+
   try {
-    const tokenMasked = sodaTokenMasked();
-    // Tiny probe: 1 row from DOB violations
     const rows = await sodaFetch("3h2n-5cm9.json", { query: { "$limit": 1 } });
     return NextResponse.json({
       ok: true,
-      tokenMasked,
       sampleCount: Array.isArray(rows) ? rows.length : 0,
     });
-  } catch (err: any) {
+  } catch {
     return NextResponse.json(
-      { ok: false, error: err?.message || String(err) },
+      { ok: false, error: "Socrata health check failed" },
       { status: 500 }
     );
   }

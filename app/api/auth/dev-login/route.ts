@@ -6,9 +6,8 @@ import prisma from "@/lib/prisma";
 import { createSession, SESSION_COOKIE } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  // Block in production
-  const host = req.headers.get("host") || "";
-  if (!host.includes("localhost") && !host.includes("127.0.0.1")) {
+  // Block in production — NODE_ENV is set by the runtime, not spoofable like Host header
+  if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

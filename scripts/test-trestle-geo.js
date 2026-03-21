@@ -9,8 +9,8 @@ async function main() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: '***REMOVED***',
-      client_secret: '***REMOVED***',
+      client_id: process.env.TRESTLE_CLIENT_ID,
+      client_secret: process.env.TRESTLE_CLIENT_SECRET,
       scope: 'api',
     }),
   });

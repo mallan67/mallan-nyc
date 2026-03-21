@@ -32,13 +32,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large (max 20MB)" }, { status: 400 });
   }
 
-  const title = (formData.get("title") as string) || file.name || "Untitled";
+  // File type allowlist — only document formats permitted
+  const ALLOWED_EXTENSIONS = new Set(["pdf", "doc", "docx", "xls", "xlsx", "csv", "txt", "jpg", "jpeg", "png", "gif", "webp", "heic", "tiff"]);
+  const ALLOWED_MIME_PREFIXES = ["application/pdf", "application/msword", "application/vnd.openxmlformats", "application/vnd.ms-excel", "text/", "image/"];
+  const ext = ((file as File).name || "file").split(".").pop()?.toLowerCase() || "";
+  const mime = file.type || "";
+
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    return NextResponse.json({ error: `File type '.${ext}' not allowed. Accepted: PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, JPG, PNG, GIF, WEBP` }, { status: 400 });
+  }
+  if (mime && !ALLOWED_MIME_PREFIXES.some(p => mime.startsWith(p))) {
+    return NextResponse.json({ error: `MIME type '${mime}' not allowed` }, { status: 400 });
+  }
+
+  const title = (formData.get("title") as string) || (file as File).name || "Untitled";
   const docType = (formData.get("doc_type") as string) || "other";
   const dealId = formData.get("deal_id") as string | null;
   const scope = (formData.get("scope") as string) || "agent";
 
   const rawBuffer = Buffer.from(await file.arrayBuffer());
-  const ext = (file.name || "file").split(".").pop() || "pdf";
   const key = `documents/${auth.userId}/${Date.now()}-${title.replace(/[^a-zA-Z0-9.-]/g, "_")}.${ext}`;
   const publicUrl = await uploadToR2(key, rawBuffer, file.type || "application/octet-stream");
 
