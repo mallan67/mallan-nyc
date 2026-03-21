@@ -174,7 +174,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const nonce = (await headers()).get('x-nonce') ?? '';
 
   return (
-    <html lang="en" className={`${urbanist.variable} ${inter.variable}`}>
+    <html lang="en" className={`${urbanist.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />
@@ -188,7 +188,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         />
         {/* Google Translate — loaded after hydration via Header component to prevent React Error #418/#300 */}
       </head>
-      <body className="antialiased font-sans">
+      <body className="antialiased font-sans" suppressHydrationWarning>
         <SkipLink />
         <AuthProvider>
           <ErrorBoundary>

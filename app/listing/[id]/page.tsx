@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
@@ -174,7 +173,7 @@ async function fetchLastSaleFromACRIS(
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; ref?: string }>;
 };
 
 /** County → Borough mapping for NYC */
@@ -638,7 +637,7 @@ function formatPrice(price: number, isRental: boolean): string {
 
 export default async function ListingPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { key } = await searchParams;
+  const { key, ref: refSource } = await searchParams;
 
   let result: ListingFetchResult | null = null;
   try {
@@ -891,9 +890,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
         type={isRental ? 'rent' : 'sale'}
       />
       <ListingViewTracker />
-      <Suspense fallback={null}>
-        <TrackListingView listingId={listing.id} />
-      </Suspense>
+      <TrackListingView listingId={listing.id} refSource={refSource} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
