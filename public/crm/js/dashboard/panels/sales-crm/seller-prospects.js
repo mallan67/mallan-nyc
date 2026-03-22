@@ -817,86 +817,98 @@ var SellerProspects = (function () {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // SECTION 1: ACRIS — Ownership, Purchase, Mortgage, Refinance
+    // SECTION 1: ACRIS — Ownership & Financial Position
     // ══════════════════════════════════════════════════════════════════
-    h += section('fa-file-contract', 'ACRIS — Ownership & Mortgage History', '#3B82F6');
+    h += section('fa-file-contract', 'ACRIS — Ownership & Financial Position', '#3B82F6');
 
-    // From SellerLead enriched fields
-    h += row('Owner Name (from deed)', p.owner_name);
-    h += row('Ownership Duration', p.ownership_years ? p.ownership_years + ' years' : null);
-    h += row('Purchase Price', p.last_purchase_price ? $(Number(p.last_purchase_price)) : null);
-    h += row('Purchase Date', p.last_purchase_date ? D(p.last_purchase_date) : null);
+    h += row('Owner (deed)', p.owner_name);
+    h += row('Owned Since', p.last_purchase_date ? D(p.last_purchase_date) + (p.ownership_years ? ' (' + p.ownership_years + ' years)' : '') : null);
+    h += row('Original Purchase Price', p.last_purchase_price ? $(Number(p.last_purchase_price)) : null);
+    h += row('Mortgage on Record', p.mortgage_amount ? $(Number(p.mortgage_amount)) : 'None recorded (cash purchase or paid off)');
+    h += row('Mortgage Date', p.mortgage_date ? D(p.mortgage_date) : null);
 
-    // Mortgage vs Cash
-    if (p.mortgage_amount && Number(p.mortgage_amount) > 0) {
-      h += row('Mortgage Amount', $(Number(p.mortgage_amount)), '#DC2626');
-      h += row('Mortgage Date', p.mortgage_date ? D(p.mortgage_date) : null);
-      h += row('Payment Method', 'FINANCED (has mortgage)', '#DC2626');
-      // Equity estimate
+    // Calculated: what they likely still owe vs what they paid
+    if (p.last_purchase_price && p.mortgage_amount) {
+      var purchase = Number(p.last_purchase_price);
+      var mortgage = Number(p.mortgage_amount);
+      var downPmt = purchase - mortgage;
+      h += row('Down Payment (at purchase)', downPmt > 0 ? $(downPmt) + ' (' + Math.round(downPmt / purchase * 100) + '% down)' : null);
+      // Rough equity estimate based on LTV
       if (p.equity_ratio != null) {
-        var eq = (Number(p.equity_ratio) * 100).toFixed(0);
-        h += row('Estimated Equity', eq + '% (LTV ratio)', eq > 50 ? '#059669' : '#F59E0B');
+        var ltv = Number(p.equity_ratio);
+        var estOwed = Math.round(purchase * ltv);
+        var estEquity = purchase - estOwed;
+        h += row('Est. Still Owed (LTV ' + Math.round(ltv * 100) + '%)', $(estOwed));
+        h += row('Est. Equity in Property', $(estEquity));
       }
-    } else if (p.last_purchase_price) {
-      h += row('Payment Method', 'ALL CASH (no mortgage recorded)', '#059669');
+    } else if (p.last_purchase_price && !p.mortgage_amount) {
+      h += row('Est. Equity in Property', $(Number(p.last_purchase_price)) + ' (no mortgage)');
     }
 
-    // Signal metadata for extra ACRIS details (refinance, additional docs)
+    // All recorded ACRIS documents — mortgages, refinances, assignments
     var signals = p.signals || [];
     var acrisSignals = signals.filter(function (s) {
-      return s.source === 'acris' || (s.signal_type && s.signal_type.indexOf('mortgage') !== -1);
+      return s.source === 'acris' || (s.signal_type && (s.signal_type.indexOf('mortgage') !== -1 || s.signal_type.indexOf('ownership') !== -1 || s.signal_type.indexOf('equity') !== -1));
     });
+
+    var hasDocs = false;
     acrisSignals.forEach(function (sig) {
       var meta = sig.metadata;
       if (meta && typeof meta === 'object') {
         if (meta.doc_type === 'MTGE' && meta.recorded_datetime && meta.document_amt) {
-          var isRefi = p.last_purchase_date && new Date(meta.recorded_datetime) > new Date(p.last_purchase_date);
-          h += row(
-            isRefi ? 'Refinanced' : 'Mortgage Recorded',
-            $(Number(meta.document_amt)) + ' on ' + D(meta.recorded_datetime),
-            isRefi ? '#F59E0B' : '#6B7280'
-          );
+          hasDocs = true;
+          var label = 'Mortgage Recorded';
+          if (p.last_purchase_date && new Date(meta.recorded_datetime) > new Date(new Date(p.last_purchase_date).getTime() + 90 * 86400000)) {
+            label = 'Refinance';
+          }
+          h += row(label, $(Number(meta.document_amt)) + ' on ' + D(meta.recorded_datetime));
         }
         if (meta.doc_type === 'AGMT' || meta.doc_type === 'ASST') {
-          h += row('Assignment/Agreement', D(meta.recorded_datetime) + (meta.document_amt ? ' — ' + $(Number(meta.document_amt)) : ''));
+          hasDocs = true;
+          h += row('Assignment / Agreement', $(Number(meta.document_amt || 0)) + ' on ' + D(meta.recorded_datetime));
         }
       }
     });
 
-    // ACRIS link
     if (p.bbl) {
-      h += '<div style="margin-top:8px;"><a href="https://a836-acris.nyc.gov/DS/DocumentSearch/BBLResult?borough=' + p.bbl.charAt(0) + '&block=' + p.bbl.substring(1, 6) + '&lot=' + p.bbl.substring(6) + '" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">View full ACRIS records <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a></div>';
+      h += '<div style="margin-top:8px;"><a href="https://a836-acris.nyc.gov/DS/DocumentSearch/BBLResult?borough=' + p.bbl.charAt(0) + '&block=' + p.bbl.substring(1, 6) + '&lot=' + p.bbl.substring(6) + '" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">Full ACRIS document history <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a></div>';
     }
     h += '</div>';
 
     // ══════════════════════════════════════════════════════════════════
-    // SECTION 2: DOF — Tax Data
+    // SECTION 2: DOF — Tax & Valuation
     // ══════════════════════════════════════════════════════════════════
     h += section('fa-dollar-sign', 'DOF — Property Tax & Valuation', '#059669');
     h += row('Tax Class', p.tax_class);
-    h += row('Annual Property Tax', p.annual_tax ? $(Number(p.annual_tax)) + '/yr' : null);
-    h += row('Market Value (DOF)', p.market_value ? $(Number(p.market_value)) : null);
+    h += row('Annual Property Tax', p.annual_tax ? $(Number(p.annual_tax)) + ' / year' : null);
+    h += row('DOF Market Value', p.market_value ? $(Number(p.market_value)) : null);
     h += row('Assessed Value', p.assessed_value ? $(Number(p.assessed_value)) : null);
 
-    // Tax Lien History — check signals for tax_lien_history
+    // Tax Lien History
     var lienSignal = signals.filter(function (s) { return s.signal_type === 'tax_lien_history'; });
     if (lienSignal.length > 0) {
       var lienData = lienSignal[0].metadata;
       var liens = (lienData && lienData.liens) || [];
-      h += '<div style="margin-top:10px;padding:10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;">';
-      h += '<div style="font-size:11px;font-weight:700;color:#DC2626;margin-bottom:6px;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>TAX LIEN HISTORY — ' + liens.length + ' record(s)</div>';
+      h += '<div style="margin-top:10px;padding:10px;background:#FFF7ED;border:1px solid #E5E7EB;border-radius:8px;">';
+      h += '<div style="font-size:11px;font-weight:700;color:#111;margin-bottom:6px;">Tax Lien Sale Records: ' + liens.length + '</div>';
       liens.forEach(function (l) {
-        h += '<div style="font-size:11px;color:#7F1D1D;margin-bottom:2px;">' +
-          'Year: ' + E(String(l.year || '?')) +
-          ' | Type: ' + E(String(l.lien_type || '?')) +
+        h += '<div style="font-size:11px;color:#374151;margin-bottom:2px;">' +
+          'Year: ' + E(String(l.year || '')) +
+          (l.lien_type ? ' | Type: ' + E(String(l.lien_type)) : '') +
           (l.amount && l.amount !== 'Unknown' ? ' | Amount: ' + E(String(l.amount)) : '') +
           '</div>';
       });
-      h += '<div style="font-size:10px;color:#991B1B;margin-top:4px;font-style:italic;">Property was placed on NYC tax lien sale list — indicates unpaid taxes, water/sewer charges, or emergency repairs.</div>';
       h += '</div>';
     } else if (p.last_researched_at) {
-      h += '<div style="margin-top:8px;padding:6px 10px;background:#ECFDF5;border-radius:6px;font-size:11px;color:#059669;"><i class="fas fa-check-circle" style="margin-right:4px;"></i>No tax lien sale history found</div>';
+      h += row('Tax Lien Sale History', 'None found');
     }
+
+    if (p.bbl) {
+      h += '<div style="margin-top:8px;display:flex;gap:12px;">';
+      h += '<a href="https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">Check current balance owed <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a>';
+      h += '</div>';
+    }
+    h += '</div>';
 
     // Links
     if (p.bbl) {
