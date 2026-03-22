@@ -233,50 +233,152 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     console.warn("[prospect-research] Scoring failed:", (err as Error).message);
   }
 
-  // ── Step 4: Extract ACRIS enrichment from signals ──────────────────────────
+  // ── Step 4: Pull ACTUAL ACRIS transaction data (real amounts) ───────────────
   const acrisUpdate: Record<string, unknown> = {};
+  interface AcrisTransaction {
+    doc_type: string;
+    amount: number;
+    date: string;
+    document_id: string;
+  }
+  const allTransactions: AcrisTransaction[] = [];
 
-  if (scoreResult?.signals) {
-    const ownershipSig = scoreResult.signals.find(
-      (s) => s.signal_type === "ownership_duration",
-    );
-    const mortgageSig = scoreResult.signals.find(
-      (s) => s.signal_type === "mortgage_age",
-    );
-    const equitySig = scoreResult.signals.find(
-      (s) => s.signal_type === "equity_estimate",
-    );
+  if (bbl) {
+    try {
+      const borough = bbl[0];
+      const block = bbl.substring(1, 6);
+      const lot = bbl.substring(6, 10);
 
-    if (ownershipSig?.metadata) {
-      const meta = ownershipSig.metadata as Record<string, unknown>;
-      const yearsRaw = ownershipSig.raw_value ?? ""; // e.g. "12.3 years"
-      const years = parseFloat(yearsRaw);
-      if (!isNaN(years)) acrisUpdate.ownership_years = years;
-      if (meta.deed_date) {
-        acrisUpdate.last_purchase_date = new Date(meta.deed_date as string);
-      }
-    }
+      const REALPROP = process.env.SODA_DATASET_ACRIS_REALPROPERTY;
+      const MASTER = process.env.SODA_DATASET_ACRIS_MASTER;
 
-    if (mortgageSig?.metadata) {
-      const meta = mortgageSig.metadata as Record<string, unknown>;
-      if (meta.amount || meta.mortgage_amount) {
-        const amt = parseFloat(String(meta.amount ?? meta.mortgage_amount));
-        if (!isNaN(amt) && amt > 0) acrisUpdate.mortgage_amount = amt;
-      }
-      if (meta.mortgage_date) {
-        acrisUpdate.mortgage_date = new Date(meta.mortgage_date as string);
-      }
-    }
+      if (REALPROP && MASTER) {
+        // Get all document IDs for this property
+        const docIdRows = await soda<{ document_id: string }>({
+          resource: REALPROP,
+          where: `borough='${borough}' AND block='${block}' AND lot='${lot}'`,
+          select: "document_id",
+          order: "document_id DESC",
+          limit: 100,
+        });
 
-    if (equitySig?.metadata) {
-      const meta = equitySig.metadata as Record<string, unknown>;
-      if (meta.purchase_price) {
-        const price = parseFloat(String(meta.purchase_price));
-        if (!isNaN(price) && price > 0) acrisUpdate.last_purchase_price = price;
+        const docIds = (docIdRows || []).map((r) => r.document_id).filter(Boolean);
+
+        if (docIds.length > 0) {
+          // Get ALL master records with actual amounts
+          const masterWhere = `document_id in (${docIds.map((id) => `'${id}'`).join(",")})`;
+          const docs = await soda<{
+            document_id: string;
+            doc_type: string;
+            recorded_datetime?: string;
+            doc_amount?: string;
+            good_through_date?: string;
+          }>({
+            resource: MASTER,
+            where: masterWhere,
+            order: "recorded_datetime DESC",
+            limit: docIds.length,
+          });
+
+          // Process each document — store all with real dollar amounts
+          const deedTypes = ["DEED", "DEEDO"];
+          const mortgageTypes = ["MTGE", "MORTGAGE"];
+          const assignTypes = ["AGMT", "ASST"];
+          const satisfyTypes = ["SAT", "SATI"]; // Satisfaction of mortgage = paid off
+
+          let lastDeed: typeof docs[0] | null = null;
+          let lastMortgage: typeof docs[0] | null = null;
+
+          for (const doc of docs) {
+            const type = (doc.doc_type || "").toUpperCase();
+            const amount = parseFloat(doc.doc_amount || "0");
+            const date = doc.recorded_datetime || "";
+
+            if (amount > 0 && date) {
+              allTransactions.push({
+                doc_type: type,
+                amount,
+                date,
+                document_id: doc.document_id,
+              });
+            }
+
+            // Most recent deed = purchase
+            if (!lastDeed && deedTypes.some((dt) => type.includes(dt))) {
+              lastDeed = doc;
+            }
+            // Most recent mortgage
+            if (!lastMortgage && mortgageTypes.some((mt) => type.includes(mt))) {
+              lastMortgage = doc;
+            }
+          }
+
+          // Enrich SellerLead with actual amounts
+          if (lastDeed) {
+            const deedAmt = parseFloat(lastDeed.doc_amount || "0");
+            const deedDate = lastDeed.recorded_datetime;
+            if (deedAmt > 0) acrisUpdate.last_purchase_price = deedAmt;
+            if (deedDate) {
+              acrisUpdate.last_purchase_date = new Date(deedDate);
+              const years = (Date.now() - new Date(deedDate).getTime()) / (365.25 * 24 * 3600000);
+              acrisUpdate.ownership_years = Math.round(years * 10) / 10;
+            }
+          }
+
+          if (lastMortgage) {
+            const mortAmt = parseFloat(lastMortgage.doc_amount || "0");
+            const mortDate = lastMortgage.recorded_datetime;
+            if (mortAmt > 0) acrisUpdate.mortgage_amount = mortAmt;
+            if (mortDate) acrisUpdate.mortgage_date = new Date(mortDate);
+
+            // Calculate LTV if we have both
+            if (lastDeed?.doc_amount && lastMortgage.doc_amount) {
+              const purchase = parseFloat(lastDeed.doc_amount);
+              const mortgage = parseFloat(lastMortgage.doc_amount);
+              if (purchase > 0 && mortgage > 0) {
+                acrisUpdate.equity_ratio = Math.max(0, Math.min(0.99, mortgage / purchase));
+              }
+            }
+          }
+
+          // Store all transactions as a signal so the UI can show the full history
+          if (allTransactions.length > 0) {
+            // Delete old acris_transactions signal if exists
+            await prisma.readinessSignal.deleteMany({
+              where: { seller_lead_id: prospectId, signal_type: "acris_transactions" },
+            });
+            await prisma.readinessSignal.create({
+              data: {
+                seller_lead_id: prospectId,
+                signal_type: "acris_transactions",
+                raw_value: `${allTransactions.length} recorded documents`,
+                normalized: 0,
+                source: "acris",
+                metadata: { transactions: allTransactions } as Record<string, unknown>,
+              },
+            });
+          }
+        }
       }
-      if (meta.estimated_ltv != null) {
-        const ltv = parseFloat(String(meta.estimated_ltv));
-        if (!isNaN(ltv)) acrisUpdate.equity_ratio = Math.max(0, Math.min(0.99, 1 - ltv));
+    } catch (err) {
+      console.warn("[prospect-research] Direct ACRIS pull failed:", (err as Error).message);
+      // Fall back to scoring signals
+      if (scoreResult?.signals) {
+        const ownershipSig = scoreResult.signals.find((s) => s.signal_type === "ownership_duration");
+        const mortgageSig = scoreResult.signals.find((s) => s.signal_type === "mortgage_age");
+        const equitySig = scoreResult.signals.find((s) => s.signal_type === "equity_estimate");
+        if (ownershipSig?.metadata) {
+          const meta = ownershipSig.metadata as Record<string, unknown>;
+          if (meta.deed_date) acrisUpdate.last_purchase_date = new Date(meta.deed_date as string);
+        }
+        if (mortgageSig?.metadata) {
+          const meta = mortgageSig.metadata as Record<string, unknown>;
+          if (meta.amount) acrisUpdate.mortgage_amount = parseFloat(String(meta.amount));
+        }
+        if (equitySig?.metadata) {
+          const meta = equitySig.metadata as Record<string, unknown>;
+          if (meta.purchase_price) acrisUpdate.last_purchase_price = parseFloat(String(meta.purchase_price));
+        }
       }
     }
   }

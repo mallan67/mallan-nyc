@@ -845,30 +845,32 @@ var SellerProspects = (function () {
       h += row('Est. Equity in Property', $(Number(p.last_purchase_price)) + ' (no mortgage)');
     }
 
-    // All recorded ACRIS documents — mortgages, refinances, assignments
+    // Full ACRIS transaction history (every deed, mortgage, refinance, satisfaction)
     var signals = p.signals || [];
-    var acrisSignals = signals.filter(function (s) {
-      return s.source === 'acris' || (s.signal_type && (s.signal_type.indexOf('mortgage') !== -1 || s.signal_type.indexOf('ownership') !== -1 || s.signal_type.indexOf('equity') !== -1));
-    });
+    var txnSignal = signals.filter(function (s) { return s.signal_type === 'acris_transactions'; });
+    var transactions = [];
+    if (txnSignal.length > 0 && txnSignal[0].metadata && txnSignal[0].metadata.transactions) {
+      transactions = txnSignal[0].metadata.transactions;
+    }
 
-    var hasDocs = false;
-    acrisSignals.forEach(function (sig) {
-      var meta = sig.metadata;
-      if (meta && typeof meta === 'object') {
-        if (meta.doc_type === 'MTGE' && meta.recorded_datetime && meta.document_amt) {
-          hasDocs = true;
-          var label = 'Mortgage Recorded';
-          if (p.last_purchase_date && new Date(meta.recorded_datetime) > new Date(new Date(p.last_purchase_date).getTime() + 90 * 86400000)) {
-            label = 'Refinance';
-          }
-          h += row(label, $(Number(meta.document_amt)) + ' on ' + D(meta.recorded_datetime));
-        }
-        if (meta.doc_type === 'AGMT' || meta.doc_type === 'ASST') {
-          hasDocs = true;
-          h += row('Assignment / Agreement', $(Number(meta.document_amt || 0)) + ' on ' + D(meta.recorded_datetime));
-        }
-      }
-    });
+    if (transactions.length > 0) {
+      h += '<div style="margin-top:12px;font-size:11px;font-weight:700;color:#374151;margin-bottom:6px;">All Recorded Transactions (' + transactions.length + ')</div>';
+      h += '<table style="width:100%;font-size:11px;border-collapse:collapse;">';
+      h += '<tr style="background:#F9FAFB;"><th style="text-align:left;padding:5px 8px;border-bottom:1px solid #E5E7EB;">Type</th><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #E5E7EB;">Amount</th><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #E5E7EB;">Date</th></tr>';
+      transactions.forEach(function (txn) {
+        var typeLabel = txn.doc_type || '';
+        if (typeLabel.indexOf('DEED') !== -1) typeLabel = 'Deed (Purchase/Transfer)';
+        else if (typeLabel.indexOf('MTGE') !== -1 || typeLabel.indexOf('MORTGAGE') !== -1) typeLabel = 'Mortgage';
+        else if (typeLabel === 'AGMT') typeLabel = 'Agreement';
+        else if (typeLabel === 'ASST') typeLabel = 'Assignment';
+        else if (typeLabel === 'SAT' || typeLabel === 'SATI') typeLabel = 'Satisfaction (mortgage paid off)';
+        else if (typeLabel === 'RPTT' || typeLabel.indexOf('RPTT') !== -1) typeLabel = 'Transfer Tax (RPTT)';
+        h += '<tr><td style="padding:4px 8px;border-bottom:1px solid #F3F4F6;">' + E(typeLabel) + '</td>' +
+          '<td style="text-align:right;padding:4px 8px;border-bottom:1px solid #F3F4F6;font-weight:600;">' + (txn.amount ? $(Number(txn.amount)) : '-') + '</td>' +
+          '<td style="text-align:right;padding:4px 8px;border-bottom:1px solid #F3F4F6;">' + (txn.date ? D(txn.date) : '-') + '</td></tr>';
+      });
+      h += '</table>';
+    }
 
     if (p.bbl) {
       h += '<div style="margin-top:8px;"><a href="https://a836-acris.nyc.gov/DS/DocumentSearch/BBLResult?borough=' + p.bbl.charAt(0) + '&block=' + p.bbl.substring(1, 6) + '&lot=' + p.bbl.substring(6) + '" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">Full ACRIS document history <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a></div>';
