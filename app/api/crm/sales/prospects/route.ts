@@ -112,6 +112,11 @@ export async function POST(req: NextRequest) {
     source_detail,
     entity_type,
     entity_name,
+    secondary_name,
+    secondary_email,
+    secondary_phone,
+    secondary_relationship,
+    authorized_signatories,
   } = body;
 
   if (!address || typeof address !== "string" || !address.trim()) {
@@ -147,6 +152,11 @@ export async function POST(req: NextRequest) {
       source_detail: source_detail || null,
       entity_type: entity_type || null,
       entity_name: entity_name || null,
+      secondary_name: secondary_name || null,
+      secondary_email: secondary_email || null,
+      secondary_phone: secondary_phone || null,
+      secondary_relationship: secondary_relationship || null,
+      authorized_signatories: authorized_signatories || null,
       status: "new",
       assigned_agent_id: auth.userId,
       // Auto-create cadence steps
@@ -181,6 +191,15 @@ export async function POST(req: NextRequest) {
     auth,
     { address: prospect.address, source: prospect.source },
   );
+
+  // Auto-trigger research in background (non-blocking)
+  // The research endpoint handles PLUTO + ACRIS + DOF + DOB
+  if (prospect.address && prospect.borough) {
+    fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/crm/sales/prospects/${prospect.id}/research`, {
+      method: "POST",
+      headers: { cookie: req.headers.get("cookie") || "" },
+    }).catch(() => {/* non-blocking */});
+  }
 
   return NextResponse.json({ prospect: serializeBigInts(prospect) }, { status: 201 });
 }

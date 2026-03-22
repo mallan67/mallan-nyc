@@ -268,55 +268,159 @@ var SellerProspects = (function () {
   // ═══════════════════════════════════════════════════════════════════════
   // ADD PROSPECT MODAL
   // ═══════════════════════════════════════════════════════════════════════
+  // ─── Ownership type options ───────────────────────────────────────────
+  var ENTITY_TYPES = [
+    { value: '', label: 'Individual (Person)' },
+    { value: 'couple', label: 'Couple / Partners' },
+    { value: 'family', label: 'Family Members' },
+    { value: 'llc', label: 'LLC' },
+    { value: 'trust', label: 'Trust' },
+    { value: 'inc', label: 'Inc / Corporation' },
+    { value: 'corp', label: 'Corp' },
+    { value: 'llp', label: 'LLP / Partnership' },
+    { value: 'lp', label: 'LP (Limited Partnership)' },
+    { value: 'estate', label: 'Estate' },
+  ];
+
+  var _newParties = []; // additional parties beyond primary owner
+
   function _newProspect() {
+    _newParties = [];
     var boroughOpts = '<option value="">Select Borough</option>';
     BOROUGHS.forEach(function (b) { boroughOpts += '<option value="' + E(b.value) + '">' + E(b.label) + '</option>'; });
     var sourceOpts = '<option value="manual">Manual</option>';
-    SOURCES.forEach(function (s) { sourceOpts += '<option value="' + E(s.value) + '">' + E(s.label) + '</option>'; });
+    SOURCES.forEach(function (s) { if (s.value !== 'manual') sourceOpts += '<option value="' + E(s.value) + '">' + E(s.label) + '</option>'; });
+    var entityOpts = '';
+    ENTITY_TYPES.forEach(function (t) { entityOpts += '<option value="' + E(t.value) + '">' + E(t.label) + '</option>'; });
+
+    var inp = 'style="width:100%;font-size:13px;padding:8px 12px;border:1px solid #D1D5DB;border-radius:6px;"';
+    var lbl = 'style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:3px;"';
 
     var body =
-      '<form id="newProspectForm" class="space-y-3">' +
-        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Address *</label>' +
-          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="address" required placeholder="123 Main Street"></div>' +
-        '<div class="grid grid-cols-2 gap-3">' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Unit</label>' +
-            '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="unit" placeholder="4A"></div>' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Borough</label>' +
-            '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="borough">' + boroughOpts + '</select></div>' +
+      '<form id="newProspectForm">' +
+        // ── PROPERTY ──
+        '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Property</div>' +
+        '<div style="margin-bottom:10px;"><label ' + lbl + '>Address *</label>' +
+          '<input ' + inp + ' name="address" required placeholder="400 East 90th Street"></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+          '<div><label ' + lbl + '>Unit / Apt</label><input ' + inp + ' name="unit" placeholder="17C"></div>' +
+          '<div><label ' + lbl + '>Borough</label><select ' + inp + ' name="borough">' + boroughOpts + '</select></div>' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-3">' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Owner Name</label>' +
-            '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="owner_name"></div>' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Source</label>' +
-            '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="source">' + sourceOpts + '</select></div>' +
+
+        // ── OWNERSHIP ──
+        '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Ownership</div>' +
+        '<div style="margin-bottom:10px;"><label ' + lbl + '>Ownership Type</label>' +
+          '<select ' + inp + ' name="entity_type" onchange="SellerProspects._toggleEntity(this.value)">' + entityOpts + '</select></div>' +
+        '<div id="entityFields" style="display:none;margin-bottom:10px;">' +
+          '<label ' + lbl + '>Entity Name (LLC, Trust, Corp name)</label>' +
+          '<input ' + inp + ' name="entity_name" placeholder="Smith Family Trust LLC">' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-3">' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Email</label>' +
-            '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" type="email" name="owner_email"></div>' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Phone</label>' +
-            '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" type="tel" name="owner_phone"></div>' +
+
+        // ── PRIMARY CONTACT ──
+        '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Primary Contact</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+          '<div><label ' + lbl + '>Name</label><input ' + inp + ' name="owner_name" placeholder="John Smith"></div>' +
+          '<div><label ' + lbl + '>Phone</label><input ' + inp + ' name="owner_phone" type="tel" placeholder="212-555-1234"></div>' +
         '</div>' +
-        '<div class="grid grid-cols-2 gap-3">' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Entity Type</label>' +
-            '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="entity_type">' +
-              '<option value="">None</option><option value="LLC">LLC</option><option value="Trust">Trust</option><option value="Corp">Corporation</option><option value="Partnership">Partnership</option><option value="Estate">Estate</option>' +
+        '<div style="margin-bottom:10px;"><label ' + lbl + '>Email</label>' +
+          '<input ' + inp + ' name="owner_email" type="email" placeholder="john@example.com"></div>' +
+
+        // ── SECONDARY / PARTNER ──
+        '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">' +
+          'Second Person (Spouse, Partner, Co-Owner)' +
+          '<span style="font-weight:400;color:#9CA3AF;font-size:10px;margin-left:8px;">Optional</span></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+          '<div><label ' + lbl + '>Name</label><input ' + inp + ' name="secondary_name" placeholder="Jane Smith"></div>' +
+          '<div><label ' + lbl + '>Relationship</label>' +
+            '<select ' + inp + ' name="secondary_relationship">' +
+              '<option value="">—</option><option value="spouse">Spouse</option><option value="partner">Partner</option>' +
+              '<option value="co-owner">Co-Owner</option><option value="parent">Parent</option><option value="child">Adult Child</option>' +
+              '<option value="sibling">Sibling</option><option value="trustee">Trustee</option><option value="executor">Executor</option>' +
+              '<option value="managing_member">Managing Member</option><option value="officer">Officer / Director</option>' +
             '</select></div>' +
-          '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Entity Name</label>' +
-            '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="entity_name" placeholder="Entity LLC"></div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+          '<div><label ' + lbl + '>Email</label><input ' + inp + ' name="secondary_email" type="email"></div>' +
+          '<div><label ' + lbl + '>Phone</label><input ' + inp + ' name="secondary_phone" type="tel"></div>' +
+        '</div>' +
+
+        // ── SIGNATORIES (for entities) ──
+        '<div id="signatorySection" style="display:none;">' +
+          '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">' +
+            'Authorized Signatories' +
+            '<button type="button" style="float:right;font-size:11px;color:#B8860B;background:none;border:none;cursor:pointer;" onclick="SellerProspects._addSignatory()">+ Add Signatory</button>' +
+          '</div>' +
+          '<div id="signatoryList"></div>' +
+        '</div>' +
+
+        // ── SOURCE ──
+        '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Source</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+          '<div><label ' + lbl + '>How did you find this prospect?</label><select ' + inp + ' name="source">' + sourceOpts + '</select></div>' +
+          '<div><label ' + lbl + '>Detail / Notes</label><input ' + inp + ' name="source_detail" placeholder="Referral from..."></div>' +
         '</div>' +
       '</form>';
 
     CRM.openModal('Add Seller Prospect', body, {
-      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-        '<button class="btn btn-gold" onclick="SellerProspects._submitNew()"><i class="fas fa-plus mr-1"></i>Add Prospect</button>',
+      size: 'lg',
+      footer: '<button style="padding:8px 16px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;cursor:pointer;background:#fff;" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button style="padding:8px 20px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;background:#B8860B;color:#fff;" onclick="SellerProspects._submitNew()"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Prospect</button>',
     });
+  }
+
+  function _toggleEntity(val) {
+    var ef = document.getElementById('entityFields');
+    var sf = document.getElementById('signatorySection');
+    var isEntity = val && val !== '' && val !== 'couple' && val !== 'family';
+    if (ef) ef.style.display = isEntity ? 'block' : 'none';
+    if (sf) sf.style.display = isEntity ? 'block' : 'none';
+  }
+
+  function _addSignatory() {
+    var list = document.getElementById('signatoryList');
+    if (!list) return;
+    var idx = list.children.length;
+    var inp = 'style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #D1D5DB;border-radius:4px;"';
+    list.insertAdjacentHTML('beforeend',
+      '<div style="display:grid;grid-template-columns:2fr 2fr 1fr auto;gap:6px;margin-bottom:6px;align-items:end;" data-sig="' + idx + '">' +
+        '<div><label style="font-size:10px;color:#6B7280;">Name</label><input ' + inp + ' name="sig_name_' + idx + '" placeholder="Name"></div>' +
+        '<div><label style="font-size:10px;color:#6B7280;">Title</label><input ' + inp + ' name="sig_title_' + idx + '" placeholder="Managing Member, Trustee..."></div>' +
+        '<div><label style="font-size:10px;color:#6B7280;">Phone</label><input ' + inp + ' name="sig_phone_' + idx + '" type="tel"></div>' +
+        '<button type="button" style="font-size:14px;color:#EF4444;background:none;border:none;cursor:pointer;padding:6px;" onclick="this.parentNode.remove()">&times;</button>' +
+      '</div>'
+    );
   }
 
   function _submitNew() {
     var form = document.getElementById('newProspectForm');
-    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    if (!form) return;
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
     var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    new FormData(form).forEach(function (v, k) {
+      if (v && !k.startsWith('sig_')) data[k] = v;
+    });
+
+    // Collect signatories
+    var sigs = [];
+    var sigList = document.getElementById('signatoryList');
+    if (sigList) {
+      var sigDivs = sigList.querySelectorAll('[data-sig]');
+      sigDivs.forEach(function (div) {
+        var idx = div.getAttribute('data-sig');
+        var name = form.querySelector('[name="sig_name_' + idx + '"]');
+        var title = form.querySelector('[name="sig_title_' + idx + '"]');
+        var phone = form.querySelector('[name="sig_phone_' + idx + '"]');
+        if (name && name.value.trim()) {
+          sigs.push({
+            name: name.value.trim(),
+            title: title ? title.value.trim() : '',
+            phone: phone ? phone.value.trim() : '',
+          });
+        }
+      });
+    }
+    if (sigs.length > 0) data.authorized_signatories = sigs;
 
     MallanAPI._fetch('/api/crm/sales/prospects', { method: 'POST', body: JSON.stringify(data) })
       .then(function (res) {
@@ -327,9 +431,9 @@ var SellerProspects = (function () {
         else render();
       })
       .catch(function (err) {
-        var msg = err.message || '';
-        if (msg.indexOf('already exists') !== -1 || (err.status === 409)) {
-          CRM.toast('Duplicate: a prospect with this address already exists', 'error');
+        var msg = (err && err.message) || 'Unknown error';
+        if (msg.indexOf('already exists') !== -1) {
+          CRM.toast('A prospect with this address already exists', 'warning');
         } else {
           CRM.toast('Failed: ' + msg, 'error');
         }
@@ -1027,6 +1131,8 @@ var SellerProspects = (function () {
     _page: _page,
     _newProspect: _newProspect,
     _submitNew: _submitNew,
+    _toggleEntity: _toggleEntity,
+    _addSignatory: _addSignatory,
     _importModal: _importModal,
     _importPreview: _importPreview,
     _importConfirm: _importConfirm,
