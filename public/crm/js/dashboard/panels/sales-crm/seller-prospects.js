@@ -783,76 +783,166 @@ var SellerProspects = (function () {
   // TAB 2: RESEARCH
   // ═══════════════════════════════════════════════════════════════════════
   function _wsResearch(el, p) {
-    var h = '<div class="space-y-4">';
+    var h = '';
+    var hasResearch = p.last_researched_at || (p.signals && p.signals.length > 0);
 
-    // Action bar
-    h += '<div class="flex items-center justify-between">';
-    h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-database text-blue-500 mr-2"></i>Research Data</h3>';
-    h += '<button class="btn btn-sm btn-gold" onclick="SellerProspects._runResearch()"><i class="fas fa-sync-alt mr-1"></i>Run Research</button>';
+    // ── Action bar ──
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+    h += '<div><span style="font-size:14px;font-weight:700;color:#111;">Property Research</span>';
+    if (p.last_researched_at) h += '<span style="font-size:10px;color:#9CA3AF;margin-left:8px;">Last updated: ' + D(p.last_researched_at) + '</span>';
+    h += '</div>';
+    h += '<button style="padding:6px 14px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#B8860B;color:#fff;" onclick="SellerProspects._runResearch()"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>' + (hasResearch ? 'Re-Run Research' : 'Run Research') + '</button>';
     h += '</div>';
 
-    var signals = p.signals || [];
-    if (signals.length === 0) {
-      h += '<div class="text-center py-12 bg-gray-50 rounded-xl">';
-      h += '<i class="fas fa-database text-3xl text-gray-300 mb-3"></i>';
-      h += '<p class="text-sm text-gray-500">No research data yet. Click "Run Research" to pull ACRIS, DOB, DOF, and PLUTO records.</p>';
+    if (!hasResearch) {
+      h += '<div style="text-align:center;padding:48px 16px;background:#F9FAFB;border-radius:12px;">';
+      h += '<i class="fas fa-database" style="font-size:32px;color:#D1D5DB;margin-bottom:12px;display:block;"></i>';
+      h += '<p style="font-size:13px;color:#6B7280;">No research data yet. Click "Run Research" to pull ACRIS, DOB, DOF, and PLUTO records.</p>';
       h += '</div>';
-    } else {
-      // Group signals by type
-      var groups = {};
-      signals.forEach(function (sig) {
-        var cat = _signalCategory(sig.signal_type);
-        if (!groups[cat]) groups[cat] = [];
-        groups[cat].push(sig);
-      });
-
-      var catIcons = {
-        'ACRIS': 'fa-file-contract',
-        'DOF': 'fa-dollar-sign',
-        'DOB': 'fa-hard-hat',
-        'Building': 'fa-building',
-        'Market': 'fa-chart-area',
-        'Other': 'fa-info-circle',
-      };
-
-      Object.keys(groups).forEach(function (cat) {
-        h += '<div class="bg-white border border-gray-200 rounded-xl p-5">';
-        h += '<h4 class="text-xs font-bold text-gray-900 mb-3"><i class="fas ' + (catIcons[cat] || 'fa-info-circle') + ' mr-2 text-blue-500"></i>' + E(cat) + '</h4>';
-        h += '<div class="space-y-2">';
-        groups[cat].forEach(function (sig) {
-          var val = sig.data_value;
-          if (typeof val === 'object' && val !== null) {
-            // Render key-value pairs from JSON
-            h += '<div class="text-xs"><span class="font-semibold text-gray-700">' + E(sig.signal_type) + '</span>';
-            h += '<div class="ml-3 mt-1 space-y-0.5">';
-            Object.keys(val).forEach(function (k) {
-              h += '<div class="flex justify-between"><span class="text-gray-500">' + E(k) + '</span><span class="text-gray-900 font-medium">' + E(String(val[k] || '-')) + '</span></div>';
-            });
-            h += '</div></div>';
-          } else {
-            h += '<div class="flex justify-between items-baseline">';
-            h += '<span class="text-xs font-semibold text-gray-500">' + E(sig.signal_type) + '</span>';
-            h += '<span class="text-xs text-gray-900 font-medium">' + E(String(val || sig.score || '-')) + '</span>';
-            h += '</div>';
-          }
-        });
-        h += '</div></div>';
-      });
+      el.innerHTML = h;
+      return;
     }
 
+    // ── Helper ──
+    function row(label, value, color) {
+      if (value === null || value === undefined || value === '') return '';
+      return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid #F3F4F6;">' +
+        '<span style="font-size:12px;color:#6B7280;">' + E(label) + '</span>' +
+        '<span style="font-size:12px;font-weight:600;color:' + (color || '#111') + ';">' + E(String(value)) + '</span></div>';
+    }
+    function section(icon, title, color) {
+      return '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:12px;">' +
+        '<div style="font-size:11px;font-weight:700;color:' + (color || '#B8860B') + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">' +
+        '<i class="fas ' + icon + '" style="margin-right:6px;"></i>' + E(title) + '</div>';
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // SECTION 1: ACRIS — Ownership, Purchase, Mortgage, Refinance
+    // ══════════════════════════════════════════════════════════════════
+    h += section('fa-file-contract', 'ACRIS — Ownership & Mortgage History', '#3B82F6');
+
+    // From SellerLead enriched fields
+    h += row('Owner Name (from deed)', p.owner_name);
+    h += row('Ownership Duration', p.ownership_years ? p.ownership_years + ' years' : null);
+    h += row('Purchase Price', p.last_purchase_price ? $(Number(p.last_purchase_price)) : null);
+    h += row('Purchase Date', p.last_purchase_date ? D(p.last_purchase_date) : null);
+
+    // Mortgage vs Cash
+    if (p.mortgage_amount && Number(p.mortgage_amount) > 0) {
+      h += row('Mortgage Amount', $(Number(p.mortgage_amount)), '#DC2626');
+      h += row('Mortgage Date', p.mortgage_date ? D(p.mortgage_date) : null);
+      h += row('Payment Method', 'FINANCED (has mortgage)', '#DC2626');
+      // Equity estimate
+      if (p.equity_ratio != null) {
+        var eq = (Number(p.equity_ratio) * 100).toFixed(0);
+        h += row('Estimated Equity', eq + '% (LTV ratio)', eq > 50 ? '#059669' : '#F59E0B');
+      }
+    } else if (p.last_purchase_price) {
+      h += row('Payment Method', 'ALL CASH (no mortgage recorded)', '#059669');
+    }
+
+    // Signal metadata for extra ACRIS details (refinance, additional docs)
+    var signals = p.signals || [];
+    var acrisSignals = signals.filter(function (s) {
+      return s.source === 'acris' || (s.signal_type && s.signal_type.indexOf('mortgage') !== -1);
+    });
+    acrisSignals.forEach(function (sig) {
+      var meta = sig.metadata;
+      if (meta && typeof meta === 'object') {
+        if (meta.doc_type === 'MTGE' && meta.recorded_datetime && meta.document_amt) {
+          var isRefi = p.last_purchase_date && new Date(meta.recorded_datetime) > new Date(p.last_purchase_date);
+          h += row(
+            isRefi ? 'Refinanced' : 'Mortgage Recorded',
+            $(Number(meta.document_amt)) + ' on ' + D(meta.recorded_datetime),
+            isRefi ? '#F59E0B' : '#6B7280'
+          );
+        }
+        if (meta.doc_type === 'AGMT' || meta.doc_type === 'ASST') {
+          h += row('Assignment/Agreement', D(meta.recorded_datetime) + (meta.document_amt ? ' — ' + $(Number(meta.document_amt)) : ''));
+        }
+      }
+    });
+
+    // ACRIS link
+    if (p.bbl) {
+      h += '<div style="margin-top:8px;"><a href="https://a836-acris.nyc.gov/DS/DocumentSearch/BBLResult?borough=' + p.bbl.charAt(0) + '&block=' + p.bbl.substring(1, 6) + '&lot=' + p.bbl.substring(6) + '" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">View full ACRIS records <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a></div>';
+    }
     h += '</div>';
+
+    // ══════════════════════════════════════════════════════════════════
+    // SECTION 2: DOF — Tax Data
+    // ══════════════════════════════════════════════════════════════════
+    h += section('fa-dollar-sign', 'DOF — Property Tax & Valuation', '#059669');
+    h += row('Tax Class', p.tax_class);
+    h += row('Annual Property Tax', p.annual_tax ? $(Number(p.annual_tax)) + '/yr' : null);
+    h += row('Market Value (DOF)', p.market_value ? $(Number(p.market_value)) : null);
+    h += row('Assessed Value', p.assessed_value ? $(Number(p.assessed_value)) : null);
+
+    if (p.bbl) {
+      h += '<div style="margin-top:8px;"><a href="https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">View DOF property tax records <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a></div>';
+    }
+    h += '</div>';
+
+    // ══════════════════════════════════════════════════════════════════
+    // SECTION 3: DOB — Permits & Violations
+    // ══════════════════════════════════════════════════════════════════
+    h += section('fa-hard-hat', 'DOB — Permits & Violations', '#F59E0B');
+    h += row('Open Violations', p.open_violations != null ? String(p.open_violations) : null, p.open_violations > 0 ? '#DC2626' : '#059669');
+    h += row('Recent Permits (3yr)', p.recent_permits != null ? String(p.recent_permits) : null);
+    h += row('Building Risk Score', p.building_risk != null ? (Number(p.building_risk) * 100).toFixed(0) + '%' : null, Number(p.building_risk) > 0.5 ? '#DC2626' : '#059669');
+
+    if (p.bbl) {
+      var bin = p.bin || '';
+      h += '<div style="margin-top:8px;"><a href="https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?boro=' + p.bbl.charAt(0) + '&block=' + p.bbl.substring(1, 6) + '&lot=' + p.bbl.substring(6) + '" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">View DOB building profile <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a></div>';
+    }
+    h += '</div>';
+
+    // ══════════════════════════════════════════════════════════════════
+    // SECTION 4: PLUTO — Building Data
+    // ══════════════════════════════════════════════════════════════════
+    h += section('fa-building', 'PLUTO — Building Details', '#8B5CF6');
+    h += row('BBL', p.bbl);
+    h += row('Year Built', p.year_built);
+    h += row('Floors', p.floors);
+    h += row('Total Units', p.units_total);
+    h += row('Building Area', p.sqft ? p.sqft.toLocaleString() + ' sqft' : null);
+    h += row('Lot Area', p.lot_area ? p.lot_area.toLocaleString() + ' sqft' : null);
+    h += '</div>';
+
+    // ══════════════════════════════════════════════════════════════════
+    // SECTION 5: Readiness Score
+    // ══════════════════════════════════════════════════════════════════
+    h += section('fa-tachometer-alt', 'Seller Readiness Score', '#B8860B');
+    h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+    h += '<div style="font-size:36px;font-weight:800;color:#111;">' + (p.readiness_score || 0) + '</div>';
+    h += '<div style="font-size:24px;font-weight:700;color:' + _gradeColor(p.score_grade) + ';">' + E(p.score_grade || 'F') + '</div>';
+    h += '<div style="flex:1;height:8px;background:#E5E7EB;border-radius:4px;"><div style="height:8px;border-radius:4px;width:' + (p.readiness_score || 0) + '%;background:' + _gradeColor(p.score_grade) + ';"></div></div>';
+    h += '</div>';
+
+    // Show individual signals
+    if (signals.length > 0) {
+      h += '<div style="margin-top:8px;">';
+      signals.forEach(function (sig) {
+        var pct = Math.round((sig.normalized || 0) * 100);
+        h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
+        h += '<span style="font-size:10px;color:#6B7280;width:140px;flex-shrink:0;">' + E(sig.signal_type || '') + '</span>';
+        h += '<div style="flex:1;height:4px;background:#E5E7EB;border-radius:2px;"><div style="height:4px;border-radius:2px;width:' + pct + '%;background:#B8860B;"></div></div>';
+        h += '<span style="font-size:10px;font-weight:600;color:#111;width:30px;text-align:right;">' + pct + '%</span>';
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+
     el.innerHTML = h;
   }
 
-  function _signalCategory(type) {
-    if (!type) return 'Other';
-    var t = type.toLowerCase();
-    if (t.indexOf('acris') !== -1 || t.indexOf('ownership') !== -1 || t.indexOf('mortgage') !== -1 || t.indexOf('equity') !== -1 || t.indexOf('purchase') !== -1) return 'ACRIS';
-    if (t.indexOf('dof') !== -1 || t.indexOf('tax') !== -1 || t.indexOf('assessed') !== -1 || t.indexOf('market_value') !== -1) return 'DOF';
-    if (t.indexOf('dob') !== -1 || t.indexOf('permit') !== -1 || t.indexOf('violation') !== -1 || t.indexOf('building_risk') !== -1) return 'DOB';
-    if (t.indexOf('building') !== -1 || t.indexOf('pluto') !== -1) return 'Building';
-    if (t.indexOf('market') !== -1 || t.indexOf('comp') !== -1 || t.indexOf('price') !== -1) return 'Market';
-    return 'Other';
+  function _gradeColor(grade) {
+    if (grade === 'A') return '#059669';
+    if (grade === 'B') return '#3B82F6';
+    if (grade === 'C') return '#F59E0B';
+    if (grade === 'D') return '#F97316';
+    return '#EF4444';
   }
 
   function _runResearch() {
