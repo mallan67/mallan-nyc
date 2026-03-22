@@ -18,6 +18,7 @@ import { scoreSellerLead } from "@/lib/seller-readiness/scorer";
 import { fetchDofTaxData } from "@/lib/seller-readiness/signals/dof-tax";
 
 const PLUTO = process.env.SODA_DATASET_PLUTO ?? "64uk-42ks";
+const TAX_LIEN_SALE = "gy4f-u74s"; // NYC DOF Tax Lien Sale List
 
 // Borough name/code mapping (bidirectional)
 const BOROUGH_CODES: Record<string, string> = {
@@ -294,6 +295,43 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       }
     } catch (err) {
       console.warn("[prospect-research] DOF fetch failed:", (err as Error).message);
+    }
+  }
+
+  // ── Step 5b: Check Tax Lien Sale history ───────────────────────────────────
+  let taxLienHistory: { year: string; lien_type: string; amount: string }[] = [];
+  if (bbl) {
+    try {
+      // Query tax lien sale list by BBL
+      const borough = bbl.charAt(0);
+      const block = bbl.substring(1, 6);
+      const lot = bbl.substring(6);
+      const lienRows = await soda<Record<string, string>>({
+        resource: TAX_LIEN_SALE,
+        where: `borough='${borough}' AND block='${block.replace(/^0+/, "")}' AND lot='${lot.replace(/^0+/, "")}'`,
+        limit: 10,
+        order: "year DESC",
+      });
+      if (lienRows && lienRows.length > 0) {
+        taxLienHistory = lienRows.map((r) => ({
+          year: r.year || r.cycle || "Unknown",
+          lien_type: r.lien_type || r.type || "Tax Lien",
+          amount: r.amount || r.total || "Unknown",
+        }));
+        // Store as a signal for display
+        await prisma.readinessSignal.create({
+          data: {
+            seller_lead_id: prospectId,
+            signal_type: "tax_lien_history",
+            raw_value: `${taxLienHistory.length} lien sale record(s)`,
+            normalized: Math.min(taxLienHistory.length * 0.3, 1.0), // Higher = more liens = more motivated seller
+            source: "dof",
+            metadata: { liens: taxLienHistory } as Record<string, unknown>,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("[prospect-research] Tax lien check failed:", (err as Error).message);
     }
   }
 

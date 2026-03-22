@@ -878,8 +878,32 @@ var SellerProspects = (function () {
     h += row('Market Value (DOF)', p.market_value ? $(Number(p.market_value)) : null);
     h += row('Assessed Value', p.assessed_value ? $(Number(p.assessed_value)) : null);
 
+    // Tax Lien History — check signals for tax_lien_history
+    var lienSignal = signals.filter(function (s) { return s.signal_type === 'tax_lien_history'; });
+    if (lienSignal.length > 0) {
+      var lienData = lienSignal[0].metadata;
+      var liens = (lienData && lienData.liens) || [];
+      h += '<div style="margin-top:10px;padding:10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;">';
+      h += '<div style="font-size:11px;font-weight:700;color:#DC2626;margin-bottom:6px;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>TAX LIEN HISTORY — ' + liens.length + ' record(s)</div>';
+      liens.forEach(function (l) {
+        h += '<div style="font-size:11px;color:#7F1D1D;margin-bottom:2px;">' +
+          'Year: ' + E(String(l.year || '?')) +
+          ' | Type: ' + E(String(l.lien_type || '?')) +
+          (l.amount && l.amount !== 'Unknown' ? ' | Amount: ' + E(String(l.amount)) : '') +
+          '</div>';
+      });
+      h += '<div style="font-size:10px;color:#991B1B;margin-top:4px;font-style:italic;">Property was placed on NYC tax lien sale list — indicates unpaid taxes, water/sewer charges, or emergency repairs.</div>';
+      h += '</div>';
+    } else if (p.last_researched_at) {
+      h += '<div style="margin-top:8px;padding:6px 10px;background:#ECFDF5;border-radius:6px;font-size:11px;color:#059669;"><i class="fas fa-check-circle" style="margin-right:4px;"></i>No tax lien sale history found</div>';
+    }
+
+    // Links
     if (p.bbl) {
-      h += '<div style="margin-top:8px;"><a href="https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">View DOF property tax records <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a></div>';
+      h += '<div style="margin-top:8px;display:flex;gap:12px;">';
+      h += '<a href="https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">Check current tax balance <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a>';
+      h += '<a href="https://www1.nyc.gov/site/finance/taxes/property-lien-sales.page" target="_blank" style="font-size:11px;color:#3B82F6;text-decoration:none;">DOF Lien Sale info <i class="fas fa-external-link-alt" style="font-size:9px;"></i></a>';
+      h += '</div>';
     }
     h += '</div>';
 
