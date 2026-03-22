@@ -152,15 +152,22 @@ export async function POST(req: NextRequest) {
       // Auto-create cadence steps
       cadence_steps: {
         createMany: {
-          data: DEFAULT_CADENCE.map((step) => ({
-            day_offset: step.day_offset,
-            type: step.type,
-            channel: step.channel,
-            subject: step.subject,
-            status: "pending",
-          })),
+          data: DEFAULT_CADENCE.map((step) => {
+            const scheduled = new Date();
+            scheduled.setDate(scheduled.getDate() + step.day_offset);
+            return {
+              day_offset: step.day_offset,
+              type: step.type,
+              channel: step.channel,
+              subject: step.subject,
+              status: "pending",
+              scheduled_date: scheduled,
+            };
+          }),
         },
       },
+      // Set next_follow_up to earliest step
+      next_follow_up: new Date(Date.now() + 86400000), // tomorrow (day 1)
     },
     include: {
       cadence_steps: { orderBy: { day_offset: "asc" } },

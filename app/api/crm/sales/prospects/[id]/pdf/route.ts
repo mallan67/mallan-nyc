@@ -399,12 +399,38 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // Assemble pitch packet data
     const packetData = await assemblePitchPacket(prospect, agentName);
 
-    // Dynamic import the renderer to avoid ESM issues at module parse time
-    const { renderPitchPacketPdf } = await import(
-      "@/lib/pdf/pitch-packet-renderer"
+    // Use pdf-lib renderer (pure JS, no React/JSX runtime conflicts)
+    const { renderSimplePitchPdf } = await import(
+      "@/lib/pdf/pitch-packet-simple"
     );
 
-    const pdfBuffer = await renderPitchPacketPdf(packetData);
+    const pdfBuffer = await renderSimplePitchPdf({
+      address: prospect.address,
+      unit: prospect.unit || undefined,
+      owner_name: prospect.owner_name || undefined,
+      agent_name: agentName,
+      beds: prospect.beds,
+      baths: prospect.baths ? Number(prospect.baths) : null,
+      sqft: prospect.sqft,
+      year_built: prospect.year_built,
+      floors: prospect.floors,
+      units_total: prospect.units_total,
+      readiness_score: prospect.readiness_score,
+      score_grade: prospect.score_grade,
+      conservative: packetData.pricing_strategy?.price_points?.conservative,
+      recommended: packetData.pricing_strategy?.price_points?.recommended,
+      aspirational: packetData.pricing_strategy?.price_points?.aspirational,
+      competition_count: packetData.pricing_strategy?.competition?.active_count,
+      absorption_rate: packetData.pricing_strategy?.absorption_label,
+      buyer_count: packetData.exposure_plan?.buyer_database,
+      gross_price: packetData.financial_picture?.gross_price,
+      commission: packetData.financial_picture?.commission,
+      transfer_tax: packetData.financial_picture?.transfer_tax,
+      attorney_fees: packetData.financial_picture?.attorney_fees,
+      mortgage_payoff: packetData.financial_picture?.mortgage_payoff,
+      net_proceeds: packetData.financial_picture?.net_proceeds,
+      attribution: packetData.attribution,
+    });
 
     // Build a filename-safe address slug
     const addressSlug = (prospect.address || "property")
@@ -427,8 +453,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       { format: "pdf", address: prospect.address },
     );
 
-    // Convert Node Buffer to Uint8Array for NextResponse (BodyInit compatibility)
-    const body = new Uint8Array(pdfBuffer);
+    // pdf-lib returns Uint8Array directly — compatible with NextResponse
+    const body = pdfBuffer;
 
     return new NextResponse(body, {
       status: 200,
@@ -439,9 +465,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (err) {
-    console.error("[PDF] Pitch packet generation failed:", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const errStack = err instanceof Error ? err.stack?.split("\n").slice(0, 5).join("\n") : "";
+    console.error("[PDF] Pitch packet generation failed:", errMsg, "\n", errStack);
     return NextResponse.json(
-      { error: "PDF generation failed" },
+      { error: "PDF generation failed", detail: errMsg },
       { status: 500 },
     );
   }

@@ -25,6 +25,18 @@ const BOROUGH_CODES: Record<string, string> = {
   mn: "1", bx: "2", bk: "3", qn: "4", si: "5",
 };
 
+// NYC neighborhood abbreviation mapping (used in search/display, not PLUTO)
+export const NEIGHBORHOOD_ABBREV: Record<string, string> = {
+  ues: "Upper East Side", uws: "Upper West Side", les: "Lower East Side",
+  fidi: "Financial District", soho: "SoHo", noho: "NoHo", nolita: "Nolita",
+  tribeca: "TriBeCa", dumbo: "DUMBO", bk: "Brooklyn", bx: "Bronx",
+  lic: "Long Island City", fh: "Forest Hills", eh: "East Harlem",
+  wh: "West Harlem", ch: "Clinton Hill", ph: "Prospect Heights",
+  cp: "Crown Heights", ws: "Williamsburg", gp: "Gramercy Park",
+  ev: "East Village", wv: "West Village", gv: "Greenwich Village",
+  hk: "Hell's Kitchen", ms: "Murray Hill", ki: "Kips Bay",
+};
+
 function boroughCode(input: string): string {
   const n = input.trim().toLowerCase();
   if (/^[1-5]$/.test(n)) return n;
@@ -56,13 +68,46 @@ function sanitizeBbl(bbl: string): string | null {
   return cleaned.length === 10 ? cleaned : null;
 }
 
-/** Sanitize address for SODA WHERE clause: escape single quotes, strip injection chars */
-function sanitizeAddress(addr: string): string {
-  return addr
-    .trim()
-    .toUpperCase()
-    .replace(/'/g, "''")       // Escape single quotes for SoQL
-    .replace(/[;\\{}]/g, "");  // Strip common injection chars
+/** Normalize NYC address to PLUTO format: "400 East 90th Street" → "400 EAST 90 STREET" */
+function normalizePlutoAddress(addr: string): string {
+  let s = addr.trim().toUpperCase();
+  // Strip apartment/unit suffixes
+  s = s.replace(/,?\s*(APT|UNIT|SUITE|#)\s*\S*$/i, "");
+  // "90TH" → "90", "1ST" → "1", "2ND" → "2", "3RD" → "3"
+  s = s.replace(/(\d+)\s*(ST|ND|RD|TH)\b/g, "$1");
+  // Sanitize for SoQL
+  s = s.replace(/'/g, "''").replace(/[;\\{}]/g, "");
+  return s;
+}
+
+/** Try multiple address formats for PLUTO lookup */
+function plutoAddressVariants(addr: string): string[] {
+  const base = normalizePlutoAddress(addr);
+  const variants = [base];
+
+  // Try abbreviated: EAST→E, WEST→W, NORTH→N, SOUTH→S
+  const abbrev = base
+    .replace(/\bEAST\b/g, "E")
+    .replace(/\bWEST\b/g, "W")
+    .replace(/\bNORTH\b/g, "N")
+    .replace(/\bSOUTH\b/g, "S");
+  if (abbrev !== base) variants.push(abbrev);
+
+  // Try expanded: E→EAST, W→WEST, N→NORTH, S→SOUTH (works both ways)
+  const expanded = base
+    .replace(/\bE\b/g, "EAST")
+    .replace(/\bW\b/g, "WEST")
+    .replace(/\bN\b/g, "NORTH")
+    .replace(/\bS\b/g, "SOUTH");
+  if (expanded !== base && expanded !== abbrev) variants.push(expanded);
+
+  // Try with LIKE for partial match (number + first word)
+  const parts = base.split(/\s+/);
+  if (parts.length >= 2 && /^\d+$/.test(parts[0])) {
+    variants.push(`${parts[0]} ${parts[1]}%`);
+  }
+
+  return variants;
 }
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -117,17 +162,25 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       });
       pluto = rows?.[0] ?? null;
     } else if (prospect.address && prospect.borough) {
-      // Resolve BBL from address + borough
-      const addr = sanitizeAddress(prospect.address);
+      // Resolve BBL from address + borough — try multiple address formats
+      const variants = plutoAddressVariants(prospect.address);
       const boro = boroughCode(prospect.borough);
-      const rows = await soda<PlutoRow>({
-        resource: PLUTO,
-        where: `address='${addr}' AND borocode='${boro}'`,
-        limit: 1,
-      });
-      pluto = rows?.[0] ?? null;
-      if (pluto?.bbl) {
-        bbl = normBbl(pluto.bbl);
+
+      for (const variant of variants) {
+        const useLike = variant.includes("%");
+        const where = useLike
+          ? `address LIKE '${variant}' AND borocode='${boro}'`
+          : `address='${variant}' AND borocode='${boro}'`;
+        const rows = await soda<PlutoRow>({
+          resource: PLUTO,
+          where,
+          limit: 1,
+        });
+        if (rows?.[0]) {
+          pluto = rows[0];
+          if (pluto.bbl) bbl = normBbl(pluto.bbl);
+          break;
+        }
       }
     }
   } catch (err) {
