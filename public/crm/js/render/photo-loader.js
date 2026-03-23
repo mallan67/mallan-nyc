@@ -209,21 +209,27 @@
             var floorPlans = [];
             var videos = [];
             var virtualTours = [];
+            var tours3D = [];
             mediaItems.forEach(function(m) {
                 var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
                 if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
                 else if (m.mediaType === 'Video') videos.push(entry);
                 else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
+                else if (m.mediaType === '3DTour') tours3D.push(entry);
                 else photos.push(entry);
             });
 
             // Update listing.images with photos only (existing behavior)
             if (photos.length > 0) {
                 listing.images = photos.sort(function(a, b) { return a.order - b.order; });
-                listing.photoCount = photos.length;
+                // Only upgrade photoCount, never downgrade (Trestle's PhotosCount is authoritative)
+                if (photos.length > (listing.photoCount || 0)) {
+                    listing.photoCount = photos.length;
+                }
             }
-            // Store typed media for detail panel
+            // Store typed media for detail panel — organized by category
             if (floorPlans.length > 0) listing._floorPlans = floorPlans;
             if (videos.length > 0) listing._videos = videos;
             if (virtualTours.length > 0) listing._virtualTours = virtualTours;
+            if (tours3D.length > 0) listing._tours3D = tours3D;
         }

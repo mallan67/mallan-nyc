@@ -5459,22 +5459,22 @@ function toggleSection(header) {
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Building Financing</p>
                             <div class="flex gap-1 items-center">
-                                <input type="text" placeholder="Financing Allowed % Min" class="flex-1 border rounded px-2 py-1 text-xs">
+                                <input type="number" id="buildingFinancingMin" placeholder="Financing Allowed % Min" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
                                 <span class="text-gray-400 text-xs">—</span>
-                                <input type="text" placeholder="% Max" class="flex-1 border rounded px-2 py-1 text-xs">
+                                <input type="number" id="buildingFinancingMax" placeholder="% Max" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
                             </div>
                         </div>
 
                         <!-- Keyword Search -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Keyword Search</p>
-                            <input type="text" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs">
+                            <input type="text" id="buildingKeywordSearch" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs">
                         </div>
 
                         <!-- Management Companies -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Management Companies</p>
-                            <input type="text" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs">
+                            <input type="text" id="buildingManagementCompany" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs">
                         </div>
                     </div>
                 </div>
@@ -16432,6 +16432,7 @@ function manageShowToast(msg) {
             if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
             if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
             if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
+            if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
             // Date range filters
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
@@ -17034,10 +17035,28 @@ function manageShowToast(msg) {
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             // Keyword search (PublicRemarks contains)
-            var keywordId = currentSearchTab === 'rent' ? 'rentalKeywordSearch' : 'saleKeywordSearch';
+            var keywordId = currentSearchTab === 'rent' ? 'rentalKeywordSearch' :
+                            currentSearchTab === 'building' ? 'buildingKeywordSearch' : 'saleKeywordSearch';
             var keywordEl = document.getElementById(keywordId);
             if (keywordEl && keywordEl.value.trim()) {
                 criteria.keyword = keywordEl.value.trim();
+            }
+
+            // Management Company (search against ListOfficeName — Trestle's closest field)
+            var mgmtId = currentSearchTab === 'rent' ? 'rentalManagementCompany' :
+                         currentSearchTab === 'building' ? 'buildingManagementCompany' : 'saleManagementCompany';
+            var mgmtEl = document.getElementById(mgmtId);
+            if (mgmtEl && mgmtEl.value.trim()) {
+                criteria.managementCompany = mgmtEl.value.trim();
+            }
+
+            // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
+            var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
+                           currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
+            var finMinEl = document.getElementById(finMinId);
+            if (finMinEl && finMinEl.value) {
+                var fv = parseInt(finMinEl.value);
+                if (!isNaN(fv) && fv > 0) criteria.financingMin = fv;
             }
 
             // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
@@ -17526,6 +17545,12 @@ function manageShowToast(msg) {
 
                 // Unit filter
                 if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
+
+                // Management Company filter — matches against ListOfficeName
+                if (criteria.managementCompany) {
+                    var mc = criteria.managementCompany.toLowerCase();
+                    if (!listing.company || listing.company.toLowerCase().indexOf(mc) === -1) return false;
+                }
 
                 // Keyword filter — search in description (PublicRemarks)
                 if (criteria.keyword) {
@@ -21919,7 +21944,7 @@ function parseBudgetValue(td) {
                     <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo rounded-xl" loading="lazy">
                     ${listing.priceChange === 'down' ? '<div class="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded"><i class="fas fa-arrow-down mr-1"></i>PRICE DROP!</div>' : ''}
                     <div class="cm-overlay rounded-b-xl px-3 py-2.5 flex items-center justify-between">
-                        <button class="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs shadow-sm flex items-center gap-2 text-gray-700 hover:bg-white"><i class="fas fa-th"></i> Floorplans</button>
+                        <button onclick="showListingDetail('${escapeHtml(listing.id)}')" class="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs shadow-sm flex items-center gap-2 text-gray-700 hover:bg-white"><i class="fas fa-th"></i> Floorplans</button>
                         <span class="text-white/90 text-xs font-semibold"><i class="fas fa-camera mr-1"></i>1 / ${listing.photoCount}</span>
                     </div>
                 </div>
@@ -22237,23 +22262,29 @@ function parseBudgetValue(td) {
             var floorPlans = [];
             var videos = [];
             var virtualTours = [];
+            var tours3D = [];
             mediaItems.forEach(function(m) {
                 var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
                 if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
                 else if (m.mediaType === 'Video') videos.push(entry);
                 else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
+                else if (m.mediaType === '3DTour') tours3D.push(entry);
                 else photos.push(entry);
             });
 
             // Update listing.images with photos only (existing behavior)
             if (photos.length > 0) {
                 listing.images = photos.sort(function(a, b) { return a.order - b.order; });
-                listing.photoCount = photos.length;
+                // Only upgrade photoCount, never downgrade (Trestle's PhotosCount is authoritative)
+                if (photos.length > (listing.photoCount || 0)) {
+                    listing.photoCount = photos.length;
+                }
             }
-            // Store typed media for detail panel
+            // Store typed media for detail panel — organized by category
             if (floorPlans.length > 0) listing._floorPlans = floorPlans;
             if (videos.length > 0) listing._videos = videos;
             if (virtualTours.length > 0) listing._virtualTours = virtualTours;
+            if (tours3D.length > 0) listing._tours3D = tours3D;
         }
 
 </script>

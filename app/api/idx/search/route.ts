@@ -374,6 +374,12 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push(`contains(BuildingName,'${escapeOData(buildingName)}')`);
   }
 
+  // Management company / office name search
+  const mgmtCompany = params.get("managementCompany");
+  if (mgmtCompany) {
+    parts.push(`contains(ListOfficeName,'${escapeOData(mgmtCompany)}')`);
+  }
+
   // Property sub-type — use contains() for partial matches (Conversion matches TwilightConversion)
   const subType = params.get("propertySubType");
   if (subType) {

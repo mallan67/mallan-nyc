@@ -15,11 +15,14 @@ const TRESTLE_API =
   "https://api.cotality.com/trestle";
 
 // RESO DD: MediaCategory = content type classification
-function classifyMediaCategory(m: Record<string, unknown>): "Photo" | "FloorPlan" | "Video" | "VirtualTour" {
+function classifyMediaCategory(m: Record<string, unknown>): "Photo" | "FloorPlan" | "Video" | "VirtualTour" | "3DTour" {
   const cat = String(m.MediaCategory || "").toLowerCase();
-  if (cat.includes("floor plan")) return "FloorPlan";
-  if (cat.includes("video")) return "Video";
-  if (cat.includes("virtual tour")) return "VirtualTour";
+  const desc = String(m.ShortDescription || "").toLowerCase();
+  const mime = String(m.MimeType || "").toLowerCase();
+  if (cat.includes("floor plan") || desc.includes("floor plan") || desc.includes("floorplan")) return "FloorPlan";
+  if (cat.includes("3d") || cat.includes("matterport") || desc.includes("3d") || desc.includes("matterport")) return "3DTour";
+  if (cat.includes("virtual tour") || desc.includes("virtual tour")) return "VirtualTour";
+  if (cat.includes("video") || mime.includes("video")) return "Video";
   return "Photo";
 }
 
@@ -80,12 +83,13 @@ export async function GET(req: NextRequest) {
         const filterParts = uncached.map(
           (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
         );
-        const filter = `(${filterParts.join(" or ")}) and (Order le 3 or MediaCategory ne 'Photo')`;
+        // Fetch ALL media for detail view — photos, floorplans, videos, virtual tours, 3D
+        const filter = `(${filterParts.join(" or ")})`;
         const params = new URLSearchParams();
         params.set("$filter", filter);
-        params.set("$select", "ResourceRecordID,MediaURL,Order,MediaCategory,PreferredPhotoYN");
-        params.set("$orderby", "ResourceRecordID asc,Order asc");
-        params.set("$top", String(uncached.length * 6));
+        params.set("$select", "ResourceRecordID,MediaURL,Order,MediaCategory,PreferredPhotoYN,MimeType,ShortDescription");
+        params.set("$orderby", "ResourceRecordID asc,MediaCategory asc,Order asc");
+        params.set("$top", String(uncached.length * 40)); // Up to 40 media items per listing
 
         const response = await fetch(`${TRESTLE_API}/odata/Media?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },

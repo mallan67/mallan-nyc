@@ -252,6 +252,7 @@
             if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
             if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
             if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
+            if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
             // Date range filters
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
@@ -854,10 +855,28 @@
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             // Keyword search (PublicRemarks contains)
-            var keywordId = currentSearchTab === 'rent' ? 'rentalKeywordSearch' : 'saleKeywordSearch';
+            var keywordId = currentSearchTab === 'rent' ? 'rentalKeywordSearch' :
+                            currentSearchTab === 'building' ? 'buildingKeywordSearch' : 'saleKeywordSearch';
             var keywordEl = document.getElementById(keywordId);
             if (keywordEl && keywordEl.value.trim()) {
                 criteria.keyword = keywordEl.value.trim();
+            }
+
+            // Management Company (search against ListOfficeName — Trestle's closest field)
+            var mgmtId = currentSearchTab === 'rent' ? 'rentalManagementCompany' :
+                         currentSearchTab === 'building' ? 'buildingManagementCompany' : 'saleManagementCompany';
+            var mgmtEl = document.getElementById(mgmtId);
+            if (mgmtEl && mgmtEl.value.trim()) {
+                criteria.managementCompany = mgmtEl.value.trim();
+            }
+
+            // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
+            var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
+                           currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
+            var finMinEl = document.getElementById(finMinId);
+            if (finMinEl && finMinEl.value) {
+                var fv = parseInt(finMinEl.value);
+                if (!isNaN(fv) && fv > 0) criteria.financingMin = fv;
             }
 
             // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
@@ -1346,6 +1365,12 @@
 
                 // Unit filter
                 if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
+
+                // Management Company filter — matches against ListOfficeName
+                if (criteria.managementCompany) {
+                    var mc = criteria.managementCompany.toLowerCase();
+                    if (!listing.company || listing.company.toLowerCase().indexOf(mc) === -1) return false;
+                }
 
                 // Keyword filter — search in description (PublicRemarks)
                 if (criteria.keyword) {
