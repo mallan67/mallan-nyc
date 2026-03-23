@@ -84,11 +84,12 @@ var CRM = (function () {
     Router.register('/broker/approvals',           function () { Panels.brokerApprovalQueue(); });
     Router.register('/broker/people/agents',       function () { Panels.agentRoster(); });
     Router.register('/broker/people/clients',      function () { Panels.clientAddressBook(); });
-    Router.register('/broker/leads/distribution',  function () { Panels.leadDistribution(); });
+    Router.register('/broker/leads/distribution',  function () { Panels.clientAddressBook('unassigned'); }); // redirect → Clients "To Be Assigned"
     Router.register('/broker/leads/referrals',     function () { Panels.referralTracking(); });
-    Router.register('/broker/finance/payouts',     function () { Panels.commissionPayouts(); });
-    Router.register('/broker/finance/revenue',     function () { Panels.revenueOverview(); });
-    Router.register('/broker/finance/1099',        function () { Panels.yearEnd1099(); });
+    Router.register('/broker/finance',             function () { Panels.financeDashboard(); }); // combined: Payouts | Revenue | 1099
+    Router.register('/broker/finance/payouts',     function () { Panels.financeDashboard('payouts'); });
+    Router.register('/broker/finance/revenue',     function () { Panels.financeDashboard('revenue'); });
+    Router.register('/broker/finance/1099',        function () { Panels.financeDashboard('1099'); });
     Router.register('/broker/listings/company',    function () { Panels.companyListings(); });
     Router.register('/broker/listings/compliance', function () { Panels.complianceDashboard(); });
     Router.register('/broker/listings/featured',   function () { Panels.featuredProperties(); });
@@ -370,30 +371,20 @@ var CRM = (function () {
 
     var html = '';
 
-    // BROKER CONSOLE (Maya-only, hidden when impersonating)
+    // BROKERAGE (Maya-only, hidden when impersonating) — flat list, no sub-headings
     if (Permissions.canSeeBrokerConsole()) {
-      html += _sidebarGroup('BROKER CONSOLE', 'broker', [
+      html += _sidebarGroup('BROKERAGE', 'broker', [
         { route: '/broker/dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
-        { route: '/broker/approvals', icon: 'fa-inbox', label: 'Approval Queue' },
-        { heading: 'People' },
         { route: '/broker/people/agents', icon: 'fa-user-tie', label: 'Agent Roster' },
-        { route: '/broker/people/clients', icon: 'fa-address-book', label: 'Client Address Book' },
-        { heading: 'Leads & Referrals' },
-        { route: '/broker/leads/distribution', icon: 'fa-random', label: 'Lead Distribution' },
-        { route: '/broker/leads/referrals', icon: 'fa-exchange-alt', label: 'Referral Tracking' },
-        { heading: 'Finance' },
-        { route: '/broker/finance/payouts', icon: 'fa-dollar-sign', label: 'Commission Payouts' },
-        { route: '/broker/finance/revenue', icon: 'fa-chart-bar', label: 'Revenue Overview' },
-        { route: '/broker/finance/1099', icon: 'fa-file-invoice-dollar', label: '1099 Year-End' },
-        { heading: 'Listings & Compliance' },
+        { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'Licensing & CE/E&O' },
+        { route: '/broker/people/clients', icon: 'fa-address-book', label: 'Clients' },
+        { route: '/broker/leads/referrals', icon: 'fa-exchange-alt', label: 'Referrals' },
+        { route: '/broker/finance', icon: 'fa-dollar-sign', label: 'Finance' },
         { route: '/broker/listings/company', icon: 'fa-building', label: 'Company Listings' },
         { route: '/broker/listings/compliance', icon: 'fa-shield-alt', label: 'Compliance & IDX' },
         { route: '/broker/listings/featured', icon: 'fa-star', label: 'Featured Properties' },
-        { heading: 'Documents' },
-        { route: '/broker/documents', icon: 'fa-folder', label: 'Company Vault' },
-        { heading: 'System' },
-        { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'License, CE/E&O & Audit' },
-        { route: '/broker/system/settings', icon: 'fa-cog', label: 'System Settings' },
+        { route: '/broker/documents', icon: 'fa-folder', label: 'Documents' },
+        { route: '/broker/system/settings', icon: 'fa-cog', label: 'Settings' },
       ]);
     }
 
@@ -421,13 +412,7 @@ var CRM = (function () {
       { route: '/rentals/automation', icon: 'fa-robot', label: 'Automation' },
     ]);
 
-    // BROKER ADMIN (broker only)
-    var isBroker = typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT.role === 'broker';
-    if (isBroker) {
-      html += _sidebarGroup('BROKER ADMIN', 'broker', [
-        { route: '/broker/leads', icon: 'fa-user-plus', label: 'Unassigned Leads', badge: '!' },
-      ]);
-    }
+    // BROKER ADMIN removed — unassigned leads now in Clients "To Be Assigned" tab
 
     // OPERATIONS (agent view; broker sees expanded/all)
     html += _sidebarGroup('OPERATIONS', 'ops', [

@@ -1561,9 +1561,10 @@ var Panels = (function () {
   var _cabClients = [];
   var _cabAgentMap = {};
 
-  function clientAddressBook() {
-    CRM.setPanelTitle('Client Address Book', 'All clients');
+  function clientAddressBook(initialTab) {
+    CRM.setPanelTitle('Clients');
     var c = _container(); c.innerHTML = UI.loading();
+    window._cabInitialTab = initialTab || 'all';
 
     Promise.all([
       MallanAPI.clients.list({ limit: 500 }).catch(function () { return { clients: [] }; }),
@@ -1648,11 +1649,22 @@ var Panels = (function () {
   }
 
   function _renderCAB(c, clients, types, stages, agentNames) {
+    var tab = window._cabInitialTab || 'all';
+    var unassignedCount = clients.filter(function (cl) { return !cl._agentId; }).length;
     var html = '<div class="space-y-4">';
 
-    // Header
-    html += UI.sectionHeader('All Clients', clients.length + ' total',
-      '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-user-plus mr-1"></i> New Client</button>');
+    // Tab bar: All | To Be Assigned
+    html += '<div class="flex items-center justify-between">' +
+      '<div class="flex gap-1 bg-gray-100 p-1 rounded-lg">' +
+        '<button id="cabTabAll" class="px-4 py-2 text-sm font-semibold rounded-md transition-all ' + (tab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700') + '" ' +
+          'onclick="window._cabInitialTab=\'all\';document.getElementById(\'cabAgentFilter\').value=\'\';Panels._filterCAB();Panels._cabSwitchTab(\'all\')">All Clients</button>' +
+        '<button id="cabTabUnassigned" class="px-4 py-2 text-sm font-semibold rounded-md transition-all ' + (tab === 'unassigned' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700') + '" ' +
+          'onclick="window._cabInitialTab=\'unassigned\';document.getElementById(\'cabAgentFilter\').value=\'unassigned\';Panels._filterCAB();Panels._cabSwitchTab(\'unassigned\')">' +
+          'To Be Assigned' + (unassignedCount > 0 ? ' <span class="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full">' + unassignedCount + '</span>' : '') +
+        '</button>' +
+      '</div>' +
+      '<button class="btn btn-sm btn-gold" onclick="CRM.quickNewClient()"><i class="fas fa-user-plus mr-1"></i> New Client</button>' +
+    '</div>';
 
     // Filter bar
     html += '<div class="flex flex-wrap gap-3 items-center">' +
@@ -1692,6 +1704,12 @@ var Panels = (function () {
 
     html += '</div>';
     c.innerHTML = html;
+
+    // If "To Be Assigned" tab, auto-filter to unassigned
+    if (window._cabInitialTab === 'unassigned') {
+      var agentFilter = document.getElementById('cabAgentFilter');
+      if (agentFilter) { agentFilter.value = 'unassigned'; _filterCAB(); }
+    }
   }
 
   function _sourceWithRefBadge(source) {
@@ -1751,6 +1769,13 @@ var Panels = (function () {
 
   var _cabSortKey = null;
   var _cabSortAsc = true;
+
+  function _cabSwitchTab(tab) {
+    var allBtn = document.getElementById('cabTabAll');
+    var unBtn = document.getElementById('cabTabUnassigned');
+    if (allBtn) { allBtn.className = allBtn.className.replace(/bg-white text-gray-900 shadow-sm|text-gray-500 hover:text-gray-700/g, ''); allBtn.className += tab === 'all' ? ' bg-white text-gray-900 shadow-sm' : ' text-gray-500 hover:text-gray-700'; }
+    if (unBtn) { unBtn.className = unBtn.className.replace(/bg-white text-gray-900 shadow-sm|text-gray-500 hover:text-gray-700/g, ''); unBtn.className += tab === 'unassigned' ? ' bg-white text-gray-900 shadow-sm' : ' text-gray-500 hover:text-gray-700'; }
+  }
 
   function _filterCAB() {
     var search = ((document.getElementById('cabSearch') || {}).value || '').toLowerCase();
@@ -3965,6 +3990,42 @@ var Panels = (function () {
     }).catch(function (err) {
       CRM.toast('Failed to submit referral: ' + (err.message || 'Unknown error'), 'error');
     });
+  }
+
+  // ─── Finance Dashboard (combined: Payouts | Revenue | 1099) ──────────
+  function financeDashboard(tab) {
+    tab = tab || 'payouts';
+    window._financeTab = tab;
+
+    // Render the selected sub-panel first (it sets container content)
+    if (tab === 'payouts') commissionPayouts();
+    else if (tab === 'revenue') revenueOverview();
+    else if (tab === '1099') yearEnd1099();
+
+    CRM.setPanelTitle('Finance');
+
+    // Prepend tab bar to the container
+    setTimeout(function () {
+      var c = _container();
+      if (!c) return;
+      var tabs = [
+        { id: 'payouts', label: 'Payouts', icon: 'fa-dollar-sign' },
+        { id: 'revenue', label: 'Revenue', icon: 'fa-chart-bar' },
+        { id: '1099', label: '1099', icon: 'fa-file-invoice-dollar' },
+      ];
+      var tabHtml = '<div class="flex gap-1 bg-gray-100 p-1 rounded-lg mb-4" id="financeTabBar">';
+      tabs.forEach(function (t) {
+        var active = t.id === tab;
+        tabHtml += '<button class="px-4 py-2 text-sm font-semibold rounded-md transition-all ' +
+          (active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700') + '" ' +
+          'onclick="Panels.financeDashboard(\'' + t.id + '\')"><i class="fas ' + t.icon + ' mr-1.5"></i>' + t.label + '</button>';
+      });
+      tabHtml += '</div>';
+      // Only prepend if not already there
+      if (!document.getElementById('financeTabBar')) {
+        c.insertAdjacentHTML('afterbegin', tabHtml);
+      }
+    }, 50);
   }
 
   // ─── Commission Payouts ──────────────────────────────────────────────
@@ -12416,7 +12477,9 @@ var Panels = (function () {
     _switchQuickAddType: _switchQuickAddType,
     _submitQuickAddClient: _submitQuickAddClient,
     _filterCAB: _filterCAB,
+    _cabSwitchTab: _cabSwitchTab,
     _sortCAB: _sortCAB,
+    financeDashboard: financeDashboard,
     _reassignClient: _reassignClient,
     _doReassign: _doReassign,
     _agentReferralsView: _agentReferralsView,
