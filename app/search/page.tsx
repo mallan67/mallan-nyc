@@ -256,7 +256,9 @@ function SearchClient() {
       params.delete('neighborhood');
       params.delete('borough');
     }
-    router.replace(`/search?${params.toString()}`, { scroll: false });
+    // Use history.replaceState instead of router.replace to avoid triggering
+    // a full Next.js navigation (which re-renders via Suspense → white flash)
+    window.history.replaceState(null, '', `/search?${params.toString()}`);
   }, [filters, viewMode, searchQuery, selectedNeighborhoods]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabConfig = TAB_CONFIG[activeTab];
