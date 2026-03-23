@@ -277,6 +277,13 @@
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
+            // Pass generic checkbox filters to server for OData filtering
+            // Server builds OData eq/contains clauses for fields that support it
+            if (criteria.checkboxFilters) {
+                var _cbJson = JSON.stringify(criteria.checkboxFilters);
+                if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
+            }
+
             // ≤200: server sends inline photos via $expand=Media (fast, one request)
             // >200: server sends listings without photos, photo-loader.js lazy-loads
             //       via /api/media/batch + IntersectionObserver
@@ -928,6 +935,39 @@
                 criteria.buildingName = buildingNameEl.value.trim();
             }
 
+            // ═══════════════════════════════════════════════════════════
+            // GENERIC data-field CHECKBOX SCANNER
+            // Collects ALL checked checkboxes with data-field/data-value
+            // that aren't already handled above.
+            // ═══════════════════════════════════════════════════════════
+            var _handledFields = { 'MlsStatus': 1, 'CommonInterest': 1, 'PropertySubType': 1 };
+
+            // Determine container: advanced mode if visible, else active basic form
+            var _scanContainer = activeBasicForm;
+            var _advMode = document.getElementById('searchAdvancedMode');
+            if (_advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden')) {
+                _scanContainer = _advMode;
+            }
+
+            if (_scanContainer) {
+                var _allChecked = _scanContainer.querySelectorAll('input[data-field]:checked');
+                var _checkboxFilters = {};
+                for (var _ci = 0; _ci < _allChecked.length; _ci++) {
+                    var _cb = _allChecked[_ci];
+                    var _field = _cb.getAttribute('data-field');
+                    if (_handledFields[_field]) continue;
+                    var _val = _cb.getAttribute('data-value') || _cb.value;
+                    if (!_val) continue;
+                    if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
+                    if (_checkboxFilters[_field].indexOf(_val) === -1) {
+                        _checkboxFilters[_field].push(_val);
+                    }
+                }
+                if (Object.keys(_checkboxFilters).length > 0) {
+                    criteria.checkboxFilters = _checkboxFilters;
+                }
+            }
+
             return criteria;
         }
 
@@ -1316,6 +1356,94 @@
                     var ohDate = new Date(listing.openHouseDate);
                     if (ohFrom && ohDate < ohFrom) return false;
                     if (ohTo && ohDate > ohTo) return false;
+                }
+
+                // ═══════════════════════════════════════════════════════════
+                // GENERIC CHECKBOX FILTER
+                // Matches criteria.checkboxFilters against listing properties.
+                // OR within a field (any value matches), AND across fields.
+                // ═══════════════════════════════════════════════════════════
+                if (criteria.checkboxFilters) {
+                    // Map HTML data-field names → listing property names
+                    // (where they differ between CRM HTML and Trestle/API)
+                    var _fieldMap = {
+                        'BuildingLaundryFeatures': 'LaundryFeatures',
+                        'BuildingSecurityFeatures': 'SecurityFeatures',
+                        'BuildingPoolFeatures': 'PoolFeatures',
+                        'BuildingPetsAllowed': 'PetsAllowedYN',
+                        'BuildingSmokeFreeYN': 'SmokeFree',
+                        'LeaseType': 'AvailableLeaseType',
+                        'ConstructionType': 'ConstructionMaterials',
+                        'NewConstruction': 'NewConstructionYN',
+                        'CRM': null // skip CRM-internal fields
+                    };
+
+                    // YN fields: filter checks for boolean true
+                    var _ynFields = {
+                        'LandLeaseYN': 1, 'CoolingYN': 1, 'GarageYN': 1,
+                        'PetsAllowedYN': 1, 'NewConstructionYN': 1,
+                        'BuildingSmokeFreeYN': 1, 'BuildingPetsAllowed': 1
+                    };
+
+                    for (var _fk in criteria.checkboxFilters) {
+                        if (!criteria.checkboxFilters.hasOwnProperty(_fk)) continue;
+
+                        // Skip CRM-internal or unmappable fields
+                        if (_fieldMap[_fk] === null) continue;
+
+                        // Skip distribution gate filters (handled above)
+                        if (_fk === 'InternetEntireListingDisplayYN' || _fk === 'RLSParticipantOnly') continue;
+
+                        var _vals = criteria.checkboxFilters[_fk];
+                        var _propName = _fieldMap[_fk] || _fk;
+
+                        // Resolve listing value — try exact prop, then lowercase first char
+                        var _listVal = listing[_propName];
+                        if (_listVal === undefined) {
+                            var _lcProp = _propName.charAt(0).toLowerCase() + _propName.slice(1);
+                            _listVal = listing[_lcProp];
+                        }
+
+                        // YN boolean fields
+                        if (_ynFields[_fk]) {
+                            var _wantTrue = _vals.indexOf('true') !== -1 || _vals.indexOf('Yes') !== -1;
+                            var _wantFalse = _vals.indexOf('false') !== -1 || _vals.indexOf('No') !== -1;
+                            if (_wantTrue && !_wantFalse) {
+                                if (_listVal !== true && _listVal !== 'true' && _listVal !== 'Yes') return false;
+                            } else if (_wantFalse && !_wantTrue) {
+                                if (_listVal === true || _listVal === 'true' || _listVal === 'Yes') return false;
+                            }
+                            continue;
+                        }
+
+                        // ListOfficeMlsId — exact match for "my office" filter
+                        if (_fk === 'ListOfficeMlsId') {
+                            if (listing.company) {
+                                // listing.company = ListOfficeName, not MlsId — skip server match
+                                // This filter is best handled server-side via OData
+                            }
+                            continue;
+                        }
+
+                        // MaximumFinancingPercent — range filter, not checkbox match
+                        if (_fk === 'MaximumFinancingPercent') continue;
+
+                        // Skip if listing doesn't have this field (don't exclude — field may
+                        // not be in API response yet; server-side OData handles it)
+                        if (_listVal == null || _listVal === '') continue;
+
+                        // Multi-value match: Trestle may return comma-separated values
+                        // (e.g. "FullTimeDoorman,VirtualDoorman") or single values
+                        var _listStr = String(_listVal).toLowerCase();
+                        var _matched = false;
+                        for (var _vi = 0; _vi < _vals.length; _vi++) {
+                            if (_listStr.indexOf(_vals[_vi].toLowerCase()) !== -1) {
+                                _matched = true;
+                                break;
+                            }
+                        }
+                        if (!_matched) return false;
+                    }
                 }
 
                 return true;

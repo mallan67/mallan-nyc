@@ -78,6 +78,15 @@ const SEARCH_SELECT_FIELDS = [
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   // Rental
   "PetsAllowed", "Furnished",
+  // ── Searchable checkbox fields (wired to CRM search form data-field checkboxes) ──
+  // These are returned so local filterListings() can match against them.
+  "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
+  "DirectionFaces", "View", "PropertyCondition", "Concessions",
+  "ArchitecturalStyle", "StructureType", "BusinessType",
+  "AccessibilityFeatures", "ExteriorFeatures", "BuildingFeatures",
+  "BuildingRules", "LaundryFeatures", "SecurityFeatures", "PoolFeatures",
+  "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType",
+  "ConstructionMaterials", "PriceChangeTimestamp",
 ];
 
 // ── In-memory cache ────────────────────────────────────────────────────
@@ -360,6 +369,50 @@ function buildODataFilter(params: URLSearchParams): string {
     }
   }
 
+  // ── Generic checkbox filters (from CRM search form data-field checkboxes) ──
+  // Client sends JSON: { "ListingAgreement": ["ExclusiveRightToSell"], "LandLeaseYN": ["true"] }
+  // We build OData for fields that support it; the rest are filtered client-side.
+  const cbRaw = params.get("checkboxFilters");
+  if (cbRaw) {
+    try {
+      const cbFilters: Record<string, string[]> = JSON.parse(cbRaw);
+      // Map HTML data-field names to Trestle OData field names
+      const trestleFieldMap: Record<string, string> = {
+        BuildingLaundryFeatures: "LaundryFeatures",
+        BuildingSecurityFeatures: "SecurityFeatures",
+        BuildingPoolFeatures: "PoolFeatures",
+        BuildingPetsAllowed: "PetsAllowedYN",
+        LeaseType: "AvailableLeaseType",
+        ConstructionType: "ConstructionMaterials",
+        NewConstruction: "NewConstructionYN",
+      };
+      // Fields safe for OData eq/contains filtering
+      const odataSafe = new Set([
+        "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
+        "DirectionFaces", "PropertyCondition", "NewConstructionYN",
+        "StructureType", "ArchitecturalStyle", "BusinessType",
+        "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType",
+        "ConstructionMaterials",
+      ]);
+      for (const [htmlField, values] of Object.entries(cbFilters)) {
+        if (!values || values.length === 0) continue;
+        const trestleField = trestleFieldMap[htmlField] || htmlField;
+        if (!odataSafe.has(trestleField)) continue; // skip — filtered client-side
+        // YN fields: boolean
+        if (trestleField.endsWith("YN")) {
+          const wantTrue = values.includes("true") || values.includes("Yes");
+          if (wantTrue) parts.push(`${trestleField} eq true`);
+          else parts.push(`${trestleField} eq false`);
+        } else if (values.length === 1) {
+          parts.push(`${trestleField} eq '${escapeOData(values[0])}'`);
+        } else {
+          const orParts = values.map(v => `${trestleField} eq '${escapeOData(v)}'`);
+          parts.push(`(${orParts.join(" or ")})`);
+        }
+      }
+    } catch { /* invalid JSON — skip, client-side filtering handles it */ }
+  }
+
   // Single listing by ListingId (for detail page direct fetch)
   const listingId = params.get("listingId");
   if (listingId) {
@@ -545,6 +598,33 @@ function mapTrestleToCRM(
       internetDisplay: raw.InternetEntireListingDisplayYN !== false,
       syndication: true,
     },
+    // ── Searchable checkbox fields (pass-through for local filterListings) ──
+    // These use Trestle field names as keys so the generic checkbox filter can match.
+    // HTML data-field names that differ are mapped client-side (fieldNameMap).
+    ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,
+    LandLeaseYN: raw.LandLeaseYN === true || raw.LandLeaseYN === "true",
+    CoolingYN: raw.CoolingYN === true || raw.CoolingYN === "true",
+    GarageYN: raw.GarageYN === true || raw.GarageYN === "true",
+    DirectionFaces: raw.DirectionFaces ? String(raw.DirectionFaces) : null,
+    View: raw.View ? String(raw.View) : null,
+    PropertyCondition: raw.PropertyCondition ? String(raw.PropertyCondition) : null,
+    Concessions: raw.Concessions ? String(raw.Concessions) : null,
+    ArchitecturalStyle: raw.ArchitecturalStyle ? String(raw.ArchitecturalStyle) : null,
+    StructureType: raw.StructureType ? String(raw.StructureType) : null,
+    BusinessType: raw.BusinessType ? String(raw.BusinessType) : null,
+    AccessibilityFeatures: raw.AccessibilityFeatures ? String(raw.AccessibilityFeatures) : null,
+    ExteriorFeatures: raw.ExteriorFeatures ? String(raw.ExteriorFeatures) : null,
+    BuildingFeatures: raw.BuildingFeatures ? String(raw.BuildingFeatures) : null,
+    BuildingRules: raw.BuildingRules ? String(raw.BuildingRules) : null,
+    LaundryFeatures: raw.LaundryFeatures ? String(raw.LaundryFeatures) : null,
+    SecurityFeatures: raw.SecurityFeatures ? String(raw.SecurityFeatures) : null,
+    PoolFeatures: raw.PoolFeatures ? String(raw.PoolFeatures) : null,
+    PetsAllowedYN: raw.PetsAllowedYN === true || raw.PetsAllowedYN === "true",
+    AvailableLeaseType: raw.AvailableLeaseType ? String(raw.AvailableLeaseType) : null,
+    ExistingLeaseType: raw.ExistingLeaseType ? String(raw.ExistingLeaseType) : null,
+    ConstructionMaterials: raw.ConstructionMaterials ? String(raw.ConstructionMaterials) : null,
+    NewConstructionYN: raw.NewConstructionYN === true || raw.NewConstructionYN === "true",
+    PriceChangeTimestamp: raw.PriceChangeTimestamp ? String(raw.PriceChangeTimestamp) : null,
     _source: "idx",
     _listingKey: String(raw.ListingId || raw.SourceSystemKey || ""),
   };
