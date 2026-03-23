@@ -17,6 +17,8 @@ import { serializeBigInts } from "@/lib/api/serialize";
 import { soda } from "@/lib/soda";
 import { scoreSellerLead } from "@/lib/seller-readiness/scorer";
 import { fetchDofTaxData } from "@/lib/seller-readiness/signals/dof-tax";
+import { getAccessToken } from "@/lib/idx/auth";
+import { sanitizeOData } from "@/lib/sanitize";
 
 const PLUTO = process.env.SODA_DATASET_PLUTO ?? "64uk-42ks";
 const TAX_LIEN_SALE = "gy4f-u74s"; // NYC DOF Tax Lien Sale List
@@ -618,10 +620,153 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
+  // ── Step 5c: Auto-populate initial comps from Trestle ──────────────────────
+  // Only runs if pitch_data.comps is empty — never overwrites curated comps.
+  // Non-blocking: research succeeds even if this step fails.
+  const compsPitchUpdate: Record<string, unknown> = {};
+  try {
+    const existingPitchData = (prospect.pitch_data as Record<string, unknown> | null) ?? {};
+    const existingComps = Array.isArray((existingPitchData as Record<string, unknown>).comps)
+      ? (existingPitchData as Record<string, unknown>).comps as unknown[]
+      : [];
+
+    if (existingComps.length === 0) {
+      const TRESTLE_URL = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+      const COMP_SELECT = [
+        "ListingId", "UnparsedAddress", "UnitNumber", "ClosePrice", "CloseDate",
+        "BedroomsTotal", "BathroomsFull", "LivingArea", "BuildingName", "PropertySubType",
+      ].join(",");
+
+      // Resolve building name and beds from enriched data or prospect
+      const resolvedBuildingName =
+        (prospect.building_name ?? "") as string;
+      const resolvedBeds =
+        (prospect.beds ?? null) as number | null;
+      const resolvedZip =
+        (prospect.postal_code ?? "") as string;
+
+      // 18 months ago in OData date format
+      const eighteenMonthsAgo = new Date();
+      eighteenMonthsAgo.setMonth(eighteenMonthsAgo.getMonth() - 18);
+      const cutoffDate = eighteenMonthsAgo.toISOString().split("T")[0];
+
+      const trestleToken = await getAccessToken();
+
+      interface TrestleCompRecord {
+        ListingId?: string;
+        UnparsedAddress?: string;
+        UnitNumber?: string;
+        ClosePrice?: number;
+        CloseDate?: string;
+        BedroomsTotal?: number;
+        BathroomsFull?: number;
+        LivingArea?: number;
+        BuildingName?: string;
+        PropertySubType?: string;
+      }
+
+      let compRecords: TrestleCompRecord[] = [];
+
+      // Query 1: Same building (if building name is known)
+      if (resolvedBuildingName) {
+        const safeBuildingName = sanitizeOData(resolvedBuildingName);
+        const buildingFilter =
+          `BuildingName eq '${safeBuildingName}'` +
+          ` and StandardStatus eq 'Closed'` +
+          ` and CloseDate ge ${cutoffDate}`;
+        const buildingParams = new URLSearchParams({
+          $filter: buildingFilter,
+          $select: COMP_SELECT,
+          $top: "10",
+          $orderby: "CloseDate desc",
+        });
+        const buildingRes = await fetch(
+          `${TRESTLE_URL}/odata/Property?${buildingParams}`,
+          {
+            headers: { Authorization: `Bearer ${trestleToken}`, Accept: "application/json" },
+            signal: AbortSignal.timeout(10_000),
+          },
+        );
+        if (buildingRes.ok) {
+          const buildingData = await buildingRes.json();
+          compRecords = buildingData.value || [];
+        }
+      }
+
+      // Query 2: Same zip ± 1BR fallback (if < 3 building results)
+      if (compRecords.length < 3 && resolvedZip) {
+        const safeZip = sanitizeOData(resolvedZip);
+        let zipFilter =
+          `PostalCode eq '${safeZip}'` +
+          ` and StandardStatus eq 'Closed'` +
+          ` and CloseDate ge ${cutoffDate}`;
+        if (resolvedBeds !== null) {
+          const bedsMin = Math.max(0, resolvedBeds - 1);
+          const bedsMax = resolvedBeds + 1;
+          zipFilter += ` and BedroomsTotal ge ${bedsMin} and BedroomsTotal le ${bedsMax}`;
+        }
+        const zipParams = new URLSearchParams({
+          $filter: zipFilter,
+          $select: COMP_SELECT,
+          $top: "10",
+          $orderby: "CloseDate desc",
+        });
+        const zipRes = await fetch(
+          `${TRESTLE_URL}/odata/Property?${zipParams}`,
+          {
+            headers: { Authorization: `Bearer ${trestleToken}`, Accept: "application/json" },
+            signal: AbortSignal.timeout(10_000),
+          },
+        );
+        if (zipRes.ok) {
+          const zipData = await zipRes.json();
+          const zipRecords: TrestleCompRecord[] = zipData.value || [];
+          // Merge, deduplicate by ListingId
+          const seen = new Set(compRecords.map((r) => r.ListingId).filter(Boolean));
+          for (const r of zipRecords) {
+            if (r.ListingId && !seen.has(r.ListingId)) {
+              seen.add(r.ListingId);
+              compRecords.push(r);
+            }
+          }
+        }
+      }
+
+      // Map to comp objects and take top 8
+      if (compRecords.length > 0) {
+        const newComps = compRecords.slice(0, 8).map((r) => ({
+          mls_id: r.ListingId ?? "",
+          address: r.UnparsedAddress ?? "",
+          unit: r.UnitNumber ?? null,
+          close_price: r.ClosePrice ?? null,
+          close_date: r.CloseDate ?? null,
+          beds: r.BedroomsTotal ?? null,
+          baths: r.BathroomsFull ?? null,
+          sqft: r.LivingArea ?? null,
+          building_name: r.BuildingName ?? null,
+          property_type: r.PropertySubType ?? null,
+          added_at: new Date().toISOString(),
+        }));
+
+        compsPitchUpdate.pitch_data = {
+          ...existingPitchData,
+          comps: newComps,
+        };
+
+        console.log(
+          `[prospect-research] Auto-populated ${newComps.length} initial comps for prospect ${prospectId}`,
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("[prospect-research] Auto-comp fetch failed (non-blocking):", (err as Error).message);
+  }
+
   // ── Step 6: Apply all enrichment updates + mark research timestamp ─────────
   const enrichmentData = {
     ...acrisUpdate,
     ...taxUpdate,
+    ...compsPitchUpdate,
     last_researched_at: new Date(), // Set LAST so failed runs don't block retries
   };
   await prisma.sellerLead.update({
