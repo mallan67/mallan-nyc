@@ -16,7 +16,6 @@ var PitchPacket = (function () {
    */
   function render(el, prospect) {
     var p = prospect;
-    var hasConsent = p.consent_captured_at || p.consent_given;
     var hasEmail = !!p.owner_email;
     var h = '<div class="space-y-4">';
 
@@ -25,31 +24,18 @@ var PitchPacket = (function () {
     h += '<div class="flex gap-2">';
     h += '<button class="btn btn-sm btn-outline" onclick="PitchPacket._preview(\'' + E(String(p.id)) + '\')"><i class="fas fa-eye mr-1"></i>Preview</button>';
     h += '<button class="btn btn-sm btn-outline" onclick="PitchPacket._download(\'' + E(String(p.id)) + '\')"><i class="fas fa-download mr-1"></i>PDF</button>';
-    if (hasConsent && hasEmail) {
+    if (hasEmail) {
       h += '<button class="btn btn-sm btn-gold" onclick="PitchPacket._send(\'' + E(String(p.id)) + '\')"><i class="fas fa-paper-plane mr-1"></i>Send to ' + E(p.owner_email) + '</button>';
     } else {
-      h += '<button class="btn btn-sm btn-gold opacity-50 cursor-not-allowed" disabled title="' + (!hasEmail ? 'No email address' : 'TCPA consent required') + '"><i class="fas fa-paper-plane mr-1"></i>Send</button>';
+      h += '<button class="btn btn-sm btn-gold opacity-50 cursor-not-allowed" disabled title="No email address"><i class="fas fa-paper-plane mr-1"></i>Send</button>';
     }
     h += '</div></div>';
 
-    // TCPA consent banner
-    if (!hasConsent) {
-      h += '<div class="p-4 bg-amber-50 border border-amber-200 rounded-xl">';
-      h += '<div class="flex items-start gap-3">';
-      h += '<i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>';
-      h += '<div class="flex-1">';
-      h += '<div class="text-sm font-bold text-amber-800">TCPA Consent Required</div>';
-      h += '<p class="text-xs text-amber-700 mt-1">Before emailing a pitch packet, you must confirm the prospect has given consent to receive marketing communications. This is required by the Telephone Consumer Protection Act.</p>';
-      h += '<div class="flex gap-2 mt-3">';
-      h += '<button class="btn btn-sm btn-gold" onclick="PitchPacket._grantConsent(\'' + E(String(p.id)) + '\',\'verbal\')"><i class="fas fa-phone mr-1"></i>Verbal Consent Given</button>';
-      h += '<button class="btn btn-sm btn-outline" onclick="PitchPacket._grantConsent(\'' + E(String(p.id)) + '\',\'written\')"><i class="fas fa-file-signature mr-1"></i>Written Consent</button>';
-      h += '<button class="btn btn-sm btn-outline" onclick="PitchPacket._grantConsent(\'' + E(String(p.id)) + '\',\'referral\')"><i class="fas fa-user-friends mr-1"></i>Referral Consent</button>';
-      h += '</div>';
-      h += '</div></div></div>';
-    } else {
-      h += '<div class="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">';
-      h += '<i class="fas fa-check-circle text-green-500"></i>';
-      h += '<span class="text-xs font-semibold text-green-700">TCPA consent recorded</span>';
+    // Opt-out notice
+    if (p.consent_opt_out_at) {
+      h += '<div class="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">';
+      h += '<i class="fas fa-ban text-red-500"></i>';
+      h += '<span class="text-xs font-semibold text-red-700">This prospect has unsubscribed from emails (' + E(new Date(p.consent_opt_out_at).toLocaleDateString()) + '). Do not send.</span>';
       h += '</div>';
     }
 

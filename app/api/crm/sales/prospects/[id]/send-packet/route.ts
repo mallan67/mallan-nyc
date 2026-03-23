@@ -177,7 +177,8 @@ function buildPitchEmail(data: {
           </td></tr>
           <tr><td style="padding:0;font-size:11px;">
             <a href="${BASE_URL}/fair-housing" style="color:${BRAND_GOLD};text-decoration:underline;">Fair Housing Policy</a> |
-            <a href="${BASE_URL}/privacy" style="color:${BRAND_GOLD};text-decoration:underline;">Privacy Policy</a>
+            <a href="${BASE_URL}/privacy" style="color:${BRAND_GOLD};text-decoration:underline;">Privacy Policy</a> |
+            <a href="${BASE_URL}/unsubscribe" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
           </td></tr>
         </table>
       </td></tr>
@@ -224,13 +225,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // TCPA guard
-  if (!prospect.consent_captured_at && !prospect.consent_given) {
+  // CAN-SPAM: check opt-out — if prospect unsubscribed, block send
+  if (prospect.consent_opt_out_at) {
     return NextResponse.json(
-      {
-        error:
-          "Cannot send pitch packet without TCPA consent. Set consent_captured_at or consent_given first.",
-      },
+      { error: "This prospect has unsubscribed from emails. Cannot send." },
       { status: 403 },
     );
   }
