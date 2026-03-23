@@ -3092,7 +3092,7 @@
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;" id="priceLabel">Price</p>
                                         <div id="salePriceFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advSaleMinPrice" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min Price</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="100000">$100K</option>
@@ -3126,7 +3126,7 @@
                                                 <option value="50000000">$50M</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advSaleMaxPrice" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max Price</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
@@ -3155,6 +3155,12 @@
                                                 <option value="75000000">$75M</option>
                                                 <option value="100000000">$100M+</option>
                                             </select>
+                                        </div>
+                                        <!-- Advanced sale custom price inputs -->
+                                        <div id="advSaleCustomPriceRow" class="hidden" style="display:none;align-items:center;gap:6px;flex:1;min-width:0;margin-top:6px;">
+                                            <input type="number" id="advSaleMinPriceCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Min" min="0" step="1">
+                                            <span class="text-gray-400 text-xs" style="flex-shrink:0;">—</span>
+                                            <input type="number" id="advSaleMaxPriceCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Max" min="0" step="1">
                                         </div>
                                         </div>
                                         <!-- Expenses -->
@@ -3201,7 +3207,7 @@
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;">Rent</p>
                                         <div id="rentPriceFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advRentalMinRent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min Rent</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -3230,7 +3236,7 @@
                                                 <option value="50000">$50,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advRentalMaxRent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max Rent</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1500">$1,500</option>
@@ -3259,6 +3265,12 @@
                                                 <option value="75000">$75,000</option>
                                                 <option value="100000">$100,000+</option>
                                             </select>
+                                        </div>
+                                        <!-- Advanced rental custom price inputs -->
+                                        <div id="advRentalCustomPriceRow" class="hidden" style="display:none;align-items:center;gap:6px;flex:1;min-width:0;margin-top:6px;">
+                                            <input type="number" id="advRentalMinRentCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Min" min="0" step="1">
+                                            <span class="text-gray-400 text-xs" style="flex-shrink:0;">—</span>
+                                            <input type="number" id="advRentalMaxRentCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Max" min="0" step="1">
                                         </div>
                                         </div>
                                         <!-- Net Rent -->
@@ -7791,21 +7803,15 @@
                         </div>
                     </div>
 
-                    <!-- Pagination -->
-                    <div class="mt-6 flex items-center justify-between">
-                        <p class="text-sm text-gray-600">Showing 1-6 of 400 results</p>
-                        <div class="flex items-center gap-2">
-                            <button class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50" disabled aria-label="Previous">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <button class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">1</button>
-                            <button class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">2</button>
-                            <button class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">3</button>
-                            <span class="px-2 text-gray-400">...</span>
-                            <button class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">8</button>
-                            <button class="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50" aria-label="Next">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
+                    <!-- Bottom Pagination (dynamic — mirrors top pagination) -->
+                    <div id="bottomPaginationBar" class="mt-6 flex items-center justify-between">
+                        <span class="text-sm font-bold text-gray-800" id="resultsCount2">0 Results</span>
+                        <div class="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200 px-1">
+                            <button onclick="goToFirstPage()" class="p-1 text-gray-400 hover:text-gray-700 transition-colors" title="First"><i class="fas fa-angle-double-left text-xs"></i></button>
+                            <button onclick="goToPrevPage()" class="p-1 text-gray-400 hover:text-gray-700 transition-colors" title="Previous"><i class="fas fa-angle-left text-xs"></i></button>
+                            <span class="px-2 text-xs font-medium text-gray-600"><span id="bottomCurrentPage">1</span> / <span id="bottomTotalPages">1</span></span>
+                            <button onclick="goToNextPage()" class="p-1 text-gray-400 hover:text-gray-700 transition-colors" title="Next"><i class="fas fa-angle-right text-xs"></i></button>
+                            <button onclick="goToLastPage()" class="p-1 text-gray-400 hover:text-gray-700 transition-colors" title="Last"><i class="fas fa-angle-double-right text-xs"></i></button>
                         </div>
                     </div>
                 </div>

@@ -83,7 +83,7 @@
 
         function renderDRPCalendar() {
             if (!activeDRP) return;
-            var popup = activeDRP.querySelector('.drp-popup');
+            var popup = _drpCachedPopup;
             if (!popup) return;
             var leftGrid = popup.querySelector('.drp-grid-left');
             var rightGrid = popup.querySelector('.drp-grid-right');
@@ -149,52 +149,62 @@
             renderDRPCalendar();
         }
 
+        // Cached popup element — reused across all date pickers (appended to body)
+        var _drpCachedPopup = null;
+
+        function _getDRPPopup() {
+            if (_drpCachedPopup) return _drpCachedPopup;
+            var popup = document.createElement('div');
+            popup.className = 'drp-popup';
+            popup.id = 'drpSharedPopup';
+            popup.innerHTML = '' +
+                '<div class="drp-months">' +
+                    '<div class="drp-month">' +
+                        '<div class="drp-month-header">' +
+                            '<button onclick="drpPrevMonth()">&#8249;</button>' +
+                            '<span class="drp-title-left"></span>' +
+                            '<span></span>' +
+                        '</div>' +
+                        '<div class="drp-grid drp-grid-left"></div>' +
+                    '</div>' +
+                    '<div class="drp-month">' +
+                        '<div class="drp-month-header">' +
+                            '<span></span>' +
+                            '<span class="drp-title-right"></span>' +
+                            '<button onclick="drpNextMonth()">&#8250;</button>' +
+                        '</div>' +
+                        '<div class="drp-grid drp-grid-right"></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="drp-footer">' +
+                    '<select onchange="if(this.value===\'today\') drpSetToday()">' +
+                        '<option value="today">Today</option>' +
+                    '</select>' +
+                    '<label>From</label>' +
+                    '<input type="text" class="drp-from-input" placeholder="MM/DD/YYYY" onchange="drpManualDateInput(this, \'from\')">' +
+                    '<label>To</label>' +
+                    '<input type="text" class="drp-to-input" placeholder="MM/DD/YYYY" onchange="drpManualDateInput(this, \'to\')">' +
+                    '<div class="drp-actions">' +
+                        '<button class="drp-apply" onclick="applyDateRange()">Apply</button>' +
+                        '<button onclick="cancelDateRange()">Cancel</button>' +
+                        '<button onclick="clearDateRangeFromPopup()">Clear</button>' +
+                    '</div>' +
+                '</div>';
+            popup.addEventListener('click', function(e) { e.stopPropagation(); });
+            document.body.appendChild(popup);
+            _drpCachedPopup = popup;
+            return popup;
+        }
+
         function openDateRangePicker(triggerEl) {
             var wrapper = triggerEl.closest('.drp-wrapper');
             // Close any other open picker
             closeAllDRP();
             activeDRP = wrapper;
-            // Create popup if not exists
-            var existing = wrapper.querySelector('.drp-popup');
-            if (!existing) {
-                var popup = document.createElement('div');
-                popup.className = 'drp-popup';
-                popup.innerHTML = '' +
-                    '<div class="drp-months">' +
-                        '<div class="drp-month">' +
-                            '<div class="drp-month-header">' +
-                                '<button onclick="drpPrevMonth()">&#8249;</button>' +
-                                '<span class="drp-title-left"></span>' +
-                                '<span></span>' +
-                            '</div>' +
-                            '<div class="drp-grid drp-grid-left"></div>' +
-                        '</div>' +
-                        '<div class="drp-month">' +
-                            '<div class="drp-month-header">' +
-                                '<span></span>' +
-                                '<span class="drp-title-right"></span>' +
-                                '<button onclick="drpNextMonth()">&#8250;</button>' +
-                            '</div>' +
-                            '<div class="drp-grid drp-grid-right"></div>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="drp-footer">' +
-                        '<select onchange="if(this.value===\'today\') drpSetToday()">' +
-                            '<option value="today">Today</option>' +
-                        '</select>' +
-                        '<label>From</label>' +
-                        '<input type="text" class="drp-from-input" placeholder="MM/DD/YYYY" onchange="drpManualDateInput(this, \'from\')">' +
-                        '<label>To</label>' +
-                        '<input type="text" class="drp-to-input" placeholder="MM/DD/YYYY" onchange="drpManualDateInput(this, \'to\')">' +
-                        '<div class="drp-actions">' +
-                            '<button class="drp-apply" onclick="applyDateRange()">Apply</button>' +
-                            '<button onclick="cancelDateRange()">Cancel</button>' +
-                            '<button onclick="clearDateRangeFromPopup()">Clear</button>' +
-                        '</div>' +
-                    '</div>';
-                popup.addEventListener('click', function(e) { e.stopPropagation(); });
-                wrapper.appendChild(popup);
-            }
+
+            // Get or create the shared popup (appended to body, not wrapper — avoids overflow clipping)
+            var popupEl = _getDRPPopup();
+
             // Initialize view
             var now = new Date();
             drpViewMonth = { year: now.getFullYear(), month: now.getMonth() };
@@ -211,17 +221,22 @@
                 drpToDate = null;
                 drpSelectingFrom = true;
             }
-            var popupEl = wrapper.querySelector('.drp-popup');
             popupEl.classList.add('open');
-            // Position fixed popup relative to trigger
+            // Position fixed popup relative to trigger (viewport coords)
             var trigger = wrapper.querySelector('.drp-trigger');
             var rect = trigger.getBoundingClientRect();
             var popupW = 520;
+            var popupH = 380; // approximate popup height
             var leftPos = rect.left + (rect.width / 2) - (popupW / 2);
-            // Keep within viewport
+            // Keep within viewport horizontally
             if (leftPos < 8) leftPos = 8;
             if (leftPos + popupW > window.innerWidth - 8) leftPos = window.innerWidth - popupW - 8;
-            popupEl.style.top = (rect.bottom + 4) + 'px';
+            // Position below trigger, or above if not enough room below
+            var topPos = rect.bottom + 4;
+            if (topPos + popupH > window.innerHeight - 8 && rect.top > popupH + 8) {
+                topPos = rect.top - popupH - 4;
+            }
+            popupEl.style.top = topPos + 'px';
             popupEl.style.left = leftPos + 'px';
             renderDRPCalendar();
         }
@@ -283,27 +298,31 @@
         }
 
         function closeAllDRP() {
+            if (_drpCachedPopup) {
+                _drpCachedPopup.classList.remove('open');
+            }
+            // Also close any legacy popups that may still be inside wrappers
             document.querySelectorAll('.drp-popup.open').forEach(function(p) {
                 p.classList.remove('open');
             });
             activeDRP = null;
         }
 
-        // Close picker when clicking outside
+        // Close picker when clicking outside (wrapper OR the shared popup on body)
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.drp-wrapper')) {
+            if (!e.target.closest('.drp-wrapper') && !e.target.closest('#drpSharedPopup')) {
                 closeAllDRP();
             }
         });
 
         // Reposition popup on scroll (since it's position:fixed)
         function repositionDRP() {
-            if (!activeDRP) return;
-            var popupEl = activeDRP.querySelector('.drp-popup.open');
-            if (!popupEl) return;
+            if (!activeDRP || !_drpCachedPopup || !_drpCachedPopup.classList.contains('open')) return;
             var trigger = activeDRP.querySelector('.drp-trigger');
+            if (!trigger) return;
             var rect = trigger.getBoundingClientRect();
             var popupW = 520;
+            var popupH = 380;
             var leftPos = rect.left + (rect.width / 2) - (popupW / 2);
             if (leftPos < 8) leftPos = 8;
             if (leftPos + popupW > window.innerWidth - 8) leftPos = window.innerWidth - popupW - 8;
@@ -312,8 +331,13 @@
                 closeAllDRP();
                 return;
             }
-            popupEl.style.top = (rect.bottom + 4) + 'px';
-            popupEl.style.left = leftPos + 'px';
+            // Position below trigger, or above if not enough room below
+            var topPos = rect.bottom + 4;
+            if (topPos + popupH > window.innerHeight - 8 && rect.top > popupH + 8) {
+                topPos = rect.top - popupH - 4;
+            }
+            _drpCachedPopup.style.top = topPos + 'px';
+            _drpCachedPopup.style.left = leftPos + 'px';
         }
         // Attach scroll listener to main content area and window
         var mainContentEl = document.getElementById('mainContent');

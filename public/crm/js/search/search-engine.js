@@ -608,19 +608,38 @@
                 activeBasicForm = document.getElementById('searchBasicMode');
             }
 
-            // Price range — use the correct IDs based on search tab
-            var priceMin, priceMax;
-            if (currentSearchTab === 'rent') {
-                priceMin = document.getElementById('rentalMinRent');
-                priceMax = document.getElementById('rentalMaxRent');
+            // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
+            var _advMode = document.getElementById('searchAdvancedMode');
+            var _isAdvanced = _advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden');
+            var priceMin, priceMax, customMinId, customMaxId;
+            if (_isAdvanced) {
+                if (currentSearchTab === 'rent') {
+                    priceMin = document.getElementById('advRentalMinRent');
+                    priceMax = document.getElementById('advRentalMaxRent');
+                    customMinId = 'advRentalMinRentCustom';
+                    customMaxId = 'advRentalMaxRentCustom';
+                } else {
+                    priceMin = document.getElementById('advSaleMinPrice');
+                    priceMax = document.getElementById('advSaleMaxPrice');
+                    customMinId = 'advSaleMinPriceCustom';
+                    customMaxId = 'advSaleMaxPriceCustom';
+                }
             } else {
-                priceMin = document.getElementById('saleMinPrice');
-                priceMax = document.getElementById('saleMaxPrice');
+                if (currentSearchTab === 'rent') {
+                    priceMin = document.getElementById('rentalMinRent');
+                    priceMax = document.getElementById('rentalMaxRent');
+                    customMinId = 'rentalMinRentCustom';
+                    customMaxId = 'rentalMaxRentCustom';
+                } else {
+                    priceMin = document.getElementById('saleMinPrice');
+                    priceMax = document.getElementById('saleMaxPrice');
+                    customMinId = 'saleMinPriceCustom';
+                    customMaxId = 'saleMaxPriceCustom';
+                }
             }
             if (priceMin && priceMin.value && priceMin.value !== '') {
                 if (priceMin.value === 'custom') {
                     // Read from companion custom input
-                    var customMinId = (currentSearchTab === 'rent') ? 'rentalMinRentCustom' : 'saleMinPriceCustom';
                     var customMinEl = document.getElementById(customMinId);
                     if (customMinEl && customMinEl.value) {
                         var pMin = parseInt(customMinEl.value);
@@ -634,7 +653,6 @@
             if (priceMax && priceMax.value && priceMax.value !== '') {
                 if (priceMax.value === 'custom') {
                     // Read from companion custom input
-                    var customMaxId = (currentSearchTab === 'rent') ? 'rentalMaxRentCustom' : 'saleMaxPriceCustom';
                     var customMaxEl = document.getElementById(customMaxId);
                     if (customMaxEl && customMaxEl.value) {
                         var pMax = parseInt(customMaxEl.value);
@@ -1482,16 +1500,23 @@
             var perPage = searchResultsState.perPage || 50;
             var totalPages = Math.max(1, Math.ceil(count / perPage));
 
-            // Update all results count elements
+            // Update all results count elements (top + bottom)
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
             countEls.forEach(function(el) { el.textContent = count + ' Results'; });
 
-            // Update pagination
+            // Update top pagination
             var totalPagesEl = document.getElementById('totalPages');
             if (totalPagesEl) totalPagesEl.textContent = totalPages;
 
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
+
+            // Update bottom pagination
+            var bottomTotalPagesEl = document.getElementById('bottomTotalPages');
+            if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPages;
+
+            var bottomCurrentPageEl = document.getElementById('bottomCurrentPage');
+            if (bottomCurrentPageEl) bottomCurrentPageEl.textContent = searchResultsState.currentPage;
         }
 
         // Back to search - show search form, hide results
@@ -2532,10 +2557,26 @@
 
         // Map of price select IDs → their companion custom input row and field IDs
         var _priceCustomMap = {
-            saleMinPrice:  { row: 'saleCustomPriceRow',   input: 'saleMinPriceCustom' },
-            saleMaxPrice:  { row: 'saleCustomPriceRow',   input: 'saleMaxPriceCustom' },
-            rentalMinRent: { row: 'rentalCustomPriceRow',  input: 'rentalMinRentCustom' },
-            rentalMaxRent: { row: 'rentalCustomPriceRow',  input: 'rentalMaxRentCustom' }
+            saleMinPrice:      { row: 'saleCustomPriceRow',       input: 'saleMinPriceCustom' },
+            saleMaxPrice:      { row: 'saleCustomPriceRow',       input: 'saleMaxPriceCustom' },
+            rentalMinRent:     { row: 'rentalCustomPriceRow',     input: 'rentalMinRentCustom' },
+            rentalMaxRent:     { row: 'rentalCustomPriceRow',     input: 'rentalMaxRentCustom' },
+            advSaleMinPrice:   { row: 'advSaleCustomPriceRow',    input: 'advSaleMinPriceCustom' },
+            advSaleMaxPrice:   { row: 'advSaleCustomPriceRow',    input: 'advSaleMaxPriceCustom' },
+            advRentalMinRent:  { row: 'advRentalCustomPriceRow',  input: 'advRentalMinRentCustom' },
+            advRentalMaxRent:  { row: 'advRentalCustomPriceRow',  input: 'advRentalMaxRentCustom' }
+        };
+
+        // Pair map for price selects: each select ID → its partner select ID
+        var _pricePairMap = {
+            saleMinPrice:     'saleMaxPrice',
+            saleMaxPrice:     'saleMinPrice',
+            rentalMinRent:    'rentalMaxRent',
+            rentalMaxRent:    'rentalMinRent',
+            advSaleMinPrice:  'advSaleMaxPrice',
+            advSaleMaxPrice:  'advSaleMinPrice',
+            advRentalMinRent: 'advRentalMaxRent',
+            advRentalMaxRent: 'advRentalMinRent'
         };
 
         // Show/hide custom price row when any price select changes
@@ -2548,17 +2589,15 @@
 
             if (sel.value === 'custom') {
                 row.classList.remove('hidden');
+                row.style.display = 'flex';
                 if (input) input.focus();
             } else {
                 // Hide row only if BOTH selects in the pair are non-custom
-                var pairId = null;
-                if (sel.id === 'saleMinPrice') pairId = 'saleMaxPrice';
-                else if (sel.id === 'saleMaxPrice') pairId = 'saleMinPrice';
-                else if (sel.id === 'rentalMinRent') pairId = 'rentalMaxRent';
-                else if (sel.id === 'rentalMaxRent') pairId = 'rentalMinRent';
+                var pairId = _pricePairMap[sel.id] || null;
                 var pairSel = pairId ? document.getElementById(pairId) : null;
                 if (!pairSel || pairSel.value !== 'custom') {
                     row.classList.add('hidden');
+                    row.style.display = 'none';
                 }
                 // Clear the custom input when switching away from custom
                 if (input) input.value = '';
