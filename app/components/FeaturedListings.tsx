@@ -345,7 +345,7 @@ export default function FeaturedListings() {
   // Still loading — show skeletons
   if (loading) {
     return (
-      <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
+      <section className="px-6 md:px-12 lg:px-20 py-16 md:py-20 lg:py-24">
         <div className="max-w-[1440px] mx-auto">
           <div className="flex items-end justify-between mb-12 md:mb-16">
             <div>
@@ -365,7 +365,7 @@ export default function FeaturedListings() {
   if (listings.length === 0) return null;
 
   return (
-    <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
+    <section className="px-6 md:px-12 lg:px-20 py-16 md:py-20 lg:py-24">
       <div className="max-w-[1440px] mx-auto">
         <div className="flex items-end justify-between mb-12 md:mb-16">
           <div>

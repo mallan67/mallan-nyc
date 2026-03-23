@@ -82,7 +82,7 @@ export default function ExploreNeighborhoods() {
   }).filter(Boolean) as { slug: string; name: string; tagline: string; heroImage: string; inventory: number; borough: string }[];
 
   return (
-    <section className="px-6 md:px-12 lg:px-20 py-20 md:py-32 lg:py-40">
+    <section className="px-6 md:px-12 lg:px-20 py-16 md:py-20 lg:py-24">
       <div className="max-w-[1440px] mx-auto">
         {/* Section header */}
         <div className="flex items-end justify-between mb-12 md:mb-16">
