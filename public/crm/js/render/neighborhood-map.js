@@ -151,14 +151,13 @@
       return a < b ? -1 : a > b ? 1 : 0;
     });
 
-    // Manhattan sub-regions for geographic grouping
+    // Manhattan sub-regions — matches advanced search hierarchy exactly
     var _manhattanAreas = {
-      'Downtown': ['Battery Park City','Chinatown','Civic Center','East Village','Financial District','Flatiron','Gramercy','Gramercy Park','Greenwich Village','Little Italy','Lower East Side','NoHo','NoLita','SoHo','South Street Seaport','Tribeca','Two Bridges','West Village'],
-      'Midtown': ['Chelsea','Clinton','Garment District','Hell\'s Kitchen','Hudson Yards','Kips Bay','Koreatown','Midtown','Midtown East','Midtown South','Midtown West','Murray Hill','NoMad','Penn Station','Stuyvesant Town','Sutton Place','Times Square','Tudor City','Turtle Bay','UN Plaza','Waterside Plaza'],
+      'Upper Manhattan': ['Central Harlem','East Harlem','Hamilton Heights','Inwood','Manhattanville','Marble Hill','Morningside Heights','Sugar Hill','Washington Heights','West Harlem'],
+      'Upper West Side': ['Lincoln Square','Manhattan Valley','Upper West Side'],
       'Upper East Side': ['Carnegie Hill','Lenox Hill','Upper East Side','Yorkville'],
-      'Upper West Side': ['Lincoln Center','Manhattan Valley','Upper West Side'],
-      'Uptown': ['Central Harlem','East Harlem','Hamilton Heights','Harlem','Inwood','Manhattanville','Morningside Heights','Sugar Hill','Washington Heights','West Harlem'],
-      'Roosevelt Island': ['Roosevelt Island']
+      'All Midtown': ['Hell\'s Kitchen','Hudson Yards','Midtown','Midtown East','Midtown West','Murray Hill','NoMad','Sutton Place','Times Square','Tudor City','Turtle Bay'],
+      'Downtown': ['Battery Park City','Chelsea','Chinatown','Civic Center','East Village','Financial District','Flatiron','Gramercy Park','Greenwich Village','Hudson Square','Kips Bay','Little Italy','Lower East Side','Meatpacking District','NoHo','Nolita','Peter Cooper Village','SoHo','Stuyvesant Town','Tribeca','Two Bridges','Union Square','West Village']
     };
 
     function _getArea(nbName) {
@@ -178,15 +177,29 @@
 
       if (bName === 'Manhattan' && !ft) {
         // Group by geographic area
-        var areaOrder = ['Downtown','Midtown','Upper East Side','Upper West Side','Uptown','Roosevelt Island','Other'];
+        // Order matches advanced search: Upper Manhattan > UWS > UES > Roosevelt Island > All Midtown > Downtown
+        var areaOrder = ['Upper Manhattan','Upper West Side','Upper East Side','_Roosevelt Island','All Midtown','Downtown','Other'];
         var byArea = {};
         for (var n = 0; n < names.length; n++) {
-          var area = _getArea(names[n]);
+          var nb = names[n];
+          if (nb === 'Roosevelt Island') continue; // handled separately
+          var area = _getArea(nb);
           if (!byArea[area]) byArea[area] = [];
-          byArea[area].push(names[n]);
+          byArea[area].push(nb);
         }
         for (var ai = 0; ai < areaOrder.length; ai++) {
           var aName = areaOrder[ai];
+          // Roosevelt Island — standalone item, no sub-group header
+          if (aName === '_Roosevelt Island') {
+            if (names.indexOf('Roosevelt Island') !== -1) {
+              var riChecked = _selectedNames['Roosevelt Island'] ? ' checked' : '';
+              html += '<div class="nb-item nb-sidebar-item" data-name="Roosevelt Island" style="border-top:1px solid rgba(17,24,39,0.06);margin-top:4px;">';
+              html += '<input type="checkbox" class="nb-sidebar-cb"' + riChecked + ' data-nb="Roosevelt Island">';
+              html += '<div class="nb-item-name">Roosevelt Island<div class="nb-item-borough">Manhattan</div></div>';
+              html += '<div class="nb-item-chevron">&#8250;</div></div>';
+            }
+            continue;
+          }
           if (!byArea[aName] || byArea[aName].length === 0) continue;
           html += '<div style="padding:6px 10px 2px;font-size:10px;font-weight:700;color:rgba(37,99,235,0.7);text-transform:uppercase;letter-spacing:0.05em;border-top:1px solid rgba(17,24,39,0.06);margin-top:4px;">' + aName + '</div>';
           for (var ni = 0; ni < byArea[aName].length; ni++) {
