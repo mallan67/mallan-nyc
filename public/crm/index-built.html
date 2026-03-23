@@ -23446,6 +23446,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 
   var _map = null;
   var _markers = [];
+  var _clusterMarkers = [];  // cluster count bubbles
   var _isOpen = false;
   var _popup = null;
   var _centroids = null; // neighborhood → {lat, lng} fallback
@@ -23482,21 +23483,31 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 
   // ── Build GeoJSON from current listings ──
   // Uses listing lat/lng if available, falls back to neighborhood centroid
-  // with small random offset so pins don't stack on the exact same point.
+  // with random offset spread across the neighborhood area so pins don't stack.
   function buildGeoJSON(listings) {
     var features = [];
+    // Track how many listings per neighborhood centroid to spiral-spread them
+    var centroidCounts = {};
+
     for (var i = 0; i < listings.length; i++) {
       var l = listings[i];
       var lat = l.latitude || (l.geo && l.geo.lat);
       var lng = l.longitude || (l.geo && l.geo.lng);
       var approx = false;
+
       // Fallback: use neighborhood centroid if listing has no coordinates
       if ((!lat || !lng) && _centroids && l.neighborhood) {
         var centroid = _centroids[l.neighborhood] || _centroids[l.neighborhoodCanonical];
         if (centroid) {
-          // Add small random offset (±0.002° ≈ 1 block) so pins don't stack
-          lat = centroid.lat + (Math.random() - 0.5) * 0.004;
-          lng = centroid.lng + (Math.random() - 0.5) * 0.004;
+          // Spiral offset: each listing in same neighborhood gets a different angle+radius
+          var key = l.neighborhood;
+          if (!centroidCounts[key]) centroidCounts[key] = 0;
+          var idx = centroidCounts[key]++;
+          // Spread across ~0.012° ≈ 8-10 blocks (visible at neighborhood zoom)
+          var angle = idx * 2.399963; // golden angle in radians for even spread
+          var radius = 0.003 + Math.sqrt(idx) * 0.002; // grows outward
+          lat = centroid.lat + radius * Math.cos(angle);
+          lng = centroid.lng + radius * Math.sin(angle);
           approx = true;
         }
       }
@@ -23543,34 +23554,127 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     return el;
   }
 
-  // ── Add markers ──
+  // ── Create cluster marker (count bubble) ──
+  function createClusterEl(count, avgPrice) {
+    var el = document.createElement('div');
+    el.style.cssText = 'background:#2563EB;color:#fff;font-size:12px;font-weight:700;width:40px;height:40px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(37,99,235,0.4);border:3px solid #fff;cursor:pointer;line-height:1.1;';
+    el.innerHTML = '<span style="font-size:14px;font-weight:800;">' + count + '</span>';
+    el.addEventListener('mouseenter', function () { el.style.transform = 'scale(1.2)'; });
+    el.addEventListener('mouseleave', function () { el.style.transform = 'scale(1)'; });
+    return el;
+  }
+
+  // ── Cluster nearby features ──
+  // Groups features within ~0.001° of each other (same building/block)
+  function clusterFeatures(features) {
+    var clusters = [];
+    var used = {};
+
+    for (var i = 0; i < features.length; i++) {
+      if (used[i]) continue;
+      var f = features[i];
+      var group = [f];
+      used[i] = true;
+      var clat = f.geometry.coordinates[1];
+      var clng = f.geometry.coordinates[0];
+
+      // Find nearby features
+      for (var j = i + 1; j < features.length; j++) {
+        if (used[j]) continue;
+        var g = features[j];
+        var dlat = Math.abs(g.geometry.coordinates[1] - clat);
+        var dlng = Math.abs(g.geometry.coordinates[0] - clng);
+        if (dlat < 0.0008 && dlng < 0.0008) { // ~1 block
+          group.push(g);
+          used[j] = true;
+        }
+      }
+      clusters.push(group);
+    }
+    return clusters;
+  }
+
+  // ── Add markers with clustering ──
   function addMarkers(listings) {
     clearMarkers();
     var geojson = buildGeoJSON(listings);
     var bounds = new maplibregl.LngLatBounds();
     var hasBounds = false;
+    var features = geojson.features;
 
-    for (var i = 0; i < geojson.features.length; i++) {
-      var f = geojson.features[i];
-      var coords = f.geometry.coordinates;
-      var p = f.properties;
-      var el = createMarkerEl(p.price, p.status);
+    if (features.length === 0) return;
 
-      var marker = new maplibregl.Marker({ element: el })
-        .setLngLat(coords)
-        .addTo(_map);
+    // Get current zoom to decide clustering
+    var zoom = _map ? _map.getZoom() : 12;
+    var shouldCluster = zoom < 14 && features.length > 30;
 
-      // Click: show popup + highlight card
-      (function (feat, mk) {
-        el.addEventListener('click', function () {
-          showPopup(feat);
-          highlightCard(feat.properties.id);
-        });
-      })(f, marker);
+    if (shouldCluster) {
+      // Cluster mode: group nearby pins into count bubbles
+      var clusters = clusterFeatures(features);
+      for (var c = 0; c < clusters.length; c++) {
+        var group = clusters[c];
+        // Average position
+        var sumLat = 0, sumLng = 0, sumPrice = 0;
+        for (var gi = 0; gi < group.length; gi++) {
+          sumLng += group[gi].geometry.coordinates[0];
+          sumLat += group[gi].geometry.coordinates[1];
+          sumPrice += group[gi].properties.price;
+        }
+        var avgLng = sumLng / group.length;
+        var avgLat = sumLat / group.length;
+        var avgPrice = sumPrice / group.length;
+        var coords = [avgLng, avgLat];
 
-      _markers.push(marker);
-      bounds.extend(coords);
-      hasBounds = true;
+        if (group.length === 1) {
+          // Single pin — show price marker
+          var f = group[0];
+          var el = createMarkerEl(f.properties.price, f.properties.status);
+          var marker = new maplibregl.Marker({ element: el }).setLngLat(f.geometry.coordinates).addTo(_map);
+          (function (feat) {
+            el.addEventListener('click', function () { showPopup(feat); highlightCard(feat.properties.id); });
+          })(f);
+          _markers.push(marker);
+        } else {
+          // Cluster bubble — show count
+          var clEl = createClusterEl(group.length, avgPrice);
+          var clMarker = new maplibregl.Marker({ element: clEl }).setLngLat(coords).addTo(_map);
+          // Click cluster → zoom in
+          (function (crd) {
+            clEl.addEventListener('click', function () {
+              _map.flyTo({ center: crd, zoom: Math.min(_map.getZoom() + 2, 16), duration: 600 });
+              // After zoom, re-render pins (no longer clustered at higher zoom)
+              setTimeout(function () { refreshMapPins(); }, 700);
+            });
+          })(coords);
+          _clusterMarkers.push(clMarker);
+        }
+
+        bounds.extend(coords);
+        hasBounds = true;
+      }
+    } else {
+      // No clustering — show all individual pins
+      for (var i = 0; i < features.length; i++) {
+        var f = features[i];
+        var coords = f.geometry.coordinates;
+        var p = f.properties;
+        var el = createMarkerEl(p.price, p.status);
+
+        var marker = new maplibregl.Marker({ element: el })
+          .setLngLat(coords)
+          .addTo(_map);
+
+        (function (feat) {
+          el.addEventListener('click', function () {
+            showPopup(feat);
+            highlightCard(feat.properties.id);
+          });
+        })(f);
+
+        _markers.push(marker);
+        bounds.extend(coords);
+        hasBounds = true;
+      }
     }
 
     if (hasBounds) {
@@ -23583,6 +23687,10 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       _markers[i].remove();
     }
     _markers = [];
+    for (var j = 0; j < _clusterMarkers.length; j++) {
+      _clusterMarkers[j].remove();
+    }
+    _clusterMarkers = [];
     if (_popup) { _popup.remove(); _popup = null; }
   }
 
@@ -23599,6 +23707,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       + '<div style="font-weight:700;font-size:14px;margin-bottom:2px;">' + fmtPrice(p.price) + (p.listingCategory === 'rental' ? '/mo' : '') + '</div>'
       + '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">' + (p.address || 'Address Undisclosed') + '</div>'
       + '<div style="font-size:11px;color:#374151;">' + p.beds + ' bd &middot; ' + p.baths + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
+      + (p.approx ? '<div style="font-size:9px;color:#d97706;margin-top:3px;"><i class="fas fa-info-circle"></i> Approximate location</div>' : '')
       + '<button onclick="showListingDetail(\'' + String(p.id).replace(/'/g, "\\'") + '\')" style="margin-top:6px;width:100%;padding:5px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">View Details</button>'
       + '</div></div>';
 
@@ -23610,16 +23719,40 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 
   // ── Highlight card in results ──
   function highlightCard(listingId) {
-    // Remove previous highlights
     document.querySelectorAll('.results-map-highlight').forEach(function (el) {
       el.classList.remove('results-map-highlight');
     });
-    // Find and highlight the card
     var card = document.querySelector('[data-listing-id="' + listingId + '"]') ||
                document.querySelector('[data-lid="' + listingId + '"]');
     if (card) {
       card.classList.add('results-map-highlight');
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  // ── Fit map to selected neighborhoods ──
+  function fitToNeighborhoods() {
+    if (!_map || !_centroids) return;
+    var searchNeighborhoods = [];
+    if (typeof getSelectedNeighborhoods === 'function' && typeof _resolveActiveNeighborhoodTagsId === 'function') {
+      var tagsId = _resolveActiveNeighborhoodTagsId();
+      searchNeighborhoods = getSelectedNeighborhoods(tagsId);
+    }
+    if (searchNeighborhoods.length === 0) return;
+
+    var bounds = new maplibregl.LngLatBounds();
+    var hasBounds = false;
+    for (var i = 0; i < searchNeighborhoods.length; i++) {
+      var c = _centroids[searchNeighborhoods[i]];
+      if (c) {
+        // Extend bounds around the centroid (±0.015° ≈ neighborhood-sized box)
+        bounds.extend([c.lng - 0.015, c.lat - 0.01]);
+        bounds.extend([c.lng + 0.015, c.lat + 0.01]);
+        hasBounds = true;
+      }
+    }
+    if (hasBounds) {
+      _map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: 600 });
     }
   }
 
@@ -23648,12 +23781,17 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       addNeighborhoodPolygons();
       refreshMapPins();
     });
+
+    // Re-cluster on zoom change
+    _map.on('zoomend', function () {
+      if (_isOpen) refreshMapPins();
+    });
   }
 
   // ── Neighborhood polygon overlays (click-to-select) ──
   var _neighborhoodLayerAdded = false;
-  var _selectedSlugs = {};       // { slug: true } — tracks which neighborhoods are selected
-  var _geojsonSource = null;     // cached for filtering
+  var _selectedSlugs = {};
+  var _geojsonSource = null;
 
   function addNeighborhoodPolygons() {
     if (_neighborhoodLayerAdded || !_map) return;
@@ -23667,7 +23805,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       var geoUrl = geoBase.endsWith('/crm') ? '/geo/rls-neighborhoods.v1.min.geojson' : '../geo/rls-neighborhoods.v1.min.geojson';
       fetch(geoUrl).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
         if (data) _addPolygonLayers(data);
-      }).catch(function () { /* non-fatal */ });
+      }).catch(function () {});
     }
   }
 
@@ -23676,152 +23814,77 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     _neighborhoodLayerAdded = true;
     _geojsonSource = geojson;
 
-    _map.addSource('neighborhoods', {
-      type: 'geojson',
-      data: geojson,
-      promoteId: 'slug',
-    });
+    _map.addSource('neighborhoods', { type: 'geojson', data: geojson, promoteId: 'slug' });
 
-    // Invisible hit-test layer — detects clicks anywhere on the map to identify neighborhood
-    _map.addLayer({
-      id: 'neighborhood-hit',
-      type: 'fill',
-      source: 'neighborhoods',
-      paint: {
-        'fill-color': 'transparent',
-        'fill-opacity': 0,
-      },
-    });
+    _map.addLayer({ id: 'neighborhood-hit', type: 'fill', source: 'neighborhoods',
+      paint: { 'fill-color': 'transparent', 'fill-opacity': 0 } });
 
-    // Selected fill — only visible for selected neighborhoods (feature-state driven)
-    _map.addLayer({
-      id: 'neighborhood-fill',
-      type: 'fill',
-      source: 'neighborhoods',
+    _map.addLayer({ id: 'neighborhood-fill', type: 'fill', source: 'neighborhoods',
       paint: {
-        'fill-color': [
-          'match', ['get', 'borough'],
-          'Manhattan', 'rgba(37, 99, 235, 0.12)',
-          'Brooklyn', 'rgba(16, 185, 129, 0.12)',
-          'Queens', 'rgba(245, 158, 11, 0.12)',
-          'Bronx', 'rgba(239, 68, 68, 0.12)',
-          'Staten Island', 'rgba(139, 92, 246, 0.12)',
-          'rgba(107, 114, 128, 0.08)'
-        ],
-        'fill-opacity': [
-          'case',
+        'fill-color': ['match', ['get', 'borough'],
+          'Manhattan', 'rgba(37, 99, 235, 0.12)', 'Brooklyn', 'rgba(16, 185, 129, 0.12)',
+          'Queens', 'rgba(245, 158, 11, 0.12)', 'Bronx', 'rgba(239, 68, 68, 0.12)',
+          'Staten Island', 'rgba(139, 92, 246, 0.12)', 'rgba(107, 114, 128, 0.08)'],
+        'fill-opacity': ['case',
           ['boolean', ['feature-state', 'selected'], false], 1,
-          ['boolean', ['feature-state', 'hover'], false], 0.5,
-          0
-        ],
-      },
-    });
+          ['boolean', ['feature-state', 'hover'], false], 0.5, 0],
+      } });
 
-    // Selected borders — only visible for selected neighborhoods
-    _map.addLayer({
-      id: 'neighborhood-borders',
-      type: 'line',
-      source: 'neighborhoods',
+    _map.addLayer({ id: 'neighborhood-borders', type: 'line', source: 'neighborhoods',
       paint: {
-        'line-color': [
-          'match', ['get', 'borough'],
-          'Manhattan', '#2563EB',
-          'Brooklyn', '#10B981',
-          'Queens', '#F59E0B',
-          'Bronx', '#EF4444',
-          'Staten Island', '#8B5CF6',
-          '#6B7280'
-        ],
-        'line-width': [
-          'interpolate', ['linear'], ['zoom'],
-          10, 1,
-          13, 2,
-          16, 2.5
-        ],
-        'line-opacity': [
-          'case',
-          ['boolean', ['feature-state', 'selected'], false], 1,
-          0
-        ],
-      },
-    });
+        'line-color': ['match', ['get', 'borough'],
+          'Manhattan', '#2563EB', 'Brooklyn', '#10B981', 'Queens', '#F59E0B',
+          'Bronx', '#EF4444', 'Staten Island', '#8B5CF6', '#6B7280'],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 13, 2, 16, 2.5],
+        'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
+      } });
 
-    // Selected labels — name shown only for selected neighborhoods
-    _map.addLayer({
-      id: 'neighborhood-labels',
-      type: 'symbol',
-      source: 'neighborhoods',
+    _map.addLayer({ id: 'neighborhood-labels', type: 'symbol', source: 'neighborhoods',
       layout: {
         'text-field': ['get', 'name'],
-        'text-size': [
-          'interpolate', ['linear'], ['zoom'],
-          10, 10,
-          13, 13,
-          16, 15
-        ],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 10, 10, 13, 13, 16, 15],
         'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
-        'text-anchor': 'center',
-        'text-max-width': 8,
+        'text-anchor': 'center', 'text-max-width': 8,
       },
       paint: {
-        'text-color': [
-          'match', ['get', 'borough'],
-          'Manhattan', '#1D4ED8',
-          'Brooklyn', '#059669',
-          'Queens', '#D97706',
-          'Bronx', '#DC2626',
-          'Staten Island', '#7C3AED',
-          '#374151'
-        ],
-        'text-halo-color': 'rgba(255, 255, 255, 0.9)',
-        'text-halo-width': 1.5,
-        'text-opacity': [
-          'case',
-          ['boolean', ['feature-state', 'selected'], false], 1,
-          0
-        ],
-      },
-    });
+        'text-color': ['match', ['get', 'borough'],
+          'Manhattan', '#1D4ED8', 'Brooklyn', '#059669', 'Queens', '#D97706',
+          'Bronx', '#DC2626', 'Staten Island', '#7C3AED', '#374151'],
+        'text-halo-color': 'rgba(255, 255, 255, 0.9)', 'text-halo-width': 1.5,
+        'text-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
+      } });
 
-    // Hover — subtle preview of boundary before clicking
+    // Hover
     var _hoveredId = null;
     _map.on('mousemove', 'neighborhood-hit', function (e) {
       if (e.features.length > 0) {
-        if (_hoveredId !== null) {
-          _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: false });
-        }
+        if (_hoveredId !== null) _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: false });
         _hoveredId = e.features[0].id;
         _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: true });
         _map.getCanvas().style.cursor = 'pointer';
       }
     });
     _map.on('mouseleave', 'neighborhood-hit', function () {
-      if (_hoveredId !== null) {
-        _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: false });
-      }
+      if (_hoveredId !== null) _map.setFeatureState({ source: 'neighborhoods', id: _hoveredId }, { hover: false });
       _hoveredId = null;
       _map.getCanvas().style.cursor = '';
     });
 
-    // Click — toggle select/deselect a neighborhood polygon
+    // Click — toggle neighborhood
     _map.on('click', 'neighborhood-hit', function (e) {
       if (e.features.length === 0) return;
-
       var slug = e.features[0].id;
       var name = e.features[0].properties.name;
       var borough = e.features[0].properties.borough;
 
       if (_selectedSlugs[slug]) {
-        // Deselect
         delete _selectedSlugs[slug];
         _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: false });
       } else {
-        // Select
         _selectedSlugs[slug] = true;
         _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: true });
       }
 
-      // Show popup with listing count
       var mapListings = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
       var count = mapListings.filter(function (l) { return l.neighborhood === name; }).length;
       var isSelected = !!_selectedSlugs[slug];
@@ -23840,28 +23903,21 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         .addTo(_map);
     });
 
-    // Sync with search form neighborhood tags if they exist
     _syncSelectedFromSearch();
   }
 
-  // ── Sync selected polygons from search form neighborhood selections ──
+  // ── Sync selected polygons from search form ──
   function _syncSelectedFromSearch() {
     if (!_map || !_neighborhoodLayerAdded || !_geojsonSource) return;
-
-    // Get currently selected neighborhoods from search form
     var searchNeighborhoods = [];
     if (typeof getSelectedNeighborhoods === 'function' && typeof _resolveActiveNeighborhoodTagsId === 'function') {
       var tagsId = _resolveActiveNeighborhoodTagsId();
       searchNeighborhoods = getSelectedNeighborhoods(tagsId);
     }
-
-    // Clear all selections first
     Object.keys(_selectedSlugs).forEach(function (slug) {
       _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: false });
     });
     _selectedSlugs = {};
-
-    // Select polygons that match search neighborhoods
     if (searchNeighborhoods.length > 0 && _geojsonSource.features) {
       _geojsonSource.features.forEach(function (f) {
         if (searchNeighborhoods.indexOf(f.properties.name) !== -1) {
@@ -23873,32 +23929,34 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     }
   }
 
-  // Expose sync so search form can trigger it when neighborhoods change
   window.syncResultsMapPolygons = function () {
-    if (_isOpen && _map && _neighborhoodLayerAdded) {
-      _syncSelectedFromSearch();
-    }
+    if (_isOpen && _map && _neighborhoodLayerAdded) _syncSelectedFromSearch();
   };
 
   // ── Refresh pins from current filtered listings ──
+  var _refreshDebounce = null;
   function refreshMapPins() {
     if (!_map || !_isOpen) return;
-    var mapListings = (typeof getFilteredListings === 'function')
-      ? getFilteredListings(true) // skipPagination = true to get ALL results
-      : (searchResultsState && searchResultsState.filteredListings) || [];
 
-    // If centroids haven't loaded yet, wait for them before placing pins
-    // (most listings have null lat/lng from Trestle — centroids are essential)
-    if (!_centroids) {
-      var base = window.location.pathname.replace(/\/[^/]*$/, '');
-      var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'rls-neighborhood-centroids.v1.json';
-      fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
-        if (data) _centroids = data;
+    // Debounce rapid calls (e.g., zoom events)
+    if (_refreshDebounce) clearTimeout(_refreshDebounce);
+    _refreshDebounce = setTimeout(function () {
+      var mapListings = (typeof getFilteredListings === 'function')
+        ? getFilteredListings(true)
+        : (searchResultsState && searchResultsState.filteredListings) || [];
+
+      if (!_centroids) {
+        var base = window.location.pathname.replace(/\/[^/]*$/, '');
+        var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'rls-neighborhood-centroids.v1.json';
+        fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+          if (data) _centroids = data;
+          addMarkers(mapListings);
+          fitToNeighborhoods();
+        }).catch(function() { addMarkers(mapListings); });
+      } else {
         addMarkers(mapListings);
-      }).catch(function() { addMarkers(mapListings); });
-    } else {
-      addMarkers(mapListings);
-    }
+      }
+    }, 100);
   }
 
   // ── Toggle map view ──
@@ -23910,7 +23968,6 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     if (!wrapper) return;
 
     if (_isOpen) {
-      // Enable flex split layout — map beside results
       var splitWrapper = document.getElementById('resultsSplitWrapper');
       var resultsContainer = document.getElementById('resultsContainer');
       var mapContainer = document.getElementById('resultsMapContainer');
@@ -23936,18 +23993,11 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         mapContainer.style.height = 'calc(100vh - 120px)';
       }
 
-      if (toggleBtn) {
-        toggleBtn.classList.add('bg-blue-100', 'text-blue-700');
-        toggleBtn.classList.remove('text-gray-500');
-      }
+      if (toggleBtn) { toggleBtn.classList.add('bg-blue-100', 'text-blue-700'); toggleBtn.classList.remove('text-gray-500'); }
       var stickyToggleBtn = document.getElementById('stickyNavMapToggleBtn');
-      if (stickyToggleBtn) {
-        stickyToggleBtn.classList.add('bg-white/20', 'text-white');
-        stickyToggleBtn.classList.remove('text-gray-400');
-      }
+      if (stickyToggleBtn) { stickyToggleBtn.classList.add('bg-white/20', 'text-white'); stickyToggleBtn.classList.remove('text-gray-400'); }
 
       ensureMapLibre(function () {
-        // Set container to fill wrapper
         var container = document.getElementById('resultsMapContainer');
         if (container) container.style.cssText = 'position:sticky; top:0; height:calc(100vh - 120px); width:100%;';
         setTimeout(function () {
@@ -23955,32 +24005,23 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
           if (_map) {
             _map.resize();
             refreshMapPins();
+            // Fit to selected neighborhoods after pins load
+            setTimeout(function () { fitToNeighborhoods(); }, 300);
           }
         }, 150);
       });
     } else {
-      // Hide map — reset flex split
       wrapper.style.display = 'none';
       var resultsContainer = document.getElementById('resultsContainer');
-      if (resultsContainer) {
-        resultsContainer.style.flex = '';
-        resultsContainer.style.minWidth = '';
-        resultsContainer.style.overflowY = '';
-      }
-      if (toggleBtn) {
-        toggleBtn.classList.remove('bg-blue-100', 'text-blue-700');
-        toggleBtn.classList.add('text-gray-500');
-      }
+      if (resultsContainer) { resultsContainer.style.flex = ''; resultsContainer.style.minWidth = ''; resultsContainer.style.overflowY = ''; }
+      if (toggleBtn) { toggleBtn.classList.remove('bg-blue-100', 'text-blue-700'); toggleBtn.classList.add('text-gray-500'); }
       var stickyToggleBtn = document.getElementById('stickyNavMapToggleBtn');
-      if (stickyToggleBtn) {
-        stickyToggleBtn.classList.remove('bg-white/20', 'text-white');
-        stickyToggleBtn.classList.add('text-gray-400');
-      }
+      if (stickyToggleBtn) { stickyToggleBtn.classList.remove('bg-white/20', 'text-white'); stickyToggleBtn.classList.add('text-gray-400'); }
       clearMarkers();
     }
   };
 
-  // ── Pan to listing (called when clicking a card) ──
+  // ── Pan to listing ──
   window.panToListing = function (listingId) {
     if (!_map || !_isOpen) return;
     var panListings = (searchResultsState && searchResultsState.filteredListings) || [];
@@ -23990,23 +24031,17 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     var lng = l.longitude || (l.geo && l.geo.lng);
     if (lat && lng) {
       _map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
-      // Highlight the marker
-      for (var i = 0; i < _markers.length; i++) {
-        var el = _markers[i].getElement();
-        el.style.transform = 'scale(1)';
-        el.style.zIndex = '1';
-      }
     }
   };
 
-  // ── Expose refresh for re-render after search ──
+  // ── Expose refresh ──
   window.refreshResultsMap = function () {
     if (_isOpen && _map) {
+      _syncSelectedFromSearch();
       refreshMapPins();
     }
   };
 
-  // ── Is map open? ──
   window.isResultsMapOpen = function () { return _isOpen; };
 
 })();
