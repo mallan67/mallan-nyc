@@ -788,7 +788,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
   if (hasGarage) amenitySet.add('Parking Garage');
 
   // AttendanceType → Doorman / 24hr Doorman / Attended Lobby
-  const attendanceValues = listing.attendanceType ? parseTrestleList(listing.attendanceType) : [];
+  const attendanceValues = listing.attendanceType ? splitRaw(listing.attendanceType) : [];
   for (const val of attendanceValues) {
     if (val === 'DoormanFullTime') amenitySet.add('24hr Doorman');
     else if (val === 'DoormanPartTime' || val === 'DoormanYes') amenitySet.add('Doorman');
@@ -796,6 +796,39 @@ export default async function ListingPage({ params, searchParams }: Props) {
     else if (val === 'VideoDoormanFullTime' || val === 'VideoDoormanPartTime' || val === 'VideoDoormanYes') amenitySet.add('Virtual Doorman');
     else if (val === 'ConciergeFullTime' || val === 'ConciergePartTime' || val === 'ConciergeYes') amenitySet.add('Concierge');
   }
+
+  // Boolean YN flags — most commonly populated even when detail fields are empty
+  const yn = listing as unknown as Record<string, unknown>;
+  if (yn.doormanYN && !amenitySet.has('24hr Doorman') && !amenitySet.has('Doorman')) amenitySet.add('Doorman');
+  if (yn.elevatorYN && !amenitySet.has('Elevator')) amenitySet.add('Elevator');
+  if (yn.gymYN && !amenitySet.has('Gym/Fitness')) amenitySet.add('Gym/Fitness');
+  if (yn.storageYN && !amenitySet.has('Storage')) amenitySet.add('Storage');
+
+  // Description-based amenity detection — catches amenities mentioned in remarks
+  // but not in structured MLS fields (common in NYC listings)
+  const desc = (listing.publicRemarks || '').toLowerCase();
+  const DESC_AMENITIES: [RegExp, string][] = [
+    [/\b(doorman|door\s*-?\s*man|attended\s+lobb)/i, 'Doorman'],
+    [/\b(24\s*[-/]?\s*hour\s+doorman|full[\s-]*time\s+doorman)/i, '24hr Doorman'],
+    [/\b(virtual\s+doorman|video\s+doorman)/i, 'Virtual Doorman'],
+    [/\b(concierge)/i, 'Concierge'],
+    [/\b(gym|fitness\s+center|exercise\s+room|work\s*-?\s*out)/i, 'Gym/Fitness'],
+    [/\b(roof\s*-?\s*deck|roof\s*-?\s*top\s+terrace|rooftop\s+deck)/i, 'Roof Deck'],
+    [/\b(bike\s+room|bicycle\s+storage|bike\s+storage)/i, 'Bike Room'],
+    [/\b(children.s\s+playroom|kids\s+room|playroom)/i, "Children's Playroom"],
+    [/\b(community\s+room|residents.\s+lounge|common\s+room)/i, "Residents' Lounge"],
+    [/\b(swimming\s+pool|indoor\s+pool|outdoor\s+pool)\b/i, 'Swimming Pool'],
+    [/\b(package\s+room)/i, 'Package Room'],
+    [/\b(live[\s-]*in\s+super)/i, 'Live-in Super'],
+    [/\b(courtyard)/i, 'Courtyard'],
+    [/\b(parking\s+garage|garage\s+parking)\b/i, 'Parking Garage'],
+    [/\b(laundry\s+room|laundry\s+facilit|on[\s-]*site\s+laundry)/i, 'Laundry Room'],
+  ];
+  for (const [pattern, amenity] of DESC_AMENITIES) {
+    if (!amenitySet.has(amenity) && pattern.test(desc)) amenitySet.add(amenity);
+  }
+  // Don't double-count doorman variants
+  if (amenitySet.has('24hr Doorman')) amenitySet.delete('Doorman');
 
   const buildingAmenitiesFinal = [...amenitySet].sort();
 
