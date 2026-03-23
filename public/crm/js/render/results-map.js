@@ -118,10 +118,11 @@
     var bg = '#1a1a1a';
     if (status === 'COMING_SOON') bg = '#d97706';
     else if (status === 'ACTIVE_UNDER_CONTRACT') bg = '#7c3aed';
-    el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;transition:transform 0.15s ease;';
+    el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;transition:box-shadow 0.15s ease,border-color 0.15s ease;';
     el.textContent = fmtPrice(price);
-    el.addEventListener('mouseenter', function () { el.style.transform = 'scale(1.15)'; });
-    el.addEventListener('mouseleave', function () { el.style.transform = 'scale(1)'; });
+    // Highlight on hover with glow instead of scale (scale causes pins to shuffle)
+    el.addEventListener('mouseenter', function () { el.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.5), 0 2px 8px rgba(0,0,0,0.3)'; el.style.zIndex = '999'; el.style.borderColor = '#3b82f6'; });
+    el.addEventListener('mouseleave', function () { el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.25)'; el.style.zIndex = ''; el.style.borderColor = '#fff'; });
     return el;
   }
 

@@ -151,6 +151,23 @@
       return a < b ? -1 : a > b ? 1 : 0;
     });
 
+    // Manhattan sub-regions for geographic grouping
+    var _manhattanAreas = {
+      'Downtown': ['Battery Park City','Chinatown','Civic Center','East Village','Financial District','Flatiron','Gramercy','Gramercy Park','Greenwich Village','Little Italy','Lower East Side','NoHo','NoLita','SoHo','South Street Seaport','Tribeca','Two Bridges','West Village'],
+      'Midtown': ['Chelsea','Clinton','Garment District','Hell\'s Kitchen','Hudson Yards','Kips Bay','Koreatown','Midtown','Midtown East','Midtown South','Midtown West','Murray Hill','NoMad','Penn Station','Stuyvesant Town','Sutton Place','Times Square','Tudor City','Turtle Bay','UN Plaza','Waterside Plaza'],
+      'Upper East Side': ['Carnegie Hill','Lenox Hill','Upper East Side','Yorkville'],
+      'Upper West Side': ['Lincoln Center','Manhattan Valley','Upper West Side'],
+      'Uptown': ['Central Harlem','East Harlem','Hamilton Heights','Harlem','Inwood','Manhattanville','Morningside Heights','Sugar Hill','Washington Heights','West Harlem'],
+      'Roosevelt Island': ['Roosevelt Island']
+    };
+
+    function _getArea(nbName) {
+      for (var area in _manhattanAreas) {
+        if (_manhattanAreas[area].indexOf(nbName) !== -1) return area;
+      }
+      return 'Other';
+    }
+
     var html = '';
     for (var b = 0; b < boroughs.length; b++) {
       var bName = boroughs[b];
@@ -158,14 +175,41 @@
       var openAttr = (ft.length > 0 || bName === 'Manhattan') ? ' open' : '';
       html += '<details class="nb-borough-group" data-borough="' + bName + '"' + openAttr + '>';
       html += '<summary><span>' + bName + '</span><span class="nb-borough-meta">' + names.length + '</span></summary>';
-      for (var n = 0; n < names.length; n++) {
-        var nName = names[n];
-        var esc = nName.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        var checked = _selectedNames[nName] ? ' checked' : '';
-        html += '<div class="nb-item nb-sidebar-item" data-name="' + esc + '">';
-        html += '<input type="checkbox" class="nb-sidebar-cb"' + checked + ' data-nb="' + esc + '">';
-        html += '<div class="nb-item-name">' + nName + '<div class="nb-item-borough">' + bName + '</div></div>';
-        html += '<div class="nb-item-chevron">&#8250;</div></div>';
+
+      if (bName === 'Manhattan' && !ft) {
+        // Group by geographic area
+        var areaOrder = ['Downtown','Midtown','Upper East Side','Upper West Side','Uptown','Roosevelt Island','Other'];
+        var byArea = {};
+        for (var n = 0; n < names.length; n++) {
+          var area = _getArea(names[n]);
+          if (!byArea[area]) byArea[area] = [];
+          byArea[area].push(names[n]);
+        }
+        for (var ai = 0; ai < areaOrder.length; ai++) {
+          var aName = areaOrder[ai];
+          if (!byArea[aName] || byArea[aName].length === 0) continue;
+          html += '<div style="padding:6px 10px 2px;font-size:10px;font-weight:700;color:rgba(37,99,235,0.7);text-transform:uppercase;letter-spacing:0.05em;border-top:1px solid rgba(17,24,39,0.06);margin-top:4px;">' + aName + '</div>';
+          for (var ni = 0; ni < byArea[aName].length; ni++) {
+            var nName = byArea[aName][ni];
+            var esc = nName.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            var checked = _selectedNames[nName] ? ' checked' : '';
+            html += '<div class="nb-item nb-sidebar-item" data-name="' + esc + '">';
+            html += '<input type="checkbox" class="nb-sidebar-cb"' + checked + ' data-nb="' + esc + '">';
+            html += '<div class="nb-item-name">' + nName + '<div class="nb-item-borough">' + bName + '</div></div>';
+            html += '<div class="nb-item-chevron">&#8250;</div></div>';
+          }
+        }
+      } else {
+        // Other boroughs or search filter — flat alphabetical
+        for (var n = 0; n < names.length; n++) {
+          var nName = names[n];
+          var esc = nName.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          var checked = _selectedNames[nName] ? ' checked' : '';
+          html += '<div class="nb-item nb-sidebar-item" data-name="' + esc + '">';
+          html += '<input type="checkbox" class="nb-sidebar-cb"' + checked + ' data-nb="' + esc + '">';
+          html += '<div class="nb-item-name">' + nName + '<div class="nb-item-borough">' + bName + '</div></div>';
+          html += '<div class="nb-item-chevron">&#8250;</div></div>';
+        }
       }
       html += '</details>';
     }
