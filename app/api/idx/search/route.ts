@@ -150,14 +150,14 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push(`BedroomsTotal le ${Number(maxBeds)}`);
   }
 
-  // Bathrooms
+  // Bathrooms — use BathroomsTotalInteger (supports half-baths: 1.5, 2.5)
   const minBaths = params.get("minBaths");
   if (minBaths != null && minBaths !== "" && Number(minBaths) > 0) {
-    parts.push(`BathroomsFull ge ${Number(minBaths)}`);
+    parts.push(`BathroomsTotalInteger ge ${Number(minBaths)}`);
   }
   const maxBaths = params.get("maxBaths");
   if (maxBaths != null && maxBaths !== "" && Number(maxBaths) > 0) {
-    parts.push(`BathroomsFull le ${Number(maxBaths)}`);
+    parts.push(`BathroomsTotalInteger le ${Number(maxBaths)}`);
   }
 
   // Neighborhood (SubdivisionName in REBNY RLS) — supports comma-separated multi-select
@@ -335,7 +335,7 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push(`${field} le ${val}`);
   }
 
-  // Close/sold date range
+  // Close/sold date range → CloseDate
   const closeDateFrom = params.get("closeDateFrom");
   const closeDateTo = params.get("closeDateTo");
   if (closeDateFrom) {
@@ -343,6 +343,28 @@ function buildODataFilter(params: URLSearchParams): string {
   }
   if (closeDateTo) {
     parts.push(`CloseDate le ${closeDateTo}`);
+  }
+
+  // Contract date range → ListingContractDate (NOT CloseDate)
+  const contractDateFrom = params.get("contractDateFrom");
+  const contractDateTo = params.get("contractDateTo");
+  if (contractDateFrom) {
+    parts.push(`ListingContractDate ge ${contractDateFrom}`);
+  }
+  if (contractDateTo) {
+    parts.push(`ListingContractDate le ${contractDateTo}`);
+  }
+
+  // Unit number search
+  const unit = params.get("unit");
+  if (unit) {
+    parts.push(`UnitNumber eq '${escapeOData(unit.toUpperCase())}'`);
+  }
+
+  // Keyword search — search in PublicRemarks
+  const keyword = params.get("keyword");
+  if (keyword) {
+    parts.push(`contains(PublicRemarks,'${escapeOData(keyword)}')`);
   }
 
   // Building name search
@@ -544,6 +566,7 @@ function mapTrestleToCRM(
     maintCC,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
     status,
+    mlsStatus, // Raw MlsStatus for sub-status filtering (OfferOut, ContractSigned, etc.)
     ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),

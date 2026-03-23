@@ -5751,7 +5751,7 @@
                             <h3 class="font-semibold text-gray-900 mb-4">Subject Property</h3>
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                                <input type="text" placeholder="Enter Address or Building Name"
+                                <input type="text" id="compPropertyAddress" placeholder="Enter Address or Building Name"
                                        class="w-full border rounded-lg px-4 py-2 text-sm">
                                 <p class="text-xs text-gray-500 mt-1">* Required for Apartments</p>
                             </div>
@@ -5803,7 +5803,7 @@
                             <div class="bg-white rounded-xl shadow-sm border p-6">
                                 <h3 class="font-semibold text-gray-900 mb-4">Subject Buildings</h3>
                                 <div class="relative">
-                                    <input type="text" placeholder="Enter Address or Building Name"
+                                    <input type="text" id="compBuildingAddress" placeholder="Enter Address or Building Name"
                                            class="w-full border rounded-lg px-4 py-2 pr-10 text-sm">
                                     <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
                                 </div>
@@ -5817,7 +5817,7 @@
                                     <div>
                                         <label id="compBuildingPriceLabel" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinPrice" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="100000">$100K</option>
@@ -5850,7 +5850,7 @@
                                                 <option value="40000000">$40M</option>
                                                 <option value="50000000">$50M</option>
                                             </select>
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
@@ -5886,7 +5886,7 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinBeds" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="0">Studio</option>
@@ -5899,7 +5899,7 @@
                                                 <option value="7">7 BR</option>
                                                 <option value="8">8+ BR</option>
                                             </select>
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxBeds" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="0">Studio</option>
@@ -5919,7 +5919,7 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinBaths" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1">1 BA</option>
@@ -5933,7 +5933,7 @@
                                                 <option value="5">5 BA</option>
                                                 <option value="6">6+ BA</option>
                                             </select>
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxBaths" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1">1 BA</option>
@@ -5954,7 +5954,7 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Square Footage</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinSqft" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="300">300 SF</option>
@@ -5976,7 +5976,7 @@
                                                 <option value="7500">7,500 SF</option>
                                                 <option value="10000">10,000 SF</option>
                                             </select>
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxSqft" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">500 SF</option>
@@ -6226,7 +6226,7 @@
                                     <div>
                                         <label id="compGeneralPriceLabel" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinPrice" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="100000">$100K</option>
@@ -6259,7 +6259,7 @@
                                                 <option value="40000000">$40M</option>
                                                 <option value="50000000">$50M</option>
                                             </select>
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
@@ -6314,7 +6314,7 @@
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
-                                            <select class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinBeds" class="w-full border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="0">Studio</option>
@@ -6330,7 +6330,7 @@
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
-                                            <select class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinBaths" class="w-full border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1">1 BA</option>
@@ -6351,7 +6351,7 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Square Footage</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinSqft" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="300">300 SF</option>
@@ -6373,7 +6373,7 @@
                                                 <option value="7500">7,500 SF</option>
                                                 <option value="10000">10,000 SF</option>
                                             </select>
-                                            <select class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMaxSqft" class="border rounded-lg px-3 py-2 text-sm">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">500 SF</option>

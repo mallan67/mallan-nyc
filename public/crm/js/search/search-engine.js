@@ -245,6 +245,8 @@
             if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
             if (criteria.rlsId) params.listingId = criteria.rlsId;
             if (criteria.zip) params.zip = criteria.zip;
+            if (criteria.unit) params.unit = criteria.unit;
+            if (criteria.keyword) params.keyword = criteria.keyword;
             // Rooms, sqft, year — all OData searchable per REBNY RLS field spec
             if (criteria.roomsMin) params.minRooms = criteria.roomsMin;
             if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
@@ -254,8 +256,12 @@
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
             if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
-            if (criteria.soldDateFrom || criteria.contractDateFrom) params.closeDateFrom = criteria.soldDateFrom || criteria.contractDateFrom;
-            if (criteria.soldDateTo || criteria.contractDateTo) params.closeDateTo = criteria.soldDateTo || criteria.contractDateTo;
+            // Contract date → ListingContractDate (not CloseDate)
+            if (criteria.contractDateFrom) params.contractDateFrom = criteria.contractDateFrom;
+            if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
+            // Sold/Rented date → CloseDate
+            if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
+            if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
             if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
             if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
             // Ownership (CommonInterest — OData searchable)
@@ -829,6 +835,13 @@
             if (zipInput && zipInput.value.trim()) criteria.zip = zipInput.value.trim();
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
+            // Keyword search (PublicRemarks contains)
+            var keywordId = currentSearchTab === 'rent' ? 'rentalKeywordSearch' : 'saleKeywordSearch';
+            var keywordEl = document.getElementById(keywordId);
+            if (keywordEl && keywordEl.value.trim()) {
+                criteria.keyword = keywordEl.value.trim();
+            }
+
             // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
             // Dates stored as MM/DD/YYYY, convert to YYYY-MM-DD (ISO) for OData API
             var drpPrefix = currentSearchTab === 'rent' ? 'rental' : 'sale';
@@ -1286,10 +1299,15 @@
                     if (!nMatch) return false;
                 }
 
-                // Status filter
+                // Status filter — check both StandardStatus (listing.status) and MlsStatus sub-statuses
                 if (criteria.statuses && criteria.statuses.length > 0) {
                     var statusMatch = criteria.statuses.some(function(s) {
-                        return listing.status.toLowerCase() === s.toLowerCase();
+                        var sl = s.toLowerCase();
+                        // Match against main status (ACTIVE, PENDING, CLOSED, etc.)
+                        if (listing.status && listing.status.toLowerCase() === sl) return true;
+                        // Match against MlsStatus sub-status (OfferOut, ContractSigned, BoardApproved, etc.)
+                        if (listing.mlsStatus && listing.mlsStatus.toLowerCase().indexOf(sl) !== -1) return true;
+                        return false;
                     });
                     if (!statusMatch) return false;
                 }
@@ -1310,6 +1328,14 @@
 
                 // Unit filter
                 if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
+
+                // Keyword filter — search in description (PublicRemarks)
+                if (criteria.keyword) {
+                    var kw = criteria.keyword.toLowerCase();
+                    var desc = (listing.description || '').toLowerCase();
+                    var addr = (listing.address || '').toLowerCase();
+                    if (desc.indexOf(kw) === -1 && addr.indexOf(kw) === -1) return false;
+                }
 
                 // Date range filters
                 if (criteria.dateFrom) {
@@ -2353,7 +2379,6 @@
         function showCompResults(page) {
             // Determine if we're in sale or rental mode by checking button states
             var isSaleMode = true;
-
             if (page === 'property') {
                 var btn = document.getElementById('btnCompPropertySale');
                 isSaleMode = btn && btn.classList.contains('bg-blue-600');
@@ -2366,16 +2391,137 @@
             }
 
             // Show results section and update label
-            var resultsDiv = document.getElementById(`comp${page.charAt(0).toUpperCase() + page.slice(1)}Results`);
-            var resultsTypeSpan = document.getElementById(`comp${page.charAt(0).toUpperCase() + page.slice(1)}ResultsType`);
+            var pageKey = page.charAt(0).toUpperCase() + page.slice(1);
+            var resultsDiv = document.getElementById('comp' + pageKey + 'Results');
+            var resultsTypeSpan = document.getElementById('comp' + pageKey + 'ResultsType');
 
+            if (resultsDiv) resultsDiv.style.display = 'block';
+            if (resultsTypeSpan) resultsTypeSpan.textContent = isSaleMode ? 'Comps for Sale' : 'Comps for Rental';
+
+            // ── Collect comp criteria and query the search API ──
+            var params = {};
+            params.type = isSaleMode ? 'sale' : 'rental';
+            // Comps = Closed/Sold/Rented listings
+            params.status = 'Closed';
+
+            if (page === 'property') {
+                // Subject Property: search by address for sold comps
+                var addrEl = document.getElementById('compPropertyAddress');
+                if (addrEl && addrEl.value.trim()) {
+                    params.address = addrEl.value.trim();
+                } else {
+                    showToast('Please enter an address or building name.', 'warning');
+                    return;
+                }
+            } else if (page === 'building') {
+                // Subject Buildings: address + unit criteria
+                var bAddrEl = document.getElementById('compBuildingAddress');
+                if (bAddrEl && bAddrEl.value.trim()) {
+                    params.buildingName = bAddrEl.value.trim();
+                }
+                var _readSelect = function(id) {
+                    var el = document.getElementById(id);
+                    return (el && el.value && el.value !== '' && el.value !== 'custom') ? el.value : null;
+                };
+                var bpMin = _readSelect('compBuildingMinPrice');
+                var bpMax = _readSelect('compBuildingMaxPrice');
+                if (bpMin) params.minPrice = parseInt(bpMin);
+                if (bpMax) params.maxPrice = parseInt(bpMax);
+                var bbMin = _readSelect('compBuildingMinBeds');
+                var bbMax = _readSelect('compBuildingMaxBeds');
+                if (bbMin != null) params.minBeds = parseInt(bbMin);
+                if (bbMax != null) params.maxBeds = parseInt(bbMax);
+                var baMin = _readSelect('compBuildingMinBaths');
+                var baMax = _readSelect('compBuildingMaxBaths');
+                if (baMin) params.minBaths = parseFloat(baMin);
+                if (baMax) params.maxBaths = parseFloat(baMax);
+                var sfMin = _readSelect('compBuildingMinSqft');
+                var sfMax = _readSelect('compBuildingMaxSqft');
+                if (sfMin) params.minSqft = parseInt(sfMin);
+                if (sfMax) params.maxSqft = parseInt(sfMax);
+            } else if (page === 'general') {
+                // General Criteria: flexible search
+                var gAddrEl = document.getElementById('compGeneralAddress');
+                if (gAddrEl && gAddrEl.value.trim()) {
+                    params.address = gAddrEl.value.trim();
+                }
+                var _rs = function(id) {
+                    var el = document.getElementById(id);
+                    return (el && el.value && el.value !== '' && el.value !== 'custom') ? el.value : null;
+                };
+                var gpMin = _rs('compGeneralMinPrice');
+                var gpMax = _rs('compGeneralMaxPrice');
+                if (gpMin) params.minPrice = parseInt(gpMin);
+                if (gpMax) params.maxPrice = parseInt(gpMax);
+                var gbMin = _rs('compGeneralMinBeds');
+                var gbMax = _rs('compGeneralMaxBeds');
+                if (gbMin != null) params.minBeds = parseInt(gbMin);
+                if (gbMax != null) params.maxBeds = parseInt(gbMax);
+                var gaMin = _rs('compGeneralMinBaths');
+                var gaMax = _rs('compGeneralMaxBaths');
+                if (gaMin) params.minBaths = parseFloat(gaMin);
+                if (gaMax) params.maxBaths = parseFloat(gaMax);
+                var gsMin = _rs('compGeneralMinSqft');
+                var gsMax = _rs('compGeneralMaxSqft');
+                if (gsMin) params.minSqft = parseInt(gsMin);
+                if (gsMax) params.maxSqft = parseInt(gsMax);
+            }
+
+            params.limit = 100;
+
+            // Show loading state
             if (resultsDiv) {
-                resultsDiv.style.display = 'block';
+                resultsDiv.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i><p class="text-sm text-gray-600 mt-2">Searching comparables...</p></div>';
             }
 
-            if (resultsTypeSpan) {
-                resultsTypeSpan.textContent = isSaleMode ? 'Comps for Sale' : 'Comps for Rental';
+            console.log('[Comps] Searching:', JSON.stringify(params));
+            if (typeof MallanAPI === 'undefined') {
+                if (resultsDiv) resultsDiv.innerHTML = '<div class="text-center py-8 text-red-600">API not available. Please refresh.</div>';
+                return;
             }
+
+            MallanAPI.idx.search(params).then(function(result) {
+                if (!result || !result.listings || result.listings.length === 0) {
+                    if (resultsDiv) {
+                        resultsDiv.innerHTML = '<div class="text-center py-8"><i class="fas fa-search text-3xl text-gray-400 mb-2"></i><p class="text-sm text-gray-600">No comparable listings found. Try broadening your criteria.</p></div>';
+                    }
+                    return;
+                }
+                var compListings = result.listings;
+                console.log('[Comps] Found:', compListings.length, 'results');
+
+                // Render comp results as a table
+                var html = '<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-semibold text-gray-900"><span>' + (isSaleMode ? 'Comps for Sale' : 'Comps for Rental') + '</span></h3><span class="text-sm text-gray-600">' + compListings.length + ' Results</span></div>';
+                html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b bg-gray-50 text-left">';
+                html += '<th class="px-3 py-2">Address</th><th class="px-3 py-2">Unit</th>';
+                html += '<th class="px-3 py-2 text-right">' + (isSaleMode ? 'Price' : 'Rent') + '</th>';
+                html += '<th class="px-3 py-2">Beds</th><th class="px-3 py-2">Baths</th>';
+                html += '<th class="px-3 py-2">SqFt</th><th class="px-3 py-2">Status</th>';
+                html += '<th class="px-3 py-2">' + (isSaleMode ? 'Sold Date' : 'Rented Date') + '</th>';
+                html += '</tr></thead><tbody>';
+                compListings.forEach(function(l, i) {
+                    var rowClass = i % 2 === 0 ? '' : 'bg-gray-50';
+                    var priceStr = l.price ? '$' + Number(l.price).toLocaleString() : '--';
+                    var sqftStr = l.intSqft ? Number(l.intSqft).toLocaleString() + ' SF' : '--';
+                    var dateStr = l.updatedDate || l.listedDate || '--';
+                    html += '<tr class="border-b ' + rowClass + ' hover:bg-blue-50 cursor-pointer" onclick="showListingDetail(\'' + (l.lid || l.id) + '\')">';
+                    html += '<td class="px-3 py-2 font-medium">' + (l.address || '--') + '</td>';
+                    html += '<td class="px-3 py-2">' + (l.unit || '--') + '</td>';
+                    html += '<td class="px-3 py-2 text-right font-semibold">' + priceStr + '</td>';
+                    html += '<td class="px-3 py-2">' + (l.beds != null ? l.beds : '--') + '</td>';
+                    html += '<td class="px-3 py-2">' + (l.baths != null ? l.baths : '--') + '</td>';
+                    html += '<td class="px-3 py-2">' + sqftStr + '</td>';
+                    html += '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">' + (l.status || 'CLOSED') + '</span></td>';
+                    html += '<td class="px-3 py-2">' + dateStr + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+
+                if (resultsDiv) resultsDiv.innerHTML = html;
+            }).catch(function(err) {
+                console.error('[Comps] Error:', err);
+                if (resultsDiv) resultsDiv.innerHTML = '<div class="text-center py-8 text-red-600"><i class="fas fa-exclamation-circle mr-2"></i>Error loading comparables: ' + err.message + '</div>';
+            });
         }
 
         // ═══════════════════════════════════════════════════════
