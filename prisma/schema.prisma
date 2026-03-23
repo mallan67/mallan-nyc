@@ -901,6 +901,7 @@ model SellerLead {
   // --- Ownership enrichment (from ACRIS) ---
   entity_type           String?   @map("entity_type")
   entity_name           String?   @map("entity_name")
+  pitch_data            Json?     @map("pitch_data")
   ownership_years       Decimal?  @db.Decimal(4,1) @map("ownership_years")
   last_purchase_price   Decimal?  @db.Decimal(14,2) @map("last_purchase_price")
   last_purchase_date    DateTime? @map("last_purchase_date")
