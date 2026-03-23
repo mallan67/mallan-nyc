@@ -920,7 +920,7 @@
                             <button onclick="openReportsModal(['${listing.id}'], 'print')" class="sidebar-action-primary" title="Print report in new tab">
                                 <i class="fas fa-print"></i><span>Print</span>
                             </button>
-                            <button onclick="shareListing('${listing.id}')" class="sidebar-action-primary" title="Share listing link">
+                            <button onclick="shareListing(event, '${listing.id}')" class="sidebar-action-primary" title="Share listing link">
                                 <i class="fas fa-share-alt"></i><span>Share</span>
                             </button>
                         </div>
@@ -1158,7 +1158,7 @@
         }
 
         // ── Share listing link (copy or native share) ──
-        function shareListing(listingId) {
+        function shareListing(e, listingId) {
             var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) return;
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
@@ -1171,7 +1171,7 @@
                 navigator.share({ title: title, url: url }).catch(function() {});
             } else if (navigator.clipboard) {
                 navigator.clipboard.writeText(url).then(function() {
-                    var btn = event && event.currentTarget;
+                    var btn = e && e.currentTarget;
                     if (btn) { var orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check text-[11px]"></i> Copied'; setTimeout(function() { btn.innerHTML = orig; }, 1500); }
                 });
             }
@@ -1578,11 +1578,27 @@
         function emailListingDetail() {
             var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing) return;
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '' };
+
+            // REBNY compliance gate — do not email non-displayable listings
+            if (listing.ownerOptOut === true || listing.internetDisplayYN === false) {
+                showToast('This listing cannot be shared — owner has opted out of display.', 'error');
+                return;
+            }
+
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
             var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
-            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nListing Agent: ' + (listing.agentName || '---') + ' — ' + (listing.company || '---') + '\nPhone: ' + (listing.agentPhone || '---') + '\nEmail: ' + (listing.agentEmail || '---') + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\nPrepared by ' + _agent.name + '\n' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '\n' + _agent.company + ' | Lic. ' + (_agent.companyLicense || '') + '\n' + _agent.phone + ' | ' + _agent.email + (_agent.license ? '\nAgent License ' + _agent.license : '') + '\n\nEqual Housing Opportunity');
+
+            // Use sending agent info, NOT listing agent — per UCBA Art. I Sec. 5(C)
+            var agentBlock = _agent.name + '\n' +
+                (_agent.licenseTitle || 'Licensed Real Estate Salesperson') + '\n' +
+                (_agent.company || 'Mallan Real Estate Inc.') + '\n' +
+                (_agent.phone ? 'Phone: ' + _agent.phone + '\n' : '') +
+                (_agent.email ? 'Email: ' + _agent.email + '\n' : '') +
+                '\nEqual Housing Opportunity';
+
+            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\n' + agentBlock);
             window.open('mailto:?subject=' + subject + '&body=' + body);
         }
 
