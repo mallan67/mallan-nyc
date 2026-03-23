@@ -1044,6 +1044,21 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     <p className="text-brand-dark/80 text-[13px]">
                       {borough}, NY {listing.address.postalCode}
                     </p>
+                    {/* Monthly costs — directly under address for immediate buyer visibility */}
+                    {!isRental && (listing.associationFee ? listing.associationFee > 0 : false) && (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[14px] text-brand-dark">
+                        <span>
+                          <span className="font-semibold">{isCoop ? 'Maint:' : 'CC:'}</span>{' '}
+                          ${listing.associationFee!.toLocaleString()}/mo
+                        </span>
+                        {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
+                          <span>
+                            <span className="font-semibold">Tax:</span>{' '}
+                            ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}/mo
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {/* Action buttons + badges */}
                   <div className="flex flex-wrap items-center gap-2">
@@ -1124,26 +1139,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   )}
                 </div>
 
-                {/* Monthly Costs — immediately after stats for buyer visibility */}
-                {!isRental && (listing.associationFee ? listing.associationFee > 0 : false) && (
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[14px] text-brand-dark/90">
-                    <span>
-                      <span className="font-semibold">{isCoop ? 'Maint:' : 'CC:'}</span>{' '}
-                      ${listing.associationFee!.toLocaleString()}/mo
-                    </span>
-                    {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
-                      <span>
-                        <span className="font-semibold">Tax:</span>{' '}
-                        ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}/mo
-                      </span>
-                    )}
-                    {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
-                      <span className="font-bold text-brand-dark">
-                        Total: ${(listing.associationFee! + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}/mo
-                      </span>
-                    )}
-                  </div>
-                )}
               </section>
 
               {/* ── 2. DESCRIPTION ── */}
@@ -1176,45 +1171,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 listingType={listing.listingType}
               />
 
-              {/* ── 3. FINANCIALS (Co-op/Condo + Price History + Last Sale) ── */}
-              {(!isRental && (isCoop || isCondo || priceHistory.length > 1 || (lastUnitSale && lastUnitSale.closePrice > 0))) && (
+              {/* ── 3. PRICE HISTORY + LAST SALE ── */}
+              {(!isRental && (priceHistory.length > 1 || (lastUnitSale && lastUnitSale.closePrice > 0))) && (
                 <section className="py-6 border-t border-black/[0.06]">
-                  <h2 className="font-display font-semibold text-lg mb-5 text-brand-dark">Financials</h2>
                   <div className="space-y-5">
-                    {/* Co-op/Condo Monthly Costs */}
-                    {(isCoop || isCondo) && (listing.associationFee ? listing.associationFee > 0 : false) && (
-                      <div className="rounded-2xl border border-black/[0.06] p-5">
-                        <p className="text-[12px] font-semibold text-brand-dark/70 uppercase tracking-wider mb-4">
-                          {isCoop ? 'Co-op Monthly Costs' : 'Condo Monthly Costs'}
-                        </p>
-                        <div className="space-y-0">
-                          <div className="flex justify-between items-center py-3 border-b border-black/[0.06]">
-                            <span className="text-[14px] text-brand-dark">{isCoop ? 'Maintenance' : 'Common Charges'}</span>
-                            <span className="font-display font-bold text-[15px] text-brand-dark">
-                              ${listing.associationFee!.toLocaleString()}<span className="text-brand-dark/70 font-normal text-[13px]">/mo</span>
-                            </span>
-                          </div>
-                          {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
-                            <div className="flex justify-between items-center py-3 border-b border-black/[0.06]">
-                              <span className="text-[14px] text-brand-dark">Real Estate Taxes</span>
-                              <span className="font-display font-bold text-[15px] text-brand-dark">
-                                ${Math.round(listing.taxAnnualAmount / 12).toLocaleString()}<span className="text-brand-dark/70 font-normal text-[13px]">/mo</span>
-                                {listing.taxYear ? <span className="text-brand-dark/40 font-normal text-[12px] ml-1.5">({listing.taxYear})</span> : null}
-                              </span>
-                            </div>
-                          )}
-                          {/* Total row — only if both maintenance + tax exist */}
-                          {listing.taxAnnualAmount != null && listing.taxAnnualAmount > 0 && (
-                            <div className="flex justify-between items-center py-3 mt-1 bg-brand-gold/[0.06] rounded-xl px-3 -mx-1">
-                              <span className="text-[14px] font-semibold text-brand-dark">Total Monthly</span>
-                              <span className="font-display font-bold text-[16px] text-brand-dark">
-                                ${(listing.associationFee! + Math.round(listing.taxAnnualAmount / 12)).toLocaleString()}<span className="text-brand-dark/70 font-normal text-[13px]">/mo</span>
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Price History — compact inline */}
                     {priceHistory.length > 1 && (
