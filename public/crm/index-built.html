@@ -23499,13 +23499,15 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       if ((!lat || !lng) && _centroids && l.neighborhood) {
         var centroid = _centroids[l.neighborhood] || _centroids[l.neighborhoodCanonical];
         if (centroid) {
-          // Spiral offset: each listing in same neighborhood gets a different angle+radius
+          // Spiral offset: each listing gets a unique position near the centroid.
+          // Radius kept tight (~2-3 blocks max) to stay on land.
           var key = l.neighborhood;
           if (!centroidCounts[key]) centroidCounts[key] = 0;
           var idx = centroidCounts[key]++;
-          // Spread across ~0.012° ≈ 8-10 blocks (visible at neighborhood zoom)
-          var angle = idx * 2.399963; // golden angle in radians for even spread
-          var radius = 0.003 + Math.sqrt(idx) * 0.002; // grows outward
+          var angle = idx * 2.399963; // golden angle for even spread
+          // Max radius ~0.005° ≈ 2-3 blocks — tight enough to stay on land
+          var radius = 0.001 + Math.sqrt(idx) * 0.0005;
+          if (radius > 0.005) radius = 0.005; // hard cap
           lat = centroid.lat + radius * Math.cos(angle);
           lng = centroid.lng + radius * Math.sin(angle);
           approx = true;
