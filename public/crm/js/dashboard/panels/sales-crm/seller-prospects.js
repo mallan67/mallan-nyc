@@ -830,6 +830,22 @@ var SellerProspects = (function () {
       .then(function (data) {
         _s.current = data.prospect || data;
         _renderWorkspace(c);
+        // Auto-run research on first open (non-blocking)
+        var p = _s.current;
+        if (!p.last_researched_at && p.address && p.borough) {
+          setTimeout(function () {
+            CRM.toast('Auto-running research for new prospect...', 'info');
+            MallanAPI._fetch('/api/crm/sales/prospects/' + p.id + '/research', { method: 'POST' })
+              .then(function () {
+                CRM.toast('Research complete \u2014 refreshing...', 'success');
+                openWorkspace(String(p.id));
+              })
+              .catch(function (err) {
+                // Non-blocking \u2014 workspace still works without research
+                CRM.toast('Auto-research skipped: ' + (err.message || ''), 'info');
+              });
+          }, 500); // Small delay so UI renders first
+        }
       })
       .catch(function (err) {
         c.innerHTML = '<div class="p-8 text-center text-red-500"><i class="fas fa-exclamation-triangle text-3xl mb-3"></i><p>Failed to load prospect: ' + E(err.message || '') + '</p>' +
@@ -926,7 +942,13 @@ var SellerProspects = (function () {
     h += _fieldRow('Sq Ft', p.sqft ? Number(p.sqft).toLocaleString() : null);
     h += _fieldRow('Building', p.building_name);
     h += _fieldRow('Management Co.', p.management_company);
-    h += '</div></div>';
+    h += '</div>';
+    if (!p.beds && !p.baths && !p.sqft) {
+      h += '<div style="padding:8px 12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;margin-top:8px;">';
+      h += '<span style="font-size:11px;color:#C2410C;"><i class="fas fa-info-circle" style="margin-right:4px;"></i>Property details not set. <a href="#" onclick="SellerProspects._editProspect();return false;" style="color:#B8860B;font-weight:600;">Edit to add beds, baths, sqft</a></span>';
+      h += '</div>';
+    }
+    h += '</div>';
 
     // ── Ownership ──
     h += '<div class="bg-white border border-gray-200 rounded-xl p-5">';
@@ -995,6 +1017,10 @@ var SellerProspects = (function () {
       if (_maint) h += _fieldRow('Tax', 'Maintenance only');
       if (p.year_built) h += _fieldRow('Year Built', p.year_built);
       h += '</div>';
+    } else if (!p.last_purchase_price && !p.mortgage_amount) {
+      h += '<div style="padding:8px 12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;margin-top:8px;">';
+      h += '<span style="font-size:11px;color:#1D4ED8;"><i class="fas fa-search" style="margin-right:4px;"></i>Financial data loads from ACRIS when Research runs.</span>';
+      h += '</div>';
     }
 
     // Metadata
@@ -1049,9 +1075,11 @@ var SellerProspects = (function () {
     h += '</div>';
 
     if (!hasResearch) {
-      h += '<div style="text-align:center;padding:48px 16px;background:#F9FAFB;border-radius:12px;">';
-      h += '<i class="fas fa-database" style="font-size:32px;color:#D1D5DB;margin-bottom:12px;display:block;"></i>';
-      h += '<p style="font-size:13px;color:#6B7280;">No research data yet. Click "Run Research" to pull ACRIS, DOB, DOF, and PLUTO records.</p>';
+      h += '<div style="text-align:center;padding:32px;background:#FAF9F6;border:2px dashed #D1D5DB;border-radius:12px;margin-bottom:16px;">';
+      h += '<i class="fas fa-microscope" style="font-size:32px;color:#B8860B;margin-bottom:8px;display:block;"></i>';
+      h += '<p style="font-size:14px;font-weight:700;color:#374151;margin-bottom:4px;">Research Not Yet Run</p>';
+      h += '<p style="font-size:12px;color:#6B7280;margin-bottom:12px;">Click below to pull ACRIS ownership, DOF tax, and DOB building data.</p>';
+      h += '<button class="btn btn-gold" onclick="SellerProspects._runResearch()"><i class="fas fa-play mr-1"></i>Run Research Now</button>';
       h += '</div>';
       el.innerHTML = h;
       return;
