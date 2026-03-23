@@ -84,7 +84,8 @@ const SEARCH_SELECT_FIELDS = [
   "DirectionFaces", "View", "PropertyCondition", "Concessions",
   "ArchitecturalStyle", "StructureType", "BusinessType",
   "AccessibilityFeatures", "ExteriorFeatures", "BuildingFeatures",
-  "BuildingRules", "LaundryFeatures", "SecurityFeatures", "PoolFeatures",
+  "LaundryFeatures", "SecurityFeatures", "PoolFeatures",
+  // BuildingRules: NOT on Trestle Property entity (400 error). Filtered client-side only.
   "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType",
   "ConstructionMaterials", "PriceChangeTimestamp",
 ];
@@ -638,7 +639,7 @@ function mapTrestleToCRM(
     AccessibilityFeatures: raw.AccessibilityFeatures ? String(raw.AccessibilityFeatures) : null,
     ExteriorFeatures: raw.ExteriorFeatures ? String(raw.ExteriorFeatures) : null,
     BuildingFeatures: raw.BuildingFeatures ? String(raw.BuildingFeatures) : null,
-    BuildingRules: raw.BuildingRules ? String(raw.BuildingRules) : null,
+    // BuildingRules: NOT on Trestle Property entity — filtered client-side only
     LaundryFeatures: raw.LaundryFeatures ? String(raw.LaundryFeatures) : null,
     SecurityFeatures: raw.SecurityFeatures ? String(raw.SecurityFeatures) : null,
     PoolFeatures: raw.PoolFeatures ? String(raw.PoolFeatures) : null,
