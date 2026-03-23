@@ -665,9 +665,12 @@
                 }
             }
 
-            // Bedrooms — use the correct IDs based on search tab
+            // Bedrooms — use the correct IDs based on search tab and mode
             var bedsMin, bedsMax;
-            if (currentSearchTab === 'rent') {
+            if (_isAdvanced) {
+                bedsMin = document.getElementById('adv-min-beds');
+                bedsMax = document.getElementById('adv-max-beds');
+            } else if (currentSearchTab === 'rent') {
                 bedsMin = document.getElementById('rentalMinBeds');
                 bedsMax = document.getElementById('rentalMaxBeds');
             } else {
@@ -683,9 +686,12 @@
                 if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
             }
 
-            // Bathrooms — use correct IDs per tab, parseFloat for half-baths (1.5, 2.5)
+            // Bathrooms — use correct IDs per tab and mode, parseFloat for half-baths (1.5, 2.5)
             var bathsMin, bathsMax;
-            if (currentSearchTab === 'rent') {
+            if (_isAdvanced) {
+                bathsMin = document.getElementById('adv-min-baths');
+                bathsMax = document.getElementById('adv-max-baths');
+            } else if (currentSearchTab === 'rent') {
                 bathsMin = document.getElementById('rentalMinBaths');
                 bathsMax = document.getElementById('rentalMaxBaths');
             } else {
@@ -701,9 +707,12 @@
                 if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
             }
 
-            // Rooms — use correct IDs per tab
+            // Rooms — use correct IDs per tab and mode
             var roomsMin, roomsMax;
-            if (currentSearchTab === 'rent') {
+            if (_isAdvanced) {
+                roomsMin = document.getElementById('adv-min-rooms');
+                roomsMax = document.getElementById('adv-max-rooms');
+            } else if (currentSearchTab === 'rent') {
                 roomsMin = document.getElementById('rentalMinRooms');
                 roomsMax = document.getElementById('rentalMaxRooms');
             } else {
@@ -719,9 +728,12 @@
                 if (isNaN(criteria.roomsMax)) delete criteria.roomsMax;
             }
 
-            // Square footage — use correct IDs per tab
+            // Square footage — use correct IDs per tab and mode
             var sqftMin, sqftMax;
-            if (currentSearchTab === 'rent') {
+            if (_isAdvanced) {
+                sqftMin = document.getElementById('adv-min-sqft');
+                sqftMax = document.getElementById('adv-max-sqft');
+            } else if (currentSearchTab === 'rent') {
                 sqftMin = document.getElementById('rentalMinSqft');
                 sqftMax = document.getElementById('rentalMaxSqft');
             } else {
@@ -840,13 +852,21 @@
                 }
             }
 
-            // Quick Search fields — RLS ID, Zip, Unit
-            var rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
-                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-            var zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
-                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-            var unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
+            // Quick Search fields — RLS ID, Zip, Unit (advanced mode has its own IDs)
+            var rlsInputId, zipInputId, unitInputId;
+            if (_isAdvanced) {
+                rlsInputId = 'adv-rls-id';
+                zipInputId = 'adv-zip';
+                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
                               currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
+            } else {
+                rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
+                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
+                zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
+                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
+                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
+                              currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
+            }
             var rlsInput = document.getElementById(rlsInputId);
             var zipInput = document.getElementById(zipInputId);
             var unitInput = document.getElementById(unitInputId);
@@ -855,7 +875,8 @@
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             // Keyword search (PublicRemarks contains)
-            var keywordId = currentSearchTab === 'rent' ? 'rentalKeywordSearch' :
+            var keywordId = _isAdvanced ? 'adv-keyword' :
+                            currentSearchTab === 'rent' ? 'rentalKeywordSearch' :
                             currentSearchTab === 'building' ? 'buildingKeywordSearch' : 'saleKeywordSearch';
             var keywordEl = document.getElementById(keywordId);
             if (keywordEl && keywordEl.value.trim()) {
@@ -863,7 +884,8 @@
             }
 
             // Management Company (search against ListOfficeName — Trestle's closest field)
-            var mgmtId = currentSearchTab === 'rent' ? 'rentalManagementCompany' :
+            var mgmtId = _isAdvanced ? 'adv-management' :
+                         currentSearchTab === 'rent' ? 'rentalManagementCompany' :
                          currentSearchTab === 'building' ? 'buildingManagementCompany' : 'saleManagementCompany';
             var mgmtEl = document.getElementById(mgmtId);
             if (mgmtEl && mgmtEl.value.trim()) {
@@ -930,9 +952,15 @@
             }
 
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-            // Only collect from building tab OR from the visible advanced building section
             var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
-            if (currentSearchTab === 'building') {
+            if (_isAdvanced) {
+                yearMinEl = document.getElementById('adv-year-built-from');
+                yearMaxEl = document.getElementById('adv-year-built-to');
+                unitsMinEl = document.getElementById('adv-bldg-units-min');
+                unitsMaxEl = document.getElementById('adv-bldg-units-max');
+                floorsMinEl = document.getElementById('adv-floors-min');
+                floorsMaxEl = document.getElementById('adv-floors-max');
+            } else if (currentSearchTab === 'building') {
                 yearMinEl = document.getElementById('buildingMinYear');
                 yearMaxEl = document.getElementById('buildingMaxYear');
                 unitsMinEl = document.getElementById('buildingMinUnits');
