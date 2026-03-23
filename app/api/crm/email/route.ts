@@ -49,11 +49,23 @@ export async function POST(req: NextRequest) {
     ? `${agent.first_name || ""} ${agent.last_name || ""}`.trim() || "Mallan Real Estate"
     : "Mallan Real Estate";
 
-  // Fetch all recipient emails
+  // Fetch all recipient emails + consent status
   const bigIntIds = clientIds.map((id) => BigInt(id));
-  const clients = await prisma.lead.findMany({
+  const allClients = await prisma.lead.findMany({
     where: { id: { in: bigIntIds } },
-    select: { id: true, first_name: true, last_name: true, email: true, phone: true },
+    select: { id: true, first_name: true, last_name: true, email: true, phone: true, consent_captured_at: true },
+  });
+
+  // CAN-SPAM / TCPA: skip clients without consent
+  const skipped: { clientId: string; name: string; reason: string }[] = [];
+  const clients = allClients.filter((c) => {
+    if (!c.consent_captured_at) {
+      const name = `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unknown";
+      console.warn(`[email] Skipping client ${c.id} (${name}) — no consent_captured_at (CAN-SPAM)`);
+      skipped.push({ clientId: c.id.toString(), name, reason: "No consent on record" });
+      return false;
+    }
+    return true;
   });
 
   const now = new Date();
@@ -176,6 +188,8 @@ export async function POST(req: NextRequest) {
     sent,
     failed: failed.length,
     errors: failed.length > 0 ? failed : undefined,
+    skipped: skipped.length > 0 ? skipped : undefined,
+    skipped_count: skipped.length,
     timestamp: now.toISOString(),
   }, { status: 201 });
 }

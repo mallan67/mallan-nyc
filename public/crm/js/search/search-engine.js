@@ -210,6 +210,9 @@
                 history.replaceState(null, '', '#results');
             }
 
+            // Refresh map pins if map is open (covers local-only + all search paths)
+            if (typeof refreshResultsMap === 'function') refreshResultsMap();
+
             // Scroll to top of results
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -584,13 +587,33 @@
                 priceMin = document.getElementById('saleMinPrice');
                 priceMax = document.getElementById('saleMaxPrice');
             }
-            if (priceMin && priceMin.value && priceMin.value !== 'custom' && priceMin.value !== '') {
-                var pMin = parseInt(priceMin.value);
-                if (!isNaN(pMin)) criteria.priceMin = pMin;
+            if (priceMin && priceMin.value && priceMin.value !== '') {
+                if (priceMin.value === 'custom') {
+                    // Read from companion custom input
+                    var customMinId = (currentSearchTab === 'rent') ? 'rentalMinRentCustom' : 'saleMinPriceCustom';
+                    var customMinEl = document.getElementById(customMinId);
+                    if (customMinEl && customMinEl.value) {
+                        var pMin = parseInt(customMinEl.value);
+                        if (!isNaN(pMin) && pMin > 0) criteria.priceMin = pMin;
+                    }
+                } else {
+                    var pMin = parseInt(priceMin.value);
+                    if (!isNaN(pMin)) criteria.priceMin = pMin;
+                }
             }
-            if (priceMax && priceMax.value && priceMax.value !== 'custom' && priceMax.value !== '') {
-                var pMax = parseInt(priceMax.value);
-                if (!isNaN(pMax)) criteria.priceMax = pMax;
+            if (priceMax && priceMax.value && priceMax.value !== '') {
+                if (priceMax.value === 'custom') {
+                    // Read from companion custom input
+                    var customMaxId = (currentSearchTab === 'rent') ? 'rentalMaxRentCustom' : 'saleMaxPriceCustom';
+                    var customMaxEl = document.getElementById(customMaxId);
+                    if (customMaxEl && customMaxEl.value) {
+                        var pMax = parseInt(customMaxEl.value);
+                        if (!isNaN(pMax) && pMax > 0) criteria.priceMax = pMax;
+                    }
+                } else {
+                    var pMax = parseInt(priceMax.value);
+                    if (!isNaN(pMax)) criteria.priceMax = pMax;
+                }
             }
 
             // Bedrooms — use the correct IDs based on search tab
@@ -2161,11 +2184,62 @@
         // ═══════════════════════════════════════════════════════
         // CUSTOM VALUE HANDLER — Converts select to text input when "Custom" is chosen
         // Works for price, beds, baths, rooms, sqft selects
+        // Price selects use companion input rows instead of replacement.
         // ═══════════════════════════════════════════════════════
+
+        // Map of price select IDs → their companion custom input row and field IDs
+        var _priceCustomMap = {
+            saleMinPrice:  { row: 'saleCustomPriceRow',   input: 'saleMinPriceCustom' },
+            saleMaxPrice:  { row: 'saleCustomPriceRow',   input: 'saleMaxPriceCustom' },
+            rentalMinRent: { row: 'rentalCustomPriceRow',  input: 'rentalMinRentCustom' },
+            rentalMaxRent: { row: 'rentalCustomPriceRow',  input: 'rentalMaxRentCustom' }
+        };
+
+        // Show/hide custom price row when any price select changes
+        function _handlePriceCustomToggle(sel) {
+            var mapping = _priceCustomMap[sel.id];
+            if (!mapping) return false; // not a price select
+            var row = document.getElementById(mapping.row);
+            var input = document.getElementById(mapping.input);
+            if (!row) return false;
+
+            if (sel.value === 'custom') {
+                row.classList.remove('hidden');
+                if (input) input.focus();
+            } else {
+                // Hide row only if BOTH selects in the pair are non-custom
+                var pairId = null;
+                if (sel.id === 'saleMinPrice') pairId = 'saleMaxPrice';
+                else if (sel.id === 'saleMaxPrice') pairId = 'saleMinPrice';
+                else if (sel.id === 'rentalMinRent') pairId = 'rentalMaxRent';
+                else if (sel.id === 'rentalMaxRent') pairId = 'rentalMinRent';
+                var pairSel = pairId ? document.getElementById(pairId) : null;
+                if (!pairSel || pairSel.value !== 'custom') {
+                    row.classList.add('hidden');
+                }
+                // Clear the custom input when switching away from custom
+                if (input) input.value = '';
+            }
+            return true; // handled
+        }
+
         (function() {
             document.addEventListener('change', function(e) {
                 var sel = e.target;
-                if (sel.tagName !== 'SELECT' || sel.value !== 'custom') return;
+                if (sel.tagName !== 'SELECT') return;
+
+                // Price selects: use companion input row instead of replacing
+                if (sel.value === 'custom' && _priceCustomMap[sel.id]) {
+                    _handlePriceCustomToggle(sel);
+                    return;
+                }
+                // Non-custom value on a price select: check if we need to hide the row
+                if (_priceCustomMap[sel.id]) {
+                    _handlePriceCustomToggle(sel);
+                    return;
+                }
+
+                if (sel.value !== 'custom') return;
 
                 // Determine what kind of field this is (for placeholder and formatting)
                 var id = sel.id || '';

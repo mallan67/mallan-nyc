@@ -455,7 +455,19 @@
     var mapListings = (typeof getFilteredListings === 'function')
       ? getFilteredListings(true) // skipPagination = true to get ALL results
       : (searchResultsState && searchResultsState.filteredListings) || [];
-    addMarkers(mapListings);
+
+    // If centroids haven't loaded yet, wait for them before placing pins
+    // (most listings have null lat/lng from Trestle — centroids are essential)
+    if (!_centroids) {
+      var base = window.location.pathname.replace(/\/[^/]*$/, '');
+      var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'rls-neighborhood-centroids.v1.json';
+      fetch(url).then(function(r) { return r.ok ? r.json() : null; }).then(function(data) {
+        if (data) _centroids = data;
+        addMarkers(mapListings);
+      }).catch(function() { addMarkers(mapListings); });
+    } else {
+      addMarkers(mapListings);
+    }
   }
 
   // ── Toggle map view ──
@@ -497,6 +509,11 @@
         toggleBtn.classList.add('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.remove('text-gray-500');
       }
+      var stickyToggleBtn = document.getElementById('stickyNavMapToggleBtn');
+      if (stickyToggleBtn) {
+        stickyToggleBtn.classList.add('bg-white/20', 'text-white');
+        stickyToggleBtn.classList.remove('text-gray-400');
+      }
 
       ensureMapLibre(function () {
         // Set container to fill wrapper
@@ -522,6 +539,11 @@
       if (toggleBtn) {
         toggleBtn.classList.remove('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.add('text-gray-500');
+      }
+      var stickyToggleBtn = document.getElementById('stickyNavMapToggleBtn');
+      if (stickyToggleBtn) {
+        stickyToggleBtn.classList.remove('bg-white/20', 'text-white');
+        stickyToggleBtn.classList.add('text-gray-400');
       }
       clearMarkers();
     }

@@ -71,6 +71,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "lead_id, title, and due_date required" }, { status: 400 });
   }
 
+  // Ownership validation: agents can only create tasks for their own leads
+  if (auth.role !== "BROKER") {
+    const lead = await prisma.lead.findFirst({
+      where: { id: BigInt(lead_id), agent_id: auth.userId },
+      select: { id: true },
+    });
+    if (!lead) {
+      return NextResponse.json({ error: "Lead not found or not assigned to you" }, { status: 403 });
+    }
+  }
+
   const task = await prisma.followUpTask.create({
     data: {
       lead_id: BigInt(lead_id),

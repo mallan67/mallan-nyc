@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 /* global Utils, CRM */
 
-var Exchange1031Tracker = (function () {
+var Exchange1031Calc = (function () {
   'use strict';
 
   var E = Utils.esc;
@@ -123,7 +123,7 @@ var Exchange1031Tracker = (function () {
             '<div class="text-sm font-medium text-gray-800">' + E(p.address) + '</div>' +
             '<div class="text-xs text-gray-500">Estimated: ' + $(p.value) + '</div>' +
           '</div>' +
-          '<button onclick="Exchange1031Tracker.removeProperty(' + i + ')" class="ml-2 text-red-400 hover:text-red-600 text-xs"><i class="fas fa-trash"></i></button>' +
+          '<button onclick="Exchange1031Calc.removeProperty(' + i + ')" class="ml-2 text-red-400 hover:text-red-600 text-xs"><i class="fas fa-trash"></i></button>' +
         '</div>';
     }
 
@@ -182,7 +182,7 @@ var Exchange1031Tracker = (function () {
             '<div class="flex gap-2 mt-2">' +
               '<input id="' + _formId + '-prop-address" type="text" placeholder="Property address" class="flex-1 px-3 py-1.5 border rounded text-sm focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
               '<input id="' + _formId + '-prop-value" type="number" placeholder="Est. value" class="w-32 px-3 py-1.5 border rounded text-sm focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
-              '<button onclick="Exchange1031Tracker.addProperty()" class="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700 whitespace-nowrap">+ Add</button>' +
+              '<button onclick="Exchange1031Calc.addProperty()" class="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700 whitespace-nowrap">+ Add</button>' +
             '</div>' : '') +
           (valueCheck ?
             '<div class="mt-2 p-2 rounded text-xs border ' + (meetsValueRule ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700') + '">' +
@@ -274,9 +274,9 @@ var Exchange1031Tracker = (function () {
         '<div class="flex items-center justify-between mb-2">' +
           '<h3 class="text-base font-bold text-gray-800"><i class="fas fa-exchange-alt mr-2 text-amber-600"></i>1031 Exchange Tracker</h3>' +
           '<div class="flex gap-2">' +
-            '<button onclick="Exchange1031Tracker.calculate()" class="px-3 py-1 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700">Update</button>' +
-            '<button onclick="Exchange1031Tracker.print()" class="px-2 py-1 text-gray-500 hover:text-gray-700 text-xs" title="Print"><i class="fas fa-print"></i></button>' +
-            '<button onclick="Exchange1031Tracker.copy()" class="px-2 py-1 text-gray-500 hover:text-gray-700 text-xs" title="Copy"><i class="fas fa-copy"></i></button>' +
+            '<button onclick="Exchange1031Calc.calculate()" class="px-3 py-1 bg-amber-600 text-white text-xs font-semibold rounded hover:bg-amber-700">Update</button>' +
+            '<button onclick="Exchange1031Calc.print()" class="px-2 py-1 text-gray-500 hover:text-gray-700 text-xs" title="Print"><i class="fas fa-print"></i></button>' +
+            '<button onclick="Exchange1031Calc.copy()" class="px-2 py-1 text-gray-500 hover:text-gray-700 text-xs" title="Copy"><i class="fas fa-copy"></i></button>' +
           '</div>' +
         '</div>' +
 
@@ -285,11 +285,11 @@ var Exchange1031Tracker = (function () {
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
             '<div>' +
               '<label class="block text-xs font-semibold text-gray-700 mb-1">Sale Close Date</label>' +
-              '<input id="' + _formId + '-close-date" type="date" value="' + E(opts.sale_close_date || '') + '" onchange="Exchange1031Tracker.calculate()" class="w-full px-3 py-2 border rounded text-sm font-medium focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
+              '<input id="' + _formId + '-close-date" type="date" value="' + E(opts.sale_close_date || '') + '" onchange="Exchange1031Calc.calculate()" class="w-full px-3 py-2 border rounded text-sm font-medium focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
             '</div>' +
             '<div>' +
               '<label class="block text-xs font-semibold text-gray-700 mb-1">Relinquished Property Value</label>' +
-              '<input id="' + _formId + '-relinquished-value" type="number" value="' + E(opts.relinquished_property_value || '') + '" placeholder="1000000" oninput="Exchange1031Tracker.calculate()" class="w-full px-3 py-2 border rounded text-sm font-medium focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
+              '<input id="' + _formId + '-relinquished-value" type="number" value="' + E(opts.relinquished_property_value || '') + '" placeholder="1000000" oninput="Exchange1031Calc.calculate()" class="w-full px-3 py-2 border rounded text-sm font-medium focus:ring-2 focus:ring-amber-300 focus:border-amber-400">' +
             '</div>' +
           '</div>' +
         '</div>' +

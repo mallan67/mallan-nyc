@@ -113,8 +113,11 @@ var SellerProspects = (function () {
   // TABLE VIEW — render()
   // ═══════════════════════════════════════════════════════════════════════
   function render() {
+    _s.current = null;
+    _s.tab = 'overview';
     CRM.setPanelTitle('Sales CRM');
     var c = CRM.getContent();
+    if (!c) return;
     c.innerHTML = _subnav('prospects') + '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
 
     _fetchProspects().then(function () {
@@ -142,7 +145,7 @@ var SellerProspects = (function () {
     rows = ActivityTable.sortRows(rows, _s.sort.key, _s.sort.dir);
 
     var total = _s.total;
-    var hot = _s.data.filter(function (r) { return r.readiness_grade === 'A' || r.readiness_grade === 'B'; }).length;
+    var hot = _s.data.filter(function (r) { var g = r.score_grade || r.readiness_grade; return g === 'A' || g === 'B'; }).length;
     var followUpDue = _s.data.filter(function (r) {
       if (!r.next_follow_up) return false;
       return new Date(r.next_follow_up) <= new Date();
@@ -182,15 +185,13 @@ var SellerProspects = (function () {
     h += ActivityTable.render({
       id: 'prospects_tbl',
       columns: [
-        { key: 'address', label: 'Address', render: function (r) {
-          var addr = E(r.address || '-');
-          var unit = r.unit ? ' <span class="text-xs text-gray-400">#' + E(r.unit) + '</span>' : '';
-          return '<div class="font-semibold text-gray-900">' + addr + unit + '</div>';
-        }},
-        { key: 'owner_name', label: 'Owner', render: function (r) {
+        { key: 'owner_name', label: 'Seller', render: function (r) {
           var name = E(r.owner_name || '-');
+          var addr = E(r.address || '');
+          var unit = r.unit ? ' #' + E(r.unit) : '';
           var entity = r.entity_name ? '<div class="text-[10px] text-purple-600 font-bold mt-0.5">' + E(r.entity_type || 'Entity') + ': ' + E(r.entity_name) + '</div>' : '';
-          return '<div>' + name + entity + '</div>';
+          return '<div><div class="font-semibold text-gray-900">' + name + '</div>' +
+            '<div class="text-[11px] text-gray-500 mt-0.5">' + addr + unit + '</div>' + entity + '</div>';
         }},
         { key: 'status', label: 'Status', render: function (r) { return _statusBadge(r.status); } },
         { key: 'borough', label: 'Borough', render: function (r) {
@@ -716,21 +717,23 @@ var SellerProspects = (function () {
     if (!p) return;
     var tab = _s.tab;
 
-    // ── Header ──
-    var h = '<div class="mb-4">';
-    h += '<button class="text-sm text-gray-500 hover:text-gray-700 mb-3" onclick="Router.navigate(\'/sales/prospects\')"><i class="fas fa-arrow-left mr-1"></i>Back to Seller Prospects</button>';
+    // ── Subnav + Header ──
+    var h = _subnav('prospects');
+    h += '<div class="mb-4">';
+    h += '<button class="text-sm text-gray-500 hover:text-gray-700 mb-3" onclick="SellerProspects.render()"><i class="fas fa-arrow-left mr-1"></i>Back to Seller Prospects</button>';
     h += '<div class="flex items-start justify-between flex-wrap gap-4">';
 
     // Left: prospect info
     h += '<div class="flex items-center gap-4">';
-    h += '<div style="width:48px;height:48px;border-radius:50%;background:#B8860B20;color:#B8860B;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;"><i class="fas fa-crosshairs"></i></div>';
+    var init = (p.owner_name || '??').split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
+    h += '<div style="width:48px;height:48px;border-radius:50%;background:#B8860B20;color:#B8860B;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;">' + E(init) + '</div>';
     h += '<div>';
-    h += '<h2 class="text-xl font-bold text-gray-900">' + E(p.address || 'Unknown Address') + (p.unit ? ' <span class="text-base font-normal text-gray-500">#' + E(p.unit) + '</span>' : '') + '</h2>';
-    h += '<div class="flex items-center gap-2 mt-1">' + _statusBadge(p.status) + ' ' + _gradeBadge(p.readiness_grade, p.readiness_score);
+    h += '<h2 class="text-xl font-bold text-gray-900">' + E(p.owner_name || 'Unknown Owner') + '</h2>';
+    h += '<div class="text-sm text-gray-600 mt-0.5"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>' + E(p.address || '-') + (p.unit ? ' #' + E(p.unit) : '') + '</div>';
+    h += '<div class="flex items-center gap-2 mt-1">' + _statusBadge(p.status) + ' ' + _gradeBadge(p.score_grade || p.readiness_grade, p.readiness_score);
     if (p.entity_name) h += '<span class="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">' + E(p.entity_type || 'Entity') + ': ' + E(p.entity_name) + '</span>';
     h += '</div>';
     h += '<div class="flex gap-3 mt-1 text-xs text-gray-500">';
-    if (p.owner_name) h += '<span><i class="fas fa-user mr-1"></i>' + E(p.owner_name) + '</span>';
     if (p.owner_email) h += '<span><i class="fas fa-envelope mr-1"></i>' + E(p.owner_email) + '</span>';
     if (p.owner_phone) h += '<span><i class="fas fa-phone mr-1"></i>' + E(p.owner_phone) + '</span>';
     h += '</div></div></div>';
