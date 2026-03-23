@@ -396,48 +396,69 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     : "Your Agent";
 
   try {
-    // Assemble pitch packet data
+    // Assemble pitch packet data (reuses existing function — Trestle comps, pricing, financials)
     const packetData = await assemblePitchPacket(prospect, agentName);
 
-    // Use pdf-lib renderer (pure JS, no React/JSX runtime conflicts)
-    const { renderSimplePitchPdf } = await import(
-      "@/lib/pdf/pitch-packet-simple"
-    );
+    // Render the luxury HTML presentation
+    const { renderPitchPacketHTML } = await import("@/lib/pitch-packet/template");
 
-    const pdfBuffer = await renderSimplePitchPdf({
+    const pp = packetData.pricing_strategy?.price_points || {};
+    const fp = packetData.financial_picture || {};
+    const ep = packetData.exposure_plan || {};
+    const pi = packetData.property_intel?.prospect_data || {};
+
+    const html = renderPitchPacketHTML({
       address: prospect.address,
-      unit: prospect.unit || undefined,
-      owner_name: prospect.owner_name || undefined,
-      agent_name: agentName,
+      unit: prospect.unit,
+      borough: prospect.borough,
+      neighborhood: prospect.neighborhood,
+      propertyType: prospect.property_type,
       beds: prospect.beds,
       baths: prospect.baths ? Number(prospect.baths) : null,
       sqft: prospect.sqft,
-      year_built: prospect.year_built,
+      yearBuilt: prospect.year_built,
       floors: prospect.floors,
-      units_total: prospect.units_total,
-      readiness_score: prospect.readiness_score,
-      score_grade: prospect.score_grade,
-      conservative: packetData.pricing_strategy?.price_points?.conservative,
-      recommended: packetData.pricing_strategy?.price_points?.recommended,
-      aspirational: packetData.pricing_strategy?.price_points?.aspirational,
-      competition_count: packetData.pricing_strategy?.competition?.active_count,
-      absorption_rate: packetData.pricing_strategy?.absorption_label,
-      buyer_count: packetData.exposure_plan?.buyer_database,
-      gross_price: packetData.financial_picture?.gross_price,
-      commission: packetData.financial_picture?.commission,
-      transfer_tax: packetData.financial_picture?.transfer_tax,
-      attorney_fees: packetData.financial_picture?.attorney_fees,
-      mortgage_payoff: packetData.financial_picture?.mortgage_payoff,
-      net_proceeds: packetData.financial_picture?.net_proceeds,
-      attribution: packetData.attribution,
+      unitsTotal: prospect.units_total,
+      ownerName: prospect.owner_name,
+      ownershipYears: prospect.ownership_years ? Number(prospect.ownership_years) : null,
+      lastPurchasePrice: pi.last_purchase_price,
+      lastPurchaseDate: pi.last_purchase_date,
+      mortgageAmount: prospect.mortgage_amount ? Number(prospect.mortgage_amount) : null,
+      marketValue: pi.market_value,
+      annualTax: pi.annual_tax,
+      conservative: pp.conservative,
+      recommended: pp.recommended,
+      aspirational: pp.aspirational,
+      compsUsed: packetData.pricing_strategy?.comps_used || 0,
+      commission: fp.commission,
+      commissionRate: fp.commission_rate || 0.06,
+      transferTax: fp.transfer_tax,
+      attorneyFees: fp.attorney_fees || 3000,
+      mortgagePayoff: fp.mortgage_payoff,
+      netProceeds: fp.net_proceeds,
+      recentSales: (packetData.property_intel?.recent_sales || []).map((s: Record<string, unknown>) => ({
+        address: String(s.address || ""),
+        unit: s.unit as string | null,
+        closePrice: s.close_price as number | null,
+        closeDate: s.close_date as string | null,
+        beds: s.beds as number | null,
+        baths: s.baths as number | null,
+        sqft: s.sqft as number | null,
+      })),
+      activeCompetition: (packetData.property_intel?.active_competition || []).map((c: Record<string, unknown>) => ({
+        address: String(c.address || ""),
+        unit: c.unit as string | null,
+        listPrice: c.list_price as number | null,
+        beds: c.beds as number | null,
+        baths: c.baths as number | null,
+        sqft: c.sqft as number | null,
+      })),
+      buyerCount: ep.buyer_database || 0,
+      agentNetwork: ep.agent_network || 17000,
+      firms: ep.firms || 570,
+      agentName,
+      generatedAt: new Date().toISOString(),
     });
-
-    // Build a filename-safe address slug
-    const addressSlug = (prospect.address || "property")
-      .replace(/[^a-zA-Z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .toLowerCase()
-      .substring(0, 60);
 
     // Update pitch_generated_at
     await prisma.sellerLead.update({
@@ -446,30 +467,25 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     });
 
     await logAuditEvent(
-      "seller_prospect_pdf_generated",
+      "seller_prospect_pitch_viewed",
       "seller_lead",
       String(prospectId),
       auth,
-      { format: "pdf", address: prospect.address },
+      { format: "html", address: prospect.address },
     );
 
-    // pdf-lib returns Uint8Array — convert to Buffer for NextResponse
-    const body = Buffer.from(pdfBuffer);
-
-    return new NextResponse(body, {
+    return new NextResponse(html, {
       status: 200,
       headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="pitch-packet-${addressSlug}.pdf"`,
+        "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
       },
     });
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    const errStack = err instanceof Error ? err.stack?.split("\n").slice(0, 5).join("\n") : "";
-    console.error("[PDF] Pitch packet generation failed:", errMsg, "\n", errStack);
+    console.error("[PitchPacket] Generation failed:", errMsg);
     return NextResponse.json(
-      { error: "PDF generation failed", detail: errMsg },
+      { error: "Pitch packet generation failed", detail: errMsg },
       { status: 500 },
     );
   }
