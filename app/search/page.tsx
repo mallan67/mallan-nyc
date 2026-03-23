@@ -18,7 +18,36 @@ import { trackSearch } from '@/lib/posthog';
 
 // Client component — data fetched via useListings hook (no force-dynamic needed)
 
-const SearchMap = nextDynamic(() => import('@/app/components/SearchMap'), { ssr: false });
+const SearchMapLazy = nextDynamic(() => import('@/app/components/SearchMap'), { ssr: false });
+
+// Wrap map in error boundary so Leaflet "container already initialized" (Strict Mode)
+// doesn't crash the entire search page
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn('[SearchMap] Map failed to load:', error.message, info.componentStack?.slice(0, 200));
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center h-full bg-gray-50 text-brand-dark/50 text-sm">
+          Map temporarily unavailable
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function SearchMap(props: React.ComponentProps<typeof SearchMapLazy>) {
+  return (
+    <MapErrorBoundary>
+      <SearchMapLazy {...props} />
+    </MapErrorBoundary>
+  );
+}
 // RecentlyViewed strip removed — shown on listing pages only, not search
 
 // ── Tab backward-compat mapping ──

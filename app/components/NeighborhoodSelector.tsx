@@ -88,6 +88,12 @@ const BOROUGH_TABS: { slug: BoroughSlug; label: string }[] = [
 function CheckRow({ name, checked, onChange }: { name: string; checked: boolean; onChange: () => void }) {
   return (
     <label className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-gray-50 cursor-pointer transition-colors group">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="sr-only"
+      />
       <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
         checked ? 'bg-brand-dark border-brand-dark' : 'border-gray-300 group-hover:border-gray-400'
       }`}>

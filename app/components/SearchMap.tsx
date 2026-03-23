@@ -189,6 +189,8 @@ interface SearchMapProps {
 }
 
 export default function SearchMap({ listings, highlightedId, onMarkerClick }: SearchMapProps) {
+  // Unique key prevents Leaflet "container already initialized" error on HMR
+  const [mapKey] = useState(() => Math.random().toString(36).slice(2));
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('bright');
 
   const mappable = useMemo(
@@ -287,6 +289,7 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
       </div>
 
       <MapContainer
+        key={mapKey}
         center={center}
         zoom={12}
         style={{ height: '100%', width: '100%' }}
