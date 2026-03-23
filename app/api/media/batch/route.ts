@@ -14,15 +14,14 @@ const TRESTLE_API =
   process.env.IDX_ENDPOINT ||
   "https://api.cotality.com/trestle";
 
-// RESO DD: MediaCategory = content type classification
-function classifyMediaCategory(m: Record<string, unknown>): "Photo" | "FloorPlan" | "Video" | "VirtualTour" | "3DTour" {
+// Trestle Media has only 2 categories: Photo and FloorPlan.
+// Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media resource.
+// MediaClassification: PHOTO or DOCUMENT. ShortDescription: "FloorPlan" for floor plans.
+function classifyMediaCategory(m: Record<string, unknown>): "Photo" | "FloorPlan" {
   const cat = String(m.MediaCategory || "").toLowerCase();
+  const cls = String(m.MediaClassification || "").toLowerCase();
   const desc = String(m.ShortDescription || "").toLowerCase();
-  const mime = String(m.MimeType || "").toLowerCase();
-  if (cat.includes("floor plan") || desc.includes("floor plan") || desc.includes("floorplan")) return "FloorPlan";
-  if (cat.includes("3d") || cat.includes("matterport") || desc.includes("3d") || desc.includes("matterport")) return "3DTour";
-  if (cat.includes("virtual tour") || desc.includes("virtual tour")) return "VirtualTour";
-  if (cat.includes("video") || mime.includes("video")) return "Video";
+  if (cat === "floorplan" || cat.includes("floor plan") || cls === "document" || desc.includes("floorplan") || desc.includes("floor plan")) return "FloorPlan";
   return "Photo";
 }
 
@@ -87,7 +86,7 @@ export async function GET(req: NextRequest) {
         const filter = `(${filterParts.join(" or ")})`;
         const params = new URLSearchParams();
         params.set("$filter", filter);
-        params.set("$select", "ResourceRecordID,MediaURL,Order,MediaCategory,PreferredPhotoYN,MimeType,ShortDescription");
+        params.set("$select", "ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription");
         params.set("$orderby", "ResourceRecordID asc,MediaCategory asc,Order asc");
         params.set("$top", String(uncached.length * 40)); // Up to 40 media items per listing
 

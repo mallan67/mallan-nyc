@@ -22258,21 +22258,17 @@ function parseBudgetValue(td) {
             if (!listing) return;
 
             // Build typed arrays
+            // Trestle Media has 2 categories: Photo and FloorPlan.
+            // Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media.
             var photos = [];
             var floorPlans = [];
-            var videos = [];
-            var virtualTours = [];
-            var tours3D = [];
             mediaItems.forEach(function(m) {
                 var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
                 if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
-                else if (m.mediaType === 'Video') videos.push(entry);
-                else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
-                else if (m.mediaType === '3DTour') tours3D.push(entry);
                 else photos.push(entry);
             });
 
-            // Update listing.images with photos only (existing behavior)
+            // Update listing.images with photos only
             if (photos.length > 0) {
                 listing.images = photos.sort(function(a, b) { return a.order - b.order; });
                 // Only upgrade photoCount, never downgrade (Trestle's PhotosCount is authoritative)
@@ -22280,11 +22276,9 @@ function parseBudgetValue(td) {
                     listing.photoCount = photos.length;
                 }
             }
-            // Store typed media for detail panel — organized by category
+            // Store floor plans separately for detail panel
             if (floorPlans.length > 0) listing._floorPlans = floorPlans;
-            if (videos.length > 0) listing._videos = videos;
-            if (virtualTours.length > 0) listing._virtualTours = virtualTours;
-            if (tours3D.length > 0) listing._tours3D = tours3D;
+            // Note: Videos/VirtualTours/3D are on listing.virtualTourUrl (from Property.VirtualTourURLUnbranded)
         }
 
 </script>
