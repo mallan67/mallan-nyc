@@ -91,18 +91,35 @@
                 }
 
                 function _setupStandaloneDetail() {
-                    // Adjust header for standalone mode
+                    // Check if we have search results (user navigated from search)
+                    var hasResults = typeof searchResultsState !== 'undefined'
+                        && searchResultsState.filteredListings
+                        && searchResultsState.filteredListings.length > 1;
+
                     var backBtn = document.getElementById('detailBackBtn');
                     var navSep = document.getElementById('detailNavSep');
                     var prevBtn = document.getElementById('detailPrevBtn');
                     var nextBtn = document.getElementById('detailNextBtn');
-                    if (backBtn) {
-                        backBtn.innerHTML = '<i class="fas fa-times text-xs"></i> Close';
-                        backBtn.onclick = function() { window.close(); };
+
+                    if (hasResults) {
+                        // Navigated from search — show back + prev/next
+                        if (backBtn) {
+                            backBtn.innerHTML = '<i class="fas fa-arrow-left text-xs"></i> Back to Results';
+                            backBtn.onclick = function() { closeListingDetail(); };
+                        }
+                        if (navSep) navSep.style.display = '';
+                        if (prevBtn) prevBtn.style.display = '';
+                        if (nextBtn) nextBtn.style.display = '';
+                    } else {
+                        // True standalone (direct URL, no search context) — show close only
+                        if (backBtn) {
+                            backBtn.innerHTML = '<i class="fas fa-arrow-left text-xs"></i> Back';
+                            backBtn.onclick = function() { history.back(); };
+                        }
+                        if (navSep) navSep.style.display = 'none';
+                        if (prevBtn) prevBtn.style.display = 'none';
+                        if (nextBtn) nextBtn.style.display = 'none';
                     }
-                    if (navSep) navSep.style.display = 'none';
-                    if (prevBtn) prevBtn.style.display = 'none';
-                    if (nextBtn) nextBtn.style.display = 'none';
                 }
 
                 // Try immediately (data might already be loaded)
