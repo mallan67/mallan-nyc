@@ -264,7 +264,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   await prisma.sellerLead.update({
     where: { id: prospectId },
-    data: { pitch_data: updated },
+    data: { pitch_data: JSON.parse(JSON.stringify(updated)) },
   });
 
   return NextResponse.json(
