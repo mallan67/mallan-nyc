@@ -20,7 +20,31 @@
         }
 
         function toggleAveragesExpanded() {
-            // Toggle averages expansion
+            var row = document.getElementById('averagesRow');
+            if (!row) return;
+            var isHidden = row.style.display === 'none';
+            row.style.display = isHidden ? '' : 'none';
+            var btn = document.getElementById('toggleAveragesBtn');
+            if (btn) btn.textContent = isHidden ? 'Hide Averages' : 'Show Averages';
+        }
+
+        function updateAveragesRow() {
+            var filtered = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
+            if (!filtered || filtered.length === 0) return;
+            var prices = filtered.map(function(l) { return parseFloat(l.price) || 0; }).filter(function(p) { return p > 0; });
+            var sqfts = filtered.map(function(l) { return parseFloat(l.sqft) || 0; }).filter(function(s) { return s > 0; });
+            var ppsf = prices.length > 0 && sqfts.length > 0
+                ? prices.reduce(function(a,b){return a+b;},0) / sqfts.reduce(function(a,b){return a+b;},0)
+                : 0;
+            var avgPrice = prices.length > 0 ? prices.reduce(function(a,b){return a+b;},0) / prices.length : 0;
+            var avgSqft = sqfts.length > 0 ? sqfts.reduce(function(a,b){return a+b;},0) / sqfts.length : 0;
+
+            var fmt = function(n) { return '$' + Math.round(n).toLocaleString(); };
+            var el = function(id) { return document.getElementById(id); };
+            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice);
+            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf);
+            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft';
+            if (el('resultsTotalCount')) el('resultsTotalCount').textContent = filtered.length;
         }
 
         // Open listing detail in a standalone new browser tab

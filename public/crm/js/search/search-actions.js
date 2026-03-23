@@ -40,31 +40,28 @@
             }
         }
 
-        // Client delivery stubs (client section removed)
-        function toggleClientDeliveryMenu() {}
-        function openDeliveryModal() {}
-        function closeDeliveryModal() {}
-
-        // Select all results (with REBNY bulk export limit)
-        function selectAllResults() {
-            var BULK_LIMIT = 25;
-            var checkboxes = document.querySelectorAll('.listing-checkbox');
-            if (checkboxes.length > BULK_LIMIT) {
-                var proceed = confirm(
-                    'REBNY Compliance Notice\n\n' +
-                    'Selecting all ' + checkboxes.length + ' listings exceeds the bulk export limit of ' + BULK_LIMIT + '.\n\n' +
-                    'Only the first ' + BULK_LIMIT + ' will be selected.\nExport in batches using filtered searches for more.'
-                );
-                if (!proceed) return;
-                var count = 0;
-                checkboxes.forEach(function(cb) {
-                    cb.checked = (count < BULK_LIMIT);
-                    count++;
-                });
-            } else {
-                checkboxes.forEach(function(cb) { cb.checked = true; });
+        // Client delivery — route through Reports modal
+        function toggleClientDeliveryMenu() {
+            var ids = (typeof getSelectedListingIds === 'function') ? getSelectedListingIds() : [];
+            if (ids.length === 0) {
+                if (typeof showToast === 'function') showToast('Please select at least one listing first.', 'warning');
+                return;
             }
-            updateSelectedCount();
+            if (typeof openReportsModal === 'function') openReportsModal(ids, 'email');
+        }
+
+        function openDeliveryModal() {
+            toggleClientDeliveryMenu();
+        }
+
+        function closeDeliveryModal() {
+            var modal = document.getElementById('reportsModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // Select all results
+        function selectAllResults() {
+            if (typeof toggleSelectAll === 'function') return toggleSelectAll();
         }
 
         // Clear selection

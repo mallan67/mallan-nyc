@@ -263,6 +263,8 @@
             // Update counts after render
             updateResultsCount();
 
+            if (typeof updateAveragesRow === 'function') updateAveragesRow();
+
             // Run REBNY Test Suite after each render (non-blocking, silent)
             if (typeof REBNYTestSuite === 'function') {
                 REBNYTestSuite({ verbose: false, context: 'render' });

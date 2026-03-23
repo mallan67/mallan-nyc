@@ -175,7 +175,7 @@
             }
 
             // Update result count (mock)
-            var resultCount = Math.max(50, 400 - activeFilters.length * 50);
+            var resultCount = (typeof getFilteredListings === 'function') ? getFilteredListings(true).length : 0;
             document.getElementById('filterResultCount').textContent = resultCount + ' Results Match';
         }
 
