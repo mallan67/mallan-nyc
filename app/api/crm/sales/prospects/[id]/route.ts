@@ -45,6 +45,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   "consent_opt_out_at",
   "next_follow_up",
   "last_contacted_at",
+  "pitch_data",
 ]);
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
@@ -98,9 +99,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
   const body = await req.json();
 
-  // Filter through allowlist
+  // Filter through allowlist (pitch_data handled separately below with validation)
   const data: Record<string, unknown> = {};
   for (const key of ALLOWED_UPDATE_FIELDS) {
+    if (key === "pitch_data") continue;
     if (key in body) {
       // Convert ISO date strings to Date objects for DateTime fields
       if (
@@ -115,6 +117,70 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
         data[key] = body[key];
       }
     }
+  }
+
+  // Validate and handle pitch_data separately (not copied via allowlist loop above)
+  if ("pitch_data" in body) {
+    const pd = body.pitch_data;
+    if (pd !== null && (typeof pd !== "object" || Array.isArray(pd))) {
+      return NextResponse.json(
+        { error: "pitch_data must be a valid object" },
+        { status: 400 },
+      );
+    }
+    if (pd !== null && pd !== undefined) {
+      // Validate comps array if present
+      if ("comps" in pd) {
+        if (!Array.isArray(pd.comps)) {
+          return NextResponse.json(
+            { error: "pitch_data.comps must be an array" },
+            { status: 400 },
+          );
+        }
+        for (let i = 0; i < pd.comps.length; i++) {
+          const comp = pd.comps[i];
+          if (typeof comp.mls_id !== "string" || !comp.mls_id) {
+            return NextResponse.json(
+              { error: `pitch_data.comps[${i}].mls_id must be a non-empty string` },
+              { status: 400 },
+            );
+          }
+          if (typeof comp.close_price !== "number" || comp.close_price <= 0) {
+            return NextResponse.json(
+              { error: `pitch_data.comps[${i}].close_price must be a number greater than 0` },
+              { status: 400 },
+            );
+          }
+        }
+      }
+      // Validate overrides object if present
+      if ("overrides" in pd) {
+        if (typeof pd.overrides !== "object" || Array.isArray(pd.overrides) || pd.overrides === null) {
+          return NextResponse.json(
+            { error: "pitch_data.overrides must be an object" },
+            { status: 400 },
+          );
+        }
+        const ov = pd.overrides;
+        if ("commission_rate" in ov) {
+          if (typeof ov.commission_rate !== "number" || ov.commission_rate < 0 || ov.commission_rate > 0.15) {
+            return NextResponse.json(
+              { error: "pitch_data.overrides.commission_rate must be a number between 0 and 0.15" },
+              { status: 400 },
+            );
+          }
+        }
+        if ("attorney_fees" in ov) {
+          if (typeof ov.attorney_fees !== "number" || ov.attorney_fees < 0) {
+            return NextResponse.json(
+              { error: "pitch_data.overrides.attorney_fees must be a number >= 0" },
+              { status: 400 },
+            );
+          }
+        }
+      }
+    }
+    data.pitch_data = pd ?? null;
   }
 
   if (Object.keys(data).length === 0) {
