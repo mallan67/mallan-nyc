@@ -406,6 +406,13 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       cooling: features.Cooling ? String(features.Cooling) : undefined,
       laundryFeatures: features.LaundryFeatures ? String(features.LaundryFeatures) : undefined,
       petsAllowedDetail: features.PetsAllowed ? String(features.PetsAllowed) : undefined,
+      appliances: features.Appliances ? String(features.Appliances) : undefined,
+      exteriorFeatures: features.ExteriorFeatures ? String(features.ExteriorFeatures) : undefined,
+      communityFeatures: features.CommunityFeatures ? String(features.CommunityFeatures) : undefined,
+      securityFeatures: features.SecurityFeatures ? String(features.SecurityFeatures) : undefined,
+      poolFeatures: features.PoolFeatures ? String(features.PoolFeatures) : undefined,
+      spaFeatures: features.SpaFeatures ? String(features.SpaFeatures) : undefined,
+      attendanceType: features.AttendanceType ? String(features.AttendanceType) : undefined,
       _source: 'db',
       _displayCompliance: {
         requiresAttribution: true,
@@ -751,12 +758,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const amenitySet = new Set<string>();
 
   // Scan all Trestle feature sources but ONLY add whitelisted values
-  const rawBuildingFeatures = listing.buildingFeatures ? parseTrestleList(listing.buildingFeatures) : [];
-  const rawAssocAmenities = listing.associationAmenities ? parseTrestleList(listing.associationAmenities) : [];
-  const rawCommunity = listing.communityFeatures ? parseTrestleList(listing.communityFeatures) : [];
-  const securityFeatures: string[] = listing.securityFeatures ? parseTrestleList(listing.securityFeatures) : [];
+  // Use splitRaw (not parseTrestleList) so keys match the raw CamelCase whitelist
+  const rawBuildingFeatures = listing.buildingFeatures ? splitRaw(listing.buildingFeatures) : [];
+  const rawAssocAmenities = listing.associationAmenities ? splitRaw(listing.associationAmenities) : [];
+  const rawCommunity = listing.communityFeatures ? splitRaw(listing.communityFeatures) : [];
+  const securityFeatures: string[] = listing.securityFeatures ? splitRaw(listing.securityFeatures) : [];
   const allSources = [...rawBuildingFeatures, ...rawAssocAmenities, ...rawCommunity, ...securityFeatures];
-  // Add exterior features for building-level items
   if (listing.exteriorFeatures) allSources.push(...splitRaw(listing.exteriorFeatures));
   for (const val of allSources) {
     if (APPROVED_AMENITIES[val]) amenitySet.add(APPROVED_AMENITIES[val]);
@@ -817,8 +824,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
   if (listing.heating) unitDetails.push({ label: 'Heating', value: parseTrestleList(listing.heating).join(', ') });
   if (listing.cooling) unitDetails.push({ label: 'Cooling', value: parseTrestleList(listing.cooling).join(', ') });
 
-  // ── Appliances — only Dishwasher, Washer, Dryer (key appliances buyers care about) ──
-  const APPLIANCE_SHOW = new Set(['dishwasher', 'washer', 'dryer', 'washer dryer stacked', 'washer dryer combo']);
+  // ── Appliances — key appliances buyers care about ──
+  const APPLIANCE_SHOW = new Set([
+    'dishwasher', 'washer', 'dryer', 'washer dryer stacked', 'washer dryer combo',
+    'refrigerator', 'microwave', 'oven', 'range', 'garbage disposal',
+    'wine cooler', 'wine refrigerator', 'ice maker',
+  ]);
   const appliancesList: string[] = listing.appliances
     ? parseTrestleList(listing.appliances).filter(a => APPLIANCE_SHOW.has(a.toLowerCase()))
     : [];
