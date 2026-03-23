@@ -703,14 +703,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
     LiveInSuper: 'Live-in Super',
     VirtualDoorman: 'Virtual Doorman',
     ResidentManager: 'Live-in Super',
+    PackageRoom: 'Package Room',
     // Common Areas
     HealthClub: 'Gym/Fitness',
     FitnessCenter: 'Gym/Fitness',
-    YogaStudio: 'Gym/Fitness',
+    YogaStudio: 'Yoga Studio',
     Sauna: 'Sauna',
     SteamRoom: 'Steam Room',
     BuildingRoofDeck: 'Roof Deck',
     BuildingGarden: 'Common Garden',
+    BuildingCourtyard: 'Courtyard',
     Storage: 'Storage',
     BikeStorage: 'Bike Room',
     BicycleStorage: 'Bike Room',
@@ -719,10 +721,31 @@ export default async function ListingPage({ params, searchParams }: Props) {
     Elevators: 'Elevator',
     BusinessCenter: 'Business Center',
     GameRoom: "Residents' Lounge",
-    MediaRoom: "Residents' Lounge",
-    ScreeningRoom: "Residents' Lounge",
-    GolfSimulation: 'Golf Simulation',
+    MediaRoom: 'Media Room',
+    ScreeningRoom: 'Screening Room',
+    GolfSimulation: 'Golf Simulator',
     MaidService: 'Maid Service',
+    // Additional common amenities
+    Gym: 'Gym/Fitness',
+    SwimmingPool: 'Swimming Pool',
+    IndoorPool: 'Indoor Pool',
+    OutdoorPool: 'Outdoor Pool',
+    TennisCourt: 'Tennis Court',
+    BasketballCourt: 'Basketball Court',
+    Playground: 'Playground',
+    CommunityRoom: 'Community Room',
+    PartyRoom: 'Party Room',
+    RecreationRoom: 'Recreation Room',
+    Library: 'Library',
+    Theater: 'Theater',
+    PetGrooming: 'Pet Grooming',
+    PetSpa: 'Pet Spa',
+    DogRun: 'Dog Run',
+    Terrace: 'Terrace',
+    BuildingBalcony: 'Building Terrace',
+    WineStorage: 'Wine Storage',
+    ColdStorage: 'Cold Storage',
+    Valet: 'Valet',
   };
 
   const amenitySet = new Set<string>();
@@ -1286,20 +1309,20 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Building Amenities</h2>
                   {buildingAmenitiesFinal.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <div className="flex flex-wrap gap-2">
                       {buildingAmenitiesFinal.map((amenity) => (
-                        <div key={amenity} className="flex items-center gap-2.5 px-3.5 py-2.5 bg-brand-gold/[0.06] rounded-xl">
-                          <svg className="w-4 h-4 text-brand-gold-deep flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                          <span className="text-[13px] text-brand-dark/80">{amenity}</span>
-                        </div>
+                        <span key={amenity} className="inline-flex items-center gap-2 px-3.5 py-2 bg-black/[0.04] text-brand-dark text-[13px] rounded-full">
+                          <svg className="w-3.5 h-3.5 text-brand-dark/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          {amenity}
+                        </span>
                       ))}
                     </div>
                   )}
                   {hasGarage && (
                     <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-black/5">
-                      <span className="inline-flex items-center gap-2 text-[13px] text-brand-dark/80 bg-black/[0.03] px-3 py-1.5 rounded-lg">
-                        <svg className="w-4 h-4 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8m-8 4h8m-4-8v16M3 21h18M3 3h18" /></svg>
-                        Garage Access
+                      <span className="inline-flex items-center gap-2 text-[13px] text-brand-dark bg-black/[0.04] px-3.5 py-2 rounded-full">
+                        <svg className="w-3.5 h-3.5 text-brand-dark/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        Parking Garage
                       </span>
                     </div>
                   )}
@@ -1310,11 +1333,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
               {petPolicy && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Pet Policy</h2>
-                  <div className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[14px] font-medium ${petsAllowed ? 'text-green-700 bg-green-50 border border-green-200' : 'text-red-700 bg-red-50 border border-red-200'}`}>
+                  <div className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full text-[13px] font-medium ${petsAllowed ? 'text-brand-dark bg-black/[0.04]' : 'text-brand-dark bg-black/[0.04]'}`}>
                     {petsAllowed ? (
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      <svg className="w-4 h-4 text-brand-dark/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                     ) : (
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      <svg className="w-4 h-4 text-brand-dark/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     )}
                     {petPolicy}
                   </div>
