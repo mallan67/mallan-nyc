@@ -573,6 +573,14 @@
             });
         });
 
+        // Convert MM/DD/YYYY to YYYY-MM-DD (ISO) for OData API compatibility
+        function _mdyToISO(mdyStr) {
+            if (!mdyStr) return mdyStr;
+            var parts = mdyStr.split('/');
+            if (parts.length !== 3) return mdyStr;
+            return parts[2] + '-' + parts[0].padStart(2, '0') + '-' + parts[1].padStart(2, '0');
+        }
+
         function collectSearchCriteria() {
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
@@ -815,6 +823,7 @@
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
+            // Dates stored as MM/DD/YYYY, convert to YYYY-MM-DD (ISO) for OData API
             var drpPrefix = currentSearchTab === 'rent' ? 'rental' : 'sale';
 
             // Listed/Updated date range
@@ -826,8 +835,8 @@
                 var toStr = listedDrp.getAttribute('data-to');
                 if (fromStr) {
                     criteria.dateActivityType = activityType; // 'Listed', 'Updated', or 'ListedAndUpdated'
-                    criteria.dateFrom = fromStr;
-                    criteria.dateTo = toStr || fromStr;
+                    criteria.dateFrom = _mdyToISO(fromStr);
+                    criteria.dateTo = _mdyToISO(toStr) || _mdyToISO(fromStr);
                 }
             }
 
@@ -837,8 +846,8 @@
                 var sFrom = signedDrp.getAttribute('data-from');
                 var sTo = signedDrp.getAttribute('data-to');
                 if (sFrom) {
-                    criteria.contractDateFrom = sFrom;
-                    criteria.contractDateTo = sTo || sFrom;
+                    criteria.contractDateFrom = _mdyToISO(sFrom);
+                    criteria.contractDateTo = _mdyToISO(sTo) || _mdyToISO(sFrom);
                 }
             }
 
@@ -848,8 +857,8 @@
                 var sdFrom = soldDrp.getAttribute('data-from');
                 var sdTo = soldDrp.getAttribute('data-to');
                 if (sdFrom) {
-                    criteria.soldDateFrom = sdFrom;
-                    criteria.soldDateTo = sdTo || sdFrom;
+                    criteria.soldDateFrom = _mdyToISO(sdFrom);
+                    criteria.soldDateTo = _mdyToISO(sdTo) || _mdyToISO(sdFrom);
                 }
             }
 
@@ -859,8 +868,8 @@
             if (ohWrapper) {
                 var ohFrom = ohWrapper.getAttribute('data-from');
                 var ohTo = ohWrapper.getAttribute('data-to');
-                if (ohFrom) criteria.openHouseDateFrom = ohFrom;
-                if (ohTo) criteria.openHouseDateTo = ohTo;
+                if (ohFrom) criteria.openHouseDateFrom = _mdyToISO(ohFrom);
+                if (ohTo) criteria.openHouseDateTo = _mdyToISO(ohTo);
             }
 
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
@@ -928,6 +937,20 @@
             forms.forEach(function(formId) {
                 var form = document.getElementById(formId);
                 if (!form) return;
+
+                // Restore any selects that were replaced by custom text inputs
+                // (beds, baths, rooms, sqft "Custom" option replaces the select with an input)
+                form.querySelectorAll('input[data-was-select="true"]').forEach(function(inp) {
+                    var wrapper = inp.closest('.flex.items-center');
+                    if (wrapper && inp.getAttribute('data-original-options')) {
+                        var restoredSelect = document.createElement('select');
+                        restoredSelect.id = inp.id;
+                        restoredSelect.className = inp.className;
+                        restoredSelect.innerHTML = inp.getAttribute('data-original-options');
+                        wrapper.parentNode.replaceChild(restoredSelect, wrapper);
+                    }
+                });
+
                 form.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
                 form.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
                 form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
@@ -935,6 +958,18 @@
             // Also clear advanced mode checkboxes
             var advMode = document.getElementById('searchAdvancedMode');
             if (advMode) {
+                // Restore replaced selects in advanced mode too
+                advMode.querySelectorAll('input[data-was-select="true"]').forEach(function(inp) {
+                    var wrapper = inp.closest('.flex.items-center');
+                    if (wrapper && inp.getAttribute('data-original-options')) {
+                        var restoredSelect = document.createElement('select');
+                        restoredSelect.id = inp.id;
+                        restoredSelect.className = inp.className;
+                        restoredSelect.innerHTML = inp.getAttribute('data-original-options');
+                        wrapper.parentNode.replaceChild(restoredSelect, wrapper);
+                    }
+                });
+
                 advMode.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
                 advMode.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
                 advMode.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
@@ -953,6 +988,31 @@
             if (advRentalActive) advRentalActive.checked = true;
             // Clear neighborhood tags and internal selection state
             if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
+
+            // Hide custom price input rows
+            var saleCustomRow = document.getElementById('saleCustomPriceRow');
+            if (saleCustomRow) saleCustomRow.classList.add('hidden');
+            var rentalCustomRow = document.getElementById('rentalCustomPriceRow');
+            if (rentalCustomRow) rentalCustomRow.classList.add('hidden');
+
+            // Clear all date range pickers (reset data-from/data-to, trigger text, clear buttons)
+            document.querySelectorAll('.drp-wrapper').forEach(function(wrapper) {
+                wrapper.removeAttribute('data-from');
+                wrapper.removeAttribute('data-to');
+                var textEl = wrapper.querySelector('.drp-text');
+                if (textEl) {
+                    textEl.textContent = 'Select Date Range';
+                    textEl.classList.remove('has-value');
+                }
+                var clearBtn = wrapper.querySelector('.drp-clear');
+                if (clearBtn) clearBtn.style.display = 'none';
+            });
+
+            // Clear Open House preset button highlighting
+            document.querySelectorAll('.oh-preset').forEach(function(btn) {
+                btn.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-700');
+            });
+
             // Clear saved search state when form is cleared
             if (typeof _clearSearchState === 'function') _clearSearchState();
         }
