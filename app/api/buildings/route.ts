@@ -72,8 +72,9 @@ const BUILDING_SELECT = [
   'BuildingName', 'YearBuilt', 'StoriesTotal', 'NumberOfUnitsInCommunity',
   'CommonInterest', 'OwnershipType',
   // Building amenities (all IDX Plus available fields)
+  // NOTE: AttendanceType does NOT exist on Trestle Property — doorman info comes from SecurityFeatures/BuildingFeatures
   'BuildingFeatures', 'AssociationAmenities', 'CommunityFeatures',
-  'SecurityFeatures', 'AttendanceType', 'AccessibilityFeatures',
+  'SecurityFeatures', 'AccessibilityFeatures',
   'ExteriorFeatures', 'PatioAndPorchFeatures',
   'PoolFeatures', 'SpaFeatures', 'LaundryFeatures',
   'ParkingFeatures', 'GarageSpaces', 'ParkingTotal',
@@ -459,19 +460,20 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Trestle IDX feed pre-filters non-displayable listings (owner opt-out,
-      // participant-only), so distribution gate fields are not available here.
-      // Run gates for Closed > 24h filtering only.
-      allTrestleRecords = allTrestleRecords.filter(
-        (r) => checkDistributionGates(r as Record<string, unknown>).displayable
-      );
       // gatedRecordsCount stays 0 — IDX feed already excludes gated listings
     } catch (trestleErr) {
       console.warn('[/api/buildings] Trestle fetch error:', trestleErr);
     }
 
-    // Extract building info from ALL records (active, closed, pending — any status)
+    // Extract building-level info from ALL records BEFORE gate filtering.
+    // Building metadata (year, stories, amenities) is building-level, not listing-level —
+    // a closed sale from 2020 still tells us the building has an elevator.
     const buildingInfo = extractBuildingInfo(allTrestleRecords);
+
+    // Now filter for individual listing display (Closed > 24h removed per REBNY RLS Sec. 2.05)
+    allTrestleRecords = allTrestleRecords.filter(
+      (r) => checkDistributionGates(r as Record<string, unknown>).displayable
+    );
 
     // Separate records by status
     const trestleActive = allTrestleRecords.filter((r) => {
