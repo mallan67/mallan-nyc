@@ -1032,16 +1032,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         propertyType={listing.propertyType}
                       />
                     </div>
-                    {/* Neighborhood — the selling point in NYC */}
+                    {/* Neighborhood + Address */}
                     {neighborhood && neighborhood !== borough ? (
-                      <h1 className="font-display font-bold text-xl md:text-2xl text-brand-dark tracking-tight mb-0.5">
+                      <h1 className="text-[14px] font-medium text-brand-dark/70 mb-0.5">
                         {neighborhood}
                       </h1>
                     ) : (
                       <h1 className="sr-only">{fullAddress}</h1>
                     )}
                     <p className="text-brand-dark text-[15px]">{fullAddress}</p>
-                    <p className="text-brand-dark/80 text-[13px]">
+                    <p className="text-brand-dark/70 text-[13px]">
                       {borough}, NY {listing.address.postalCode}
                     </p>
                     {/* Monthly costs — directly under address for immediate buyer visibility */}
