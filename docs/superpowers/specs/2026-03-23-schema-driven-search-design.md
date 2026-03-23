@@ -9,9 +9,33 @@
 
 ## 1. Problem Statement
 
+### 1a. Architecture Vulnerability
 The CRM search form is 7,840 lines of hardcoded HTML with field definitions scattered across 4 tabs × 2 modes. Of 623 advanced form fields, only 275 (44%) are wired to the search engine. 52 field IDs were lost in a revert on March 21 and nobody noticed. Adding one search field requires changes in 7 files. The system is locked to Trestle field names in both HTML and JS.
 
 Meanwhile, 1,447 Trestle fields exist across 12 data resources — the CRM uses 99 (7%). The OpenHouse resource (48 fields) is completely untapped. Custom Property (141 NYC-specific fields) is barely used (5 fields).
+
+### 1b. UX Navigation Problem (CRITICAL)
+The search form and results are separate views. When results display, the form disappears. To change ONE filter (e.g., add "doorman"), the agent must:
+1. Click "Back to Search"
+2. Scroll to find the right section (Attended Lobby)
+3. Check the checkbox
+4. Click Search
+5. Wait for full reload
+6. Lose scroll position in results
+
+This back-and-forth is the #1 workflow friction. The existing "Refine" panel only has price, beds, baths, and status — not the full criteria. An agent sitting with a client who keeps refining criteria has to repeat this cycle for every change.
+
+### 1c. Basic Form Design
+The basic forms (Sale: 134 fields, Rental: 127 fields, Building: 83 fields) are comprehensive agent tools — NOT simple quick-search forms. They cover Quick Search, Price/Rooms, Status, Listing Activity, Ownership, Land Lease, Attended Lobby, Building Features, Building Age/Size, Building Style, Building Allows/Does Not Allow, Financing, Resale/New Dev, Keywords, and Management. This is the right set of fields for an agent with a client. The problem is not what's in the form — it's the navigation between form and results.
+
+## 1d. UI/UX Requirements
+1. **Never leave results to edit criteria** — filters must be adjustable from the results view
+2. **Active criteria visible as pills/tags** — agent sees exactly what's filtering at a glance
+3. **Any filter editable inline** — click a pill or filter icon to modify without full page switch
+4. **Full criteria panel accessible** — for deep changes, a drawer/panel slides in over results
+5. **Results update live** — changing a filter immediately updates results (no Search button needed for refinement)
+6. **Basic mode preserved** — the comprehensive basic form stays as the initial search entry point
+7. **Mobile friendly** — the filter interaction must work on phone screens
 
 ## 2. Design Goals
 
@@ -78,6 +102,47 @@ Meanwhile, 1,447 Trestle fields exist across 12 data resources — the CRM uses 
               │  Result Renderer   │
               │  (existing 5 views)│
               └────────────────────┘
+
+## 3b. UI Flow — Search + Results Navigation
+
+### The Three States
+
+**State 1: Initial Search (full form)**
+Agent opens CRM Search. Sees the full basic form (Sale/Rental/Building tabs) with all sections. Enters criteria. Clicks Search. This is the ENTRY POINT only — used for new searches.
+
+**State 2: Results with Filter Bar (primary working state)**
+Results display. Above results, a persistent FILTER BAR shows:
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ 🏷 Chelsea × | 1+ BR × | < $1.5M × | Condo × | Active ✓ | 🔧+   │
+│                                                                     │
+│ 47 Results | Gallery ▾ | Sort: Price ▾ | ☰ More Filters            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+- Each active filter shows as a **removable pill** (click × to remove, results update)
+- Click any **pill text** to edit inline (e.g., click "$1.5M" → dropdown appears to change max price)
+- **🔧+ button** — quick-add common filters (doorman, elevator, pets, prewar, etc.)
+- **☰ More Filters** — opens the full filter drawer (State 3)
+- Changing ANY filter updates results immediately (no Search button)
+
+**State 3: Filter Drawer (full criteria panel)**
+Agent clicks "More Filters" → a slide-in panel appears over the right side of results (or full-screen on mobile). Contains ALL sections from the basic form + advanced sections. Agent makes changes → results update behind the drawer in real-time. Close drawer → back to State 2 with updated results.
+
+The drawer is the SAME form as the initial search — same sections, same fields, same registry. It just renders in a drawer instead of a full page.
+
+### Key Principle: No "Back to Search"
+There is NO "Back to Search" button. The agent never leaves the results view. The filter bar and drawer handle all criteria changes. The initial search form (State 1) is only for starting a completely new search.
+
+### Tab Switching in Filter Bar
+Sale/Rental/Building tabs show in the filter bar. Switching tabs re-runs the search with the new tab's criteria. The filter drawer shows tab-appropriate sections.
+
+### Mobile Behavior
+On mobile (< 768px):
+- Filter bar shows 2-3 pills + "N more" badge
+- Tapping any pill opens the filter drawer full-screen
+- Drawer has "Apply" and "Clear" at the bottom (sticky)
+- Results are behind the drawer, not visible during editing
 ```
 
 ## 4. Registry Schema (`search-registry.json`)
