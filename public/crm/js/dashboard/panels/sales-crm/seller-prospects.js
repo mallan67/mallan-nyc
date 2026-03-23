@@ -488,10 +488,40 @@ var SellerProspects = (function () {
             '</div>';
         }
 
-        // Auto-fill owner name in first party if empty
-        var firstPartyName = form.querySelector('[name="party_name_0"]');
-        if (firstPartyName && !firstPartyName.value && p.ownername) {
-          firstPartyName.value = p.ownername;
+        // Auto-fill owner/entity from PLUTO ownername
+        if (p.ownername) {
+          var ownerUpper = p.ownername.toUpperCase().trim();
+
+          // Detect entity type from owner name keywords
+          var detectedType = 'individual';
+          if (/\bLLC\b|\bL\.L\.C\b/.test(ownerUpper)) detectedType = 'llc';
+          else if (/\bTRUST\b|\bTRSTEE?\b/.test(ownerUpper)) detectedType = 'trust';
+          else if (/\bCORP\b|\bINC\b|\bCO\b(?!-?OP)/.test(ownerUpper)) detectedType = 'corp';
+          else if (/\bLP\b|\bL\.P\b|\bPARTNERSHIP\b/.test(ownerUpper)) detectedType = 'partnership';
+          else if (/\bESTATE\b|\bDECEASED\b/.test(ownerUpper)) detectedType = 'estate';
+
+          var typeSelect = form.querySelector('[name="entity_type"]');
+          var entityInput = form.querySelector('[name="entity_name"]');
+
+          if (detectedType !== 'individual') {
+            // Entity detected — set type, show & fill entity name
+            if (typeSelect && !typeSelect.dataset.userSet) {
+              typeSelect.value = detectedType;
+              _toggleOwnership(detectedType);
+            }
+            if (entityInput && !entityInput.value) {
+              // Title-case the entity name
+              entityInput.value = p.ownername.replace(/\w\S*/g, function (t) {
+                return t.charAt(0).toUpperCase() + t.substr(1).toLowerCase();
+              });
+            }
+          }
+
+          // Auto-fill first party name if empty
+          var firstPartyName = form.querySelector('[name="party_name_0"]');
+          if (firstPartyName && !firstPartyName.value) {
+            firstPartyName.value = p.ownername;
+          }
         }
       })
       .catch(function () {
