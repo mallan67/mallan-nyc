@@ -488,46 +488,141 @@ var SellerProspects = (function () {
             '</div>';
         }
 
-        // Auto-fill owner/entity from PLUTO ownername
-        if (p.ownername) {
-          var ownerUpper = p.ownername.toUpperCase().trim();
+        // Start with PLUTO owner as fallback, then try ACRIS for deed owner
+        _fillOwnerFields(form, p.ownername);
 
-          // Detect entity type from owner name keywords
-          var detectedType = 'individual';
-          if (/\bLLC\b|\bL\.L\.C\b/.test(ownerUpper)) detectedType = 'llc';
-          else if (/\bTRUST\b|\bTRSTEE?\b/.test(ownerUpper)) detectedType = 'trust';
-          else if (/\bCORP\b|\bINC\b|\bCO\b(?!-?OP)/.test(ownerUpper)) detectedType = 'corp';
-          else if (/\bLP\b|\bL\.P\b|\bPARTNERSHIP\b/.test(ownerUpper)) detectedType = 'partnership';
-          else if (/\bESTATE\b|\bDECEASED\b/.test(ownerUpper)) detectedType = 'estate';
-
-          var typeSelect = form.querySelector('[name="entity_type"]');
-          var entityInput = form.querySelector('[name="entity_name"]');
-
-          if (detectedType !== 'individual') {
-            // Entity detected — set type, show & fill entity name
-            if (typeSelect && !typeSelect.dataset.userSet) {
-              typeSelect.value = detectedType;
-              _toggleOwnership(detectedType);
-            }
-            if (entityInput && !entityInput.value) {
-              // Title-case the entity name
-              entityInput.value = p.ownername.replace(/\w\S*/g, function (t) {
-                return t.charAt(0).toUpperCase() + t.substr(1).toLowerCase();
-              });
-            }
-          }
-
-          // Auto-fill first party name if empty
-          var firstPartyName = form.querySelector('[name="party_name_0"]');
-          if (firstPartyName && !firstPartyName.value) {
-            firstPartyName.value = p.ownername;
-          }
+        // ── Chain ACRIS Parties lookup for the authoritative deed owner ──
+        if (p.bbl) {
+          _lookupAcrisOwner(form, p.bbl.split('.')[0], resultDiv, info);
         }
       })
       .catch(function () {
         if (resultDiv) {
           resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:4px;color:#F59E0B;"></i>Lookup failed. Data will be pulled when you run Research.';
         }
+      });
+  }
+
+  /** Fill owner/entity fields from a name string (PLUTO or ACRIS) */
+  function _fillOwnerFields(form, ownerName) {
+    if (!ownerName || !form) return;
+    var ownerUpper = ownerName.toUpperCase().trim();
+
+    // Detect entity type from owner name keywords
+    var detectedType = 'individual';
+    if (/\bLLC\b|\bL\.L\.C\b/.test(ownerUpper)) detectedType = 'llc';
+    else if (/\bTRUST\b|\bTRSTEE?\b/.test(ownerUpper)) detectedType = 'trust';
+    else if (/\bCORP\b|\bINC\b|\bCO\b(?!-?OP)/.test(ownerUpper)) detectedType = 'corp';
+    else if (/\bLP\b|\bL\.P\b|\bPARTNERSHIP\b/.test(ownerUpper)) detectedType = 'partnership';
+    else if (/\bESTATE\b|\bDECEASED\b/.test(ownerUpper)) detectedType = 'estate';
+
+    var typeSelect = form.querySelector('[name="entity_type"]');
+    var entityInput = form.querySelector('[name="entity_name"]');
+
+    if (detectedType !== 'individual') {
+      if (typeSelect) {
+        typeSelect.value = detectedType;
+        _toggleOwnership(detectedType);
+      }
+      if (entityInput) {
+        entityInput.value = ownerName.replace(/\w\S*/g, function (t) {
+          return t.charAt(0).toUpperCase() + t.substr(1).toLowerCase();
+        });
+      }
+    }
+
+    // Auto-fill first party name
+    var firstPartyName = form.querySelector('[name="party_name_0"]');
+    if (firstPartyName && !firstPartyName.value) {
+      firstPartyName.value = ownerName;
+    }
+  }
+
+  /**
+   * ACRIS Parties lookup — 3 chained SODA calls (all public NYC Open Data):
+   * 1. Real Property Legals → get document_ids for the BBL
+   * 2. Master → find the most recent deed
+   * 3. Parties → get the grantee (buyer = current owner) name
+   */
+  function _lookupAcrisOwner(form, bbl, resultDiv, info) {
+    if (!bbl || bbl.length < 10) return;
+    var borough = bbl[0];
+    var block = bbl.substring(1, 6);
+    var lot = bbl.substring(6, 10);
+
+    var LEGALS = '8h5j-fqxa';   // ACRIS Real Property Legals
+    var MASTER = 'bnx9-e6tj';   // ACRIS Real Property Master
+    var PARTIES = '636b-3b5g';  // ACRIS Real Property Parties
+    var BASE = 'https://data.cityofnewyork.us/resource/';
+
+    // Step 1: Find document IDs for this BBL
+    var legalsUrl = BASE + LEGALS + '.json?' +
+      '$where=' + encodeURIComponent("borough='" + borough + "' AND block='" + block + "' AND lot='" + lot + "'") +
+      '&$select=document_id&$order=document_id%20DESC&$limit=50';
+
+    fetch(legalsUrl)
+      .then(function (r) { return r.json(); })
+      .then(function (ids) {
+        if (!ids || !ids.length) return null;
+        var docIds = [];
+        var seen = {};
+        ids.forEach(function (r) {
+          if (r.document_id && !seen[r.document_id]) {
+            seen[r.document_id] = true;
+            docIds.push(r.document_id);
+          }
+        });
+        if (!docIds.length) return null;
+
+        // Step 2: Find the most recent deed
+        var masterUrl = BASE + MASTER + '.json?' +
+          '$where=' + encodeURIComponent("document_id in ('" + docIds.join("','") + "')") +
+          '&$order=recorded_datetime%20DESC&$limit=' + docIds.length;
+
+        return fetch(masterUrl).then(function (r) { return r.json(); });
+      })
+      .then(function (docs) {
+        if (!docs || !docs.length) return null;
+        var deedTypes = ['DEED', 'DEEDO'];
+        var deed = null;
+        for (var i = 0; i < docs.length; i++) {
+          var type = (docs[i].doc_type || '').toUpperCase();
+          if (deedTypes.some(function (dt) { return type.indexOf(dt) >= 0; })) {
+            deed = docs[i];
+            break;
+          }
+        }
+        if (!deed) return null;
+
+        // Step 3: Get grantee (party_type=2 = buyer = current owner)
+        var partiesUrl = BASE + PARTIES + '.json?' +
+          '$where=' + encodeURIComponent("document_id='" + deed.document_id + "' AND party_type='2'") +
+          '&$limit=5';
+
+        return fetch(partiesUrl).then(function (r) { return r.json(); });
+      })
+      .then(function (parties) {
+        if (!parties || !parties.length) return;
+        var names = parties.map(function (p) { return p.name; }).filter(Boolean);
+        if (!names.length) return;
+        var deedOwner = names.join(', ');
+
+        // Update display
+        if (resultDiv && info) {
+          // Replace PLUTO owner with ACRIS deed owner in the info display
+          info = info.filter(function (i) { return i.indexOf('Owner:') < 0; });
+          info.unshift('<b>Owner (deed):</b> ' + E(deedOwner));
+          resultDiv.innerHTML = '<i class="fas fa-check-circle" style="margin-right:4px;color:#059669;"></i><b>Property Found</b><br>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 16px;margin-top:4px;">' +
+            info.map(function (i) { return '<span>' + i + '</span>'; }).join('') +
+            '</div>';
+        }
+
+        // Override form fields with the authoritative ACRIS deed owner
+        _fillOwnerFields(form, deedOwner);
+      })
+      .catch(function () {
+        // ACRIS lookup is best-effort — PLUTO name already filled as fallback
       });
   }
 
