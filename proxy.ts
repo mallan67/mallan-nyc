@@ -1,4 +1,4 @@
-// middleware.ts
+// proxy.ts — Next.js 16 request interceptor (replaces middleware.ts)
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { checkBot } from "@/lib/middleware/bot-blocker";

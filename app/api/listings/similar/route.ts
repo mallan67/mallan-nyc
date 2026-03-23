@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
     clearTimeout(zipTimer);
 
     if (!res.ok) {
-      console.error(`[/api/listings/similar] Trestle ZIP query failed: ${res.status}`);
+      console.warn(`[/api/listings/similar] Trestle ZIP query failed: ${res.status}`);
       return NextResponse.json({ listings: [] });
     }
 
@@ -237,7 +237,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
-    console.error(`[/api/listings/similar] ${isTimeout ? 'Trestle timeout' : 'Error'}:`, isTimeout ? '(aborted after limit)' : err);
+    if (isTimeout) {
+      console.warn('[/api/listings/similar] Trestle timeout (aborted after limit)');
+    } else {
+      console.error('[/api/listings/similar] Error:', err);
+    }
     return NextResponse.json({ listings: [] });
   }
 }

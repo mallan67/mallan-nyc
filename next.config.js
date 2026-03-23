@@ -25,8 +25,8 @@ const nextConfig = {
   },
 
   // Security headers: single source of truth is lib/middleware/security-headers.ts
-  // CORS: handled by middleware.ts
-  // No headers() function needed — all headers set in middleware
+  // CORS: handled by proxy.ts
+  // No headers() function needed — all headers set in proxy
 };
 
 module.exports = nextConfig;
