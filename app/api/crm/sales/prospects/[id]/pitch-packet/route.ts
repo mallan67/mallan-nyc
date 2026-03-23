@@ -127,29 +127,94 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const compFields =
     "ListingId,UnparsedAddress,UnitNumber,ClosePrice,CloseDate,BedroomsTotal,BathroomsTotalInteger,LivingArea,BuildingName,StreetName,StreetNumber";
 
-  // Recent sales in same building (last 12 months)
-  const twelveMonthsAgo = new Date();
-  twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
-  const dateStr = twelveMonthsAgo.toISOString().split("T")[0];
+  // Parse pitch_data for curated comps and overrides
+  type PitchComp = {
+    mls_id?: string;
+    address: string;
+    unit?: string | null;
+    close_price: number | null;
+    close_date?: string | null;
+    beds?: number | null;
+    baths?: number | null;
+    sqft?: number | null;
+    building_name?: string | null;
+    property_type?: string | null;
+  };
+  type PitchOverrides = {
+    estimated_value?: number;
+    commission_rate?: number;
+    attorney_fees?: number;
+  };
+  type PitchData = {
+    comps?: PitchComp[];
+    overrides?: PitchOverrides;
+  };
 
-  let buildingFilter = "";
-  if (prospect.building_name) {
-    // Escape single quotes in building name for OData
-    const safe = prospect.building_name.replace(/'/g, "''");
-    buildingFilter = `BuildingName eq '${safe}' and StandardStatus eq 'Closed' and CloseDate ge ${dateStr}`;
-  } else if (prospect.address) {
-    // Fallback: match street name + number
-    const parts = prospect.address.trim().split(/\s+/);
-    const streetNum = parts[0]?.replace(/'/g, "''") || "";
-    const streetName = parts.slice(1).join(" ").replace(/'/g, "''") || "";
-    if (streetNum && streetName) {
-      buildingFilter = `StreetNumber eq '${streetNum}' and contains(StreetName,'${streetName}') and StandardStatus eq 'Closed' and CloseDate ge ${dateStr}`;
+  const pitchData = (prospect.pitch_data ?? null) as PitchData | null;
+  const curatedComps: PitchComp[] = pitchData?.comps?.length ? pitchData.comps : [];
+  const overrides: PitchOverrides = pitchData?.overrides ?? {};
+
+  const compsSource: "curated" | "auto" = curatedComps.length > 0 ? "curated" : "auto";
+
+  // ── Recent sales: use curated comps if available, else query Trestle ──
+  let recentSalesFormatted: Array<{
+    address: string;
+    unit: string | null;
+    close_price: number | null;
+    close_date: string | null;
+    beds: number | null;
+    baths: number | null;
+    sqft: number | null;
+    building_name?: string | null;
+    property_type?: string | null;
+  }>;
+
+  if (curatedComps.length > 0) {
+    // PILLAR 1 — use snapshotted curated comps
+    recentSalesFormatted = curatedComps.map((c) => ({
+      address: c.address,
+      unit: c.unit ?? null,
+      close_price: c.close_price ?? null,
+      close_date: c.close_date ?? null,
+      beds: c.beds ?? null,
+      baths: c.baths ?? null,
+      sqft: c.sqft ?? null,
+      building_name: c.building_name ?? null,
+      property_type: c.property_type ?? null,
+    }));
+  } else {
+    // FALLBACK — live Trestle query (backward compat)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
+    const dateStr = twelveMonthsAgo.toISOString().split("T")[0];
+
+    let buildingFilter = "";
+    if (prospect.building_name) {
+      const safe = prospect.building_name.replace(/'/g, "''");
+      buildingFilter = `BuildingName eq '${safe}' and StandardStatus eq 'Closed' and CloseDate ge ${dateStr}`;
+    } else if (prospect.address) {
+      const parts = prospect.address.trim().split(/\s+/);
+      const streetNum = parts[0]?.replace(/'/g, "''") || "";
+      const streetName = parts.slice(1).join(" ").replace(/'/g, "''") || "";
+      if (streetNum && streetName) {
+        buildingFilter = `StreetNumber eq '${streetNum}' and contains(StreetName,'${streetName}') and StandardStatus eq 'Closed' and CloseDate ge ${dateStr}`;
+      }
     }
-  }
 
-  const recentSales = buildingFilter
-    ? await queryTrestle("Property", buildingFilter, compFields, 10)
-    : [];
+    const trestleSales = buildingFilter
+      ? await queryTrestle("Property", buildingFilter, compFields, 10)
+      : [];
+
+    recentSalesFormatted = trestleSales.map((s) => ({
+      address: s.UnparsedAddress || "N/A",
+      unit: s.UnitNumber || null,
+      close_price: s.ClosePrice || null,
+      close_date: s.CloseDate || null,
+      beds: s.BedroomsTotal || null,
+      baths: s.BathroomsTotalInteger || null,
+      sqft: s.LivingArea || null,
+    }));
+  }
 
   // Active competition: same area, similar property type, price +/-30%
   const activeFields =
@@ -215,15 +280,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       open_violations: prospect.open_violations,
       recent_permits: prospect.recent_permits,
     },
-    recent_sales: recentSales.map((s) => ({
-      address: s.UnparsedAddress || "N/A",
-      unit: s.UnitNumber || null,
-      close_price: s.ClosePrice || null,
-      close_date: s.CloseDate || null,
-      beds: s.BedroomsTotal || null,
-      baths: s.BathroomsTotalInteger || null,
-      sqft: s.LivingArea || null,
-    })),
+    recent_sales: recentSalesFormatted,
     active_competition: activeCompetition.map((a) => ({
       address: a.UnparsedAddress || "N/A",
       unit: a.UnitNumber || null,
@@ -240,19 +297,24 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // ═══════════════════════════════════════════════════════════════════════
 
   const prospectSqft = prospect.sqft || 0;
-  const closedCount = recentSales.length;
+  const closedCount = recentSalesFormatted.length;
   const activeCount = activeCompetition.length;
 
-  // Compute price/sqft from comps
-  const compPpsf = recentSales
-    .filter((s) => s.ClosePrice && s.LivingArea && s.LivingArea > 0)
-    .map((s) => (s.ClosePrice as number) / (s.LivingArea as number));
+  // Compute price/sqft from comps (works for both curated and Trestle-sourced)
+  const compPpsf = recentSalesFormatted
+    .filter((s) => s.close_price && s.sqft && s.sqft > 0)
+    .map((s) => (s.close_price as number) / (s.sqft as number));
 
   let conservative = 0;
   let recommended = 0;
   let aspirational = 0;
 
-  if (compPpsf.length > 0 && prospectSqft > 0) {
+  if (overrides.estimated_value) {
+    // Agent-set override takes full priority
+    recommended = overrides.estimated_value;
+    conservative = Math.round(recommended * 0.93);
+    aspirational = Math.round(recommended * 1.07);
+  } else if (compPpsf.length > 0 && prospectSqft > 0) {
     const sorted = [...compPpsf].sort((a, b) => a - b);
     conservative = Math.round(sorted[0] * prospectSqft);
     recommended = Math.round(median(sorted) * prospectSqft);
@@ -264,6 +326,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     recommended = Math.round(mv);
     aspirational = Math.round(mv * 1.1);
   }
+
+  const equityGain = recommended
+    ? recommended - (prospect.last_purchase_price ? Number(prospect.last_purchase_price) : 0)
+    : 0;
 
   // Competition price range
   const competitionPrices = activeCompetition
@@ -368,11 +434,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // ═══════════════════════════════════════════════════════════════════════
 
   const grossPrice = recommended || 0;
-  const commissionRate = 0.06;
+  const commissionRate = overrides.commission_rate ?? 0.06;
   const commission = Math.round(grossPrice * commissionRate);
   const transferTaxRate = nycTransferTaxRate(grossPrice);
   const transferTax = Math.round(grossPrice * transferTaxRate);
-  const attorneyFees = 3000;
+  const attorneyFees = overrides.attorney_fees ?? 3000;
   const mortgagePayoff = prospect.mortgage_amount
     ? Number(prospect.mortgage_amount)
     : 0;
@@ -393,6 +459,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     mortgage_payoff_label: usd(mortgagePayoff),
     net_proceeds: netProceeds,
     net_proceeds_label: usd(netProceeds),
+    equity_gain: equityGain,
+    equity_gain_label: usd(equityGain),
     disclaimer:
       "Estimates only. Actual costs may vary based on negotiated terms, final sale price, and attorney review.",
   };
@@ -426,8 +494,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     auth,
     {
       comps_found: closedCount,
+      comps_source: compsSource,
       active_competition: activeCount,
       recommended_price: recommended,
+      equity_gain: equityGain,
     },
   );
 
@@ -436,6 +506,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       prospect_id: String(prospectId),
       agent_name: agentName,
       generated_at: now.toISOString(),
+      comps_source: compsSource,
       property_intel: propertyIntel,
       pricing_strategy: pricingStrategy,
       exposure_plan: exposurePlan,
