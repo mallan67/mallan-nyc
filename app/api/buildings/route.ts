@@ -70,7 +70,8 @@ const BUILDING_SELECT = [
   'ListOfficeName', 'CloseDate',
   // Building info
   'BuildingName', 'YearBuilt', 'StoriesTotal', 'NumberOfUnitsInCommunity',
-  'CommonInterest', 'OwnershipType',
+  'NumberOfUnitsTotal', 'CommonInterest', 'OwnershipType',
+  'StructureType', 'NewConstructionYN',
   // Building amenities (all IDX Plus available fields)
   // NOTE: AttendanceType does NOT exist on Trestle Property — doorman info comes from SecurityFeatures/BuildingFeatures
   'BuildingFeatures', 'AssociationAmenities', 'CommunityFeatures',
@@ -79,6 +80,10 @@ const BUILDING_SELECT = [
   'PoolFeatures', 'SpaFeatures', 'LaundryFeatures',
   'ParkingFeatures', 'GarageSpaces', 'ParkingTotal',
   'Heating', 'Cooling',
+  // Interior & unit details (aggregated at building level)
+  'Flooring', 'InteriorFeatures', 'Appliances',
+  // Financial
+  'TaxAnnualAmount',
   // Pets
   'PetsAllowed',
   // Green
@@ -99,6 +104,12 @@ function extractBuildingInfo(records: TrestleRecord[]) {
     totalUnits: null as number | null,
     commonInterest: null as string | null,
     ownershipType: null as string | null,
+    structureType: null as string | null,
+    newConstruction: null as boolean | null,
+    taxAnnualAmount: null as number | null,
+    flooring: [] as string[],
+    interiorFeatures: [] as string[],
+    appliances: [] as string[],
     buildingFeatures: [] as string[],
     associationAmenities: [] as string[],
     communityFeatures: [] as string[],
@@ -139,8 +150,12 @@ function extractBuildingInfo(records: TrestleRecord[]) {
     if (!info.yearBuilt && r.YearBuilt) info.yearBuilt = Number(r.YearBuilt);
     if (!info.storiesTotal && r.StoriesTotal) info.storiesTotal = Number(r.StoriesTotal);
     if (!info.totalUnits && r.NumberOfUnitsInCommunity) info.totalUnits = Number(r.NumberOfUnitsInCommunity);
+    if (!info.totalUnits && r.NumberOfUnitsTotal) info.totalUnits = Number(r.NumberOfUnitsTotal);
     if (!info.commonInterest && r.CommonInterest) info.commonInterest = String(r.CommonInterest);
     if (!info.ownershipType && r.OwnershipType) info.ownershipType = String(r.OwnershipType);
+    if (!info.structureType && r.StructureType) info.structureType = String(r.StructureType);
+    if (info.newConstruction === null && r.NewConstructionYN != null) info.newConstruction = Boolean(r.NewConstructionYN);
+    if (!info.taxAnnualAmount && r.TaxAnnualAmount) info.taxAnnualAmount = Number(r.TaxAnnualAmount);
     if (!info.garageSpaces && r.GarageSpaces) info.garageSpaces = Number(r.GarageSpaces);
     if (!info.parkingTotal && r.ParkingTotal) info.parkingTotal = Number(r.ParkingTotal);
     if (!info.associationFee && r.AssociationFee) info.associationFee = Number(r.AssociationFee);
@@ -152,6 +167,9 @@ function extractBuildingInfo(records: TrestleRecord[]) {
     setList('communityFeatures', r.CommunityFeatures);
     setList('securityFeatures', r.SecurityFeatures);
     setList('attendanceType', r.AttendanceType);
+    setList('flooring', r.Flooring);
+    setList('interiorFeatures', r.InteriorFeatures);
+    setList('appliances', r.Appliances);
     setList('accessibilityFeatures', r.AccessibilityFeatures);
     setList('exteriorFeatures', r.ExteriorFeatures);
     setList('patioAndPorchFeatures', r.PatioAndPorchFeatures);
@@ -271,6 +289,9 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     },
     heating: buildingInfo.heating.map(formatFeatureLabel),
     cooling: buildingInfo.cooling.map(formatFeatureLabel),
+    flooring: buildingInfo.flooring.map(formatFeatureLabel),
+    interiorFeatures: buildingInfo.interiorFeatures.map(formatFeatureLabel),
+    appliances: buildingInfo.appliances.map(formatFeatureLabel),
     associationFee: buildingInfo.associationFee,
     associationFeeFrequency: buildingInfo.associationFeeFrequency,
     associationFeeIncludes: buildingInfo.associationFeeIncludes.map(formatFeatureLabel),
@@ -657,12 +678,18 @@ export async function GET(request: NextRequest) {
         totalUnits: buildingInfo.totalUnits,
         commonInterest: buildingInfo.commonInterest,
         ownershipType: buildingInfo.ownershipType,
+        structureType: buildingInfo.structureType,
+        newConstruction: buildingInfo.newConstruction,
+        taxAnnualAmount: buildingInfo.taxAnnualAmount,
         amenities: formatted.amenities,
         petPolicy: formatted.petPolicy,
         view: formatted.view,
         parking: formatted.parking,
         heating: formatted.heating,
         cooling: formatted.cooling,
+        flooring: formatted.flooring,
+        interiorFeatures: formatted.interiorFeatures,
+        appliances: formatted.appliances,
         associationFee: formatted.associationFee,
         associationFeeFrequency: formatted.associationFeeFrequency,
         associationFeeIncludes: formatted.associationFeeIncludes,

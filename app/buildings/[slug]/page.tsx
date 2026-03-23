@@ -56,12 +56,18 @@ interface BuildingInfo {
   totalUnits: number | null;
   commonInterest: string | null;
   ownershipType: string | null;
+  structureType: string | null;
+  newConstruction: boolean | null;
+  taxAnnualAmount: number | null;
   amenities: string[];
   petPolicy: string[];
   view: string[];
   parking: { features: string[]; garageSpaces: number | null; totalSpaces: number | null };
   heating: string[];
   cooling: string[];
+  flooring: string[];
+  interiorFeatures: string[];
+  appliances: string[];
   associationFee: number | null;
   associationFeeFrequency: string | null;
   associationFeeIncludes: string[];
@@ -184,11 +190,12 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
   const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0);
   const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
   const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
-  const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType;
+  const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType || building.structureType || building.newConstruction || building.taxAnnualAmount;
   const hasParking = building.parking.features.length > 0 || building.parking.garageSpaces || building.parking.totalSpaces;
   const hasHvac = building.heating.length > 0 || building.cooling.length > 0;
+  const hasInterior = building.flooring.length > 0 || building.interiorFeatures.length > 0 || building.appliances.length > 0;
   const hasFeeInfo = building.associationFee && building.associationFee > 0;
-  const hasAnyData = activeUnits.length > 0 || saleHistory.length > 0 || building.amenities.length > 0 || building.yearBuilt || building.storiesTotal;
+  const hasAnyData = activeUnits.length > 0 || saleHistory.length > 0 || building.amenities.length > 0 || building.yearBuilt || building.storiesTotal || building.totalUnits || building.structureType || building.commonInterest;
 
   // JSON-LD structured data
   const jsonLd = {
@@ -242,11 +249,12 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
             {building.address}{building.postalCode && <>, New York, NY {building.postalCode}</>}
           </p>
           {/* Quick stats inline */}
-          <div className="flex flex-wrap gap-4 mt-4 text-sm">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 text-sm">
             {building.yearBuilt && <span className="text-white/50">Built {building.yearBuilt}</span>}
             {building.storiesTotal && <span className="text-white/50">{building.storiesTotal} Stories</span>}
             {building.totalUnits && <span className="text-white/50">{building.totalUnits} Units</span>}
-            {building.ownershipType && <span className="text-white/50">{building.ownershipType}</span>}
+            {building.commonInterest && <span className="text-white/50">{building.commonInterest}</span>}
+            {building.structureType && <span className="text-white/50">{building.structureType.replace(/([a-z])([A-Z])/g, '$1 $2')}</span>}
           </div>
         </div>
       </section>
@@ -389,14 +397,59 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
           )}
 
           {/* Building Details & Amenities */}
-          {(building.amenities.length > 0 || hasBuildingDetails || hasParking || hasHvac || hasFeeInfo || building.view.length > 0) && (
+          {(building.amenities.length > 0 || hasBuildingDetails || hasParking || hasHvac || hasFeeInfo || hasInterior || building.view.length > 0) && (
             <section className="py-6 border-t border-black/[0.06]">
               <h2 className="font-display text-xl font-bold text-brand-dark mb-6">Building Details</h2>
               {hasBuildingDetails && (
-                <div className="flex flex-wrap gap-x-8 gap-y-2 mb-6 text-[13px]">
-                  {building.ownershipType && <div><span className="text-brand-dark/50">Ownership:</span> <span className="font-medium text-brand-dark">{building.ownershipType}</span></div>}
-                  {building.commonInterest && <div><span className="text-brand-dark/50">Type:</span> <span className="font-medium text-brand-dark">{building.commonInterest}</span></div>}
-                  {building.totalUnits && <div><span className="text-brand-dark/50">Total Units:</span> <span className="font-medium text-brand-dark">{building.totalUnits}</span></div>}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
+                  {building.commonInterest && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Type</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{building.commonInterest}</p>
+                    </div>
+                  )}
+                  {building.structureType && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Structure</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{building.structureType.replace(/([a-z])([A-Z])/g, '$1 $2')}</p>
+                    </div>
+                  )}
+                  {building.totalUnits && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Total Units</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{building.totalUnits}</p>
+                    </div>
+                  )}
+                  {building.storiesTotal && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Stories</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{building.storiesTotal}</p>
+                    </div>
+                  )}
+                  {building.yearBuilt && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Year Built</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{building.yearBuilt}</p>
+                    </div>
+                  )}
+                  {building.ownershipType && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Ownership</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{building.ownershipType}</p>
+                    </div>
+                  )}
+                  {building.newConstruction && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Construction</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">New Construction</p>
+                    </div>
+                  )}
+                  {building.taxAnnualAmount && building.taxAnnualAmount > 0 && (
+                    <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
+                      <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Annual Tax</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{formatPrice(building.taxAnnualAmount)}</p>
+                    </div>
+                  )}
                 </div>
               )}
               {building.amenities.length > 0 && (
@@ -427,6 +480,15 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                 )}
                 {building.cooling.length > 0 && (
                   <div><span className="text-brand-dark/50">Cooling:</span> <span className="font-medium text-brand-dark">{building.cooling.join(', ')}</span></div>
+                )}
+                {building.flooring.length > 0 && (
+                  <div><span className="text-brand-dark/50">Flooring:</span> <span className="font-medium text-brand-dark">{building.flooring.join(', ')}</span></div>
+                )}
+                {building.interiorFeatures.length > 0 && (
+                  <div><span className="text-brand-dark/50">Interior:</span> <span className="font-medium text-brand-dark">{building.interiorFeatures.join(', ')}</span></div>
+                )}
+                {building.appliances.length > 0 && (
+                  <div><span className="text-brand-dark/50">Appliances:</span> <span className="font-medium text-brand-dark">{building.appliances.join(', ')}</span></div>
                 )}
                 {hasFeeInfo && (
                   <div>
