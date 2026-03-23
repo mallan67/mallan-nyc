@@ -16243,8 +16243,17 @@ function manageShowToast(msg) {
 
                 var label = canonicals.length === 1 ? canonicals[0] : canonicals.length + ' neighborhoods';
                 if (typeof showToast === 'function') {
-                    showToast(label + ' added to search', 'success');
+                    showToast(label + ' added — searching...', 'success');
                 }
+
+                // Auto-search immediately after neighborhood selection
+                setTimeout(function() {
+                    performSearch();
+                    // Auto-open map if not already open
+                    if (typeof isResultsMapOpen === 'function' && !isResultsMapOpen()) {
+                        if (typeof toggleResultsMap === 'function') toggleResultsMap();
+                    }
+                }, 200);
             });
         };
 
