@@ -1032,18 +1032,18 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         propertyType={listing.propertyType}
                       />
                     </div>
-                    {/* Neighborhood + Address */}
+                    {/* Address + Neighborhood */}
+                    <p className="text-brand-dark text-[15px]">{fullAddress}</p>
+                    <p className="text-brand-dark text-[15px]">
+                      {borough}, NY {listing.address.postalCode}
+                    </p>
                     {neighborhood && neighborhood !== borough ? (
-                      <h1 className="text-[14px] font-medium text-brand-dark/70 mb-0.5">
+                      <h1 className="text-[13px] font-medium text-brand-dark/60 mt-1">
                         {neighborhood}
                       </h1>
                     ) : (
                       <h1 className="sr-only">{fullAddress}</h1>
                     )}
-                    <p className="text-brand-dark text-[15px]">{fullAddress}</p>
-                    <p className="text-brand-dark/70 text-[13px]">
-                      {borough}, NY {listing.address.postalCode}
-                    </p>
                     {/* Monthly costs — directly under address for immediate buyer visibility */}
                     {!isRental && (listing.associationFee ? listing.associationFee > 0 : false) && (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[14px] text-brand-dark">
