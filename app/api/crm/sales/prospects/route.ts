@@ -11,22 +11,6 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { serializeBigInts } from "@/lib/api/serialize";
 
-/** Default outreach cadence steps auto-created for every new prospect */
-const DEFAULT_CADENCE: {
-  day_offset: number;
-  type: string;
-  channel: string;
-  subject: string;
-}[] = [
-  { day_offset: 1,  type: "intro_cma",      channel: "email", subject: "Your Home's Current Market Value" },
-  { day_offset: 7,  type: "neighbor_sold",   channel: "email", subject: "Recent Sale in Your Building" },
-  { day_offset: 14, type: "follow_up",       channel: "email", subject: "Following Up \u2014 Market Update" },
-  { day_offset: 21, type: "market_report",   channel: "email", subject: "Market Report for Your Area" },
-  { day_offset: 30, type: "cost_analysis",   channel: "email", subject: "What It Actually Costs to Sell" },
-  { day_offset: 60, type: "re_engage",       channel: "email", subject: "Updated Home Valuation" },
-  { day_offset: 90, type: "re_engage",       channel: "email", subject: "Market Update \u2014 New Activity" },
-];
-
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
@@ -159,25 +143,8 @@ export async function POST(req: NextRequest) {
       authorized_signatories: authorized_signatories || null,
       status: "new",
       assigned_agent_id: auth.userId,
-      // Auto-create cadence steps
-      cadence_steps: {
-        createMany: {
-          data: DEFAULT_CADENCE.map((step) => {
-            const scheduled = new Date();
-            scheduled.setDate(scheduled.getDate() + step.day_offset);
-            return {
-              day_offset: step.day_offset,
-              type: step.type,
-              channel: step.channel,
-              subject: step.subject,
-              status: "pending",
-              scheduled_date: scheduled,
-            };
-          }),
-        },
-      },
-      // Set next_follow_up to earliest step
-      next_follow_up: new Date(Date.now() + 86400000), // tomorrow (day 1)
+      // Cadence steps are added manually by the agent via the Outreach tab.
+      // No default cadence auto-created — agents decide their own outreach strategy.
     },
     include: {
       cadence_steps: { orderBy: { day_offset: "asc" } },
