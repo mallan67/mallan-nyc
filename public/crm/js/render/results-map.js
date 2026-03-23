@@ -467,23 +467,41 @@
     if (!wrapper) return;
 
     if (_isOpen) {
-      // Show map panel above results
-      wrapper.style.cssText = 'display:block; width:100%; height:500px; position:relative; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:16px; overflow:hidden;';
+      // Enable flex split layout — map beside results
+      var splitWrapper = document.getElementById('resultsSplitWrapper');
+      var resultsContainer = document.getElementById('resultsContainer');
+      var mapContainer = document.getElementById('resultsMapContainer');
+
+      if (splitWrapper) {
+        splitWrapper.style.display = 'flex';
+        splitWrapper.style.alignItems = 'stretch';
+      }
+      wrapper.style.display = 'block';
+      wrapper.style.width = '45%';
+      wrapper.style.minWidth = '360px';
+      wrapper.style.flexShrink = '0';
+      wrapper.style.position = 'relative';
+      wrapper.style.borderLeft = '1px solid #e5e7eb';
+      if (resultsContainer) {
+        resultsContainer.style.flex = '1';
+        resultsContainer.style.minWidth = '0';
+        resultsContainer.style.overflowY = 'auto';
+      }
+      if (mapContainer) {
+        mapContainer.style.position = 'sticky';
+        mapContainer.style.top = '0';
+        mapContainer.style.height = 'calc(100vh - 120px)';
+      }
+
       if (toggleBtn) {
         toggleBtn.classList.add('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.remove('text-gray-500');
       }
 
-      // Move wrapper before resultsContainer for above-results layout
-      var resultsContainer = document.getElementById('resultsContainer');
-      if (resultsContainer && wrapper.parentElement) {
-        wrapper.parentElement.insertBefore(wrapper, resultsContainer);
-      }
-
       ensureMapLibre(function () {
         // Set container to fill wrapper
         var container = document.getElementById('resultsMapContainer');
-        if (container) container.style.cssText = 'width:100%; height:100%;';
+        if (container) container.style.cssText = 'position:sticky; top:0; height:calc(100vh - 120px); width:100%;';
         setTimeout(function () {
           initMap();
           if (_map) {
@@ -493,8 +511,14 @@
         }, 150);
       });
     } else {
-      // Hide map
+      // Hide map — reset flex split
       wrapper.style.display = 'none';
+      var resultsContainer = document.getElementById('resultsContainer');
+      if (resultsContainer) {
+        resultsContainer.style.flex = '';
+        resultsContainer.style.minWidth = '';
+        resultsContainer.style.overflowY = '';
+      }
       if (toggleBtn) {
         toggleBtn.classList.remove('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.add('text-gray-500');
