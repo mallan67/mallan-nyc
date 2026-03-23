@@ -17,8 +17,9 @@ import { serializeBigInts } from "@/lib/api/serialize";
 type RouteParams = { params: Promise<{ id: string }> };
 
 // ── Trestle helper ──────────────────────────────────────────────────────
-const TRESTLE_API = "https://api.cotality.com/trestle";
-const token = process.env.TRESTLE_TOKEN;
+import { getAccessToken } from "@/lib/idx/auth";
+
+const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
 interface TrestleProperty {
   ListingId?: string;
@@ -28,7 +29,7 @@ interface TrestleProperty {
   ListPrice?: number;
   CloseDate?: string;
   BedroomsTotal?: number;
-  BathroomsTotalDecimal?: number;
+  BathroomsTotalInteger?: number;
   LivingArea?: number;
   StandardStatus?: string;
   PropertyType?: string;
@@ -44,8 +45,8 @@ async function queryTrestle(
   select: string,
   top = 10,
 ): Promise<TrestleProperty[]> {
-  if (!token) return [];
   try {
+    const token = await getAccessToken();
     const url = `${TRESTLE_API}/odata/${resource}?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=${top}&$orderby=ModificationTimestamp desc`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // ═══════════════════════════════════════════════════════════════════════
 
   const compFields =
-    "ListingId,UnparsedAddress,UnitNumber,ClosePrice,CloseDate,BedroomsTotal,BathroomsTotalDecimal,LivingArea,BuildingName,StreetName,StreetNumber";
+    "ListingId,UnparsedAddress,UnitNumber,ClosePrice,CloseDate,BedroomsTotal,BathroomsTotalInteger,LivingArea,BuildingName,StreetName,StreetNumber";
 
   // Recent sales in same building (last 12 months)
   const twelveMonthsAgo = new Date();
@@ -152,7 +153,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   // Active competition: same area, similar property type, price +/-30%
   const activeFields =
-    "ListingId,UnparsedAddress,UnitNumber,ListPrice,BedroomsTotal,BathroomsTotalDecimal,LivingArea,StandardStatus,PropertyType";
+    "ListingId,UnparsedAddress,UnitNumber,ListPrice,BedroomsTotal,BathroomsTotalInteger,LivingArea,StandardStatus,PropertyType";
 
   let competitionFilter = "";
   if (prospect.postal_code || prospect.neighborhood) {
@@ -220,7 +221,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       close_price: s.ClosePrice || null,
       close_date: s.CloseDate || null,
       beds: s.BedroomsTotal || null,
-      baths: s.BathroomsTotalDecimal || null,
+      baths: s.BathroomsTotalInteger || null,
       sqft: s.LivingArea || null,
     })),
     active_competition: activeCompetition.map((a) => ({
@@ -228,7 +229,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       unit: a.UnitNumber || null,
       list_price: a.ListPrice || null,
       beds: a.BedroomsTotal || null,
-      baths: a.BathroomsTotalDecimal || null,
+      baths: a.BathroomsTotalInteger || null,
       sqft: a.LivingArea || null,
       property_type: a.PropertyType || null,
     })),
