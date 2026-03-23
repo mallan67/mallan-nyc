@@ -56,6 +56,15 @@
     // Track selected neighborhoods per input (keyed by tagsContainerId)
     var _selected = {};
 
+    // Clear all neighborhood selections and tags (called by clearSearchForm)
+    window.clearAllNeighborhoods = function() {
+        for (var key in _selected) { delete _selected[key]; }
+        ['saleNeighborhoodTags', 'rentalNeighborhoodTags', 'buildingNeighborhoodTags', 'advancedNeighborhoodTags'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
+    };
+
     function getSelected(tagsId) {
         if (!_selected[tagsId]) _selected[tagsId] = [];
         return _selected[tagsId];

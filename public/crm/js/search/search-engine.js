@@ -243,6 +243,8 @@
             if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
             if (criteria.soldDateFrom || criteria.contractDateFrom) params.closeDateFrom = criteria.soldDateFrom || criteria.contractDateFrom;
             if (criteria.soldDateTo || criteria.contractDateTo) params.closeDateTo = criteria.soldDateTo || criteria.contractDateTo;
+            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
             // Ownership (CommonInterest — OData searchable)
             if (criteria.ownership && criteria.ownership.length > 0) {
                 params.ownership = criteria.ownership.join(',');
@@ -670,6 +672,20 @@
                 }
             }
 
+            // PropertySubType checkboxes (Townhouse, Conversion, Single Family, etc.)
+            var propertySubTypeChecked = [];
+            var advModeEl = document.getElementById('searchAdvancedMode');
+            var pstIsAdvanced = advModeEl && advModeEl.style.display !== 'none' && !advModeEl.classList.contains('hidden');
+            var pstSelector = pstIsAdvanced
+                ? '#searchAdvancedMode input[data-field="PropertySubType"]:checked'
+                : (activeBasicForm ? '#' + activeBasicForm.id + ' input[data-field="PropertySubType"]:checked' : 'input[data-field="PropertySubType"]:checked');
+            document.querySelectorAll(pstSelector).forEach(function(cb) {
+                propertySubTypeChecked.push(cb.value);
+            });
+            if (propertySubTypeChecked.length > 0) {
+                criteria.propertySubType = propertySubTypeChecked.join(',');
+            }
+
             // Status checkboxes (MlsStatus) — collect all checked statuses
             // Determine which container has the status checkboxes
             var statusContainer = activeBasicForm;
@@ -740,6 +756,15 @@
                 if (selectedNeighborhoods.length > 0) {
                     criteria.neighborhoods = selectedNeighborhoods;
                 }
+
+                // Borough — derive from selected neighborhoods if all are from one borough
+                if (selectedNeighborhoods.length > 0) {
+                    var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
+                    var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
+                    if (uniqueBoroughs.length === 1) {
+                        criteria.borough = uniqueBoroughs[0];
+                    }
+                }
             }
 
             // Quick Search fields — RLS ID, Zip, Unit
@@ -793,6 +818,16 @@
                     criteria.soldDateFrom = sdFrom;
                     criteria.soldDateTo = sdTo || sdFrom;
                 }
+            }
+
+            // Open House date range
+            var ohDrpId = (currentSearchTab === 'rent') ? 'rentalOpenHouse' : 'saleOpenHouse';
+            var ohWrapper = document.querySelector('.drp-wrapper[data-drp="' + ohDrpId + '"]');
+            if (ohWrapper) {
+                var ohFrom = ohWrapper.getAttribute('data-from');
+                var ohTo = ohWrapper.getAttribute('data-to');
+                if (ohFrom) criteria.openHouseDateFrom = ohFrom;
+                if (ohTo) criteria.openHouseDateTo = ohTo;
             }
 
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
@@ -883,6 +918,8 @@
             // Re-check the "Active" checkbox in advanced mode (rental status)
             var advRentalActive = document.querySelector('#rentalStatusOptions [data-field="MlsStatus"][data-value="Active"]');
             if (advRentalActive) advRentalActive.checked = true;
+            // Clear neighborhood tags and internal selection state
+            if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
             // Clear saved search state when form is cleared
             if (typeof _clearSearchState === 'function') _clearSearchState();
         }
@@ -1079,6 +1116,14 @@
                     if (!match) return false;
                 }
 
+                // PropertySubType filter
+                if (criteria.propertySubType) {
+                    var pstValues = criteria.propertySubType.split(',').map(function(v) { return v.toLowerCase(); });
+                    var sub = (listing.propertySubType || '').toLowerCase();
+                    var pstMatch = pstValues.some(function(v) { return sub.indexOf(v) !== -1; });
+                    if (!pstMatch) return false;
+                }
+
                 // Address / building name filter — partial match
                 if (criteria.address) {
                     var normAddr = normalizeAddress(criteria.address);
@@ -1168,6 +1213,16 @@
                     sTo.setHours(23, 59, 59);
                     var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
                     if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
+                }
+
+                // Open House date filter
+                if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
+                    var ohFrom = criteria.openHouseDateFrom ? new Date(criteria.openHouseDateFrom) : null;
+                    var ohTo = criteria.openHouseDateTo ? new Date(criteria.openHouseDateTo) : null;
+                    if (!listing.openHouseDate) return false;
+                    var ohDate = new Date(listing.openHouseDate);
+                    if (ohFrom && ohDate < ohFrom) return false;
+                    if (ohTo && ohDate > ohTo) return false;
                 }
 
                 return true;
