@@ -88,10 +88,29 @@ export async function POST(req: NextRequest) {
       listing_type: true,
       property_type: true,
       media: true,
+      // REBNY distribution gate fields
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      owner_opt_out: true,
+      participant_only: true,
     },
   });
   if (!listing) {
     return NextResponse.json({ ok: false, error: "Listing not found" }, { status: 404 });
+  }
+
+  // REBNY compliance: server-side distribution gate check (defense-in-depth)
+  // Listings with any gate flag set to restrict display must not be sent to clients.
+  if (
+    listing.idx_display_yn === false ||
+    listing.internet_entire_listing_display_yn === false ||
+    listing.owner_opt_out === true ||
+    listing.participant_only === true
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "This listing is not eligible for distribution per REBNY RLS rules." },
+      { status: 400 }
+    );
   }
 
   // Resolve agent name for email
