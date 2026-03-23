@@ -35,6 +35,7 @@
          * Used by the search query builder so the filter matches any listing
          * regardless of which variant was used in the RLS data.
          */
+        // DEPRECATED: Neighborhood variant expansion handled server-side. Kept for potential future use.
         function expandCanonicalToVariants(canonicalNames) {
             if (!_aliasReverseMap || !canonicalNames) return canonicalNames;
             var expanded = [];

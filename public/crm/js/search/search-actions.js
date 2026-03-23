@@ -4,6 +4,7 @@
 
         // Toggle results view (grid/list/map)
         // Legacy view toggle - kept for backwards compatibility, superseded by setViewMode()
+        // DEPRECATED: Superseded by setViewMode() in render-dispatcher.js. Kept for onclick compatibility.
         function toggleResultsView(view) {
             var grid = document.getElementById('resultsGrid');
             var viewGrid = document.getElementById('viewGrid');
