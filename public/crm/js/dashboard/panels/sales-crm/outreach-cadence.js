@@ -24,8 +24,12 @@ var OutreachCadence = (function () {
 
     h += '<div class="flex items-center justify-between">';
     h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-paper-plane text-gold mr-2"></i>Outreach Cadence (' + steps.length + ' steps)</h3>';
+    h += '<div class="flex gap-2">';
+    if (steps.length > 0) {
+      h += '<button class="btn btn-sm btn-outline text-red-500" onclick="OutreachCadence._clearAll(\'' + E(String(p.id)) + '\')"><i class="fas fa-trash-alt mr-1"></i>Clear All</button>';
+    }
     h += '<button class="btn btn-sm btn-gold" onclick="OutreachCadence._addStep(\'' + E(String(p.id)) + '\')"><i class="fas fa-plus mr-1"></i>Add Step</button>';
-    h += '</div>';
+    h += '</div></div>';
 
     if (steps.length === 0) {
       h += '<div class="text-center py-12 bg-gray-50 rounded-xl">';
@@ -69,6 +73,10 @@ var OutreachCadence = (function () {
         } else if (step.scheduled_at) {
           h += '<span class="text-[10px] text-gray-500">' + D(step.scheduled_at) + '</span>';
         }
+
+        // Delete button
+        h += '<button class="text-gray-300 hover:text-red-500 p-1 flex-shrink-0" title="Delete step" onclick="event.stopPropagation();OutreachCadence._deleteStep(\'' + E(String(p.id)) + '\',\'' + E(String(step.id)) + '\')">' +
+          '<i class="fas fa-trash-alt text-xs"></i></button>';
 
         h += '</div>';
       });
@@ -128,9 +136,31 @@ var OutreachCadence = (function () {
     }).catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
+  function _deleteStep(prospectId, stepId) {
+    if (!confirm('Delete this cadence step?')) return;
+    MallanAPI._fetch('/api/crm/sales/prospects/' + prospectId + '/outreach?stepId=' + stepId, { method: 'DELETE' })
+      .then(function () {
+        CRM.toast('Step deleted', 'success');
+        if (typeof SellerProspects !== 'undefined') SellerProspects.openWorkspace(prospectId);
+      })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
+  }
+
+  function _clearAll(prospectId) {
+    if (!confirm('Delete all cadence steps for this prospect?')) return;
+    MallanAPI._fetch('/api/crm/sales/prospects/' + prospectId + '/outreach?all=true', { method: 'DELETE' })
+      .then(function () {
+        CRM.toast('All steps cleared', 'success');
+        if (typeof SellerProspects !== 'undefined') SellerProspects.openWorkspace(prospectId);
+      })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
+  }
+
   return {
     render: render,
     _addStep: _addStep,
     _submitStep: _submitStep,
+    _deleteStep: _deleteStep,
+    _clearAll: _clearAll,
   };
 })();

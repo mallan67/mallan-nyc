@@ -281,3 +281,76 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   return NextResponse.json({ step: serializeBigInts(step) }, { status: 201 });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DELETE — Delete a cadence step (?stepId=X) or all steps (?all=true)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+  const writeCheck = assertWriteAllowed();
+  if (writeCheck) return writeCheck;
+
+  const { id } = await params;
+  const prospectId = safeBigInt(id);
+  if (!prospectId) {
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+  }
+
+  const prospect = await loadProspect(prospectId, auth);
+  if (!prospect) {
+    return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
+  }
+
+  const sp = req.nextUrl.searchParams;
+  const stepIdStr = sp.get("stepId");
+  const clearAll = sp.get("all") === "true";
+
+  if (clearAll) {
+    const result = await prisma.outreachCadenceStep.deleteMany({
+      where: { seller_lead_id: prospectId },
+    });
+
+    await logAuditEvent(
+      "seller_outreach_steps_cleared",
+      "seller_lead",
+      String(prospectId),
+      auth,
+      { deleted_count: result.count },
+    );
+
+    return NextResponse.json({ success: true, deleted: result.count });
+  }
+
+  if (stepIdStr) {
+    const stepId = safeBigInt(stepIdStr);
+    if (!stepId) {
+      return NextResponse.json({ error: "Invalid stepId" }, { status: 400 });
+    }
+
+    const step = await prisma.outreachCadenceStep.findFirst({
+      where: { id: stepId, seller_lead_id: prospectId },
+    });
+    if (!step) {
+      return NextResponse.json({ error: "Step not found" }, { status: 404 });
+    }
+
+    await prisma.outreachCadenceStep.delete({ where: { id: stepId } });
+
+    await logAuditEvent(
+      "seller_outreach_step_deleted",
+      "outreach_cadence_step",
+      String(stepId),
+      auth,
+      { prospect_id: String(prospectId) },
+    );
+
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json(
+    { error: "Provide ?stepId=X or ?all=true" },
+    { status: 400 },
+  );
+}
