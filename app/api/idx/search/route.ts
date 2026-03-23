@@ -414,7 +414,8 @@ function buildODataFilter(params: URLSearchParams): string {
         "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
         "DirectionFaces", "PropertyCondition", "NewConstructionYN",
         "StructureType", "ArchitecturalStyle", "BusinessType",
-        "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType",
+        "PetsAllowedYN",
+        // AvailableLeaseType, ExistingLeaseType: field exists but has 0% population + invalid enum values — filter client-side only
         "ConstructionMaterials",
       ]);
       for (const [htmlField, values] of Object.entries(cbFilters)) {
