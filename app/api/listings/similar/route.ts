@@ -131,10 +131,14 @@ export async function GET(request: NextRequest) {
       $top: '7',
     });
 
+    const zipAbort = new AbortController();
+    const zipTimer = setTimeout(() => zipAbort.abort(), 10_000);
     const res = await fetch(`${TRESTLE_URL}/odata/Property?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       next: { revalidate: 3600 },
+      signal: zipAbort.signal,
     });
+    clearTimeout(zipTimer);
 
     if (!res.ok) {
       console.error(`[/api/listings/similar] Trestle ZIP query failed: ${res.status}`);
@@ -155,10 +159,14 @@ export async function GET(request: NextRequest) {
         $top: '10',
       });
       try {
+        const nhAbort = new AbortController();
+        const nhTimer = setTimeout(() => nhAbort.abort(), 8_000);
         const nhRes = await fetch(`${TRESTLE_URL}/odata/Property?${nhParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 3600 },
+          signal: nhAbort.signal,
         });
+        clearTimeout(nhTimer);
         if (nhRes.ok) {
           const nhData = await nhRes.json();
           const existingIds = new Set(allResults.map((r: Record<string, unknown>) => String(r.ListingId || r.ListingKey)));
@@ -228,7 +236,8 @@ export async function GET(request: NextRequest) {
       _compliance: { source: 'idx', attribution: 'REBNY RLS' },
     });
   } catch (err) {
-    console.error('[/api/listings/similar] Error:', err);
+    const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+    console.error(`[/api/listings/similar] ${isTimeout ? 'Trestle timeout' : 'Error'}:`, isTimeout ? '(aborted after limit)' : err);
     return NextResponse.json({ listings: [] });
   }
 }

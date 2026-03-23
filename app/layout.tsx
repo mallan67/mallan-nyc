@@ -7,6 +7,8 @@ import CookieConsent from './components/CookieConsent';
 import ExitIntentPopup from './components/ExitIntentPopup';
 import SkipLink from './components/SkipLink';
 import Analytics from './components/Analytics';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/next';
 import BehavioralTracker from './components/BehavioralTracker';
 import IntentTracker from './components/IntentTracker';
 import SoftIdentityCapture from './components/SoftIdentityCapture';
@@ -108,7 +110,8 @@ export const metadata: Metadata = {
   },
 };
 
-// JSON-LD structured data for LocalBusiness / RealEstateAgent
+// JSON-LD structured data for RealEstateAgent + founder Person
+// Enhanced for AI search discoverability (GEO — Generative Engine Optimization)
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'RealEstateAgent',
@@ -118,8 +121,9 @@ const jsonLd = {
   logo: `${BASE_URL}/images/og-default.png`,
   image: `${BASE_URL}/images/og-default.png`,
   description:
-    'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
+    'Full-service NYC real estate brokerage specializing in luxury residential sales and rentals across Manhattan, Brooklyn, Queens, Bronx, and Staten Island. 110+ verified transactions. REBNY RLS participant.',
   telephone: '+1-646-258-4460',
+  email: 'maya@mallan.nyc',
   address: {
     '@type': 'PostalAddress',
     streetAddress: '400 East 90th Street, Suite 17C',
@@ -139,6 +143,66 @@ const jsonLd = {
       name: 'New York',
       sameAs: 'https://en.wikipedia.org/wiki/New_York_City',
     },
+    { '@type': 'AdministrativeArea', name: 'Manhattan' },
+    { '@type': 'AdministrativeArea', name: 'Brooklyn' },
+    { '@type': 'AdministrativeArea', name: 'Queens' },
+    { '@type': 'AdministrativeArea', name: 'Bronx' },
+    { '@type': 'AdministrativeArea', name: 'Staten Island' },
+  ],
+  // Tells AI models what topics this business is authoritative on
+  knowsAbout: [
+    'NYC real estate',
+    'Manhattan condos',
+    'Manhattan co-ops',
+    'NYC luxury apartments',
+    'Battery Park City real estate',
+    'Carnegie Hill real estate',
+    'Chelsea real estate',
+    'Chinatown real estate',
+    'Civic Center real estate',
+    'East Harlem real estate',
+    'East Village real estate',
+    'Financial District real estate',
+    'Flatiron real estate',
+    'Gramercy Park real estate',
+    'Greenwich Village real estate',
+    "Hell's Kitchen real estate",
+    'Kips Bay real estate',
+    'Lenox Hill real estate',
+    'Little Italy real estate',
+    'Lower East Side real estate',
+    'Midtown East real estate',
+    'Midtown South real estate',
+    'Midtown West real estate',
+    'Murray Hill real estate',
+    'NoHo real estate',
+    'Nolita real estate',
+    'NoMad real estate',
+    'SoHo real estate',
+    'Stuyvesant Town real estate',
+    'Sugar Hill real estate',
+    'Sutton Place real estate',
+    'Tribeca real estate',
+    'Tudor City real estate',
+    'Turtle Bay real estate',
+    'Two Bridges real estate',
+    'Union Square real estate',
+    'Upper East Side real estate',
+    'Upper West Side real estate',
+    'Washington Heights real estate',
+    'West Harlem real estate',
+    'West Village real estate',
+    'Yorkville real estate',
+    'Morningside Heights real estate',
+    'NYC rentals',
+    'Brooklyn real estate',
+    'first-time homebuyers NYC',
+    'NYC townhouses',
+    'new construction NYC',
+    'relocation to New York City',
+    '1031 tax exchange',
+    'commercial real estate NYC',
+    'international real estate investment',
   ],
   priceRange: '$$$$',
   openingHoursSpecification: [
@@ -161,12 +225,131 @@ const jsonLd = {
     'https://www.tiktok.com/@mallannyc',
     'https://www.linkedin.com/company/mallan-real-estate-inc/',
     'https://x.com/NYCondos',
+    'https://www.zillow.com/profile/Maya%20Allan',
+    'https://streeteasy.com/profile/818487-maya-allan',
+    'https://www.yelp.com/biz/mallan-real-estate-new-york',
+    'https://www.linkedin.com/in/mayaallan/',
   ],
-  // NY State broker license
+  // Brokerage license
+  hasCredential: [
+    {
+      '@type': 'EducationalOccupationalCredential',
+      credentialCategory: 'license',
+      name: 'NY Real Estate Brokerage License',
+      recognizedBy: {
+        '@type': 'Organization',
+        name: 'New York Department of State',
+      },
+      identifier: '10991205323',
+    },
+  ],
+  // Also keep identifier for backward compat
   identifier: {
     '@type': 'PropertyValue',
     name: 'NY Real Estate Broker License',
     value: '10991205323',
+  },
+  // Aggregate rating from Zillow
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '5.0',
+    reviewCount: '13',
+    bestRating: '5',
+    worstRating: '1',
+  },
+  // Memberships
+  memberOf: [
+    {
+      '@type': 'Organization',
+      name: 'Real Estate Board of New York (REBNY)',
+      sameAs: 'https://www.rebny.com',
+    },
+    {
+      '@type': 'Organization',
+      name: 'National Association of Realtors (NAR)',
+    },
+  ],
+  // Founder / principal broker — links the person to the business
+  founder: {
+    '@type': 'Person',
+    '@id': `${BASE_URL}/#maya-allan`,
+    name: 'Maya Allan',
+    jobTitle: 'Licensed Real Estate Broker',
+    url: `${BASE_URL}/agents/maya-allan`,
+    telephone: '+1-646-258-4460',
+    email: 'maya@mallan.nyc',
+    image: `${BASE_URL}/images/og-default.png`,
+    worksFor: { '@id': `${BASE_URL}/#organization` },
+    hasCredential: [
+      {
+        '@type': 'EducationalOccupationalCredential',
+        credentialCategory: 'license',
+        name: 'NY Real Estate Broker License',
+        recognizedBy: {
+          '@type': 'Organization',
+          name: 'New York Department of State',
+        },
+        identifier: '10311201806',
+      },
+      {
+        '@type': 'EducationalOccupationalCredential',
+        credentialCategory: 'degree',
+        name: 'Master of Business Administration (MBA)',
+        educationalLevel: 'Graduate',
+      },
+    ],
+    knowsAbout: [
+      'NYC real estate',
+      'luxury residential sales',
+      'Manhattan condos and co-ops',
+      'Battery Park City real estate',
+      'Carnegie Hill real estate',
+      'Chelsea real estate',
+      'East Village real estate',
+      'Financial District real estate',
+      'Flatiron real estate',
+      'Gramercy Park real estate',
+      'Greenwich Village real estate',
+      "Hell's Kitchen real estate",
+      'Kips Bay real estate',
+      'Lenox Hill real estate',
+      'Lower East Side real estate',
+      'Midtown East real estate',
+      'Midtown West real estate',
+      'Morningside Heights real estate',
+      'Murray Hill real estate',
+      'NoHo real estate',
+      'NoMad real estate',
+      'Nolita real estate',
+      'SoHo real estate',
+      'Stuyvesant Town real estate',
+      'Sutton Place real estate',
+      'Tribeca real estate',
+      'Turtle Bay real estate',
+      'Union Square real estate',
+      'Upper East Side real estate',
+      'Upper West Side real estate',
+      'West Village real estate',
+      'Yorkville real estate',
+      'buyer representation',
+      'seller representation',
+      'first-time homebuyers',
+      'relocation services',
+      'new construction',
+      '1031 tax exchange',
+    ],
+    knowsLanguage: ['English', 'Hebrew'],
+    award: [
+      "President's Circle",
+      'Leading Edge Society',
+      "Honor's Society",
+      'Provost Awards',
+    ],
+    sameAs: [
+      'https://www.linkedin.com/in/mayaallan/',
+      'https://www.zillow.com/profile/Maya%20Allan',
+      'https://streeteasy.com/profile/818487-maya-allan',
+    ],
   },
 };
 
@@ -208,6 +391,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <IntentTracker />
         <SoftIdentityCapture />
         <Analytics />
+        <SpeedInsights />
+        <VercelAnalytics />
         <PostHogProvider />
       </body>
     </html>

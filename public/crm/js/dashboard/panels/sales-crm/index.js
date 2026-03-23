@@ -239,6 +239,7 @@ var SalesCRM = (function () {
     wsTabs.push({ id: 'intake', label: 'Seller Intake', icon: 'fa-clipboard-list' });
     if (isActive || isClosed) {
       wsTabs.push({ id: 'listing', label: 'Listing', icon: 'fa-building' });
+      wsTabs.push({ id: 'comps', label: 'Comps', icon: 'fa-balance-scale' });
       wsTabs.push({ id: 'showings', label: 'Showings', icon: 'fa-calendar' });
       wsTabs.push({ id: 'offers', label: 'Offers', icon: 'fa-gavel' });
       wsTabs.push({ id: 'prep', label: 'Preparation', icon: 'fa-tasks' });
@@ -277,6 +278,7 @@ var SalesCRM = (function () {
     else if (tab === 'outreach') _wsOutreach(el, cl);
     else if (tab === 'intake') _wsIntake(el, cl);
     else if (tab === 'listing') _wsListing(el, cl);
+    else if (tab === 'comps') _wsComps(el, cl);
     else if (tab === 'showings') _wsShowings(el, cl);
     else if (tab === 'offers') _wsOffers(el, cl);
     else if (tab === 'prep') _wsPrep(el, cl);
@@ -544,6 +546,266 @@ var SalesCRM = (function () {
     });
   }
 
+  // ── COMPS TAB ────────────────────────────────────────────────────────
+  var _compsData = null; // cached comp results
+  function _wsComps(el, cl) {
+    var listingId = cl.listing_id || (cl.listing && cl.listing.listing_id);
+    if (!listingId) {
+      el.innerHTML = '<div class="p-6 text-center"><p class="text-gray-400 text-sm">No listing linked to this seller yet. Create or link a listing first.</p></div>';
+      return;
+    }
+
+    el.innerHTML = '<div class="flex items-center justify-center h-20"><i class="fas fa-spinner fa-spin text-gold"></i></div>';
+
+    CRM.api('/api/crm/sales/comps?listing_id=' + encodeURIComponent(listingId))
+      .then(function (data) {
+        _compsData = data;
+        _renderCompsTab(el, data, listingId);
+      })
+      .catch(function () {
+        el.innerHTML = '<div class="p-6 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-1"></i>Failed to load comps. Check that Trestle credentials are configured.</div>';
+      });
+  }
+
+  function _renderCompsTab(el, data, listingId) {
+    var c = data.criteria || {};
+    var bc = c.building || {};
+    var ac = c.area || {};
+    var specs = data.listing_specs || {};
+    var h = '<div class="space-y-6">';
+
+    // ── Sqft warning ──
+    if (data.sqft_note) {
+      h += '<div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">' +
+        '<i class="fas fa-info-circle mr-1"></i>' + E(data.sqft_note) + '</div>';
+    }
+
+    // ── Subject listing summary ──
+    h += '<div class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-6">';
+    h += '<div class="text-xs font-bold text-gray-700"><i class="fas fa-home text-gold mr-1"></i>Subject Listing</div>';
+    h += '<span class="text-xs text-gray-600">' + (specs.beds || '—') + ' bed / ' + (specs.baths || '—') + ' bath</span>';
+    if (specs.sqft) h += '<span class="text-xs text-gray-600">' + Number(specs.sqft).toLocaleString() + ' sqft</span>';
+    h += '<span class="text-xs font-bold text-gray-900">$' + Number(specs.price || 0).toLocaleString() + '</span>';
+    h += '</div>';
+
+    // ══════════════════════════════════════════════════════════════════
+    // ADJUSTMENT CONTROLS
+    // ══════════════════════════════════════════════════════════════════
+    h += '<details class="bg-white border border-gray-200 rounded-xl" id="comp-criteria-panel">';
+    h += '<summary class="px-5 py-3 cursor-pointer text-sm font-bold text-gray-900"><i class="fas fa-sliders-h text-gold mr-2"></i>Adjust Comp Criteria</summary>';
+    h += '<div class="px-5 pb-5 pt-2">';
+
+    // Building criteria
+    h += '<div class="text-xs font-bold text-gray-700 mb-2 mt-2"><i class="fas fa-building mr-1"></i>Building Comps</div>';
+    h += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+    h += _critInput('b_beds_min', 'Beds Min', bc.beds_min);
+    h += _critInput('b_beds_max', 'Beds Max', bc.beds_max);
+    h += _critInput('b_baths_min', 'Baths Min', bc.baths_min);
+    h += _critInput('b_baths_max', 'Baths Max', bc.baths_max);
+    h += '</div>';
+    h += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+    h += '<div><label class="text-[10px] font-semibold text-gray-500 block mb-1">Sqft Filter</label>' +
+      '<select id="crit-b_sqft_enabled" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg">' +
+      '<option value="true"' + (bc.sqft_enabled ? ' selected' : '') + '>On</option>' +
+      '<option value="false"' + (!bc.sqft_enabled ? ' selected' : '') + '>Off</option></select></div>';
+    h += _critInput('b_sqft_min', 'Sqft Min', bc.sqft_min || '');
+    h += _critInput('b_sqft_max', 'Sqft Max', bc.sqft_max || '');
+    h += _critSelect('b_months', 'Months Back', bc.months_back, [6, 12, 24]);
+    h += '</div>';
+    h += _statusCheckboxes('b_statuses', bc.statuses || []);
+
+    // Area criteria
+    h += '<div class="text-xs font-bold text-gray-700 mb-2 mt-4 pt-4 border-t border-gray-100"><i class="fas fa-map-marker-alt mr-1"></i>Area Comps</div>';
+    h += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+    h += _critInput('a_beds_min', 'Beds Min', ac.beds_min);
+    h += _critInput('a_beds_max', 'Beds Max', ac.beds_max);
+    h += _critInput('a_baths_min', 'Baths Min', ac.baths_min);
+    h += _critInput('a_baths_max', 'Baths Max', ac.baths_max);
+    h += '</div>';
+    h += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+    h += '<div><label class="text-[10px] font-semibold text-gray-500 block mb-1">Sqft Filter</label>' +
+      '<select id="crit-a_sqft_enabled" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg">' +
+      '<option value="true"' + (ac.sqft_enabled ? ' selected' : '') + '>On</option>' +
+      '<option value="false"' + (!ac.sqft_enabled ? ' selected' : '') + '>Off</option></select></div>';
+    h += _critInput('a_sqft_min', 'Sqft Min', ac.sqft_min || '');
+    h += _critInput('a_sqft_max', 'Sqft Max', ac.sqft_max || '');
+    h += _critSelect('a_months', 'Months Back', ac.months_back, [6, 12, 24]);
+    h += '</div>';
+    h += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">';
+    h += _critInput('a_price_min', 'Price Min ($)', ac.price_min || '');
+    h += _critInput('a_price_max', 'Price Max ($)', ac.price_max || '');
+    h += _critInput('a_neighborhoods', 'Neighborhoods (comma-sep)', (ac.neighborhoods || []).join(', '));
+    h += '</div>';
+    h += _statusCheckboxes('a_statuses', ac.statuses || []);
+
+    h += '<div class="flex gap-2 mt-4">';
+    h += '<button class="btn btn-sm btn-gold" onclick="SalesCRM._saveCompCriteria(\'' + E(listingId) + '\')"><i class="fas fa-save mr-1"></i>Save & Refresh</button>';
+    h += '<button class="btn btn-sm btn-outline" onclick="SalesCRM._resetCompCriteria(\'' + E(listingId) + '\')"><i class="fas fa-undo mr-1"></i>Reset to Defaults</button>';
+    h += '</div>';
+    h += '</div></details>';
+
+    // ══════════════════════════════════════════════════════════════════
+    // BUILDING COMPS TABLE
+    // ══════════════════════════════════════════════════════════════════
+    h += _compsSection('Building Comps', 'fa-building', '#3B82F6', data.building || [], 'building');
+
+    // ══════════════════════════════════════════════════════════════════
+    // AREA COMPS TABLE
+    // ══════════════════════════════════════════════════════════════════
+    h += _compsSection('Area Comps', 'fa-map-marker-alt', '#059669', data.area || [], 'area');
+
+    h += '</div>';
+    el.innerHTML = h;
+  }
+
+  // Helper: criteria input field
+  function _critInput(id, label, val) {
+    return '<div><label class="text-[10px] font-semibold text-gray-500 block mb-1">' + E(label) + '</label>' +
+      '<input id="crit-' + id + '" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg" value="' + E(String(val != null ? val : '')) + '"></div>';
+  }
+
+  // Helper: criteria select
+  function _critSelect(id, label, val, opts) {
+    var h = '<div><label class="text-[10px] font-semibold text-gray-500 block mb-1">' + E(label) + '</label>';
+    h += '<select id="crit-' + id + '" class="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg">';
+    opts.forEach(function (o) {
+      h += '<option value="' + o + '"' + (Number(val) === o ? ' selected' : '') + '>' + o + '</option>';
+    });
+    h += '</select></div>';
+    return h;
+  }
+
+  // Helper: status checkboxes
+  function _statusCheckboxes(prefix, selected) {
+    var all = ['Active', 'Under Contract', 'Closed', 'Expired'];
+    var h = '<div class="flex flex-wrap gap-3 mb-2">';
+    all.forEach(function (s) {
+      var checked = selected.indexOf(s) !== -1 ? ' checked' : '';
+      h += '<label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">' +
+        '<input type="checkbox" class="crit-status-' + prefix + '" value="' + E(s) + '"' + checked + '> ' + E(s) + '</label>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  // Helper: render a comps table section
+  function _compsSection(title, icon, color, comps, scope) {
+    var h = '<div class="bg-white border border-gray-200 rounded-xl">';
+    h += '<div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">';
+    h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas ' + icon + '" style="color:' + color + ';margin-right:6px;"></i>' + E(title) + '</h3>';
+    h += '<span class="text-xs text-gray-400">' + comps.length + ' result' + (comps.length !== 1 ? 's' : '') + '</span>';
+    h += '</div>';
+
+    if (comps.length === 0) {
+      h += '<div class="p-5 text-center text-gray-400 text-xs">No comparable listings found with current criteria. Try adjusting filters above.</div>';
+    } else {
+      h += '<div class="overflow-x-auto">';
+      h += '<table class="w-full text-xs">';
+      h += '<thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider">' +
+        '<th class="px-3 py-2 text-left">Address</th>' +
+        '<th class="px-3 py-2 text-left">Status</th>' +
+        '<th class="px-3 py-2 text-right">Beds</th>' +
+        '<th class="px-3 py-2 text-right">Baths</th>' +
+        '<th class="px-3 py-2 text-right">Sqft</th>' +
+        '<th class="px-3 py-2 text-right">List Price</th>' +
+        '<th class="px-3 py-2 text-right">Close Price</th>' +
+        '<th class="px-3 py-2 text-right">$/Sqft</th>' +
+        '<th class="px-3 py-2 text-right">DOM</th>' +
+        '<th class="px-3 py-2 text-left">Close Date</th>' +
+        '</tr></thead><tbody>';
+
+      var statusColors = {
+        Active: '#3B82F6', ActiveUnderContract: '#7C3AED', Closed: '#059669', Expired: '#EF4444',
+        ComingSoon: '#F59E0B', Pending: '#F59E0B',
+      };
+
+      comps.forEach(function (c) {
+        var addr = c.address + (c.unit ? ' #' + c.unit : '');
+        var sClr = statusColors[c.status] || '#6B7280';
+        var sLabel = c.status === 'ActiveUnderContract' ? 'In Contract' : c.status;
+        h += '<tr class="border-b border-gray-50 hover:bg-gray-50">';
+        h += '<td class="px-3 py-2 font-medium text-gray-900 max-w-[180px] truncate" title="' + E(addr) + '">' + E(addr) + '</td>';
+        h += '<td class="px-3 py-2"><span style="color:' + sClr + ';font-weight:700;font-size:10px;">' + E(sLabel) + '</span></td>';
+        h += '<td class="px-3 py-2 text-right text-gray-600">' + (c.beds != null ? c.beds : '—') + '</td>';
+        h += '<td class="px-3 py-2 text-right text-gray-600">' + (c.baths != null ? c.baths : '—') + '</td>';
+        h += '<td class="px-3 py-2 text-right text-gray-600">' + (c.sqft ? Number(c.sqft).toLocaleString() : '—') + '</td>';
+        h += '<td class="px-3 py-2 text-right font-semibold">$' + Number(c.list_price || 0).toLocaleString() + '</td>';
+        h += '<td class="px-3 py-2 text-right' + (c.close_price ? ' font-semibold text-green-700' : ' text-gray-400') + '">' +
+          (c.close_price ? '$' + Number(c.close_price).toLocaleString() : '—') + '</td>';
+        h += '<td class="px-3 py-2 text-right text-gray-600">' + (c.price_per_sqft ? '$' + c.price_per_sqft.toLocaleString() : '—') + '</td>';
+        h += '<td class="px-3 py-2 text-right text-gray-600">' + (c.days_on_market != null ? c.days_on_market : '—') + '</td>';
+        h += '<td class="px-3 py-2 text-gray-500">' + (c.close_date ? new Date(c.close_date).toLocaleDateString() : '—') + '</td>';
+        h += '</tr>';
+      });
+      h += '</tbody></table></div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  // Save adjusted criteria and refresh comps
+  function _saveCompCriteria(listingId) {
+    var v = function (id) { var el = document.getElementById('crit-' + id); return el ? el.value : ''; };
+    var n = function (id) { var val = v(id); return val === '' ? null : Number(val); };
+    var statuses = function (prefix) {
+      var checked = [];
+      document.querySelectorAll('.crit-status-' + prefix + ':checked').forEach(function (cb) { checked.push(cb.value); });
+      return checked;
+    };
+    var nhoods = v('a_neighborhoods').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+
+    var criteria = {
+      building: {
+        beds_min: n('b_beds_min') || 0, beds_max: n('b_beds_max') || 0,
+        baths_min: n('b_baths_min') || 0, baths_max: n('b_baths_max') || 0,
+        sqft_min: n('b_sqft_min'), sqft_max: n('b_sqft_max'),
+        sqft_enabled: v('b_sqft_enabled') === 'true',
+        statuses: statuses('b_statuses'),
+        months_back: n('b_months') || 12,
+      },
+      area: {
+        beds_min: n('a_beds_min') || 0, beds_max: n('a_beds_max') || 0,
+        baths_min: n('a_baths_min') || 0, baths_max: n('a_baths_max') || 0,
+        sqft_min: n('a_sqft_min'), sqft_max: n('a_sqft_max'),
+        sqft_enabled: v('a_sqft_enabled') === 'true',
+        price_min: n('a_price_min'), price_max: n('a_price_max'),
+        statuses: statuses('a_statuses'),
+        neighborhoods: nhoods,
+        months_back: n('a_months') || 12,
+      },
+    };
+
+    CRM.api('/api/crm/sales/comps/criteria', { method: 'PATCH', body: JSON.stringify({ listing_id: listingId, criteria: criteria }) })
+      .then(function () {
+        CRM.toast('Criteria saved — refreshing comps...', 'success');
+        // Re-fetch comps with new criteria
+        var wsBody = document.getElementById('ws-body');
+        if (wsBody) {
+          wsBody.innerHTML = '<div class="flex items-center justify-center h-20"><i class="fas fa-spinner fa-spin text-gold"></i></div>';
+          CRM.api('/api/crm/sales/comps?listing_id=' + encodeURIComponent(listingId))
+            .then(function (data) { _compsData = data; _renderCompsTab(wsBody, data, listingId); })
+            .catch(function () { wsBody.innerHTML = '<div class="p-6 text-center text-red-500">Failed to refresh comps.</div>'; });
+        }
+      })
+      .catch(function () { CRM.toast('Failed to save criteria', 'error'); });
+  }
+
+  function _resetCompCriteria(listingId) {
+    // Delete comp_criteria from listing — next fetch will auto-generate defaults
+    CRM.api('/api/crm/sales/comps/criteria', {
+      method: 'PATCH',
+      body: JSON.stringify({ listing_id: listingId, criteria: null }),
+    }).then(function () {
+      CRM.toast('Criteria reset — reloading...', 'success');
+      var wsBody = document.getElementById('ws-body');
+      if (wsBody) {
+        // Clear stored criteria so GET will regenerate defaults
+        CRM.api('/api/crm/sales/comps?listing_id=' + encodeURIComponent(listingId))
+          .then(function (data) { _compsData = data; _renderCompsTab(wsBody, data, listingId); });
+      }
+    });
+  }
+
   // ── SHOWINGS TAB ──────────────────────────────────────────────────────
   function _wsShowings(el, cl) {
     el.innerHTML = '<div class="flex items-center justify-center h-20"><i class="fas fa-spinner fa-spin text-gold"></i></div>';
@@ -697,6 +959,10 @@ var SalesCRM = (function () {
     // ── Tab picker for calculators ──
     var calcs = [
       { id: 'net-proceeds', label: 'Seller Net Proceeds', icon: 'fa-file-invoice-dollar', color: 'text-amber-600' },
+      { id: 'seller-closing', label: 'Seller Closing Costs', icon: 'fa-receipt', color: 'text-purple-600' },
+      { id: 'equity', label: 'Equity', icon: 'fa-chart-pie', color: 'text-emerald-600' },
+      { id: 'carrying-cost', label: 'Carrying Cost', icon: 'fa-hourglass-half', color: 'text-orange-500' },
+      { id: 'breakeven', label: 'Break-Even Price', icon: 'fa-bullseye', color: 'text-red-500' },
     ];
     if (isBuyer || stage === 'exclusive' || stage === 'listed') {
       calcs.push({ id: 'buyer-closing', label: 'Buyer Closing Costs', icon: 'fa-hand-holding-usd', color: 'text-blue-600' });
@@ -727,6 +993,54 @@ var SalesCRM = (function () {
         sale_price: Number(cl.list_price || cl.marketing_strategy && cl.marketing_strategy.target_price || 0),
         mortgage_balance: cl.mortgage_balance || '',
       });
+    }
+    h += '</div>';
+
+    // Seller Closing Costs
+    h += '<div id="calc-seller-closing" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
+    if (typeof SellerClosingCalc !== 'undefined') {
+      h += SellerClosingCalc.render({
+        sale_price: Number(cl.list_price || 0),
+        commission: '5',
+      });
+    } else {
+      h += '<p class="text-xs text-gray-400">Seller Closing Costs calculator loading...</p>';
+    }
+    h += '</div>';
+
+    // Equity
+    h += '<div id="calc-equity" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
+    if (typeof EquityCalc !== 'undefined') {
+      h += EquityCalc.render({
+        market_value: cl.market_value ? Number(cl.market_value) : (cl.list_price ? Number(cl.list_price) : ''),
+        mortgage: cl.mortgage_balance || cl.mortgage_amount || '',
+        purchase_price: cl.last_purchase_price || '',
+      });
+    } else {
+      h += '<p class="text-xs text-gray-400">Equity calculator loading...</p>';
+    }
+    h += '</div>';
+
+    // Carrying Cost
+    h += '<div id="calc-carrying-cost" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
+    if (typeof CarryingCostCalc !== 'undefined') {
+      h += CarryingCostCalc.render({
+        monthly_tax: cl.annual_tax ? Math.round(Number(cl.annual_tax) / 12) : '',
+        maintenance: cl.monthly_maintenance || '',
+      });
+    } else {
+      h += '<p class="text-xs text-gray-400">Carrying Cost calculator loading...</p>';
+    }
+    h += '</div>';
+
+    // Break-Even Price
+    h += '<div id="calc-breakeven" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
+    if (typeof BreakevenCalc !== 'undefined') {
+      h += BreakevenCalc.render({
+        mortgage: cl.mortgage_balance || cl.mortgage_amount || '',
+      });
+    } else {
+      h += '<p class="text-xs text-gray-400">Break-Even calculator loading...</p>';
     }
     h += '</div>';
 
@@ -1300,5 +1614,6 @@ var SalesCRM = (function () {
     _editPricingStrategy: _editPricingStrategy, _editMarketingStrategy: _editMarketingStrategy,
     _loadPropertyResearch: _loadPropertyResearch, _prefillCalculator: _prefillCalculator,
     _showCalc: _showCalc,
+    _saveCompCriteria: _saveCompCriteria, _resetCompCriteria: _resetCompCriteria,
   };
 })();

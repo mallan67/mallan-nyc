@@ -262,123 +262,6 @@ input::placeholder {
 
 
     /* ═══ css/search-form.css ═══ */
-/* ── SPLIT LAYOUT ─────────────────────────────────────────────────── */
-#searchPageLayout {
-    display: flex;
-    align-items: stretch;
-    min-height: calc(100vh - 57px);
-}
-
-#filterPanel {
-    width: 380px;
-    min-width: 380px;
-    flex-shrink: 0;
-    background: #ffffff;
-    border-right: 1px solid #e5e7eb;
-    display: flex;
-    flex-direction: column;
-    position: sticky;
-    top: 57px;
-    height: calc(100vh - 57px);
-    overflow: hidden;
-    transition: width 0.2s ease, min-width 0.2s ease;
-    z-index: 20;
-}
-
-#filterPanel.collapsed {
-    width: 48px;
-    min-width: 48px;
-}
-
-#filterPanelScroll {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0 0 80px 0;
-}
-
-#filterPanelScroll::-webkit-scrollbar { width: 4px; }
-#filterPanelScroll::-webkit-scrollbar-track { background: transparent; }
-#filterPanelScroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
-
-#filterPanelActions {
-    position: sticky;
-    bottom: 0;
-    background: #ffffff;
-    border-top: 1px solid #e5e7eb;
-    padding: 12px 16px;
-    display: flex;
-    gap: 8px;
-    z-index: 5;
-}
-
-#filterPanelIconRail {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    padding: 12px 0;
-    gap: 16px;
-}
-
-#filterPanel.collapsed #filterPanelIconRail { display: flex; }
-#filterPanel.collapsed #filterPanelScroll,
-#filterPanel.collapsed #filterPanelActions,
-#filterPanel.collapsed #filterPanelHeader { display: none; }
-
-#resultsPanel {
-    flex: 1;
-    min-width: 0;
-    background: #f3f4f6;
-    overflow-y: auto;
-    padding: 16px;
-}
-
-#resultsPanelContent {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-}
-
-#resultsGridContainer {
-    flex: 1;
-    min-width: 0;
-}
-
-#resultsMapWrapper {
-    width: 45%;
-    min-width: 320px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    max-height: calc(100vh - 57px - 32px);
-    display: none;
-}
-
-#resultsMapWrapper.map-open {
-    display: block;
-}
-
-#filterCollapseBtn {
-    position: absolute;
-    right: -14px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 30;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-    transition: background 0.15s;
-}
-
-#filterCollapseBtn:hover { background: #f9fafb; }
-
 /* ═══════════════════════════════════════════════════════
    SEARCH FORM — DRP, CSD, search styling, form redesign
    Source: SEARCH-STANDALONE.html lines 472–877
@@ -3442,7 +3325,7 @@ function toggleSection(header) {
                     </div>
 
                 <!-- GENERAL SEARCH SECTION -->
-                <div id="generalSearchSection" class="search-type-section">
+                <div id="generalSearchSection" class="search-type-section" data-rls-ignore="true">
 
                     <!-- Sales / Rentals / Buildings + Actions - single unified bar -->
                     <div class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden">
@@ -16288,6 +16171,7 @@ function manageShowToast(msg) {
          * Used by the search query builder so the filter matches any listing
          * regardless of which variant was used in the RLS data.
          */
+        // DEPRECATED: Neighborhood variant expansion handled server-side. Kept for potential future use.
         function expandCanonicalToVariants(canonicalNames) {
             if (!_aliasReverseMap || !canonicalNames) return canonicalNames;
             var expanded = [];
@@ -16496,6 +16380,8 @@ function manageShowToast(msg) {
             if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
             if (criteria.soldDateFrom || criteria.contractDateFrom) params.closeDateFrom = criteria.soldDateFrom || criteria.contractDateFrom;
             if (criteria.soldDateTo || criteria.contractDateTo) params.closeDateTo = criteria.soldDateTo || criteria.contractDateTo;
+            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
             // Ownership (CommonInterest — OData searchable)
             if (criteria.ownership && criteria.ownership.length > 0) {
                 params.ownership = criteria.ownership.join(',');
@@ -16923,6 +16809,20 @@ function manageShowToast(msg) {
                 }
             }
 
+            // PropertySubType checkboxes (Townhouse, Conversion, Single Family, etc.)
+            var propertySubTypeChecked = [];
+            var advModeEl = document.getElementById('searchAdvancedMode');
+            var pstIsAdvanced = advModeEl && advModeEl.style.display !== 'none' && !advModeEl.classList.contains('hidden');
+            var pstSelector = pstIsAdvanced
+                ? '#searchAdvancedMode input[data-field="PropertySubType"]:checked'
+                : (activeBasicForm ? '#' + activeBasicForm.id + ' input[data-field="PropertySubType"]:checked' : 'input[data-field="PropertySubType"]:checked');
+            document.querySelectorAll(pstSelector).forEach(function(cb) {
+                propertySubTypeChecked.push(cb.value);
+            });
+            if (propertySubTypeChecked.length > 0) {
+                criteria.propertySubType = propertySubTypeChecked.join(',');
+            }
+
             // Status checkboxes (MlsStatus) — collect all checked statuses
             // Determine which container has the status checkboxes
             var statusContainer = activeBasicForm;
@@ -16993,6 +16893,15 @@ function manageShowToast(msg) {
                 if (selectedNeighborhoods.length > 0) {
                     criteria.neighborhoods = selectedNeighborhoods;
                 }
+
+                // Borough — derive from selected neighborhoods if all are from one borough
+                if (selectedNeighborhoods.length > 0) {
+                    var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
+                    var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
+                    if (uniqueBoroughs.length === 1) {
+                        criteria.borough = uniqueBoroughs[0];
+                    }
+                }
             }
 
             // Quick Search fields — RLS ID, Zip, Unit
@@ -17046,6 +16955,16 @@ function manageShowToast(msg) {
                     criteria.soldDateFrom = sdFrom;
                     criteria.soldDateTo = sdTo || sdFrom;
                 }
+            }
+
+            // Open House date range
+            var ohDrpId = (currentSearchTab === 'rent') ? 'rentalOpenHouse' : 'saleOpenHouse';
+            var ohWrapper = document.querySelector('.drp-wrapper[data-drp="' + ohDrpId + '"]');
+            if (ohWrapper) {
+                var ohFrom = ohWrapper.getAttribute('data-from');
+                var ohTo = ohWrapper.getAttribute('data-to');
+                if (ohFrom) criteria.openHouseDateFrom = ohFrom;
+                if (ohTo) criteria.openHouseDateTo = ohTo;
             }
 
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
@@ -17136,6 +17055,8 @@ function manageShowToast(msg) {
             // Re-check the "Active" checkbox in advanced mode (rental status)
             var advRentalActive = document.querySelector('#rentalStatusOptions [data-field="MlsStatus"][data-value="Active"]');
             if (advRentalActive) advRentalActive.checked = true;
+            // Clear neighborhood tags and internal selection state
+            if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
             // Clear saved search state when form is cleared
             if (typeof _clearSearchState === 'function') _clearSearchState();
         }
@@ -17332,6 +17253,14 @@ function manageShowToast(msg) {
                     if (!match) return false;
                 }
 
+                // PropertySubType filter
+                if (criteria.propertySubType) {
+                    var pstValues = criteria.propertySubType.split(',').map(function(v) { return v.toLowerCase(); });
+                    var sub = (listing.propertySubType || '').toLowerCase();
+                    var pstMatch = pstValues.some(function(v) { return sub.indexOf(v) !== -1; });
+                    if (!pstMatch) return false;
+                }
+
                 // Address / building name filter — partial match
                 if (criteria.address) {
                     var normAddr = normalizeAddress(criteria.address);
@@ -17421,6 +17350,16 @@ function manageShowToast(msg) {
                     sTo.setHours(23, 59, 59);
                     var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
                     if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
+                }
+
+                // Open House date filter
+                if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
+                    var ohFrom = criteria.openHouseDateFrom ? new Date(criteria.openHouseDateFrom) : null;
+                    var ohTo = criteria.openHouseDateTo ? new Date(criteria.openHouseDateTo) : null;
+                    if (!listing.openHouseDate) return false;
+                    var ohDate = new Date(listing.openHouseDate);
+                    if (ohFrom && ohDate < ohFrom) return false;
+                    if (ohTo && ohDate > ohTo) return false;
                 }
 
                 return true;
@@ -18759,6 +18698,7 @@ function manageShowToast(msg) {
 
         // Toggle results view (grid/list/map)
         // Legacy view toggle - kept for backwards compatibility, superseded by setViewMode()
+        // DEPRECATED: Superseded by setViewMode() in render-dispatcher.js. Kept for onclick compatibility.
         function toggleResultsView(view) {
             var grid = document.getElementById('resultsGrid');
             var viewGrid = document.getElementById('viewGrid');
@@ -18795,31 +18735,28 @@ function manageShowToast(msg) {
             }
         }
 
-        // Client delivery stubs (client section removed)
-        function toggleClientDeliveryMenu() {}
-        function openDeliveryModal() {}
-        function closeDeliveryModal() {}
-
-        // Select all results (with REBNY bulk export limit)
-        function selectAllResults() {
-            var BULK_LIMIT = 25;
-            var checkboxes = document.querySelectorAll('.listing-checkbox');
-            if (checkboxes.length > BULK_LIMIT) {
-                var proceed = confirm(
-                    'REBNY Compliance Notice\n\n' +
-                    'Selecting all ' + checkboxes.length + ' listings exceeds the bulk export limit of ' + BULK_LIMIT + '.\n\n' +
-                    'Only the first ' + BULK_LIMIT + ' will be selected.\nExport in batches using filtered searches for more.'
-                );
-                if (!proceed) return;
-                var count = 0;
-                checkboxes.forEach(function(cb) {
-                    cb.checked = (count < BULK_LIMIT);
-                    count++;
-                });
-            } else {
-                checkboxes.forEach(function(cb) { cb.checked = true; });
+        // Client delivery — route through Reports modal
+        function toggleClientDeliveryMenu() {
+            var ids = (typeof getSelectedListingIds === 'function') ? getSelectedListingIds() : [];
+            if (ids.length === 0) {
+                if (typeof showToast === 'function') showToast('Please select at least one listing first.', 'warning');
+                return;
             }
-            updateSelectedCount();
+            if (typeof openReportsModal === 'function') openReportsModal(ids, 'email');
+        }
+
+        function openDeliveryModal() {
+            toggleClientDeliveryMenu();
+        }
+
+        function closeDeliveryModal() {
+            var modal = document.getElementById('reportsModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // Select all results
+        function selectAllResults() {
+            if (typeof toggleSelectAll === 'function') return toggleSelectAll();
         }
 
         // Clear selection
@@ -20709,6 +20646,8 @@ function parseBudgetValue(td) {
             // Update counts after render
             updateResultsCount();
 
+            if (typeof updateAveragesRow === 'function') updateAveragesRow();
+
             // Run REBNY Test Suite after each render (non-blocking, silent)
             if (typeof REBNYTestSuite === 'function') {
                 REBNYTestSuite({ verbose: false, context: 'render' });
@@ -20855,7 +20794,7 @@ function parseBudgetValue(td) {
                             if (!listing.permissions) listing.permissions = {};
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
-                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + ')" style="cursor:pointer;">';
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(' + listing.id + '); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(' + listing.id + '); }" style="cursor:pointer;">';
                             tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(' + listing.id + ')"></td>';
                             tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
                             if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
@@ -21106,7 +21045,7 @@ function parseBudgetValue(td) {
                 return `
                 <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
-                    <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}')">
+                    <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                         <div class="cm-photo-wrap cm-card-photo">
                             <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                         </div>
@@ -21162,7 +21101,7 @@ function parseBudgetValue(td) {
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}')">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
@@ -21265,7 +21204,7 @@ function parseBudgetValue(td) {
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
-                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab('${listing.id}')">
+                        <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
                                 <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
                             </div>
@@ -21288,7 +21227,7 @@ function parseBudgetValue(td) {
                             <div>
                                 <div class="flex items-start justify-between gap-3 mb-2">
                                     <div class="min-w-0">
-                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab('${listing.id}')">${displayAddress}${displayUnit}</h3>
+                                        <h3 class="font-bold text-[17px] text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">${displayAddress}${displayUnit}</h3>
                                         <div class="flex items-center gap-2 mt-1 flex-wrap">
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${escapeHtml(listing.era || 'Pre-War')}</span>
                                             <span class="px-2 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600 font-medium">${ownershipLabel(listing.ownership)}</span>
@@ -21371,7 +21310,7 @@ function parseBudgetValue(td) {
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
-                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}')">
+                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     <div class="relative flex-shrink-0">
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
@@ -23860,23 +23799,41 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     if (!wrapper) return;
 
     if (_isOpen) {
-      // Show map panel above results
-      wrapper.style.cssText = 'display:block; width:100%; height:500px; position:relative; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:16px; overflow:hidden;';
+      // Enable flex split layout — map beside results
+      var splitWrapper = document.getElementById('resultsSplitWrapper');
+      var resultsContainer = document.getElementById('resultsContainer');
+      var mapContainer = document.getElementById('resultsMapContainer');
+
+      if (splitWrapper) {
+        splitWrapper.style.display = 'flex';
+        splitWrapper.style.alignItems = 'stretch';
+      }
+      wrapper.style.display = 'block';
+      wrapper.style.width = '45%';
+      wrapper.style.minWidth = '360px';
+      wrapper.style.flexShrink = '0';
+      wrapper.style.position = 'relative';
+      wrapper.style.borderLeft = '1px solid #e5e7eb';
+      if (resultsContainer) {
+        resultsContainer.style.flex = '1';
+        resultsContainer.style.minWidth = '0';
+        resultsContainer.style.overflowY = 'auto';
+      }
+      if (mapContainer) {
+        mapContainer.style.position = 'sticky';
+        mapContainer.style.top = '0';
+        mapContainer.style.height = 'calc(100vh - 120px)';
+      }
+
       if (toggleBtn) {
         toggleBtn.classList.add('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.remove('text-gray-500');
       }
 
-      // Move wrapper before resultsContainer for above-results layout
-      var resultsContainer = document.getElementById('resultsContainer');
-      if (resultsContainer && wrapper.parentElement) {
-        wrapper.parentElement.insertBefore(wrapper, resultsContainer);
-      }
-
       ensureMapLibre(function () {
         // Set container to fill wrapper
         var container = document.getElementById('resultsMapContainer');
-        if (container) container.style.cssText = 'width:100%; height:100%;';
+        if (container) container.style.cssText = 'position:sticky; top:0; height:calc(100vh - 120px); width:100%;';
         setTimeout(function () {
           initMap();
           if (_map) {
@@ -23886,8 +23843,14 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         }, 150);
       });
     } else {
-      // Hide map
+      // Hide map — reset flex split
       wrapper.style.display = 'none';
+      var resultsContainer = document.getElementById('resultsContainer');
+      if (resultsContainer) {
+        resultsContainer.style.flex = '';
+        resultsContainer.style.minWidth = '';
+        resultsContainer.style.overflowY = '';
+      }
       if (toggleBtn) {
         toggleBtn.classList.remove('bg-blue-100', 'text-blue-700');
         toggleBtn.classList.add('text-gray-500');
@@ -27908,7 +27871,31 @@ function emailCurrentCalc() {
         }
 
         function toggleAveragesExpanded() {
-            // Toggle averages expansion
+            var row = document.getElementById('averagesRow');
+            if (!row) return;
+            var isHidden = row.style.display === 'none';
+            row.style.display = isHidden ? '' : 'none';
+            var btn = document.getElementById('toggleAveragesBtn');
+            if (btn) btn.textContent = isHidden ? 'Hide Averages' : 'Show Averages';
+        }
+
+        function updateAveragesRow() {
+            var filtered = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
+            if (!filtered || filtered.length === 0) return;
+            var prices = filtered.map(function(l) { return parseFloat(l.price) || 0; }).filter(function(p) { return p > 0; });
+            var sqfts = filtered.map(function(l) { return parseFloat(l.sqft) || 0; }).filter(function(s) { return s > 0; });
+            var ppsf = prices.length > 0 && sqfts.length > 0
+                ? prices.reduce(function(a,b){return a+b;},0) / sqfts.reduce(function(a,b){return a+b;},0)
+                : 0;
+            var avgPrice = prices.length > 0 ? prices.reduce(function(a,b){return a+b;},0) / prices.length : 0;
+            var avgSqft = sqfts.length > 0 ? sqfts.reduce(function(a,b){return a+b;},0) / sqfts.length : 0;
+
+            var fmt = function(n) { return '$' + Math.round(n).toLocaleString(); };
+            var el = function(id) { return document.getElementById(id); };
+            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice);
+            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf);
+            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft';
+            if (el('resultsTotalCount')) el('resultsTotalCount').textContent = filtered.length;
         }
 
         // Open listing detail in a standalone new browser tab
@@ -28808,7 +28795,7 @@ function emailCurrentCalc() {
                             <button onclick="openReportsModal(['${listing.id}'], 'print')" class="sidebar-action-primary" title="Print report in new tab">
                                 <i class="fas fa-print"></i><span>Print</span>
                             </button>
-                            <button onclick="shareListing('${listing.id}')" class="sidebar-action-primary" title="Share listing link">
+                            <button onclick="shareListing(event, '${listing.id}')" class="sidebar-action-primary" title="Share listing link">
                                 <i class="fas fa-share-alt"></i><span>Share</span>
                             </button>
                         </div>
@@ -29046,7 +29033,7 @@ function emailCurrentCalc() {
         }
 
         // ── Share listing link (copy or native share) ──
-        function shareListing(listingId) {
+        function shareListing(e, listingId) {
             var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) return;
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
@@ -29059,7 +29046,7 @@ function emailCurrentCalc() {
                 navigator.share({ title: title, url: url }).catch(function() {});
             } else if (navigator.clipboard) {
                 navigator.clipboard.writeText(url).then(function() {
-                    var btn = event && event.currentTarget;
+                    var btn = e && e.currentTarget;
                     if (btn) { var orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check text-[11px]"></i> Copied'; setTimeout(function() { btn.innerHTML = orig; }, 1500); }
                 });
             }
@@ -29466,11 +29453,27 @@ function emailCurrentCalc() {
         function emailListingDetail() {
             var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing) return;
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '' };
+
+            // REBNY compliance gate — do not email non-displayable listings
+            if (listing.ownerOptOut === true || listing.internetDisplayYN === false) {
+                showToast('This listing cannot be shared — owner has opted out of display.', 'error');
+                return;
+            }
+
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
             var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
-            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nListing Agent: ' + (listing.agentName || '---') + ' — ' + (listing.company || '---') + '\nPhone: ' + (listing.agentPhone || '---') + '\nEmail: ' + (listing.agentEmail || '---') + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\nPrepared by ' + _agent.name + '\n' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '\n' + _agent.company + ' | Lic. ' + (_agent.companyLicense || '') + '\n' + _agent.phone + ' | ' + _agent.email + (_agent.license ? '\nAgent License ' + _agent.license : '') + '\n\nEqual Housing Opportunity');
+
+            // Use sending agent info, NOT listing agent — per UCBA Art. I Sec. 5(C)
+            var agentBlock = _agent.name + '\n' +
+                (_agent.licenseTitle || 'Licensed Real Estate Salesperson') + '\n' +
+                (_agent.company || 'Mallan Real Estate Inc.') + '\n' +
+                (_agent.phone ? 'Phone: ' + _agent.phone + '\n' : '') +
+                (_agent.email ? 'Email: ' + _agent.email + '\n' : '') +
+                '\nEqual Housing Opportunity';
+
+            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\n' + agentBlock);
             window.open('mailto:?subject=' + subject + '&body=' + body);
         }
 
@@ -30716,7 +30719,7 @@ function emailCurrentCalc() {
             }
 
             // Update result count (mock)
-            var resultCount = Math.max(50, 400 - activeFilters.length * 50);
+            var resultCount = (typeof getFilteredListings === 'function') ? getFilteredListings(true).length : 0;
             document.getElementById('filterResultCount').textContent = resultCount + ' Results Match';
         }
 
@@ -30867,6 +30870,15 @@ function emailCurrentCalc() {
 
     // Track selected neighborhoods per input (keyed by tagsContainerId)
     var _selected = {};
+
+    // Clear all neighborhood selections and tags (called by clearSearchForm)
+    window.clearAllNeighborhoods = function() {
+        for (var key in _selected) { delete _selected[key]; }
+        ['saleNeighborhoodTags', 'rentalNeighborhoodTags', 'buildingNeighborhoodTags', 'advancedNeighborhoodTags'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
+    };
 
     function getSelected(tagsId) {
         if (!_selected[tagsId]) _selected[tagsId] = [];

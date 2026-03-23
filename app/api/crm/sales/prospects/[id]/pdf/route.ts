@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
-import type { PitchPacketData } from "@/lib/pdf/pitch-packet-renderer";
+// PitchPacketData type imported inline — the simple renderer handles its own typing
 
 export const maxDuration = 30;
 
@@ -86,7 +86,7 @@ function nycTransferTaxRate(price: number): number {
 // ── Assemble pitch packet data ───────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assemblePitchPacket(prospect: any, agentName: string): Promise<PitchPacketData> {
+async function assemblePitchPacket(prospect: any, agentName: string): Promise<Record<string, any>> {
   // ── Pillar 1: Property Intel ──
   const compFields =
     "ListingId,UnparsedAddress,UnitNumber,ClosePrice,CloseDate,BedroomsTotal,BathroomsTotalDecimal,LivingArea,BuildingName,StreetName,StreetNumber";
@@ -453,8 +453,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       { format: "pdf", address: prospect.address },
     );
 
-    // pdf-lib returns Uint8Array directly — compatible with NextResponse
-    const body = pdfBuffer;
+    // pdf-lib returns Uint8Array — convert to Buffer for NextResponse
+    const body = Buffer.from(pdfBuffer);
 
     return new NextResponse(body, {
       status: 200,

@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
@@ -218,6 +219,17 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       const area = parseInt(pluto.lotarea);
       if (area > 0) plutoUpdate.lot_area = area;
     }
+
+    // Auto-detect property_type from PLUTO building class (only if not already set)
+    if (!prospect.property_type && pluto.bldgclass) {
+      const cls = pluto.bldgclass.toUpperCase();
+      if (cls.startsWith("R")) plutoUpdate.property_type = "Condo";
+      else if (cls.startsWith("D")) plutoUpdate.property_type = "Co-op";
+      else if (cls.startsWith("A")) plutoUpdate.property_type = "Single Family";
+      else if (cls.startsWith("B")) plutoUpdate.property_type = "Multi Family";
+      else if (cls.startsWith("C")) plutoUpdate.property_type = "Multi Family";
+      else if (cls.startsWith("S")) plutoUpdate.property_type = "Mixed Use";
+    }
   }
 
   await prisma.sellerLead.update({
@@ -243,26 +255,157 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
   const allTransactions: AcrisTransaction[] = [];
 
-  if (bbl) {
+  {
     try {
-      const borough = bbl[0];
-      const block = bbl.substring(1, 6);
-      const lot = bbl.substring(6, 10);
-
       const REALPROP = process.env.SODA_DATASET_ACRIS_REALPROPERTY;
       const MASTER = process.env.SODA_DATASET_ACRIS_MASTER;
 
       if (REALPROP && MASTER) {
-        // Get all document IDs for this property
-        const docIdRows = await soda<{ document_id: string }>({
-          resource: REALPROP,
-          where: `borough='${borough}' AND block='${block}' AND lot='${lot}'`,
-          select: "document_id",
-          order: "document_id DESC",
-          limit: 100,
-        });
+        let docIdRows: { document_id: string }[] = [];
 
-        const docIds = (docIdRows || []).map((r) => r.document_id).filter(Boolean);
+        // Parse address for ACRIS: street_number + street_name + unit
+        // ACRIS format: street_number="400", street_name="EAST 90TH STREET", unit="17C"
+        // ACRIS keeps ordinals (90TH) — unlike PLUTO which strips them
+        const unit = (prospect.unit || "").trim().toUpperCase().replace(/[;\\{}'"]/g, "");
+
+        // Strategy 1: Address + borough + unit search (most precise)
+        // ACRIS format: borough + street_number + street_name + unit
+        // Borough from: prospect.borough, BBL, or zip code
+        let boro = prospect.borough ? boroughCode(prospect.borough) : (bbl ? bbl[0] : "");
+        if (!boro && prospect.postal_code) {
+          const z = parseInt(prospect.postal_code);
+          if (z >= 10001 && z <= 10282) boro = "1"; // Manhattan
+          else if (z >= 10451 && z <= 10475) boro = "2"; // Bronx
+          else if (z >= 11201 && z <= 11256) boro = "3"; // Brooklyn
+          else if (z >= 10301 && z <= 10314) boro = "5"; // Staten Island
+          else if (z >= 11001 && z <= 11697) boro = "4"; // Queens
+        }
+        const boroFilter = boro ? `borough='${boro}' AND ` : "";
+
+        if (prospect.address) {
+          // Normalize: uppercase, strip apt/unit suffix, sanitize
+          let addrClean = prospect.address.trim().toUpperCase();
+          addrClean = addrClean.replace(/,?\s*(APT|UNIT|SUITE|#)\s*\S*$/i, "");
+          addrClean = addrClean.replace(/'/g, "''").replace(/[;\\{}]/g, "");
+          const parts = addrClean.split(/\s+/);
+          const streetNum = parts[0] || "";
+          const streetRaw = parts.slice(1).join(" "); // keeps ordinal (90TH)
+
+          // Also build a version without ordinal (90TH→90)
+          const streetNoOrd = streetRaw.replace(/(\d+)\s*(ST|ND|RD|TH)\b/g, "$1");
+
+          // Add ordinal if missing: "90 STREET" → "90TH STREET"
+          const streetWithOrd = streetNoOrd.replace(
+            /(\d+)(\s+(?:STREET|ST|AVENUE|AVE|PLACE|PL|DRIVE|DR|BOULEVARD|BLVD|ROAD|RD))/g,
+            (_m, num, rest) => {
+              const n = parseInt(num);
+              const suf = n % 10 === 1 && n !== 11 ? "ST" : n % 10 === 2 && n !== 12 ? "ND" : n % 10 === 3 && n !== 13 ? "RD" : "TH";
+              return num + suf + rest;
+            },
+          );
+
+          if (streetNum && streetRaw) {
+            // Build street name variants — ACRIS is inconsistent, try multiple
+            const seen = new Set<string>();
+            const streetVariants: string[] = [];
+            for (const base of [streetRaw, streetWithOrd, streetNoOrd]) {
+              if (!base || seen.has(base)) continue;
+              seen.add(base);
+              streetVariants.push(base);
+              // Direction abbreviations: EAST↔E, WEST↔W
+              const abbr = base.replace(/\bEAST\b/g, "E").replace(/\bWEST\b/g, "W").replace(/\bNORTH\b/g, "N").replace(/\bSOUTH\b/g, "S");
+              if (!seen.has(abbr)) { seen.add(abbr); streetVariants.push(abbr); }
+              const exp = base.replace(/\bE\b/g, "EAST").replace(/\bW\b/g, "WEST").replace(/\bN\b/g, "NORTH").replace(/\bS\b/g, "SOUTH");
+              if (!seen.has(exp)) { seen.add(exp); streetVariants.push(exp); }
+            }
+
+            const unitFilter = unit ? ` AND unit='${unit}'` : "";
+
+            // Try each street name variant with borough + street_number + unit
+            for (const variant of streetVariants) {
+              if (docIdRows?.length) break;
+              docIdRows = await soda<{ document_id: string }>({
+                resource: REALPROP,
+                where: `${boroFilter}street_number='${streetNum}' AND street_name='${variant}'${unitFilter}`,
+                select: "document_id",
+                order: "document_id DESC",
+                limit: 200,
+              });
+            }
+
+            // Partial street match: "EAST 90%" catches "EAST 90TH STREET" and "EAST 90TH   STREET"
+            if (!docIdRows?.length) {
+              const streetWords = streetNoOrd.split(/\s+/);
+              const likePrefix = streetWords.length >= 2 ? streetWords.slice(0, 2).join(" ") : streetWords[0];
+              if (likePrefix && likePrefix.length > 1) {
+                docIdRows = await soda<{ document_id: string }>({
+                  resource: REALPROP,
+                  where: `${boroFilter}street_number='${streetNum}' AND street_name LIKE '${likePrefix}%'${unitFilter}`,
+                  select: "document_id",
+                  order: "document_id DESC",
+                  limit: 200,
+                });
+              }
+            }
+
+            // Fallback: borough + street_number + block + unit
+            if (!docIdRows?.length && unit && bbl) {
+              const block = bbl.substring(1, 6).replace(/^0+/, "") || "0";
+              docIdRows = await soda<{ document_id: string }>({
+                resource: REALPROP,
+                where: `${boroFilter}street_number='${streetNum}' AND block='${block}' AND unit='${unit}'`,
+                select: "document_id",
+                order: "document_id DESC",
+                limit: 200,
+              });
+            }
+
+            // Last resort for non-unit properties: address without unit
+            if (!docIdRows?.length && !unit) {
+              for (const variant of streetVariants) {
+                if (docIdRows?.length) break;
+                docIdRows = await soda<{ document_id: string }>({
+                  resource: REALPROP,
+                  where: `${boroFilter}street_number='${streetNum}' AND street_name='${variant}'`,
+                  select: "document_id",
+                  order: "document_id DESC",
+                  limit: 200,
+                });
+              }
+            }
+          }
+        }
+
+        // Strategy 2: BBL-based search (fallback if address didn't work)
+        if (!docIdRows?.length && bbl) {
+          const borough = bbl[0];
+          const block = bbl.substring(1, 6);
+          const lot = bbl.substring(6, 10);
+          const blockClean = block.replace(/^0+/, "") || "0";
+          const lotClean = lot.replace(/^0+/, "") || "0";
+          const lotNum = parseInt(lotClean, 10);
+
+          docIdRows = await soda<{ document_id: string }>({
+            resource: REALPROP,
+            where: `borough='${borough}' AND block='${blockClean}' AND lot='${lotClean}'`,
+            select: "document_id",
+            order: "document_id DESC",
+            limit: 100,
+          });
+
+          // Condo fallback: lot >= 7501 in PLUTO → search lots 1001-1999 in ACRIS
+          if (!docIdRows?.length && lotNum >= 7501) {
+            docIdRows = await soda<{ document_id: string }>({
+              resource: REALPROP,
+              where: `borough='${borough}' AND block='${blockClean}' AND lot BETWEEN '1001' AND '1999'`,
+              select: "document_id",
+              order: "document_id DESC",
+              limit: 200,
+            });
+          }
+        }
+
+        const docIds = [...new Set((docIdRows || []).map((r) => r.document_id).filter(Boolean))];
 
         if (docIds.length > 0) {
           // Get ALL master records with actual amounts
@@ -271,7 +414,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
             document_id: string;
             doc_type: string;
             recorded_datetime?: string;
-            doc_amount?: string;
+            document_amt?: string;
             good_through_date?: string;
           }>({
             resource: MASTER,
@@ -291,7 +434,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
           for (const doc of docs) {
             const type = (doc.doc_type || "").toUpperCase();
-            const amount = parseFloat(doc.doc_amount || "0");
+            const amount = parseFloat(doc.document_amt || "0");
             const date = doc.recorded_datetime || "";
 
             if (amount > 0 && date) {
@@ -315,7 +458,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
           // Enrich SellerLead with actual amounts
           if (lastDeed) {
-            const deedAmt = parseFloat(lastDeed.doc_amount || "0");
+            const deedAmt = parseFloat(lastDeed.document_amt || "0");
             const deedDate = lastDeed.recorded_datetime;
             if (deedAmt > 0) acrisUpdate.last_purchase_price = deedAmt;
             if (deedDate) {
@@ -326,15 +469,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           }
 
           if (lastMortgage) {
-            const mortAmt = parseFloat(lastMortgage.doc_amount || "0");
+            const mortAmt = parseFloat(lastMortgage.document_amt || "0");
             const mortDate = lastMortgage.recorded_datetime;
             if (mortAmt > 0) acrisUpdate.mortgage_amount = mortAmt;
             if (mortDate) acrisUpdate.mortgage_date = new Date(mortDate);
 
             // Calculate LTV if we have both
-            if (lastDeed?.doc_amount && lastMortgage.doc_amount) {
-              const purchase = parseFloat(lastDeed.doc_amount);
-              const mortgage = parseFloat(lastMortgage.doc_amount);
+            if (lastDeed?.document_amt && lastMortgage.document_amt) {
+              const purchase = parseFloat(lastDeed.document_amt);
+              const mortgage = parseFloat(lastMortgage.document_amt);
               if (purchase > 0 && mortgage > 0) {
                 acrisUpdate.equity_ratio = Math.max(0, Math.min(0.99, mortgage / purchase));
               }
@@ -354,7 +497,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 raw_value: `${allTransactions.length} recorded documents`,
                 normalized: 0,
                 source: "acris",
-                metadata: { transactions: allTransactions } as Record<string, unknown>,
+                metadata: { transactions: allTransactions } as unknown as Prisma.InputJsonValue,
               },
             });
           }
@@ -384,9 +527,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   // ── Step 5: Fetch DOF tax data directly and update ─────────────────────────
+  // Co-ops and condops pay maintenance (taxes bundled in) — no individual property tax.
+  // Only fetch DOF tax for: condos, townhouses, single family, multi family, commercial condos.
   const taxUpdate: Record<string, unknown> = {};
+  const resolvedType = ((plutoUpdate.property_type as string) || prospect.property_type || "").toLowerCase();
+  const isMaintenanceOnly = resolvedType === "co-op" || resolvedType === "coop" || resolvedType === "condop";
 
-  if (bbl) {
+  if (bbl && !isMaintenanceOnly) {
     try {
       const dof = await fetchDofTaxData(bbl);
       if (dof) {
@@ -428,7 +575,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
             raw_value: `${taxLienHistory.length} lien sale record(s)`,
             normalized: Math.min(taxLienHistory.length * 0.3, 1.0), // Higher = more liens = more motivated seller
             source: "dof",
-            metadata: { liens: taxLienHistory } as Record<string, unknown>,
+            metadata: { liens: taxLienHistory } as unknown as Prisma.InputJsonValue,
           },
         });
       }

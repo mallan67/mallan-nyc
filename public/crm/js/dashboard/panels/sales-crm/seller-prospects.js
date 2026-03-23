@@ -171,11 +171,13 @@ var SellerProspects = (function () {
         { key: 'source', label: 'Source', options: SOURCES, active: _s.filter.source },
       ],
       onFilter: 'SellerProspects._filter',
-      quickActions: [
-        { label: 'Add Prospect', icon: 'fa-plus', onclick: 'SellerProspects._newProspect()' },
-        { label: 'Import', icon: 'fa-file-import', onclick: 'SellerProspects._importModal()', cls: 'btn btn-sm btn-outline' },
-      ],
     });
+
+    // Quick action buttons (rendered directly to avoid FilterBar escaping onclick)
+    h += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+    h += '<button style="padding:6px 14px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#B8860B;color:#fff;" onclick="SellerProspects._newProspect()"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Prospect</button>';
+    h += '<button style="padding:6px 14px;border:1px solid #D1D5DB;border-radius:6px;font-size:12px;cursor:pointer;background:#fff;color:#374151;" onclick="SellerProspects._importModal()"><i class="fas fa-file-import" style="margin-right:4px;"></i>Import</button>';
+    h += '</div>';
 
     h += ActivityTable.render({
       id: 'prospects_tbl',
@@ -191,7 +193,9 @@ var SellerProspects = (function () {
           return '<div>' + name + entity + '</div>';
         }},
         { key: 'status', label: 'Status', render: function (r) { return _statusBadge(r.status); } },
-        { key: 'readiness_score', label: 'Score', render: function (r) { return _gradeBadge(r.readiness_grade, r.readiness_score); } },
+        { key: 'borough', label: 'Borough', render: function (r) {
+          return '<span class="text-xs text-gray-600">' + E(_boroughLabel(r.borough) || '-') + '</span>';
+        }},
         { key: 'source', label: 'Source', render: function (r) {
           return '<span class="text-xs text-gray-600">' + E(r.source || '-') + '</span>';
         }},
@@ -268,30 +272,46 @@ var SellerProspects = (function () {
   // ═══════════════════════════════════════════════════════════════════════
   // ADD PROSPECT MODAL
   // ═══════════════════════════════════════════════════════════════════════
-  // ─── Ownership type options ───────────────────────────────────────────
-  var ENTITY_TYPES = [
-    { value: '', label: 'Individual (Person)' },
-    { value: 'couple', label: 'Couple / Partners' },
-    { value: 'family', label: 'Family Members' },
+  var OWNERSHIP_TYPES = [
+    { value: 'individual', label: 'Individual' },
+    { value: 'couple', label: 'Married Couple' },
+    { value: 'family', label: 'Family (multiple members)' },
     { value: 'llc', label: 'LLC' },
     { value: 'trust', label: 'Trust' },
+    { value: 'llp', label: 'LLP (Limited Liability Partnership)' },
+    { value: 'lp', label: 'LP (Limited Partnership)' },
     { value: 'inc', label: 'Inc / Corporation' },
     { value: 'corp', label: 'Corp' },
-    { value: 'llp', label: 'LLP / Partnership' },
-    { value: 'lp', label: 'LP (Limited Partnership)' },
     { value: 'estate', label: 'Estate' },
   ];
 
-  var _newParties = []; // additional parties beyond primary owner
+  var ROLE_OPTIONS = [
+    { value: 'owner', label: 'Owner' },
+    { value: 'spouse', label: 'Spouse' },
+    { value: 'co-owner', label: 'Co-Owner' },
+    { value: 'trustee', label: 'Trustee' },
+    { value: 'executor', label: 'Executor / Executrix' },
+    { value: 'managing_member', label: 'Managing Member' },
+    { value: 'officer', label: 'Officer / Director' },
+    { value: 'partner', label: 'Partner' },
+    { value: 'authorized_signer', label: 'Authorized Signer' },
+    { value: 'power_of_attorney', label: 'Power of Attorney' },
+    { value: 'guardian', label: 'Guardian' },
+    { value: 'parent', label: 'Parent' },
+    { value: 'child', label: 'Adult Child' },
+    { value: 'sibling', label: 'Sibling' },
+    { value: 'beneficiary', label: 'Beneficiary' },
+  ];
 
   function _newProspect() {
-    _newParties = [];
     var boroughOpts = '<option value="">Select Borough</option>';
     BOROUGHS.forEach(function (b) { boroughOpts += '<option value="' + E(b.value) + '">' + E(b.label) + '</option>'; });
     var sourceOpts = '<option value="manual">Manual</option>';
     SOURCES.forEach(function (s) { if (s.value !== 'manual') sourceOpts += '<option value="' + E(s.value) + '">' + E(s.label) + '</option>'; });
-    var entityOpts = '';
-    ENTITY_TYPES.forEach(function (t) { entityOpts += '<option value="' + E(t.value) + '">' + E(t.label) + '</option>'; });
+    var ownerOpts = '';
+    OWNERSHIP_TYPES.forEach(function (t) { ownerOpts += '<option value="' + E(t.value) + '">' + E(t.label) + '</option>'; });
+    var roleOpts = '';
+    ROLE_OPTIONS.forEach(function (r) { roleOpts += '<option value="' + E(r.value) + '">' + E(r.label) + '</option>'; });
 
     var inp = 'style="width:100%;font-size:13px;padding:8px 12px;border:1px solid #D1D5DB;border-radius:6px;"';
     var lbl = 'style="display:block;font-size:11px;font-weight:600;color:#374151;margin-bottom:3px;"';
@@ -301,57 +321,29 @@ var SellerProspects = (function () {
         // ── PROPERTY ──
         '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Property</div>' +
         '<div style="margin-bottom:10px;"><label ' + lbl + '>Address *</label>' +
-          '<input ' + inp + ' name="address" required placeholder="400 East 90th Street"></div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+          '<input ' + inp + ' name="address" required placeholder="400 East 90th Street" onblur="SellerProspects._autoLookup()"></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">' +
           '<div><label ' + lbl + '>Unit / Apt</label><input ' + inp + ' name="unit" placeholder="17C"></div>' +
-          '<div><label ' + lbl + '>Borough</label><select ' + inp + ' name="borough">' + boroughOpts + '</select></div>' +
+          '<div><label ' + lbl + '>Borough *</label><select ' + inp + ' name="borough" required onchange="SellerProspects._autoLookup()">' + boroughOpts + '</select></div>' +
+          '<div><label ' + lbl + '>Zip</label><input ' + inp + ' name="postal_code" placeholder="10128" maxlength="5"></div>' +
         '</div>' +
+        '<div id="autoLookupResult" style="display:none;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:#1E40AF;"></div>' +
 
-        // ── OWNERSHIP ──
+        // ── OWNERSHIP TYPE ──
         '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Ownership</div>' +
-        '<div style="margin-bottom:10px;"><label ' + lbl + '>Ownership Type</label>' +
-          '<select ' + inp + ' name="entity_type" onchange="SellerProspects._toggleEntity(this.value)">' + entityOpts + '</select></div>' +
-        '<div id="entityFields" style="display:none;margin-bottom:10px;">' +
-          '<label ' + lbl + '>Entity Name (LLC, Trust, Corp name)</label>' +
-          '<input ' + inp + ' name="entity_name" placeholder="Smith Family Trust LLC">' +
-        '</div>' +
-
-        // ── PRIMARY CONTACT ──
-        '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Primary Contact</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
-          '<div><label ' + lbl + '>Name</label><input ' + inp + ' name="owner_name" placeholder="John Smith"></div>' +
-          '<div><label ' + lbl + '>Phone</label><input ' + inp + ' name="owner_phone" type="tel" placeholder="212-555-1234"></div>' +
+          '<div><label ' + lbl + '>Ownership Type</label>' +
+            '<select ' + inp + ' name="entity_type" onchange="SellerProspects._toggleOwnership(this.value)">' + ownerOpts + '</select></div>' +
+          '<div id="entityNameWrap" style="display:none;"><label ' + lbl + '>Entity Name</label>' +
+            '<input ' + inp + ' name="entity_name" placeholder="Smith Family Trust LLC"></div>' +
         '</div>' +
-        '<div style="margin-bottom:10px;"><label ' + lbl + '>Email</label>' +
-          '<input ' + inp + ' name="owner_email" type="email" placeholder="john@example.com"></div>' +
 
-        // ── SECONDARY / PARTNER ──
+        // ── PARTIES / SIGNERS (dynamic — add as many as needed) ──
         '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">' +
-          'Second Person (Spouse, Partner, Co-Owner)' +
-          '<span style="font-weight:400;color:#9CA3AF;font-size:10px;margin-left:8px;">Optional</span></div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
-          '<div><label ' + lbl + '>Name</label><input ' + inp + ' name="secondary_name" placeholder="Jane Smith"></div>' +
-          '<div><label ' + lbl + '>Relationship</label>' +
-            '<select ' + inp + ' name="secondary_relationship">' +
-              '<option value="">—</option><option value="spouse">Spouse</option><option value="partner">Partner</option>' +
-              '<option value="co-owner">Co-Owner</option><option value="parent">Parent</option><option value="child">Adult Child</option>' +
-              '<option value="sibling">Sibling</option><option value="trustee">Trustee</option><option value="executor">Executor</option>' +
-              '<option value="managing_member">Managing Member</option><option value="officer">Officer / Director</option>' +
-            '</select></div>' +
+          '<span id="partiesLabel">Owner / Contact</span>' +
+          '<button type="button" style="float:right;font-size:11px;color:#B8860B;background:none;border:none;cursor:pointer;font-weight:600;" onclick="SellerProspects._addParty()">+ Add Person</button>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
-          '<div><label ' + lbl + '>Email</label><input ' + inp + ' name="secondary_email" type="email"></div>' +
-          '<div><label ' + lbl + '>Phone</label><input ' + inp + ' name="secondary_phone" type="tel"></div>' +
-        '</div>' +
-
-        // ── SIGNATORIES (for entities) ──
-        '<div id="signatorySection" style="display:none;">' +
-          '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">' +
-            'Authorized Signatories' +
-            '<button type="button" style="float:right;font-size:11px;color:#B8860B;background:none;border:none;cursor:pointer;" onclick="SellerProspects._addSignatory()">+ Add Signatory</button>' +
-          '</div>' +
-          '<div id="signatoryList"></div>' +
-        '</div>' +
+        '<div id="partyList"></div>' +
 
         // ── SOURCE ──
         '<div style="font-size:11px;font-weight:700;color:#B8860B;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Source</div>' +
@@ -366,29 +358,146 @@ var SellerProspects = (function () {
       footer: '<button style="padding:8px 16px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;cursor:pointer;background:#fff;" onclick="CRM.closeModal()">Cancel</button>' +
         '<button style="padding:8px 20px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;background:#B8860B;color:#fff;" onclick="SellerProspects._submitNew()"><i class="fas fa-plus" style="margin-right:4px;"></i>Add Prospect</button>',
     });
+
+    // Add the first party row automatically
+    setTimeout(function () { _addParty(); }, 50);
   }
 
-  function _toggleEntity(val) {
-    var ef = document.getElementById('entityFields');
-    var sf = document.getElementById('signatorySection');
-    var isEntity = val && val !== '' && val !== 'couple' && val !== 'family';
-    if (ef) ef.style.display = isEntity ? 'block' : 'none';
-    if (sf) sf.style.display = isEntity ? 'block' : 'none';
+  function _toggleOwnership(val) {
+    var entityWrap = document.getElementById('entityNameWrap');
+    var label = document.getElementById('partiesLabel');
+    var isEntity = val && val !== 'individual' && val !== 'couple' && val !== 'family';
+    if (entityWrap) entityWrap.style.display = isEntity ? 'block' : 'none';
+    // Update label based on type
+    if (label) {
+      if (val === 'couple') label.textContent = 'Spouses / Partners';
+      else if (val === 'family') label.textContent = 'Family Members';
+      else if (isEntity) label.textContent = 'Authorized Signers';
+      else label.textContent = 'Owner / Contact';
+    }
   }
 
-  function _addSignatory() {
-    var list = document.getElementById('signatoryList');
+  // Alias for backward compat
+  function _toggleEntity(val) { _toggleOwnership(val); }
+
+  function _addParty() {
+    var list = document.getElementById('partyList');
     if (!list) return;
     var idx = list.children.length;
-    var inp = 'style="width:100%;font-size:12px;padding:6px 8px;border:1px solid #D1D5DB;border-radius:4px;"';
-    list.insertAdjacentHTML('beforeend',
-      '<div style="display:grid;grid-template-columns:2fr 2fr 1fr auto;gap:6px;margin-bottom:6px;align-items:end;" data-sig="' + idx + '">' +
-        '<div><label style="font-size:10px;color:#6B7280;">Name</label><input ' + inp + ' name="sig_name_' + idx + '" placeholder="Name"></div>' +
-        '<div><label style="font-size:10px;color:#6B7280;">Title</label><input ' + inp + ' name="sig_title_' + idx + '" placeholder="Managing Member, Trustee..."></div>' +
-        '<div><label style="font-size:10px;color:#6B7280;">Phone</label><input ' + inp + ' name="sig_phone_' + idx + '" type="tel"></div>' +
-        '<button type="button" style="font-size:14px;color:#EF4444;background:none;border:none;cursor:pointer;padding:6px;" onclick="this.parentNode.remove()">&times;</button>' +
-      '</div>'
-    );
+    var inp = 'style="width:100%;font-size:12px;padding:6px 10px;border:1px solid #D1D5DB;border-radius:6px;"';
+    var slbl = 'style="font-size:10px;font-weight:600;color:#6B7280;display:block;margin-bottom:2px;"';
+
+    var roleOpts = '<option value="">Role...</option>';
+    ROLE_OPTIONS.forEach(function (r) { roleOpts += '<option value="' + E(r.value) + '">' + E(r.label) + '</option>'; });
+
+    var html =
+      '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:10px;margin-bottom:8px;" data-party="' + idx + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+          '<span style="font-size:11px;font-weight:700;color:#374151;">Person ' + (idx + 1) + '</span>' +
+          (idx > 0 ? '<button type="button" style="font-size:12px;color:#EF4444;background:none;border:none;cursor:pointer;" onclick="this.closest(\'[data-party]\').remove()">Remove</button>' : '') +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:6px;">' +
+          '<div><label ' + slbl + '>Full Name *</label><input ' + inp + ' name="party_name_' + idx + '" placeholder="John Smith" required></div>' +
+          '<div><label ' + slbl + '>Role / Title</label><select ' + inp + ' name="party_role_' + idx + '">' + roleOpts + '</select></div>' +
+          '<div><label ' + slbl + '>Signing Capacity</label><input ' + inp + ' name="party_capacity_' + idx + '" placeholder="As Managing Member of..."></div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+          '<div><label ' + slbl + '>Email</label><input ' + inp + ' name="party_email_' + idx + '" type="email" placeholder="john@example.com"></div>' +
+          '<div><label ' + slbl + '>Phone</label><input ' + inp + ' name="party_phone_' + idx + '" type="tel" placeholder="212-555-1234"></div>' +
+        '</div>' +
+      '</div>';
+    list.insertAdjacentHTML('beforeend', html);
+  }
+
+  // Keep old name for exported API
+  function _addSignatory() { _addParty(); }
+
+  // ── Auto-lookup: when address + borough entered, pull PLUTO data ──
+  var _lookupTimer = null;
+  function _autoLookup() {
+    if (_lookupTimer) clearTimeout(_lookupTimer);
+    _lookupTimer = setTimeout(function () { _doAutoLookup(); }, 500);
+  }
+
+  function _doAutoLookup() {
+    var form = document.getElementById('newProspectForm');
+    if (!form) return;
+    var address = (form.querySelector('[name="address"]') || {}).value || '';
+    var borough = (form.querySelector('[name="borough"]') || {}).value || '';
+    if (!address.trim() || !borough) return;
+
+    var resultDiv = document.getElementById('autoLookupResult');
+    if (resultDiv) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:4px;"></i>Looking up property...';
+    }
+
+    // Normalize address for PLUTO: uppercase, strip unit/apt, strip ordinals
+    var addrNorm = address.trim().toUpperCase()
+      .replace(/,?\s*(APT|UNIT|SUITE|#)\s*\S*$/i, '')
+      .replace(/(\d+)\s*(ST|ND|RD|TH)\b/g, '$1')
+      .replace(/'/g, "''");
+
+    var boroMap = { manhattan: '1', bronx: '2', brooklyn: '3', queens: '4', 'staten island': '5' };
+    var boroCode = boroMap[borough.toLowerCase()] || borough;
+
+    // Try PLUTO lookup via NYC Open Data
+    var plutoUrl = 'https://data.cityofnewyork.us/resource/64uk-42ks.json?' +
+      '$where=' + encodeURIComponent("address='" + addrNorm + "' AND borocode='" + boroCode + "'") +
+      '&$limit=1';
+
+    fetch(plutoUrl)
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        if (!rows || !rows.length) {
+          // Try abbreviated direction
+          var abbr = addrNorm.replace(/\bEAST\b/g, 'E').replace(/\bWEST\b/g, 'W').replace(/\bNORTH\b/g, 'N').replace(/\bSOUTH\b/g, 'S');
+          if (abbr !== addrNorm) {
+            var url2 = 'https://data.cityofnewyork.us/resource/64uk-42ks.json?' +
+              '$where=' + encodeURIComponent("address='" + abbr + "' AND borocode='" + boroCode + "'") +
+              '&$limit=1';
+            return fetch(url2).then(function (r2) { return r2.json(); });
+          }
+          return [];
+        }
+        return rows;
+      })
+      .then(function (rows) {
+        if (!rows || !rows.length) {
+          if (resultDiv) {
+            resultDiv.innerHTML = '<i class="fas fa-info-circle" style="margin-right:4px;"></i>No PLUTO record found. Data will be pulled when you run Research.';
+          }
+          return;
+        }
+
+        var p = rows[0];
+        var info = [];
+        if (p.ownername) info.push('<b>Owner:</b> ' + E(p.ownername));
+        if (p.yearbuilt) info.push('<b>Year Built:</b> ' + E(p.yearbuilt));
+        if (p.numfloors) info.push('<b>Floors:</b> ' + E(Math.round(parseFloat(p.numfloors))));
+        if (p.unitstotal) info.push('<b>Units:</b> ' + E(p.unitstotal));
+        if (p.bldgclass) info.push('<b>Class:</b> ' + E(p.bldgclass));
+        if (p.bldgarea) info.push('<b>Bldg Area:</b> ' + E(parseInt(p.bldgarea).toLocaleString()) + ' sqft');
+        if (p.bbl) info.push('<b>BBL:</b> ' + E(p.bbl.split('.')[0]));
+
+        if (resultDiv) {
+          resultDiv.innerHTML = '<i class="fas fa-check-circle" style="margin-right:4px;color:#059669;"></i><b>Property Found</b><br>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 16px;margin-top:4px;">' +
+            info.map(function (i) { return '<span>' + i + '</span>'; }).join('') +
+            '</div>';
+        }
+
+        // Auto-fill owner name in first party if empty
+        var firstPartyName = form.querySelector('[name="party_name_0"]');
+        if (firstPartyName && !firstPartyName.value && p.ownername) {
+          firstPartyName.value = p.ownername;
+        }
+      })
+      .catch(function () {
+        if (resultDiv) {
+          resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:4px;color:#F59E0B;"></i>Lookup failed. Data will be pulled when you run Research.';
+        }
+      });
   }
 
   function _submitNew() {
@@ -398,29 +507,53 @@ var SellerProspects = (function () {
 
     var data = {};
     new FormData(form).forEach(function (v, k) {
-      if (v && !k.startsWith('sig_')) data[k] = v;
+      if (v && !k.startsWith('party_')) data[k] = v;
     });
 
-    // Collect signatories
-    var sigs = [];
-    var sigList = document.getElementById('signatoryList');
-    if (sigList) {
-      var sigDivs = sigList.querySelectorAll('[data-sig]');
-      sigDivs.forEach(function (div) {
-        var idx = div.getAttribute('data-sig');
-        var name = form.querySelector('[name="sig_name_' + idx + '"]');
-        var title = form.querySelector('[name="sig_title_' + idx + '"]');
-        var phone = form.querySelector('[name="sig_phone_' + idx + '"]');
-        if (name && name.value.trim()) {
-          sigs.push({
-            name: name.value.trim(),
-            title: title ? title.value.trim() : '',
-            phone: phone ? phone.value.trim() : '',
-          });
-        }
-      });
+    // Collect all parties
+    var parties = [];
+    var partyDivs = document.querySelectorAll('[data-party]');
+    partyDivs.forEach(function (div) {
+      var idx = div.getAttribute('data-party');
+      var name = form.querySelector('[name="party_name_' + idx + '"]');
+      var role = form.querySelector('[name="party_role_' + idx + '"]');
+      var capacity = form.querySelector('[name="party_capacity_' + idx + '"]');
+      var email = form.querySelector('[name="party_email_' + idx + '"]');
+      var phone = form.querySelector('[name="party_phone_' + idx + '"]');
+      if (name && name.value.trim()) {
+        parties.push({
+          name: name.value.trim(),
+          role: role ? role.value : '',
+          signing_capacity: capacity ? capacity.value.trim() : '',
+          email: email ? email.value.trim() : '',
+          phone: phone ? phone.value.trim() : '',
+        });
+      }
+    });
+
+    // First party becomes the primary contact
+    if (parties.length > 0) {
+      var primary = parties[0];
+      data.owner_name = primary.name;
+      if (primary.email) data.owner_email = primary.email;
+      if (primary.phone) data.owner_phone = primary.phone;
+
+      // Second party becomes secondary contact
+      if (parties.length > 1) {
+        var secondary = parties[1];
+        data.secondary_name = secondary.name;
+        data.secondary_relationship = secondary.role || 'co-owner';
+        if (secondary.email) data.secondary_email = secondary.email;
+        if (secondary.phone) data.secondary_phone = secondary.phone;
+      }
+
+      // All parties stored as authorized_signatories (includes all people)
+      if (parties.length > 0) {
+        data.authorized_signatories = parties.map(function (p) {
+          return { name: p.name, title: p.role, signing_capacity: p.signing_capacity, email: p.email, phone: p.phone };
+        });
+      }
     }
-    if (sigs.length > 0) data.authorized_signatories = sigs;
 
     MallanAPI._fetch('/api/crm/sales/prospects', { method: 'POST', body: JSON.stringify(data) })
       .then(function (res) {
@@ -721,26 +854,19 @@ var SellerProspects = (function () {
     });
     h += '</select></div>';
 
-    // Readiness display
-    h += '<div class="flex items-center gap-3 mb-3">';
-    h += '<div style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;' + _gradeStyle(p.readiness_grade) + '">' + E(p.readiness_grade || '-') + '</div>';
-    h += '<div><div class="text-sm font-bold">Readiness Score</div><div class="text-2xl font-extrabold text-gray-900">' + (typeof p.readiness_score === 'number' ? p.readiness_score : '-') + '<span class="text-xs text-gray-400 font-normal"> / 100</span></div></div>';
-    h += '</div>';
-
-    // Signal breakdown
-    if (p.signals && p.signals.length > 0) {
-      h += '<div class="border-t border-gray-100 pt-3 mt-3">';
-      h += '<span class="text-xs font-semibold text-gray-700">Signal Breakdown</span>';
-      h += '<div class="mt-2 space-y-1">';
-      p.signals.slice(0, 8).forEach(function (sig) {
-        var pct = typeof sig.score === 'number' ? Math.min(100, Math.max(0, sig.score)) : 0;
-        h += '<div class="flex items-center gap-2">';
-        h += '<span class="text-[10px] text-gray-500 w-24 truncate">' + E(sig.signal_type || '-') + '</span>';
-        h += '<div style="flex:1;height:6px;background:#F3F4F6;border-radius:3px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:#B8860B;border-radius:3px;"></div></div>';
-        h += '<span class="text-[10px] font-bold text-gray-700 w-8 text-right">' + pct + '</span>';
-        h += '</div>';
-      });
-      h += '</div></div>';
+    // Key property data (real only)
+    if (p.last_purchase_price || p.mortgage_amount || p.year_built) {
+      h += '<div class="border-t border-gray-100 pt-3 mt-3 space-y-1">';
+      if (p.last_purchase_price) h += _fieldRow('Purchase Price', $(Number(p.last_purchase_price)));
+      if (p.last_purchase_date) h += _fieldRow('Purchased', D(p.last_purchase_date) + (p.ownership_years ? ' (' + p.ownership_years + ' yrs)' : ''));
+      if (p.mortgage_amount) h += _fieldRow('Mortgage', $(Number(p.mortgage_amount)));
+      var _pt = (p.property_type || '').toLowerCase();
+      var _maint = _pt === 'co-op' || _pt === 'coop' || _pt === 'condop';
+      if (!_maint && p.market_value) h += _fieldRow('DOF Market Value', $(Number(p.market_value)));
+      if (!_maint && p.annual_tax) h += _fieldRow('Annual Tax', $(Number(p.annual_tax)));
+      if (_maint) h += _fieldRow('Tax', 'Maintenance only');
+      if (p.year_built) h += _fieldRow('Year Built', p.year_built);
+      h += '</div>';
     }
 
     // Metadata
@@ -881,10 +1007,19 @@ var SellerProspects = (function () {
     // SECTION 2: DOF — Tax & Valuation
     // ══════════════════════════════════════════════════════════════════
     h += section('fa-dollar-sign', 'DOF — Property Tax & Valuation', '#059669');
-    h += row('Tax Class', p.tax_class);
-    h += row('Annual Property Tax', p.annual_tax ? $(Number(p.annual_tax)) + ' / year' : null);
-    h += row('DOF Market Value', p.market_value ? $(Number(p.market_value)) : null);
-    h += row('Assessed Value', p.assessed_value ? $(Number(p.assessed_value)) : null);
+    var pType = (p.property_type || '').toLowerCase();
+    var isMaintOnly = pType === 'co-op' || pType === 'coop' || pType === 'condop';
+    if (isMaintOnly) {
+      h += '<div style="padding:10px;background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;margin-bottom:8px;">' +
+        '<div style="font-size:12px;font-weight:600;color:#92400E;"><i class="fas fa-info-circle" style="margin-right:4px;"></i>Maintenance Only</div>' +
+        '<div style="font-size:11px;color:#78350F;margin-top:2px;">' + E(p.property_type || 'Co-op') + 's pay maintenance (taxes bundled in). No individual property tax bill.</div>' +
+      '</div>';
+    } else {
+      h += row('Tax Class', p.tax_class);
+      h += row('Annual Property Tax', p.annual_tax ? $(Number(p.annual_tax)) + ' / year' : null);
+      h += row('DOF Market Value', p.market_value ? $(Number(p.market_value)) : null);
+      h += row('Assessed Value', p.assessed_value ? $(Number(p.assessed_value)) : null);
+    }
 
     // Tax Lien History
     var lienSignal = signals.filter(function (s) { return s.signal_type === 'tax_lien_history'; });
@@ -925,9 +1060,8 @@ var SellerProspects = (function () {
     // SECTION 3: DOB — Permits & Violations
     // ══════════════════════════════════════════════════════════════════
     h += section('fa-hard-hat', 'DOB — Permits & Violations', '#F59E0B');
-    h += row('Open Violations', p.open_violations != null ? String(p.open_violations) : null, p.open_violations > 0 ? '#DC2626' : '#059669');
+    h += row('Open Violations', p.open_violations != null ? String(p.open_violations) : null);
     h += row('Recent Permits (3yr)', p.recent_permits != null ? String(p.recent_permits) : null);
-    h += row('Building Risk Score', p.building_risk != null ? (Number(p.building_risk) * 100).toFixed(0) + '%' : null, Number(p.building_risk) > 0.5 ? '#DC2626' : '#059669');
 
     if (p.bbl) {
       var bin = p.bin || '';
@@ -947,30 +1081,7 @@ var SellerProspects = (function () {
     h += row('Lot Area', p.lot_area ? p.lot_area.toLocaleString() + ' sqft' : null);
     h += '</div>';
 
-    // ══════════════════════════════════════════════════════════════════
-    // SECTION 5: Readiness Score
-    // ══════════════════════════════════════════════════════════════════
-    h += section('fa-tachometer-alt', 'Seller Readiness Score', '#B8860B');
-    h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
-    h += '<div style="font-size:36px;font-weight:800;color:#111;">' + (p.readiness_score || 0) + '</div>';
-    h += '<div style="font-size:24px;font-weight:700;color:' + _gradeColor(p.score_grade) + ';">' + E(p.score_grade || 'F') + '</div>';
-    h += '<div style="flex:1;height:8px;background:#E5E7EB;border-radius:4px;"><div style="height:8px;border-radius:4px;width:' + (p.readiness_score || 0) + '%;background:' + _gradeColor(p.score_grade) + ';"></div></div>';
-    h += '</div>';
-
-    // Show individual signals
-    if (signals.length > 0) {
-      h += '<div style="margin-top:8px;">';
-      signals.forEach(function (sig) {
-        var pct = Math.round((sig.normalized || 0) * 100);
-        h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
-        h += '<span style="font-size:10px;color:#6B7280;width:140px;flex-shrink:0;">' + E(sig.signal_type || '') + '</span>';
-        h += '<div style="flex:1;height:4px;background:#E5E7EB;border-radius:2px;"><div style="height:4px;border-radius:2px;width:' + pct + '%;background:#B8860B;"></div></div>';
-        h += '<span style="font-size:10px;font-weight:600;color:#111;width:30px;text-align:right;">' + pct + '%</span>';
-        h += '</div>';
-      });
-      h += '</div>';
-    }
-    h += '</div>';
+    // Readiness Score section removed — only real factual data shown
 
     el.innerHTML = h;
   }
@@ -1154,7 +1265,17 @@ var SellerProspects = (function () {
           '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Owner Phone</label>' +
             '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" type="tel" name="owner_phone" value="' + E(p.owner_phone || '') + '"></div>' +
           '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Property Type</label>' +
-            '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="property_type" value="' + E(p.property_type || '') + '"></div>' +
+            '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none" name="property_type">' +
+              '<option value="">—</option>' +
+              '<option value="Condo"' + (p.property_type === 'Condo' ? ' selected' : '') + '>Condo</option>' +
+              '<option value="Co-op"' + (p.property_type === 'Co-op' ? ' selected' : '') + '>Co-op</option>' +
+              '<option value="Condop"' + (p.property_type === 'Condop' ? ' selected' : '') + '>Condop</option>' +
+              '<option value="Townhouse"' + (p.property_type === 'Townhouse' ? ' selected' : '') + '>Townhouse</option>' +
+              '<option value="Single Family"' + (p.property_type === 'Single Family' ? ' selected' : '') + '>Single Family</option>' +
+              '<option value="Multi Family"' + (p.property_type === 'Multi Family' ? ' selected' : '') + '>Multi Family</option>' +
+              '<option value="Commercial Condo"' + (p.property_type === 'Commercial Condo' ? ' selected' : '') + '>Commercial Condo</option>' +
+              '<option value="Mixed Use"' + (p.property_type === 'Mixed Use' ? ' selected' : '') + '>Mixed Use</option>' +
+            '</select></div>' +
         '</div>' +
         '<div class="grid grid-cols-3 gap-3">' +
           '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Beds</label>' +
@@ -1260,7 +1381,10 @@ var SellerProspects = (function () {
     _newProspect: _newProspect,
     _submitNew: _submitNew,
     _toggleEntity: _toggleEntity,
+    _toggleOwnership: _toggleOwnership,
     _addSignatory: _addSignatory,
+    _addParty: _addParty,
+    _autoLookup: _autoLookup,
     _importModal: _importModal,
     _importPreview: _importPreview,
     _importConfirm: _importConfirm,

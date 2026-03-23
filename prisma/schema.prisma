@@ -474,6 +474,11 @@ model Listing {
   // Agent-defined custom fields — no migration needed to add new data
   custom_fields            Json?     @map("custom_fields")
 
+  // Comp criteria — agent-adjustable filters for building + area comps
+  // Structure: { building: { beds_min, beds_max, baths_min, baths_max, sqft_min, sqft_max, sqft_enabled, statuses[], months_back },
+  //              area: { ...same + price_min, price_max, neighborhoods[] } }
+  comp_criteria            Json?     @map("comp_criteria")
+
   @@index([bedrooms_total])
   @@index([modification_timestamp])
   @@index([idx_display_yn, owner_opt_out])
