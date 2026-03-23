@@ -190,9 +190,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   // ── Step 2: Update prospect with PLUTO data ────────────────────────────────
-  const plutoUpdate: Record<string, unknown> = {
-    last_researched_at: new Date(),
-  };
+  // NOTE: last_researched_at is set at the END (Step 6), not here, so that
+  // a failed research run doesn't block re-runs for an hour.
+  const plutoUpdate: Record<string, unknown> = {};
 
   if (bbl && !prospect.bbl) {
     plutoUpdate.bbl = bbl;
@@ -466,6 +466,40 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
               const years = (Date.now() - new Date(deedDate).getTime()) / (365.25 * 24 * 3600000);
               acrisUpdate.ownership_years = Math.round(years * 10) / 10;
             }
+
+            // ── Pull deed owner name from ACRIS Parties ──────────────────
+            // Party type "2" = grantee (buyer / current owner) on deeds
+            const PARTIES_DATASET = "636b-3b5g";
+            try {
+              const parties = await soda<{ party_type: string; name: string }>({
+                resource: PARTIES_DATASET,
+                where: `document_id='${lastDeed.document_id}' AND party_type='2'`,
+                select: "name",
+                limit: 5,
+              });
+              if (parties?.length) {
+                // Use the first grantee name (multiple = co-owners)
+                const deedOwner = parties.map((p) => p.name).filter(Boolean).join(", ");
+                if (deedOwner) {
+                  acrisUpdate.owner_name = deedOwner;
+
+                  // Auto-detect entity type from deed party name
+                  const upper = deedOwner.toUpperCase();
+                  if (/\bLLC\b|\bL\.L\.C\b/.test(upper)) acrisUpdate.entity_type = "llc";
+                  else if (/\bTRUST\b|\bTRSTEE?\b/.test(upper)) acrisUpdate.entity_type = "trust";
+                  else if (/\bCORP\b|\bINC\b/.test(upper)) acrisUpdate.entity_type = "corp";
+                  else if (/\bLP\b|\bL\.P\b|\bPARTNERSHIP\b/.test(upper)) acrisUpdate.entity_type = "partnership";
+                  else if (/\bESTATE\b/.test(upper)) acrisUpdate.entity_type = "estate";
+
+                  // If entity detected, also set entity_name
+                  if (acrisUpdate.entity_type && acrisUpdate.entity_type !== "individual") {
+                    acrisUpdate.entity_name = deedOwner;
+                  }
+                }
+              }
+            } catch (partyErr) {
+              console.warn("[prospect-research] ACRIS parties lookup failed:", (partyErr as Error).message);
+            }
           }
 
           if (lastMortgage) {
@@ -584,14 +618,16 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // ── Step 6: Apply all enrichment updates ────────────────────────────────────
-  const enrichmentData = { ...acrisUpdate, ...taxUpdate };
-  if (Object.keys(enrichmentData).length > 0) {
-    await prisma.sellerLead.update({
-      where: { id: prospectId },
-      data: enrichmentData,
-    });
-  }
+  // ── Step 6: Apply all enrichment updates + mark research timestamp ─────────
+  const enrichmentData = {
+    ...acrisUpdate,
+    ...taxUpdate,
+    last_researched_at: new Date(), // Set LAST so failed runs don't block retries
+  };
+  await prisma.sellerLead.update({
+    where: { id: prospectId },
+    data: enrichmentData,
+  });
 
   // ── Fetch final state with all relations ────────────────────────────────────
   const final = await prisma.sellerLead.findUnique({
