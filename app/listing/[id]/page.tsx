@@ -1153,7 +1153,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <p
                     className="text-brand-dark/85 text-[15px] leading-[1.85] max-w-none text-justify whitespace-pre-wrap"
                   >
-                    {listing.publicRemarks.replace(/<[^>]*>/g, '')}
+                    {listing.publicRemarks
+                      .replace(/<[^>]*>/g, '')
+                      .replace(/\?\?(?=\s)/g, '•')
+                      .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    }
                   </p>
                 </section>
               )}
