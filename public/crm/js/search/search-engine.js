@@ -279,7 +279,7 @@
             // Pass status filters to server (map CRM uppercase back to RESO PascalCase)
             if (criteria.statuses && criteria.statuses.length > 0) {
                 // Map CRM statuses to RESO StandardStatus values per REBNY RLS lookup table
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold' };
+                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
@@ -752,7 +752,7 @@
                 ? '#searchAdvancedMode input[data-field="PropertySubType"]:checked'
                 : (activeBasicForm ? '#' + activeBasicForm.id + ' input[data-field="PropertySubType"]:checked' : 'input[data-field="PropertySubType"]:checked');
             document.querySelectorAll(pstSelector).forEach(function(cb) {
-                propertySubTypeChecked.push(cb.value);
+                propertySubTypeChecked.push(cb.getAttribute('data-value') || cb.value);
             });
             if (propertySubTypeChecked.length > 0) {
                 criteria.propertySubType = propertySubTypeChecked.join(',');
@@ -1396,6 +1396,7 @@
                 if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
                     var ohFrom = criteria.openHouseDateFrom ? new Date(criteria.openHouseDateFrom) : null;
                     var ohTo = criteria.openHouseDateTo ? new Date(criteria.openHouseDateTo) : null;
+                    if (ohTo) ohTo.setHours(23, 59, 59); // include end date
                     if (!listing.openHouseDate) return false;
                     var ohDate = new Date(listing.openHouseDate);
                     if (ohFrom && ohDate < ohFrom) return false;

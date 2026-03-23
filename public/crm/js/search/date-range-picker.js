@@ -177,9 +177,7 @@
                     '</div>' +
                 '</div>' +
                 '<div class="drp-footer">' +
-                    '<select onchange="if(this.value===\'today\') drpSetToday()">' +
-                        '<option value="today">Today</option>' +
-                    '</select>' +
+                    '<button type="button" onclick="drpSetToday()" style="padding:4px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:6px;background:#f9fafb;cursor:pointer;">Today</button>' +
                     '<label>From</label>' +
                     '<input type="text" class="drp-from-input" placeholder="MM/DD/YYYY" onchange="drpManualDateInput(this, \'from\')">' +
                     '<label>To</label>' +

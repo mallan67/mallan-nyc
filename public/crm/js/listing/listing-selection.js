@@ -15,8 +15,8 @@
         }
 
         function toggleSelectAll() {
-            var checkbox = document.getElementById('selectAllCheckbox');
-            if (checkbox.checked) {
+            var checkbox = document.getElementById('selectAllCheckbox') || document.getElementById('gridSelectAll');
+            if (checkbox && checkbox.checked) {
                 searchResultsState.selectedListings = getFilteredListings().map(l => l.id);
             } else {
                 searchResultsState.selectedListings = [];

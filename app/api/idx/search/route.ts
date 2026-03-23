@@ -81,7 +81,7 @@ const SEARCH_SELECT_FIELDS = [
   // ── Searchable checkbox fields (wired to CRM search form data-field checkboxes) ──
   // These are returned so local filterListings() can match against them.
   "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
-  "DirectionFaces", "View", "PropertyCondition", "Concessions",
+  "DirectionFaces", "View", "PropertyCondition", "Concessions", "OwnerPays",
   "ArchitecturalStyle", "StructureType", "BusinessType",
   "AccessibilityFeatures", "ExteriorFeatures", "BuildingFeatures",
   "LaundryFeatures", "SecurityFeatures", "PoolFeatures",
@@ -374,10 +374,16 @@ function buildODataFilter(params: URLSearchParams): string {
     parts.push(`contains(BuildingName,'${escapeOData(buildingName)}')`);
   }
 
-  // Property sub-type
+  // Property sub-type — use contains() for partial matches (Conversion matches TwilightConversion)
   const subType = params.get("propertySubType");
   if (subType) {
-    parts.push(`PropertySubType eq '${escapeOData(subType)}'`);
+    const subTypes = subType.split(",").map(s => s.trim()).filter(Boolean);
+    if (subTypes.length === 1) {
+      parts.push(`contains(PropertySubType,'${escapeOData(subTypes[0])}')`);
+    } else if (subTypes.length > 1) {
+      const stParts = subTypes.map(s => `contains(PropertySubType,'${escapeOData(s)}')`);
+      parts.push(`(${stParts.join(" or ")})`);
+    }
   }
 
   // CommonInterest / ownership type
@@ -612,6 +618,9 @@ function mapTrestleToCRM(
     internetDisplayYN: raw.InternetEntireListingDisplayYN !== false,
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
+    // Date fields for client-side filtering (Gate 6 + contract date filter)
+    closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
+    contractDate: raw.ListingContractDate ? String(raw.ListingContractDate) : null,
     comingSoonDate: null, // ComingSoonDate not on IDX Plus feed — detect via StandardStatus
     // Trestle 6.17 fields
     downPaymentAssistanceAmount: dpaAmount,
@@ -634,6 +643,7 @@ function mapTrestleToCRM(
     View: raw.View ? String(raw.View) : null,
     PropertyCondition: raw.PropertyCondition ? String(raw.PropertyCondition) : null,
     Concessions: raw.Concessions ? String(raw.Concessions) : null,
+    OwnerPays: raw.OwnerPays ? String(raw.OwnerPays) : null,
     ArchitecturalStyle: raw.ArchitecturalStyle ? String(raw.ArchitecturalStyle) : null,
     StructureType: raw.StructureType ? String(raw.StructureType) : null,
     BusinessType: raw.BusinessType ? String(raw.BusinessType) : null,

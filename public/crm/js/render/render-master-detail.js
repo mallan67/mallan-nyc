@@ -27,7 +27,7 @@
                         </div>
                         <div class="flex items-center justify-between mt-0.5">
                             <div class="flex items-center gap-1 text-[10px] text-gray-500">
-                                <span>${escapeHtml(listing.era || 'Pre-War')}</span>
+                                <span>${escapeHtml(listing.era || '--')}</span>
                                 <span class="text-gray-300">|</span>
                                 <span>${ownershipLabel(listing.ownership)}</span>
                                 <span class="text-gray-300">|</span>
@@ -100,7 +100,7 @@
 
                 <!-- Tags -->
                 <div class="flex items-center flex-wrap gap-1.5 mb-3">
-                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.era || 'Pre-War')}</span>
+                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.era || '--')}</span>
                     <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${ownershipLabel(listing.ownership)}</span>
                     ${listing.buildingName ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">' + escapeHtml(listing.buildingName) + '</span>' : ''}
                     <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">${escapeHtml(listing.neighborhood)}</span>

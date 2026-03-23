@@ -32,7 +32,7 @@
                         </div>
                         <!-- Tags -->
                         <div class="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
-                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${escapeHtml(listing.era || 'Pre-War')}</span>
+                            <span class="px-1.5 py-0.5 bg-gray-100 rounded">${escapeHtml(listing.era || '--')}</span>
                             <span class="px-1.5 py-0.5 bg-gray-100 rounded">${ownershipLabel(listing.ownership)}</span>
                             <span class="px-1.5 py-0.5 bg-gray-100 rounded">${escapeHtml(listing.neighborhood)}</span>
                             ${listing.crossStreet ? '<span class="flex items-center gap-0.5"><i class="fas fa-arrows-alt-h text-gray-400 text-[9px]"></i>' + escapeHtml(listing.crossStreet) + '</span>' : ''}
