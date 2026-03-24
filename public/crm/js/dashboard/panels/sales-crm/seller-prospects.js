@@ -1264,31 +1264,31 @@ var SellerProspects = (function () {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 3: PITCH PACKET (placeholder for Task 10)
+  // TAB 3: PITCH PACKET
   // ═══════════════════════════════════════════════════════════════════════
   function _wsPitch(el, p) {
     if (typeof PitchPacket !== 'undefined' && PitchPacket.render) {
       PitchPacket.render(el, p);
     } else {
-      el.innerHTML = '<div class="text-center py-12 bg-gray-50 rounded-xl">' +
-        '<i class="fas fa-file-powerpoint text-3xl text-gray-300 mb-3"></i>' +
-        '<p class="text-sm font-semibold text-gray-700">Pitch Packet Builder</p>' +
-        '<p class="text-xs text-gray-500 mt-1">Coming in next update</p>' +
+      el.innerHTML = '<div class="text-center py-12 bg-red-50 rounded-xl border border-red-200">' +
+        '<i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-3"></i>' +
+        '<p class="text-sm font-semibold text-red-700">Pitch Packet module failed to load</p>' +
+        '<p class="text-xs text-red-500 mt-1">Try refreshing the page. If the issue persists, contact support.</p>' +
       '</div>';
     }
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TAB 4: OUTREACH (placeholder for Task 11)
+  // TAB 4: OUTREACH
   // ═══════════════════════════════════════════════════════════════════════
   function _wsOutreach(el, p) {
     if (typeof OutreachCadence !== 'undefined' && OutreachCadence.render) {
       OutreachCadence.render(el, p);
     } else {
-      el.innerHTML = '<div class="text-center py-12 bg-gray-50 rounded-xl">' +
-        '<i class="fas fa-paper-plane text-3xl text-gray-300 mb-3"></i>' +
-        '<p class="text-sm font-semibold text-gray-700">Outreach Cadence</p>' +
-        '<p class="text-xs text-gray-500 mt-1">Coming in next update</p>' +
+      el.innerHTML = '<div class="text-center py-12 bg-red-50 rounded-xl border border-red-200">' +
+        '<i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-3"></i>' +
+        '<p class="text-sm font-semibold text-red-700">Outreach module failed to load</p>' +
+        '<p class="text-xs text-red-500 mt-1">Try refreshing the page. If the issue persists, contact support.</p>' +
       '</div>';
     }
   }
