@@ -2,6 +2,7 @@
 // Automated IDX sync cron — runs every 4 hours.
 // Fetches incremental updates from Trestle and upserts to local DB.
 // Protected by CRON_SECRET header (Vercel Cron).
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || !authHeader || authHeader.length !== ("Bearer " + cronSecret).length || !timingSafeEqual(Buffer.from(authHeader), Buffer.from("Bearer " + cronSecret))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

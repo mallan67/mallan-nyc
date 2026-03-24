@@ -1,4 +1,5 @@
 // /api/cron/experiment-metrics — Daily 9am: aggregate engagement KPIs for active experiments
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { batchComputeExperimentMetrics } from "@/lib/experiment/metrics";
@@ -7,7 +8,7 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!authHeader || (() => { const expected = "Bearer " + (process.env.CRON_SECRET || ""); return authHeader.length !== expected.length || !timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected)); })()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

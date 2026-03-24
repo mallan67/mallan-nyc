@@ -1,4 +1,5 @@
 // /api/cron/conviction-scores — Daily 2pm: batch-compute conviction scores for active leads
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { batchComputeConvictionScores } from "@/lib/conviction/scorer";
@@ -7,7 +8,7 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!authHeader || (() => { const expected = "Bearer " + (process.env.CRON_SECRET || ""); return authHeader.length !== expected.length || !timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected)); })()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

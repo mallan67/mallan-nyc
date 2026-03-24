@@ -1,6 +1,7 @@
 // GET /api/cron/dom-reset
 // Daily cron job: reset DOM for listings in Withdrawn/Cancelled >= 30 days.
 // Protected by CRON_SECRET header (Vercel Cron or manual trigger).
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DOM_RESET_DAYS } from "@/lib/compliance/dom-tracker";
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || !authHeader || authHeader.length !== ("Bearer " + cronSecret).length || !timingSafeEqual(Buffer.from(authHeader), Buffer.from("Bearer " + cronSecret))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

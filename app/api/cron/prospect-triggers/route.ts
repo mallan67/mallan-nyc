@@ -1,4 +1,5 @@
 // /api/cron/prospect-triggers — Daily 9am: cadence readiness, overdue alerts, follow-up sync, building activity
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
@@ -11,7 +12,7 @@ const INACTIVE_STATUSES = ["converted", "declined", "cold"];
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!authHeader || (() => { const expected = "Bearer " + (process.env.CRON_SECRET || ""); return authHeader.length !== expected.length || !timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected)); })()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
