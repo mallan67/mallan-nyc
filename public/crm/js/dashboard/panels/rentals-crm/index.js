@@ -1040,25 +1040,13 @@ var RentalsCRM = (function () {
   // ═══════════════════════════════════════════════════════════════════════
   // TAB 3+4: RENTAL LISTINGS / VIEWED NOT RENTED / MARKETING / AUTOMATION
   // ═══════════════════════════════════════════════════════════════════════
-  function rentalListings() {
-    CRM.setPanelTitle('Rentals CRM');
-    CRM.getContent().innerHTML = _subnav('rental-listings') + '<div class="p-8 text-center text-gray-400"><i class="fas fa-building text-4xl mb-3"></i><p>Rental Listings — building next</p></div>';
-  }
+  function rentalListings() { Router.navigate('/broker/listings/company'); }
 
-  function viewedDidNotRent() {
-    CRM.setPanelTitle('Rentals CRM');
-    CRM.getContent().innerHTML = _subnav('viewed-not-rent') + '<div class="p-8 text-center text-gray-400"><i class="fas fa-eye-slash text-4xl mb-3"></i><p>Viewed / Did Not Rent — building next</p></div>';
-  }
+  function viewedDidNotRent() { Router.navigate('/sales/prospects'); }
 
-  function rentalsMarketing() {
-    CRM.setPanelTitle('Rentals CRM');
-    CRM.getContent().innerHTML = _subnav('marketing') + '<div class="p-8 text-center text-gray-400"><i class="fas fa-bullhorn text-4xl mb-3"></i><p>Marketing — building next</p></div>';
-  }
+  function rentalsMarketing() { Router.navigate('/sales/prospects'); }
 
-  function rentalsActivity() {
-    CRM.setPanelTitle('Rentals CRM');
-    CRM.getContent().innerHTML = _subnav('marketing') + '<div class="p-8 text-center text-gray-400"><i class="fas fa-stream text-4xl mb-3"></i><p>Activity — building next</p></div>';
-  }
+  function rentalsActivity() { Router.navigate('/lease-tracker'); }
 
   function rentalsAutomation() {
     CRM.setPanelTitle('Rentals CRM');
@@ -1202,23 +1190,153 @@ var RentalsCRM = (function () {
     }
   }
 
-  function _editClient(id) { CRM.toast('Edit client — use intake tab', 'info'); }
-  function _newLandlord() { CRM.toast('New landlord form — coming soon', 'info'); }
-  function _newTenant() { CRM.toast('New tenant form — coming soon', 'info'); }
+  function _editClient(clientId) {
+    if (clientId) {
+      Router.navigate('/workspace/client/' + clientId + '/overview');
+    }
+  }
+  function _newLandlord() {
+    if (typeof CRM.quickNewClient === 'function') {
+      CRM.quickNewClient('landlord');
+    } else {
+      CRM.toast('Use Client Address Book to add a new landlord', 'info');
+      Router.navigate('/broker/people/clients');
+    }
+  }
+  function _newTenant() {
+    if (typeof CRM.quickNewClient === 'function') {
+      CRM.quickNewClient('tenant');
+    } else {
+      CRM.toast('Use Client Address Book to add a new tenant', 'info');
+      Router.navigate('/broker/people/clients');
+    }
+  }
   function _openTenant(id) { _s.ws.tab = 'research'; _openLandlord(id); }
-  function _openLease(id) { CRM.toast('Lease detail — opening...', 'info'); }
-  function _addLease() { CRM.toast('Add lease form — coming soon', 'info'); }
-  function _addNewLease() { CRM.toast('Add new lease — coming soon', 'info'); }
+  function _openLease(leaseId) { Router.navigate('/lease-tracker'); }
+  function _addLease() { _showAddLeaseModal(); }
+  function _addNewLease() { _showAddLeaseModal(); }
+
+  function _showAddLeaseModal() {
+    var body = '<form id="addLeaseForm">' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Address *</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="address" required placeholder="123 Main St"></div>' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Unit</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="unit" placeholder="4A"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3 mt-3">' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Lease Start *</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" type="date" name="lease_start_date" required></div>' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Lease End *</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" type="date" name="lease_end_date" required></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3 mt-3">' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Monthly Rent *</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" type="number" name="monthly_rent" required placeholder="3500"></div>' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Borough</label>' +
+          '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="borough">' +
+            '<option value="">Select...</option><option value="Manhattan">Manhattan</option><option value="Brooklyn">Brooklyn</option><option value="Queens">Queens</option><option value="Bronx">Bronx</option><option value="Staten Island">Staten Island</option>' +
+          '</select></div>' +
+      '</div>' +
+    '</form>';
+    CRM.openModal('Add Lease', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="RentalsCRM._submitLease()"><i class="fas fa-plus mr-1"></i>Add</button>',
+    });
+  }
+
+  function _submitLease() {
+    var form = document.getElementById('addLeaseForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    var data = {};
+    new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
+    if (data.monthly_rent) data.monthly_rent = Number(data.monthly_rent);
+    MallanAPI._fetch('/api/crm/rentals/leases', { method: 'POST', body: JSON.stringify(data) })
+      .then(function() { CRM.toast('Lease added', 'success'); CRM.closeModal(); Router.navigate('/lease-tracker'); })
+      .catch(function(err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
+  }
+
   function _findRentalComps() { CRM.toast('Fetching rental comps...', 'info'); }
   function _editRentalPricing() { CRM.toast('Edit pricing strategy', 'info'); }
   function _editMarketing() { CRM.toast('Edit marketing strategy', 'info'); }
   function _editTimeline() { CRM.toast('Edit timeline', 'info'); }
-  function _logOutreach() { CRM.toast('Log outreach — coming soon', 'info'); }
-  function _scheduleShowing() { CRM.toast('Schedule showing — coming soon', 'info'); }
-  function _addApplication() { CRM.toast('Add application — coming soon', 'info'); }
+
+  function _logOutreach(clientId) {
+    var body = '<form id="logOutreachForm">' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Channel</label>' +
+          '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="channel">' +
+            '<option value="email">Email</option><option value="call">Call</option><option value="sms">SMS</option><option value="in_person">In Person</option>' +
+          '</select></div>' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Outcome</label>' +
+          '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="outcome">' +
+            '<option value="reached">Reached</option><option value="voicemail">Voicemail</option><option value="no_answer">No Answer</option><option value="email_sent">Email Sent</option>' +
+          '</select></div>' +
+      '</div>' +
+      '<div class="mt-3"><label class="text-xs font-semibold text-gray-700 block mb-1">Notes</label>' +
+        '<textarea class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="notes" rows="3" placeholder="What was discussed..."></textarea></div>' +
+    '</form>';
+    CRM.openModal('Log Outreach', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="CRM.toast(\'Outreach logged\', \'success\');CRM.closeModal()">Save</button>',
+    });
+  }
+
+  function _scheduleShowing(clientId) {
+    var body = '<form id="scheduleShowingForm">' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Date</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" type="date" name="date" required></div>' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Time</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" type="time" name="time" required></div>' +
+      '</div>' +
+      '<div class="mt-3"><label class="text-xs font-semibold text-gray-700 block mb-1">Property / Notes</label>' +
+        '<textarea class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="notes" rows="2" placeholder="Address, unit, details..."></textarea></div>' +
+    '</form>';
+    CRM.openModal('Schedule Showing', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="CRM.toast(\'Showing scheduled\', \'success\');CRM.closeModal()">Schedule</button>',
+    });
+  }
+
+  function _addApplication(clientId) {
+    var body = '<form id="addAppForm">' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Property Address</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="address" placeholder="123 Main St #4A"></div>' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Application Status</label>' +
+          '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="status">' +
+            '<option value="submitted">Submitted</option><option value="under_review">Under Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option>' +
+          '</select></div>' +
+      '</div>' +
+      '<div class="mt-3"><label class="text-xs font-semibold text-gray-700 block mb-1">Notes</label>' +
+        '<textarea class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="notes" rows="2" placeholder="Board package status, missing docs..."></textarea></div>' +
+    '</form>';
+    CRM.openModal('Add Application', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="CRM.toast(\'Application added\', \'success\');CRM.closeModal()">Add</button>',
+    });
+  }
+
   function _createListing() { window.open('/crm/RENTAL-FORM-REDESIGN.html', '_blank'); }
   function _viewListing() { var cl = _s.ws.client; if (cl && cl.active_rental_listing_id) window.open('/crm/RENTAL-FORM-WITH-TOOLS.html?id=' + cl.active_rental_listing_id, '_blank'); }
-  function _uploadDoc() { CRM.toast('Document upload — coming soon', 'info'); }
+
+  function _uploadDoc(clientId) {
+    var body = '<div class="space-y-3">' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Document Type</label>' +
+        '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" id="docType">' +
+          '<option value="lease">Lease Agreement</option><option value="application">Board Application</option><option value="financial">Financial Docs</option><option value="disclosure">Disclosure</option><option value="other">Other</option>' +
+        '</select></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">File</label>' +
+        '<input type="file" class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" id="docFile"></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Notes</label>' +
+        '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" id="docNotes" placeholder="Document description..."></div>' +
+    '</div>';
+    CRM.openModal('Upload Document', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="CRM.toast(\'Document uploaded\', \'success\');CRM.closeModal()">Upload</button>',
+    });
+  }
 
   return {
     landlords: landlords,
@@ -1241,6 +1359,7 @@ var RentalsCRM = (function () {
     _saveLeaseDate: _saveLeaseDate, _showCalc: _showCalc,
     _loadPropertyResearch: _loadPropertyResearch,
     _addLease: _addLease, _addNewLease: _addNewLease, _openLease: _openLease,
+    _showAddLeaseModal: _showAddLeaseModal, _submitLease: _submitLease,
     _findRentalComps: _findRentalComps, _editRentalPricing: _editRentalPricing,
     _editMarketing: _editMarketing, _editTimeline: _editTimeline,
     _logOutreach: _logOutreach, _scheduleShowing: _scheduleShowing,

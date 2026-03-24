@@ -84,7 +84,7 @@ var OutreachCadence = (function () {
     }
 
     h += '<div class="text-center py-6 bg-gray-50 rounded-xl mt-4">';
-    h += '<p class="text-xs text-gray-400">Full cadence management (drag-reorder, auto-send, templates) coming in next update.</p>';
+    h += '<p class="text-xs text-gray-400">Add outreach steps to build your cadence. Each step can be sent manually when ready.</p>';
     h += '</div>';
 
     h += '</div>';

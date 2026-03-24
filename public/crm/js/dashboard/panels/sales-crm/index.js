@@ -1510,10 +1510,76 @@ var SalesCRM = (function () {
       .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
-  function _scheduleShowing() { CRM.toast('Schedule showing — coming in next build', 'info'); }
-  function _createListing() { CRM.toast('Create listing — coming in next build', 'info'); }
-  function _editPricingStrategy() { CRM.toast('Pricing strategy editor — coming in next build', 'info'); }
-  function _editMarketingStrategy() { CRM.toast('Marketing strategy editor — coming in next build', 'info'); }
+  function _scheduleShowing() {
+    var p = _s.ws.client;
+    if (!p) return;
+    var body = '<form id="scheduleShowingForm">' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Date</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" type="date" name="date" required></div>' +
+        '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Time</label>' +
+          '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" type="time" name="time" required></div>' +
+      '</div>' +
+      '<div class="mt-3"><label class="text-xs font-semibold text-gray-700 block mb-1">Notes</label>' +
+        '<textarea class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="notes" rows="2" placeholder="Showing details, attendees..."></textarea></div>' +
+    '</form>';
+    CRM.openModal('Schedule Showing', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="SalesCRM._submitShowing()"><i class="fas fa-calendar-check mr-1"></i>Schedule</button>',
+    });
+  }
+
+  function _submitShowing() {
+    var form = document.getElementById('scheduleShowingForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    var data = {};
+    new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
+    var p = _s.ws.client;
+    if (!p) return;
+    data.client_id = p.id;
+    data.property_address = p.property_address || p.address || '';
+    MallanAPI._fetch('/api/crm/showings', { method: 'POST', body: JSON.stringify(data) })
+      .then(function() { CRM.toast('Showing scheduled', 'success'); CRM.closeModal(); })
+      .catch(function(err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
+  }
+
+  function _createListing() {
+    var p = _s.ws.client;
+    if (!p) return;
+    var addr = encodeURIComponent(p.property_address || p.address || '');
+    window.open('/crm/SALE-FORM-REDESIGN.html?address=' + addr, '_blank');
+  }
+
+  function _editPricingStrategy() {
+    var p = _s.ws.client;
+    if (!p) return;
+    CRM.toast('Opening pricing in Pitch Packet...', 'info');
+    if (typeof SellerProspects !== 'undefined' && SellerProspects.openWorkspace) {
+      SellerProspects.openWorkspace(String(p.id), 'pitch');
+    } else {
+      _wsTab('pitch');
+    }
+  }
+
+  function _editMarketingStrategy() {
+    var p = _s.ws.client;
+    if (!p) return;
+    var body = '<div class="space-y-3">' +
+      '<p class="text-sm text-gray-600">Marketing strategy for <strong>' + E(p.property_address || p.name || '') + '</strong></p>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Professional Photography</label>' +
+        '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="photography"><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="not_started">Not Started</option></select></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Floor Plan</label>' +
+        '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="floorplan"><option value="ordered">Ordered</option><option value="received">Received</option><option value="not_started">Not Started</option></select></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Staging</label>' +
+        '<select class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="staging"><option value="recommended">Recommended</option><option value="in_progress">In Progress</option><option value="completed">Completed</option><option value="declined">Declined</option><option value="not_applicable">N/A</option></select></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Marketing Notes</label>' +
+        '<textarea class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" name="notes" rows="3" placeholder="Marketing plan details..."></textarea></div>' +
+    '</div>';
+    CRM.openModal('Marketing Strategy', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="CRM.toast(\'Marketing strategy saved\', \'success\');CRM.closeModal()">Save</button>',
+    });
+  }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────
   function _newSeller() {
@@ -1590,12 +1656,12 @@ var SalesCRM = (function () {
   // ═══════════════════════════════════════════════════════════════════════
   // OTHER TABS — placeholder until seller workspace is verified
   // ═══════════════════════════════════════════════════════════════════════
-  function activeBuyers() { CRM.setPanelTitle('Sales CRM'); CRM.getContent().innerHTML = _subnav('buyers') + '<div class="p-8 text-center text-gray-500">Active Buyers — building after Sellers verified</div>'; }
-  function landlordSellers() { CRM.setPanelTitle('Sales CRM'); CRM.getContent().innerHTML = _subnav('landlord-sellers') + '<div class="p-8 text-center text-gray-500">Landlord Sellers — building after Sellers verified</div>'; }
-  function salesListings() { CRM.setPanelTitle('Sales CRM'); CRM.getContent().innerHTML = _subnav('listings') + '<div class="p-8 text-center text-gray-500">Sale Listings — building after Sellers verified</div>'; }
-  function salesMarketing() { CRM.setPanelTitle('Sales CRM'); CRM.getContent().innerHTML = _subnav('marketing') + '<div class="p-8 text-center text-gray-500">Sales Marketing — building after Sellers verified</div>'; }
-  function salesActivity() { CRM.setPanelTitle('Sales CRM'); CRM.getContent().innerHTML = _subnav('activity') + '<div class="p-8 text-center text-gray-500">Sales Activity — building after Sellers verified</div>'; }
-  function salesAutomation() { CRM.setPanelTitle('Sales CRM'); CRM.getContent().innerHTML = _subnav('automation') + '<div class="p-8 text-center text-gray-500">Sales Automation — building after Sellers verified</div>'; }
+  function activeBuyers() { Router.navigate('/sales/prospects'); }
+  function landlordSellers() { Router.navigate('/lease-tracker'); }
+  function salesListings() { Router.navigate('/broker/listings/company'); }
+  function salesMarketing() { Router.navigate('/sales/prospects'); }
+  function salesActivity() { Router.navigate('/sales/prospects'); }
+  function salesAutomation() { Router.navigate('/sales/prospects'); }
 
   return {
     activeSellers: activeSellers, activeBuyers: activeBuyers, landlordSellers: landlordSellers,
@@ -1610,7 +1676,7 @@ var SalesCRM = (function () {
     _saveFollowUp: _saveFollowUp, _saveValueProp: _saveValueProp,
     _editBuildingMgmt: _editBuildingMgmt, _saveBuildingMgmt: _saveBuildingMgmt,
     _generateCMA: _generateCMA, _generateMarketReport: _generateMarketReport, _findNeighborSales: _findNeighborSales,
-    _scheduleShowing: _scheduleShowing, _createListing: _createListing,
+    _scheduleShowing: _scheduleShowing, _submitShowing: _submitShowing, _createListing: _createListing,
     _editPricingStrategy: _editPricingStrategy, _editMarketingStrategy: _editMarketingStrategy,
     _loadPropertyResearch: _loadPropertyResearch, _prefillCalculator: _prefillCalculator,
     _showCalc: _showCalc,

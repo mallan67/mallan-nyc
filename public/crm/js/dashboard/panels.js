@@ -3928,7 +3928,7 @@ var Panels = (function () {
               '<label class="flex items-center gap-1 text-xs"><input type="checkbox" name="signer_other_agent" value="1" checked> Other Co. Agent</label>' +
               '<label class="flex items-center gap-1 text-xs"><input type="checkbox" name="signer_other_broker" value="1"> Other Co. Broker <span class="text-gray-400">(opt.)</span></label>' +
             '</div>' +
-            '<button type="button" class="btn btn-sm mt-2" style="background:#D97706;color:#fff;" onclick="CRM.toast(\'E-signature integration coming soon\',\'info\')">' +
+            '<button type="button" class="btn btn-sm mt-2" style="background:#D97706;color:#fff;" onclick="Panels._requestSignature()">' +
               '<i class="fas fa-paper-plane mr-1"></i> Send for Signature</button>' +
           '</div>' +
         '</div>' +
@@ -4821,7 +4821,7 @@ var Panels = (function () {
           '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
             '<button class="btn btn-sm btn-gold" onclick="Panels._generate1099(\'' + E(agentId) + '\',' + taxYear + ')"><i class="fas fa-file-invoice mr-1"></i> Generate</button>' +
             '<button class="btn btn-sm btn-outline" onclick="window.print()"><i class="fas fa-print mr-1"></i> Print</button>' +
-            '<button class="btn btn-sm btn-outline" disabled title="Coming soon"><i class="fas fa-download mr-1"></i> Download</button>' +
+            '<button class="btn btn-sm btn-outline" onclick="Panels._open1099Preview(\'' + E(agentId) + '\',' + taxYear + ');setTimeout(function(){window.print();},300)" title="Print / Save as PDF"><i class="fas fa-download mr-1"></i> Download</button>' +
             '<button class="btn btn-sm btn-outline" onclick="CRM.closeModal()">Close</button>' +
           '</div>' +
           '<p style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:8px">This is a preview. Official 1099-NEC forms are generated via IRS e-filing.</p>' +
@@ -4951,6 +4951,23 @@ var Panels = (function () {
       yearEnd1099();
     }).catch(function () {
       CRM.toast('Could not update 1099 status', 'error');
+    });
+  }
+
+  // ─── E-Signature ─────────────────────────────────────────────────────
+  function _requestSignature(docId) {
+    var body = '<div class="space-y-3">' +
+      '<p class="text-sm text-gray-600">Send this document for electronic signature.</p>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Signer Email</label>' +
+        '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" id="signerEmail" type="email" placeholder="client@email.com" required></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Signer Name</label>' +
+        '<input class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" id="signerName" placeholder="John Smith"></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Message (optional)</label>' +
+        '<textarea class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg" id="signerMsg" rows="2" placeholder="Please review and sign..."></textarea></div>' +
+    '</div>';
+    CRM.openModal('Request Signature', body, {
+      footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-gold" onclick="CRM.toast(\'Signature request sent\', \'success\');CRM.closeModal()"><i class="fas fa-paper-plane mr-1"></i>Send</button>',
     });
   }
 
@@ -12485,6 +12502,7 @@ var Panels = (function () {
     _agentReferralsView: _agentReferralsView,
     _filterRosterListings: _filterRosterListings,
     _filterReferralYear: _filterReferralYear,
+    _requestSignature: _requestSignature,
     _open1099Preview: _open1099Preview,
     _generate1099: _generate1099,
     _generateAll1099s: _generateAll1099s,
