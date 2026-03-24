@@ -75,28 +75,9 @@ var SellerProspects = (function () {
     return '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:' + c.bg + ';color:' + c.color + ';">' + E(grade || '-') + scoreStr + '</span>';
   }
 
-  // ─── Subnav (mirrors SalesCRM tab bar) ──────────────────────────────
-  var TABS = [
-    { id: 'prospects', route: '/sales/prospects', label: 'Seller Prospects', icon: 'fa-crosshairs' },
-    { id: 'sellers', route: '/sales/sellers', label: 'Active Sellers', icon: 'fa-home' },
-    { id: 'buyers', route: '/sales/buyers', label: 'Active Buyers', icon: 'fa-user-tag' },
-    { id: 'landlord-sellers', route: '/sales/landlord-sellers', label: 'Landlord Sellers', icon: 'fa-exchange-alt' },
-    { id: 'listings', route: '/sales/listings', label: 'Listings', icon: 'fa-building' },
-    { id: 'marketing', route: '/sales/marketing', label: 'Marketing', icon: 'fa-bullhorn' },
-    { id: 'activity', route: '/sales/activity', label: 'Activity', icon: 'fa-stream' },
-    { id: 'automation', route: '/sales/automation', label: 'Automation', icon: 'fa-robot' },
-  ];
-
-  function _subnav(activeId) {
-    var h = '<div class="flex gap-1 overflow-x-auto border-b border-gray-200 mb-4 pb-px">';
-    TABS.forEach(function (t) {
-      h += '<button class="px-3 py-2 text-xs font-semibold whitespace-nowrap rounded-t-lg ' +
-        (t.id === activeId ? 'text-gold border-b-2 border-gold bg-gold/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50') +
-        '" onclick="Router.navigate(\'' + t.route + '\')">' +
-        '<i class="fas ' + t.icon + ' mr-1"></i>' + E(t.label) + '</button>';
-    });
-    return h + '</div>';
-  }
+  // Subnav removed — Seller Prospects is now a standalone page under CLIENTS sidebar.
+  // The old 8-tab Sales CRM subnav is no longer needed.
+  function _subnav() { return ''; }
 
   // ─── KPI cards ──────────────────────────────────────────────────────
   function _kpi(cards) {
@@ -115,7 +96,7 @@ var SellerProspects = (function () {
   function render() {
     _s.current = null;
     _s.tab = 'overview';
-    CRM.setPanelTitle('Sales CRM');
+    CRM.setPanelTitle('Prospects');
     var c = CRM.getContent();
     if (!c) return;
     c.innerHTML = _subnav('prospects') + '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
@@ -823,7 +804,7 @@ var SellerProspects = (function () {
   // ═══════════════════════════════════════════════════════════════════════
   function openWorkspace(id) {
     var c = CRM.getContent();
-    CRM.setPanelTitle('Sales CRM');
+    CRM.setPanelTitle('Prospects');
     c.innerHTML = '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
 
     MallanAPI._fetch('/api/crm/sales/prospects/' + id)

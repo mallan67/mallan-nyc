@@ -17,15 +17,8 @@ var RentalsCRM = (function () {
     ws:         { client: null, tab: 'research', activity: [], leases: [] },
   };
 
-  var TABS = [
-    { id: 'landlords',        route: '/rentals/landlords',      label: 'Landlords',           icon: 'fa-key' },
-    { id: 'active-leases',    route: '/rentals/active-leases',  label: 'Active Leases',       icon: 'fa-file-contract' },
-    { id: 'rental-listings',  route: '/rentals/listings',       label: 'Rental Listings',     icon: 'fa-building' },
-    { id: 'viewed-not-rent',  route: '/rentals/viewed',         label: 'Viewed / Not Rented', icon: 'fa-eye-slash' },
-    { id: 'tenants',          route: '/rentals/tenants',        label: 'Current Tenants',     icon: 'fa-user-check' },
-    { id: 'marketing',        route: '/rentals/marketing',      label: 'Marketing',           icon: 'fa-bullhorn' },
-    { id: 'automation',       route: '/rentals/automation',     label: 'Automation',          icon: 'fa-robot' },
-  ];
+  // TABS removed — Rentals CRM consolidated into CLIENTS sidebar (Lease Tracker).
+  // Legacy routes redirect. Landlords/Tenants/Leases now in Lease Tracker.
 
   var LANDLORD_STAGES = {
     prospect:         { label: 'Prospect',          color: '#6366F1', bg: '#EEF2FF' },
@@ -50,16 +43,8 @@ var RentalsCRM = (function () {
     active_tenant:{ label: 'Active Tenant', color: '#6B7280', bg: '#F9FAFB' },
   };
 
-  function _subnav(id) {
-    var h = '<div class="flex gap-1 overflow-x-auto border-b border-gray-200 mb-4 pb-px">';
-    TABS.forEach(function (t) {
-      h += '<button class="px-3 py-2 text-xs font-semibold whitespace-nowrap rounded-t-lg ' +
-        (t.id === id ? 'text-gold border-b-2 border-gold bg-gold/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50') +
-        '" onclick="Router.navigate(\'' + t.route + '\')">' +
-        '<i class="fas ' + t.icon + ' mr-1"></i>' + E(t.label) + '</button>';
-    });
-    return h + '</div>';
-  }
+  // Subnav removed — all routes consolidated into Lease Tracker sidebar item.
+  function _subnav() { return ''; }
 
   function _kpi(cards) {
     var h = '<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">';
