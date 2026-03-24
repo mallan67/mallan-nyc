@@ -585,6 +585,8 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   idx_display_yn: boolean;
   internet_entire_listing_display_yn: boolean;
   internet_address_display_yn: boolean;
+  internet_automated_valuation_display_yn: boolean;
+  internet_consumer_comment_yn: boolean;
   participant_only: boolean;
   owner_opt_out: boolean;
   address: Record<string, unknown>;
@@ -697,6 +699,8 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     idx_display_yn: idxDisplayYn,
     internet_entire_listing_display_yn: internetEntireListing,
     internet_address_display_yn: internetAddress,
+    internet_automated_valuation_display_yn: raw.InternetAutomatedValuationDisplayYN !== false,
+    internet_consumer_comment_yn: raw.InternetConsumerCommentYN !== false,
     participant_only: participantOnly,
     owner_opt_out: ownerOptOut,
     address,

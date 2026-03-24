@@ -426,6 +426,8 @@ model Listing {
   idx_display_yn          Boolean   @default(true) @map("idx_display_yn")
   internet_entire_listing_display_yn Boolean @default(true) @map("internet_entire_listing_display_yn")
   internet_address_display_yn Boolean @default(true) @map("internet_address_display_yn")
+  internet_automated_valuation_display_yn Boolean @default(true) @map("internet_automated_valuation_display_yn")
+  internet_consumer_comment_yn Boolean @default(true) @map("internet_consumer_comment_yn")
   participant_only        Boolean   @default(false) @map("participant_only")
   owner_opt_out           Boolean   @default(false) @map("owner_opt_out")
 
