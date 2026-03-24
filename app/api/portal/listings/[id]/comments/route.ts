@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { getSession } from "@/lib/auth/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -73,6 +74,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
  * Body: { body: string, parent_id?: string }
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
   const auth = await requirePortalRole(req, "buyer", "renter", "seller", "landlord");

@@ -5,8 +5,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { getSession } from "@/lib/auth/session";
 
 export async function POST(req: NextRequest) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
   const auth = await requirePortalRole(req, "buyer", "renter");

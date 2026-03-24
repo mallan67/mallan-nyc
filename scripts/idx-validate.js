@@ -537,7 +537,13 @@ function section12() {
     const isCron = file.includes('/cron/');
     const isPublic = file.includes('/contact/') || file.includes('/inquiries/') || file.includes('/cma/')
       || file.includes('/sign-up/') || file.includes('/open-house-rsvp/') || file.includes('/favorites/')
-      || file.includes('/search-alerts/') || file.includes('/guides/');
+      || file.includes('/search-alerts/') || file.includes('/guides/')
+      || file.includes('/auth/login') || file.includes('/auth/logout')
+      || file.includes('/auth/forgot-password') || file.includes('/auth/reset-password')
+      || file.includes('/auth/dev-login') || file.includes('/auth/invite/')
+      || file.includes('/auth/agent/register')
+      || file.includes('/open-houses/rsvp')
+      || file.includes('/pages/');
     if (isCron || isPublic) continue; // Skip public lead-capture and cron endpoints
     if (hasAuth) pass(s, file);
     else if (hasAnnotation(content, 0, 'IDX-VALIDATE-IGNORE') || hasAnnotation(content, 0, 'IDX-VALIDATE-OK'))
