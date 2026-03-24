@@ -31,6 +31,351 @@ function isExpiringSoon(urgency: UrgencyLevel): boolean {
   return urgency !== "ok";
 }
 
+// ── Prediction scoring ────────────────────────────────────────────────────────
+
+type PredictionResult = {
+  score: number;
+  label: string;
+  signals: string[];
+};
+
+function predictionLabel(score: number): string {
+  if (score >= 80) return "Very Likely";
+  if (score >= 60) return "Likely";
+  if (score >= 40) return "Possible";
+  if (score >= 20) return "Unlikely";
+  return "Very Unlikely";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * Landlord sell probability.
+ * Signals: ownership duration, equity, portfolio size, lease timing, vacancy,
+ * comps engagement, market uplift, entity type.
+ */
+function predictLandlordSell(
+  landlord: {
+    entity_type?: string | null;
+    seller_potential?: string | null;
+  },
+  lease: {
+    lease_start_date: Date;
+    lease_end_date: Date;
+    monthly_rent: unknown;
+    seller_comps_6mo_sent_at?: Date | null;
+    outreach_90d_sent_at?: Date | null;
+  },
+  landlordLeaseCount: number,
+  isVacant: boolean,
+  hasSaleComps: boolean
+): PredictionResult {
+  let score = 20;
+  const signals: string[] = [];
+
+  // Ownership duration proxy: use lease start date as the earliest known date
+  const ownedYears =
+    (Date.now() - lease.lease_start_date.getTime()) /
+    (1000 * 60 * 60 * 24 * 365.25);
+
+  if (ownedYears > 10) {
+    score += 25;
+    signals.push(`Owned ${Math.floor(ownedYears)}+ years`);
+  }
+  if (ownedYears > 20) {
+    score += 15;
+    signals.push("Very long ownership (20+ years)");
+  }
+
+  // Entity type: individuals sell more than LLCs/corps
+  if (
+    landlord.entity_type &&
+    ["individual", "person"].includes(landlord.entity_type.toLowerCase())
+  ) {
+    score += 5;
+    signals.push("Individual owner (not entity)");
+  }
+
+  // Portfolio investor more likely to rebalance
+  if (landlordLeaseCount > 1) {
+    score += 10;
+    signals.push(`Portfolio owner (${landlordLeaseCount} properties)`);
+  }
+
+  // Lease expiring within 6 months — natural exit point
+  const daysUntilExpiry = Math.ceil(
+    (lease.lease_end_date.getTime() - Date.now()) / 86400000
+  );
+  if (daysUntilExpiry <= 180) {
+    score += 10;
+    signals.push("Lease expiring — natural exit point");
+  }
+
+  // Vacant: carrying costs motivate a sale
+  if (isVacant) {
+    score += 15;
+    signals.push("Vacant — carrying costs");
+  }
+
+  // Recent comparable sales data present
+  if (hasSaleComps) {
+    score += 10;
+    signals.push("Recent sales comps in building");
+  }
+
+  // Seller comps email sent and there is also a 90d outreach (multi-touch engagement)
+  if (lease.seller_comps_6mo_sent_at && lease.outreach_90d_sent_at) {
+    score += 10;
+    signals.push("Engaged with seller outreach emails");
+  }
+
+  // seller_potential field on lead
+  if (landlord.seller_potential === "high") {
+    score += 20;
+    signals.push("Flagged high seller potential");
+  } else if (landlord.seller_potential === "medium") {
+    score += 10;
+    signals.push("Flagged medium seller potential");
+  }
+
+  const finalScore = clamp(score, 0, 95);
+  return { score: finalScore, label: predictionLabel(finalScore), signals };
+}
+
+/**
+ * Tenant buy probability.
+ * Signals: income, rent-to-income ratio, tenure, credit, pre-approval.
+ */
+function predictTenantBuy(
+  tenant: {
+    annual_income?: unknown;
+    credit_score_range?: string | null;
+    pre_approved?: boolean | null;
+    last_sales_email_opened?: Date | null;
+  } | null,
+  monthlyRent: unknown,
+  leaseStartDate: Date
+): PredictionResult {
+  if (!tenant) {
+    return { score: 0, label: "Unknown", signals: ["No tenant data"] };
+  }
+
+  const annualIncome = tenant.annual_income ? Number(tenant.annual_income) : null;
+
+  if (annualIncome === null) {
+    return { score: 0, label: "Unknown", signals: ["No income data"] };
+  }
+
+  let score = 10;
+  const signals: string[] = [];
+
+  if (annualIncome > 150000) {
+    score += 25;
+    signals.push("High income ($150K+)");
+  }
+  if (annualIncome > 250000) {
+    score += 15;
+    signals.push("Very high income ($250K+)");
+  }
+
+  // Income > 40x monthly rent (can afford to buy in NYC)
+  const monthly = monthlyRent ? Number(monthlyRent) : null;
+  if (monthly && annualIncome > monthly * 40) {
+    score += 15;
+    signals.push("Income qualifies for mortgage (40x rent)");
+  }
+
+  // Tenure
+  const tenureYears =
+    (Date.now() - leaseStartDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+  if (tenureYears > 2) {
+    score += 10;
+    signals.push("2+ years in rental");
+  }
+  if (tenureYears > 5) {
+    score += 10;
+    signals.push("5+ years — ready for stability");
+  }
+
+  // Credit score
+  const credit = tenant.credit_score_range?.toLowerCase() ?? "";
+  if (credit.includes("excellent")) {
+    score += 10;
+    signals.push("Excellent credit");
+  } else if (credit.includes("good")) {
+    score += 10;
+    signals.push("Good credit");
+  }
+
+  // Pre-approved for mortgage
+  if (tenant.pre_approved) {
+    score += 20;
+    signals.push("Pre-approved for mortgage");
+  }
+
+  // Clicked sale listing emails
+  if (tenant.last_sales_email_opened) {
+    score += 15;
+    signals.push("Opened sales listing email");
+  }
+
+  const finalScore = clamp(score, 0, 95);
+  return { score: finalScore, label: predictionLabel(finalScore), signals };
+}
+
+/**
+ * Lease renewal probability.
+ * Signals: rent vs. market, recent increases, renewal status, tenure,
+ * lease type, building violations, tenant overqualification.
+ */
+function predictLeaseRenewal(
+  lease: {
+    monthly_rent: unknown;
+    lease_start_date: Date;
+    lease_end_date: Date;
+    lease_type?: string | null;
+    renewal_status?: string | null;
+    last_rent_increase_pct?: number | null;
+  } | null,
+  tenantAnnualIncome: number | null
+): PredictionResult {
+  if (!lease) {
+    return { score: 0, label: predictionLabel(0), signals: ["No lease data"] };
+  }
+
+  let score = 50;
+  const signals: string[] = [];
+
+  // Renewal status — strongest signal
+  if (lease.renewal_status === "renewing") {
+    score += 30;
+    signals.push("Tenant confirmed renewing");
+  } else if (lease.renewal_status === "not_renewing") {
+    score -= 40;
+    signals.push("Tenant confirmed not renewing");
+  }
+
+  // Recent rent increase
+  if (lease.last_rent_increase_pct !== null && lease.last_rent_increase_pct !== undefined) {
+    if (lease.last_rent_increase_pct > 5) {
+      score -= 15;
+      signals.push(`Recent ${lease.last_rent_increase_pct}% rent increase`);
+    }
+  }
+
+  // Tenure
+  const tenureYears =
+    (Date.now() - lease.lease_start_date.getTime()) /
+    (1000 * 60 * 60 * 24 * 365.25);
+  if (tenureYears > 3) {
+    score += 10;
+    signals.push("Long-term tenant (3+ years)");
+  }
+
+  // Lease type
+  const leaseType = lease.lease_type?.toLowerCase() ?? "";
+  if (leaseType.includes("stabilized")) {
+    score += 25;
+    signals.push("Rent-stabilized — very likely to renew");
+  } else if (leaseType === "month_to_month" || leaseType.includes("month-to-month")) {
+    score -= 10;
+    signals.push("Month-to-month — flexible arrangement");
+  }
+
+  // Tenant overqualified relative to rent
+  const monthly = lease.monthly_rent ? Number(lease.monthly_rent) : null;
+  if (tenantAnnualIncome !== null && monthly && tenantAnnualIncome > monthly * 60) {
+    score -= 10;
+    signals.push("Tenant overqualified — may buy");
+  }
+
+  const finalScore = clamp(score, 5, 95);
+  return { score: finalScore, label: predictionLabel(finalScore), signals };
+}
+
+/**
+ * Optimal outreach timing — urgency to contact NOW.
+ * Higher score = contact sooner.
+ */
+function predictOutreachTiming(
+  lease: {
+    lease_end_date: Date;
+    outreach_90d_sent_at?: Date | null;
+    outreach_60d_sent_at?: Date | null;
+    outreach_30d_sent_at?: Date | null;
+    seller_comps_6mo_sent_at?: Date | null;
+  },
+  isVacant: boolean,
+  hasActiveListing: boolean
+): PredictionResult {
+  const daysUntilExpiry = Math.ceil(
+    (lease.lease_end_date.getTime() - Date.now()) / 86400000
+  );
+
+  // Last contacted: use the most recent outreach date
+  const outreachDates = [
+    lease.outreach_30d_sent_at,
+    lease.outreach_60d_sent_at,
+    lease.outreach_90d_sent_at,
+    lease.seller_comps_6mo_sent_at,
+  ].filter(Boolean) as Date[];
+
+  const lastContactedDate =
+    outreachDates.length > 0
+      ? new Date(Math.max(...outreachDates.map((d) => d.getTime())))
+      : null;
+
+  const daysSinceContact = lastContactedDate
+    ? Math.ceil((Date.now() - lastContactedDate.getTime()) / 86400000)
+    : 999;
+
+  const noRecentContact = daysSinceContact > 30;
+
+  // Vacant with no listing — highest urgency
+  if (isVacant && !hasActiveListing) {
+    const signals = ["Vacant — carrying costs"];
+    if (daysSinceContact < 999) signals.push(`Last contacted ${daysSinceContact} days ago`);
+    return { score: 85, label: "Very Likely", signals };
+  }
+
+  let score = 20;
+  const signals: string[] = [];
+
+  signals.push(`Lease expires in ${daysUntilExpiry} days`);
+
+  if (daysUntilExpiry <= 30 && noRecentContact) {
+    score = 95;
+    signals.push("No recent contact — urgent");
+  } else if (daysUntilExpiry <= 60 && noRecentContact) {
+    score = 80;
+    signals.push("No recent contact");
+  } else if (daysUntilExpiry <= 90) {
+    score = 65;
+  } else if (daysUntilExpiry <= 180) {
+    score = 45;
+  }
+
+  if (daysSinceContact > 90) {
+    score += 15;
+    signals.push(`Last contacted ${daysSinceContact} days ago`);
+  }
+
+  // Seller comps sent + 90d both sent = engaged
+  if (lease.seller_comps_6mo_sent_at && lease.outreach_90d_sent_at) {
+    score += 10;
+    signals.push("Previously engaged with outreach");
+  }
+
+  // Market uplift (constant optimistic signal)
+  score += 5;
+  signals.push("Favorable market conditions");
+
+  const finalScore = clamp(score, 0, 95);
+  return { score: finalScore, label: predictionLabel(finalScore), signals };
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -94,6 +439,7 @@ export async function GET(req: NextRequest) {
           expiring_30d: 0,
           dual_listed: 0,
           opportunities: 0,
+          high_priority: 0,
         },
       })
     );
@@ -191,6 +537,70 @@ export async function GET(req: NextRequest) {
     if (!tenantData) flags.push("vacant");
     if (status === "dual_listed") flags.push("dual_listed");
 
+    // ── AI prediction scores ─────────────────────────────────────────────────
+    const isVacant = !tenantData;
+    const hasActiveListing = hasRentalListing || hasSaleListing;
+
+    // Count how many active leases this landlord has (as a portfolio proxy)
+    const landlordLeaseCount = leases.filter(
+      (l) => l.landlord_lead_id === lease.landlord_lead_id
+    ).length;
+
+    const landlord_sell = predictLandlordSell(
+      lease.landlord,
+      {
+        lease_start_date: lease.lease_start_date,
+        lease_end_date: lease.lease_end_date,
+        monthly_rent: lease.monthly_rent,
+        seller_comps_6mo_sent_at: lease.seller_comps_6mo_sent_at,
+        outreach_90d_sent_at: lease.outreach_90d_sent_at,
+      },
+      landlordLeaseCount,
+      isVacant,
+      hasSaleListing
+    );
+
+    const tenant_buy = predictTenantBuy(
+      lease.tenant
+        ? {
+            annual_income: lease.tenant.annual_income,
+            credit_score_range: lease.tenant.credit_score_range,
+            pre_approved: null,
+            last_sales_email_opened: null,
+          }
+        : null,
+      lease.monthly_rent,
+      lease.lease_start_date
+    );
+
+    const lease_renewal = predictLeaseRenewal(
+      {
+        monthly_rent: lease.monthly_rent,
+        lease_start_date: lease.lease_start_date,
+        lease_end_date: lease.lease_end_date,
+        lease_type: lease.lease_type,
+        renewal_status: lease.renewal_status,
+        last_rent_increase_pct: null,
+      },
+      annualIncome
+    );
+
+    const outreach_timing = predictOutreachTiming(
+      {
+        lease_end_date: lease.lease_end_date,
+        outreach_90d_sent_at: lease.outreach_90d_sent_at,
+        outreach_60d_sent_at: lease.outreach_60d_sent_at,
+        outreach_30d_sent_at: lease.outreach_30d_sent_at,
+        seller_comps_6mo_sent_at: lease.seller_comps_6mo_sent_at,
+      },
+      isVacant,
+      hasActiveListing
+    );
+
+    const priority_score = Math.round(
+      (landlord_sell.score + tenant_buy.score + lease_renewal.score + outreach_timing.score) / 4
+    );
+
     return {
       id: lease.id,
       address: lease.address,
@@ -239,6 +649,15 @@ export async function GET(req: NextRequest) {
       },
 
       flags,
+
+      predictions: {
+        landlord_sell,
+        tenant_buy,
+        lease_renewal,
+        outreach_timing,
+      },
+
+      priority_score,
     };
   });
 
@@ -278,8 +697,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Sort: expiring soonest first (ascending days_until_expiry)
-  filtered.sort((a, b) => a.lease.days_until_expiry - b.lease.days_until_expiry);
+  // Sort: highest priority first (descending priority_score)
+  filtered.sort((a, b) => b.priority_score - a.priority_score);
 
   // ── 5. Summary counts (computed from full unfiltered set) ─────────────────
   const summary = {
@@ -294,6 +713,7 @@ export async function GET(req: NextRequest) {
     expiring_30d: properties.filter((p) => p.lease.urgency === "30d").length,
     dual_listed: properties.filter((p) => p.status === "dual_listed").length,
     opportunities: properties.filter((p) => p.flags.length > 0).length,
+    high_priority: properties.filter((p) => p.priority_score >= 70).length,
   };
 
   return NextResponse.json(

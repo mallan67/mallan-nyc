@@ -3223,167 +3223,6 @@ input[type="range"] {
   }
 }
 
-    /* ═══ css/search-v2.css ═══ */
-/* ═══════════════════════════════════════════════════════════════
-   SEARCH V2 — Filter Bar, Pills, Drawer, Sections, Widgets
-   All classes namespaced with sv2- to avoid conflicts
-   ═══════════════════════════════════════════════════════════════ */
-
-/* ── Filter Bar ── */
-.sv2-filter-bar {
-  position: sticky; top: 0; z-index: 20;
-  background: #fff; border-bottom: 1px solid #E5E7EB;
-  padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-}
-.sv2-filter-bar-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 1; }
-.sv2-filter-bar-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-shrink: 0; }
-.sv2-result-count { font-size: 13px; font-weight: 700; color: #374151; white-space: nowrap; }
-
-/* ── Filter Pills ── */
-.sv2-pill {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px; font-size: 12px; font-weight: 600; color: #374151;
-  background: #F3F4F6; border: 1px solid #E5E7EB; border-radius: 20px;
-  cursor: pointer; white-space: nowrap; transition: all 0.15s;
-  animation: sv2FadeIn 0.2s;
-}
-.sv2-pill:hover { background: #E5E7EB; border-color: #D1D5DB; }
-.sv2-pill-remove {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; border-radius: 50%; font-size: 10px; line-height: 1;
-  color: #9CA3AF; cursor: pointer; margin-left: 2px; transition: all 0.15s;
-}
-.sv2-pill-remove:hover { background: #FEE2E2; color: #EF4444; }
-.sv2-pill-active { background: rgba(184,134,11,0.08); border-color: #B8860B; color: #92400E; }
-
-/* ── Quick Add Button ── */
-.sv2-quick-add {
-  padding: 4px 10px; font-size: 11px; font-weight: 600;
-  border: 1px dashed #B8860B; border-radius: 14px;
-  color: #B8860B; background: transparent; cursor: pointer; white-space: nowrap;
-}
-.sv2-quick-add:hover { background: rgba(184,134,11,0.06); }
-
-/* ── More Filters Button ── */
-.sv2-more-filters {
-  padding: 6px 14px; font-size: 12px; font-weight: 700;
-  border: 1px solid #D1D5DB; border-radius: 8px;
-  background: white; cursor: pointer; display: flex; align-items: center; gap: 6px;
-}
-.sv2-more-filters:hover { background: #F9FAFB; }
-
-/* ── Filter Drawer ── */
-.sv2-drawer-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
-  z-index: 49; opacity: 0; pointer-events: none; transition: opacity 0.3s;
-}
-.sv2-drawer-backdrop.sv2-open { opacity: 1; pointer-events: auto; }
-.sv2-drawer {
-  position: fixed; top: 0; right: 0; bottom: 0; width: 420px;
-  background: #fff; z-index: 50; overflow-y: auto;
-  box-shadow: -8px 0 30px rgba(0,0,0,0.12);
-  transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-}
-.sv2-drawer.sv2-open { transform: translateX(0); }
-.sv2-drawer-header {
-  position: sticky; top: 0; z-index: 1;
-  background: #fff; border-bottom: 1px solid #E5E7EB;
-  padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
-}
-.sv2-drawer-title { font-size: 15px; font-weight: 800; color: #111827; }
-.sv2-drawer-close {
-  width: 32px; height: 32px; border-radius: 8px; border: none;
-  background: #F3F4F6; cursor: pointer; font-size: 14px; color: #6B7280;
-  display: flex; align-items: center; justify-content: center;
-}
-.sv2-drawer-close:hover { background: #E5E7EB; }
-.sv2-drawer-body { padding: 12px 16px; }
-.sv2-drawer-footer {
-  position: sticky; bottom: 0; background: #fff; border-top: 1px solid #E5E7EB;
-  padding: 12px 16px; display: flex; gap: 8px; justify-content: flex-end;
-}
-
-/* ── Sections ── */
-.sv2-section { margin-bottom: 6px; border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; }
-.sv2-section-header {
-  padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;
-  cursor: pointer; user-select: none; font-size: 12px; font-weight: 700;
-  color: #374151; text-transform: uppercase; letter-spacing: 0.3px;
-  background: #FAFAFA; transition: background 0.15s;
-}
-.sv2-section-header:hover { background: #F3F4F6; }
-.sv2-section-icon { color: #B8860B; margin-right: 8px; font-size: 12px; width: 16px; text-align: center; }
-.sv2-section-chevron { font-size: 10px; color: #9CA3AF; transition: transform 0.2s; }
-.sv2-section.sv2-open .sv2-section-chevron { transform: rotate(180deg); }
-.sv2-section-body { padding: 10px 12px; display: none; }
-.sv2-section.sv2-open .sv2-section-body { display: block; }
-.sv2-section-badge {
-  background: #B8860B; color: white; font-size: 9px; font-weight: 800;
-  padding: 1px 6px; border-radius: 10px; margin-left: 6px;
-}
-
-/* ── Widget Styles ── */
-.sv2-field { margin-bottom: 10px; }
-.sv2-field-label { display: block; font-size: 11px; font-weight: 600; color: #6B7280; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
-.sv2-range { display: flex; gap: 6px; align-items: center; }
-.sv2-range-sep { color: #9CA3AF; flex-shrink: 0; font-size: 12px; }
-.sv2-custom-row { display: none; gap: 6px; align-items: center; margin-top: 6px; }
-.sv2-custom-row.sv2-visible { display: flex; }
-.sv2-checkbox-group { display: flex; flex-direction: column; gap: 2px; }
-.sv2-checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; padding: 3px 4px; border-radius: 4px; }
-.sv2-checkbox-label:hover { background: #F3F4F6; }
-.sv2-cb { width: 14px; height: 14px; accent-color: #B8860B; }
-.sv2-checkbox-subgroup { margin-left: 16px; border-left: 2px solid #E5E7EB; padding-left: 8px; }
-.sv2-radio-group { display: flex; flex-direction: column; gap: 2px; }
-.sv2-date-range { display: flex; gap: 6px; align-items: center; }
-.sv2-date-presets { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
-.sv2-preset-btn {
-  padding: 3px 10px; font-size: 11px; font-weight: 600;
-  border: 1px solid #D1D5DB; border-radius: 14px;
-  background: white; cursor: pointer; white-space: nowrap;
-}
-.sv2-preset-btn:hover { background: #F3F4F6; }
-.sv2-preset-btn.sv2-active { background: rgba(184,134,11,0.08); border-color: #B8860B; color: #B8860B; }
-.sv2-number-range { display: flex; gap: 6px; align-items: center; }
-.sv2-custom-widget { min-height: 40px; border: 1px dashed #D1D5DB; border-radius: 8px; padding: 8px; }
-.sv2-calculator-placeholder { padding: 12px; background: #F9FAFB; border-radius: 8px; font-size: 13px; color: #6B7280; }
-
-/* ── Shared Inputs ── */
-.sv2-input, .sv2-select {
-  border: 1px solid #D1D5DB; border-radius: 6px; padding: 6px 10px;
-  font-size: 13px; color: #374151; background: white; width: 100%;
-  transition: border-color 0.15s;
-}
-.sv2-input:focus, .sv2-select:focus { outline: none; border-color: #B8860B; box-shadow: 0 0 0 2px rgba(184,134,11,0.1); }
-.sv2-input::placeholder { color: #9CA3AF; }
-.sv2-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239CA3AF' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
-
-/* ── Tabs ── */
-.sv2-tabs { display: flex; gap: 2px; margin-bottom: 12px; }
-.sv2-tab {
-  padding: 8px 20px; font-size: 13px; font-weight: 700;
-  border: 1px solid #E5E7EB; border-radius: 8px;
-  background: white; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
-}
-.sv2-tab:hover { background: #F9FAFB; }
-.sv2-tab.sv2-active { background: #111827; color: white; border-color: #111827; }
-
-/* ── Utilities ── */
-@keyframes sv2FadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-.sv2-empty { text-align: center; padding: 40px 20px; color: #9CA3AF; }
-.sv2-shimmer { background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%); background-size: 200% 100%; animation: sv2Shimmer 1.5s infinite; border-radius: 6px; }
-@keyframes sv2Shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .sv2-drawer { width: 100%; }
-  .sv2-filter-bar { padding: 8px 12px; }
-  .sv2-pill { font-size: 11px; padding: 3px 8px; }
-  .sv2-range, .sv2-date-range, .sv2-number-range { flex-direction: column; }
-  .sv2-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .sv2-tab { flex-shrink: 0; }
-}
-
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -3471,19 +3310,6 @@ function toggleSection(header) {
                             </div>
                             <span class="text-gray-500 text-[10px]" id="trackerUpdatedAt"></span>
                         </div>
-                    </div>
-
-                    <!-- Search V2 Toggle -->
-                    <div id="searchV2Toggle" class="mb-3 flex justify-end">
-                        <button onclick="toggleSearchV2()" id="btnSearchV2Toggle" class="px-4 py-2 text-xs font-bold rounded-lg border-2 border-amber-500 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">
-                            <i class="fas fa-bolt mr-1"></i> Try New Search (Beta)
-                        </button>
-                    </div>
-
-                    <!-- Search V2 Container (schema-driven search, hidden until toggled) -->
-                    <div id="searchV2Container" style="display: none;">
-                        <div id="searchV2Form"></div>
-                        <div id="sv2-filter-bar-container" style="display: none;"></div>
                     </div>
 
                     <!-- General Search / Comparable Reports Tabs -->
@@ -5327,16 +5153,16 @@ function toggleSection(header) {
                     <div class="border rounded-lg p-3 mb-5">
                         <div class="flex items-center justify-between mb-3">
                             <p class="text-xs font-semibold text-gray-700">Manhattan Grid Selections above 14th Street</p>
-                            <button onclick="clearManhattanGrid()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
+                            <button class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <select id="bldg-grid-north" class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
+                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <select id="bldg-grid-west" class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                    <select id="bldg-grid-east" class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
+                                    <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
+                                    <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
                                 </div>
-                                <select id="bldg-grid-south" class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
+                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
                             </div>
                             <div class="space-y-2">
                                 <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
@@ -5633,22 +5459,22 @@ function toggleSection(header) {
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Building Financing</p>
                             <div class="flex gap-1 items-center">
-                                <input type="number" id="buildingFinancingMin" placeholder="Financing Allowed % Min" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
+                                <input type="text" placeholder="Financing Allowed % Min" class="flex-1 border rounded px-2 py-1 text-xs">
                                 <span class="text-gray-400 text-xs">—</span>
-                                <input type="number" id="buildingFinancingMax" placeholder="% Max" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
+                                <input type="text" placeholder="% Max" class="flex-1 border rounded px-2 py-1 text-xs">
                             </div>
                         </div>
 
                         <!-- Keyword Search -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Keyword Search</p>
-                            <input type="text" id="buildingKeywordSearch" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs">
+                            <input type="text" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs">
                         </div>
 
                         <!-- Management Companies -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Management Companies</p>
-                            <input type="text" id="buildingManagementCompany" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs">
+                            <input type="text" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs">
                         </div>
                     </div>
                 </div>
@@ -5667,13 +5493,13 @@ function toggleSection(header) {
                             <div class="grid grid-cols-1 lg:grid-cols-[1fr_120px] gap-3 items-end mb-3">
                                 <div>
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">RLS ID / Web ID / Listing #</label>
-                                    <input id="adv-rls-id" type="text" placeholder="e.g. RLS-12345, WEB-67890 (comma-separated)"
+                                    <input type="text" placeholder="e.g. RLS-12345, WEB-67890 (comma-separated)"
                                            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-mono"
                                            oninput="detectIDType(this)">
                                 </div>
                                 <div>
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">Zip Code</label>
-                                    <input id="adv-zip" type="text" inputmode="numeric" pattern="[0-9]{5}" placeholder="10001" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" maxlength="5">
+                                    <input type="text" inputmode="numeric" pattern="[0-9]{5}" placeholder="10001" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" maxlength="5">
                                 </div>
                             </div>
                             <!-- Row 2: Neighborhood autocomplete + Map + Transit -->
@@ -5773,7 +5599,7 @@ function toggleSection(header) {
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">North (From)</label>
-                                        <select id="adv-grid-north" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Street</option>
                                             <option>244th Street</option>
                                             <option>243rd Street</option>
@@ -5952,7 +5778,7 @@ function toggleSection(header) {
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">South (To)</label>
-                                        <select id="adv-grid-south" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Street</option>
                                             <option>14th Street</option>
                                             <option>15th Street</option>
@@ -6138,7 +5964,7 @@ function toggleSection(header) {
                                 <div class="grid grid-cols-2 gap-2 mt-2">
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">West (From)</label>
-                                        <select id="adv-grid-west" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Avenue</option>
                                             <option>First Avenue</option>
                                             <option>Second Avenue</option>
@@ -6192,7 +6018,7 @@ function toggleSection(header) {
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">East (To)</label>
-                                        <select id="adv-grid-east" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Avenue</option>
                                             <option>First Avenue</option>
                                             <option>Second Avenue</option>
@@ -6526,7 +6352,7 @@ function toggleSection(header) {
                         </div>
                         <div class="section-content">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                <input id="adv-keyword" type="text" placeholder="Keyword Search" class="border rounded-lg px-3 py-2 text-sm">
+                                <input type="text" placeholder="Keyword Search" class="border rounded-lg px-3 py-2 text-sm">
                             </div>
 
                             <!-- Price & Financials Card -->
@@ -6615,7 +6441,7 @@ function toggleSection(header) {
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;" id="monthlyLabel">Expenses</p>
                                         <div id="monthlyExpensesFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">$500</option>
@@ -6631,7 +6457,7 @@ function toggleSection(header) {
                                                 <option value="15000">$15,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -6725,7 +6551,7 @@ function toggleSection(header) {
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;">Net Rent</p>
                                         <div id="netMonthlyRentFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">$500</option>
@@ -6736,7 +6562,7 @@ function toggleSection(header) {
                                                 <option value="5000">$5,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
                                                 <option value="">Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -6815,7 +6641,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="0">Studio</option>
@@ -6831,7 +6657,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="0">Studio</option>
@@ -6853,7 +6679,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -6870,7 +6696,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -6893,7 +6719,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -6911,7 +6737,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -6935,7 +6761,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="300">300</option>
@@ -6960,7 +6786,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="500">500</option>
@@ -7482,7 +7308,7 @@ function toggleSection(header) {
                             <!-- Management Companies (Rental) -->
                             <div class="mb-4" id="managementCompaniesSection" style="display: none;">
                                 <p class="text-xs font-semibold text-gray-600 mb-2">Management Companies</p>
-                                <input id="adv-management" type="text" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                <input type="text" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded-lg px-3 py-2 text-sm">
                             </div>
 
                         </div>
@@ -7719,13 +7545,13 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Features</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="Elevators" type="checkbox" class="w-3 h-3"> Elevator</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LaundryFeatures" data-value="Common" type="checkbox" class="w-3 h-3"> Laundry in Building</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="Fitness" type="checkbox" class="w-3 h-3"> Gym</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PoolFeatures" data-value="Indoor" type="checkbox" class="w-3 h-3"> Pool</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GarageYN" data-value="true" type="checkbox" class="w-3 h-3"> Garage</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="Storage" type="checkbox" class="w-3 h-3"> Storage</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="BikeRoom" type="checkbox" class="w-3 h-3"> Bike Room</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Elevator</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Laundry in Building</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Gym</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Pool</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Garage</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Storage</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Bike Room</label>
                                     </div>
                                 </div>
                             </div>
@@ -7769,7 +7595,7 @@ function toggleSection(header) {
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Status</p>
                                     <div class="space-y-1 text-xs">
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked class="w-3 h-3"> Resale</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="NewConstructionYN" data-value="true" type="checkbox" class="w-3 h-3"> New Development</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> New Development</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Sponsor Unit</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> New Conversion</label>
                                     </div>
@@ -8037,11 +7863,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-listed-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-listed-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8051,11 +7877,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-updated-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-updated-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8065,11 +7891,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-contract-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-contract-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8079,11 +7905,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-lease-signed-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-lease-signed-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8093,11 +7919,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-sold-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-sold-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8107,11 +7933,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-rented-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-rented-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8121,11 +7947,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-expired-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-expired-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8135,11 +7961,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-hold-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-hold-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
                                             </div>
                                         </div>
                                     </div>
@@ -8150,9 +7976,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Days on Market (DOM)</p>
                                     <div class="flex items-center gap-2 mb-2">
-                                        <input id="adv-dom-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
+                                        <input type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-dom-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
+                                        <input type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
                                     </div>
                                     <div class="space-y-1 text-xs">
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> New (≤7 days)</label>
@@ -8163,9 +7989,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Cumulative DOM (CDOM)</p>
                                     <div class="flex items-center gap-2 mb-1">
-                                        <input id="adv-cdom-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
+                                        <input type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-cdom-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
+                                        <input type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
                                     </div>
                                     <span class="text-xs text-gray-500">Includes relists</span>
                                 </div>
@@ -8231,7 +8057,7 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Monthly Tax (Condos)</p>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <select id="adv-tax-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Min</option>
                                             <option value="custom">Custom</option>
                                             <option value="0">$0</option>
@@ -8244,7 +8070,7 @@ function toggleSection(header) {
                                             <option value="5000">$5,000</option>
                                         </select>
                                         <span class="text-gray-400">—</span>
-                                        <select id="adv-tax-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Max</option>
                                             <option value="custom">Custom</option>
                                             <option value="500">$500</option>
@@ -8261,7 +8087,7 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Total Monthly (Maint + Tax)</p>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <select id="adv-monthly-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Min</option>
                                             <option value="custom">Custom</option>
                                             <option value="0">$0</option>
@@ -8274,7 +8100,7 @@ function toggleSection(header) {
                                             <option value="10000">$10,000</option>
                                         </select>
                                         <span class="text-gray-400">—</span>
-                                        <select id="adv-monthly-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
                                             <option value="">Max</option>
                                             <option value="custom">Custom</option>
                                             <option value="1000">$1,000</option>
@@ -8290,7 +8116,7 @@ function toggleSection(header) {
                                 <!-- Financing -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Financing Allowed (Co-ops)</p>
-                                    <select id="adv-financing" class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm mb-2">
+                                    <select class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm mb-2">
                                         <option value="">Any</option>
                                         <option value="custom">Custom</option>
                                         <option value="90">90%</option>
@@ -8349,9 +8175,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Unit Features</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LaundryFeatures" data-value="InUnit" type="checkbox" class="w-3 h-3"> Dining Room</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Dining Room</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Eat-in Kitchen</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="CoolingYN" data-value="true" type="checkbox" class="w-3 h-3"> Maids' Room</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Maids' Room</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Loft Space</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Dishwasher</label>
                                     </div>
@@ -8377,9 +8203,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Ceiling Height</p>
                                     <div class="flex items-center gap-2 mb-2">
-                                        <input id="adv-ceiling-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="7" step="0.5">
+                                        <input type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="7" step="0.5">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-ceiling-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" step="0.5">
+                                        <input type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" step="0.5">
                                         <span class="text-xs text-gray-500">ft</span>
                                     </div>
                                     <div class="space-y-1 text-xs">
@@ -8450,11 +8276,11 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Outdoor Space</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Balcony" type="checkbox" class="w-3 h-3"> Balcony</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Terrace" type="checkbox" class="w-3 h-3"> Terrace</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Garden" type="checkbox" class="w-3 h-3"> Patio</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Patio" type="checkbox" class="w-3 h-3"> Roof Deck</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="BuildingRoofDeck" type="checkbox" class="w-3 h-3"> Garden</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Balcony</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Terrace</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Patio</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Roof Deck</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Garden</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Yard</label>
                                     </div>
                                 </div>
@@ -8491,9 +8317,9 @@ function toggleSection(header) {
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Floor Number</p>
                                     <div class="flex flex-wrap items-center gap-4">
                                         <div class="flex items-center gap-2">
-                                            <input id="adv-floor-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
                                             <span class="text-gray-400">—</span>
-                                            <input id="adv-floor-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
                                         </div>
                                         <div class="flex flex-wrap gap-3 text-sm">
                                             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> High Floor (10+)</label>
@@ -8588,9 +8414,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Year Built</p>
                                     <div class="flex items-center gap-2">
-                                        <input id="adv-year-built-from" type="number" placeholder="From" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
+                                        <input type="number" placeholder="From" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-year-built-to" type="number" placeholder="To" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
+                                        <input type="number" placeholder="To" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
                                     </div>
                                 </div>
                                 <!-- Year Renovated -->
@@ -8605,15 +8431,15 @@ function toggleSection(header) {
                                     <div class="space-y-2">
                                         <div class="flex items-center gap-2 text-xs">
                                             <span class="w-12 text-gray-500">Floors:</span>
-                                            <input id="adv-floors-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
                                             <span class="text-gray-400">—</span>
-                                            <input id="adv-floors-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
                                         </div>
                                         <div class="flex items-center gap-2 text-xs">
                                             <span class="w-12 text-gray-500">Units:</span>
-                                            <input id="adv-bldg-units-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
                                             <span class="text-gray-400">—</span>
-                                            <input id="adv-bldg-units-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
                                         </div>
                                     </div>
                                 </div>
@@ -8621,10 +8447,10 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Architectural Style</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="Prewar" type="checkbox" class="w-3 h-3"> Prewar</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="WalkUp" type="checkbox" class="w-3 h-3"> Postwar</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="Brownstone" type="checkbox" class="w-3 h-3"> Art Deco</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="Loft" type="checkbox" class="w-3 h-3"> Beaux Arts</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Prewar</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Postwar</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Art Deco</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Beaux Arts</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Brownstone</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contemporary</label>
                                     </div>
@@ -8641,7 +8467,7 @@ function toggleSection(header) {
                                 <!-- Building Name Search -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Name</p>
-                                    <input id="adv-building-name" type="text" placeholder="Search by name..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    <input type="text" placeholder="Search by name..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                                 </div>
                             </div>
                         </div>
@@ -8777,9 +8603,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Pet Policy</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PetsAllowed" data-value="NoRestrictions" type="checkbox" class="w-3 h-3"> Pets Allowed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PetsAllowed" data-value="CatsOnly" type="checkbox" class="w-3 h-3"> Dogs OK</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PetsAllowed" data-value="DogsOnly" type="checkbox" class="w-3 h-3"> Cats OK</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Pets Allowed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Dogs OK</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Cats OK</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Case by Case</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> No Pets</label>
                                     </div>
@@ -8848,8 +8674,8 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Furnishing Status</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Furnished" type="checkbox" class="w-3 h-3"> Furnished Only</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Unfurnished" type="checkbox" class="w-3 h-3"> Unfurnished Only</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Furnished Only</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Unfurnished Only</label>
                                     </div>
                                 </div>
                             </div>
@@ -15993,323 +15819,7 @@ function manageShowToast(msg) {
 
 </script>
 
-<!-- Search V2 (schema-driven) — loaded on demand, not at page load -->
-<!-- These scripts are deferred until the user clicks "Try New Search (Beta)" -->
-<!-- <script src="js/search-v2/registry-loader.js"></script> -->
-<!-- <script src="js/search-v2/widget-renderers.js"></script> -->
-<!-- <script src="js/search-v2/criteria-collector.js"></script> -->
-<!-- <script src="js/search-v2/form-renderer.js"></script> -->
-<!-- <script src="js/search-v2/filter-bar.js"></script> -->
-<!-- <script src="js/search-v2/filter-drawer.js"></script> -->
-<!-- <script src="js/search-v2/search-orchestrator.js"></script> -->
-<!-- <script src="js/adapters/trestle-adapter.js"></script> -->
-<!-- <script src="js/adapters/result-normalizer.js"></script> -->
-<!-- <script src="js/adapters/search-router.js"></script> -->
-
-<!-- Search (legacy — kept during migration) -->
-<script>
-// ═══ js/search/manhattan-grid.js ═══
-// ═══════════════════════════════════════════════════════════════
-// MANHATTAN GRID — Street/Avenue to Lat/Lng bounding box search
-// Converts "96th St to 72nd St, 5th Ave to 3rd Ave" into
-// Latitude/Longitude OData filters for Trestle
-// ═══════════════════════════════════════════════════════════════
-var ManhattanGrid = (function() {
-  'use strict';
-
-  // Manhattan street numbers → approximate latitude
-  // Manhattan runs roughly 40.700 (south) to 40.880 (north)
-  // Streets are numbered 1-220, roughly 20 blocks per mile
-  // 14th St ≈ 40.7360, 96th St ≈ 40.7850, 125th St ≈ 40.8090
-  function streetToLat(streetStr) {
-    if (!streetStr) return null;
-    var num = parseInt(streetStr);
-    if (isNaN(num)) return null;
-    // Linear approximation: each street ≈ 0.00048 degrees latitude
-    // Base: 14th St = 40.7360
-    return 40.7360 + (num - 14) * 0.00048;
-  }
-
-  // Manhattan avenues → approximate longitude
-  // Manhattan runs roughly -74.010 (west/Hudson) to -73.940 (east/East River)
-  // Avenues: 12th Ave (west) → 1st Ave (east), then lettered (A, B, C, D)
-  var AVE_TO_LNG = {
-    '12th Avenue': -74.009, '11th Avenue': -74.003, '10th Avenue': -73.998,
-    '9th Avenue': -73.993, '8th Avenue': -73.988, '7th Avenue': -73.983,
-    'Broadway': -73.980, '6th Avenue': -73.978, '5th Avenue': -73.974,
-    'Madison Avenue': -73.971, 'Park Avenue': -73.968, 'Lexington Avenue': -73.965,
-    '3rd Avenue': -73.962, '2nd Avenue': -73.958, '1st Avenue': -73.955,
-    'York Avenue': -73.951, 'Avenue A': -73.948, 'Avenue B': -73.945,
-    'Avenue C': -73.942, 'Avenue D': -73.940,
-    'FDR Drive': -73.938, 'West End Avenue': -74.001, 'Amsterdam Avenue': -73.993,
-    'Columbus Avenue': -73.989, 'Central Park West': -73.976,
-    'Riverside Drive': -74.005, 'St. Nicholas Avenue': -73.948,
-    'Lenox Avenue': -73.944, 'Adam Clayton Powell Jr. Boulevard': -73.944,
-    'Frederick Douglass Boulevard': -73.948, 'Manhattan Avenue': -73.953,
-    'Morningside Drive': -73.961, 'Convent Avenue': -73.946,
-    'Edgecombe Avenue': -73.941, 'Fort Washington Avenue': -73.936
-  };
-
-  function aveToLng(aveStr) {
-    if (!aveStr) return null;
-    return AVE_TO_LNG[aveStr] || null;
-  }
-
-  // Read grid values from the 4 selects
-  function getGridBounds(prefix) {
-    prefix = prefix || 'adv-grid';
-    var northEl = document.getElementById(prefix + '-north');
-    var southEl = document.getElementById(prefix + '-south');
-    var westEl = document.getElementById(prefix + '-west');
-    var eastEl = document.getElementById(prefix + '-east');
-
-    var bounds = { north: null, south: null, west: null, east: null };
-
-    if (northEl && northEl.value) bounds.north = streetToLat(northEl.value);
-    if (southEl && southEl.value) bounds.south = streetToLat(southEl.value);
-    if (westEl && westEl.value) bounds.west = aveToLng(westEl.value);
-    if (eastEl && eastEl.value) bounds.east = aveToLng(eastEl.value);
-
-    // Swap if needed (north should be > south, east should be > west in NYC)
-    if (bounds.north && bounds.south && bounds.north < bounds.south) {
-      var tmp = bounds.north; bounds.north = bounds.south; bounds.south = tmp;
-    }
-    if (bounds.west && bounds.east && bounds.west > bounds.east) {
-      var tmp = bounds.west; bounds.west = bounds.east; bounds.east = tmp;
-    }
-
-    return bounds;
-  }
-
-  // Build OData filter for lat/lng bounding box
-  function toODataFilter(bounds) {
-    var parts = [];
-    if (bounds.south) parts.push('Latitude ge ' + bounds.south.toFixed(6));
-    if (bounds.north) parts.push('Latitude le ' + bounds.north.toFixed(6));
-    if (bounds.west) parts.push('Longitude ge ' + bounds.west.toFixed(6));
-    if (bounds.east) parts.push('Longitude le ' + bounds.east.toFixed(6));
-    return parts;
-  }
-
-  // Check if a listing is within the grid bounds (client-side filter)
-  function isInBounds(listing, bounds) {
-    if (!listing.latitude || !listing.longitude) return true; // Don't exclude if no coords
-    if (bounds.south && listing.latitude < bounds.south) return false;
-    if (bounds.north && listing.latitude > bounds.north) return false;
-    if (bounds.west && listing.longitude < bounds.west) return false;
-    if (bounds.east && listing.longitude > bounds.east) return false;
-    return true;
-  }
-
-  // Has any grid value been set?
-  function hasGridValues(prefix) {
-    var bounds = getGridBounds(prefix);
-    return bounds.north !== null || bounds.south !== null || bounds.west !== null || bounds.east !== null;
-  }
-
-  // Clear all grid selects
-  function clear(prefix) {
-    prefix = prefix || 'adv-grid';
-    ['north', 'south', 'west', 'east'].forEach(function(dir) {
-      var el = document.getElementById(prefix + '-' + dir);
-      if (el) el.selectedIndex = 0;
-    });
-  }
-
-  return {
-    getGridBounds: getGridBounds,
-    toODataFilter: toODataFilter,
-    isInBounds: isInBounds,
-    hasGridValues: hasGridValues,
-    clear: clear,
-    streetToLat: streetToLat,
-    aveToLng: aveToLng
-  };
-})();
-
-// Global clear function for the Clear button
-function clearManhattanGrid() {
-  ManhattanGrid.clear('adv-grid');
-  ManhattanGrid.clear('bldg-grid');
-}
-
-</script>
-<script>
-// ═══ js/search/transit-search.js ═══
-// ═══════════════════════════════════════════════════════════════
-// TRANSIT SEARCH — Subway line proximity search
-// Uses real MTA station coordinates (from data.ny.gov API)
-// to find listings within walking distance of selected lines.
-// ═══════════════════════════════════════════════════════════════
-var TransitSearch = (function() {
-  'use strict';
-
-  var _stations = null; // line → [{name, lat, lng}]
-  var _selectedLines = {};
-  var _radius = 0.005; // ~0.3 miles (5 blocks) in degrees
-
-  // Load station data
-  function loadStations() {
-    if (_stations) return Promise.resolve(_stations);
-    return fetch('/crm/data/mta-stations-manhattan.json')
-      .then(function(r) { return r.json(); })
-      .then(function(data) { _stations = data; return data; })
-      .catch(function() { _stations = {}; return {}; });
-  }
-
-  // Initialize: wire all subway buttons and transit checkboxes
-  function init() {
-    loadStations();
-
-    // Wire all subway line circles/buttons across ALL tabs
-    // They're <span> or <button> elements with subway line text (1,2,3,A,C,E, etc.)
-    // Identify them by parent context (.transit-lines, or nearby "SUBWAY" label)
-    document.addEventListener('click', function(e) {
-      var el = e.target;
-      // Match subway circle spans (rounded-full with single letter/number)
-      if (el.matches('.rounded-full') && el.textContent.trim().length <= 2) {
-        var line = el.textContent.trim();
-        if (_stations && _stations[line] !== undefined) {
-          e.preventDefault();
-          toggleLine(line, el);
-        }
-      }
-    });
-
-    // Wire LIRR/Ferry/Bus checkboxes
-    document.addEventListener('change', function(e) {
-      var cb = e.target;
-      if (cb.type !== 'checkbox') return;
-      var label = cb.parentElement ? cb.parentElement.textContent.trim() : '';
-      if (label === 'LIRR' || label === 'Ferry' || label === 'Bus Lines') {
-        var key = label.replace(' Lines', '');
-        if (cb.checked) _selectedLines[key] = true;
-        else delete _selectedLines[key];
-      }
-    });
-  }
-
-  function toggleLine(line, el) {
-    if (_selectedLines[line]) {
-      delete _selectedLines[line];
-      _unhighlight(el);
-    } else {
-      _selectedLines[line] = true;
-      _highlight(el);
-    }
-  }
-
-  function _highlight(el) {
-    if (!el) return;
-    el.style.outline = '3px solid #B8860B';
-    el.style.outlineOffset = '2px';
-    el.style.boxShadow = '0 0 0 4px rgba(184,134,11,0.25)';
-  }
-
-  function _unhighlight(el) {
-    if (!el) return;
-    el.style.outline = '';
-    el.style.outlineOffset = '';
-    el.style.boxShadow = '';
-  }
-
-  // Get the bounding box that covers all stations on selected lines
-  // with a radius buffer around each station
-  function getBounds() {
-    if (!_stations || Object.keys(_selectedLines).length === 0) return null;
-
-    var allStations = [];
-    Object.keys(_selectedLines).forEach(function(line) {
-      if (_stations[line]) {
-        _stations[line].forEach(function(s) { allStations.push(s); });
-      }
-    });
-
-    if (allStations.length === 0) return null;
-
-    var minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-    allStations.forEach(function(s) {
-      if (s.lat < minLat) minLat = s.lat;
-      if (s.lat > maxLat) maxLat = s.lat;
-      if (s.lng < minLng) minLng = s.lng;
-      if (s.lng > maxLng) maxLng = s.lng;
-    });
-
-    // Add radius buffer
-    return {
-      south: minLat - _radius,
-      north: maxLat + _radius,
-      west: minLng - _radius,
-      east: maxLng + _radius
-    };
-  }
-
-  // Check if a listing is near any station on selected lines
-  function isNearStation(listing) {
-    if (!listing.latitude || !listing.longitude || !_stations) return true;
-    if (Object.keys(_selectedLines).length === 0) return true;
-
-    var lat = listing.latitude;
-    var lng = listing.longitude;
-
-    for (var line in _selectedLines) {
-      if (!_stations[line]) continue;
-      for (var i = 0; i < _stations[line].length; i++) {
-        var s = _stations[line][i];
-        var dLat = Math.abs(lat - s.lat);
-        var dLng = Math.abs(lng - s.lng);
-        if (dLat <= _radius && dLng <= _radius) return true;
-      }
-    }
-    return false;
-  }
-
-  // Build OData filter for Trestle (bounding box approach)
-  function toODataFilter() {
-    var bounds = getBounds();
-    if (!bounds) return [];
-    return [
-      'Latitude ge ' + bounds.south.toFixed(6),
-      'Latitude le ' + bounds.north.toFixed(6),
-      'Longitude ge ' + bounds.west.toFixed(6),
-      'Longitude le ' + bounds.east.toFixed(6)
-    ];
-  }
-
-  function hasSelection() {
-    return Object.keys(_selectedLines).length > 0;
-  }
-
-  function getSelectedLines() {
-    return Object.keys(_selectedLines);
-  }
-
-  function clear() {
-    _selectedLines = {};
-    // Remove all highlights
-    document.querySelectorAll('.rounded-full').forEach(function(el) {
-      if (el.textContent.trim().length <= 2) _unhighlight(el);
-    });
-  }
-
-  // Set proximity radius (in degrees, default 0.005 ≈ 5 blocks)
-  function setRadius(r) { _radius = r; }
-
-  return {
-    init: init,
-    loadStations: loadStations,
-    toggleLine: toggleLine,
-    getBounds: getBounds,
-    isNearStation: isNearStation,
-    toODataFilter: toODataFilter,
-    hasSelection: hasSelection,
-    getSelectedLines: getSelectedLines,
-    clear: clear,
-    setRadius: setRadius
-  };
-})();
-
-</script>
+<!-- Search -->
 <script>
 // ═══ js/search/date-range-picker.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -16922,7 +16432,6 @@ var TransitSearch = (function() {
             if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
             if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
             if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
-            if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
             // Date range filters
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
@@ -16959,18 +16468,6 @@ var TransitSearch = (function() {
             if (criteria.checkboxFilters) {
                 var _cbJson = JSON.stringify(criteria.checkboxFilters);
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
-            }
-
-            // Transit proximity → Latitude/Longitude bounding box
-            if (criteria._transitBounds && typeof TransitSearch !== 'undefined') {
-                var transitParts = TransitSearch.toODataFilter();
-                if (transitParts.length > 0) params.gridFilter = transitParts.join(' and ');
-            }
-            // Manhattan Grid bounding box → Latitude/Longitude OData filters
-            // (grid overrides transit bounds if both set)
-            if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
-                var gridParts = ManhattanGrid.toODataFilter(criteria._gridBounds);
-                if (gridParts.length > 0) params.gridFilter = gridParts.join(' and ');
             }
 
             // ≤200: server sends inline photos via $expand=Media (fast, one request)
@@ -17347,12 +16844,9 @@ var TransitSearch = (function() {
                 }
             }
 
-            // Bedrooms — use the correct IDs based on search tab and mode
+            // Bedrooms — use the correct IDs based on search tab
             var bedsMin, bedsMax;
-            if (_isAdvanced) {
-                bedsMin = document.getElementById('adv-min-beds');
-                bedsMax = document.getElementById('adv-max-beds');
-            } else if (currentSearchTab === 'rent') {
+            if (currentSearchTab === 'rent') {
                 bedsMin = document.getElementById('rentalMinBeds');
                 bedsMax = document.getElementById('rentalMaxBeds');
             } else {
@@ -17368,12 +16862,9 @@ var TransitSearch = (function() {
                 if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
             }
 
-            // Bathrooms — use correct IDs per tab and mode, parseFloat for half-baths (1.5, 2.5)
+            // Bathrooms — use correct IDs per tab, parseFloat for half-baths (1.5, 2.5)
             var bathsMin, bathsMax;
-            if (_isAdvanced) {
-                bathsMin = document.getElementById('adv-min-baths');
-                bathsMax = document.getElementById('adv-max-baths');
-            } else if (currentSearchTab === 'rent') {
+            if (currentSearchTab === 'rent') {
                 bathsMin = document.getElementById('rentalMinBaths');
                 bathsMax = document.getElementById('rentalMaxBaths');
             } else {
@@ -17389,12 +16880,9 @@ var TransitSearch = (function() {
                 if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
             }
 
-            // Rooms — use correct IDs per tab and mode
+            // Rooms — use correct IDs per tab
             var roomsMin, roomsMax;
-            if (_isAdvanced) {
-                roomsMin = document.getElementById('adv-min-rooms');
-                roomsMax = document.getElementById('adv-max-rooms');
-            } else if (currentSearchTab === 'rent') {
+            if (currentSearchTab === 'rent') {
                 roomsMin = document.getElementById('rentalMinRooms');
                 roomsMax = document.getElementById('rentalMaxRooms');
             } else {
@@ -17410,12 +16898,9 @@ var TransitSearch = (function() {
                 if (isNaN(criteria.roomsMax)) delete criteria.roomsMax;
             }
 
-            // Square footage — use correct IDs per tab and mode
+            // Square footage — use correct IDs per tab
             var sqftMin, sqftMax;
-            if (_isAdvanced) {
-                sqftMin = document.getElementById('adv-min-sqft');
-                sqftMax = document.getElementById('adv-max-sqft');
-            } else if (currentSearchTab === 'rent') {
+            if (currentSearchTab === 'rent') {
                 sqftMin = document.getElementById('rentalMinSqft');
                 sqftMax = document.getElementById('rentalMaxSqft');
             } else {
@@ -17534,21 +17019,13 @@ var TransitSearch = (function() {
                 }
             }
 
-            // Quick Search fields — RLS ID, Zip, Unit (advanced mode has its own IDs)
-            var rlsInputId, zipInputId, unitInputId;
-            if (_isAdvanced) {
-                rlsInputId = 'adv-rls-id';
-                zipInputId = 'adv-zip';
-                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
-                              currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
-            } else {
-                rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
+            // Quick Search fields — RLS ID, Zip, Unit
+            var rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
                              currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-                zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
+            var zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
                              currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
+            var unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
                               currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
-            }
             var rlsInput = document.getElementById(rlsInputId);
             var zipInput = document.getElementById(zipInputId);
             var unitInput = document.getElementById(unitInputId);
@@ -17557,30 +17034,10 @@ var TransitSearch = (function() {
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             // Keyword search (PublicRemarks contains)
-            var keywordId = _isAdvanced ? 'adv-keyword' :
-                            currentSearchTab === 'rent' ? 'rentalKeywordSearch' :
-                            currentSearchTab === 'building' ? 'buildingKeywordSearch' : 'saleKeywordSearch';
+            var keywordId = currentSearchTab === 'rent' ? 'rentalKeywordSearch' : 'saleKeywordSearch';
             var keywordEl = document.getElementById(keywordId);
             if (keywordEl && keywordEl.value.trim()) {
                 criteria.keyword = keywordEl.value.trim();
-            }
-
-            // Management Company (search against ListOfficeName — Trestle's closest field)
-            var mgmtId = _isAdvanced ? 'adv-management' :
-                         currentSearchTab === 'rent' ? 'rentalManagementCompany' :
-                         currentSearchTab === 'building' ? 'buildingManagementCompany' : 'saleManagementCompany';
-            var mgmtEl = document.getElementById(mgmtId);
-            if (mgmtEl && mgmtEl.value.trim()) {
-                criteria.managementCompany = mgmtEl.value.trim();
-            }
-
-            // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
-            var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
-                           currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
-            var finMinEl = document.getElementById(finMinId);
-            if (finMinEl && finMinEl.value) {
-                var fv = parseInt(finMinEl.value);
-                if (!isNaN(fv) && fv > 0) criteria.financingMin = fv;
             }
 
             // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
@@ -17634,15 +17091,9 @@ var TransitSearch = (function() {
             }
 
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
+            // Only collect from building tab OR from the visible advanced building section
             var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
-            if (_isAdvanced) {
-                yearMinEl = document.getElementById('adv-year-built-from');
-                yearMaxEl = document.getElementById('adv-year-built-to');
-                unitsMinEl = document.getElementById('adv-bldg-units-min');
-                unitsMaxEl = document.getElementById('adv-bldg-units-max');
-                floorsMinEl = document.getElementById('adv-floors-min');
-                floorsMaxEl = document.getElementById('adv-floors-max');
-            } else if (currentSearchTab === 'building') {
+            if (currentSearchTab === 'building') {
                 yearMinEl = document.getElementById('buildingMinYear');
                 yearMaxEl = document.getElementById('buildingMaxYear');
                 unitsMinEl = document.getElementById('buildingMinUnits');
@@ -17693,21 +17144,6 @@ var TransitSearch = (function() {
             var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
             if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
                 criteria.buildingName = buildingNameEl.value.trim();
-            }
-
-            // Transit — subway line proximity search via station coordinates
-            if (typeof TransitSearch !== 'undefined' && TransitSearch.hasSelection()) {
-                criteria._transitLines = TransitSearch.getSelectedLines();
-                criteria._transitBounds = TransitSearch.getBounds();
-            }
-
-            // Manhattan Grid — bounding box search via lat/lng
-            if (typeof ManhattanGrid !== 'undefined') {
-                var gridPrefix = _isAdvanced ? 'adv-grid' :
-                                 currentSearchTab === 'building' ? 'bldg-grid' : null;
-                if (gridPrefix && ManhattanGrid.hasGridValues(gridPrefix)) {
-                    criteria._gridBounds = ManhattanGrid.getGridBounds(gridPrefix);
-                }
             }
 
             // ═══════════════════════════════════════════════════════════
@@ -17861,25 +17297,9 @@ var TransitSearch = (function() {
                     var label = cb.closest('label');
                     if (label) {
                         var nbName = label.textContent.trim();
-                        // Skip parent borough labels (they cascade to children)
-                        var isBoroughParent = cb.closest('summary') !== null;
-                        // Detect borough from parent <details> summary text
-                        var _borough = '';
-                        var _parentDetails = cb.closest('details');
-                        if (_parentDetails) {
-                            var _parentSummary = _parentDetails.querySelector(':scope > summary');
-                            if (_parentSummary) _borough = _parentSummary.textContent.trim().replace(/[\u25B6\u25BC▸▾►▼\s]+/g, ' ').trim();
-                        }
-
                         if (cb.checked) {
                             if (typeof toggleNeighborhoodPolygon === 'function') {
                                 toggleNeighborhoodPolygon(nbName, true);
-                            }
-                            // ADD to neighborhood tags so collectSearchCriteria picks it up
-                            if (!isBoroughParent && typeof selectNeighborhood === 'function') {
-                                var tagsId = _resolveActiveNeighborhoodTagsId();
-                                var dropdownId = tagsId.replace('Tags', 'Dropdown');
-                                selectNeighborhood(nbName, _borough, false, dropdownId, tagsId);
                             }
                             // Search form map
                             if (sfType && typeof toggleSFPolygon === 'function') {
@@ -17891,11 +17311,6 @@ var TransitSearch = (function() {
                         } else {
                             if (typeof toggleNeighborhoodPolygon === 'function') {
                                 toggleNeighborhoodPolygon(nbName, false);
-                            }
-                            // REMOVE from neighborhood tags
-                            if (!isBoroughParent && typeof removeNeighborhoodTag === 'function') {
-                                var tagsId = _resolveActiveNeighborhoodTagsId();
-                                removeNeighborhoodTag(nbName, tagsId);
                             }
                             if (sfType && typeof toggleSFPolygon === 'function') {
                                 toggleSFPolygon(sfType, nbName, false);
@@ -17941,11 +17356,6 @@ var TransitSearch = (function() {
             document.addEventListener('DOMContentLoaded', initNeighborhoodCascade);
         } else {
             initNeighborhoodCascade();
-        }
-
-        // Initialize transit search (subway line click handlers)
-        if (typeof TransitSearch !== 'undefined') {
-            TransitSearch.init();
         }
 
         // ── Display context detection ──
@@ -18117,12 +17527,6 @@ var TransitSearch = (function() {
                 // Unit filter
                 if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
 
-                // Management Company filter — matches against ListOfficeName
-                if (criteria.managementCompany) {
-                    var mc = criteria.managementCompany.toLowerCase();
-                    if (!listing.company || listing.company.toLowerCase().indexOf(mc) === -1) return false;
-                }
-
                 // Keyword filter — search in description (PublicRemarks)
                 if (criteria.keyword) {
                     var kw = criteria.keyword.toLowerCase();
@@ -18166,16 +17570,6 @@ var TransitSearch = (function() {
                     sTo.setHours(23, 59, 59);
                     var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
                     if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
-                }
-
-                // Transit proximity filter — is listing near a selected subway station?
-                if (criteria._transitLines && typeof TransitSearch !== 'undefined') {
-                    if (!TransitSearch.isNearStation(listing)) return false;
-                }
-
-                // Manhattan Grid bounding box filter
-                if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
-                    if (!ManhattanGrid.isInBounds(listing, criteria._gridBounds)) return false;
                 }
 
                 // Open House date filter
@@ -19083,99 +18477,6 @@ var TransitSearch = (function() {
 
                 comparablesSection.style.display = 'block';
                 generalSection.style.display = 'none';
-            }
-        }
-
-        // ═══ SEARCH V2 TOGGLE ═══
-        var _searchV2Active = false;
-        var _v2ScriptsLoaded = false;
-
-        function _loadSearchV2Scripts() {
-            if (_v2ScriptsLoaded) return Promise.resolve();
-            var scripts = [
-                '/crm/js/search-v2/registry-loader.js',
-                '/crm/js/search-v2/widget-renderers.js',
-                '/crm/js/search-v2/criteria-collector.js',
-                '/crm/js/adapters/trestle-adapter.js',
-                '/crm/js/adapters/result-normalizer.js',
-                '/crm/js/adapters/search-router.js',
-                '/crm/js/search-v2/form-renderer.js',
-                '/crm/js/search-v2/filter-bar.js',
-                '/crm/js/search-v2/filter-drawer.js',
-                '/crm/js/search-v2/search-orchestrator.js'
-            ];
-            // Also load CSS if not already
-            if (!document.querySelector('link[href*="search-v2.css"]')) {
-                var link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.href = '/crm/css/search-v2.css';
-                document.head.appendChild(link);
-            }
-            // Load scripts sequentially (order matters — dependencies)
-            return scripts.reduce(function(chain, src) {
-                return chain.then(function() {
-                    return new Promise(function(resolve, reject) {
-                        var s = document.createElement('script');
-                        s.src = src;
-                        s.onload = resolve;
-                        s.onerror = function() { reject(new Error('Failed to load: ' + src)); };
-                        document.body.appendChild(s);
-                    });
-                });
-            }, Promise.resolve()).then(function() {
-                _v2ScriptsLoaded = true;
-                console.log('[SearchV2] All scripts loaded dynamically');
-            });
-        }
-        function toggleSearchV2() {
-            _searchV2Active = !_searchV2Active;
-            var v2Container = document.getElementById('searchV2Container');
-            var oldSearch = document.getElementById('searchFormContainer');
-            var toggleBtn = document.getElementById('btnSearchV2Toggle');
-            var searchTypeTabs = document.getElementById('searchTypeTabs');
-
-            if (_searchV2Active) {
-                // Switch to V2
-                if (oldSearch) oldSearch.style.display = 'none';
-                if (searchTypeTabs) searchTypeTabs.style.display = 'none';
-                if (v2Container) {
-                    v2Container.style.display = 'block';
-                    // Load V2 scripts dynamically (not inlined — prevents build issues)
-                    if (typeof SearchV2 === 'undefined') {
-                        _loadSearchV2Scripts().then(function() {
-                            SearchV2.init('#searchV2Container').catch(function(err) {
-                                console.error('[SearchV2] Failed to init:', err);
-                                if (typeof showToast === 'function') showToast('New search failed to load. Switching back.', 'error');
-                                toggleSearchV2();
-                            });
-                        }).catch(function(err) {
-                            console.error('[SearchV2] Failed to load scripts:', err);
-                            if (typeof showToast === 'function') showToast('Failed to load new search scripts.', 'error');
-                            toggleSearchV2();
-                        });
-                    } else if (!SearchV2.isInitialized()) {
-                        SearchV2.init('#searchV2Container').catch(function(err) {
-                            console.error('[SearchV2] Init failed:', err);
-                            if (typeof showToast === 'function') showToast('New search failed. Switching back.', 'error');
-                            toggleSearchV2();
-                        });
-                    }
-                }
-                if (toggleBtn) {
-                    toggleBtn.innerHTML = '<i class="fas fa-undo mr-1"></i> Classic Search';
-                    toggleBtn.classList.remove('border-amber-500', 'text-amber-700', 'bg-amber-50');
-                    toggleBtn.classList.add('border-gray-400', 'text-gray-600', 'bg-gray-50');
-                }
-            } else {
-                // Switch back to Classic
-                if (v2Container) v2Container.style.display = 'none';
-                if (oldSearch) oldSearch.style.display = 'block';
-                if (searchTypeTabs) searchTypeTabs.style.display = '';
-                if (toggleBtn) {
-                    toggleBtn.innerHTML = '<i class="fas fa-bolt mr-1"></i> Try New Search (Beta)';
-                    toggleBtn.classList.add('border-amber-500', 'text-amber-700', 'bg-amber-50');
-                    toggleBtn.classList.remove('border-gray-400', 'text-gray-600', 'bg-gray-50');
-                }
             }
         }
 
@@ -22618,7 +21919,7 @@ function parseBudgetValue(td) {
                     <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo rounded-xl" loading="lazy">
                     ${listing.priceChange === 'down' ? '<div class="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded"><i class="fas fa-arrow-down mr-1"></i>PRICE DROP!</div>' : ''}
                     <div class="cm-overlay rounded-b-xl px-3 py-2.5 flex items-center justify-between">
-                        <button onclick="showListingDetail('${escapeHtml(listing.id)}')" class="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs shadow-sm flex items-center gap-2 text-gray-700 hover:bg-white"><i class="fas fa-th"></i> Floorplans</button>
+                        <button class="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs shadow-sm flex items-center gap-2 text-gray-700 hover:bg-white"><i class="fas fa-th"></i> Floorplans</button>
                         <span class="text-white/90 text-xs font-semibold"><i class="fas fa-camera mr-1"></i>1 / ${listing.photoCount}</span>
                     </div>
                 </div>
@@ -22932,27 +22233,27 @@ function parseBudgetValue(td) {
             if (!listing) return;
 
             // Build typed arrays
-            // Trestle Media has 2 categories: Photo and FloorPlan.
-            // Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media.
             var photos = [];
             var floorPlans = [];
+            var videos = [];
+            var virtualTours = [];
             mediaItems.forEach(function(m) {
                 var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
                 if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
+                else if (m.mediaType === 'Video') videos.push(entry);
+                else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
                 else photos.push(entry);
             });
 
-            // Update listing.images with photos only
+            // Update listing.images with photos only (existing behavior)
             if (photos.length > 0) {
                 listing.images = photos.sort(function(a, b) { return a.order - b.order; });
-                // Only upgrade photoCount, never downgrade (Trestle's PhotosCount is authoritative)
-                if (photos.length > (listing.photoCount || 0)) {
-                    listing.photoCount = photos.length;
-                }
+                listing.photoCount = photos.length;
             }
-            // Store floor plans separately for detail panel
+            // Store typed media for detail panel
             if (floorPlans.length > 0) listing._floorPlans = floorPlans;
-            // Note: Videos/VirtualTours/3D are on listing.virtualTourUrl (from Property.VirtualTourURLUnbranded)
+            if (videos.length > 0) listing._videos = videos;
+            if (virtualTours.length > 0) listing._virtualTours = virtualTours;
         }
 
 </script>
