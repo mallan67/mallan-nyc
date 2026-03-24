@@ -5645,18 +5645,17 @@ var Panels = (function () {
       '</div>' +
     '</div>';
 
-    // Bucket cards
-    html += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">';
+    // Bucket cards — compact inline row
+    html += '<div class="grid grid-cols-3 sm:grid-cols-6 gap-2">';
     Object.keys(buckets).forEach(function (key) {
       var b = buckets[key];
       var count = b.items.length;
-      var statusIcon = count === 0 ? 'fa-check-circle' : 'fa-exclamation-triangle';
       var statusColor = count === 0 ? '#059669' : b.color;
-      html += '<div class="card p-4 text-center cursor-pointer hover:border-gold transition-all" onclick="document.getElementById(\'compQueue\').scrollIntoView({behavior:\'smooth\'})">' +
-        '<i class="fas ' + b.icon + ' text-xl mb-2" style="color:' + statusColor + '"></i>' +
-        '<p class="text-xs font-bold text-gray-700 mb-1">' + E(b.label) + '</p>' +
-        '<p class="text-lg font-bold" style="color:' + statusColor + '">' + count + '</p>' +
-        '<i class="fas ' + statusIcon + ' text-sm mt-1" style="color:' + statusColor + '"></i>' +
+      var bg = count === 0 ? '#f0fdf4' : (b.severity === 'critical' ? '#fef2f2' : '#fefce8');
+      html += '<div class="cursor-pointer" style="background:' + bg + ';border:1px solid ' + (count === 0 ? '#bbf7d0' : '#fde68a') + ';border-radius:8px;padding:8px 10px;text-align:center;" onclick="document.getElementById(\'compQueue\').scrollIntoView({behavior:\'smooth\'})">' +
+        '<i class="fas ' + b.icon + '" style="color:' + statusColor + ';font-size:12px;"></i>' +
+        '<p style="font-size:16px;font-weight:800;color:' + statusColor + ';margin:2px 0;">' + count + '</p>' +
+        '<p style="font-size:9px;font-weight:600;color:#6b7280;line-height:1.1;">' + E(b.label) + '</p>' +
       '</div>';
     });
     html += '</div>';
@@ -5664,9 +5663,12 @@ var Panels = (function () {
     // Compliance queue — all findings sorted by severity
     html += '<div id="compQueue" class="card"><div class="card-header"><h3><i class="fas fa-list-alt text-gold mr-2"></i>Compliance Queue (' + findings.length + ' findings)</h3></div>' +
       '<div class="card-body">';
-    if (findings.length === 0) {
-      html += '<div class="flex flex-col items-center py-8"><i class="fas fa-check-circle text-3xl text-green-500 mb-3"></i>' +
-        '<p class="text-sm font-semibold text-green-700">All listings pass compliance checks</p></div>';
+    if (findings.length === 0 && (audit.listingsAudited || 0) === 0) {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;"><i class="fas fa-info-circle text-gray-400"></i>' +
+        '<p class="text-xs text-gray-500">No listings audited yet. Click <strong>Re-Audit</strong> to scan your listings.</p></div>';
+    } else if (findings.length === 0) {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;"><i class="fas fa-check-circle" style="color:#16a34a;"></i>' +
+        '<p class="text-sm font-semibold text-green-700">All ' + audit.listingsAudited + ' listings pass compliance checks</p></div>';
     } else {
       var severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
       findings.sort(function (a, b) { return (severityOrder[a.severity] || 9) - (severityOrder[b.severity] || 9); });
