@@ -1,5 +1,49 @@
 # Frontend Flow Verifier - Auditor Log
 
+## COMPREHENSIVE SECURITY AUDIT — 2026-03-21
+**Verdict:** FAIL (3 CRITICAL, 6 HIGH, 5 MEDIUM, 3 LOW)
+**Scope:** Full codebase -- all 175+ API routes, middleware, auth, secrets, headers, dependencies, PII, MLS/IDX, file uploads
+**Auditor:** Security Agent
+
+**CRITICALs:**
+- [C1] Hardcoded Trestle API credentials (client_id + client_secret) in `scripts/test-trestle-geo.js` -- committed to git (commit 18e25077). MUST ROTATE IMMEDIATELY.
+- [C2] `/api/health/geoclient` -- NO AUTH, returns masked API keys (first4+last4 chars) for 6 credential variants
+- [C3] `/api/health/socrata` -- NO AUTH, returns masked Socrata token + raw error messages
+
+**HIGHs:**
+- [H1] `/crm/dev.html` explicitly exempt from auth in route-guards.ts:39 -- serves full CRM shell to unauthenticated users
+- [H2] `/api/auth/dev-login` uses Host header check (spoofable) instead of NODE_ENV/VERCEL_ENV
+- [H3] Document upload (`/api/crm/documents/upload`) -- no file type allowlist, accepts any extension
+- [H4] `/api/contact` GET returns full Lead model including `password_hash` (no select clause)
+- [H5] Uncaught BigInt() in 20+ routes crashes on non-numeric input (conviction, lead-scoring, agents, etc.)
+- [H6] Next.js 16.1.6 has 2 CVEs (HTTP request smuggling in rewrites + disk cache exhaustion) -- fix: 16.1.7+
+
+**MEDIUMs:**
+- [M1] CRM CSP uses unsafe-inline + unsafe-eval (nonce-based CSP on public pages is fine)
+- [M2] CSRF middleware passes requests with no Origin/Referer header
+- [M3] ADMIN_KEY not documented in .env.example (configuration drift)
+- [M4] Dependency CVEs: fast-xml-parser (entity expansion), effect (context contamination), flatted (prototype pollution)
+- [M5] escapeOData() in idx/search only escapes single quotes (auth-gated, limited risk)
+
+**LOWs:**
+- [L1] Missing X-XSS-Protection: 0 header
+- [L2] Login error logging may expose stack traces with DB connection info
+- [L3] test-email-templates.js uses ciphers: "SSLv3" (deprecated, non-functional)
+
+**Confirmed Clean:**
+- test-email-templates.js SMTP credentials -- now from env vars
+- seed.ts -- requires SEED_BROKER_PASSWORD env var (no hardcoded passwords)
+- NEXT_PUBLIC_ vars -- all safe (URLs, analytics keys, Sentry DSN)
+- .gitignore properly excludes .env files
+- CORS: production is same-origin only
+- Session cookies: httpOnly, Secure (prod), SameSite=Lax, UUID tokens, 24hr TTL
+- All /api/crm/* and /api/portal/* routes -- gated by middleware + route-level auth
+- All /api/cron/* routes -- gated by CRON_SECRET Bearer token
+- Public lead capture (contact, inquiries, sign-up, CMA, guides, RSVP) -- TCPA consent validated
+- Distribution gates enforced on all public listing endpoints
+
+---
+
 ## FULL API ROUTE AUDIT — 2026-03-09
 **Scope:** ALL 103 API route files across app/api/ — end-to-end trace of request params, query logic, distribution gates, response shapes, auth, security
 **Actions:** Read all priority endpoints (listings, similar, market, buildings, cma, inquiries, open-houses, open-houses/rsvp, idx/search, media/proxy, media/batch, contact, login, auth/login, sign-up, admin/reset-lead, cron/idx-sync, analytics/event, listings/[id], listings/suggest, listings/building, health/*, ai/env-check, guides/download, favorites/sync). Read middleware.ts, lib/auth/middleware.ts, lib/auth/session.ts, lib/idx/trestle-mapper.ts (checkDistributionGates), lib/idx/db-to-public-dto.ts, lib/sanitize.ts, prisma/schema.prisma (Listing+Lead+Session models).

@@ -3,6 +3,8 @@
 ## Project: mallan-nyc
 
 > **Compliance-First · Fast · Scalable**
+>
+> **REBNY Compliance Skill:** `.claude/skills/rebny-compliance/SKILL.md` — READ AT SESSION START. Contains all REBNY UCBA 2026, IDX Plus/Trestle connector (auth, fetch, mapper, all 902 fields), Fair Housing (20+ protected classes), FARE Act, NY DOS advertising law, real estate law, TCPA, CAN-SPAM, NY SHIELD Act, penalties, and audit checklists.
 
 | | |
 |---|---|
