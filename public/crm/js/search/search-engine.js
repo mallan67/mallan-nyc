@@ -291,7 +291,13 @@
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
             }
 
+            // Transit proximity → Latitude/Longitude bounding box
+            if (criteria._transitBounds && typeof TransitSearch !== 'undefined') {
+                var transitParts = TransitSearch.toODataFilter();
+                if (transitParts.length > 0) params.gridFilter = transitParts.join(' and ');
+            }
             // Manhattan Grid bounding box → Latitude/Longitude OData filters
+            // (grid overrides transit bounds if both set)
             if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
                 var gridParts = ManhattanGrid.toODataFilter(criteria._gridBounds);
                 if (gridParts.length > 0) params.gridFilter = gridParts.join(' and ');
@@ -1019,6 +1025,12 @@
                 criteria.buildingName = buildingNameEl.value.trim();
             }
 
+            // Transit — subway line proximity search via station coordinates
+            if (typeof TransitSearch !== 'undefined' && TransitSearch.hasSelection()) {
+                criteria._transitLines = TransitSearch.getSelectedLines();
+                criteria._transitBounds = TransitSearch.getBounds();
+            }
+
             // Manhattan Grid — bounding box search via lat/lng
             if (typeof ManhattanGrid !== 'undefined') {
                 var gridPrefix = _isAdvanced ? 'adv-grid' :
@@ -1261,6 +1273,11 @@
             initNeighborhoodCascade();
         }
 
+        // Initialize transit search (subway line click handlers)
+        if (typeof TransitSearch !== 'undefined') {
+            TransitSearch.init();
+        }
+
         // ── Display context detection ──
         // 'idx' = public IDX (default) | 'vow' = authenticated client portal | 'crm' = agent/broker
         var searchDisplayContext = 'idx';
@@ -1479,6 +1496,11 @@
                     sTo.setHours(23, 59, 59);
                     var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
                     if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
+                }
+
+                // Transit proximity filter — is listing near a selected subway station?
+                if (criteria._transitLines && typeof TransitSearch !== 'undefined') {
+                    if (!TransitSearch.isNearStation(listing)) return false;
                 }
 
                 // Manhattan Grid bounding box filter
