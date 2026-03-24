@@ -99,25 +99,26 @@ var CRM = (function () {
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
 
-    // A2. Sales CRM — 8 tabs (Seller Prospects + 7 lifecycle tabs)
+    // A2. Clients CRM — unified (replaces Sales CRM + Rentals CRM)
     Router.register('/sales/prospects',         function () { SellerProspects.render(); });
-    Router.register('/sales/sellers',           function () { SalesCRM.activeSellers(); });
-    Router.register('/sales/buyers',            function () { SalesCRM.activeBuyers(); });
-    Router.register('/sales/landlord-sellers',  function () { SalesCRM.landlordSellers(); });
-    Router.register('/sales/listings',          function () { SalesCRM.salesListings(); });
-    Router.register('/sales/marketing',         function () { SalesCRM.salesMarketing(); });
-    Router.register('/sales/activity',          function () { SalesCRM.salesActivity(); });
-    Router.register('/sales/automation',        function () { SalesCRM.salesAutomation(); });
+    Router.register('/lease-tracker',           function () { LeaseTracker.render(); });
 
-    // A3. Rentals CRM — 8 tabs
-    Router.register('/rentals/landlords',       function () { RentalsCRM.landlords(); });
-    Router.register('/rentals/active-leases',   function () { RentalsCRM.activeLeases(); });
-    Router.register('/rentals/listings',        function () { RentalsCRM.rentalListings(); });
-    Router.register('/rentals/viewed',          function () { RentalsCRM.viewedDidNotRent(); });
-    Router.register('/rentals/tenants',         function () { RentalsCRM.currentTenants(); });
-    Router.register('/rentals/marketing',       function () { RentalsCRM.rentalsMarketing(); });
-    Router.register('/rentals/activity',        function () { RentalsCRM.rentalsActivity(); });
-    Router.register('/rentals/automation',      function () { RentalsCRM.rentalsAutomation(); });
+    // Legacy redirects — removed tabs point to new locations
+    Router.register('/sales/sellers',           function () { Router.navigate('/lease-tracker'); });
+    Router.register('/sales/buyers',            function () { Router.navigate('/sales/prospects'); });
+    Router.register('/sales/landlord-sellers',  function () { Router.navigate('/lease-tracker'); });
+    Router.register('/sales/listings',          function () { Router.navigate('/broker/listings/company'); });
+    Router.register('/sales/marketing',         function () { Router.navigate('/sales/prospects'); });
+    Router.register('/sales/activity',          function () { Router.navigate('/sales/prospects'); });
+    Router.register('/sales/automation',        function () { Router.navigate('/sales/prospects'); });
+    Router.register('/rentals/landlords',       function () { LeaseTracker.render(); });
+    Router.register('/rentals/active-leases',   function () { LeaseTracker.render(); });
+    Router.register('/rentals/listings',        function () { Router.navigate('/broker/listings/company'); });
+    Router.register('/rentals/viewed',          function () { Router.navigate('/sales/prospects'); });
+    Router.register('/rentals/tenants',         function () { LeaseTracker.render(); });
+    Router.register('/rentals/marketing',       function () { Router.navigate('/sales/prospects'); });
+    Router.register('/rentals/activity',        function () { Router.navigate('/sales/prospects'); });
+    Router.register('/rentals/automation',      function () { Router.navigate('/sales/prospects'); });
 
     // A3b. Broker-only: Lead Distribution
     Router.register('/broker/leads',         function () { _renderBrokerLeadDistribution(); });
@@ -388,28 +389,11 @@ var CRM = (function () {
       ]);
     }
 
-    // SALES CRM (Seller / Buyer) — 8 tabs
-    html += _sidebarGroup('SALES CRM', 'sales', [
-      { route: '/sales/prospects', icon: 'fa-crosshairs', label: 'Seller Prospects' },
-      { route: '/sales/sellers', icon: 'fa-home', label: 'Active Sellers' },
-      { route: '/sales/buyers', icon: 'fa-user-tag', label: 'Active Buyers' },
-      { route: '/sales/landlord-sellers', icon: 'fa-exchange-alt', label: 'Landlord Sellers' },
-      { route: '/sales/listings', icon: 'fa-building', label: 'Listings (Sale)' },
-      { route: '/sales/marketing', icon: 'fa-bullhorn', label: 'Marketing' },
-      { route: '/sales/activity', icon: 'fa-stream', label: 'Activity' },
-      { route: '/sales/automation', icon: 'fa-robot', label: 'Automation' },
-    ]);
-
-    // RENTALS CRM (Landlord / Tenant) — 8 tabs
-    html += _sidebarGroup('RENTALS CRM', 'rentals', [
-      { route: '/rentals/landlords', icon: 'fa-key', label: 'Landlords' },
-      { route: '/rentals/active-leases', icon: 'fa-file-contract', label: 'Active Leases' },
-      { route: '/rentals/listings', icon: 'fa-building', label: 'Rental Listings' },
-      { route: '/rentals/viewed', icon: 'fa-eye-slash', label: 'Viewed / Did Not Rent' },
-      { route: '/rentals/tenants', icon: 'fa-user-check', label: 'Current Tenants' },
-      { route: '/rentals/marketing', icon: 'fa-bullhorn', label: 'Marketing' },
-      { route: '/rentals/activity', icon: 'fa-stream', label: 'Activity' },
-      { route: '/rentals/automation', icon: 'fa-robot', label: 'Automation' },
+    // CLIENTS (unified — replaces Sales CRM + Rentals CRM)
+    html += _sidebarGroup('CLIENTS', 'clients', [
+      { route: '/sales/prospects', icon: 'fa-crosshairs', label: 'Prospects' },
+      { route: '/lease-tracker', icon: 'fa-calendar-alt', label: 'Lease Tracker' },
+      { route: '/broker/listings/company', icon: 'fa-building', label: 'Listings' },
     ]);
 
     // BROKER ADMIN removed — unassigned leads now in Clients "To Be Assigned" tab
