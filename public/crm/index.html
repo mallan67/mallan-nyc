@@ -95,17 +95,18 @@ function toggleSection(header) {
 <script src="js/manage/manage-listings.js"></script>
 <script src="js/manage/open-houses.js"></script>
 
-<!-- Search V2 (schema-driven) -->
-<script src="js/search-v2/registry-loader.js"></script>
-<script src="js/search-v2/widget-renderers.js"></script>
-<script src="js/search-v2/criteria-collector.js"></script>
-<script src="js/search-v2/form-renderer.js"></script>
-<script src="js/search-v2/filter-bar.js"></script>
-<script src="js/search-v2/filter-drawer.js"></script>
-<script src="js/search-v2/search-orchestrator.js"></script>
-<script src="js/adapters/trestle-adapter.js"></script>
-<script src="js/adapters/result-normalizer.js"></script>
-<script src="js/adapters/search-router.js"></script>
+<!-- Search V2 (schema-driven) — loaded on demand, not at page load -->
+<!-- These scripts are deferred until the user clicks "Try New Search (Beta)" -->
+<!-- <script src="js/search-v2/registry-loader.js"></script> -->
+<!-- <script src="js/search-v2/widget-renderers.js"></script> -->
+<!-- <script src="js/search-v2/criteria-collector.js"></script> -->
+<!-- <script src="js/search-v2/form-renderer.js"></script> -->
+<!-- <script src="js/search-v2/filter-bar.js"></script> -->
+<!-- <script src="js/search-v2/filter-drawer.js"></script> -->
+<!-- <script src="js/search-v2/search-orchestrator.js"></script> -->
+<!-- <script src="js/adapters/trestle-adapter.js"></script> -->
+<!-- <script src="js/adapters/result-normalizer.js"></script> -->
+<!-- <script src="js/adapters/search-router.js"></script> -->
 
 <!-- Search (legacy — kept during migration) -->
 <script src="js/search/manhattan-grid.js"></script>
