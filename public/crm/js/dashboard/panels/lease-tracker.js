@@ -550,15 +550,50 @@ var LeaseTracker = (function () {
   }
 
   function _emailLandlord(propIdx, type) {
-    CRM.toast('Outreach API coming next', 'info');
+    if (!_data || !_data.properties[propIdx]) return;
+    var prop = _data.properties[propIdx];
+    var leaseId = prop.id;
+    if (!prop.landlord || !prop.landlord.email) {
+      CRM.toast('No landlord email on file', 'error');
+      return;
+    }
+    CRM.toast('Sending ' + type.replace(/_/g, ' ') + ' email to landlord...', 'info');
+    MallanAPI._fetch('/api/crm/lease-tracker/' + leaseId + '/outreach', {
+      method: 'POST',
+      body: JSON.stringify({ target: 'landlord', type: type }),
+    }).then(function () {
+      CRM.toast('Email sent to ' + E(prop.landlord.name || prop.landlord.email), 'success');
+      render(); // Refresh to update outreach timeline
+    }).catch(function (err) {
+      CRM.toast('Failed: ' + (err.message || 'Unknown error'), 'error');
+    });
   }
 
   function _emailTenant(propIdx, type) {
-    CRM.toast('Outreach API coming next', 'info');
+    if (!_data || !_data.properties[propIdx]) return;
+    var prop = _data.properties[propIdx];
+    var leaseId = prop.id;
+    var tenantEmail = prop.tenant && prop.tenant.email;
+    if (!tenantEmail) {
+      CRM.toast('No tenant email on file', 'error');
+      return;
+    }
+    CRM.toast('Sending ' + type.replace(/_/g, ' ') + ' email to tenant...', 'info');
+    MallanAPI._fetch('/api/crm/lease-tracker/' + leaseId + '/outreach', {
+      method: 'POST',
+      body: JSON.stringify({ target: 'tenant', type: type }),
+    }).then(function () {
+      CRM.toast('Email sent to ' + E(prop.tenant.name || tenantEmail), 'success');
+      render(); // Refresh to update outreach timeline
+    }).catch(function (err) {
+      CRM.toast('Failed: ' + (err.message || 'Unknown error'), 'error');
+    });
   }
 
   function _openClient(clientId) {
-    Router.navigate('/broker/people/clients');
+    if (!clientId) return;
+    // Navigate to client workspace (uses existing client address book with search)
+    Router.navigate('/workspace/client/' + clientId + '/overview');
   }
 
   // =========================================================================
