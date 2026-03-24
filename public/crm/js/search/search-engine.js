@@ -291,6 +291,12 @@
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
             }
 
+            // Manhattan Grid bounding box → Latitude/Longitude OData filters
+            if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
+                var gridParts = ManhattanGrid.toODataFilter(criteria._gridBounds);
+                if (gridParts.length > 0) params.gridFilter = gridParts.join(' and ');
+            }
+
             // ≤200: server sends inline photos via $expand=Media (fast, one request)
             // >200: server sends listings without photos, photo-loader.js lazy-loads
             //       via /api/media/batch + IntersectionObserver
@@ -1013,6 +1019,15 @@
                 criteria.buildingName = buildingNameEl.value.trim();
             }
 
+            // Manhattan Grid — bounding box search via lat/lng
+            if (typeof ManhattanGrid !== 'undefined') {
+                var gridPrefix = _isAdvanced ? 'adv-grid' :
+                                 currentSearchTab === 'building' ? 'bldg-grid' : null;
+                if (gridPrefix && ManhattanGrid.hasGridValues(gridPrefix)) {
+                    criteria._gridBounds = ManhattanGrid.getGridBounds(gridPrefix);
+                }
+            }
+
             // ═══════════════════════════════════════════════════════════
             // GENERIC data-field CHECKBOX SCANNER
             // Collects ALL checked checkboxes with data-field/data-value
@@ -1464,6 +1479,11 @@
                     sTo.setHours(23, 59, 59);
                     var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
                     if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
+                }
+
+                // Manhattan Grid bounding box filter
+                if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
+                    if (!ManhattanGrid.isInBounds(listing, criteria._gridBounds)) return false;
                 }
 
                 // Open House date filter

@@ -449,6 +449,13 @@ function buildODataFilter(params: URLSearchParams): string {
     } catch { /* invalid JSON — skip, client-side filtering handles it */ }
   }
 
+  // Manhattan Grid bounding box — Latitude/Longitude filter
+  const gridFilter = params.get("gridFilter");
+  if (gridFilter) {
+    // gridFilter is pre-built OData: "Latitude ge 40.73 and Latitude le 40.79 and ..."
+    parts.push(gridFilter);
+  }
+
   // Single listing by ListingId (for detail page direct fetch)
   const listingId = params.get("listingId");
   if (listingId) {

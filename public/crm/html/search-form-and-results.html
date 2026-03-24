@@ -1886,16 +1886,16 @@
                     <div class="border rounded-lg p-3 mb-5">
                         <div class="flex items-center justify-between mb-3">
                             <p class="text-xs font-semibold text-gray-700">Manhattan Grid Selections above 14th Street</p>
-                            <button class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
+                            <button onclick="clearManhattanGrid()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
+                                <select id="bldg-grid-north" class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                    <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
+                                    <select id="bldg-grid-west" class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
+                                    <select id="bldg-grid-east" class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
                                 </div>
-                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
+                                <select id="bldg-grid-south" class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
                             </div>
                             <div class="space-y-2">
                                 <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
@@ -2332,7 +2332,7 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">North (From)</label>
-                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-north" class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Street</option>
                                             <option>244th Street</option>
                                             <option>243rd Street</option>
@@ -2511,7 +2511,7 @@
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">South (To)</label>
-                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-south" class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Street</option>
                                             <option>14th Street</option>
                                             <option>15th Street</option>
@@ -2697,7 +2697,7 @@
                                 <div class="grid grid-cols-2 gap-2 mt-2">
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">West (From)</label>
-                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-west" class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Avenue</option>
                                             <option>First Avenue</option>
                                             <option>Second Avenue</option>
@@ -2751,7 +2751,7 @@
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">East (To)</label>
-                                        <select class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-east" class="border rounded-lg px-3 py-2 text-sm w-full">
                                             <option value="">Select Avenue</option>
                                             <option>First Avenue</option>
                                             <option>Second Avenue</option>
