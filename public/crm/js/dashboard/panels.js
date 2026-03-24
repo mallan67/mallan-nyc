@@ -5556,6 +5556,7 @@ var Panels = (function () {
                 '<p class="text-xs text-gray-500">32 sections · Last run: ' + new Date(data.timestamp).toLocaleString() + '</p>' +
               '</div>' +
               '<div style="display:flex;gap:6px;">' +
+                '<button onclick="Panels._runValidator()" style="padding:4px 10px;background:#6366f1;color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;" id="validatorRunBtn"><i class="fas fa-sync" style="margin-right:3px;"></i>Regenerate</button>' +
                 '<button onclick="Router.navigate(\'/broker/system/health\')" style="padding:4px 10px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;"><i class="fas fa-external-link-alt" style="margin-right:3px;"></i>Full Dashboard</button>' +
               '</div>' +
             '</div>' +
@@ -8257,6 +8258,30 @@ var Panels = (function () {
       '</div>' +
 
     '</div>';
+  }
+
+  // Run IDX Plus Validator via API endpoint
+  function _runValidator() {
+    var btn = document.getElementById('validatorRunBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:3px;"></i>Running...'; }
+
+    MallanAPI._fetch('/api/crm/validator/run', { method: 'POST' })
+      .then(function(data) {
+        if (data && data.timestamp) {
+          // Save to localStorage history
+          _saveValidatorResults(data);
+          CRM.toast('Validator complete: ' + (data.critical || 0) + ' critical, ' + (data.pass || 0) + ' pass', data.critical > 0 ? 'error' : 'success');
+          // Reload the compliance page to show fresh results
+          Panels.complianceDashboard();
+        } else {
+          CRM.toast('Validator returned no results. Run "npm run idx:validate" from terminal.', 'warning');
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync" style="margin-right:3px;"></i>Regenerate'; }
+        }
+      })
+      .catch(function(err) {
+        CRM.toast('Run "npm run idx:validate" from terminal instead.', 'warning');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync" style="margin-right:3px;"></i>Regenerate'; }
+      });
   }
 
   // Helper: save validator results to localStorage (called from idx-validate.js --browser flag)
@@ -12890,6 +12915,7 @@ var Panels = (function () {
     _leaseListForRent: _leaseListForRent,
     _leaseListForSale: _leaseListForSale,
     systemHealth: systemHealth,
+    _runValidator: _runValidator,
     _saveValidatorResults: _saveValidatorResults,
   };
 })();
