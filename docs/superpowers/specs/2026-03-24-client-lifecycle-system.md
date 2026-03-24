@@ -74,34 +74,70 @@ model ClientRole {
 
 When a role reaches a terminal stage (closed, rented, active), the system prompts: **"What's next for this client?"**
 
+**CRITICAL RULE: A client NEVER closes.** They rotate through roles indefinitely. The ONLY exit from the lifecycle is **relocation out of state**, and even that triggers a **referral** (to an out-of-state agent → referral fee income).
+
+**Client statuses (on the Lead, not the role):**
+- `active` — in the lifecycle, has at least one active role
+- `nurturing` — between roles, no active transaction, staying in touch
+- `relocated` — moved out of state → auto-creates referral opportunity
+- `lost` — chose to work with another agent/brokerage (keep record for future win-back)
+- ~~`closed`~~ — **does not exist.** Even "lost" clients may return.
+
+**Two exits from the lifecycle (neither is permanent):**
+1. **Relocated** — moved out of state → referral revenue opportunity (25% fee)
+2. **Lost** — working with another agent → keep in CRM for win-back outreach (periodic market updates, "checking in" emails). They may come back for their next transaction.
+
 **Transition map:**
 
 ```
-SELLER (closed) →
-  "Needs to buy"           → adds BUYER role (stage: new)
-  "Renting while searching" → adds TENANT role (stage: searching)
-  "Buying investment"       → adds INVESTOR role (stage: searching)
-  "Done for now"            → no new role, client stays in system
+SELLER (transaction closed) →
+  "Needs to buy"             → adds BUYER role (stage: new)
+  "Renting while searching"  → adds TENANT role (stage: searching)
+  "Buying investment"        → adds INVESTOR role (stage: searching)
+  "Nurturing"                → no new role, status = nurturing, periodic check-ins
 
-BUYER (closed) →
-  "Will sell current home"  → adds SELLER role (stage: prospect, property = current home)
-  "Renting out purchase"    → adds LANDLORD role (stage: new, property = purchased)
-  "Done for now"            → no new role
+BUYER (transaction closed) →
+  "Will sell current home"   → adds SELLER role (stage: prospect, property = current home)
+  "Renting out purchase"     → adds LANDLORD role (stage: new, property = purchased)
+  "Nurturing"                → no new role, status = nurturing
 
 TENANT (lease ending / active) →
-  "Ready to buy"            → adds BUYER role (stage: new)
-  "Renewing lease"          → updates stage to lease_signed
+  "Ready to buy"             → adds BUYER role (stage: new)
+  "Renewing lease"           → updates stage to lease_signed
   "Moving out, needs rental" → new TENANT role for new search
+  "Moving out of state"      → status = relocated → creates Referral record
 
 LANDLORD (rented) →
-  "Selling the property"    → adds SELLER role (stage: prospect, property = rental)
+  "Selling the property"     → adds SELLER role (stage: prospect, property = rental)
   "Buying another investment" → adds INVESTOR role (stage: searching)
 
 INVESTOR (closed) →
   "Renting it out"          → adds LANDLORD role (stage: new, property = purchased)
   "Selling"                 → adds SELLER role (property = investment)
   "Buying another"          → adds INVESTOR role (stage: searching)
+
+ANY ROLE → "Moving out of state" →
+  status = relocated
+  Auto-creates Referral record:
+    - direction: outgoing
+    - client: this lead
+    - destination_state: [where they're moving]
+    - referral_fee_pct: 25% (standard)
+    - status: pending_agent_match
+  Client stays in CRM — if they return to NYC, reactivate
 ```
+
+### Relocation = Referral Revenue
+
+When a client relocates:
+1. All active roles marked as `paused` (not deleted — they may return)
+2. Lead status set to `relocated`
+3. A Referral record auto-created linking to the existing Referral Tracking system
+4. Agent is prompted to find a receiving agent in the destination state
+5. **Referral fee (typically 25%) is tracked through closing**
+6. If client returns to NYC → reactivate, resume lifecycle
+
+This connects the client lifecycle directly to the brokerage Referral Tracking system that already exists in the sidebar.
 
 ### Unified Client Workspace
 
