@@ -48,6 +48,7 @@
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="stylesheet" href="css/print.css">
     <link rel="stylesheet" href="css/liquid-theme.css">
+    <link rel="stylesheet" href="css/search-v2.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
 
@@ -94,7 +95,19 @@ function toggleSection(header) {
 <script src="js/manage/manage-listings.js"></script>
 <script src="js/manage/open-houses.js"></script>
 
-<!-- Search -->
+<!-- Search V2 (schema-driven) -->
+<script src="js/search-v2/registry-loader.js"></script>
+<script src="js/search-v2/widget-renderers.js"></script>
+<script src="js/search-v2/criteria-collector.js"></script>
+<script src="js/search-v2/form-renderer.js"></script>
+<script src="js/search-v2/filter-bar.js"></script>
+<script src="js/search-v2/filter-drawer.js"></script>
+<script src="js/search-v2/search-orchestrator.js"></script>
+<script src="js/adapters/trestle-adapter.js"></script>
+<script src="js/adapters/result-normalizer.js"></script>
+<script src="js/adapters/search-router.js"></script>
+
+<!-- Search (legacy — kept during migration) -->
 <script src="js/search/date-range-picker.js"></script>
 <script src="js/search/search-engine.js"></script>
 <script src="js/search/form-ui-helpers.js"></script>
