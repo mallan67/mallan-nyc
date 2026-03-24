@@ -5401,13 +5401,15 @@ var Panels = (function () {
       var listingsData = r[2];
       var syncEventsData = r[3];
 
-      // Create two containers — compliance on top, IDX below
+      // Create three containers — compliance, IDX, system health
       var wrapper = document.createElement('div');
       wrapper.className = 'space-y-6';
       var compSection = document.createElement('div');
       var idxSection = document.createElement('div');
+      var healthSection = document.createElement('div');
       wrapper.appendChild(compSection);
       wrapper.appendChild(idxSection);
+      wrapper.appendChild(healthSection);
       c.innerHTML = '';
       c.appendChild(wrapper);
 
@@ -5425,6 +5427,9 @@ var Panels = (function () {
       // Render IDX into idxSection using the existing idxActivity renderer logic
       // We pass the pre-fetched data so it doesn't double-fetch
       _renderIdxSection(idxSection, idxStatusData, listingsData, syncEventsData);
+
+      // Render System Health into healthSection
+      _renderSystemHealthSection(healthSection);
     }).catch(function () {
       c.innerHTML = UI.emptyState('fa-shield-alt', 'Unable to load data');
     });
@@ -5518,6 +5523,85 @@ var Panels = (function () {
 
     html += '</div>';
     container.innerHTML = html;
+  }
+
+  // ─── System Health inline section (inside Compliance & IDX page) ─────
+  function _renderSystemHealthSection(container) {
+    // Load validator results from server JSON
+    fetch('/crm/data/validator-results.json?' + Date.now())
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data) {
+          container.innerHTML = '<div class="card" style="border-left:4px solid #9ca3af;padding:16px 20px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+              '<div><p class="text-sm font-bold text-gray-900"><i class="fas fa-heartbeat" style="color:#6366f1;margin-right:8px;"></i>System Health — IDX Plus Validator</p>' +
+              '<p class="text-xs text-gray-500">Run <code style="background:#f3f4f6;padding:1px 5px;border-radius:3px;font-size:10px;">npm run idx:validate</code> to generate results</p></div>' +
+            '</div></div>';
+          return;
+        }
+
+        var vc = data.critical || 0;
+        var vw = data.warning || 0;
+        var vi = data.info || 0;
+        var vp = data.pass || 0;
+        var borderColor = vc > 0 ? '#dc2626' : vw > 0 ? '#d97706' : '#16a34a';
+        var statusText = vc > 0 ? vc + ' critical issues' : vw > 0 ? vw + ' warnings' : 'All clear';
+        var statusIcon = vc > 0 ? 'fa-times-circle' : vw > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle';
+
+        var html = '<div class="card" style="border-left:4px solid ' + borderColor + ';">' +
+          '<div style="padding:16px 20px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+              '<div>' +
+                '<p class="text-sm font-bold text-gray-900"><i class="fas fa-heartbeat" style="color:#6366f1;margin-right:8px;"></i>System Health — IDX Plus Validator</p>' +
+                '<p class="text-xs text-gray-500">32 sections · Last run: ' + new Date(data.timestamp).toLocaleString() + '</p>' +
+              '</div>' +
+              '<div style="display:flex;gap:6px;">' +
+                '<button onclick="Router.navigate(\'/broker/system/health\')" style="padding:4px 10px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;"><i class="fas fa-external-link-alt" style="margin-right:3px;"></i>Full Dashboard</button>' +
+              '</div>' +
+            '</div>' +
+
+            // Summary counters
+            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">' +
+              '<div style="text-align:center;padding:10px;background:#fef2f2;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:#dc2626;">' + vc + '</div><div style="font-size:9px;color:#991b1b;font-weight:600;">CRITICAL</div></div>' +
+              '<div style="text-align:center;padding:10px;background:#fefce8;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:#d97706;">' + vw + '</div><div style="font-size:9px;color:#854d0e;font-weight:600;">WARNING</div></div>' +
+              '<div style="text-align:center;padding:10px;background:#eff6ff;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:#2563eb;">' + vi + '</div><div style="font-size:9px;color:#1e40af;font-weight:600;">INFO</div></div>' +
+              '<div style="text-align:center;padding:10px;background:#f0fdf4;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:#16a34a;">' + vp + '</div><div style="font-size:9px;color:#166534;font-weight:600;">PASS</div></div>' +
+            '</div>' +
+
+            // Section breakdown (collapsible)
+            '<details style="cursor:pointer;">' +
+              '<summary style="font-size:12px;font-weight:600;color:#374151;padding:4px 0;">Section breakdown (32 checks)</summary>' +
+              '<div style="margin-top:8px;max-height:300px;overflow-y:auto;">';
+
+        // Render each section
+        if (data.sections) {
+          var currentCat = '';
+          data.sections.forEach(function(sec) {
+            if (sec.category !== currentCat) {
+              currentCat = sec.category;
+              html += '<div style="font-size:9px;font-weight:700;color:#9ca3af;letter-spacing:0.5px;padding:8px 0 4px;text-transform:uppercase;">' + currentCat + '</div>';
+            }
+            var sc = sec.critical || 0;
+            var sw = sec.warning || 0;
+            var si = sec.info || 0;
+            var sp = sec.pass || 0;
+            var dot = sc > 0 ? '#dc2626' : sw > 0 ? '#d97706' : si > 0 ? '#3b82f6' : '#16a34a';
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;">' +
+              '<span style="width:8px;height:8px;border-radius:50%;background:' + dot + ';flex-shrink:0;"></span>' +
+              '<span style="color:#374151;flex:1;">' + sec.title + '</span>' +
+              '<span style="color:#9ca3af;font-size:10px;">' + sp + '✓' + (sc > 0 ? ' ' + sc + '✗' : '') + (sw > 0 ? ' ' + sw + '⚠' : '') + '</span>' +
+            '</div>';
+          });
+        }
+
+        html += '</div></details>' +
+          '</div></div>';
+
+        container.innerHTML = html;
+      })
+      .catch(function() {
+        container.innerHTML = '';
+      });
   }
 
   function _renderComplianceFromServer(c, audit) {

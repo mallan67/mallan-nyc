@@ -98,7 +98,7 @@ var CRM = (function () {
     Router.register('/broker/system/idx-activity', function () { Panels.complianceDashboard(); });
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
-    Router.register('/broker/system/health',       function () { Panels.systemHealth(); });
+    Router.register('/broker/system/health',       function () { Panels.complianceDashboard(); }); // System Health embedded in Compliance & IDX
 
     // A2. Clients CRM — unified (replaces Sales CRM + Rentals CRM)
     Router.register('/sales/prospects',         function () { SellerProspects.render(); });
@@ -387,7 +387,6 @@ var CRM = (function () {
         { route: '/broker/listings/featured', icon: 'fa-star', label: 'Featured Properties' },
         { route: '/broker/documents', icon: 'fa-folder', label: 'Documents' },
         { route: '/broker/system/settings', icon: 'fa-cog', label: 'Settings' },
-        { route: '/broker/system/health', icon: 'fa-heartbeat', label: 'System Health' },
       ]);
     }
 
