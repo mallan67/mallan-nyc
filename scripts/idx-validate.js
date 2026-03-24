@@ -182,8 +182,10 @@ function section1() {
     else if (expandFields.has(field)) pass(s, `${field} (via $expand)`);
     else if (preFiltered.has(field)) pass(s, `${field} (pre-filtered)`);
     else if (systemFields.has(field)) pass(s, `${field} (system)`);
-    else if (hasAnnotation(mapper, mapper.indexOf(`raw.${field}`), 'TRESTLE-PREFILTERED'))
+    else if (hasAnnotation(mapper, mapper.indexOf(`raw.${field}`) >= 0 ? mapper.indexOf(`raw.${field}`) : mapper.indexOf(`normalized.${field}`), 'TRESTLE-PREFILTERED'))
       pass(s, `${field} (annotated pre-filtered)`);
+    else if (hasAnnotation(mapper, mapper.indexOf(`raw.${field}`) >= 0 ? mapper.indexOf(`raw.${field}`) : mapper.indexOf(`normalized.${field}`), 'IDX-VALIDATE-IGNORE'))
+      pass(s, `${field} (annotated ignore)`);
     else if (excluded.has(field))
       critical(s, field, `Accessed via raw.${field} but EXCLUDED from $select and not pre-filtered. Always undefined.`);
     else if (!allRls.has(field))

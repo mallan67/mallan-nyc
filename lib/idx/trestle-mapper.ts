@@ -60,13 +60,14 @@ const B2_CLASSIFICATION = [
   "NumberOfSeparateWaterMeters", "BusinessType",
 ];
 
-// B3: Listing Agreement (12 fields)
+// B3: Listing Agreement (13 fields)
 const B3_LISTING_AGREEMENT = [
   "ListingAgreement", "ListingContractDate", "ExpirationDate",
   "OriginalEntryTimestamp", "ListingService", "MlsStatus",
   "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   "SyndicationRemarks",
+  "Permissions", // Owner opt-out detection — required by checkDistributionGates()
 ];
 
 // B4: Status & Dates (32 fields)
@@ -527,10 +528,11 @@ function normalizeRenames(raw: Record<string, unknown>): Record<string, unknown>
     }
   }
   // Special: CeilingHeightFeet + CeilingHeightInches → combined
+  // /* IDX-VALIDATE-IGNORE: CeilingHeight fields excluded from IDX Plus — only populated on CRM listing submissions, not IDX fetch */
   if (normalized.CeilingHeightFeet || normalized.CeilingHeightInches) {
     const feet = Number(normalized.CeilingHeightFeet) || 0;
     const inches = Number(normalized.CeilingHeightInches) || 0;
-    normalized.CeilingHeight = feet + inches / 12;
+    normalized.CeilingHeight = feet + inches / 12; /* IDX-VALIDATE-IGNORE: derived field */
   }
   return normalized;
 }
@@ -773,12 +775,14 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
 export const REQUIRED_RLS_FIELDS = [
   "ListingId", "PropertyType", "ListPrice", "StandardStatus",
   "StreetNumber", "StreetName", "City", "StateOrProvince", "PostalCode",
-  "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotal",
+  "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
+  // BathroomsTotal REMOVED — excluded from IDX Plus feed (use BathroomsTotalInteger)
   "ListAgentMlsId", "ListAgentFullName", "ListOfficeMlsId", "ListOfficeName",
   "ListingContractDate", "ModificationTimestamp",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  "IDXEntireListingDisplayYN",
-  "AttendanceType", "StructureType", "CommonInterest",
+  // IDXEntireListingDisplayYN REMOVED — pre-filtered by Trestle on IDX feed
+  // AttendanceType REMOVED — excluded from IDX Plus feed
+  "StructureType", "CommonInterest",
   "OwnershipType", "NewConstructionYN",
   "PublicRemarks", "PhotosCount",
   "LivingArea", "StoriesTotal", "YearBuilt",
