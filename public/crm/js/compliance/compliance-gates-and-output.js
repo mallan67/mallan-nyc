@@ -2071,7 +2071,7 @@ function updateTestSuiteBadge(report) {
     if (!badge) {
         badge = document.createElement('div');
         badge.id = 'complianceDoctorBadge';
-        badge.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9999;padding:8px 14px;border-radius:10px;font-size:11px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.18);transition:all 0.3s;line-height:1.4;';
+        badge.style.cssText = 'position:fixed;top:8px;right:180px;z-index:9999;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.1);transition:all 0.3s;line-height:1.3;opacity:0.9;';
         badge.title = 'Click for REBNY Test Suite report';
         badge.addEventListener('click', function() { var r = window._lastTestSuiteReport; if (r) showTestSuiteModal(r); });
         document.body.appendChild(badge);
@@ -2079,13 +2079,13 @@ function updateTestSuiteBadge(report) {
     var s = report.summary, ac = s.total - s.skipped;
     if (s.failed > 0) {
         badge.style.background = '#fef2f2'; badge.style.color = '#dc2626'; badge.style.border = '1.5px solid #fca5a5';
-        badge.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:4px"></i>REBNY Test Suite<br><span style="font-size:10px;opacity:0.85">' + s.passed + '/' + ac + ' pass, ' + s.failed + ' fail</span>';
+        badge.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:3px"></i>' + s.passed + '/' + ac + ' <span style="opacity:0.8">' + s.failed + ' fail</span>';
     } else if (s.warnings > 0) {
-        badge.style.background = '#fffbeb'; badge.style.color = '#d97706'; badge.style.border = '1.5px solid #fcd34d';
-        badge.innerHTML = '<i class="fas fa-shield-alt" style="margin-right:4px"></i>REBNY Test Suite<br><span style="font-size:10px;opacity:0.85">' + s.passed + '/' + ac + ' pass, ' + s.warnings + ' warn</span>';
+        badge.style.background = '#fffbeb'; badge.style.color = '#d97706'; badge.style.border = '1px solid #fcd34d';
+        badge.innerHTML = '<i class="fas fa-shield-alt" style="margin-right:3px"></i>' + s.passed + '/' + ac + ' <span style="opacity:0.8">' + s.warnings + ' warn</span>';
     } else {
-        badge.style.background = '#f0fdf4'; badge.style.color = '#16a34a'; badge.style.border = '1.5px solid #86efac';
-        badge.innerHTML = '<i class="fas fa-shield-alt" style="margin-right:4px"></i>REBNY Test Suite<br><span style="font-size:10px;opacity:0.85">' + ac + '/' + ac + ' pass</span>';
+        badge.style.background = '#f0fdf4'; badge.style.color = '#16a34a'; badge.style.border = '1px solid #86efac';
+        badge.innerHTML = '<i class="fas fa-check-circle" style="margin-right:3px"></i>' + ac + '/' + ac + ' pass';
     }
 }
 
