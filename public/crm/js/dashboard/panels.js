@@ -7947,6 +7947,243 @@ var Panels = (function () {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  // SYSTEM HEALTH — Validator Dashboard
+  // ═══════════════════════════════════════════════════════════════════════
+
+  function systemHealth() {
+    CRM.setPanelTitle('System Health');
+    var c = _container();
+    c.innerHTML = UI.loading();
+
+    // Load validator results from server-side JSON (written by npm run idx:validate)
+    var validatorHistory = [];
+    try {
+      var raw = localStorage.getItem('idx_validate_history');
+      if (raw) validatorHistory = JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+
+    // Also try to load latest from server
+    fetch('/crm/data/validator-results.json?' + Date.now())
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data) return;
+        // Merge with localStorage if newer
+        var existing = validatorHistory.find(function(r) { return r.timestamp === data.timestamp; });
+        if (!existing) {
+          validatorHistory.push(data);
+          localStorage.setItem('idx_validate_history', JSON.stringify(validatorHistory.slice(-50)));
+          // Re-render to show latest data
+          systemHealth();
+        }
+      })
+      .catch(function() { /* ignore — file may not exist yet */ });
+
+    // Load REBNY test suite history
+    var testHistory = [];
+    try {
+      var raw2 = localStorage.getItem('rebny_test_suite_history');
+      if (raw2) testHistory = JSON.parse(raw2);
+    } catch (e) { /* ignore */ }
+
+    var lastTest = testHistory.length > 0 ? testHistory[testHistory.length - 1] : null;
+    var lastValidator = validatorHistory.length > 0 ? validatorHistory[validatorHistory.length - 1] : null;
+
+    // ── Navigation Map ──
+    var navSections = [
+      { title: 'BROKERAGE', items: [
+        { route: '/broker/dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
+        { route: '/broker/people/agents', icon: 'fa-user-tie', label: 'Agent Roster' },
+        { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'Licensing & CE/E&O' },
+        { route: '/broker/people/clients', icon: 'fa-address-book', label: 'Clients' },
+        { route: '/broker/leads/referrals', icon: 'fa-exchange-alt', label: 'Referrals' },
+        { route: '/broker/finance', icon: 'fa-dollar-sign', label: 'Finance' },
+        { route: '/broker/listings/company', icon: 'fa-building', label: 'Company Listings' },
+        { route: '/broker/listings/compliance', icon: 'fa-shield-alt', label: 'Compliance & IDX' },
+        { route: '/broker/listings/featured', icon: 'fa-star', label: 'Featured Properties' },
+        { route: '/broker/documents', icon: 'fa-folder', label: 'Documents' },
+        { route: '/broker/system/settings', icon: 'fa-cog', label: 'Settings' },
+        { route: '/broker/system/health', icon: 'fa-heartbeat', label: 'System Health' },
+      ]},
+      { title: 'CLIENTS', items: [
+        { route: '/sales/prospects', icon: 'fa-crosshairs', label: 'Prospects' },
+        { route: '/lease-tracker', icon: 'fa-calendar-alt', label: 'Lease Tracker' },
+        { route: '/broker/listings/company', icon: 'fa-building', label: 'Listings' },
+      ]},
+      { title: 'OPERATIONS', items: [
+        { route: '/ops/dashboard', icon: 'fa-tachometer-alt', label: 'Dashboard' },
+        { route: '/ops/search', icon: 'fa-search', label: 'Property Search' },
+        { route: '/ops/listings', icon: 'fa-building', label: 'My Listings' },
+        { route: '/ops/tasks', icon: 'fa-tasks', label: 'Tasks & Follow-ups' },
+        { route: '/ops/deals', icon: 'fa-handshake', label: 'Deals & Commissions' },
+        { route: '/ops/revenue', icon: 'fa-chart-pie', label: 'Revenue' },
+        { route: '/ops/market', icon: 'fa-chart-area', label: 'Market Activity' },
+        { route: '/ops/import', icon: 'fa-file-import', label: 'Import Contacts' },
+        { route: '/ops/outlook', icon: 'fa-envelope', label: 'Outlook Scanner' },
+      ]},
+      { title: 'SETTINGS', items: [
+        { route: '/settings/profile', icon: 'fa-user', label: 'My Profile' },
+        { route: '/settings/notifications', icon: 'fa-bell', label: 'Notifications' },
+        { route: '/settings/integrations', icon: 'fa-plug', label: 'Integrations' },
+      ]},
+    ];
+
+    // ── Status badge helper ──
+    function badge(status, text) {
+      var colors = {
+        pass: 'background:#dcfce7;color:#166534;',
+        fail: 'background:#fef2f2;color:#991b1b;',
+        warn: 'background:#fefce8;color:#854d0e;',
+        info: 'background:#eff6ff;color:#1e40af;',
+        none: 'background:#f3f4f6;color:#6b7280;',
+      };
+      return '<span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:700;' + (colors[status] || colors.none) + '">' + text + '</span>';
+    }
+
+    // ── Build validator status card ──
+    var validatorCard = '';
+    if (lastValidator) {
+      var vc = lastValidator.critical || 0;
+      var vw = lastValidator.warning || 0;
+      var vi = lastValidator.info || 0;
+      var vp = lastValidator.pass || 0;
+      var vStatus = vc > 0 ? 'fail' : vw > 0 ? 'warn' : 'pass';
+      validatorCard =
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
+          '<div style="text-align:center;padding:12px;background:#fef2f2;border-radius:8px;"><div style="font-size:24px;font-weight:800;color:#dc2626;">' + vc + '</div><div style="font-size:10px;color:#991b1b;font-weight:600;">CRITICAL</div></div>' +
+          '<div style="text-align:center;padding:12px;background:#fefce8;border-radius:8px;"><div style="font-size:24px;font-weight:800;color:#d97706;">' + vw + '</div><div style="font-size:10px;color:#854d0e;font-weight:600;">WARNING</div></div>' +
+          '<div style="text-align:center;padding:12px;background:#eff6ff;border-radius:8px;"><div style="font-size:24px;font-weight:800;color:#2563eb;">' + vi + '</div><div style="font-size:10px;color:#1e40af;font-weight:600;">INFO</div></div>' +
+          '<div style="text-align:center;padding:12px;background:#f0fdf4;border-radius:8px;"><div style="font-size:24px;font-weight:800;color:#16a34a;">' + vp + '</div><div style="font-size:10px;color:#166534;font-weight:600;">PASS</div></div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#6b7280;">Last run: ' + new Date(lastValidator.timestamp).toLocaleString() + '</div>';
+    } else {
+      validatorCard = '<div style="padding:16px;text-align:center;color:#9ca3af;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>No validator runs recorded. Run <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px;">npm run idx:validate</code> to generate results.</div>';
+    }
+
+    // ── Build test suite status card ──
+    var testCard = '';
+    if (lastTest) {
+      var ts = lastTest.summary || {};
+      var tStatus = (ts.failed || 0) > 0 ? 'fail' : (ts.warnings || 0) > 0 ? 'warn' : 'pass';
+      testCard =
+        '<div style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">' +
+          badge(tStatus, (ts.failed || 0) > 0 ? (ts.failed + ' FAIL') : 'ALL PASS') +
+          '<span style="font-size:12px;color:#374151;font-weight:600;">' + (ts.passed || 0) + ' pass, ' + (ts.failed || 0) + ' fail' + ((ts.warnings || 0) > 0 ? ', ' + ts.warnings + ' warn' : '') + '</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#6b7280;">Last run: ' + new Date(lastTest.timestamp).toLocaleString() + '</div>';
+    } else {
+      testCard = '<div style="padding:16px;text-align:center;color:#9ca3af;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>No browser tests run yet. Tests run automatically on page load.</div>';
+    }
+
+    // ── Trend sparkline (last 10 runs) ──
+    var trendHtml = '';
+    if (validatorHistory.length > 1) {
+      var recent = validatorHistory.slice(-10);
+      var maxC = Math.max.apply(null, recent.map(function(r) { return r.critical || 0; })) || 1;
+      trendHtml = '<div style="display:flex;gap:3px;align-items:flex-end;height:40px;margin-top:12px;">';
+      recent.forEach(function(run) {
+        var crit = run.critical || 0;
+        var h = Math.max(4, Math.round((crit / maxC) * 36));
+        var color = crit === 0 ? '#16a34a' : crit < 50 ? '#d97706' : '#dc2626';
+        trendHtml += '<div style="flex:1;height:' + h + 'px;background:' + color + ';border-radius:2px;" title="' + crit + ' critical (' + new Date(run.timestamp).toLocaleDateString() + ')"></div>';
+      });
+      trendHtml += '</div><div style="font-size:9px;color:#9ca3af;text-align:center;margin-top:4px;">Critical issues trend (last ' + recent.length + ' runs)</div>';
+    }
+
+    // ── Navigation map ──
+    var navHtml = '';
+    navSections.forEach(function(section) {
+      navHtml += '<div style="margin-bottom:16px;">' +
+        '<div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:0.5px;margin-bottom:8px;">' + section.title + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">';
+      section.items.forEach(function(item) {
+        var isActive = Router.current() === item.route;
+        navHtml += '<a href="#" onclick="Router.navigate(\'' + item.route + '\');return false;" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:500;color:' + (isActive ? '#1d4ed8' : '#374151') + ';background:' + (isActive ? '#eff6ff' : '#f9fafb') + ';border:1px solid ' + (isActive ? '#bfdbfe' : '#e5e7eb') + ';transition:all 0.15s;">' +
+          '<i class="fas ' + item.icon + '" style="width:14px;text-align:center;color:' + (isActive ? '#3b82f6' : '#9ca3af') + ';font-size:11px;"></i>' +
+          item.label + '</a>';
+      });
+      navHtml += '</div></div>';
+    });
+
+    // ── Validator sections breakdown ──
+    var sectionsHtml = '';
+    if (lastValidator && lastValidator.sections) {
+      lastValidator.sections.forEach(function(sec) {
+        var sc = sec.critical || 0;
+        var sw = sec.warning || 0;
+        var si = sec.info || 0;
+        var sp = sec.pass || 0;
+        var status = sc > 0 ? 'fail' : sw > 0 ? 'warn' : si > 0 ? 'info' : 'pass';
+        sectionsHtml += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f3f4f6;">' +
+          '<span style="width:28px;text-align:right;font-size:10px;color:#9ca3af;font-weight:600;">' + sec.section + '</span>' +
+          badge(status, sc > 0 ? sc + '✗' : sw > 0 ? sw + '⚠' : si > 0 ? si + 'ℹ' : '✓') +
+          '<span style="font-size:12px;color:#374151;font-weight:500;flex:1;">' + sec.title + '</span>' +
+          '<span style="font-size:10px;color:#9ca3af;">' + sp + ' pass</span>' +
+        '</div>';
+      });
+    }
+
+    // ── Render ──
+    c.innerHTML = '<div class="space-y-4" style="max-width:1200px;">' +
+      UI.sectionHeader('System Health', 'Validator results, test suite status, and navigation map') +
+
+      // ── Top: Status Cards ──
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">' +
+        // IDX Validator card
+        '<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:20px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+            '<div style="font-size:14px;font-weight:700;color:#111827;"><i class="fas fa-stethoscope" style="color:#6366f1;margin-right:8px;"></i>IDX Plus Validator</div>' +
+            '<div style="font-size:10px;color:#6b7280;">32 sections</div>' +
+          '</div>' +
+          validatorCard +
+          trendHtml +
+        '</div>' +
+        // REBNY Test Suite card
+        '<div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:20px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+            '<div style="font-size:14px;font-weight:700;color:#111827;"><i class="fas fa-shield-alt" style="color:#3b82f6;margin-right:8px;"></i>REBNY Test Suite</div>' +
+            '<div style="display:flex;gap:6px;">' +
+              '<button onclick="if(typeof REBNYTestSuite===\'function\'){var r=REBNYTestSuite({verbose:false});Panels.systemHealth();}" style="padding:4px 10px;background:#3b82f6;color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;"><i class="fas fa-play" style="margin-right:3px;"></i>Run</button>' +
+              '<button onclick="if(window._lastTestSuiteReport)showTestSuiteModal(window._lastTestSuiteReport);" style="padding:4px 10px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;"><i class="fas fa-external-link-alt" style="margin-right:3px;"></i>Details</button>' +
+            '</div>' +
+          '</div>' +
+          testCard +
+        '</div>' +
+      '</div>' +
+
+      // ── Validator Sections Breakdown ──
+      (sectionsHtml ? UI.card('Validator Breakdown (32 sections)',
+        '<div style="max-height:400px;overflow-y:auto;">' + sectionsHtml + '</div>' +
+        '<div style="margin-top:12px;font-size:11px;color:#6b7280;"><i class="fas fa-terminal" style="margin-right:4px;"></i>Run <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">npm run idx:validate --json</code> to update</div>'
+      ) : '') +
+
+      // ── Navigation Map ──
+      UI.card('CRM Navigation Map',
+        '<div style="font-size:11px;color:#6b7280;margin-bottom:12px;">All ' + navSections.reduce(function(a, s) { return a + s.items.length; }, 0) + ' CRM routes across ' + navSections.length + ' sections</div>' +
+        navHtml
+      ) +
+
+      // ── Quick Actions ──
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">' +
+        '<button onclick="Router.navigate(\'/broker/listings/compliance\')" style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;font-weight:600;color:#166534;cursor:pointer;text-align:left;"><i class="fas fa-shield-alt" style="margin-right:8px;"></i>Compliance & IDX</button>' +
+        '<button onclick="Router.navigate(\'/ops/search\')" style="padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:600;color:#1e40af;cursor:pointer;text-align:left;"><i class="fas fa-search" style="margin-right:8px;"></i>Property Search</button>' +
+        '<button onclick="Router.navigate(\'/broker/finance\')" style="padding:12px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;font-size:12px;font-weight:600;color:#854d0e;cursor:pointer;text-align:left;"><i class="fas fa-dollar-sign" style="margin-right:8px;"></i>Finance</button>' +
+        '<button onclick="Router.navigate(\'/broker/documents\')" style="padding:12px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;font-size:12px;font-weight:600;color:#6b21a8;cursor:pointer;text-align:left;"><i class="fas fa-folder" style="margin-right:8px;"></i>Documents</button>' +
+      '</div>' +
+
+    '</div>';
+  }
+
+  // Helper: save validator results to localStorage (called from idx-validate.js --browser flag)
+  function _saveValidatorResults(results) {
+    try {
+      var history = JSON.parse(localStorage.getItem('idx_validate_history') || '[]');
+      history.push(results);
+      if (history.length > 50) history = history.slice(-50);
+      localStorage.setItem('idx_validate_history', JSON.stringify(history));
+    } catch (e) { /* ignore */ }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // OPERATIONS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -12566,5 +12803,7 @@ var Panels = (function () {
     _leaseRenew: _leaseRenew,
     _leaseListForRent: _leaseListForRent,
     _leaseListForSale: _leaseListForSale,
+    systemHealth: systemHealth,
+    _saveValidatorResults: _saveValidatorResults,
   };
 })();

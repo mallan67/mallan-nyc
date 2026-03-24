@@ -51,9 +51,9 @@ function showTestSuiteModal(report, initialTab) {
 
     var modal = document.createElement('div');
     modal.id = 'complianceDoctorModal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);';
+    modal.style.cssText = 'position:fixed;top:0;right:0;bottom:0;z-index:99999;display:flex;align-items:stretch;justify-content:flex-end;background:rgba(0,0,0,0.2);width:100%;pointer-events:auto;';
     modal.innerHTML =
-        '<div style="background:white;border-radius:14px;box-shadow:0 25px 70px rgba(0,0,0,0.3);width:600px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;font-family:system-ui,-apple-system,sans-serif;">' +
+        '<div style="background:white;border-radius:14px 0 0 14px;box-shadow:-8px 0 30px rgba(0,0,0,0.15);width:420px;max-width:92vw;height:100%;display:flex;flex-direction:column;font-family:system-ui,-apple-system,sans-serif;pointer-events:auto;">' +
             '<div style="padding:14px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
                 '<div><div style="font-weight:700;font-size:15px;color:#1f2937;"><i class="fas fa-shield-alt" style="color:#3b82f6;margin-right:6px;"></i>REBNY Test Suite</div>' +
                 '<div style="font-size:10px;color:#9ca3af;margin-top:2px;">v' + report.version + ' &middot; ' + new Date(report.timestamp).toLocaleString() + ' &middot; ' + report.context + '</div></div>' +

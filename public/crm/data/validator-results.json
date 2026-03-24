@@ -1,0 +1,297 @@
+{
+  "timestamp": "2026-03-24T21:17:31.743Z",
+  "pass": 689,
+  "critical": 104,
+  "warning": 65,
+  "info": 35,
+  "sections": [
+    {
+      "section": 1,
+      "title": "$select Field Completeness",
+      "category": "IDX Pipeline",
+      "pass": 25,
+      "critical": 4,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 2,
+      "title": "Distribution Gate → DB Column Mapping",
+      "category": "IDX Pipeline",
+      "pass": 17,
+      "critical": 4,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 3,
+      "title": "Field Count Verification",
+      "category": "IDX Pipeline",
+      "pass": 13,
+      "critical": 0,
+      "warning": 1,
+      "info": 0
+    },
+    {
+      "section": 4,
+      "title": "REQUIRED vs IDX Plus Availability",
+      "category": "IDX Pipeline",
+      "pass": 38,
+      "critical": 3,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 5,
+      "title": "Prisma Listing ↔ Mapper Return Type",
+      "category": "IDX Pipeline",
+      "pass": 28,
+      "critical": 0,
+      "warning": 2,
+      "info": 0
+    },
+    {
+      "section": 6,
+      "title": "Picklist / Value Canonicalization",
+      "category": "IDX Pipeline",
+      "pass": 2,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 7,
+      "title": "CRM fetch() → API Route Cross-Reference",
+      "category": "CRM & API",
+      "pass": 63,
+      "critical": 12,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 8,
+      "title": "Response Field Consistency",
+      "category": "CRM & API",
+      "pass": 89,
+      "critical": 0,
+      "warning": 41,
+      "info": 0
+    },
+    {
+      "section": 9,
+      "title": "req.json() Safety",
+      "category": "CRM & API",
+      "pass": 85,
+      "critical": 31,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 10,
+      "title": "Cron Schedule Completeness",
+      "category": "Cron",
+      "pass": 6,
+      "critical": 10,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 11,
+      "title": "Cron Secret Validation Pattern",
+      "category": "Cron",
+      "pass": 0,
+      "critical": 16,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 12,
+      "title": "RBAC / Authorization on Mutations",
+      "category": "Auth & Security",
+      "pass": 107,
+      "critical": 15,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 13,
+      "title": "Secrets & Supply-Chain Security",
+      "category": "Auth & Security",
+      "pass": 5,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 14,
+      "title": "Request Throttling / DoS Protections",
+      "category": "Auth & Security",
+      "pass": 3,
+      "critical": 0,
+      "warning": 4,
+      "info": 0
+    },
+    {
+      "section": 15,
+      "title": "PII / Logging Redaction",
+      "category": "Auth & Security",
+      "pass": 1,
+      "critical": 0,
+      "warning": 14,
+      "info": 0
+    },
+    {
+      "section": 16,
+      "title": "Coming Soon Badge (UCBA Sec. 2.04)",
+      "category": "Compliance",
+      "pass": 5,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 17,
+      "title": "Fair Housing / UCBA E7 Full Coverage",
+      "category": "Compliance",
+      "pass": 10,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 18,
+      "title": "REBNY Attribution Presence",
+      "category": "Compliance",
+      "pass": 4,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 19,
+      "title": "Audit + Retention Enforcement",
+      "category": "Compliance",
+      "pass": 4,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 20,
+      "title": "Schema Evolution / Contract Testing",
+      "category": "Data Integrity",
+      "pass": 2,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 21,
+      "title": "Idempotent Sync / Concurrency",
+      "category": "Data Integrity",
+      "pass": 2,
+      "critical": 0,
+      "warning": 1,
+      "info": 0
+    },
+    {
+      "section": 22,
+      "title": "Indexing / Query-Plan Sanity",
+      "category": "Data Integrity",
+      "pass": 7,
+      "critical": 0,
+      "warning": 0,
+      "info": 11
+    },
+    {
+      "section": 23,
+      "title": "External API Resilience",
+      "category": "Data Integrity",
+      "pass": 4,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 24,
+      "title": "Dead Components",
+      "category": "Bloat & Hygiene",
+      "pass": 90,
+      "critical": 0,
+      "warning": 0,
+      "info": 11
+    },
+    {
+      "section": 25,
+      "title": "Unused npm Dependencies",
+      "category": "Bloat & Hygiene",
+      "pass": 24,
+      "critical": 0,
+      "warning": 0,
+      "info": 10
+    },
+    {
+      "section": 26,
+      "title": "Cache / CDN Hygiene",
+      "category": "Bloat & Hygiene",
+      "pass": 4,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 27,
+      "title": "CRM → API Body Field Alignment",
+      "category": "CRM & API",
+      "pass": 3,
+      "critical": 7,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 28,
+      "title": "Search Filter Integrity",
+      "category": "Search",
+      "pass": 8,
+      "critical": 2,
+      "warning": 1,
+      "info": 0
+    },
+    {
+      "section": 29,
+      "title": "Interactive Element Wiring",
+      "category": "Frontend",
+      "pass": 22,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 30,
+      "title": "Trestle → Frontend Data Chain",
+      "category": "Data Integrity",
+      "pass": 8,
+      "critical": 0,
+      "warning": 0,
+      "info": 3
+    },
+    {
+      "section": 31,
+      "title": "Portal Auth Flow",
+      "category": "Frontend",
+      "pass": 7,
+      "critical": 0,
+      "warning": 1,
+      "info": 0
+    },
+    {
+      "section": 32,
+      "title": "Run History & Trends",
+      "category": "Platform",
+      "pass": 3,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  ]
+}
