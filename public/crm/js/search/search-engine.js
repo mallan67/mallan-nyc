@@ -2418,6 +2418,45 @@
 
         // ═══ SEARCH V2 TOGGLE ═══
         var _searchV2Active = false;
+        var _v2ScriptsLoaded = false;
+
+        function _loadSearchV2Scripts() {
+            if (_v2ScriptsLoaded) return Promise.resolve();
+            var scripts = [
+                '/crm/js/search-v2/registry-loader.js',
+                '/crm/js/search-v2/widget-renderers.js',
+                '/crm/js/search-v2/criteria-collector.js',
+                '/crm/js/adapters/trestle-adapter.js',
+                '/crm/js/adapters/result-normalizer.js',
+                '/crm/js/adapters/search-router.js',
+                '/crm/js/search-v2/form-renderer.js',
+                '/crm/js/search-v2/filter-bar.js',
+                '/crm/js/search-v2/filter-drawer.js',
+                '/crm/js/search-v2/search-orchestrator.js'
+            ];
+            // Also load CSS if not already
+            if (!document.querySelector('link[href*="search-v2.css"]')) {
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = '/crm/css/search-v2.css';
+                document.head.appendChild(link);
+            }
+            // Load scripts sequentially (order matters — dependencies)
+            return scripts.reduce(function(chain, src) {
+                return chain.then(function() {
+                    return new Promise(function(resolve, reject) {
+                        var s = document.createElement('script');
+                        s.src = src;
+                        s.onload = resolve;
+                        s.onerror = function() { reject(new Error('Failed to load: ' + src)); };
+                        document.body.appendChild(s);
+                    });
+                });
+            }, Promise.resolve()).then(function() {
+                _v2ScriptsLoaded = true;
+                console.log('[SearchV2] All scripts loaded dynamically');
+            });
+        }
         function toggleSearchV2() {
             _searchV2Active = !_searchV2Active;
             var v2Container = document.getElementById('searchV2Container');
@@ -2431,12 +2470,24 @@
                 if (searchTypeTabs) searchTypeTabs.style.display = 'none';
                 if (v2Container) {
                     v2Container.style.display = 'block';
-                    // Initialize V2 if not already
-                    if (typeof SearchV2 !== 'undefined' && !SearchV2.isInitialized()) {
+                    // Load V2 scripts dynamically (not inlined — prevents build issues)
+                    if (typeof SearchV2 === 'undefined') {
+                        _loadSearchV2Scripts().then(function() {
+                            SearchV2.init('#searchV2Container').catch(function(err) {
+                                console.error('[SearchV2] Failed to init:', err);
+                                if (typeof showToast === 'function') showToast('New search failed to load. Switching back.', 'error');
+                                toggleSearchV2();
+                            });
+                        }).catch(function(err) {
+                            console.error('[SearchV2] Failed to load scripts:', err);
+                            if (typeof showToast === 'function') showToast('Failed to load new search scripts.', 'error');
+                            toggleSearchV2();
+                        });
+                    } else if (!SearchV2.isInitialized()) {
                         SearchV2.init('#searchV2Container').catch(function(err) {
-                            console.error('[SearchV2] Failed to init:', err);
-                            showToast('New search failed to load. Switching back to classic.', 'error');
-                            toggleSearchV2(); // Switch back
+                            console.error('[SearchV2] Init failed:', err);
+                            if (typeof showToast === 'function') showToast('New search failed. Switching back.', 'error');
+                            toggleSearchV2();
                         });
                     }
                 }
