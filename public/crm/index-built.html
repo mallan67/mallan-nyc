@@ -9894,7 +9894,8 @@ function toggleSection(header) {
                     </div>
                 </div>
                     <!-- Sticky search actions — always visible at bottom of form -->
-                    <div class="sticky bottom-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 rounded-b-xl">
+                    <!-- mb-12 adds space above REBNY badge which is fixed at bottom-right -->
+                    <div class="sticky bottom-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 mb-12 rounded-b-xl">
                         <div class="flex items-center gap-2 text-xs text-gray-400">
                             <button onclick="recallLastSearch()" class="hover:text-blue-600 transition-colors" title="Recall last search criteria">
                                 <i class="fas fa-history mr-1"></i>Last Search
@@ -18653,34 +18654,36 @@ function manageShowToast(msg) {
         function toggleSearchV2() {
             _searchV2Active = !_searchV2Active;
             var v2Container = document.getElementById('searchV2Container');
-            var oldSearch = document.getElementById('searchFormContainer');
-            var toggleBtn = document.getElementById('btnSearchV2Toggle');
             var searchTypeTabs = document.getElementById('searchTypeTabs');
+            var generalSearch = document.getElementById('generalSearchSection');
+            var comparablesSection = document.getElementById('comparablesSection');
+            var toggleBtn = document.getElementById('btnSearchV2Toggle');
 
             if (_searchV2Active) {
-                // Switch to V2
-                if (oldSearch) oldSearch.style.display = 'none';
+                // Switch to V2 — hide old content but keep toggle visible
                 if (searchTypeTabs) searchTypeTabs.style.display = 'none';
+                if (generalSearch) generalSearch.style.display = 'none';
+                if (comparablesSection) comparablesSection.style.display = 'none';
                 if (v2Container) {
                     v2Container.style.display = 'block';
-                    // Load V2 scripts dynamically (not inlined — prevents build issues)
+                    v2Container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin text-3xl text-amber-600"></i><p style="margin-top:12px;color:#6B7280;">Loading new search...</p></div>';
+
+                    // Load V2 scripts dynamically
                     if (typeof SearchV2 === 'undefined') {
                         _loadSearchV2Scripts().then(function() {
-                            SearchV2.init('#searchV2Container').catch(function(err) {
-                                console.error('[SearchV2] Failed to init:', err);
-                                if (typeof showToast === 'function') showToast('New search failed to load. Switching back.', 'error');
-                                toggleSearchV2();
-                            });
+                            v2Container.innerHTML = '<div id="searchV2Form"></div><div id="sv2-filter-bar-container" style="display:none;"></div>';
+                            return SearchV2.init('#searchV2Container');
+                        }).then(function() {
+                            console.log('[SearchV2] Ready');
                         }).catch(function(err) {
-                            console.error('[SearchV2] Failed to load scripts:', err);
-                            if (typeof showToast === 'function') showToast('Failed to load new search scripts.', 'error');
-                            toggleSearchV2();
+                            console.error('[SearchV2] Failed:', err);
+                            v2Container.innerHTML = '<div style="text-align:center;padding:40px;color:#EF4444;"><i class="fas fa-exclamation-triangle text-3xl"></i><p style="margin-top:12px;">Failed to load new search: ' + (err.message || err) + '</p><button onclick="toggleSearchV2()" style="margin-top:12px;padding:8px 16px;border:1px solid #D1D5DB;border-radius:8px;cursor:pointer;">Back to Classic Search</button></div>';
                         });
                     } else if (!SearchV2.isInitialized()) {
+                        v2Container.innerHTML = '<div id="searchV2Form"></div><div id="sv2-filter-bar-container" style="display:none;"></div>';
                         SearchV2.init('#searchV2Container').catch(function(err) {
                             console.error('[SearchV2] Init failed:', err);
-                            if (typeof showToast === 'function') showToast('New search failed. Switching back.', 'error');
-                            toggleSearchV2();
+                            v2Container.innerHTML = '<div style="text-align:center;padding:40px;color:#EF4444;">Failed to initialize. <button onclick="toggleSearchV2()" style="margin-top:8px;padding:6px 12px;border:1px solid #D1D5DB;border-radius:6px;cursor:pointer;">Back to Classic</button></div>';
                         });
                     }
                 }
@@ -18692,8 +18695,9 @@ function manageShowToast(msg) {
             } else {
                 // Switch back to Classic
                 if (v2Container) v2Container.style.display = 'none';
-                if (oldSearch) oldSearch.style.display = 'block';
                 if (searchTypeTabs) searchTypeTabs.style.display = '';
+                if (generalSearch) generalSearch.style.display = '';
+                if (comparablesSection) comparablesSection.style.display = '';
                 if (toggleBtn) {
                     toggleBtn.innerHTML = '<i class="fas fa-bolt mr-1"></i> Try New Search (Beta)';
                     toggleBtn.classList.add('border-amber-500', 'text-amber-700', 'bg-amber-50');
