@@ -2353,6 +2353,44 @@
             }
         }
 
+        // ═══ SEARCH V2 TOGGLE ═══
+        var _searchV2Active = false;
+        function toggleSearchV2() {
+            _searchV2Active = !_searchV2Active;
+            var v2Container = document.getElementById('searchV2Container');
+            var oldSearch = document.getElementById('searchFormContainer');
+            var toggleBtn = document.getElementById('btnSearchV2Toggle');
+            var searchTypeTabs = document.getElementById('searchTypeTabs');
+
+            if (_searchV2Active) {
+                // Switch to V2
+                if (oldSearch) oldSearch.style.display = 'none';
+                if (searchTypeTabs) searchTypeTabs.style.display = 'none';
+                if (v2Container) {
+                    v2Container.style.display = 'block';
+                    // Initialize V2 if not already
+                    if (typeof SearchV2 !== 'undefined' && SearchV2.init) {
+                        SearchV2.init('#searchV2Form');
+                    }
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i class="fas fa-undo mr-1"></i> Classic Search';
+                    toggleBtn.classList.remove('border-amber-500', 'text-amber-700', 'bg-amber-50');
+                    toggleBtn.classList.add('border-gray-400', 'text-gray-600', 'bg-gray-50');
+                }
+            } else {
+                // Switch back to Classic
+                if (v2Container) v2Container.style.display = 'none';
+                if (oldSearch) oldSearch.style.display = 'block';
+                if (searchTypeTabs) searchTypeTabs.style.display = '';
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i class="fas fa-bolt mr-1"></i> Try New Search (Beta)';
+                    toggleBtn.classList.add('border-amber-500', 'text-amber-700', 'bg-amber-50');
+                    toggleBtn.classList.remove('border-gray-400', 'text-gray-600', 'bg-gray-50');
+                }
+            }
+        }
+
         function openCompPage(method) {
             // Hide selection page
             document.getElementById('comparablesSelectionPage').style.display = 'none';
