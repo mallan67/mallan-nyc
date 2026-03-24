@@ -616,7 +616,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     mortgagePayoff,
     netProceeds,
     buyerCount,
-    activeCompetitionCount: curatedComps.length, // use curated comp count as proxy
+    activeCompetitionCount: 0, // Only set from live Trestle data — don't misrepresent closed comps as active competition
     attribution,
   });
 
