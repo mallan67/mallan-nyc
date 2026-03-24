@@ -1855,7 +1855,7 @@ var Panels = (function () {
   }
 
   function _doReassign(clientId, agentId, agentName) {
-    MallanAPI.clients.update(clientId, { assignedAgentId: agentId, assigned_agent_id: agentId }).then(function () {
+    MallanAPI.clients.update(clientId, { agent_id: agentId }).then(function () {
       Events.log('client_reassigned', 'client', clientId, { newAgentId: agentId, newAgentName: agentName });
       CRM.closeModal();
       CRM.toast('Client reassigned to ' + agentName, 'success');
@@ -4299,7 +4299,7 @@ var Panels = (function () {
       CRM.toast('Invalid split amount', 'warning');
       return;
     }
-    MallanAPI.deals.update(dealId, { splitAmount: newAmount }).then(function () {
+    MallanAPI.deals.update(dealId, { split_percent: newAmount }).then(function () {
       Events.log('split_updated', 'deal', dealId, { splitAmount: newAmount });
       CRM.toast('Split updated', 'success');
       commissionPayouts();
@@ -4316,7 +4316,7 @@ var Panels = (function () {
       CRM.toast('Invalid split amount', 'warning');
       return;
     }
-    MallanAPI.deals.update(dealId, { splitAmount: newAmount }).then(function () {
+    MallanAPI.deals.update(dealId, { split_percent: newAmount }).then(function () {
       Events.log('split_updated', 'deal', dealId, { splitAmount: newAmount });
       CRM.toast('Split updated', 'success');
     }).catch(function (err) {
@@ -11387,7 +11387,7 @@ var Panels = (function () {
   }
 
   function _submitCommissionRequest(dealId) {
-    MallanAPI.deals.update(dealId, { payoutStatus: 'submitted', payout_status: 'submitted' }).then(function () {
+    MallanAPI.deals.update(dealId, { payout_status: 'submitted' }).then(function () {
       Events.log('commission_submitted', 'deal', dealId);
       CRM.toast('Commission request submitted', 'success');
       _dealsData.forEach(function (d) { if (d.id === dealId) { d._payout = 'submitted'; d.payoutStatus = 'submitted'; } });

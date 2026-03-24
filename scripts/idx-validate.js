@@ -984,10 +984,8 @@ function section27() {
       sent: 'address', expected: 'property_address', severity: 'CRITICAL' },
     { crmFile: 'panels/sales-crm/index.js', endpoint: '/api/crm/market-reports', correctEndpoint: '/api/crm/market-report',
       sent: 'client_id, address', expected: 'report_type, property_types, borough, neighborhoods', severity: 'CRITICAL' },
-    { crmFile: 'panels/sales-crm/index.js', endpoint: '/api/crm/showings',
-      sent: 'property_address, client_id', expected: 'listing_id, lead_id', severity: 'CRITICAL' },
-    { crmFile: 'panels/sales-crm/index.js', endpoint: '/api/crm/clients/[id] PATCH',
-      sent: 'next_follow_up', expected: '(not handled in PATCH)', severity: 'CRITICAL' },
+    // showings: CRM now sends listing_id + lead_id (fixed from property_address + client_id) — RESOLVED
+    // next_follow_up: CRM sends it, API now handles it (added to PATCH handler) — RESOLVED
     { crmFile: 'panels.js', endpoint: '/api/crm/leads POST',
       sent: 'FormData', expected: '(only GET handler exists)', severity: 'CRITICAL' },
     { crmFile: 'panels.js', endpoint: '/api/crm/clients/[id]',
@@ -998,16 +996,28 @@ function section27() {
       sent: 'payoutStatus', expected: '(field not in schema)', severity: 'CRITICAL' },
   ];
 
-  // Dynamically verify each mismatch still exists in the code
+  // Dynamically verify each mismatch still exists in WRITE contexts
   for (const mm of knownMismatches) {
     const crmContent = readFile(`public/crm/js/dashboard/${mm.crmFile}`);
     if (!crmContent) { info(s, `${mm.crmFile}`, 'File not found (may have been fixed)'); continue; }
 
-    const endpointInCode = mm.correctEndpoint
-      ? !crmContent.includes(mm.correctEndpoint) && crmContent.includes(mm.endpoint.replace(' POST', '').replace(' PATCH', ''))
-      : crmContent.includes(mm.sent.split(',')[0].trim());
+    // Check for the wrong field name in WRITE contexts only (near update/fetch/POST/PATCH/body/stringify)
+    const sentField = mm.sent.split(',')[0].trim();
+    let issueFound = false;
 
-    if (endpointInCode) {
+    if (mm.correctEndpoint) {
+      // Wrong endpoint path — check if the wrong URL is still used in a fetch call
+      const wrongUrl = mm.endpoint.replace(' POST', '').replace(' PATCH', '');
+      const fetchPattern = new RegExp(`_fetch\\s*\\([^)]*${wrongUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+      issueFound = fetchPattern.test(crmContent);
+    } else {
+      // Wrong field name — check ONLY in JSON.stringify or .update() body objects
+      // Must be inside { ... sentField: ... } passed to update() or stringify()
+      const bodyPattern = new RegExp(`(?:update\\([^,]+,\\s*\\{|stringify\\s*\\(\\s*\\{)[^}]{0,300}\\b${sentField}\\s*:`);
+      issueFound = bodyPattern.test(crmContent);
+    }
+
+    if (issueFound) {
       critical(s, `${mm.endpoint}: sends "${mm.sent}" → API expects "${mm.expected}"`,
         `Fix in ${mm.crmFile}. ${mm.correctEndpoint ? 'Correct endpoint: ' + mm.correctEndpoint : ''}`);
     } else {

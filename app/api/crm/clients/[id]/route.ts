@@ -250,6 +250,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.total_monthly_expense !== undefined) update.total_monthly_expense = body.total_monthly_expense ? parseFloat(String(body.total_monthly_expense)) : null;
   if (body.lease_start_date !== undefined) update.lease_start_date = body.lease_start_date ? new Date(String(body.lease_start_date)) : null;
   if (body.lease_end_date !== undefined) update.lease_end_date = body.lease_end_date ? new Date(String(body.lease_end_date)) : null;
+  if (body.next_follow_up !== undefined) update.next_follow_up = body.next_follow_up ? new Date(String(body.next_follow_up)) : null;
   // Agent reassignment (broker only)
   if (body.agent_id !== undefined) {
     if (auth.role !== "BROKER") {

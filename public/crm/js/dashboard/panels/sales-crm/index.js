@@ -1344,7 +1344,7 @@ var SalesCRM = (function () {
       _scheduleShowing();
     } else if (action === 'send_weekly_report') {
       CRM.toast('Sending weekly report...', 'info');
-      MallanAPI._fetch('/api/crm/emails/send', { method: 'POST', body: JSON.stringify({ template: 'weekly_report', client_id: cl.id }) })
+      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'weekly_report', client_ids: [String(cl.id)] }) })
         .then(function () { CRM.toast('Weekly report sent!', 'success'); })
         .catch(function () { CRM.toast('Send failed', 'error'); });
     }
@@ -1354,7 +1354,7 @@ var SalesCRM = (function () {
     var cl = _s.ws.client;
     if (!cl) return;
     CRM.toast('Generating CMA for ' + (cl.property_address || cl.name) + '...', 'info');
-    MallanAPI._fetch('/api/crm/cma', { method: 'POST', body: JSON.stringify({ client_id: cl.id, address: cl.property_address }) })
+    MallanAPI._fetch('/api/crm/cma', { method: 'POST', body: JSON.stringify({ property_address: cl.property_address }) })
       .then(function (data) { CRM.toast('CMA generated!', 'success'); })
       .catch(function () { CRM.toast('CMA generation failed — check property address', 'error'); });
   }
@@ -1362,7 +1362,7 @@ var SalesCRM = (function () {
   function _generateMarketReport() {
     CRM.toast('Generating market report...', 'info');
     var cl = _s.ws.client;
-    MallanAPI._fetch('/api/crm/market-reports', { method: 'POST', body: JSON.stringify({ client_id: cl.id, address: cl.property_address }) })
+    MallanAPI._fetch('/api/crm/market-report', { method: 'POST', body: JSON.stringify({ borough: cl.borough, neighborhoods: cl.neighborhood ? [cl.neighborhood] : [] }) })
       .then(function () { CRM.toast('Market report generated!', 'success'); })
       .catch(function () { CRM.toast('Report generation failed', 'error'); });
   }
@@ -1517,8 +1517,8 @@ var SalesCRM = (function () {
     new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
     var p = _s.ws.client;
     if (!p) return;
-    data.client_id = p.id;
-    data.property_address = p.property_address || p.address || '';
+    data.lead_id = String(p.id);
+    data.listing_id = p.listing_id || p.listingId || '';
     MallanAPI._fetch('/api/crm/showings', { method: 'POST', body: JSON.stringify(data) })
       .then(function() { CRM.toast('Showing scheduled', 'success'); CRM.closeModal(); })
       .catch(function(err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
