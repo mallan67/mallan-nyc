@@ -57,12 +57,12 @@ The backend CRM supports 6 portal types, each with different access levels:
 >
 > **Components:**
 > - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search with RLS direction normalization, `PropertySearch.tsx` is dead code.
-> - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `js/dashboard/` (12 core JS modules + 9 panel modules in `js/dashboard/panels/`). **v2 Two-CRM redesign (2026-03-19):** lifecycle-based workspaces with prospect/active phases, `detectTypeAndPhase()` routing, Convert API, `Listing.owner_client_id` FK. Seller/Buyer/Landlord/Tenant each have full prospect + active workspace renderers.
-> - **API layer** — `app/api/` (175+ route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
-> - **Database** — PostgreSQL on Neon (Prisma ORM, 42+ models)
+> - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `public/crm/js/dashboard/` (app.js, panels.js, router.js, store.js, ui-components.js, workspace.js, portals.js + `panels/` subdirectory with sales-crm, rentals-crm, seller-prospects, lease-tracker, pitch-packet modules). **v2 Two-CRM redesign (2026-03-19):** lifecycle-based workspaces with prospect/active phases, `detectTypeAndPhase()` routing, Convert API, `Listing.owner_client_id` FK. Seller/Buyer/Landlord/Tenant each have full prospect + active workspace renderers.
+> - **API layer** — `app/api/` (235 route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
+> - **Database** — PostgreSQL on Neon (Prisma ORM, 61 models)
 > - **Outlook integration** — Microsoft Graph OAuth for email scanning (StreetEasy lead import, folder browser)
 > - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
-> - **Cron** — 16 scheduled jobs via `vercel.json` (data retention, DOM reset, IDX sync, listing expiration, search alerts, seller/lead/conviction scoring, demand signals, intent profiles, agent metrics, experiment metrics, listing momentum, social proof, lifecycle triggers, market snapshots)
+> - **Cron** — 6 scheduled jobs via `vercel.json` (data retention, DOM reset, IDX sync, listing expiration, search alerts, prospect triggers). 10 additional cron route files exist but are NOT scheduled (lead-scoring, intent-profiles, conviction-scores, seller-scoring, listing-momentum, social-proof, agent-metrics, market-snapshots, experiment-metrics, demand-signals).
 >
 > **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure, 24hr TTL with auto-rotation). Bearer fully removed.
 >
@@ -81,9 +81,9 @@ The backend CRM supports 6 portal types, each with different access levels:
 > **CRM v2 workspace system:** `detectTypeAndPhase()` routes each client to the correct workspace renderer. 4 workspace files (seller, buyer, landlord, tenant) each have prospect + active modes. Convert API (`POST /api/crm/convert`) handles 6 lifecycle transitions with AuditEvent logging. `Listing.owner_client_id` links listings to their owner client.
 >
 > **Frontend resilience (added 2026-03-13):**
-> - Error boundaries: 7 error.tsx files (global + per-section)
-> - Loading states: 5 loading.tsx skeleton files
-> - SEO metadata: 9 layout.tsx files for client-side pages (noindex on private routes)
+> - Error boundaries: 9 error.tsx files (global + per-section)
+> - Loading states: 7 loading.tsx skeleton files
+> - SEO metadata: 19 layout.tsx files for client-side pages (noindex on private routes)
 > - Structured data: JSON-LD BreadcrumbList on listing pages
 > - Resource hints: preconnect/dns-prefetch for Trestle API
 > - Input validation: API pagination caps (200 listings, 50 transit), zip code OData injection prevention
@@ -300,7 +300,17 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 All deployments and CI/CD workflows must maintain compliance with the above standards.
 
-**Cron jobs (vercel.json):** 16 scheduled tasks — data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 4h), listing expiration (daily 7am), search alerts (daily 7:30am), seller scoring (daily 8am), experiment metrics (daily 9am), demand signals (daily 10am), intent profiles (daily 11am), agent metrics (weekly Mon 12pm), lead scoring (daily 1pm), conviction scores (daily 2pm), listing momentum (daily 3pm), social proof (daily 4pm), lifecycle triggers (daily 5pm), market snapshots (monthly 1st 6am).
+**Cron jobs (vercel.json):** 6 scheduled tasks — data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 4h), listing expiration (daily 7am), search alerts (daily 7:30am), prospect triggers (daily 9am). 10 cron route handlers exist but are NOT scheduled in vercel.json.
+
+**Validation (CI):** `npm run ci` runs: lint → type-check → compliance-check → **idx:validate (32-section validator)** → build. The IDX Plus Validator (`scripts/idx-validate.js`) blocks builds on critical issues. Results saved to `public/crm/data/validator-results.json` for the CRM System Health dashboard. Run history stored in `.idx-validate/history.json`.
+
+**Repo surface area (auto-verified — do not hand-edit):**
+- Scheduled crons: **6** (vercel.json)
+- Cron route files: **16** (app/api/cron/)
+- Prisma models: **61** (schema.prisma)
+- API route files: **235** (app/api/)
+- Components: **101** (app/components/)
+- Verify: `node scripts/regenerate-claude-counts.js`
 
 ---
 
