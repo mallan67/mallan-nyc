@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import prisma from "@/lib/prisma";
+import { safeJson } from "@/lib/api/safe-json";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -64,7 +65,8 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { lead_id, title, description, due_date, priority, task_type } = body;
 
   if (!lead_id || !title || !due_date) {

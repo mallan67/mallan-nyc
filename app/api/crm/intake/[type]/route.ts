@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeJson } from "@/lib/api/safe-json";
 
 const INTAKE_FIELDS: Record<string, string[]> = {
   buyer: [
@@ -80,7 +81,8 @@ export async function POST(
   if (writeCheck) return writeCheck;
 
   const { type } = await params;
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { lead_id, ...intakeData } = body;
 
   if (!lead_id) {

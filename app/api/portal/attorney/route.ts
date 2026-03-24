@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeJson } from "@/lib/api/safe-json";
 
 export async function GET(req: NextRequest) {
   const auth = await requirePortalRole(req, "buyer", "seller");
@@ -35,7 +36,8 @@ export async function PUT(req: NextRequest) {
   const auth = await requirePortalRole(req, "buyer", "seller");
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { name, email, phone, firm } = body;
 
   await prisma.lead.update({

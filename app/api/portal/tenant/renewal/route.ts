@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePortalRole, isAuthError } from '@/lib/auth';
+import { safeJson } from "@/lib/api/safe-json";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
   const auth = await requirePortalRole(request, "buyer", "tenant");
   if (isAuthError(auth)) return auth;
 
-  const body = await request.json();
+  const [body, _parseErr] = await safeJson(request);
+  if (_parseErr) return _parseErr;
   const { renewal_status } = body;
 
   if (!renewal_status || !VALID_STATUSES.includes(renewal_status)) {

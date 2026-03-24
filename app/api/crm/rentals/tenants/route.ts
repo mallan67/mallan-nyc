@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeJson } from "@/lib/api/safe-json";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -39,7 +40,8 @@ export async function POST(req: NextRequest) {
   const writeCheck = assertWriteAllowed();
   if (writeCheck) return writeCheck;
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { first_name, last_name, email, phone, property_address, unit_number, lease_start_date, lease_end_date, renewal_status, notes } = body;
 
   if (!first_name || !last_name || !email) {
@@ -79,7 +81,8 @@ export async function PATCH(req: NextRequest) {
   const writeCheck = assertWriteAllowed();
   if (writeCheck) return writeCheck;
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { id, ...updates } = body;
 
   if (!id) {

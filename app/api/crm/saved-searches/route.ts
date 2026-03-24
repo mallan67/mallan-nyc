@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { safeJson } from "@/lib/api/safe-json";
 
 /** Validate saved search criteria shape. Returns error message or null. */
 function validateCriteria(criteria: Record<string, unknown>): string | null {
@@ -77,7 +78,8 @@ export async function POST(req: NextRequest) {
   if (isAuthError(auth)) return auth;
 
   try {
-    const body = await req.json();
+    const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
     const { name, criteria, lead_id, alert_frequency, alert_enabled } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {

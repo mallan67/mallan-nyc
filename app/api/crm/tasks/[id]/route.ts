@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import prisma from "@/lib/prisma";
+import { safeJson } from "@/lib/api/safe-json";
 
 export async function PATCH(
   req: NextRequest,
@@ -14,7 +15,8 @@ export async function PATCH(
   if (isAuthError(auth)) return auth;
 
   const { id } = await params;
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { status, due_date } = body;
 
   const task = await prisma.followUpTask.findUnique({

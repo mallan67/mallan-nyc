@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
+import { safeJson } from "@/lib/api/safe-json";
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +59,8 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { lead_id, listing_id, address, unit, showing_date, price_at_time, reaction, notes } = body;
 
   if (!lead_id || !address || !showing_date) {

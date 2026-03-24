@@ -8,6 +8,7 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { serializeBigInts } from "@/lib/api/serialize";
+import { safeJson } from "@/lib/api/safe-json";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -97,7 +98,8 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
   }
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
 
   // Filter through allowlist (pitch_data handled separately below with validation)
   const data: Record<string, unknown> = {};

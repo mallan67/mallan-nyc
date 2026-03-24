@@ -466,8 +466,8 @@ function section9() {
       const before = content.substring(Math.max(0, m.index - 500), m.index);
       const after = content.substring(m.index, m.index + 500);
       const tryCount = (before.match(/\btry\s*\{/g) || []).length;
-      const catchCount = (before.match(/\bcatch\s*\(/g) || []).length;
-      if (tryCount > catchCount || (/\btry\s*\{/.test(before.slice(-500)) && /\bcatch\s*\(/.test(after)))
+      const catchCount = (before.match(/\bcatch\s*[\({]/g) || []).length;
+      if (tryCount > catchCount || (/\btry\s*\{/.test(before.slice(-500)) && /\bcatch\s*[\({]/.test(after)))
         pass(s, `${file}:${line}`);
       else if (hasAnnotation(content, m.index, 'IDX-VALIDATE-IGNORE'))
         pass(s, `${file}:${line} (annotated ignore)`);

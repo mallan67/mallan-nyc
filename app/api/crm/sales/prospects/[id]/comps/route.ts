@@ -17,6 +17,7 @@ import { getAccessToken } from "@/lib/idx/auth";
 import { sanitizeOData } from "@/lib/sanitize";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { serializeBigInts } from "@/lib/api/serialize";
+import { safeJson } from "@/lib/api/safe-json";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -224,7 +225,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
   }
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { comps, overrides } = body as {
     comps?: unknown[];
     overrides?: Record<string, unknown>;

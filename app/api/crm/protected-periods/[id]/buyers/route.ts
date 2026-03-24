@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { safeJson } from "@/lib/api/safe-json";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -91,7 +92,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     );
   }
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const buyers: Array<{ name: string; email?: string; phone?: string; notes?: string }> =
     body.buyers;
 

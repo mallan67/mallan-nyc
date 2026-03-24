@@ -12,12 +12,14 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import type { CompCriteria } from "@/lib/comps";
 import type { Prisma } from "@prisma/client";
+import { safeJson } from "@/lib/api/safe-json";
 
 export async function PATCH(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
+  const [body, _parseErr] = await safeJson(req);
+  if (_parseErr) return _parseErr;
   const { listing_id, criteria } = body as { listing_id?: string; criteria?: CompCriteria };
 
   if (!listing_id || !criteria) {
