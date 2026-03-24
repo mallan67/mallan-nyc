@@ -24,9 +24,11 @@ function readFile(relPath) {
     return fs.readFileSync(fullPath, 'utf8');
 }
 
-// Escape </script> in JS content to prevent premature tag closure
+// Strip </script> from JS content to prevent premature script block closure.
+// The HTML parser closes the script block on </script> even inside JS comments.
+// We replace the closing tag pattern with a safe version.
 function escapeScriptClose(jsContent) {
-    return jsContent.replace(/<\/script>/gi, '<\\/script>');
+    return jsContent.replace(/<\/script/gi, '< /script');
 }
 
 const lines = readFile('index.html').split('\n');
