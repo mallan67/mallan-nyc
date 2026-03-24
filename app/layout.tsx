@@ -249,14 +249,6 @@ const jsonLd = {
     name: 'NY Real Estate Broker License',
     value: '10991205323',
   },
-  // Aggregate rating from Zillow
-  aggregateRating: {
-    '@type': 'AggregateRating',
-    ratingValue: '5.0',
-    reviewCount: '13',
-    bestRating: '5',
-    worstRating: '1',
-  },
   // Memberships
   memberOf: [
     {
