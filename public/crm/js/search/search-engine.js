@@ -1164,9 +1164,25 @@
                     var label = cb.closest('label');
                     if (label) {
                         var nbName = label.textContent.trim();
+                        // Skip parent borough labels (they cascade to children)
+                        var isBoroughParent = cb.closest('summary') !== null;
+                        // Detect borough from parent <details> summary text
+                        var _borough = '';
+                        var _parentDetails = cb.closest('details');
+                        if (_parentDetails) {
+                            var _parentSummary = _parentDetails.querySelector(':scope > summary');
+                            if (_parentSummary) _borough = _parentSummary.textContent.trim().replace(/[\u25B6\u25BC▸▾►▼\s]+/g, ' ').trim();
+                        }
+
                         if (cb.checked) {
                             if (typeof toggleNeighborhoodPolygon === 'function') {
                                 toggleNeighborhoodPolygon(nbName, true);
+                            }
+                            // ADD to neighborhood tags so collectSearchCriteria picks it up
+                            if (!isBoroughParent && typeof selectNeighborhood === 'function') {
+                                var tagsId = _resolveActiveNeighborhoodTagsId();
+                                var dropdownId = tagsId.replace('Tags', 'Dropdown');
+                                selectNeighborhood(nbName, _borough, false, dropdownId, tagsId);
                             }
                             // Search form map
                             if (sfType && typeof toggleSFPolygon === 'function') {
@@ -1178,6 +1194,11 @@
                         } else {
                             if (typeof toggleNeighborhoodPolygon === 'function') {
                                 toggleNeighborhoodPolygon(nbName, false);
+                            }
+                            // REMOVE from neighborhood tags
+                            if (!isBoroughParent && typeof removeNeighborhoodTag === 'function') {
+                                var tagsId = _resolveActiveNeighborhoodTagsId();
+                                removeNeighborhoodTag(nbName, tagsId);
                             }
                             if (sfType && typeof toggleSFPolygon === 'function') {
                                 toggleSFPolygon(sfType, nbName, false);
