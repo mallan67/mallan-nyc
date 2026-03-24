@@ -2432,8 +2432,12 @@
                 if (v2Container) {
                     v2Container.style.display = 'block';
                     // Initialize V2 if not already
-                    if (typeof SearchV2 !== 'undefined' && SearchV2.init) {
-                        SearchV2.init('#searchV2Form');
+                    if (typeof SearchV2 !== 'undefined' && !SearchV2.isInitialized()) {
+                        SearchV2.init('#searchV2Container').catch(function(err) {
+                            console.error('[SearchV2] Failed to init:', err);
+                            showToast('New search failed to load. Switching back to classic.', 'error');
+                            toggleSearchV2(); // Switch back
+                        });
                     }
                 }
                 if (toggleBtn) {

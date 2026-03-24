@@ -3480,6 +3480,12 @@ function toggleSection(header) {
                         </button>
                     </div>
 
+                    <!-- Search V2 Container (schema-driven search, hidden until toggled) -->
+                    <div id="searchV2Container" style="display: none;">
+                        <div id="searchV2Form"></div>
+                        <div id="sv2-filter-bar-container" style="display: none;"></div>
+                    </div>
+
                     <!-- General Search / Comparable Reports Tabs -->
                     <div id="searchTypeTabs" class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden">
                         <div class="flex">
@@ -21008,8 +21014,12 @@ var TransitSearch = (function() {
                 if (v2Container) {
                     v2Container.style.display = 'block';
                     // Initialize V2 if not already
-                    if (typeof SearchV2 !== 'undefined' && SearchV2.init) {
-                        SearchV2.init('#searchV2Form');
+                    if (typeof SearchV2 !== 'undefined' && !SearchV2.isInitialized()) {
+                        SearchV2.init('#searchV2Container').catch(function(err) {
+                            console.error('[SearchV2] Failed to init:', err);
+                            showToast('New search failed to load. Switching back to classic.', 'error');
+                            toggleSearchV2(); // Switch back
+                        });
                     }
                 }
                 if (toggleBtn) {
