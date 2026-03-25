@@ -58,5 +58,5 @@ export async function PATCH(req: NextRequest) {
     { criteria },
   );
 
-  return NextResponse.json({ ok: true, listing_id, criteria });
+  return NextResponse.json({ listing_id, criteria });
 }

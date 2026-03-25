@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
-  return NextResponse.json({ ok: true, lease: { ...updated, id: updated.id.toString() } });
+  return NextResponse.json({ lease: { ...updated, id: updated.id.toString() } });
 }
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
@@ -137,5 +137,5 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ success: true });
 }

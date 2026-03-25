@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     deal: p.deal ? { ...p.deal, id: p.deal.id.toString(), agent_id: p.deal.agent_id.toString() } : null,
   }));
 
-  return NextResponse.json({ ok: true, total, items: serialized });
+  return NextResponse.json({ total, items: serialized });
 }
 
 export async function POST(req: NextRequest) {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const { deal_id, payment_type, amount, date, status, reference, notes } = body as {
     deal_id?: string; payment_type?: string; amount?: number; date?: string;
@@ -62,24 +62,22 @@ export async function POST(req: NextRequest) {
   };
 
   if (!deal_id || !payment_type || !amount) {
-    return NextResponse.json({ ok: false, error: "deal_id, payment_type, amount are required" }, { status: 400 });
+    return NextResponse.json({ error: "deal_id, payment_type, amount are required" }, { status: 400 });
   }
 
   const validTypes = ["received", "agent_split", "company_split", "referral", "adjustment"];
   if (!validTypes.includes(payment_type)) {
-    return NextResponse.json({ ok: false, error: `Invalid payment_type. Must be one of: ${validTypes.join(", ")}` }, { status: 400 });
+    return NextResponse.json({ error: `Invalid payment_type. Must be one of: ${validTypes.join(", ")}` }, { status: 400 });
   }
 
   // Fail-closed: validate commission split before recording agent/company payments
   if (payment_type === "agent_split" || payment_type === "company_split") {
     const deal = await prisma.deal.findUnique({ where: { id: BigInt(deal_id) } });
     if (!deal) {
-      return NextResponse.json({ ok: false, error: "Deal not found" }, { status: 404 });
+      return NextResponse.json({ error: "Deal not found" }, { status: 404 });
     }
     if (!deal.gross_commission_usd || !deal.split_percent) {
-      return NextResponse.json({
-        ok: false,
-        error: "Cannot record split payment: deal is missing gross_commission_usd or split_percent. Complete deal financials first.",
+      return NextResponse.json({ error: "Cannot record split payment: deal is missing gross_commission_usd or split_percent. Complete deal financials first.",
       }, { status: 422 });
     }
 
@@ -92,9 +90,7 @@ export async function POST(req: NextRequest) {
     const grossCommission = Number(deal.gross_commission_usd);
 
     if (newTotal > grossCommission * 1.001) { // 0.1% tolerance for rounding
-      return NextResponse.json({
-        ok: false,
-        error: `Split payments ($${newTotal.toFixed(2)}) would exceed gross commission ($${grossCommission.toFixed(2)})`,
+      return NextResponse.json({ error: `Split payments ($${newTotal.toFixed(2)}) would exceed gross commission ($${grossCommission.toFixed(2)})`,
       }, { status: 422 });
     }
   }
@@ -113,8 +109,6 @@ export async function POST(req: NextRequest) {
 
   await logAuditEvent("create", "commission_payment", payment.id.toString(), auth);
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...payment, id: payment.id.toString(), deal_id: payment.deal_id.toString(), amount: payment.amount.toString() },
+  return NextResponse.json({ item: { ...payment, id: payment.id.toString(), deal_id: payment.deal_id.toString(), amount: payment.amount.toString() },
   }, { status: 201 });
 }

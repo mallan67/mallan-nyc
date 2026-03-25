@@ -37,9 +37,7 @@ export async function GET(req: NextRequest) {
     prisma.auditEvent.count({ where }),
   ]);
 
-  return NextResponse.json({
-    ok: true,
-    events: events.map((e) => ({
+  return NextResponse.json({ events: events.map((e) => ({
       ...e,
       id: e.id.toString(),
       user_id: e.user_id?.toString() ?? null,

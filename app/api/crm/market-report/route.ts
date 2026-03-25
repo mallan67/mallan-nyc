@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
       period: period || undefined,
     });
 
-    return NextResponse.json({ ok: true, report });
+    return NextResponse.json({ report });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
     console.error("[market-report] Error:", message);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

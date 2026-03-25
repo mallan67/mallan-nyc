@@ -51,9 +51,7 @@ export async function POST(
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    course: { id: event.id.toString(), ...courseData },
+  return NextResponse.json({ course: { id: event.id.toString(), ...courseData },
   }, { status: 201 });
 }
 
@@ -85,5 +83,5 @@ export async function DELETE(
 
   await prisma.auditEvent.delete({ where: { id: BigInt(courseId) } });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ success: true });
 }

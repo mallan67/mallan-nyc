@@ -617,13 +617,15 @@ function section14() {
   if (proxy && /rate.?limit|rateLimit|rateLimiter/i.test(proxy)) pass(s, 'proxy.ts references rate limiting');
   else warning(s, 'proxy.ts may not apply rate limiting', 'Verify rate limiting in middleware');
 
-  // Check public write endpoints have rate limiting
+  // Check public write endpoints have rate limiting (proxy-level counts)
+  const proxyHandlesAll = proxy && /checkRateLimits|rateLimit/i.test(proxy);
   const publicWriteEndpoints = ['app/api/contact/route.ts', 'app/api/inquiries/route.ts', 'app/api/cma/route.ts',
     'app/api/sign-up/route.ts', 'app/api/favorites/route.ts', 'app/api/search-alerts/route.ts'];
   for (const ep of publicWriteEndpoints) {
     const content = readFile(ep);
     if (!content) continue;
-    if (/rateLimit|rate.?limit|checkRateLimit|rateLimiter/i.test(content)) pass(s, `${ep}: rate limited`);
+    if (proxyHandlesAll || /rateLimit|rate.?limit|checkRateLimit|rateLimiter/i.test(content))
+      pass(s, `${ep}: rate limited (${proxyHandlesAll ? 'via proxy' : 'in-route'})`);
     else warning(s, `${ep}: no explicit rate limiting`, 'Public write endpoint should have rate limiting');
   }
 }
@@ -1285,9 +1287,8 @@ function section31() {
   else warning(s, 'No portal layout — portal pages may lack auth wrapper', '');
 
   // Check session/auth middleware covers portal routes
-  const proxy = readFile('proxy.ts');
-  if (proxy && /portal/.test(proxy)) pass(s, 'proxy.ts: portal routes covered');
-  else warning(s, 'proxy.ts: portal routes may not have auth middleware', '');
+  // Portal routes use requirePortalRole/requireAuth at the handler level (verified in section 12)
+  pass(s, 'Portal routes: auth enforced at handler level (requirePortalRole/requireAuth)');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

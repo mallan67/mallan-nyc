@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
-  return NextResponse.json({ ok: true, message: "Stub — not yet implemented" });
+  return NextResponse.json({ message: "Stub — not yet implemented" });
 }
 

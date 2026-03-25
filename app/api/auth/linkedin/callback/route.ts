@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     const tokens = await tokenRes.json();
     if (!tokens.access_token) {
-      console.error("LinkedIn token error:", tokens);
+      console.error("LinkedIn [token redacted] error:", tokens);
       return NextResponse.redirect(
         `${SITE_URL}/sign-in?error=LinkedIn+sign-in+failed`
       );

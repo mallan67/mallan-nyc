@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   const clients = allClients.filter((c) => {
     if (!c.consent_captured_at) {
       const name = `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unknown";
-      console.warn(`[email] Skipping client ${c.id} (${name}) — no consent_captured_at (CAN-SPAM)`);
+      console.warn(`[[email redacted]] Skipping client ${c.id} (${name}) — no consent_captured_at (CAN-SPAM)`);
       skipped.push({ clientId: c.id.toString(), name, reason: "No consent on record" });
       return false;
     }
@@ -182,9 +182,7 @@ export async function POST(req: NextRequest) {
   const sent = results.filter((r) => r.success).length;
   const failed = results.filter((r) => !r.success);
 
-  return NextResponse.json({
-    ok: true,
-    type,
+  return NextResponse.json({ type,
     sent,
     failed: failed.length,
     errors: failed.length > 0 ? failed : undefined,

@@ -62,5 +62,5 @@ export async function PUT(req: NextRequest) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ success: true });
 }

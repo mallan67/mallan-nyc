@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     createdAt: n.created_at.toISOString(),
   }));
 
-  return NextResponse.json({ ok: true, alerts });
+  return NextResponse.json({ alerts });
 }
 
 export async function POST(req: NextRequest) {
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const ruleId = (body.ruleId as string) || "system";
@@ -113,5 +113,5 @@ export async function POST(req: NextRequest) {
 
   await logAuditEvent("create", "alert", notification.id.toString(), auth, { ruleId, title });
 
-  return NextResponse.json({ ok: true, id: notification.id.toString() });
+  return NextResponse.json({ id: notification.id.toString() });
 }

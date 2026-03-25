@@ -187,9 +187,7 @@ export async function POST(req: NextRequest) {
     else failed++;
   }
 
-  return NextResponse.json({
-    ok: true,
-    sent,
+  return NextResponse.json({ sent,
     failed,
     timestamp: now.toISOString(),
   }, { status: 201 });

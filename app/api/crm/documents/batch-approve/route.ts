@@ -15,21 +15,19 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { document_ids } = body as { document_ids?: string[] };
 
   if (!Array.isArray(document_ids) || document_ids.length === 0) {
-    return NextResponse.json(
-      { ok: false, error: "document_ids[] is required and must not be empty" },
+    return NextResponse.json({ error: "document_ids[] is required and must not be empty" },
       { status: 400 }
     );
   }
 
   if (document_ids.length > 100) {
-    return NextResponse.json(
-      { ok: false, error: "Maximum 100 documents per batch" },
+    return NextResponse.json({ error: "Maximum 100 documents per batch" },
       { status: 400 }
     );
   }
@@ -79,9 +77,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({
-    ok: true,
-    approved,
+  return NextResponse.json({ approved,
     failed,
   });
 }

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { listing_id, client_ids, sent_via, context } = body as {
@@ -29,15 +29,13 @@ export async function POST(req: NextRequest) {
   };
 
   if (!listing_id || !Array.isArray(client_ids) || client_ids.length === 0) {
-    return NextResponse.json(
-      { ok: false, error: "listing_id and client_ids[] are required" },
+    return NextResponse.json({ error: "listing_id and client_ids[] are required" },
       { status: 400 }
     );
   }
 
   if (client_ids.length > 50) {
-    return NextResponse.json(
-      { ok: false, error: "Maximum 50 clients per send" },
+    return NextResponse.json({ error: "Maximum 50 clients per send" },
       { status: 400 }
     );
   }
@@ -62,9 +60,7 @@ export async function POST(req: NextRequest) {
       },
     });
     if (existing) {
-      return NextResponse.json({
-        ok: true,
-        send_id: existing.id.toString(),
+      return NextResponse.json({ send_id: existing.id.toString(),
         listing_id,
         client_ids,
         created_at: existing.created_at.toISOString(),
@@ -96,7 +92,7 @@ export async function POST(req: NextRequest) {
     },
   });
   if (!listing) {
-    return NextResponse.json({ ok: false, error: "Listing not found" }, { status: 404 });
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
   // REBNY compliance: server-side distribution gate check (defense-in-depth)
@@ -107,8 +103,7 @@ export async function POST(req: NextRequest) {
     listing.owner_opt_out === true ||
     listing.participant_only === true
   ) {
-    return NextResponse.json(
-      { ok: false, error: "This listing is not eligible for distribution per REBNY RLS rules." },
+    return NextResponse.json({ error: "This listing is not eligible for distribution per REBNY RLS rules." },
       { status: 400 }
     );
   }
@@ -273,9 +268,7 @@ export async function POST(req: NextRequest) {
 
   const failed = emailResults.filter((r) => !r.success);
 
-  return NextResponse.json({
-    ok: true,
-    send_id: result.send_id,
+  return NextResponse.json({ send_id: result.send_id,
     listing_id,
     client_ids,
     created_at: result.created_at.toISOString(),

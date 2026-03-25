@@ -19,20 +19,18 @@ export async function GET(
     where: { id: showingId },
     select: { agent_id: true },
   });
-  if (!showing) return NextResponse.json({ ok: false, error: "Showing not found" }, { status: 404 });
+  if (!showing) return NextResponse.json({ error: "Showing not found" }, { status: 404 });
   if (auth.role !== "BROKER" && showing.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const feedback = await prisma.showingFeedback.findUnique({
     where: { showing_id: showingId },
   });
 
-  if (!feedback) return NextResponse.json({ ok: false, error: "No feedback yet" }, { status: 404 });
+  if (!feedback) return NextResponse.json({ error: "No feedback yet" }, { status: 404 });
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...feedback, id: feedback.id.toString(), showing_id: feedback.showing_id.toString(), lead_id: feedback.lead_id?.toString() ?? null },
+  return NextResponse.json({ item: { ...feedback, id: feedback.id.toString(), showing_id: feedback.showing_id.toString(), lead_id: feedback.lead_id?.toString() ?? null },
   });
 }
 
@@ -53,21 +51,21 @@ export async function POST(
     where: { id: showingId },
     select: { agent_id: true, lead_id: true },
   });
-  if (!showing) return NextResponse.json({ ok: false, error: "Showing not found" }, { status: 404 });
+  if (!showing) return NextResponse.json({ error: "Showing not found" }, { status: 404 });
   if (auth.role !== "BROKER" && showing.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const { rating, interest_level, liked, disliked, objections, notes } = body as { rating?: number; interest_level?: string; liked?: string[]; disliked?: string[]; objections?: string[]; notes?: string };
 
   if (!rating || !interest_level) {
-    return NextResponse.json({ ok: false, error: "rating and interest_level are required" }, { status: 400 });
+    return NextResponse.json({ error: "rating and interest_level are required" }, { status: 400 });
   }
 
   try {
@@ -82,12 +80,10 @@ export async function POST(
 
     await logAuditEvent("create", "showing_feedback", feedback.id.toString(), auth);
 
-    return NextResponse.json({
-      ok: true,
-      item: { ...feedback, id: feedback.id.toString(), showing_id: feedback.showing_id.toString(), lead_id: feedback.lead_id?.toString() ?? null },
+    return NextResponse.json({ item: { ...feedback, id: feedback.id.toString(), showing_id: feedback.showing_id.toString(), lead_id: feedback.lead_id?.toString() ?? null },
     }, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to submit feedback";
-    return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

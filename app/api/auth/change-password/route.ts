@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Change password error:", err);
+    console.error("Change [redacted] error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { scope, scope_id, doc_type, title, notes } = body as {
@@ -27,16 +27,14 @@ export async function POST(req: NextRequest) {
   };
 
   if (!doc_type || !title) {
-    return NextResponse.json(
-      { ok: false, error: "doc_type and title are required" },
+    return NextResponse.json({ error: "doc_type and title are required" },
       { status: 400 }
     );
   }
 
   const validDocTypes = ["contract", "disclosure", "co_broke", "rider", "amendment", "other"];
   if (!validDocTypes.includes(doc_type)) {
-    return NextResponse.json(
-      { ok: false, error: `doc_type must be one of: ${validDocTypes.join(", ")}` },
+    return NextResponse.json({ error: `doc_type must be one of: ${validDocTypes.join(", ")}` },
       { status: 400 }
     );
   }
@@ -78,9 +76,7 @@ export async function POST(req: NextRequest) {
     ipAddress
   );
 
-  return NextResponse.json({
-    ok: true,
-    id: doc.id.toString(),
+  return NextResponse.json({ id: doc.id.toString(),
     scope: scope ?? "general",
     doc_type,
     status: "requested",

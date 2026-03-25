@@ -14,9 +14,7 @@ export async function GET(req: NextRequest) {
     include: { agent: { select: { id: true, full_name: true, email: true } } },
   });
 
-  return NextResponse.json({
-    ok: true,
-    items: rules.map(r => ({
+  return NextResponse.json({ items: rules.map(r => ({
       ...r, id: r.id.toString(), agent_id: r.agent_id.toString(),
       agent: r.agent ? { ...r.agent, id: r.agent.id.toString() } : null,
     })),
@@ -34,14 +32,14 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const agent_id = body.agent_id as string | undefined;
   const criteria = body.criteria;
   const priority = body.priority as number | undefined;
   const max_leads_per_month = body.max_leads_per_month as number | undefined;
 
-  if (!agent_id) return NextResponse.json({ ok: false, error: "agent_id is required" }, { status: 400 });
+  if (!agent_id) return NextResponse.json({ error: "agent_id is required" }, { status: 400 });
 
   const rule = await prisma.leadAssignmentRule.create({
     data: {
@@ -54,8 +52,6 @@ export async function POST(req: NextRequest) {
 
   await logAuditEvent("create", "assignment_rule", rule.id.toString(), auth);
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...rule, id: rule.id.toString(), agent_id: rule.agent_id.toString() },
+  return NextResponse.json({ item: { ...rule, id: rule.id.toString(), agent_id: rule.agent_id.toString() },
   }, { status: 201 });
 }

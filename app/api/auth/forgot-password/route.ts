@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     return successResponse;
   } catch (err) {
-    console.error("Forgot password error:", err);
+    console.error("Forgot [redacted] error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -18,13 +18,13 @@ export async function PATCH(
   const paymentId = BigInt(id);
 
   const existing = await prisma.commissionPayment.findUnique({ where: { id: paymentId } });
-  if (!existing) return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
   let body: { status?: string; date?: string; reference?: string; notes?: string };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const data: Record<string, unknown> = {};
   if (body.status) data.status = body.status;
@@ -35,8 +35,6 @@ export async function PATCH(
   const updated = await prisma.commissionPayment.update({ where: { id: paymentId }, data });
   await logAuditEvent("update", "commission_payment", id, auth, data);
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...updated, id: updated.id.toString(), deal_id: updated.deal_id.toString(), amount: updated.amount.toString() },
+  return NextResponse.json({ item: { ...updated, id: updated.id.toString(), deal_id: updated.deal_id.toString(), amount: updated.amount.toString() },
   });
 }

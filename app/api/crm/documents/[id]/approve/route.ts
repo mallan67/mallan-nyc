@@ -40,5 +40,5 @@ export async function POST(
 
   await logAuditEvent("approve", "document", id, auth, { name: doc.name });
 
-  return NextResponse.json({ ok: true, status: "approved" });
+  return NextResponse.json({ status: "approved" });
 }

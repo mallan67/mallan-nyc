@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     agents.map((a) => generate1099ForAgent(a.id, year))
   );
 
-  return NextResponse.json({ ok: true, year, agents: results });
+  return NextResponse.json({ year, agents: results });
 }
 
 // POST /api/crm/1099 — generate for one agent or all
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     );
 
     await logAuditEvent("generate", "1099", "all", auth, { year, count: results.length });
-    return NextResponse.json({ ok: true, year, agents: results });
+    return NextResponse.json({ year, agents: results });
   }
 
   if (!agentId) {
@@ -120,5 +120,5 @@ export async function POST(req: NextRequest) {
 
   const result = await generate1099ForAgent(BigInt(agentId), year);
   await logAuditEvent("generate", "1099", agentId, auth, { year });
-  return NextResponse.json({ ok: true, ...result });
+  return NextResponse.json({ ...result });
 }

@@ -21,9 +21,7 @@ export async function GET(req: NextRequest) {
     take: 100,
   });
 
-  return NextResponse.json({
-    ok: true,
-    messages: messages.map((m) => ({
+  return NextResponse.json({ messages: messages.map((m) => ({
       id: m.id.toString(),
       type: m.type,
       title: m.title,
@@ -81,5 +79,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ ok: true, message: "Message sent" }, { status: 201 });
+  return NextResponse.json({ message: "Message sent" }, { status: 201 });
 }

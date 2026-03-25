@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const defaults = { license_reminder_days: 90, ce_reminder_days: 60, eo_reminder_days: 90 };
   const settings = latest?.changes ? { ...defaults, ...(latest.changes as Record<string, unknown>) } : defaults;
 
-  return NextResponse.json({ ok: true, settings });
+  return NextResponse.json({ settings });
 }
 
 export async function POST(req: NextRequest) {
@@ -46,5 +46,5 @@ export async function POST(req: NextRequest) {
 
   await logAuditEvent("settings_renewal_alerts", "settings", "renewal_alerts", auth, settings);
 
-  return NextResponse.json({ ok: true, settings });
+  return NextResponse.json({ settings });
 }

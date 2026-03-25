@@ -41,5 +41,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ ok: true, courses, total: courses.length });
+  return NextResponse.json({ courses, total: courses.length });
 }

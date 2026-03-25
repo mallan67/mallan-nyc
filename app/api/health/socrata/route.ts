@@ -10,13 +10,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const rows = await sodaFetch("3h2n-5cm9.json", { query: { "$limit": 1 } });
-    return NextResponse.json({
-      ok: true,
-      sampleCount: Array.isArray(rows) ? rows.length : 0,
+    return NextResponse.json({ sampleCount: Array.isArray(rows) ? rows.length : 0,
     });
   } catch {
-    return NextResponse.json(
-      { ok: false, error: "Socrata health check failed" },
+    return NextResponse.json({ error: "Socrata health check failed" },
       { status: 500 }
     );
   }

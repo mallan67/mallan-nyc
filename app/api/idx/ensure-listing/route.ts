@@ -45,9 +45,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (existing) {
-    return NextResponse.json({
-      ok: true,
-      listing_id: existing.listing_id,
+    return NextResponse.json({ listing_id: existing.listing_id,
       db_id: existing.id.toString(),
       created: false,
     });
@@ -60,9 +58,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (byMlsId) {
-    return NextResponse.json({
-      ok: true,
-      listing_id: byMlsId.listing_id,
+    return NextResponse.json({ listing_id: byMlsId.listing_id,
       db_id: byMlsId.id.toString(),
       created: false,
     });
@@ -133,9 +129,7 @@ export async function POST(req: NextRequest) {
       { source: "idx_ensure", trestle_id: trimmedId }
     );
 
-    return NextResponse.json({
-      ok: true,
-      listing_id: listing.listing_id,
+    return NextResponse.json({ listing_id: listing.listing_id,
       db_id: listing.id.toString(),
       created: true,
     }, { status: 201 });
@@ -147,9 +141,7 @@ export async function POST(req: NextRequest) {
         select: { id: true, listing_id: true },
       });
       if (existing) {
-        return NextResponse.json({
-          ok: true,
-          listing_id: existing.listing_id,
+        return NextResponse.json({ listing_id: existing.listing_id,
           db_id: existing.id.toString(),
           created: false,
         });

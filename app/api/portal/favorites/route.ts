@@ -51,5 +51,5 @@ export async function GET(req: NextRequest) {
     living_area: l.living_area?.toString() ?? null,
   }));
 
-  return NextResponse.json({ ok: true, favorites: serialized });
+  return NextResponse.json({ favorites: serialized });
 }

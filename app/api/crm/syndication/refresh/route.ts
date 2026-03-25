@@ -15,14 +15,13 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { listing_id } = body as { listing_id?: string };
 
   if (!listing_id) {
-    return NextResponse.json(
-      { ok: false, error: "listing_id is required" },
+    return NextResponse.json({ error: "listing_id is required" },
       { status: 400 }
     );
   }
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!listing) {
-    return NextResponse.json({ ok: false, error: "Listing not found" }, { status: 404 });
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
@@ -55,9 +54,7 @@ export async function POST(req: NextRequest) {
     ipAddress
   );
 
-  return NextResponse.json({
-    ok: true,
-    status: "queued",
+  return NextResponse.json({ status: "queued",
     listing_id,
     requested_at: now.toISOString(),
   });

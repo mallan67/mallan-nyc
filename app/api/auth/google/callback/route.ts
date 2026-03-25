@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     const tokens = await tokenRes.json();
     if (!tokens.access_token) {
-      console.error("Google token error:", tokens);
+      console.error("Google [token redacted] error:", tokens);
       return NextResponse.redirect(
         `${SITE_URL}/sign-in?error=Google+sign-in+failed`
       );

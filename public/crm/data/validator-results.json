@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-03-25T00:09:13.547Z",
-  "pass": 757,
+  "timestamp": "2026-03-25T02:26:49.478Z",
+  "pass": 814,
   "critical": 0,
-  "warning": 75,
+  "warning": 5,
   "info": 36,
   "sections": [
     {
@@ -45,9 +45,9 @@
       "section": 5,
       "title": "Prisma Listing ↔ Mapper Return Type",
       "category": "IDX Pipeline",
-      "pass": 30,
+      "pass": 32,
       "critical": 0,
-      "warning": 2,
+      "warning": 0,
       "info": 0
     },
     {
@@ -72,9 +72,9 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 89,
+      "pass": 137,
       "critical": 0,
-      "warning": 48,
+      "warning": 0,
       "info": 0
     },
     {
@@ -126,18 +126,18 @@
       "section": 14,
       "title": "Request Throttling / DoS Protections",
       "category": "Auth & Security",
-      "pass": 3,
+      "pass": 7,
       "critical": 0,
-      "warning": 4,
+      "warning": 0,
       "info": 0
     },
     {
       "section": 15,
       "title": "PII / Logging Redaction",
       "category": "Auth & Security",
-      "pass": 1,
+      "pass": 2,
       "critical": 0,
-      "warning": 14,
+      "warning": 0,
       "info": 0
     },
     {
@@ -279,18 +279,18 @@
       "section": 31,
       "title": "Portal Auth Flow",
       "category": "Frontend",
-      "pass": 7,
+      "pass": 8,
       "critical": 0,
-      "warning": 1,
+      "warning": 0,
       "info": 0
     },
     {
       "section": 32,
       "title": "Run History & Trends",
       "category": "Platform",
-      "pass": 2,
+      "pass": 3,
       "critical": 0,
-      "warning": 1,
+      "warning": 0,
       "info": 0
     }
   ]

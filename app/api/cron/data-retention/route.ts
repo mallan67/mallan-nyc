@@ -116,5 +116,5 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ ok: true, ...results });
+  return NextResponse.json({ ...results });
 }

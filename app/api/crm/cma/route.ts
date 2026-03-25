@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     agent: r.agent ? { ...r.agent, id: r.agent.id.toString() } : null,
   }));
 
-  return NextResponse.json({ ok: true, total, items: serialized });
+  return NextResponse.json({ total, items: serialized });
 }
 
 export async function POST(req: NextRequest) {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const { property_address, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms, living_area, floor, notes } = body as {
     property_address?: string; borough?: string; neighborhood?: string; listing_type?: string;
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   };
 
   if (!property_address) {
-    return NextResponse.json({ ok: false, error: "property_address is required" }, { status: 400 });
+    return NextResponse.json({ error: "property_address is required" }, { status: 400 });
   }
 
   // Find comps
@@ -87,9 +87,7 @@ export async function POST(req: NextRequest) {
 
   await logAuditEvent("create", "cma_report", report.id.toString(), auth);
 
-  return NextResponse.json({
-    ok: true,
-    item: {
+  return NextResponse.json({ item: {
       ...report, id: report.id.toString(), agent_id: report.agent_id.toString(),
       estimated_value: report.estimated_value?.toString() ?? null,
       price_range_low: report.price_range_low?.toString() ?? null,

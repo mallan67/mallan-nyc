@@ -21,14 +21,12 @@ export async function GET(
     },
   });
 
-  if (!doc) return NextResponse.json({ ok: false, error: "Document not found" }, { status: 404 });
+  if (!doc) return NextResponse.json({ error: "Document not found" }, { status: 404 });
   if (auth.role !== "BROKER" && doc.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json({
-    ok: true,
-    item: {
+  return NextResponse.json({ item: {
       ...doc, id: doc.id.toString(), agent_id: doc.agent_id.toString(),
       deal_id: doc.deal_id?.toString() ?? null,
       deal: doc.deal ? { ...doc.deal, id: doc.deal.id.toString() } : null,
@@ -52,16 +50,16 @@ export async function PATCH(
   const docId = BigInt(id);
 
   const existing = await prisma.document.findUnique({ where: { id: docId } });
-  if (!existing) return NextResponse.json({ ok: false, error: "Document not found" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "Document not found" }, { status: 404 });
   if (auth.role !== "BROKER" && existing.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const data: Record<string, unknown> = {};
   if (body.status) data.status = body.status;
@@ -70,8 +68,6 @@ export async function PATCH(
   const updated = await prisma.document.update({ where: { id: docId }, data });
   await logAuditEvent("update", "document", id, auth, data);
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...updated, id: updated.id.toString(), agent_id: updated.agent_id.toString(), deal_id: updated.deal_id?.toString() ?? null },
+  return NextResponse.json({ item: { ...updated, id: updated.id.toString(), agent_id: updated.agent_id.toString(), deal_id: updated.deal_id?.toString() ?? null },
   });
 }

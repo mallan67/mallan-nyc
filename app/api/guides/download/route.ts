@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
       await sendEmail('info@mallan.nyc', `New Lead: ${guideTitle} Download`, emailBody);
     } catch (emailErr) {
-      console.error('[/api/guides/download] Email notification error (non-fatal):', emailErr);
+      console.error('[/api/guides/download] [email redacted] notification error (non-fatal):', emailErr);
     }
 
     return NextResponse.json({

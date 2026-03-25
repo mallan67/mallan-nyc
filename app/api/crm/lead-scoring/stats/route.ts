@@ -27,9 +27,7 @@ export async function GET(req: NextRequest) {
   const gradeCounts: Record<string, number> = {};
   for (const g of byGrade) gradeCounts[g.grade] = g._count.grade;
 
-  return NextResponse.json({
-    ok: true,
-    stats: {
+  return NextResponse.json({ stats: {
       total_scored: totalScored,
       avg_score: Math.round(avgScore._avg.score ?? 0),
       grade_counts: gradeCounts,

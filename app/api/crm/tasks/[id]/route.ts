@@ -64,5 +64,5 @@ export async function PATCH(
 
   await logAuditEvent("update", "follow_up_task", id, auth, { status });
 
-  return NextResponse.json({ ok: true, status: status || task.status });
+  return NextResponse.json({ status: status || task.status });
 }

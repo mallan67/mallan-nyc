@@ -90,9 +90,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    id: event.id.toString(),
+  return NextResponse.json({ id: event.id.toString(),
     created_at: event.created_at.toISOString(),
   }, { status: 201 });
 }

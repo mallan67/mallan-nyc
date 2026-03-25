@@ -573,11 +573,11 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;
-  list_price: number;
+  list_price: string;
   bedrooms_total: number | null;
   bathrooms_full: number | null;
   bathrooms_half: number | null;
-  living_area: number | null;
+  living_area: string | null;
   borough: string | null;
   neighborhood: string | null;
   city: string | null;
@@ -608,11 +608,11 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   const listingType = inferListingType(raw);
 
   // Explicit columns
-  const listPrice = Number(raw.ListPrice) || 0;
+  const listPrice = raw.ListPrice != null ? String(raw.ListPrice) : "0"; // String for Prisma Decimal precision
   const bedroomsTotal = raw.BedroomsTotal != null ? Number(raw.BedroomsTotal) : null;
   const bathroomsFull = raw.BathroomsFull != null ? Number(raw.BathroomsFull) : null;
   const bathroomsHalf = raw.BathroomsHalf != null ? Number(raw.BathroomsHalf) : null;
-  const livingArea = raw.LivingArea != null ? Number(raw.LivingArea) : null;
+  const livingArea = raw.LivingArea != null ? String(raw.LivingArea) : null; // String for Prisma Decimal precision
 
   const borough = inferBorough(raw);
   // SubdivisionName = real neighborhood (UWS, Tribeca, etc.)

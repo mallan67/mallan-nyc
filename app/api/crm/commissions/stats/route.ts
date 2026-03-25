@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   // Only broker can view other agent's P&L
   if (auth.role !== "BROKER" && agentId !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const startStr = searchParams.get("start");
@@ -24,5 +24,5 @@ export async function GET(req: NextRequest) {
 
   const pnl = await getAgentPnL(agentId, startDate, endDate);
 
-  return NextResponse.json({ ok: true, ...pnl });
+  return NextResponse.json({ ...pnl });
 }

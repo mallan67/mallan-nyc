@@ -17,14 +17,12 @@ export async function GET(
     include: { agent: { select: { id: true, full_name: true, email: true } } },
   });
 
-  if (!report) return NextResponse.json({ ok: false, error: "CMA not found" }, { status: 404 });
+  if (!report) return NextResponse.json({ error: "CMA not found" }, { status: 404 });
   if (auth.role !== "BROKER" && report.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json({
-    ok: true,
-    item: {
+  return NextResponse.json({ item: {
       ...report, id: report.id.toString(), agent_id: report.agent_id.toString(),
       estimated_value: report.estimated_value?.toString() ?? null,
       price_range_low: report.price_range_low?.toString() ?? null,
@@ -48,16 +46,16 @@ export async function PATCH(
   const reportId = BigInt(id);
 
   const existing = await prisma.cmaReport.findUnique({ where: { id: reportId } });
-  if (!existing) return NextResponse.json({ ok: false, error: "CMA not found" }, { status: 404 });
+  if (!existing) return NextResponse.json({ error: "CMA not found" }, { status: 404 });
   if (auth.role !== "BROKER" && existing.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const { status, notes } = body as { status?: string; notes?: string };
   const data: Record<string, unknown> = {};
@@ -67,9 +65,7 @@ export async function PATCH(
   const updated = await prisma.cmaReport.update({ where: { id: reportId }, data });
   await logAuditEvent("update", "cma_report", id, auth, data);
 
-  return NextResponse.json({
-    ok: true,
-    item: {
+  return NextResponse.json({ item: {
       ...updated, id: updated.id.toString(), agent_id: updated.agent_id.toString(),
       estimated_value: updated.estimated_value?.toString() ?? null,
       price_range_low: updated.price_range_low?.toString() ?? null,

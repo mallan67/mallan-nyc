@@ -8,5 +8,5 @@ export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ success: true });
 }

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ok: true, scored, durationMs: Date.now() - started });
+    return NextResponse.json({ scored, durationMs: Date.now() - started });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await prisma.auditEvent.create({
@@ -41,6 +41,6 @@ export async function GET(req: NextRequest) {
     }).catch(() => {});
 
     console.error("[cron/seller-scoring] Error:", message);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

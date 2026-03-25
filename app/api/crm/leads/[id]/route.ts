@@ -106,9 +106,7 @@ export async function PATCH(
     status: body.status || undefined,
   }, req.headers.get("x-forwarded-for") ?? undefined);
 
-  return NextResponse.json({
-    ok: true,
-    lead: {
+  return NextResponse.json({ lead: {
       id: updated.id.toString(),
       agent_id: updated.agent_id?.toString() ?? null,
       status: updated.status,

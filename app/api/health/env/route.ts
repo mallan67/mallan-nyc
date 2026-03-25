@@ -26,9 +26,7 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  return NextResponse.json({
-    ok: true,
-    env: {
+  return NextResponse.json({ env: {
       NYC_SODA_APP_TOKEN: !!process.env.NYC_SODA_APP_TOKEN,
       SOCRATA_APP_TOKEN: !!process.env.SOCRATA_APP_TOKEN,
       SODA_DATASET_DOB_VIOLATIONS: !!process.env.SODA_DATASET_DOB_VIOLATIONS,

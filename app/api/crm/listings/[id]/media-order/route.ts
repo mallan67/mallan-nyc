@@ -21,14 +21,13 @@ export async function PATCH(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { ordered_media_ids } = body as { ordered_media_ids?: string[] };
 
   if (!Array.isArray(ordered_media_ids) || ordered_media_ids.length === 0) {
-    return NextResponse.json(
-      { ok: false, error: "ordered_media_ids[] is required and must not be empty" },
+    return NextResponse.json({ error: "ordered_media_ids[] is required and must not be empty" },
       { status: 400 }
     );
   }
@@ -40,13 +39,12 @@ export async function PATCH(
   });
 
   if (!listing) {
-    return NextResponse.json({ ok: false, error: "Listing not found" }, { status: 404 });
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
   // Ownership check: agents can only edit their own listings, broker can edit any
   if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json(
-      { ok: false, error: "You can only reorder media on your own listings" },
+    return NextResponse.json({ error: "You can only reorder media on your own listings" },
       { status: 403 }
     );
   }
@@ -76,9 +74,7 @@ export async function PATCH(
     ipAddress
   );
 
-  return NextResponse.json({
-    ok: true,
-    listing_id: id,
+  return NextResponse.json({ listing_id: id,
     media_order: ordered_media_ids,
   });
 }

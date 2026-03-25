@@ -84,5 +84,5 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ ok: true, inquiries, total: inquiries.length });
+  return NextResponse.json({ inquiries, total: inquiries.length });
 }

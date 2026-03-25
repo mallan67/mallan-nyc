@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
       await sendEmail('info@mallan.nyc', `Open House RSVP: ${listingAddress} — ${formattedDate}`, emailBody);
     } catch (emailErr) {
-      console.error('[/api/open-houses/rsvp] Email notification error (non-fatal):', emailErr);
+      console.error('[/api/open-houses/rsvp] [email redacted] notification error (non-fatal):', emailErr);
     }
 
     // Send auto-response to attendee (non-fatal)

@@ -119,11 +119,11 @@ export async function POST(request: NextRequest) {
         </table>
       `.trim();
 
-      console.log('[CONTACT] Sending email notification...');
+      console.log('[CONTACT] Sending [email redacted] notification...');
       const emailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
-      console.log(`[CONTACT] Email ${emailResult.success ? 'sent' : 'failed'}:`, emailResult.messageId || emailResult.error);
+      console.log(`[CONTACT] [email redacted] ${emailResult.success ? 'sent' : 'failed'}:`, emailResult.messageId || emailResult.error);
     } catch (emailErr) {
-      console.error('[CONTACT] Email notification error (non-fatal):', emailErr);
+      console.error('[CONTACT] [email redacted] notification error (non-fatal):', emailErr);
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

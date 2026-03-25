@@ -15,10 +15,10 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const { lead_id } = body as { lead_id?: string };
-  if (!lead_id) return NextResponse.json({ ok: false, error: "lead_id is required" }, { status: 400 });
+  if (!lead_id) return NextResponse.json({ error: "lead_id is required" }, { status: 400 });
 
   const assignedTo = await autoAssignLead(BigInt(lead_id));
 
@@ -26,8 +26,6 @@ export async function POST(req: NextRequest) {
     await logAuditEvent("auto_assign", "lead", lead_id, auth, { assigned_to: assignedTo.toString() });
   }
 
-  return NextResponse.json({
-    ok: true,
-    assigned_to: assignedTo?.toString() ?? null,
+  return NextResponse.json({ assigned_to: assignedTo?.toString() ?? null,
   });
 }

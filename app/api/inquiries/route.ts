@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
       await sendEmail('info@mallan.nyc', subjectLine, emailBody);
     } catch (emailErr) {
-      console.error('[/api/inquiries] Email notification error (non-fatal):', emailErr);
+      console.error('[/api/inquiries] [email redacted] notification error (non-fatal):', emailErr);
     }
 
     // Send auto-response to the client (non-fatal)

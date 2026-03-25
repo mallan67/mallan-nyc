@@ -14,9 +14,7 @@ export async function GET(req: NextRequest) {
   const v1id = (process.env.NYC_GEOCLIENT_APP_ID || process.env.GEOCLIENT_APP_ID || "").trim() || null;
   const v1key = (process.env.NYC_GEOCLIENT_APP_KEY || process.env.GEOCLIENT_APP_KEY || "").trim() || null;
 
-  return NextResponse.json({
-    ok: true,
-    mode: k1 || k2 || kp || ks ? "v2 (subscription)" : (v1id && v1key) ? "v1 (legacy)" : "missing",
+  return NextResponse.json({ mode: k1 || k2 || kp || ks ? "v2 (subscription)" : (v1id && v1key) ? "v1 (legacy)" : "missing",
     present: {
       NYC_GEOCLIENT_SUBSCRIPTION_KEY: !!k1,
       NYC_GEOCLIENT_SUBSCRIPTION_KEY_2: !!k2,

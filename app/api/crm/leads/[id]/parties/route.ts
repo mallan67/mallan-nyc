@@ -269,5 +269,5 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ success: true });
 }

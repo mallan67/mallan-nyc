@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
     const currentSettings = await getSettings();
     const updatedSettings = { ...currentSettings, ...body };
     await saveSettings(updatedSettings);
-    return NextResponse.json({ ok: true, settings: updatedSettings });
+    return NextResponse.json({ settings: updatedSettings });
   } catch (error: any) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

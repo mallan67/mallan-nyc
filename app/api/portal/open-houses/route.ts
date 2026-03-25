@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const likedDbIds = liked.map((f) => f.listing_id);
 
   if (likedDbIds.length === 0) {
-    return NextResponse.json({ ok: true, openHouses: [] });
+    return NextResponse.json({ openHouses: [] });
   }
 
   // Get upcoming open houses for these listings
@@ -37,9 +37,7 @@ export async function GET(req: NextRequest) {
     take: 50,
   });
 
-  return NextResponse.json({
-    ok: true,
-    openHouses: openHouses.map((oh) => ({
+  return NextResponse.json({ openHouses: openHouses.map((oh) => ({
       id: oh.id.toString(),
       listing_id: oh.listing?.listing_id || null,
       address: oh.listing?.address || null,
@@ -114,5 +112,5 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ ok: true, message: "RSVP confirmed" }, { status: 201 });
+  return NextResponse.json({ message: "RSVP confirmed" }, { status: 201 });
 }

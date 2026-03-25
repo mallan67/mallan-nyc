@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     ...n, id: n.id.toString(), recipient_id: n.recipient_id.toString(),
   }));
 
-  return NextResponse.json({ ok: true, total, unread, items: serialized });
+  return NextResponse.json({ total, unread, items: serialized });
 }
 
 export async function POST(req: NextRequest) {
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const { recipient_type, recipient_id, type, title, body: notifBody, channel, data } = body as {
     recipient_type?: "agent" | "lead";
@@ -59,23 +59,21 @@ export async function POST(req: NextRequest) {
   };
 
   if (!recipient_type || !recipient_id || !type || !title || !notifBody) {
-    return NextResponse.json({ ok: false, error: "recipient_type, recipient_id, type, title, body are required" }, { status: 400 });
+    return NextResponse.json({ error: "recipient_type, recipient_id, type, title, body are required" }, { status: 400 });
   }
 
   // Only broker can send notifications to others
   if (auth.role !== "BROKER" && BigInt(recipient_id) !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Agents can only create self-notifications" }, { status: 403 });
+    return NextResponse.json({ error: "Agents can only create self-notifications" }, { status: 403 });
   }
 
   const notification = await createNotification({
     recipient_type, recipient_id: BigInt(recipient_id), channel, type, title, body: notifBody, data,
   });
 
-  if (!notification) return NextResponse.json({ ok: true, skipped: true, reason: "Notification disabled by preferences" });
+  if (!notification) return NextResponse.json({ skipped: true, reason: "Notification disabled by preferences" });
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...notification, id: notification.id.toString(), recipient_id: notification.recipient_id.toString() },
+  return NextResponse.json({ item: { ...notification, id: notification.id.toString(), recipient_id: notification.recipient_id.toString() },
   }, { status: 201 });
 }
 
@@ -94,7 +92,7 @@ export async function PATCH(req: NextRequest) {
 
   if (body.action === "mark_all_read") {
     await markAllRead("agent", auth.userId);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ success: true });
   }
 
   if (body.id) {
@@ -102,8 +100,8 @@ export async function PATCH(req: NextRequest) {
       where: { id: BigInt(body.id as string) },
       data: { read_at: new Date() },
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ success: true });
   }
 
-  return NextResponse.json({ ok: false, error: "action or id required" }, { status: 400 });
+  return NextResponse.json({ error: "action or id required" }, { status: 400 });
 }

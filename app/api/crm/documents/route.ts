@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     deal: d.deal ? { ...d.deal, id: d.deal.id.toString() } : null,
   }));
 
-  return NextResponse.json({ ok: true, total, items: serialized });
+  return NextResponse.json({ total, items: serialized });
 }
 
 export async function POST(req: NextRequest) {
@@ -52,12 +52,12 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const { deal_id, name, doc_type, file_url, file_size, mime_type, requires_signature, notes } = body as { deal_id?: string; name?: string; doc_type?: string; file_url?: string; file_size?: number; mime_type?: string; requires_signature?: boolean; notes?: string };
 
   if (!name || !doc_type || !file_url) {
-    return NextResponse.json({ ok: false, error: "name, doc_type, and file_url are required" }, { status: 400 });
+    return NextResponse.json({ error: "name, doc_type, and file_url are required" }, { status: 400 });
   }
 
   const doc = await prisma.document.create({
@@ -74,8 +74,6 @@ export async function POST(req: NextRequest) {
 
   await logAuditEvent("create", "document", doc.id.toString(), auth);
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...doc, id: doc.id.toString(), agent_id: doc.agent_id.toString(), deal_id: doc.deal_id?.toString() ?? null },
+  return NextResponse.json({ item: { ...doc, id: doc.id.toString(), agent_id: doc.agent_id.toString(), deal_id: doc.deal_id?.toString() ?? null },
   }, { status: 201 });
 }

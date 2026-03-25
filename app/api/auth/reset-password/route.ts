@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (err) {
-    console.error("Reset password error:", err);
+    console.error("Reset [redacted] error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

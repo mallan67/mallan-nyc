@@ -10,6 +10,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await requireAuth(req);
   if (isAuthError(session)) return session;
-  return NextResponse.json({ ok: true, message: "Stub — not yet implemented" });
+  return NextResponse.json({ message: "Stub — not yet implemented" });
 }
 

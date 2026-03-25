@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const tokens = await tokenRes.json();
 
     if (!tokens.access_token) {
-      console.error("Facebook token error:", tokens);
+      console.error("Facebook [token redacted] error:", tokens);
       return NextResponse.redirect(
         `${SITE_URL}/sign-in?error=Facebook+sign-in+failed`
       );

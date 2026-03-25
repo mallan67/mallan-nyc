@@ -37,5 +37,5 @@ export async function GET(req: NextRequest) {
     lead: s.lead ? { ...s.lead, id: s.lead.id.toString() } : null,
   }));
 
-  return NextResponse.json({ ok: true, total, items: serialized });
+  return NextResponse.json({ total, items: serialized });
 }

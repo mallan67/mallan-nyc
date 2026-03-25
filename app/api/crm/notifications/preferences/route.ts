@@ -13,15 +13,11 @@ export async function GET(req: NextRequest) {
   });
 
   if (!prefs) {
-    return NextResponse.json({
-      ok: true,
-      item: { new_match: true, price_drop: true, showing_updates: true, offer_updates: true, email_digest: "daily", sms_enabled: false },
+    return NextResponse.json({ item: { new_match: true, price_drop: true, showing_updates: true, offer_updates: true, email_digest: "daily", sms_enabled: false },
     });
   }
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...prefs, id: prefs.id.toString(), recipient_id: prefs.recipient_id.toString() },
+  return NextResponse.json({ item: { ...prefs, id: prefs.id.toString(), recipient_id: prefs.recipient_id.toString() },
   });
 }
 
@@ -69,8 +65,6 @@ export async function PUT(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...prefs, id: prefs.id.toString(), recipient_id: prefs.recipient_id.toString() },
+  return NextResponse.json({ item: { ...prefs, id: prefs.id.toString(), recipient_id: prefs.recipient_id.toString() },
   });
 }

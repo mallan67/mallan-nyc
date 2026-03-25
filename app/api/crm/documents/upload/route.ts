@@ -74,9 +74,7 @@ export async function POST(req: NextRequest) {
     file_size: file.size,
   });
 
-  return NextResponse.json({
-    ok: true,
-    document: {
+  return NextResponse.json({ document: {
       id: doc.id.toString(),
       name: doc.name,
       file_url: doc.file_url,

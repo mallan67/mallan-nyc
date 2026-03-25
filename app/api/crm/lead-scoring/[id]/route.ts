@@ -19,17 +19,15 @@ export async function GET(
     where: { id: leadId },
     select: { agent_id: true },
   });
-  if (!lead) return NextResponse.json({ ok: false, error: "Lead not found" }, { status: 404 });
+  if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const score = await prisma.leadScore.findUnique({ where: { lead_id: leadId } });
-  if (!score) return NextResponse.json({ ok: false, error: "Score not computed yet" }, { status: 404 });
+  if (!score) return NextResponse.json({ error: "Score not computed yet" }, { status: 404 });
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...score, id: score.id.toString(), lead_id: score.lead_id.toString() },
+  return NextResponse.json({ item: { ...score, id: score.id.toString(), lead_id: score.lead_id.toString() },
   });
 }
 
@@ -50,16 +48,14 @@ export async function POST(
     where: { id: leadId },
     select: { agent_id: true },
   });
-  if (!lead) return NextResponse.json({ ok: false, error: "Lead not found" }, { status: 404 });
+  if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const result = await scoreLeadById(leadId);
   await logAuditEvent("rescore", "lead_score", id, auth);
 
-  return NextResponse.json({
-    ok: true,
-    item: { ...result, lead_id: result.lead_id.toString() },
+  return NextResponse.json({ item: { ...result, lead_id: result.lead_id.toString() },
   });
 }
