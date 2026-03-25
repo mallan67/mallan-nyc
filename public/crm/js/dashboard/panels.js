@@ -2108,7 +2108,7 @@ var Panels = (function () {
     }
 
     // Save lease
-    MallanAPI._fetch('/api/crm/active-leases', {
+    MallanAPI._fetch('/api/crm/rentals/leases', {
       method: 'POST',
       body: JSON.stringify(leaseData),
     }).then(function(leaseResp) {
