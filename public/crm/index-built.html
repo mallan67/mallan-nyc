@@ -21279,7 +21279,7 @@ function parseBudgetValue(td) {
 // ═══ js/render/grid-column-defs.js ═══
         var gridColumnDefs = {
             // Core fields — each render includes data-reso-field/data-reso-value attributes
-            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab('' + l.id + '')">' + addr + '</span>'; } },
+            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(\' + l.id + \')">' + addr + '</span>'; } },
             unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
             price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
             totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
@@ -21412,8 +21412,8 @@ function parseBudgetValue(td) {
                             if (!listing.permissions) listing.permissions = {};
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
-                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab('' + listing.id + ''); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing('' + listing.id + ''); }" style="cursor:pointer;">';
-                            tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection('' + listing.id + '')"></td>';
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(\' + listing.id + \'); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(\' + listing.id + \'); }" style="cursor:pointer;">';
+                            tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(\' + listing.id + \')"></td>';
                             tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
                             if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
                             if (listing.newListing) tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-green-100 text-green-600 rounded text-[9px] font-bold">NL</span>';
@@ -25165,10 +25165,19 @@ function openPrintableWindow(html, options) {
                             needPhotos.forEach(function(l) {
                                 var lid = l.lid || l.id;
                                 if (media[lid] && media[lid].length > 0) {
-                                    l.images = media[lid].filter(function(m) { return m.mediaType === 'Photo'; }).sort(function(a, b) { return a.order - b.order; });
-                                    l.photoCount = l.images.length;
+                                    // Keep ALL media (photos + floor plans), map properties for render functions
+                                    l.images = media[lid].map(function(m) {
+                                        return {
+                                            url: m.url, mediaType: m.mediaType,
+                                            mediaCategory: m.mediaType,
+                                            imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
+                                            order: m.order, caption: m.caption || '',
+                                            isPrimary: m.order === -1 || m.order === 0
+                                        };
+                                    }).sort(function(a, b) { return a.order - b.order; });
+                                    l.photoCount = l.images.filter(function(m) { return m.mediaCategory !== 'FloorPlan'; }).length;
                                 } else if (photos[lid]) {
-                                    l.images = [{ url: photos[lid], isPrimary: true }];
+                                    l.images = [{ url: photos[lid], isPrimary: true, mediaType: 'Photo', mediaCategory: 'Photo', imageOf: 'Photo' }];
                                     if (!l.photoCount) l.photoCount = 1;
                                 }
                             });
@@ -29637,7 +29646,7 @@ function emailCurrentCalc() {
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
                 var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
-                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab('' + l.id + '')">'
+                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(\' + l.id + \')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
                     + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'
