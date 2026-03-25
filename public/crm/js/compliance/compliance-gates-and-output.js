@@ -3176,10 +3176,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('agentBadgeRole').textContent = LOGGED_IN_AGENT.role === 'broker' ? 'Broker' : 'Agent';
     }
     // Run REBNY Test Suite silently on page load (badge only — no modal)
-    // Broker can click badge to see details; agents don't see it
-    if (typeof LOGGED_IN_AGENT !== 'undefined' && LOGGED_IN_AGENT.role === 'broker') {
-      REBNYTestSuite({ verbose: false, context: 'pageload' });
-    }
+    REBNYTestSuite({ verbose: false, context: 'pageload' });
 });
 
 document.addEventListener('DOMContentLoaded', function() {
