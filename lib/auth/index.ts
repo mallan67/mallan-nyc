@@ -24,3 +24,15 @@ export {
   isPortalTokenExpired,
   PORTAL_TOKEN_TTL_MS,
 } from "./portal-token";
+export {
+  generateTotpSecret,
+  verifyTotpCode,
+  encryptSecret,
+  decryptSecret,
+  generateBackupCodes,
+  verifyBackupCode,
+  findBackupCodeIndex,
+  generateQrDataUrl,
+  MFA_SESSION_TTL_MS,
+  MFA_MAX_ATTEMPTS,
+} from "./mfa";
