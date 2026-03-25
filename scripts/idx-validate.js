@@ -402,13 +402,13 @@ function section7() {
     let m;
     const staticRx = /(?:fetch|_fetch)\s*\(\s*['"]([^'"$]+?)['"]/g;
     while ((m = staticRx.exec(content)) !== null) {
-      const url = m[1].replace(/\?.+$/, '');
+      const url = m[1].replace(/\?.*$/, '');
       if (url.startsWith('/api/')) fetchCalls.push({ file, url, line: content.substring(0, m.index).split('\n').length });
     }
     // Template fetches
     const tmplRx = /(?:fetch|_fetch)\s*\(\s*`([^`]+?)`/g;
     while ((m = tmplRx.exec(content)) !== null) {
-      let url = m[1].replace(/\?.+$/, '').replace(/\$\{[^}]+\}/g, '[param]');
+      let url = m[1].replace(/\?.*$/, '').replace(/\$\{[^}]+\}/g, '[param]');
       if (url.startsWith('/api/')) fetchCalls.push({ file, url, line: content.substring(0, m.index).split('\n').length });
     }
   }

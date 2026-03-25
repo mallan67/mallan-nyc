@@ -1236,7 +1236,7 @@ var RentalsCRM = (function () {
     var data = {};
     new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
     if (data.monthly_rent) data.monthly_rent = Number(data.monthly_rent);
-    MallanAPI._fetch('/api/crm/rentals/leases', { method: 'POST', body: JSON.stringify(data) })
+    MallanAPI._fetch('/api/crm/active-leases', { method: 'POST', body: JSON.stringify(data) })
       .then(function() { CRM.toast('Lease added', 'success'); CRM.closeModal(); Router.navigate('/lease-tracker'); })
       .catch(function(err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
