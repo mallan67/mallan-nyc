@@ -49,6 +49,11 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* ── Header nav tabs ── */
+.nav-tab.active { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
+.nav-tab:not(.active) { color: #9ca3af; }
+.nav-tab:not(.active):hover { color: #fff; background: rgba(255,255,255,0.1); }
+
 /* ── Page transition animations ── */
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(8px); }
@@ -3241,8 +3246,7 @@ function toggleSection(header) {
 <!-- ═══ html/nav.html ═══ -->
 <!-- HEADER / NAV -->
 <header class="bg-[#1a1a1a] text-white sticky top-0 z-50">
-    <!-- General Search Mode Nav -->
-    <div id="generalNavBar" class="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+    <div id="generalNavBar" class="px-4 sm:px-6 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3 flex-shrink-0">
             <div class="text-lg sm:text-xl font-bold tracking-wider" style="color: #C4A052;">MALLAN</div>
             <a href="/crm/dashboard" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md bg-white/10 text-gray-300 hover:text-white hover:bg-white/20 transition-all flex items-center gap-1.5" title="Back to CRM Dashboard">
@@ -3250,25 +3254,33 @@ function toggleSection(header) {
                 <span class="hidden sm:inline">CRM</span>
             </a>
         </div>
-        <nav class="flex gap-1.5 sm:gap-2 mx-3">
-            <button onclick="showSearchSection('main')" id="searchNav-main" class="px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg bg-white/15 text-white flex-shrink-0 flex items-center gap-1.5">
-                <i class="fas fa-search text-xs"></i>
-                <span class="hidden sm:inline">Search</span>
+        <nav class="flex gap-1 overflow-x-auto mx-3 flex-1 justify-center" style="scrollbar-width:none;-ms-overflow-style:none">
+            <button onclick="toggleSearchTab('sale')" id="navSales" class="nav-tab px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg bg-white/15 text-white flex-shrink-0 flex items-center gap-1.5">
+                <i class="fas fa-home text-xs hidden sm:inline"></i>Sales
             </button>
-            <button onclick="showSearchSection('manage')" id="searchNav-manage" class="px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex-shrink-0 flex items-center gap-1.5">
-                <i class="fas fa-building text-xs"></i>
-                <span class="hidden sm:inline">Manage</span>
+            <button onclick="toggleSearchTab('rent')" id="navRentals" class="nav-tab px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex-shrink-0 flex items-center gap-1.5">
+                <i class="fas fa-building text-xs hidden sm:inline"></i>Rentals
+            </button>
+            <button onclick="toggleSearchTab('building')" id="navBuildings" class="nav-tab px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex-shrink-0 flex items-center gap-1.5">
+                <i class="fas fa-city text-xs hidden sm:inline"></i>Buildings
+            </button>
+            <button onclick="toggleSearchTab('cma')" id="navCMA" class="nav-tab px-3 sm:px-4 py-2 text-sm font-semibold rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex-shrink-0 flex items-center gap-1.5">
+                <i class="fas fa-chart-bar text-xs hidden sm:inline"></i>CMA
             </button>
         </nav>
-        <div id="agentBadge" class="hidden sm:flex items-center gap-2 text-xs flex-shrink-0">
-            <div class="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-[10px] font-bold" id="agentBadgeInitials">--</div>
-            <div class="text-gray-400"><span id="agentBadgeName" class="text-white font-medium">--</span> <span class="text-gray-500">&bull;</span> <span id="agentBadgeRole" class="text-amber-400">Agent</span></div>
-            <button onclick="openEmailSettings()" class="ml-2 w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-amber-400 transition-all" title="Email Settings">
-                <i class="fas fa-cog text-xs"></i>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <button onclick="showSearchSection('manage')" id="navManage" class="px-3 py-2 text-sm font-semibold rounded-lg text-gray-300 hover:text-white hover:bg-white/10 flex items-center gap-1.5">
+                <i class="fas fa-briefcase text-xs"></i><span class="hidden sm:inline ml-1">Manage</span>
             </button>
+            <div id="agentBadge" class="hidden sm:flex items-center gap-2 text-xs flex-shrink-0">
+                <div class="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-[10px] font-bold" id="agentBadgeInitials">--</div>
+                <div class="text-gray-400"><span id="agentBadgeName" class="text-white font-medium">--</span> <span class="text-gray-500">&bull;</span> <span id="agentBadgeRole" class="text-amber-400">Agent</span></div>
+                <button onclick="openEmailSettings()" class="ml-2 w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-amber-400 transition-all" title="Email Settings">
+                    <i class="fas fa-cog text-xs"></i>
+                </button>
+            </div>
         </div>
     </div>
-
 </header>
 
 <!-- ═══ html/search-form-and-results.html ═══ -->
@@ -3313,7 +3325,7 @@ function toggleSection(header) {
                     </div>
 
                     <!-- General Search / Comparable Reports Tabs -->
-                    <div id="searchTypeTabs" class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden">
+                    <div id="searchTypeTabs" class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden" style="display:none">
                         <div class="flex">
                             <button id="btnGeneralSearch" class="flex-1 px-6 py-4 text-sm font-bold tracking-wide text-center border-b-3 border-blue-600 text-blue-700 bg-white" onclick="toggleSearchType('general')">
                                 <i class="fas fa-search mr-1.5 text-sm"></i>GENERAL SEARCH
@@ -3329,8 +3341,8 @@ function toggleSection(header) {
 
                     <!-- Sales / Rentals / Buildings + Actions - single unified bar -->
                     <div class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden">
-                        <!-- Top row: type tabs + defaults -->
-                        <div class="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100">
+                        <!-- Top row: type tabs + defaults (HIDDEN — now in header nav) -->
+                        <div class="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100" style="display:none">
                             <div class="flex gap-1.5">
                                 <button id="btnSale" class="px-4 py-1.5 bg-gray-900 text-white rounded-md text-xs font-bold tracking-wide" onclick="toggleSearchTab('sale')">SALES</button>
                                 <button id="btnRent" class="px-4 py-1.5 bg-white text-gray-500 border border-gray-200 rounded-md text-xs font-bold tracking-wide hover:bg-gray-50 hover:text-gray-700" onclick="toggleSearchTab('rent')">RENTALS</button>
@@ -11114,6 +11126,18 @@ function toggleSection(header) {
 
             </div>
 
+<!-- CMA Placeholder (Sub-Project 2 will replace this) -->
+<div id="cmaSection" style="display:none" class="p-6">
+    <div class="bg-white rounded-xl shadow-sm border p-12 text-center">
+        <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-chart-bar text-2xl text-blue-500"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-700 mb-2">Comparative Market Analysis</h2>
+        <p class="text-gray-500 text-sm mb-4">Generate CMA reports for sales and rentals with comp analysis, pricing tiers, and appraisal-grade detail.</p>
+        <p class="text-gray-400 text-xs">Coming soon — this will include comp search by area or building, summary cards, segment analysis by neighborhood, and charts.</p>
+    </div>
+</div>
+
 <!-- ═══ html/my-searches.html ═══ -->
 <!-- SECTION: MY SEARCHES -->
 <div id="section-my" class="p-6" style="display:none">
@@ -14242,23 +14266,37 @@ function showSearchSection(section) {
         var el = document.getElementById('section-' + s);
         if (el) el.style.display = 'none';
     });
+    // Also hide CMA section when switching sections
+    var cmaEl = document.getElementById('cmaSection');
+    if (cmaEl) cmaEl.style.display = 'none';
+
     document.getElementById('section-' + section).style.display = 'block';
     // Ensure general nav is shown when switching general tabs
     document.getElementById('generalNavBar').style.display = '';
-    // Update active state on the nav buttons
-    ['main','manage'].forEach(function(s) {
-        var btn = document.getElementById('searchNav-' + s);
-        if (!btn) return;
-        if (s === section) {
-            btn.classList.add('bg-white/15');
-            btn.classList.remove('bg-white/10', 'text-gray-300', 'hover:bg-white/10');
-            btn.classList.add('text-white');
-        } else {
-            btn.classList.remove('bg-white/15', 'bg-white/10');
-            btn.classList.add('text-gray-300', 'hover:bg-white/10');
-            btn.classList.remove('text-white');
+
+    // Update header nav active states
+    var navManage = document.getElementById('navManage');
+    if (section === 'manage') {
+        // Manage is active — deactivate all search tabs
+        document.querySelectorAll('.nav-tab').forEach(function(btn) { btn.classList.remove('active'); });
+        if (navManage) {
+            navManage.classList.add('bg-white/15', 'text-white');
+            navManage.classList.remove('text-gray-300');
         }
-    });
+    } else {
+        // Search section — restore the correct search tab highlight
+        if (navManage) {
+            navManage.classList.remove('bg-white/15', 'text-white');
+            navManage.classList.add('text-gray-300');
+        }
+        // Re-activate the current search tab in the header
+        var _tabToNavId = { sale: 'navSales', rent: 'navRentals', building: 'navBuildings', cma: 'navCMA' };
+        var activeTab = currentSearchTab || 'sale';
+        document.querySelectorAll('.nav-tab').forEach(function(btn) {
+            btn.classList.toggle('active', btn.id === _tabToNavId[activeTab]);
+        });
+    }
+
     if (section === 'manage') renderManageSection(currentManageMode);
 
     // Update hash for section navigation (skip main — handled by performSearch/backToSearch)
@@ -18260,6 +18298,42 @@ function manageShowToast(msg) {
         function toggleSearchTab(tab) {
             currentSearchTab = tab;
             try { sessionStorage.setItem('searchTab', tab); } catch(e) {}
+
+            // ── Header nav active states (direct map — no string concat) ──
+            var _tabToNavId = { sale: 'navSales', rent: 'navRentals', building: 'navBuildings', cma: 'navCMA' };
+            document.querySelectorAll('.nav-tab').forEach(function(btn) {
+                btn.classList.toggle('active', btn.id === _tabToNavId[tab]);
+            });
+            // De-highlight Manage button when a search tab is active
+            var _navManage = document.getElementById('navManage');
+            if (_navManage) {
+                _navManage.classList.remove('bg-white/15', 'text-white');
+                _navManage.classList.add('text-gray-300');
+            }
+
+            // ── When switching to a search tab, ensure section-main is visible ──
+            var sectionMain = document.getElementById('section-main');
+            if (sectionMain && sectionMain.style.display === 'none') {
+                // Hide manage section and show main
+                var sectionManage = document.getElementById('section-manage');
+                if (sectionManage) sectionManage.style.display = 'none';
+                sectionMain.style.display = 'block';
+            }
+
+            // ── CMA routing ──
+            if (tab === 'cma') {
+                document.getElementById('searchFormContainer').style.display = 'none';
+                var resultsSection = document.getElementById('searchResultsSection');
+                if (resultsSection) resultsSection.style.display = 'none';
+                var cmaEl = document.getElementById('cmaSection');
+                if (cmaEl) cmaEl.style.display = '';
+                return;
+            }
+            // For non-CMA tabs, show search form, hide CMA
+            document.getElementById('searchFormContainer').style.display = '';
+            var cmaEl = document.getElementById('cmaSection');
+            if (cmaEl) cmaEl.style.display = 'none';
+
             var btnSale = document.getElementById('btnSale');
             var btnRent = document.getElementById('btnRent');
             var btnBuilding = document.getElementById('btnBuilding');
