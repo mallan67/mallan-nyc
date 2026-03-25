@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-03-25T07:31:26.668Z",
-  "pass": 849,
+  "timestamp": "2026-03-25T09:02:08.419Z",
+  "pass": 839,
   "critical": 0,
-  "warning": 0,
-  "info": 37,
+  "warning": 3,
+  "info": 40,
   "sections": [
     {
       "section": 1,
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 139,
+      "pass": 140,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 91,
+      "pass": 89,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 128,
+      "pass": 126,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -135,9 +135,9 @@
       "section": 15,
       "title": "PII / Logging Redaction",
       "category": "Auth & Security",
-      "pass": 2,
+      "pass": 1,
       "critical": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 0
     },
     {
@@ -225,10 +225,10 @@
       "section": 25,
       "title": "Unused npm Dependencies",
       "category": "Bloat & Hygiene",
-      "pass": 26,
+      "pass": 24,
       "critical": 0,
       "warning": 0,
-      "info": 10
+      "info": 12
     },
     {
       "section": 26,
@@ -306,10 +306,10 @@
       "section": 34,
       "title": "MFA Enforcement",
       "category": "Auth & Security",
-      "pass": 5,
+      "pass": 1,
       "critical": 0,
-      "warning": 0,
-      "info": 0
+      "warning": 2,
+      "info": 1
     },
     {
       "section": 35,

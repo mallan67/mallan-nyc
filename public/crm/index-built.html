@@ -3377,9 +3377,9 @@ function toggleSection(header) {
                 <div id="searchBasicMode" class="bg-white rounded-xl shadow-sm border p-5 overflow-hidden">
 
                     <!-- Row 1: Quick Search, Price/Rooms, Status -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_220px] gap-4 mb-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_220px] gap-4 mb-5" data-show-on="sale,rent,building">
                         <!-- Status (visually last on desktop via order) -->
-                        <div class="border rounded-lg p-3 overflow-hidden order-3">
+                        <div class="border rounded-lg p-3 overflow-hidden order-3" data-show-on="sale,rent,building">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Status</p>
                             <div class="text-xs space-y-1">
                                 <!-- Active -->
@@ -3479,11 +3479,11 @@ function toggleSection(header) {
                         </div>
 
                         <!-- Price / Rooms -->
-                        <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-2">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Price / Rooms</p>
+                        <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-2" data-show-on="sale,rent">
+                            <p class="text-xs font-semibold text-gray-700 mb-2" id="priceSectionLabel">Price / Rooms</p>
                             <div class="space-y-2">
                                 <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinPrice">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMinPrice">
                                         <option value="">Min Price</option>
                                         <option value="custom">Custom</option>
                                         <option value="100000">$100K</option>
@@ -3517,7 +3517,7 @@ function toggleSection(header) {
                                         <option value="50000000">$50M</option>
                                     </select>
                                     <span class="text-gray-400 text-xs flex-shrink-0">—</span>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMaxPrice">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMaxPrice">
                                         <option value="">Max Price</option>
                                         <option value="custom">Custom</option>
                                         <option value="250000">$250K</option>
@@ -3548,13 +3548,13 @@ function toggleSection(header) {
                                     </select>
                                 </div>
                                 <!-- Custom price inputs (shown when "Custom" selected) -->
-                                <div id="saleCustomPriceRow" class="hidden flex gap-1 items-center">
-                                    <input type="number" id="saleMinPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Min" min="0" step="1">
+                                <div id="searchCustomPriceRow" class="hidden flex gap-1 items-center">
+                                    <input type="number" id="searchMinPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Min" min="0" step="1">
                                     <span class="text-gray-400 text-xs flex-shrink-0">—</span>
-                                    <input type="number" id="saleMaxPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Max" min="0" step="1">
+                                    <input type="number" id="searchMaxPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Max" min="0" step="1">
                                 </div>
                                 <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinBeds">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMinBeds">
                                         <option value="">Min Beds</option>
                                         <option value="custom">Custom</option>
                                         <option value="0">Studio</option>
@@ -3567,7 +3567,7 @@ function toggleSection(header) {
                                         <option value="7">7 BR</option>
                                         <option value="8">8+ BR</option>
                                     </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMaxBeds">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMaxBeds">
                                         <option value="">Max Beds</option>
                                         <option value="custom">Custom</option>
                                         <option value="0">Studio</option>
@@ -3582,7 +3582,7 @@ function toggleSection(header) {
                                     </select>
                                 </div>
                                 <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinBaths">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMinBaths">
                                         <option value="">Min Baths</option>
                                         <option value="custom">Custom</option>
                                         <option value="1">1 BA</option>
@@ -3596,7 +3596,7 @@ function toggleSection(header) {
                                         <option value="5">5 BA</option>
                                         <option value="6">6+ BA</option>
                                     </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMaxBaths">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMaxBaths">
                                         <option value="">Max Baths</option>
                                         <option value="custom">Custom</option>
                                         <option value="1">1 BA</option>
@@ -3612,7 +3612,7 @@ function toggleSection(header) {
                                     </select>
                                 </div>
                                 <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinRooms">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMinRooms">
                                         <option value="">Min Rooms</option>
                                         <option value="custom">Custom</option>
                                         <option value="1">1 Room</option>
@@ -3627,7 +3627,7 @@ function toggleSection(header) {
                                         <option value="10">10 Rooms</option>
                                         <option value="12">12+ Rooms</option>
                                     </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMaxRooms">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMaxRooms">
                                         <option value="">Max Rooms</option>
                                         <option value="custom">Custom</option>
                                         <option value="1">1 Room</option>
@@ -3645,7 +3645,7 @@ function toggleSection(header) {
                                 </div>
                                 <!-- SqFt Range -->
                                 <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMinSqft">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMinSqft">
                                         <option value="">Min SqFt</option>
                                         <option value="custom">Custom</option>
                                         <option value="300">300 SF</option>
@@ -3667,7 +3667,7 @@ function toggleSection(header) {
                                         <option value="7500">7,500 SF</option>
                                         <option value="10000">10,000 SF</option>
                                     </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="saleMaxSqft">
+                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMaxSqft">
                                         <option value="">Max SqFt</option>
                                         <option value="custom">Custom</option>
                                         <option value="500">500 SF</option>
@@ -3737,12 +3737,12 @@ function toggleSection(header) {
                         </div>
 
                         <!-- Quick Search -->
-                        <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
+                        <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1" data-show-on="sale,rent,building">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
                             <!-- 1. RLS ID / Web ID / Listing # + Zip -->
                             <div class="flex items-end gap-2 mb-2">
                                 <div class="flex-1">
-                                    <input type="text" id="saleQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
+                                    <input type="text" id="searchQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
                                 </div>
                                 <div class="w-[72px]">
                                     <input type="text" id="saleQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
@@ -3844,7 +3844,7 @@ function toggleSection(header) {
                     </div>
 
                     <!-- Row 2: Listing Type, Ownership, Attended Lobby, Building Features -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-show-on="sale,rent,building">
                         <!-- Listing Type -->
                         <div class="border rounded-lg p-3 overflow-hidden min-w-0">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Listing Type
@@ -4010,7 +4010,7 @@ function toggleSection(header) {
                     </div>
 
                     <!-- Row 3: Building Age/Size, Building Style/Period, Building Allows, Building Does Not Allow -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4" data-show-on="sale,rent,building">
 
                         <!-- Building Age/Size -->
                         <div class="border rounded-lg p-3">
@@ -4190,7 +4190,7 @@ function toggleSection(header) {
                     </div>
 
                     <!-- Row 4: Building Financing, Resale/New Dev, Keyword, Management + Save -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4" data-show-on="sale,rent,building">
 
                         <!-- Building Financing -->
                         <div class="border rounded-lg p-3">
@@ -18294,6 +18294,38 @@ function manageShowToast(msg) {
         // Track current search tab mode globally (sale, rent, building)
         var currentSearchTab = 'sale';
 
+        // ── Legacy ID alias layer (saved search compatibility) ──
+        var _legacyIdMap = {
+            // Sale → unified
+            'saleMinPrice': 'searchMinPrice', 'saleMaxPrice': 'searchMaxPrice',
+            'saleMinBeds': 'searchMinBeds', 'saleMaxBeds': 'searchMaxBeds',
+            'saleMinBaths': 'searchMinBaths', 'saleMaxBaths': 'searchMaxBaths',
+            'saleMinRooms': 'searchMinRooms', 'saleMaxRooms': 'searchMaxRooms',
+            'saleMinSqft': 'searchMinSqft', 'saleMaxSqft': 'searchMaxSqft',
+            'saleQuickRls': 'searchQuickRls', 'saleQuickZip': 'searchQuickZip',
+            'saleQuickUnit': 'searchQuickUnit', 'saleSearchAddress': 'searchAddress',
+            'saleNeighborhoodInput': 'searchNeighborhoodInput',
+            'saleKeywordSearch': 'searchKeyword', 'saleManagementCompany': 'searchManagementCompany',
+            // Rental → unified
+            'rentalMinRent': 'searchMinPrice', 'rentalMaxRent': 'searchMaxPrice',
+            'rentalMinBeds': 'searchMinBeds', 'rentalMaxBeds': 'searchMaxBeds',
+            'rentalMinBaths': 'searchMinBaths', 'rentalMaxBaths': 'searchMaxBaths',
+            'rentalMinRooms': 'searchMinRooms', 'rentalMaxRooms': 'searchMaxRooms',
+            'rentalMinSqft': 'searchMinSqft', 'rentalMaxSqft': 'searchMaxSqft',
+            'rentalQuickRls': 'searchQuickRls', 'rentalQuickZip': 'searchQuickZip',
+            'rentalQuickUnit': 'searchQuickUnit', 'rentalSearchAddress': 'searchAddress',
+            'rentalNeighborhoodInput': 'searchNeighborhoodInput',
+            'rentalKeywordSearch': 'searchKeyword', 'rentalManagementCompany': 'searchManagementCompany',
+            // Building → unified
+            'buildingQuickRls': 'searchQuickRls', 'buildingQuickZip': 'searchQuickZip',
+            'buildingQuickUnit': 'searchQuickUnit', 'buildingSearchAddress': 'searchAddress',
+            'buildingNeighborhoodInput': 'searchNeighborhoodInput',
+            'buildingKeywordSearch': 'searchKeyword', 'buildingManagementCompany': 'searchManagementCompany'
+        };
+        function getFormEl(id) {
+            return document.getElementById(id) || document.getElementById(_legacyIdMap[id] || '');
+        }
+
         // New unified function for switching between Sales, Rentals, and Buildings tabs
         function toggleSearchTab(tab) {
             currentSearchTab = tab;
@@ -18319,6 +18351,16 @@ function manageShowToast(msg) {
                 if (sectionManage) sectionManage.style.display = 'none';
                 sectionMain.style.display = 'block';
             }
+
+            // ── data-show-on visibility toggle ──
+            document.querySelectorAll('[data-show-on]').forEach(function(el) {
+                var tabs = el.dataset.showOn.split(',');
+                el.style.display = tabs.indexOf(tab) > -1 ? '' : 'none';
+            });
+
+            // ── Dynamic price label ──
+            var priceLabel = document.getElementById('priceSectionLabel');
+            if (priceLabel) priceLabel.textContent = tab === 'rent' ? 'Monthly Rent / Rooms' : 'Price / Rooms';
 
             // ── CMA routing ──
             if (tab === 'cma') {

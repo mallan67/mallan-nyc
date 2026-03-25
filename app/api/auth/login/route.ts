@@ -79,8 +79,7 @@ export async function POST(req: NextRequest) {
           // Send code via email (MFA_EMAIL overrides agent email to avoid M365 same-mailbox issue)
           const mfaEmail = process.env.MFA_EMAIL || agent.email;
           const agentName = agent.first_name || 'there';
-          const emailResult = await sendOtpEmail(mfaEmail, code, agentName);
-          console.log('[MFA] Email send result:', { to: mfaEmail, success: emailResult });
+          await sendOtpEmail(mfaEmail, code, agentName);
 
           // Also send via SMS if phone is set + Twilio configured
           if (agent.phone) {
@@ -90,8 +89,6 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({
             mfa_required: true,
             mfa_session: mfaToken,
-            _debug_email_sent: emailResult,
-            _debug_email_to: mfaEmail,
           });
         }
 
