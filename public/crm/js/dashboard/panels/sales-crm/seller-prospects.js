@@ -115,9 +115,74 @@ var SellerProspects = (function () {
     if (_s.filter.source) qs += '&source=' + encodeURIComponent(_s.filter.source);
     qs += '&limit=50';
 
-    return MallanAPI._fetch('/api/crm/sales/prospects' + qs).then(function (data) {
-      _s.data = data.prospects || [];
-      _s.total = data.total || _s.data.length;
+    // Fetch seller prospects + buyer/tenant/investor clients (assigned to this agent)
+    var typeFilter = _s.filter.type || 'all';
+    var sellerPromise = (typeFilter === 'all' || typeFilter === 'seller')
+      ? MallanAPI._fetch('/api/crm/sales/prospects' + qs) : Promise.resolve({ prospects: [], total: 0 });
+    var clientPromise = (typeFilter === 'all' || typeFilter !== 'seller')
+      ? MallanAPI._fetch('/api/crm/clients?limit=200&status=active,new,contacted,nurturing' +
+          (typeFilter !== 'all' ? '&role=' + typeFilter : '') +
+          (_s.search ? '&search=' + encodeURIComponent(_s.search) : ''))
+      : Promise.resolve({ clients: [] });
+
+    return Promise.all([sellerPromise, clientPromise]).then(function (results) {
+      var sellers = (results[0].prospects || []).map(function (p) {
+        p._prospect_type = 'seller';
+        p._display_name = p.owner_name || p.address || '-';
+        p._display_address = p.address || '';
+        return p;
+      });
+
+      // Normalize client leads to match prospect table shape
+      var clients = (results[1].clients || []).filter(function (cl) {
+        // Only show non-seller roles (sellers are in SellerLead)
+        var roles = cl.roles || [];
+        if (typeFilter !== 'all') return roles.indexOf(typeFilter) >= 0;
+        return roles.indexOf('buyer') >= 0 || roles.indexOf('renter') >= 0 ||
+               roles.indexOf('tenant') >= 0 || roles.indexOf('investor') >= 0;
+      }).map(function (cl) {
+        var roles = cl.roles || [];
+        var type = roles.indexOf('buyer') >= 0 ? 'buyer' :
+                   roles.indexOf('investor') >= 0 ? 'investor' :
+                   roles.indexOf('renter') >= 0 || roles.indexOf('tenant') >= 0 ? 'tenant' : 'client';
+        return {
+          id: cl.id,
+          _prospect_type: type,
+          _display_name: ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.name || cl.email || '-',
+          _display_address: cl.property_address || '',
+          _is_client_lead: true,
+          owner_name: ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.name,
+          owner_email: cl.email,
+          owner_phone: cl.phone,
+          address: cl.property_address || '',
+          unit: cl.unit_number || '',
+          borough: cl.borough || '',
+          status: cl.pipeline_stage || cl.status || 'new',
+          source: cl.source || '',
+          last_contacted_at: cl.last_contacted_at,
+          next_follow_up: cl.next_follow_up,
+          score_grade: null,
+          readiness_score: cl.buyer_potential || cl.lead_score?.score || 0,
+          entity_name: cl.entity_name,
+          entity_type: cl.entity_type,
+          created_at: cl.created_at,
+          updated_at: cl.updated_at,
+        };
+      });
+
+      // Merge: if filtering to seller only, show sellers; otherwise combine
+      if (typeFilter === 'seller') {
+        _s.data = sellers;
+      } else if (typeFilter !== 'all') {
+        _s.data = clients;
+      } else {
+        _s.data = sellers.concat(clients);
+      }
+      _s.total = _s.data.length;
+
+      // Count by type for filter tabs
+      _s.typeCounts = { all: _s.data.length, seller: sellers.length, buyer: 0, tenant: 0, investor: 0 };
+      clients.forEach(function (cl) { if (_s.typeCounts[cl._prospect_type] != null) _s.typeCounts[cl._prospect_type]++; });
     });
   }
 
@@ -138,13 +203,33 @@ var SellerProspects = (function () {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
 
-    var h = _subnav('prospects');
+    var h = '';
     h += _kpi([
       { icon: 'fa-crosshairs', label: 'Total Prospects', value: total, fg: '#3B82F6', bg: '#EFF6FF' },
       { icon: 'fa-fire', label: 'Hot Prospects', value: hot, fg: '#EF4444', bg: '#FEF2F2' },
       { icon: 'fa-clock', label: 'Follow-Up Due', value: followUpDue, fg: '#F59E0B', bg: '#FFFBEB' },
       { icon: 'fa-check-circle', label: 'Converted (Month)', value: convertedMonth, fg: '#059669', bg: '#ECFDF5' },
     ]);
+
+    // Type filter tabs
+    var tc = _s.typeCounts || { all: total, seller: total, buyer: 0, tenant: 0, investor: 0 };
+    var currentType = _s.filter.type || 'all';
+    var typeTabData = [
+      { key: 'all', label: 'All', count: tc.all },
+      { key: 'seller', label: 'Sellers', count: tc.seller },
+      { key: 'buyer', label: 'Buyers', count: tc.buyer },
+      { key: 'tenant', label: 'Tenants', count: tc.tenant },
+      { key: 'investor', label: 'Investors', count: tc.investor },
+    ];
+    h += '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">';
+    typeTabData.forEach(function (t) {
+      var isActive = currentType === t.key;
+      h += '<button style="padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ' +
+        (isActive ? '#B8860B' : '#D1D5DB') + ';background:' + (isActive ? '#B8860B' : '#fff') + ';color:' + (isActive ? '#fff' : '#6B7280') +
+        ';" onclick="SellerProspects._filterType(\'' + t.key + '\')">' + E(t.label) +
+        (t.count > 0 ? ' <span style="opacity:0.7;">(' + t.count + ')</span>' : '') + '</button>';
+    });
+    h += '</div>';
 
     h += FilterBar.render({
       id: 'prospects',
@@ -166,13 +251,19 @@ var SellerProspects = (function () {
     h += ActivityTable.render({
       id: 'prospects_tbl',
       columns: [
-        { key: 'owner_name', label: 'Seller', render: function (r) {
-          var name = E(r.owner_name || '-');
-          var addr = E(r.address || '');
+        { key: 'owner_name', label: 'Name', render: function (r) {
+          var name = E(r._display_name || r.owner_name || '-');
+          var addr = E(r._display_address || r.address || '');
           var unit = r.unit ? ' #' + E(r.unit) : '';
           var entity = r.entity_name ? '<div class="text-[10px] text-purple-600 font-bold mt-0.5">' + E(r.entity_type || 'Entity') + ': ' + E(r.entity_name) + '</div>' : '';
           return '<div><div class="font-semibold text-gray-900">' + name + '</div>' +
-            '<div class="text-[11px] text-gray-500 mt-0.5">' + addr + unit + '</div>' + entity + '</div>';
+            (addr ? '<div class="text-[11px] text-gray-500 mt-0.5">' + addr + unit + '</div>' : '') + entity + '</div>';
+        }},
+        { key: '_prospect_type', label: 'Type', render: function (r) {
+          var typeColors = { seller: '#B8860B', buyer: '#3B82F6', tenant: '#8B5CF6', investor: '#059669', client: '#6B7280' };
+          var typeLabels = { seller: 'Seller', buyer: 'Buyer', tenant: 'Tenant', investor: 'Investor', client: 'Client' };
+          var t = r._prospect_type || 'seller';
+          return '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:' + (typeColors[t] || '#6B7280') + '15;color:' + (typeColors[t] || '#6B7280') + ';">' + E(typeLabels[t] || t) + '</span>';
         }},
         { key: 'status', label: 'Status', render: function (r) { return _statusBadge(r.status); } },
         { key: 'borough', label: 'Borough', render: function (r) {
@@ -221,6 +312,7 @@ var SellerProspects = (function () {
   // ─── Table handlers ─────────────────────────────────────────────────
   function _search(q) { _s.search = q; _s.page = 1; render(); }
   function _filter(k, v) { _s.filter[k] = v; _s.page = 1; render(); }
+  function _filterType(type) { _s.filter.type = type === 'all' ? '' : type; _s.page = 1; render(); }
   function _sort(k) { _s.sort = { key: k, dir: _s.sort.key === k && _s.sort.dir === 'asc' ? 'desc' : 'asc' }; _renderTable(CRM.getContent()); }
   function _page(p) { _s.page = p; render(); }
 
@@ -803,6 +895,14 @@ var SellerProspects = (function () {
   // WORKSPACE — openWorkspace(id)
   // ═══════════════════════════════════════════════════════════════════════
   function openWorkspace(id) {
+    // Check if this is a client lead (buyer/tenant/investor) vs a seller prospect
+    var row = _s.data.find(function (r) { return String(r.id) === String(id); });
+    if (row && row._is_client_lead) {
+      // Open the client workspace instead
+      Router.navigate('/workspace/client/' + id + '/overview');
+      return;
+    }
+
     var c = CRM.getContent();
     CRM.setPanelTitle('Prospects');
     c.innerHTML = '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
@@ -1513,6 +1613,7 @@ var SellerProspects = (function () {
     openWorkspace: openWorkspace,
     _search: _search,
     _filter: _filter,
+    _filterType: _filterType,
     _sort: _sort,
     _page: _page,
     _newProspect: _newProspect,
