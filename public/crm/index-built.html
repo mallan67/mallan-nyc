@@ -33707,21 +33707,27 @@ function REBNYComplianceDoctor(options) {
  * Green = all pass, Yellow = warnings, Red = failures. Click for full report.
  */
 function updateComplianceBadge(report) {
-    // Compliance badge shares the header slot with test suite badge
-    // Test suite badge takes priority (runs later), so compliance uses same element
     var badge = document.getElementById('complianceDoctorBadge');
     var slot = document.getElementById('complianceDoctorBadgeSlot');
     if (!badge) {
         badge = document.createElement('div');
         badge.id = 'complianceDoctorBadge';
-        badge.style.cssText = 'padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:opacity 0.3s;line-height:1.2;white-space:nowrap;';
         badge.title = 'Click for REBNY Compliance Doctor report';
         badge.addEventListener('click', function() {
             var r = window._lastComplianceReport;
             if (!r) return;
             showComplianceDoctorModal(r);
         });
-        if (slot) { slot.appendChild(badge); } else { document.body.appendChild(badge); }
+        if (slot) {
+            badge.style.cssText = 'padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:opacity 0.3s;line-height:1.2;white-space:nowrap;';
+            slot.appendChild(badge);
+        } else {
+            badge.style.cssText = 'position:fixed;top:8px;right:200px;z-index:9999;padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:opacity 0.3s;line-height:1.2;white-space:nowrap;';
+            document.body.appendChild(badge);
+        }
+    } else if (slot && badge.parentElement !== slot) {
+        badge.style.cssText = 'padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:opacity 0.3s;line-height:1.2;white-space:nowrap;';
+        slot.appendChild(badge);
     }
     window._lastComplianceReport = report;
 
@@ -34317,10 +34323,19 @@ function updateTestSuiteBadge(report) {
     if (!badge) {
         badge = document.createElement('div');
         badge.id = 'complianceDoctorBadge';
-        badge.style.cssText = 'padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all 0.3s;line-height:1.2;white-space:nowrap;';
         badge.title = 'Click for REBNY Test Suite report';
         badge.addEventListener('click', function() { var r = window._lastTestSuiteReport; if (r) showTestSuiteModal(r); });
-        if (slot) { slot.appendChild(badge); } else { document.body.appendChild(badge); }
+        if (slot) {
+            badge.style.cssText = 'padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all 0.3s;line-height:1.2;white-space:nowrap;';
+            slot.appendChild(badge);
+        } else {
+            badge.style.cssText = 'position:fixed;top:8px;right:200px;z-index:9999;padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all 0.3s;line-height:1.2;white-space:nowrap;';
+            document.body.appendChild(badge);
+        }
+    } else if (slot && badge.parentElement !== slot) {
+        // Badge exists but isn't in slot yet — move it there
+        badge.style.cssText = 'padding:4px 10px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;transition:all 0.3s;line-height:1.2;white-space:nowrap;';
+        slot.appendChild(badge);
     }
     var s = report.summary, ac = s.total - s.skipped;
     if (s.failed > 0) {
