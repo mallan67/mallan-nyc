@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     userId: auth.userId,
     role: auth.role,
     status: searchParams.get("status"),
+    search: searchParams.get("search"),
+    clientRole: searchParams.get("role"),
     limit: parseInt(searchParams.get("limit") || "50"),
     offset: parseInt(searchParams.get("offset") || "0"),
   });

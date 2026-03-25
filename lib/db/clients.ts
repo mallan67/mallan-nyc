@@ -50,16 +50,37 @@ export async function findClients(opts: {
   userId: bigint;
   role: string;
   status?: string | null;
+  search?: string | null;
+  clientRole?: string | null;
   limit?: number;
   offset?: number;
 }) {
-  const { userId, role, status, limit = 50, offset = 0 } = opts;
+  const { userId, role, status, search, clientRole, limit = 50, offset = 0 } = opts;
   const where: Record<string, unknown> = {};
 
   if (role !== "BROKER") {
     where.agent_id = userId;
   }
-  if (status) where.status = status;
+  if (status) {
+    // Support comma-separated statuses
+    const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
+    if (statuses.length === 1) where.status = statuses[0];
+    else if (statuses.length > 1) where.status = { in: statuses };
+  }
+  if (clientRole) {
+    where.roles = { has: clientRole };
+  }
+  if (search) {
+    const term = search.trim();
+    where.OR = [
+      { first_name: { contains: term, mode: "insensitive" } },
+      { last_name: { contains: term, mode: "insensitive" } },
+      { email: { contains: term, mode: "insensitive" } },
+      { phone: { contains: term } },
+      { entity_name: { contains: term, mode: "insensitive" } },
+      { property_address: { contains: term, mode: "insensitive" } },
+    ];
+  }
 
   const [clients, total] = await Promise.all([
     prisma.lead.findMany({
