@@ -30,6 +30,11 @@ model Agent {
   status         String    @default("active")        // "active" | "inactive" | "suspended"
   last_login     DateTime? @map("last_login")
 
+  // --- MFA (TOTP) ---
+  mfa_enabled       Boolean   @default(false) @map("mfa_enabled")
+  mfa_secret_enc    String?   @db.Text @map("mfa_secret_enc")    // AES-256-GCM encrypted TOTP secret
+  mfa_backup_hashes String[]  @default([]) @map("mfa_backup_hashes") // bcrypt hashes of one-time backup codes
+
   // --- Public profile fields (shown on mallan.nyc/agents) ---
   public_slug    String?   @unique @map("public_slug")  // URL slug e.g. "maya-allan"
   title          String?   @db.Text                      // "Licensed Real Estate Broker"
@@ -507,6 +512,24 @@ model Session {
   @@index([user_type, user_id])
   @@index([expires_at])
   @@map("sessions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// MFA SESSION — Short-lived pending session for TOTP verification
+// ═══════════════════════════════════════════════════════════
+model MfaSession {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  agent_id    BigInt   @map("agent_id")
+  attempts    Int      @default(0)           // rate limit: max 5
+  expires_at  DateTime @map("expires_at")
+  created_at  DateTime @default(now()) @map("created_at")
+  ip_address  String?  @map("ip_address")
+  user_agent  String?  @map("user_agent") @db.Text
+
+  @@index([token])
+  @@index([expires_at])
+  @@map("mfa_sessions")
 }
 
 // ═══════════════════════════════════════════════════════════
