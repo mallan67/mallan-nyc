@@ -6,6 +6,7 @@ import { hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
 import { validateResetToken } from "@/lib/auth/reset-token";
 import { logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -128,13 +129,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    res.cookies.set(SESSION_COOKIE, sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 24 * 60 * 60,
-    });
+    res.cookies.set(SESSION_COOKIE, sessionToken, getSessionCookieConfig(userType, role));
 
     return res;
   } catch (err) {

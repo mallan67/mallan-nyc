@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-03-25T04:04:27.793Z",
-  "pass": 817,
+  "timestamp": "2026-03-25T06:32:08.312Z",
+  "pass": 834,
   "critical": 0,
-  "warning": 0,
-  "info": 37,
+  "warning": 1,
+  "info": 38,
   "sections": [
     {
       "section": 1,
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 137,
+      "pass": 139,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 86,
+      "pass": 87,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 121,
+      "pass": 124,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -289,6 +289,33 @@
       "title": "Run History & Trends",
       "category": "Platform",
       "pass": 3,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 33,
+      "title": "Session Policy Compliance",
+      "category": "Auth & Security",
+      "pass": 6,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 34,
+      "title": "MFA Enforcement",
+      "category": "Auth & Security",
+      "pass": 0,
+      "critical": 0,
+      "warning": 1,
+      "info": 1
+    },
+    {
+      "section": 35,
+      "title": "Impersonation Audit Trail",
+      "category": "Auth & Security",
+      "pass": 5,
       "critical": 0,
       "warning": 0,
       "info": 0

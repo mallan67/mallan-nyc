@@ -483,31 +483,50 @@
             }
 
             // Pre-fetch photos for listings missing images before rendering
+            // Batch in groups of 25 (API detail mode limit) to handle larger reports
             var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
             if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
-                var ids = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean).slice(0, 50);
-                if (ids.length > 0) {
-                    fetch('/api/media/batch?ids=' + encodeURIComponent(ids.join(',')) + '&detail=true', { credentials: 'same-origin' })
-                        .then(function(r) { return r.ok ? r.json() : null; })
-                        .then(function(data) {
-                            if (!data) return;
-                            var photos = data.photos || {};
-                            var media = data.media || {};
-                            needPhotos.forEach(function(l) {
-                                var lid = l.lid || l.id;
-                                if (media[lid] && media[lid].length > 0) {
-                                    l.images = media[lid].filter(function(m) { return m.mediaType === 'Photo'; }).sort(function(a, b) { return a.order - b.order; });
-                                    l.photoCount = l.images.length;
-                                } else if (photos[lid]) {
-                                    l.images = [{ url: photos[lid], isPrimary: true }];
-                                    if (!l.photoCount) l.photoCount = 1;
-                                }
-                            });
-                            // Re-render preview now that photos are loaded
-                            try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
-                        })
-                        .catch(function() { /* non-fatal — report shows without photos */ });
+                var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
+                var BATCH_SIZE = 25;
+                var batches = [];
+                for (var bi = 0; bi < allIds.length; bi += BATCH_SIZE) {
+                    batches.push(allIds.slice(bi, bi + BATCH_SIZE));
                 }
+                var completedBatches = 0;
+                function applyMediaToListings(data) {
+                    if (!data) return;
+                    var photos = data.photos || {};
+                    var media = data.media || {};
+                    needPhotos.forEach(function(l) {
+                        if (l.images && l.images.length > 0) return; // already populated by earlier batch
+                        var lid = l.lid || l.id;
+                        if (media[lid] && media[lid].length > 0) {
+                            l.images = media[lid].map(function(m) {
+                                return {
+                                    url: m.url, mediaType: m.mediaType,
+                                    mediaCategory: m.mediaType,
+                                    imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
+                                    order: m.order, caption: m.caption || '',
+                                    isPrimary: m.order === -1 || m.order === 0
+                                };
+                            }).sort(function(a, b) { return a.order - b.order; });
+                            l.photoCount = l.images.filter(function(m) { return m.mediaCategory !== 'FloorPlan'; }).length;
+                        } else if (photos[lid]) {
+                            l.images = [{ url: photos[lid], isPrimary: true, mediaType: 'Photo', mediaCategory: 'Photo', imageOf: 'Photo' }];
+                            if (!l.photoCount) l.photoCount = 1;
+                        }
+                    });
+                    completedBatches++;
+                    if (completedBatches >= batches.length) {
+                        try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
+                    }
+                }
+                batches.forEach(function(batchIds) {
+                    fetch('/api/media/batch?ids=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
+                        .then(function(r) { return r.ok ? r.json() : null; })
+                        .then(applyMediaToListings)
+                        .catch(function() { completedBatches++; });
+                });
             }
 
             // Track address-suppressed listings for compliance warning banner
@@ -2341,11 +2360,31 @@
             var reportSel = reportSelRadio ? reportSelRadio.value : 'all';
             var allListings = searchResultsState.filteredListings || (typeof listings !== 'undefined' ? listings : []);
             var reportListings;
+
+            // Helper: match listing ID flexibly (string/number, id/lid/listingKey)
+            function matchesId(listing, idArr) {
+                var lid = String(listing.id || '');
+                var llid = String(listing.lid || '');
+                var lkey = String(listing.listingKey || listing.ListingKey || '');
+                for (var i = 0; i < idArr.length; i++) {
+                    var sid = String(idArr[i]);
+                    if (sid === lid || sid === llid || (lkey && sid === lkey)) return true;
+                }
+                return false;
+            }
+
+            // If selectedListingIds were set but radio reverted to 'all', still respect selection
+            if (reportSel === 'all' && reportState.selectedListingIds.length > 0 &&
+                reportState.selectedListingIds.length < allListings.length) {
+                reportSel = 'selected';
+            }
+
             if (reportSel === 'selected' && reportState.selectedListingIds.length > 0) {
                 var selIds = reportState.selectedListingIds;
-                reportListings = allListings.filter(function(l) {
-                    return selIds.indexOf(l.id) > -1 || selIds.indexOf(l.lid) > -1 || selIds.indexOf(String(l.id)) > -1;
-                });
+                reportListings = allListings.filter(function(l) { return matchesId(l, selIds); });
+                if (reportListings.length === 0 && selIds.length > 0) {
+                    console.warn('[Reports] ID mismatch — selected IDs:', selIds.slice(0,3), 'listing IDs:', allListings.slice(0,3).map(function(l){return l.id;}));
+                }
             } else if (reportSel === 'picked') {
                 var flags = typeof listingFlags !== 'undefined' ? listingFlags : {};
                 reportListings = allListings.filter(function(l) { return flags[l.id] && flags[l.id].picked; });

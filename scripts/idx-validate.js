@@ -1373,6 +1373,95 @@ function section32() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SECTION 33: Session Policy Compliance
+// Verifies per-role cookie TTL (Broker=24h, Agent=8h, Client=30d).
+// ═══════════════════════════════════════════════════════════════════════════
+function section33() {
+  const s = startSection(33, 'Session Policy Compliance', 'Auth & Security');
+  const cookieConfig = readFile('lib/auth/cookie-config.ts');
+  const loginRoute = readFile('app/api/auth/login/route.ts');
+  const inviteRoute = readFile('app/api/auth/invite/[token]/route.ts');
+  const resetRoute = readFile('app/api/auth/reset-password/route.ts');
+
+  // Check cookie-config helper exists with per-role TTLs
+  if (cookieConfig) {
+    if (/BROKER.*24.*60.*60|24.*BROKER/s.test(cookieConfig)) pass(s, 'Broker TTL: 24h configured');
+    else critical(s, 'Broker TTL not configured in cookie-config', '');
+    if (/8.*60.*60.*Agent|Agent.*8.*60/si.test(cookieConfig)) pass(s, 'Agent TTL: 8h configured');
+    else critical(s, 'Agent TTL not configured in cookie-config', '');
+    if (/30.*24.*60.*60|Client.*30/si.test(cookieConfig)) pass(s, 'Client TTL: 30d configured');
+    else critical(s, 'Client TTL not configured in cookie-config', '');
+  } else {
+    critical(s, 'lib/auth/cookie-config.ts MISSING', 'Create with per-role maxAge');
+    return;
+  }
+
+  // Check auth routes use getSessionCookieConfig (not hardcoded maxAge)
+  for (const [name, content] of [['login', loginRoute], ['invite', inviteRoute], ['reset-password', resetRoute]]) {
+    if (!content) continue;
+    if (/getSessionCookieConfig/.test(content)) pass(s, `${name}: uses per-role cookie config`);
+    else if (/maxAge:\s*24\s*\*\s*60\s*\*\s*60/.test(content))
+      critical(s, `${name}: hardcoded 24h maxAge — should use getSessionCookieConfig`, '');
+    else pass(s, `${name}: cookie config OK`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 34: MFA Enforcement
+// Checks if broker login requires MFA before session creation.
+// ═══════════════════════════════════════════════════════════════════════════
+function section34() {
+  const s = startSection(34, 'MFA Enforcement', 'Auth & Security');
+  const loginRoute = readFile('app/api/auth/login/route.ts');
+  if (!loginRoute) { warning(s, 'login route not found', ''); return; }
+
+  // Check for MFA-related patterns
+  if (/mfa_required|mfa\.verify|totp|otp|two.?factor/i.test(loginRoute)) {
+    pass(s, 'Broker login: MFA flow detected');
+  } else {
+    warning(s, 'Broker login: NO MFA enforcement',
+      'Broker accounts are highest-privilege. Add MFA (TOTP) before session creation.');
+  }
+
+  // Check for MFA endpoints
+  const mfaEnroll = readFile('app/api/auth/mfa/enroll/route.ts');
+  const mfaVerify = readFile('app/api/auth/mfa/verify/route.ts');
+  if (mfaEnroll && mfaVerify) pass(s, 'MFA endpoints: enroll + verify exist');
+  else info(s, 'MFA endpoints not yet implemented', 'Planned feature — /api/auth/mfa/enroll + /api/auth/mfa/verify');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 35: Impersonation Audit Trail
+// Checks that impersonation goes through server with audit logging.
+// ═══════════════════════════════════════════════════════════════════════════
+function section35() {
+  const s = startSection(35, 'Impersonation Audit Trail', 'Auth & Security');
+
+  // Check server-side impersonation endpoint exists
+  const impersonateRoute = readFile('app/api/crm/agents/[id]/impersonate/route.ts');
+  if (impersonateRoute) {
+    pass(s, 'Server-side impersonation endpoint exists');
+    if (/requireBroker/.test(impersonateRoute)) pass(s, 'Impersonation: broker-only');
+    else critical(s, 'Impersonation: NO broker check', 'Must require broker role');
+    if (/logAuditEvent|audit/i.test(impersonateRoute)) pass(s, 'Impersonation: audit logged');
+    else critical(s, 'Impersonation: NO audit logging', 'Must log who impersonated whom');
+  } else {
+    critical(s, 'Server-side impersonation endpoint MISSING',
+      'Create POST /api/crm/agents/[id]/impersonate with broker auth + audit');
+  }
+
+  // Check stop impersonation endpoint
+  const stopRoute = readFile('app/api/auth/impersonation/stop/route.ts');
+  if (stopRoute) {
+    pass(s, 'Stop impersonation endpoint exists');
+    if (/logAuditEvent|audit/i.test(stopRoute)) pass(s, 'Stop impersonation: audit logged');
+    else warning(s, 'Stop impersonation: no audit logging', '');
+  } else {
+    warning(s, 'Stop impersonation endpoint missing', 'Broker must be able to end impersonation');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1380,14 +1469,15 @@ console.log('');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  IDX Plus Compliance Validator v3 — mallan.nyc');
 console.log('  REBNY RLS / UCBA 2026 / Trestle IDX Plus');
-console.log('  32 sections · 1,426 OData fields · Full-stack audit');
+console.log('  35 sections · 1,426 OData fields · Full-stack audit');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('');
 
 const allSections = [section1,section2,section3,section4,section5,section6,section7,section8,section9,
   section10,section11,section12,section13,section14,section15,section16,section17,section18,section19,
   section20,section21,section22,section23,section24,section25,section26,
-  section27,section28,section29,section30,section31,section32];
+  section27,section28,section29,section30,section31,section32,
+  section33,section34,section35];
 
 for (let i = 0; i < allSections.length; i++) {
   if (sectionFilter && sectionFilter !== (i + 1)) continue;
@@ -1423,7 +1513,7 @@ if (jsonOutput) {
     const inf = sec.items.filter(i => i.severity === 'INFO').length;
     const p = sec.items.filter(i => i.status === 'PASS').length;
     const status = c > 0 ? 'CRITICAL' : w > 0 ? 'WARNING' : inf > 0 ? 'INFO' : 'PASS';
-    console.log(`[${String(sec.num).padStart(2, ' ')}/32] ${sec.title}: ${status} (${p}✓ ${c}✗ ${w}⚠ ${inf}ℹ)`);
+    console.log(`[${String(sec.num).padStart(2, ' ')}/35] ${sec.title}: ${status} (${p}✓ ${c}✗ ${w}⚠ ${inf}ℹ)`);
 
     let items = sec.items;
     if (failsOnly) items = items.filter(i => i.status !== 'PASS');

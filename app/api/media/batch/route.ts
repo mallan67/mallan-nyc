@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   if (detail) {
     // ── DETAIL MODE: all media types for a small batch (detail panel) ──
-    const detailIds = ids.slice(0, 5); // Limit to 5 for detail
+    const detailIds = ids.slice(0, 25); // Limit to 25 for reports (was 5 — too few for multi-listing reports)
     const uncached: string[] = [];
     for (const id of detailIds) {
       const cached = mediaCache.get(id);

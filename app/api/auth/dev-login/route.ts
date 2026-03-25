@@ -6,10 +6,11 @@ import prisma from "@/lib/prisma";
 import { createSession, SESSION_COOKIE } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  // Block in production — NODE_ENV is set by the runtime, not spoofable like Host header
-  if (process.env.NODE_ENV === "production") {
+  // Block in production — double guard: NODE_ENV + explicit flag
+  if (process.env.NODE_ENV === "production" || process.env.ALLOW_DEV_LOGIN !== "true") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  console.warn("[DEV-LOGIN] Dev login used at", new Date().toISOString(), "from", req.headers.get("x-forwarded-for") || "local");
 
   try {
     // Find the broker agent (Maya)

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
+import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
 /**
  * Login request body:
@@ -75,13 +76,7 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        res.cookies.set(SESSION_COOKIE, token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 24 * 60 * 60,
-        });
+        res.cookies.set(SESSION_COOKIE, token, getSessionCookieConfig("agent", agent.role));
 
         return res;
       }
@@ -122,13 +117,7 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        res.cookies.set(SESSION_COOKIE, token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 24 * 60 * 60,
-        });
+        res.cookies.set(SESSION_COOKIE, token, getSessionCookieConfig("lead", role));
 
         return res;
       }

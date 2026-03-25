@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
 import { hashPortalToken, isPortalTokenExpired } from "@/lib/auth/portal-token";
+import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
 export async function GET(
   _req: NextRequest,
@@ -127,13 +128,7 @@ export async function POST(
       },
     });
 
-    res.cookies.set(SESSION_COOKIE, sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 24 * 60 * 60,
-    });
+    res.cookies.set(SESSION_COOKIE, sessionToken, getSessionCookieConfig("lead", role));
 
     return res;
   } catch (err) {
