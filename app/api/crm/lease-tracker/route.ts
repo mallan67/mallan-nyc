@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { serializeBigInts } from "@/lib/api/serialize";
+import { calculateQualification } from "@/lib/finance/nyc-qualification";
 
 // ── Urgency helpers ───────────────────────────────────────────────────────────
 
@@ -420,7 +421,13 @@ export async function GET(req: NextRequest) {
           email: true,
           phone: true,
           annual_income: true,
+          bonuses: true,
           credit_score_range: true,
+          monthly_debt: true,
+          down_payment: true,
+          available_funds: true,
+          pre_approved: true,
+          pre_approved_amount: true,
         },
       },
     },
@@ -478,7 +485,13 @@ export async function GET(req: NextRequest) {
           email: lease.tenant.email,
           phone: lease.tenant.phone,
           annual_income: lease.tenant.annual_income,
+          bonuses: lease.tenant.bonuses ?? null,
           credit_score_range: lease.tenant.credit_score_range ?? null,
+          monthly_debt: lease.tenant.monthly_debt ?? null,
+          down_payment: lease.tenant.down_payment ?? null,
+          available_funds: lease.tenant.available_funds ?? null,
+          pre_approved: lease.tenant.pre_approved ?? null,
+          pre_approved_amount: lease.tenant.pre_approved_amount ?? null,
         }
       : lease.tenant_name
       ? {
@@ -487,8 +500,31 @@ export async function GET(req: NextRequest) {
           email: lease.tenant_email ?? null,
           phone: lease.tenant_phone ?? null,
           annual_income: null,
+          bonuses: null,
           credit_score_range: null,
+          monthly_debt: null,
+          down_payment: null,
+          available_funds: null,
+          pre_approved: null,
+          pre_approved_amount: null,
         }
+      : null;
+
+    // Financial qualification (co-op, condo, rental)
+    const qualification = tenantData && tenantData.annual_income
+      ? calculateQualification(
+          {
+            annual_income: Number(tenantData.annual_income),
+            bonuses: tenantData.bonuses ? Number(tenantData.bonuses) : null,
+            monthly_debt: tenantData.monthly_debt ? Number(tenantData.monthly_debt) : null,
+            down_payment: tenantData.down_payment ? Number(tenantData.down_payment) : null,
+            available_funds: tenantData.available_funds ? Number(tenantData.available_funds) : null,
+            credit_score_range: tenantData.credit_score_range,
+            pre_approved: tenantData.pre_approved,
+            pre_approved_amount: tenantData.pre_approved_amount ? Number(tenantData.pre_approved_amount) : null,
+          },
+          lease.monthly_rent ? Number(lease.monthly_rent) : null
+        )
       : null;
 
     // Listings belonging to this landlord
@@ -656,6 +692,8 @@ export async function GET(req: NextRequest) {
         lease_renewal,
         outreach_timing,
       },
+
+      qualification,
 
       priority_score,
     };

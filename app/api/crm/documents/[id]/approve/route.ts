@@ -38,7 +38,7 @@ export async function POST(
     },
   });
 
-  await logAuditEvent("approve", "document", id, auth, { name: doc.name });
+  await logAuditEvent("approve", "document", id, auth, { name: doc.name }, req.headers.get("x-forwarded-for") || "unknown");
 
   return NextResponse.json({ status: "approved" });
 }

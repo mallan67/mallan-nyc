@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       agentMlsId,
       agentName,
       type: type || "all",
-    });
+    }, req.headers.get("x-forwarded-for") || "unknown");
 
     return NextResponse.json({
       success: true,

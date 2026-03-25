@@ -33,7 +33,7 @@ export async function PATCH(
   if (body.notes !== undefined) data.notes = body.notes;
 
   const updated = await prisma.commissionPayment.update({ where: { id: paymentId }, data });
-  await logAuditEvent("update", "commission_payment", id, auth, data);
+  await logAuditEvent("update", "commission_payment", id, auth, data, req.headers.get("x-forwarded-for") || "unknown");
 
   return NextResponse.json({ item: { ...updated, id: updated.id.toString(), deal_id: updated.deal_id.toString(), amount: updated.amount.toString() },
   });

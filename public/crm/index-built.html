@@ -3359,7 +3359,7 @@ function toggleSection(header) {
                             <div class="flex items-center gap-3">
                                 <div class="flex bg-white border border-gray-200 rounded-lg p-0.5">
                                     <button id="btnSearchBasic" class="px-4 py-1.5 bg-gray-900 text-white rounded-md text-xs font-bold transition-all" onclick="toggleSearchMode('basic')">Basic</button>
-                                    <button id="btnSearchAdvanced" class="px-4 py-1.5 text-gray-500 rounded-md text-xs font-bold hover:text-gray-700 transition-all" onclick="toggleSearchMode('advanced')">Advanced</button>
+                                    <button id="btnSearchAdvanced" class="px-4 py-1.5 text-gray-500 rounded-md text-xs font-bold hover:text-gray-700 transition-all hidden md:inline-flex" onclick="toggleSearchMode('advanced')">Advanced</button>
                                 </div>
                                 <!-- Expand/Collapse All (visible only in Advanced mode) -->
                                 <div id="expandCollapseControls" class="hidden flex items-center gap-1 text-xs">
@@ -4221,21 +4221,6 @@ function toggleSection(header) {
                             <input type="text" placeholder="Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs" id="searchManagementCompany">
                         </div>
 
-                        <!-- Save Search -->
-                        <div class="border rounded-lg p-3 flex flex-col justify-between">
-                            <div>
-                                <p class="text-xs font-semibold text-gray-700 mb-2">Actions</p>
-                                <button onclick="openSaveSearchModal()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition mb-2">
-                                    <i class="fas fa-bookmark"></i> Save Search
-                                </button>
-                                <button onclick="performSearch()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-900 transition mb-2">
-                                    <i class="fas fa-search"></i> Search
-                                </button>
-                                <button onclick="clearSearchForm()" class="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:text-red-500 font-medium transition">
-                                    <i class="fas fa-times"></i> Clear All
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -6025,23 +6010,22 @@ function toggleSection(header) {
                                  IDX MAPPING: NONE - requires custom field
                             -->
                             <div class="mb-4" id="listingTypeSection" style="display: none;">
-                                <p class="text-xs font-semibold text-gray-600 mb-2">Listing Type <span class="text-red-500">*</span></p>
+                                <p class="text-xs font-semibold text-gray-600 mb-2">Listing Type</p>
                                 <div class="space-y-1 text-xs">
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Exclusive</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Co-Exclusive</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> RLS: Owner Opt-Out</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> RLS: Participant Only</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Open</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input data-field="ListingAgreement" data-value="ExclusiveRightToLease" type="checkbox" class="w-3 h-3"> Exclusive</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input data-field="ListingAgreement" data-value="CoExclusive" type="checkbox" class="w-3 h-3"> Co-Exclusive</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input data-field="ListingAgreement" data-value="ExclusiveAgency" type="checkbox" class="w-3 h-3"> Exclusive Agency</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input data-field="ListingAgreement" data-value="ExclusiveRightWithException" type="checkbox" class="w-3 h-3"> Exclusive w/ Exception</label>
                                 </div>
                             </div>
 
                             <!-- OP / Free Rent / Concessions (Rental) -->
                             <div class="mb-4" id="concessionsSection" style="display: none;">
-                                <p class="text-xs font-semibold text-gray-600 mb-2">OP / Free Rent / Concessions</p>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4"> Owner Pays</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4"> Free Rent</label>
-                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4"> Owner Pays AND Free Rent</label>
+                                <p class="text-xs font-semibold text-gray-600 mb-2">Concessions</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input data-field="Concessions" data-value="Yes" type="checkbox" class="w-3 h-3"> Has Concessions</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input data-field="Concessions" data-value="No" type="checkbox" class="w-3 h-3"> No Concessions</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input data-field="Concessions" data-value="CallListingAgent" type="checkbox" class="w-3 h-3"> Call Listing Agent</label>
                                 </div>
                             </div>
 
@@ -6049,21 +6033,21 @@ function toggleSection(header) {
                             <div class="mb-4" id="leaseAvailabilitySection" style="display: none;">
                                 <p class="text-xs font-semibold text-gray-600 mb-2">Lease/Availability</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
-                                    <select class="border rounded-lg px-3 py-2 text-sm">
-                                        <option>Any Min Lease Terms</option>
-                                        <option>Short Term</option>
-                                        <option>6 Months</option>
-                                        <option>1 Year</option>
-                                        <option>2 Years+</option>
+                                    <select id="leaseMinTerms" data-field="LeaseTermOptions" class="border rounded-lg px-3 py-2 text-sm">
+                                        <option value="">Any Min Lease Terms</option>
+                                        <option value="ShortTermLease">Short Term</option>
+                                        <option value="SixMonths">6 Months</option>
+                                        <option value="TwelveMonths">1 Year</option>
+                                        <option value="TwentyFourMonths">2 Years+</option>
                                     </select>
-                                    <select class="border rounded-lg px-3 py-2 text-sm">
-                                        <option>Any Max Lease Terms</option>
-                                        <option>1 Year</option>
-                                        <option>2 Years</option>
-                                        <option>Long Term</option>
+                                    <select id="leaseMaxTerms" data-field="LeaseTermOptions" class="border rounded-lg px-3 py-2 text-sm">
+                                        <option value="">Any Max Lease Terms</option>
+                                        <option value="TwelveMonths">1 Year</option>
+                                        <option value="TwentyFourMonths">2 Years</option>
+                                        <option value="LongTerm">Long Term</option>
                                     </select>
                                 </div>
-                                <input type="text" placeholder="Select Availability Date Range" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                <input id="leaseAvailabilityDate" type="date" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Available from">
                             </div>
 
                             <!-- Management Companies (Rental) -->
@@ -7435,8 +7419,10 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Furnishing Status</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Furnished" type="checkbox" class="w-3 h-3"> Furnished Only</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Unfurnished" type="checkbox" class="w-3 h-3"> Unfurnished Only</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Furnished" type="checkbox" class="w-3 h-3"> Furnished</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Unfurnished" type="checkbox" class="w-3 h-3"> Unfurnished</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Partially" type="checkbox" class="w-3 h-3"> Partially Furnished</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Negotiable" type="checkbox" class="w-3 h-3"> Negotiable</label>
                                     </div>
                                 </div>
                             </div>
@@ -7455,34 +7441,37 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Lease Type</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Non Stabilized</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Stabilized</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Condo Lease</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Coop Sublease</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Comm/Prof</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseType" data-value="NonStabilizedLease" type="checkbox" class="w-3 h-3"> Non Stabilized</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseType" data-value="StabilizedLease" type="checkbox" class="w-3 h-3"> Stabilized</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PropertySubType" data-value="CondoLease" type="checkbox" class="w-3 h-3"> Condo Lease</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PropertySubType" data-value="CoopSublease" type="checkbox" class="w-3 h-3"> Coop Sublease</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PropertySubType" data-value="CommercialProfessional" type="checkbox" class="w-3 h-3"> Comm/Prof</label>
                                     </div>
                                 </div>
                                 <!-- Lease Terms -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Lease Terms</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Short Term</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Summer</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Month To Month</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Six Months</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Long Term</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseTerm" data-value="ShortTermLease" type="checkbox" class="w-3 h-3"> Short Term</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseTerm" data-value="Seasonal" type="checkbox" class="w-3 h-3"> Summer / Seasonal</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseTerm" data-value="MonthToMonth" type="checkbox" class="w-3 h-3"> Month To Month</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseTerm" data-value="SixMonths" type="checkbox" class="w-3 h-3"> Six Months</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseTerm" data-value="TwelveMonths" type="checkbox" class="w-3 h-3"> 1 Year</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseTerm" data-value="TwentyFourMonths" type="checkbox" class="w-3 h-3"> 2 Years</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LeaseTerm" data-value="LongTerm" type="checkbox" class="w-3 h-3"> Long Term</label>
                                     </div>
                                 </div>
                                 <!-- Guarantors -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Guarantors</p>
+                                    <!-- Local filter — no direct Trestle/RLS field -->
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Allowed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Required</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Not Allowed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> NY State Only</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Tri-State Only</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> International</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GuarantorRequired" data-value="Allowed" type="checkbox" class="w-3 h-3"> Allowed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GuarantorRequired" data-value="Required" type="checkbox" class="w-3 h-3"> Required</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GuarantorRequired" data-value="NotAllowed" type="checkbox" class="w-3 h-3"> Not Allowed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GuarantorRequired" data-value="NYStateOnly" type="checkbox" class="w-3 h-3"> NY State Only</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GuarantorRequired" data-value="TriStateOnly" type="checkbox" class="w-3 h-3"> Tri-State Only</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GuarantorRequired" data-value="International" type="checkbox" class="w-3 h-3"> International</label>
                                     </div>
                                 </div>
                             </div>
@@ -7500,30 +7489,32 @@ function toggleSection(header) {
                                 <!-- Board Requirements -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Board Requirements</p>
+                                    <!-- Local filter — no direct Trestle/RLS field -->
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Board Approval Required</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Board Interview Required</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> First Right of Refusal</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> No Board Approval</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BoardApprovalRequired" data-value="Yes" type="checkbox" class="w-3 h-3"> Board Approval Required</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BoardApprovalRequired" data-value="Interview" type="checkbox" class="w-3 h-3"> Board Interview Required</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BoardApprovalRequired" data-value="FirstRight" type="checkbox" class="w-3 h-3"> First Right of Refusal</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BoardApprovalRequired" data-value="No" type="checkbox" class="w-3 h-3"> No Board Approval</label>
                                     </div>
                                 </div>
                                 <!-- Purchasing Options (SALE ONLY) -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100" id="salePurchasingOptions">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Purchasing Options</p>
+                                    <!-- Local filter — no direct Trestle/RLS field -->
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Pied-a-Terre Allowed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Parents Buying</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Co-Purchasing</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Guarantors Allowed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PurchasingOptions" data-value="PiedATerre" type="checkbox" class="w-3 h-3"> Pied-a-Terre Allowed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PurchasingOptions" data-value="ParentsBuying" type="checkbox" class="w-3 h-3"> Parents Buying</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PurchasingOptions" data-value="CoPurchasing" type="checkbox" class="w-3 h-3"> Co-Purchasing</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PurchasingOptions" data-value="GuarantorsAllowed" type="checkbox" class="w-3 h-3"> Guarantors Allowed</label>
                                     </div>
                                 </div>
                                 <!-- Other Options -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Other Options</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Open House Only</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Subletting Allowed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Furnished</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="OpenHouseOnly" data-value="true" type="checkbox" class="w-3 h-3"> Open House Only</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="SubLettingAllowed" data-value="true" type="checkbox" class="w-3 h-3"> Subletting Allowed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="Furnished" data-value="Furnished" type="checkbox" class="w-3 h-3"> Furnished</label>
                                     </div>
                                 </div>
                             </div>
@@ -8643,19 +8634,21 @@ function toggleSection(header) {
                 </div>
                     <!-- Sticky search actions — always visible at bottom of form -->
                     <!-- mb-12 adds space above REBNY badge which is fixed at bottom-right -->
-                    <div class="sticky bottom-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 mb-12 rounded-b-xl">
-                        <div class="flex items-center gap-2 text-xs text-gray-400">
-                            <button onclick="recallLastSearch()" class="hover:text-blue-600 transition-colors" title="Recall last search criteria">
-                                <i class="fas fa-history mr-1"></i>Last Search
-                            </button>
-                            <span class="text-gray-200">|</span>
-                            <button onclick="openSaveSearchModal()" class="hover:text-blue-600 transition-colors">
-                                <i class="far fa-bookmark mr-1"></i>Save
+                    <div id="stickySearchBar" class="sticky bottom-0 bg-white/95 backdrop-blur border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 mb-12 rounded-b-xl">
+                        <div class="flex items-center gap-3">
+                            <span id="activeFilterCount" class="text-sm text-gray-500">No filters</span>
+                            <button onclick="clearSearchForm()" class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">
+                                <i class="fas fa-times mr-1"></i>Clear
                             </button>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="clearSearchForm()" class="px-4 py-2 text-sm text-gray-500 hover:text-red-500 font-medium transition-colors">Clear</button>
-                            <button onclick="performSearch()" class="px-8 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all">
+                            <button onclick="recallLastSearch()" class="text-xs text-gray-400 hover:text-blue-600 font-medium transition-colors hidden sm:inline-flex items-center" title="Recall last search criteria">
+                                <i class="fas fa-history mr-1"></i>Last
+                            </button>
+                            <button onclick="openSaveSearchModal()" class="text-xs text-gray-400 hover:text-blue-600 font-medium transition-colors hidden sm:inline-flex items-center">
+                                <i class="far fa-bookmark mr-1"></i>Save
+                            </button>
+                            <button onclick="performSearch()" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 shadow-md transition-all">
                                 <i class="fas fa-search mr-1.5"></i>Search
                             </button>
                         </div>
@@ -15983,6 +15976,20 @@ function manageShowToast(msg) {
                         _checkboxFilters[_field].push(_val);
                     }
                 }
+                // Scan <select> elements with data-field
+                _scanContainer.querySelectorAll('select[data-field]').forEach(function(sel) {
+                    if (sel.selectedIndex <= 0) return; // Skip default "Any" option
+                    var _field = sel.getAttribute('data-field');
+                    if (_handledFields[_field]) return;
+                    var _val = sel.value;
+                    if (_field && _val) {
+                        if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
+                        if (_checkboxFilters[_field].indexOf(_val) === -1) {
+                            _checkboxFilters[_field].push(_val);
+                        }
+                    }
+                });
+
                 if (Object.keys(_checkboxFilters).length > 0) {
                     criteria.checkboxFilters = _checkboxFilters;
                 }
@@ -16046,7 +16053,59 @@ function manageShowToast(msg) {
 
             // Clear saved search state when form is cleared
             if (typeof _clearSearchState === 'function') _clearSearchState();
+            // Update filter count after clearing
+            updateFilterCount();
         }
+
+        // ── Filter count for sticky search bar ──
+        function updateFilterCount() {
+            var count = 0;
+            // Check the VISIBLE container — advanced first (if visible), else basic
+            var advForm = document.getElementById('searchAdvancedMode');
+            var form = (advForm && advForm.style.display !== 'none' && !advForm.classList.contains('hidden'))
+                ? advForm : document.getElementById('searchBasicMode');
+            if (!form) return;
+            // Count non-default selects
+            form.querySelectorAll('select').forEach(function(s) { if (s.selectedIndex > 0) count++; });
+            // Count filled text/number inputs
+            form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) { if (i.value.trim()) count++; });
+            // Count checked checkboxes (skip default Active status)
+            form.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+                if (cb.getAttribute('data-field') === 'MlsStatus' && cb.getAttribute('data-value') === 'Active') return;
+                count++;
+            });
+            // Count date range pickers with values
+            form.querySelectorAll('.drp-wrapper[data-from]').forEach(function(w) {
+                if (w.getAttribute('data-from')) count++;
+            });
+            var el = document.getElementById('activeFilterCount');
+            if (el) el.textContent = count === 0 ? 'No filters' : count + ' filter' + (count > 1 ? 's' : '') + ' applied';
+        }
+
+        // Wire filter count to form changes (delegated)
+        document.addEventListener('change', function(e) {
+            if (e.target.closest('#searchBasicMode, #searchAdvancedMode')) updateFilterCount();
+        });
+        document.addEventListener('input', function(e) {
+            if (e.target.closest('#searchBasicMode, #searchAdvancedMode') && (e.target.type === 'text' || e.target.type === 'number')) {
+                clearTimeout(window._filterCountDebounce);
+                window._filterCountDebounce = setTimeout(updateFilterCount, 300);
+            }
+        });
+
+        // Enter key triggers search (when in search form, not textarea)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.target.closest('textarea') && !e.target.closest('.modal, [role="dialog"]')) {
+                var sectionMain = document.getElementById('section-main');
+                if (sectionMain && sectionMain.style.display !== 'none') {
+                    var formContainer = document.getElementById('searchFormContainer');
+                    if (formContainer && formContainer.style.display !== 'none') {
+                        e.preventDefault();
+                        performSearch();
+                    }
+                }
+            }
+        });
 
         // Neighborhood tree: parent-child cascade
         // Checking a borough/region auto-checks all children; unchecking clears all children
@@ -17191,6 +17250,7 @@ function manageShowToast(msg) {
                 // Show mortgage calculator for building search
                 if (mortgageCalculator) mortgageCalculator.style.display = 'block';
             }
+            if (typeof updateFilterCount === 'function') updateFilterCount();
         }
 
         // Legacy function - now calls toggleSearchTab
@@ -17229,6 +17289,26 @@ function manageShowToast(msg) {
 
                 if (advancedMode) advancedMode.style.display = 'block';
                 if (basicMode) basicMode.style.display = 'none';
+            }
+            if (typeof updateFilterCount === 'function') updateFilterCount();
+        }
+
+        // Force basic mode on mobile (< 768px)
+        if (window.matchMedia) {
+            var _mobileQuery = window.matchMedia('(max-width: 767px)');
+            function _handleMobileChange(e) {
+                if (e.matches) {
+                    var _storedMode;
+                    try { _storedMode = sessionStorage.getItem('searchMode'); } catch(ex) {}
+                    if (_storedMode === 'advanced') {
+                        toggleSearchMode('basic');
+                    }
+                }
+            }
+            _mobileQuery.addEventListener('change', _handleMobileChange);
+            // Also enforce on initial load
+            if (_mobileQuery.matches) {
+                try { if (sessionStorage.getItem('searchMode') === 'advanced') toggleSearchMode('basic'); } catch(ex) {}
             }
         }
 
@@ -21599,6 +21679,8 @@ function parseBudgetValue(td) {
                 close_date_to: c.soldDateTo || c.contractDateTo || undefined,
                 // View state
                 _search_tab: c.searchTab || 'sale',
+                // Generic checkbox/select filters
+                checkbox_filters: c.checkboxFilters && Object.keys(c.checkboxFilters).length > 0 ? c.checkboxFilters : undefined,
             };
         }
 
@@ -21716,12 +21798,38 @@ function parseBudgetValue(td) {
                     });
                 }
             }
+
+            // Restore checkboxFilters (generic data-field checkboxes + selects)
+            var cbFilters = criteria.checkbox_filters || criteria.checkboxFilters;
+            if (cbFilters && typeof cbFilters === 'object') {
+                Object.keys(cbFilters).forEach(function(field) {
+                    var values = cbFilters[field];
+                    if (!Array.isArray(values)) return;
+                    values.forEach(function(val) {
+                        // Try checkbox/radio first
+                        var cb = document.querySelector('[data-field="' + field + '"][data-value="' + val + '"]');
+                        if (cb && (cb.type === 'checkbox' || cb.type === 'radio')) {
+                            cb.checked = true;
+                        }
+                        // Try select
+                        var sels = document.querySelectorAll('select[data-field="' + field + '"]');
+                        sels.forEach(function(sel) {
+                            for (var i = 0; i < sel.options.length; i++) {
+                                if (sel.options[i].value === val) { sel.selectedIndex = i; break; }
+                            }
+                        });
+                    });
+                });
+            }
+
+            // Update filter count after restoring
+            if (typeof updateFilterCount === 'function') updateFilterCount();
         }
 
         /** Helper: set a <select> value, trying exact match then closest */
         function _setSelectValue(elementId, value) {
             if (value == null) return;
-            var el = document.getElementById(elementId);
+            var el = (typeof getFormEl === 'function') ? getFormEl(elementId) : document.getElementById(elementId);
             if (!el) return;
             // Try exact match
             for (var i = 0; i < el.options.length; i++) {

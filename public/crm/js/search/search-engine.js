@@ -1068,6 +1068,20 @@
                         _checkboxFilters[_field].push(_val);
                     }
                 }
+                // Scan <select> elements with data-field
+                _scanContainer.querySelectorAll('select[data-field]').forEach(function(sel) {
+                    if (sel.selectedIndex <= 0) return;
+                    var _field = sel.getAttribute('data-field');
+                    if (_handledFields[_field]) return;
+                    var _val = sel.value;
+                    if (_field && _val) {
+                        if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
+                        if (_checkboxFilters[_field].indexOf(_val) === -1) {
+                            _checkboxFilters[_field].push(_val);
+                        }
+                    }
+                });
+
                 if (Object.keys(_checkboxFilters).length > 0) {
                     criteria.checkboxFilters = _checkboxFilters;
                 }
@@ -1160,7 +1174,54 @@
 
             // Clear saved search state when form is cleared
             if (typeof _clearSearchState === 'function') _clearSearchState();
+            // Update filter count after clearing
+            updateFilterCount();
         }
+
+        // ── Filter count for sticky search bar ──
+        function updateFilterCount() {
+            var count = 0;
+            var advForm = document.getElementById('searchAdvancedMode');
+            var form = (advForm && advForm.style.display !== 'none' && !advForm.classList.contains('hidden'))
+                ? advForm : document.getElementById('searchBasicMode');
+            if (!form) return;
+            form.querySelectorAll('select').forEach(function(s) { if (s.selectedIndex > 0) count++; });
+            form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) { if (i.value.trim()) count++; });
+            form.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+                if (cb.getAttribute('data-field') === 'MlsStatus' && cb.getAttribute('data-value') === 'Active') return;
+                count++;
+            });
+            form.querySelectorAll('.drp-wrapper[data-from]').forEach(function(w) {
+                if (w.getAttribute('data-from')) count++;
+            });
+            var el = document.getElementById('activeFilterCount');
+            if (el) el.textContent = count === 0 ? 'No filters' : count + ' filter' + (count > 1 ? 's' : '') + ' applied';
+        }
+
+        // Wire filter count to form changes (delegated)
+        document.addEventListener('change', function(e) {
+            if (e.target.closest('#searchBasicMode, #searchAdvancedMode')) updateFilterCount();
+        });
+        document.addEventListener('input', function(e) {
+            if (e.target.closest('#searchBasicMode, #searchAdvancedMode') && (e.target.type === 'text' || e.target.type === 'number')) {
+                clearTimeout(window._filterCountDebounce);
+                window._filterCountDebounce = setTimeout(updateFilterCount, 300);
+            }
+        });
+
+        // Enter key triggers search (when in search form, not textarea)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.target.closest('textarea') && !e.target.closest('.modal, [role="dialog"]')) {
+                var sectionMain = document.getElementById('section-main');
+                if (sectionMain && sectionMain.style.display !== 'none') {
+                    var formContainer = document.getElementById('searchFormContainer');
+                    if (formContainer && formContainer.style.display !== 'none') {
+                        e.preventDefault();
+                        performSearch();
+                    }
+                }
+            }
+        });
 
         // Neighborhood tree: parent-child cascade
         // Checking a borough/region auto-checks all children; unchecking clears all children
@@ -2256,6 +2317,7 @@
                 // Show mortgage calculator for building search
                 if (mortgageCalculator) mortgageCalculator.style.display = 'block';
             }
+            if (typeof updateFilterCount === 'function') updateFilterCount();
         }
 
         // Legacy function - now calls toggleSearchTab
@@ -2310,6 +2372,7 @@
                 if (basicModeRental) basicModeRental.style.display = 'none';
                 if (basicModeBuilding) basicModeBuilding.style.display = 'none';
             }
+            if (typeof updateFilterCount === 'function') updateFilterCount();
         }
 
         function expandAllSections() {

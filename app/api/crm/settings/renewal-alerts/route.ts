@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     eo_reminder_days: Number(body.eo_reminder_days) || 90,
   };
 
-  await logAuditEvent("settings_renewal_alerts", "settings", "renewal_alerts", auth, settings);
+  await logAuditEvent("settings_renewal_alerts", "settings", "renewal_alerts", auth, settings, req.headers.get("x-forwarded-for") || "unknown");
 
   return NextResponse.json({ settings });
 }

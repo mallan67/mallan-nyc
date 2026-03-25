@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       ...result,
       type: type || "all",
       fullSync,
-    });
+    }, req.headers.get("x-forwarded-for") || "unknown");
 
     return NextResponse.json({
       success: true,

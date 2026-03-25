@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const assignedTo = await autoAssignLead(BigInt(lead_id));
 
   if (assignedTo) {
-    await logAuditEvent("auto_assign", "lead", lead_id, auth, { assigned_to: assignedTo.toString() });
+    await logAuditEvent("auto_assign", "lead", lead_id, auth, { assigned_to: assignedTo.toString() }, req.headers.get("x-forwarded-for") || "unknown");
   }
 
   return NextResponse.json({ assigned_to: assignedTo?.toString() ?? null,

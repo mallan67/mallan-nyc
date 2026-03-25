@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await logAuditEvent("create", "alert", notification.id.toString(), auth, { ruleId, title });
+  await logAuditEvent("create", "alert", notification.id.toString(), auth, { ruleId, title }, req.headers.get("x-forwarded-for") || "unknown");
 
   return NextResponse.json({ id: notification.id.toString() });
 }

@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
   }
 
   const agentId = body.agentId ? BigInt(body.agentId) : auth.userId;
+  const ip = req.headers.get("x-forwarded-for") || "unknown";
 
   // Fetch the lead
   const lead = await prisma.lead.findUnique({
@@ -102,27 +103,27 @@ export async function POST(req: NextRequest) {
   // --- Action handlers ---
 
   if (action === "promote_to_listing") {
-    return handlePromoteToListing(lead, listingDraft, agentId, auth);
+    return handlePromoteToListing(lead, listingDraft, agentId, auth, ip);
   }
 
   if (action === "buyer_rep_signed") {
-    return handleBuyerRepSigned(lead, agentId, auth);
+    return handleBuyerRepSigned(lead, agentId, auth, ip);
   }
 
   if (action === "activate_renter") {
-    return handleActivateRenter(lead, agentId, auth);
+    return handleActivateRenter(lead, agentId, auth, ip);
   }
 
   if (action === "sign_lease") {
-    return handleSignLease(lead, leaseData, agentId, auth);
+    return handleSignLease(lead, leaseData, agentId, auth, ip);
   }
 
   if (action === "promote_to_buyer") {
-    return handlePromoteToBuyer(lead, agentId, auth);
+    return handlePromoteToBuyer(lead, agentId, auth, ip);
   }
 
   if (action === "role_transition") {
-    return handleRoleTransition(lead, targetRole, agentId, auth);
+    return handleRoleTransition(lead, targetRole, agentId, auth, ip);
   }
 
   return NextResponse.json({ error: "Unhandled action" }, { status: 400 });
@@ -134,7 +135,8 @@ async function handlePromoteToListing(
   lead: { id: bigint; roles: string[]; pipeline_stage: string; active_sale_listing_id: string | null; active_rental_listing_id: string | null },
   listingDraft: ListingDraft | undefined,
   agentId: bigint,
-  auth: SessionUser
+  auth: SessionUser,
+  ip: string
 ) {
   if (!listingDraft) {
     return NextResponse.json({ error: "listingDraft is required for promote_to_listing" }, { status: 400 });
@@ -235,7 +237,7 @@ async function handlePromoteToListing(
     listing_type: listingType,
     before: { roles: lead.roles, pipeline_stage: lead.pipeline_stage },
     after: { roles: updatedRoles, pipeline_stage: newPipelineStage },
-  });
+  }, ip);
 
   return NextResponse.json(
     { success: true, listingId: generatedListingId },
@@ -248,7 +250,8 @@ async function handlePromoteToListing(
 async function handleBuyerRepSigned(
   lead: { id: bigint; roles: string[]; pipeline_stage: string; buyer_rep_agreement: boolean },
   agentId: bigint,
-  auth: SessionUser
+  auth: SessionUser,
+  ip: string
 ) {
   const updatedRoles = lead.roles.includes("buyer") ? lead.roles : [...lead.roles, "buyer"];
 
@@ -278,7 +281,7 @@ async function handleBuyerRepSigned(
       pipeline_stage: "active_buyer",
       buyer_rep_agreement: true,
     },
-  });
+  }, ip);
 
   return NextResponse.json({ success: true });
 }
@@ -288,7 +291,8 @@ async function handleBuyerRepSigned(
 async function handleActivateRenter(
   lead: { id: bigint; pipeline_stage: string },
   _agentId: bigint,
-  auth: SessionUser
+  auth: SessionUser,
+  ip: string
 ) {
   await prisma.lead.update({
     where: { id: lead.id },
@@ -298,7 +302,7 @@ async function handleActivateRenter(
   await logAuditEvent("activate_renter", "lead", lead.id.toString(), auth, {
     before: { pipeline_stage: lead.pipeline_stage },
     after: { pipeline_stage: "active_renter" },
-  });
+  }, ip);
 
   return NextResponse.json({ success: true });
 }
@@ -309,7 +313,8 @@ async function handleSignLease(
   lead: { id: bigint; pipeline_stage: string },
   leaseData: LeaseData | undefined,
   _agentId: bigint,
-  auth: SessionUser
+  auth: SessionUser,
+  ip: string
 ) {
   if (!leaseData) {
     return NextResponse.json({ error: "leaseData is required for sign_lease" }, { status: 400 });
@@ -339,7 +344,7 @@ async function handleSignLease(
       unit_number: leaseData.unit_number,
       renewal_status: "pending",
     },
-  });
+  }, ip);
 
   return NextResponse.json({ success: true });
 }
@@ -349,7 +354,8 @@ async function handleSignLease(
 async function handlePromoteToBuyer(
   lead: { id: bigint; roles: string[]; buyer_potential: number | null },
   _agentId: bigint,
-  auth: SessionUser
+  auth: SessionUser,
+  ip: string
 ) {
   const updatedRoles = lead.roles.includes("buyer") ? lead.roles : [...lead.roles, "buyer"];
 
@@ -370,7 +376,7 @@ async function handlePromoteToBuyer(
     before: { roles: lead.roles },
     after: { roles: updatedRoles, promoted_to_buyer_at: new Date().toISOString() },
     buyer_potential: lead.buyer_potential,
-  });
+  }, ip);
 
   return NextResponse.json({ success: true });
 }
@@ -381,7 +387,8 @@ async function handleRoleTransition(
   lead: { id: bigint; roles: string[] },
   targetRole: string | undefined,
   _agentId: bigint,
-  auth: SessionUser
+  auth: SessionUser,
+  ip: string
 ) {
   if (!targetRole) {
     return NextResponse.json({ error: "targetRole is required for role_transition" }, { status: 400 });
@@ -406,7 +413,7 @@ async function handleRoleTransition(
     from: lead.roles,
     to: updatedRoles,
     added_role: targetRole,
-  });
+  }, ip);
 
   return NextResponse.json({ success: true });
 }

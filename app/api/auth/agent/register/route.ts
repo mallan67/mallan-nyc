@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     await logAuditEvent("create", "agent", agent.id.toString(), auth, {
       email: agent.email,
       name: agent.full_name,
-    });
+    }, req.headers.get("x-forwarded-for") || "unknown");
 
     return NextResponse.json({
       success: true,

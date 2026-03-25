@@ -73,9 +73,18 @@ const HTML_FILES = {
   },
   'index-built.html': {
     role: 'IDX Search',
-    requiredIds: ['btnSale', 'btnRent', 'generalSearchSection'],
+    requiredIds: [
+      'btnSale', 'btnRent', 'generalSearchSection',
+      // Unified form IDs (Task 6 dedup)
+      'searchBasicMode', 'searchMinPrice', 'searchMaxPrice',
+      'searchMinBeds', 'searchMaxBeds', 'searchKeyword',
+      // Sticky search bar (Task 7)
+      'stickySearchBar', 'activeFilterCount',
+      // Header nav (Task 5)
+      'navSales', 'navRentals', 'navBuildings', 'navCMA',
+    ],
     gateIds: [],
-    mustContain: ['data-rls-ignore'],
+    mustContain: ['data-rls-ignore', 'updateFilterCount', 'data-show-on'],
   },
   'dashboard.html': {
     role: 'CRM Dashboard',

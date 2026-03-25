@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const ip = req.headers.get("x-forwarded-for") || "unknown";
   const year = Number(body.year || new Date().getFullYear());
   const agentId = body.agent_id as string | undefined;
   const generateAll = body.generate_all === true;
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
       agents.map((a) => generate1099ForAgent(a.id, year))
     );
 
-    await logAuditEvent("generate", "1099", "all", auth, { year, count: results.length });
+    await logAuditEvent("generate", "1099", "all", auth, { year, count: results.length }, ip);
     return NextResponse.json({ year, agents: results });
   }
 
@@ -119,6 +120,6 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await generate1099ForAgent(BigInt(agentId), year);
-  await logAuditEvent("generate", "1099", agentId, auth, { year });
+  await logAuditEvent("generate", "1099", agentId, auth, { year }, ip);
   return NextResponse.json({ ...result });
 }

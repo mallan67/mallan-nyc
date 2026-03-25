@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-25T10:48:48.174Z",
-  "pass": 841,
+  "timestamp": "2026-03-25T18:13:19.655Z",
+  "pass": 845,
   "critical": 0,
   "warning": 2,
   "info": 40,
@@ -63,7 +63,7 @@
       "section": 7,
       "title": "CRM fetch() → API Route Cross-Reference",
       "category": "CRM & API",
-      "pass": 75,
+      "pass": 76,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 140,
+      "pass": 141,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 89,
+      "pass": 90,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 126,
+      "pass": 127,
       "critical": 0,
       "warning": 0,
       "info": 0

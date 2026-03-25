@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await logAuditEvent("create", "assignment_rule", rule.id.toString(), auth);
+  await logAuditEvent("create", "assignment_rule", rule.id.toString(), auth, { agent_id, criteria, priority }, req.headers.get("x-forwarded-for") || "unknown");
 
   return NextResponse.json({ item: { ...rule, id: rule.id.toString(), agent_id: rule.agent_id.toString() },
   }, { status: 201 });

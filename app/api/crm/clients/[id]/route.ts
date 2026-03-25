@@ -306,6 +306,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.documents_collected !== undefined) update.documents_collected = body.documents_collected ?? null;
   if (body.marketing_strategy !== undefined) update.marketing_strategy = body.marketing_strategy ?? null;
 
+  // Seller/landlord fields
+  if (body.seller_potential !== undefined) {
+    const valid = ["none", "low", "medium", "high"];
+    const sp = String(body.seller_potential);
+    if (valid.includes(sp)) update.seller_potential = sp;
+  }
+
   // Landlord intake fields
   if (body.property_disclosures !== undefined) update.property_disclosures = body.property_disclosures ?? null;
   if (body.lease_terms !== undefined) update.lease_terms = body.lease_terms ?? null;

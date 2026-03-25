@@ -59,7 +59,7 @@ export async function POST(
     data: { photo: publicUrl },
   });
 
-  await logAuditEvent("update", "agent", id, auth, { field: "photo", broker_upload: true });
+  await logAuditEvent("update", "agent", id, auth, { field: "photo", broker_upload: true }, req.headers.get("x-forwarded-for") || "unknown");
 
   return NextResponse.json({ photo: publicUrl, message: "Photo uploaded successfully" });
 }

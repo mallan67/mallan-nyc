@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
     totalInDb,
     statusSummary,
     typeSummary,
-  });
+  }, req.headers.get("x-forwarded-for") || "unknown");
 
   return NextResponse.json({
     success: true,

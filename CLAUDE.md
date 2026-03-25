@@ -64,7 +64,9 @@ The backend CRM supports 6 portal types, each with different access levels:
 > - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
 > - **Cron** — 6 scheduled jobs via `vercel.json` (data retention, DOM reset, IDX sync, listing expiration, search alerts, prospect triggers). 10 additional cron route files exist but are NOT scheduled (lead-scoring, intent-profiles, conviction-scores, seller-scoring, listing-momentum, social-proof, agent-metrics, market-snapshots, experiment-metrics, demand-signals).
 >
-> **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure, 24hr TTL with auto-rotation). Bearer fully removed.
+> **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure). Per-role TTL: Broker 24h, Agent 8h, Client 30d. Bearer fully removed.
+>
+> **MFA:** Broker login requires email OTP (6-digit code via M365 SMTP). SMS ready when Twilio env vars added. `MFA_EMAIL` env var overrides recipient (currently Gmail to avoid M365 same-mailbox delivery issue). Files: `lib/auth/mfa.ts`, `app/api/auth/mfa/verify/route.ts`. No TOTP app needed.
 >
 > **Listing fetch strategy:** DB-first (Prisma, 20-80ms) → Trestle direct fallback (10s timeout) → API endpoint fallback. AbortController timeouts on all external calls (10s fetch, 8s auth). Graceful null returns on failure — pages never crash from Trestle outages.
 >

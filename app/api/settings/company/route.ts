@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
-import { requireBroker, isAuthError } from '@/lib/auth/middleware';
+import { requireBroker, isAuthError, logAuditEvent } from '@/lib/auth/middleware';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,9 +66,13 @@ export async function POST(request: NextRequest) {
   const auth = await requireBroker(request);
   if (isAuthError(auth)) return auth;
 
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+
   try {
     const body = await request.json();
     const currentSettings = await getSettings();
+    const changedFields = Object.keys(body).filter(k => JSON.stringify(body[k]) !== JSON.stringify(currentSettings[k]));
+    await logAuditEvent("update", "company_settings", "company", auth, { changed_fields: changedFields }, ip);
     const updatedSettings = { ...currentSettings, ...body };
     await saveSettings(updatedSettings);
     return NextResponse.json({ settings: updatedSettings });

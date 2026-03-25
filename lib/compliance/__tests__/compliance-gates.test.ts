@@ -136,12 +136,12 @@ function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('checkDistributionGates', () => {
-  it('blocks owner opt-out (IDXEntireListingDisplayYN = false)', () => {
+  it('blocks IDX display disabled (IDXEntireListingDisplayYN = false)', () => {
     const result = checkDistributionGates(
       buildRawTrestle({ IDXEntireListingDisplayYN: false })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Owner opted out');
+    expect(result.reason).toContain('IDX display disabled');
   });
 
   it('blocks participant-only listings (ParticipantOnlyYN = true)', () => {
