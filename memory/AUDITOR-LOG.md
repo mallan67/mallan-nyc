@@ -315,4 +315,14 @@
 - P2-6: Audit logging coverage needs verification for overrides
 - P2-7: Portal DTO needs unit tests for gate flag combinations
 
-**Status:** NOT FIXED. Validator does not cover these (needs new sections 33-35).
+**Fixed (2026-03-25):**
+- P1-1: Per-role session TTL — DONE (lib/auth/cookie-config.ts → 3 auth routes)
+- P1-3: Server-side impersonation — DONE (POST /api/crm/agents/[id]/impersonate + /api/auth/impersonation/stop, audit logged)
+- P1-4: Client 30d TTL — DONE (covered by P1-1)
+- P2-5: Dev-login hardened — DONE (ALLOW_DEV_LOGIN env flag + IP logging)
+- Validator sections 33-35 added (session policy, MFA enforcement, impersonation audit trail)
+
+**Still Open:**
+- P1-2: Broker MFA — NOT IMPLEMENTED (needs plan, 2-3 day feature)
+- P2-6: Audit logging verification — NOT DONE (20 min manual check)
+- P2-7: Portal DTO unit tests — NOT DONE (1-2 hours Jest tests)
