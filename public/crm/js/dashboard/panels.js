@@ -1890,42 +1890,56 @@ var Panels = (function () {
     }
   }
 
+  function _renderPartyChips(type) {
+    var list = type === 'owner' ? (window._leaseOwners || []) : (window._leaseTenants || []);
+    if (!list.length) return '<p class="text-xs text-gray-400 italic">None added yet</p>';
+    var color = type === 'owner' ? '#B8860B' : '#3B82F6';
+    return list.map(function(p, idx) {
+      var roleLabel = p.primary ? 'Primary' : (type === 'owner' ? 'Co-Owner' : 'Co-Tenant');
+      return '<div class="flex items-center justify-between p-2 mb-1 rounded-lg" style="background:' + color + '08;border:1px solid ' + color + '30;">' +
+        '<div class="flex items-center gap-2">' +
+          '<div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style="background:' + color + ';">' + E((p.name || '?')[0].toUpperCase()) + '</div>' +
+          '<div><p class="text-sm font-medium text-gray-900">' + E(p.name) + '</p>' +
+          (p.email ? '<p class="text-[10px] text-gray-500">' + E(p.email) + '</p>' : '') + '</div>' +
+        '</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background:' + color + '15;color:' + color + ';">' + E(roleLabel) + '</span>' +
+          (p.primary ? '' : '<button type="button" class="text-red-400 hover:text-red-600 text-xs" onclick="Panels._removeLeaseParty(\'' + type + '\',' + idx + ')"><i class="fas fa-times"></i></button>') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
   function _renderLeaseForm(el) {
-    var clientType = window._moveClientType || '';
     var clientName = window._moveClientName || 'This Client';
     var clientId = window._moveClientId || '';
-    var isLandlord = clientType === 'landlord';
     var inp = 'class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none"';
     var lbl = 'class="text-xs font-semibold text-gray-700 block mb-1"';
 
-    // Determine initial other-party label based on assumed role
-    var otherLabel = isLandlord
-      ? '<i class="fas fa-user mr-1"></i>Link Tenant'
-      : '<i class="fas fa-user-tie mr-1"></i>Link Landlord';
-    var otherLabelColor = isLandlord ? '#3B82F6' : '#B8860B';
+    // Initialise party state — primary owner is the current client
+    window._leaseOwners = [{ id: clientId, name: clientName, primary: true }];
+    window._leaseTenants = [];
 
     var html = '<form id="leaseTrackerForm" class="space-y-3 mt-4 p-4 bg-gray-50 rounded-xl">' +
 
-      // ── This client's role selector ──
-      '<div><label ' + lbl + '>This client is:</label>' +
-        '<select ' + inp + ' name="client_role" onchange="Panels._leaseRoleChanged(this.value)">' +
-          '<option value="landlord"' + (isLandlord ? ' selected' : '') + '>Landlord (property owner)</option>' +
-          '<option value="tenant"' + (!isLandlord ? ' selected' : '') + '>Tenant (renter)</option>' +
-        '</select></div>' +
-
-      // ── Current client card (auto-linked, read-only) ──
+      // ── OWNERS / SIGNERS SECTION ──
       '<div class="p-3 bg-white rounded-lg border border-gray-200">' +
-        '<div class="flex items-center gap-2 mb-2">' +
-          '<div class="w-8 h-8 rounded-full bg-gold/20 text-gold text-xs font-bold flex items-center justify-center">' + E((clientName[0] || '?').toUpperCase()) + '</div>' +
-          '<div>' +
-            '<p class="text-sm font-bold text-gray-900">' + E(clientName) + '</p>' +
-            '<p class="text-[10px] text-gray-400">Auto-linked from address book</p>' +
-          '</div>' +
+        '<p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:#B8860B"><i class="fas fa-user-tie mr-1"></i>Owners / Signers on Lease</p>' +
+        '<div id="ownerChips">' + _renderPartyChips('owner') + '</div>' +
+        '<div class="relative mt-2">' +
+          '<input ' + inp + ' id="ownerSearch" placeholder="Search to add owner/signer…" autocomplete="off" oninput="Panels._searchLeaseParty(this.value,\'owner\')">' +
+          '<div id="ownerSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #E5E7EB;border-top:0;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>' +
         '</div>' +
-        '<div id="currentClientDetails" class="text-xs text-gray-500 space-y-0.5">' +
-          '<p class="text-[10px] italic text-gray-400">Loading profile…</p>' +
+      '</div>' +
+
+      // ── TENANTS SECTION ──
+      '<div class="p-3 bg-white rounded-lg border border-gray-200">' +
+        '<p class="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2"><i class="fas fa-user mr-1"></i>Tenants on Lease</p>' +
+        '<div id="tenantChips">' + _renderPartyChips('tenant') + '</div>' +
+        '<div class="relative mt-2">' +
+          '<input ' + inp + ' id="tenantSearch" placeholder="Search to add tenant…" autocomplete="off" oninput="Panels._searchLeaseParty(this.value,\'tenant\')">' +
+          '<div id="tenantSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #E5E7EB;border-top:0;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>' +
         '</div>' +
-        '<p class="text-[10px] text-gray-400 mt-2">To edit this client\'s info, open their workspace.</p>' +
       '</div>' +
 
       // ── RENTAL PROPERTY ──
@@ -1950,45 +1964,10 @@ var Panels = (function () {
         '<div><label ' + lbl + '>Lease End *</label><input ' + inp + ' name="lease_end_date" type="date" required></div>' +
       '</div>' +
 
-      // ── LINK OTHER PARTY ──
-      '<div class="p-3 bg-white rounded-lg border border-gray-200">' +
-        '<p id="otherPartyLabel" class="text-xs font-bold uppercase tracking-wider mb-2" style="color:' + otherLabelColor + '">' + otherLabel + '</p>' +
-        '<div class="relative">' +
-          '<input id="otherPartySearch" ' + inp + ' placeholder="Search existing clients by name or email…" autocomplete="off" ' +
-            'oninput="Panels._searchOtherParty(this.value)">' +
-          '<div id="otherPartyResults" class="absolute z-20 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto" style="display:none"></div>' +
-        '</div>' +
-        '<div id="otherPartySelected" class="mt-2 flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200" style="display:none">' +
-          '<div id="otherPartyInfo"></div>' +
-          '<button type="button" class="text-xs text-red-400 hover:text-red-600 font-medium ml-2" onclick="Panels._clearOtherParty()">Remove</button>' +
-        '</div>' +
-        '<p class="text-[10px] text-gray-400 mt-2">Leave blank if the other party is not in the system yet.</p>' +
-        '<input type="hidden" id="otherClientId" name="other_client_id">' +
-      '</div>' +
-
       '<button type="button" class="btn btn-gold w-full" onclick="Panels._submitLeaseTrackerMove()"><i class="fas fa-calendar-check mr-1"></i>Add to Lease Tracker</button>' +
     '</form>';
 
     el.innerHTML = html;
-
-    // Async: load current client profile details into the card
-    if (clientId) {
-      MallanAPI._fetch('/api/crm/clients/' + clientId).then(function(cl) {
-        var detailsEl = document.getElementById('currentClientDetails');
-        if (!detailsEl) return;
-        var lines = [];
-        if (cl.email) lines.push('<span class="font-medium text-gray-700">' + E(cl.email) + '</span>');
-        if (cl.phone) lines.push(E(cl.phone));
-        if (cl.legal_ownership_name) lines.push('<span class="italic">' + E(cl.legal_ownership_name) + '</span>');
-        if (cl.home_address) lines.push(E(cl.home_address));
-        detailsEl.innerHTML = lines.length
-          ? lines.map(function(l) { return '<p>' + l + '</p>'; }).join('')
-          : '<p class="text-[10px] italic text-gray-400">No additional profile info on file.</p>';
-      }).catch(function() {
-        var detailsEl = document.getElementById('currentClientDetails');
-        if (detailsEl) detailsEl.innerHTML = '<p class="text-[10px] italic text-gray-400">Could not load profile.</p>';
-      });
-    }
   }
 
   function _renderProspectsForm(el) {
@@ -2025,31 +2004,35 @@ var Panels = (function () {
     });
   }
 
-  function _searchOtherParty(query) {
-    var resultsDiv = document.getElementById('otherPartyResults');
+  function _searchLeaseParty(query, type) {
+    var resultsId = type === 'owner' ? 'ownerSearchResults' : 'tenantSearchResults';
+    var resultsDiv = document.getElementById(resultsId);
     if (!resultsDiv) return;
     if (!query || query.length < 2) { resultsDiv.style.display = 'none'; return; }
 
-    clearTimeout(window._otherPartyTimer);
-    window._otherPartyTimer = setTimeout(function() {
+    clearTimeout(window._leaseSearchTimer);
+    window._leaseSearchTimer = setTimeout(function() {
       MallanAPI._fetch('/api/crm/clients?search=' + encodeURIComponent(query) + '&limit=10')
         .then(function(data) {
           var clients = data.clients || [];
+          // Filter out already-selected parties from both lists
+          var selectedIds = (window._leaseOwners || []).concat(window._leaseTenants || []).map(function(p) { return String(p.id); });
+          clients = clients.filter(function(cl) { return selectedIds.indexOf(String(cl.id)) === -1; });
+
           if (!clients.length) {
-            resultsDiv.innerHTML = '<div class="p-3 text-xs text-gray-400">No clients found</div>';
+            resultsDiv.innerHTML = '<div class="p-3 text-xs text-gray-400">No matching clients found</div>';
             resultsDiv.style.display = 'block';
             return;
           }
           var h = '';
           clients.forEach(function(cl) {
             var name = ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.name || cl.email || '';
-            var roles = (cl.roles || []).join(', ');
             h += '<div class="p-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2 border-b border-gray-100" ' +
-              'onclick="Panels._selectOtherParty(\'' + E(cl.id) + '\',\'' + E(name) + '\',\'' + E(cl.email || '') + '\',\'' + E(cl.phone || '') + '\')">' +
+              'onclick="Panels._addLeaseParty(\'' + type + '\',\'' + E(cl.id) + '\',\'' + E(name) + '\',\'' + E(cl.email || '') + '\',\'' + E(cl.phone || '') + '\')">' +
               '<div class="w-6 h-6 rounded-full bg-gold/20 text-gold text-[10px] font-bold flex items-center justify-center shrink-0">' + E((name[0] || '?').toUpperCase()) + '</div>' +
               '<div class="min-w-0">' +
                 '<p class="text-sm font-medium text-gray-900 truncate">' + E(name) + '</p>' +
-                '<p class="text-[10px] text-gray-500 truncate">' + E(cl.email || '') + (roles ? ' · ' + E(roles) : '') + '</p>' +
+                '<p class="text-[10px] text-gray-500 truncate">' + E(cl.email || '') + '</p>' +
               '</div>' +
             '</div>';
           });
@@ -2062,37 +2045,31 @@ var Panels = (function () {
     }, 300);
   }
 
-  function _selectOtherParty(id, name, email, phone) {
-    var hiddenInput = document.getElementById('otherClientId');
-    var searchInput = document.getElementById('otherPartySearch');
-    var resultsDiv = document.getElementById('otherPartyResults');
-    var selectedDiv = document.getElementById('otherPartySelected');
-    var infoDiv = document.getElementById('otherPartyInfo');
-    if (hiddenInput) hiddenInput.value = id;
-    if (resultsDiv) resultsDiv.style.display = 'none';
-    if (searchInput) searchInput.value = '';
-    if (selectedDiv) selectedDiv.style.display = 'flex';
-    if (infoDiv) {
-      infoDiv.innerHTML =
-        '<p class="text-sm font-bold text-gray-900">' + Utils.esc(name) + '</p>' +
-        '<p class="text-xs text-gray-500">' + Utils.esc(email) + (phone ? ' · ' + Utils.esc(phone) : '') + '</p>';
+  function _addLeaseParty(type, id, name, email, phone) {
+    if (type === 'owner') {
+      if (!window._leaseOwners) window._leaseOwners = [];
+      window._leaseOwners.push({ id: id, name: name, email: email, phone: phone, primary: false });
+    } else {
+      if (!window._leaseTenants) window._leaseTenants = [];
+      window._leaseTenants.push({ id: id, name: name, email: email, phone: phone, primary: false });
     }
+    var chipsId = type === 'owner' ? 'ownerChips' : 'tenantChips';
+    var chipsEl = document.getElementById(chipsId);
+    if (chipsEl) chipsEl.innerHTML = _renderPartyChips(type);
+    var searchId = type === 'owner' ? 'ownerSearch' : 'tenantSearch';
+    var searchEl = document.getElementById(searchId);
+    if (searchEl) searchEl.value = '';
+    var resultsId = type === 'owner' ? 'ownerSearchResults' : 'tenantSearchResults';
+    var resultsEl = document.getElementById(resultsId);
+    if (resultsEl) resultsEl.style.display = 'none';
   }
 
-  function _clearOtherParty() {
-    var hiddenInput = document.getElementById('otherClientId');
-    var selectedDiv = document.getElementById('otherPartySelected');
-    if (hiddenInput) hiddenInput.value = '';
-    if (selectedDiv) selectedDiv.style.display = 'none';
-  }
-
-  function _leaseRoleChanged(val) {
-    var label = document.getElementById('otherPartyLabel');
-    if (label) {
-      label.style.color = val === 'landlord' ? '#3B82F6' : '#B8860B';
-      label.innerHTML = '<i class="fas ' + (val === 'landlord' ? 'fa-user' : 'fa-user-tie') + ' mr-1"></i>' +
-        (val === 'landlord' ? 'Link Tenant' : 'Link Landlord');
-    }
+  function _removeLeaseParty(type, idx) {
+    var list = type === 'owner' ? window._leaseOwners : window._leaseTenants;
+    if (list && list[idx] && !list[idx].primary) list.splice(idx, 1);
+    var chipsId = type === 'owner' ? 'ownerChips' : 'tenantChips';
+    var chipsEl = document.getElementById(chipsId);
+    if (chipsEl) chipsEl.innerHTML = _renderPartyChips(type);
   }
 
   function _submitLeaseTrackerMove() {
@@ -2104,10 +2081,8 @@ var Panels = (function () {
     data.monthly_rent = Number(data.monthly_rent) || 0;
 
     var clientId = window._moveClientId;
-    var clientRole = data.client_role;
-    var otherClientId = (document.getElementById('otherClientId') || {}).value || '';
-    delete data.client_role;
-    delete data.other_client_id;
+    var owners = window._leaseOwners || [];
+    var tenants = window._leaseTenants || [];
 
     // Build the ActiveLease payload
     var leaseData = {
@@ -2120,24 +2095,40 @@ var Panels = (function () {
       lease_end_date: data.lease_end_date,
     };
 
-    // Link the current client and the selected other party by lead ID
-    if (clientRole === 'landlord') {
-      leaseData.landlord_lead_id = clientId;
-      if (otherClientId) leaseData.tenant_lead_id = otherClientId;
-    } else {
-      leaseData.tenant_lead_id = clientId;
-      if (otherClientId) leaseData.landlord_lead_id = otherClientId;
+    // Primary landlord = first owner (always the current client)
+    leaseData.landlord_lead_id = owners[0] ? owners[0].id : clientId;
+
+    // Primary tenant = first tenant (if any)
+    if (tenants.length > 0) {
+      leaseData.tenant_lead_id = tenants[0].id;
+      // Store additional tenant names as a comma-separated string
+      if (tenants.length > 1) {
+        leaseData.tenant_name = tenants.map(function(t) { return t.name; }).join(', ');
+      }
     }
 
     // Save lease
     MallanAPI._fetch('/api/crm/active-leases', {
       method: 'POST',
       body: JSON.stringify(leaseData),
+    }).then(function(leaseResp) {
+      // If there are co-owners, save them as LeadParty records on the landlord
+      var coOwners = owners.slice(1);
+      if (coOwners.length > 0) {
+        var landlordId = leaseData.landlord_lead_id;
+        return Promise.all(coOwners.map(function(co) {
+          return MallanAPI._fetch('/api/crm/clients/' + landlordId + '/parties', {
+            method: 'POST',
+            body: JSON.stringify({ lead_id: co.id, relationship: 'co_owner' }),
+          }).catch(function() { /* non-fatal */ });
+        })).then(function() { return leaseResp; });
+      }
+      return leaseResp;
     }).then(function() {
-      // Update the current client's role and pipeline stage
+      // Update the primary client's role and pipeline stage to landlord/rented
       var clientUpdate = {
-        roles: [clientRole === 'landlord' ? 'landlord' : 'renter'],
-        pipeline_stage: clientRole === 'landlord' ? 'rented' : 'active_tenant',
+        roles: ['landlord'],
+        pipeline_stage: 'rented',
       };
       if (data.address) clientUpdate.property_address = data.address + (data.unit ? ' #' + data.unit : '');
       return MallanAPI.clients.update(clientId, clientUpdate);
@@ -13213,10 +13204,9 @@ var Panels = (function () {
     _addToProspects: _addToProspects,
     _selectMoveOption: _selectMoveOption,
     _submitLeaseTrackerMove: _submitLeaseTrackerMove,
-    _searchOtherParty: _searchOtherParty,
-    _selectOtherParty: _selectOtherParty,
-    _clearOtherParty: _clearOtherParty,
-    _leaseRoleChanged: _leaseRoleChanged,
+    _searchLeaseParty: _searchLeaseParty,
+    _addLeaseParty: _addLeaseParty,
+    _removeLeaseParty: _removeLeaseParty,
     _doAddToProspects: _doAddToProspects,
     _reassignClient: _reassignClient,
     _doReassign: _doReassign,
