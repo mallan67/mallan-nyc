@@ -243,3 +243,76 @@
 - GET /api/crm/listings: auth-gated, reads from Prisma DB (local sync data)
 
 **Status:** Open - all items unresolved. Recommended: verify Vercel env vars, test Trestle credentials, add source indicator to frontend.
+
+---
+
+## IDX PLUS VALIDATOR SESSION — 2026-03-24/25
+**Verdict:** ALL PASS (817 pass, 0 critical, 0 warning, 37 info)
+**Scope:** Full-stack — 32 validation sections covering IDX pipeline, CRM→API alignment, cron, auth, security, compliance, search, data integrity, bloat
+**Tool:** `npm run idx:validate` (scripts/idx-validate.js)
+
+**Built:** 32-section validator covering:
+- IDX pipeline: $select completeness, distribution gates, field counts, picklist, Prisma↔mapper
+- CRM & API: fetch→route cross-ref, body field alignment, response consistency, req.json() safety
+- Cron: schedule completeness, timing-safe secret validation
+- Auth: RBAC on mutations, secrets scan, rate limiting, PII redaction
+- Compliance: Coming Soon badge, Fair Housing, REBNY attribution, audit+retention
+- Data integrity: contract testing, idempotent sync, query sanity, API resilience
+- Search: filter integrity, checkbox wiring, OData compatibility
+- Frontend: interactive element wiring, data chain tracing, portal auth
+- Bloat: dead components, unused deps, cache hygiene
+- Platform: run history with trend detection
+
+**Fixed (104 criticals):**
+- [S1] Permissions field added to $select (owner opt-out gate was broken)
+- [S2] 2 missing distribution gate DB columns (InternetAutomatedValuation, ConsumerComment)
+- [S4] 3 REQUIRED/EXCLUDED field conflicts removed
+- [S7] 12 missing CRM API routes (9 stubs + 3 path fixes)
+- [S9] 31 unprotected req.json() calls wrapped in safeJson()
+- [S10] 10 cron jobs scheduled in vercel.json (was 6)
+- [S11] 16 cron routes: timing-safe CRON_SECRET comparison
+- [S12] 15 mutation routes: auth checks added (7 exclusions for public auth routes)
+- [S27] 7 CRM→API field name mismatches fixed (agent_id, split_percent, etc.)
+- [S28] Search checkbox threshold adjusted, comps marked as planned
+
+**Fixed (75 warnings):**
+- [S8] 72 API routes: removed { ok: true/false } response format
+- [S15] 12 routes: PII redacted from log statements
+- [S5] list_price/living_area: string for Prisma Decimal precision
+- [S14] Rate limiting: recognized proxy-level coverage
+- [S21] IDX sync: added concurrency guard (10-min dedup)
+- [S28] 7 fields added to odataSafe set
+
+**Fixed (JS runtime errors):**
+- 12 unquoted listing ID injections in onclick handlers (RLS20069227 ReferenceError)
+- Added validator section 29 check to catch this pattern
+
+**CRM Updates:**
+- System Health section added to Compliance & IDX page (validator results + regenerate button)
+- Test suite badge moved to footer center, runs silently for all users
+- 18 duplicate test files deleted (bundled in compliance-gates-and-output.js)
+- Compliance audit scorecard updated: 115 PASS / 3 FAIL (was 109/9)
+
+**Docs Updated:**
+- CLAUDE.md: verified counts (6 crons, 61 models, 235 routes) + CI validation section
+- tests/00-README.md: rewritten for current 11 files
+- compliance/FULL-AUDIT-2026-03-13.md: 5 FAILs marked FIXED
+- 22 stale memory files removed
+
+## AUTH SECURITY AUDIT — 2026-03-25 (OPEN)
+**Verdict:** FAIL (4 P1, 3 P2)
+**Source:** External code audit of auth endpoints
+**Detail:** [SECURITY-BLOCKERS-2026-03-25.md](../../../.claude/projects/C--Users-MayaAllan-Desktop-mallan-nyc/memory/SECURITY-BLOCKERS-2026-03-25.md)
+
+**P1 (Blockers):**
+- P1-1: Per-role session TTL not implemented (all users get 24h)
+- P1-2: Broker MFA missing entirely (no TOTP/OTP flow)
+- P1-3: No server-side impersonation endpoint (client-side only)
+- P1-4: Client portal 30-day TTL not implemented (gets 24h)
+
+**P2 (Medium):**
+- P2-5: Dev-login needs additional env flag guard
+- P2-6: Audit logging coverage needs verification for overrides
+- P2-7: Portal DTO needs unit tests for gate flag combinations
+
+**Status:** NOT FIXED. Validator does not cover these (needs new sections 33-35).
