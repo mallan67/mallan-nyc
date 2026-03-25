@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requirePortalRole, isAuthError } from '@/lib/auth';
+import { requirePortalRole, requireAuth, isAuthError } from "@/lib/auth";
 import { safeJson } from "@/lib/api/safe-json";
-import { getSession } from "@/lib/auth/session";
 
 export const dynamic = 'force-dynamic';
 
@@ -33,8 +32,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAuth(req);
+  if (isAuthError(session)) return session;
 
   const auth = await requirePortalRole(request, "buyer", "tenant");
   if (isAuthError(auth)) return auth;

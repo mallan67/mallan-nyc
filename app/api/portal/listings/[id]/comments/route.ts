@@ -2,10 +2,9 @@
 // Threaded comments on listings. Portal clients + family members.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requirePortalRole, requireAuth, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
-import { getSession } from "@/lib/auth/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -74,8 +73,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
  * Body: { body: string, parent_id?: string }
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAuth(req);
+  if (isAuthError(session)) return session;
 
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;

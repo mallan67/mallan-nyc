@@ -2,18 +2,17 @@
 // Client reacts to a listing (like, dislike, discuss, schedule). Toggle on/off.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requirePortalRole, requireAuth, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
-import { getSession } from "@/lib/auth/session";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 const VALID_ACTIONS = ["liked", "disliked", "discuss", "schedule"];
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAuth(req);
+  if (isAuthError(session)) return session;
 
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;

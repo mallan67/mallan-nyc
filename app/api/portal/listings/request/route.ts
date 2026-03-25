@@ -3,13 +3,12 @@
 // This creates a "listing_request" action that the agent sees in CRM.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requirePortalRole, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requirePortalRole, requireAuth, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { getSession } from "@/lib/auth/session";
 
 export async function POST(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAuth(req);
+  if (isAuthError(session)) return session;
 
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
