@@ -2,7 +2,7 @@
 // Client views or updates their own search preferences.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requirePortalRole, requireAuth, isAuthError } from "@/lib/auth";
+import { requirePortalRole, requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {

@@ -2,7 +2,7 @@
 // GET: Read attorney info. PUT: Update attorney info.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requirePortalRole, requireAuth, isAuthError } from "@/lib/auth";
+import { requirePortalRole, requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
 
