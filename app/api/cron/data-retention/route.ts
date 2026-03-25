@@ -25,6 +25,13 @@ export async function GET(req: NextRequest) {
   });
   results.expired_sessions_purged = expiredSessions.count;
 
+  // 1b. Purge expired MFA sessions (5-min TTL, but clean up anything >1h old)
+  const mfaCutoff = new Date(now.getTime() - 60 * 60 * 1000);
+  const expiredMfaSessions = await prisma.mfaSession.deleteMany({
+    where: { expires_at: { lt: mfaCutoff } },
+  });
+  results.expired_mfa_sessions_purged = expiredMfaSessions.count;
+
   // 2. Archive audit logs older than 2 years (mark as archived, don't delete)
   const auditCutoff = new Date();
   auditCutoff.setFullYear(auditCutoff.getFullYear() - 2);
