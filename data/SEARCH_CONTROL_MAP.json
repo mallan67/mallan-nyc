@@ -85,22 +85,21 @@
       { "data_value": "Condominium", "target_field": "CommonInterest", "label": "Condo" },
       { "data_value": "StockCooperative", "target_field": "CommonInterest", "label": "Co-op" },
       { "data_value": "Condop", "target_field": "CommonInterest", "label": "Condop" },
-      { "data_value": "SingleFamilyTownhouse,MultiFamilyTownhouse", "target_field": "PropertySubType", "label": "Townhouse" },
+      { "data_value": "Townhouse", "target_field": "PropertySubType", "label": "Townhouse", "notes": "Canonical Trestle enum value. Replaces non-canonical SingleFamilyTownhouse/MultiFamilyTownhouse (lookup CSV only, not PropertySubType enum)." },
       { "data_value": "MultiFamily", "target_field": "PropertySubType", "label": "Multi-Family" },
       { "data_value": "SingleFamilyResidence", "target_field": "PropertySubType", "label": "Single Family" },
       { "data_value": "UnimprovedLand", "target_field": "PropertySubType", "label": "Land / Dev Site" },
       { "data_value": "Office", "target_field": "PropertySubType", "label": "Office" },
       { "data_value": "Retail", "target_field": "PropertySubType", "label": "Retail" },
       { "data_value": "Office,Retail", "target_field": "PropertySubType", "label": "Mixed Use (Office/Retail)" },
-      { "data_value": "MixedUse", "target_field": "PropertySubType", "label": "Mixed Use" },
-      { "data_value": "Conversion", "target_field": "PropertySubType", "label": "Conversion" }
+      { "data_value": "MixedUse", "target_field": "PropertySubType", "label": "Mixed Use" }
     ],
     "rental": [
       { "data_value": "RentalBuilding", "target_field": "CommonInterest", "label": "Rental Building" },
       { "data_value": "Condominium", "target_field": "CommonInterest", "label": "Condo" },
       { "data_value": "StockCooperative", "target_field": "CommonInterest", "label": "Co-op" },
       { "data_value": "Condop", "target_field": "CommonInterest", "label": "Condop" },
-      { "data_value": "SingleFamilyTownhouse,MultiFamilyTownhouse", "target_field": "PropertySubType", "label": "Townhouse" },
+      { "data_value": "Townhouse", "target_field": "PropertySubType", "label": "Townhouse", "notes": "Canonical Trestle enum value." },
       { "data_value": "SingleFamilyResidence", "target_field": "PropertySubType", "label": "Single Family" }
     ]
   },
@@ -120,20 +119,23 @@
     "sale": [
       { "data_field": "NewConstruction", "data_value": "false", "label": "Resale Building" },
       { "data_field": "NewConstruction", "data_value": "true", "label": "New Development" },
-      { "data_field": "PropertySubType", "data_value": "Conversion", "label": "Conversion" }
+      { "data_local_field": "Conversion", "data_value": "true", "label": "Conversion", "notes": "CRM-local flag. 'Conversion' is not a canonical Trestle PropertySubType enum value." }
     ],
     "rental": [
       { "data_field": "NewConstruction", "data_value": "false", "label": "Resale Building" },
       { "data_field": "NewConstruction", "data_value": "true", "label": "New Development" },
-      { "data_field": "PropertySubType", "data_value": "Conversion", "label": "Conversion" }
+      { "data_local_field": "Conversion", "data_value": "true", "label": "Conversion", "notes": "CRM-local flag. 'Conversion' is not a canonical Trestle PropertySubType enum value." }
     ]
   },
   "concession_checkboxes": {
-    "_doc": "Rental-only: Owner Pays / Free Rent / Concessions checkboxes.",
+    "_doc": "Rental-only: Owner Pays / Free Rent / Concessions. Trestle Concessions enum has only: CallListingAgent, No, Yes. OwnerPays is a separate multi-enum field. Free Rent is not a Trestle enum value — these are CRM-local UI filters.",
     "rental": [
-      { "data_field": "Concessions", "data_value": "OwnerPays", "label": "Owner Pays" },
-      { "data_field": "Concessions", "data_value": "FreeRent", "label": "Free Rent" },
-      { "data_field": "Concessions", "data_value": "OwnerPaysAndFreeRent", "label": "Owner Pays AND Free Rent" }
+      { "data_field": "OwnerPays", "data_value": "true", "label": "Owner Pays", "notes": "OwnerPays is its own Trestle multi-enum field (not a Concessions value). Filter = OwnerPays ne null." },
+      { "data_local_field": "FreeRent", "data_value": "true", "label": "Free Rent", "notes": "CRM-local. No canonical Trestle field for free rent." },
+      { "data_local_field": "OwnerPaysAndFreeRent", "data_value": "true", "label": "Owner Pays AND Free Rent", "notes": "CRM-local combo filter." }
+    ],
+    "sale": [
+      { "data_field": "Concessions", "data_value": "Yes", "label": "Has Concessions", "notes": "Canonical Trestle Concessions enum value." }
     ]
   },
   "quick_search": {
@@ -167,12 +169,12 @@
     "notes": "RLS uses SubdivisionName (not MLSAreaMinor) for neighborhoods."
   },
   "cross_listing_checkboxes": {
-    "_doc": "Cross-listing checkboxes. Validated against index-built.html 2026-03-23.",
+    "_doc": "Cross-listing checkboxes. CRM-local field — CrossListing does NOT exist on Trestle. Used for local cross-referencing between sale/rental tabs.",
     "sale": [
-      { "data_field": "CrossListing", "data_value": "ListedForRent", "label": "Listed for Rent" }
+      { "data_local_field": "CrossListing", "data_value": "ListedForRent", "label": "Listed for Rent", "notes": "CRM-local. CrossListing is not a Trestle field." }
     ],
     "rental": [
-      { "data_field": "CrossListing", "data_value": "AlsoForSale", "label": "Also for Sale" }
+      { "data_local_field": "CrossListing", "data_value": "AlsoForSale", "label": "Also for Sale", "notes": "CRM-local. CrossListing is not a Trestle field." }
     ]
   },
   "tab_switching": {
