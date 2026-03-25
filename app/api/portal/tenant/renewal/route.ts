@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const [body, _parseErr] = await safeJson(request);
   if (_parseErr) return _parseErr;
-  const { renewal_status } = body;
+  const { renewal_status } = body as Record<string, unknown>;
 
   if (!renewal_status || !VALID_STATUSES.includes(renewal_status)) {
     return NextResponse.json(

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { crm_type, name, audience_type, campaign_type, frequency } = body;
+  const { crm_type, name, audience_type, campaign_type, frequency } = body as Record<string, unknown>;
 
   if (!crm_type || !name || !audience_type || !campaign_type) {
     return NextResponse.json({ error: "crm_type, name, audience_type, campaign_type required" }, { status: 400 });
@@ -85,7 +85,7 @@ export async function PUT(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { id, ...updates } = body;
+  const { id, ...updates } = body as Record<string, unknown>;
 
   if (!id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });

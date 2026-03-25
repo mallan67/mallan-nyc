@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { lead_id, drip_type, tier } = body;
+  const { lead_id, drip_type, tier } = body as Record<string, string>;
 
   if (!lead_id || !drip_type || !tier) {
     return NextResponse.json({ error: "lead_id, drip_type, tier required" }, { status: 400 });

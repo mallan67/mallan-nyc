@@ -17,7 +17,7 @@ export async function PATCH(
   const { id } = await params;
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { status, due_date } = body;
+  const { status, due_date } = body as Record<string, unknown>;
 
   const task = await prisma.followUpTask.findUnique({
     where: { id: BigInt(id) },

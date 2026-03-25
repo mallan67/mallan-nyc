@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { lead_id, listing_id, address, unit, showing_date, price_at_time, reaction, what_caught_attention, why_not_rented, notes } = body;
+  const { lead_id, listing_id, address, unit, showing_date, price_at_time, reaction, what_caught_attention, why_not_rented, notes } = body as Record<string, unknown>;
 
   if (!lead_id || !address || !showing_date) {
     return NextResponse.json({ error: "lead_id, address, showing_date required" }, { status: 400 });

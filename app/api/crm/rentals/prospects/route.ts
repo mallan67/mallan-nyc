@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
   const {
     first_name, last_name, email, phone,
     no_fee_only, notes, source,
-  } = body;
+  } = body as Record<string, unknown>;
 
   if (!first_name || !last_name || !email) {
     return NextResponse.json(
@@ -205,7 +205,7 @@ export async function PATCH(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { id, ...updates } = body;
+  const { id, ...updates } = body as Record<string, unknown>;
 
   if (!id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });

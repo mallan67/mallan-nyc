@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     secondary_phone,
     secondary_relationship,
     authorized_signatories,
-  } = body;
+  } = body as Record<string, unknown>;
 
   if (!address || typeof address !== "string" || !address.trim()) {
     return NextResponse.json({ error: "address is required" }, { status: 400 });
