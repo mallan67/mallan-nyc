@@ -3745,27 +3745,27 @@ function toggleSection(header) {
                                     <input type="text" id="searchQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
                                 </div>
                                 <div class="w-[72px]">
-                                    <input type="text" id="saleQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
+                                    <input type="text" id="searchQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
                                 </div>
                             </div>
                             <!-- 2. Neighborhood + Map icon + Transit icon -->
                             <div class="mb-2">
                                 <div class="flex gap-1.5 items-center">
                                     <div class="relative flex-1">
-                                        <input type="text" id="saleNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'saleNeighborhoodDropdown', 'saleNeighborhoodTags')" autocomplete="off">
+                                        <input type="text" id="searchNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'searchNeighborhoodDropdown', 'searchNeighborhoodTags')" autocomplete="off">
                                         <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]"></i>
-                                        <div id="saleNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                        <div id="searchNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
                                     </div>
                                     <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Neighborhood Map">
                                         <i class="fas fa-map-marked-alt text-sm"></i>
                                     </button>
-                                    <button type="button" onclick="document.getElementById('saleTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
+                                    <button type="button" onclick="document.getElementById('searchTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
                                         <i class="fas fa-subway text-sm"></i>
                                     </button>
                                 </div>
-                                <div id="saleNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
+                                <div id="searchNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
                                 <!-- Transit expandable (slides down below neighborhood row) -->
-                                <div id="saleTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
+                                <div id="searchTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
                                     <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
                                     <div class="flex flex-wrap gap-1 mb-2">
                                         <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
@@ -3807,12 +3807,12 @@ function toggleSection(header) {
                             </div>
                             <!-- 3. Address -->
                             <div class="mb-1.5 relative">
-                                <input type="text" id="saleSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'saleSearchAddrResults')" autocomplete="off">
-                                <div id="saleSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
+                                <input type="text" id="searchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'searchAddrResults')" autocomplete="off">
+                                <div id="searchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
                             </div>
                             <!-- 4. Unit (optional) -->
                             <div class="mb-2">
-                                <input type="text" id="saleQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
+                                <input type="text" id="searchQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
                             </div>
                             <!-- 5. Search -->
                             <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
@@ -4212,13 +4212,13 @@ function toggleSection(header) {
                         <!-- Keyword Search -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Keyword Search</p>
-                            <input type="text" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs" id="saleKeywordSearch">
+                            <input type="text" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs" id="searchKeyword">
                         </div>
 
                         <!-- Management Companies -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Management Companies</p>
-                            <input type="text" placeholder="Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs" id="saleManagementCompany">
+                            <input type="text" placeholder="Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs" id="searchManagementCompany">
                         </div>
 
                         <!-- Save Search -->
@@ -4239,1257 +4239,6 @@ function toggleSection(header) {
                     </div>
                 </div>
 
-                <!-- ============================================== -->
-                <!-- BASIC SEARCH MODE - RENTAL LAYOUT -->
-                <!-- ============================================== -->
-                <div id="searchBasicModeRental" class="bg-white rounded-xl shadow-sm border p-5 overflow-hidden" style="display: none;">
-
-                    <!-- Row 1: Quick Search, Rent/Rooms, Status -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.5fr_1fr_140px] gap-4 mb-5">
-
-                        <!-- Status (Rental - visually last on desktop via order) -->
-                        <div class="border rounded-lg p-3 overflow-hidden order-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Status</p>
-                            <div class="space-y-1 text-xs max-h-64 overflow-y-auto">
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active"> All Active
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active"> Active
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket"> Back On Market
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-orange-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationAccepted"> Application Accepted
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOut"> Lease Out
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOutThruUs"> Lease Out Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppAcceptedThruUs"> App Accepted Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppInThruUs"> App In Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-purple-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AllLeaseSigned"> All Lease Signed
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSigned"> Lease Signed
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSignedThruUs"> Lease Signed Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved"> Board Approved
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-green-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed"> All Rented
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Rented"> Rented
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="RentedThruUs"> Rented Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-500">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Withdrawn
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Hold
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future"> Future
-                                </label>
-                                <div class="border-t pt-1 mt-1">
-                                    <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-600">
-                                        <input type="checkbox" class="w-3 h-3" data-local-field="CrossListing" data-value="AlsoForSale"> Include Also for Sale
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Rent / Rooms -->
-                        <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-2">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Rent / Rooms</p>
-                            <div class="space-y-2">
-                                <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMinRent">
-                                        <option value="">Min Rent</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1000">$1,000</option>
-                                        <option value="1500">$1,500</option>
-                                        <option value="2000">$2,000</option>
-                                        <option value="2500">$2,500</option>
-                                        <option value="3000">$3,000</option>
-                                        <option value="3500">$3,500</option>
-                                        <option value="4000">$4,000</option>
-                                        <option value="4500">$4,500</option>
-                                        <option value="5000">$5,000</option>
-                                        <option value="5500">$5,500</option>
-                                        <option value="6000">$6,000</option>
-                                        <option value="6500">$6,500</option>
-                                        <option value="7000">$7,000</option>
-                                        <option value="7500">$7,500</option>
-                                        <option value="8000">$8,000</option>
-                                        <option value="9000">$9,000</option>
-                                        <option value="10000">$10,000</option>
-                                        <option value="12000">$12,000</option>
-                                        <option value="15000">$15,000</option>
-                                        <option value="20000">$20,000</option>
-                                        <option value="25000">$25,000</option>
-                                        <option value="30000">$30,000</option>
-                                        <option value="40000">$40,000</option>
-                                        <option value="50000">$50,000</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs flex-shrink-0">—</span>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMaxRent">
-                                        <option value="">Max Rent</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1500">$1,500</option>
-                                        <option value="2000">$2,000</option>
-                                        <option value="2500">$2,500</option>
-                                        <option value="3000">$3,000</option>
-                                        <option value="3500">$3,500</option>
-                                        <option value="4000">$4,000</option>
-                                        <option value="4500">$4,500</option>
-                                        <option value="5000">$5,000</option>
-                                        <option value="5500">$5,500</option>
-                                        <option value="6000">$6,000</option>
-                                        <option value="6500">$6,500</option>
-                                        <option value="7000">$7,000</option>
-                                        <option value="7500">$7,500</option>
-                                        <option value="8000">$8,000</option>
-                                        <option value="9000">$9,000</option>
-                                        <option value="10000">$10,000</option>
-                                        <option value="12000">$12,000</option>
-                                        <option value="15000">$15,000</option>
-                                        <option value="20000">$20,000</option>
-                                        <option value="25000">$25,000</option>
-                                        <option value="30000">$30,000</option>
-                                        <option value="40000">$40,000</option>
-                                        <option value="50000">$50,000</option>
-                                        <option value="75000">$75,000</option>
-                                        <option value="100000">$100,000+</option>
-                                    </select>
-                                </div>
-                                <!-- Custom rent inputs (shown when "Custom" selected) -->
-                                <div id="rentalCustomPriceRow" class="hidden flex gap-1 items-center">
-                                    <input type="number" id="rentalMinRentCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Min" min="0" step="1">
-                                    <span class="text-gray-400 text-xs flex-shrink-0">—</span>
-                                    <input type="number" id="rentalMaxRentCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Max" min="0" step="1">
-                                </div>
-                                <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMinBeds">
-                                        <option value="">Min Beds</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="0">Studio</option>
-                                        <option value="1">1 BR</option>
-                                        <option value="2">2 BR</option>
-                                        <option value="3">3 BR</option>
-                                        <option value="4">4 BR</option>
-                                        <option value="5">5 BR</option>
-                                        <option value="6">6+ BR</option>
-                                    </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMaxBeds">
-                                        <option value="">Max Beds</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="0">Studio</option>
-                                        <option value="1">1 BR</option>
-                                        <option value="2">2 BR</option>
-                                        <option value="3">3 BR</option>
-                                        <option value="4">4 BR</option>
-                                        <option value="5">5 BR</option>
-                                        <option value="6">6+ BR</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMinBaths">
-                                        <option value="">Min Baths</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1 BA</option>
-                                        <option value="1.5">1.5 BA</option>
-                                        <option value="2">2 BA</option>
-                                        <option value="2.5">2.5 BA</option>
-                                        <option value="3">3 BA</option>
-                                        <option value="3.5">3.5 BA</option>
-                                        <option value="4">4+ BA</option>
-                                    </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMaxBaths">
-                                        <option value="">Max Baths</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1 BA</option>
-                                        <option value="1.5">1.5 BA</option>
-                                        <option value="2">2 BA</option>
-                                        <option value="2.5">2.5 BA</option>
-                                        <option value="3">3 BA</option>
-                                        <option value="3.5">3.5 BA</option>
-                                        <option value="4">4+ BA</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMinRooms">
-                                        <option value="">Min Rooms</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1 Room</option>
-                                        <option value="2">2 Rooms</option>
-                                        <option value="3">3 Rooms</option>
-                                        <option value="4">4 Rooms</option>
-                                        <option value="5">5 Rooms</option>
-                                        <option value="6">6 Rooms</option>
-                                        <option value="7">7 Rooms</option>
-                                        <option value="8">8+ Rooms</option>
-                                    </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMaxRooms">
-                                        <option value="">Max Rooms</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1 Room</option>
-                                        <option value="2">2 Rooms</option>
-                                        <option value="3">3 Rooms</option>
-                                        <option value="4">4 Rooms</option>
-                                        <option value="5">5 Rooms</option>
-                                        <option value="6">6 Rooms</option>
-                                        <option value="7">7 Rooms</option>
-                                        <option value="8">8+ Rooms</option>
-                                    </select>
-                                </div>
-                                <!-- SqFt Range -->
-                                <div class="flex gap-1">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMinSqft">
-                                        <option value="">Min SqFt</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="300">300 SF</option>
-                                        <option value="400">400 SF</option>
-                                        <option value="500">500 SF</option>
-                                        <option value="600">600 SF</option>
-                                        <option value="700">700 SF</option>
-                                        <option value="800">800 SF</option>
-                                        <option value="900">900 SF</option>
-                                        <option value="1000">1,000 SF</option>
-                                        <option value="1200">1,200 SF</option>
-                                        <option value="1500">1,500 SF</option>
-                                        <option value="1800">1,800 SF</option>
-                                        <option value="2000">2,000 SF</option>
-                                        <option value="2500">2,500 SF</option>
-                                        <option value="3000">3,000 SF</option>
-                                        <option value="4000">4,000 SF</option>
-                                        <option value="5000">5,000 SF</option>
-                                    </select>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalMaxSqft">
-                                        <option value="">Max SqFt</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="500">500 SF</option>
-                                        <option value="600">600 SF</option>
-                                        <option value="700">700 SF</option>
-                                        <option value="800">800 SF</option>
-                                        <option value="900">900 SF</option>
-                                        <option value="1000">1,000 SF</option>
-                                        <option value="1200">1,200 SF</option>
-                                        <option value="1500">1,500 SF</option>
-                                        <option value="1800">1,800 SF</option>
-                                        <option value="2000">2,000 SF</option>
-                                        <option value="2500">2,500 SF</option>
-                                        <option value="3000">3,000 SF</option>
-                                        <option value="4000">4,000 SF</option>
-                                        <option value="5000">5,000 SF</option>
-                                        <option value="7500">7,500 SF</option>
-                                        <option value="10000">10,000+ SF</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Listing Activity -->
-                            <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Listing Activity</p>
-                            <div class="space-y-2">
-                                <!-- Row 1: Activity Type Dropdown + Date Range -->
-                                <div class="flex gap-1 items-center">
-                                    <select id="rentalListingActivityType" class="flex-shrink-0 w-[140px] border rounded px-1 py-1 text-xs truncate">
-                                        <option value="">Select Activity</option>
-                                        <option value="Listed">Listed</option>
-                                        <option value="Updated">Updated</option>
-                                        <option value="ListedAndUpdated">Listed and Updated</option>
-                                    </select>
-                                    <div class="drp-wrapper flex-1 min-w-0" data-drp="rentalListedUpdated">
-                                        <div class="drp-trigger" onclick="openDateRangePicker(this)">
-                                            <span class="drp-text">Select Date Range</span>
-                                            <span class="drp-clear" onclick="event.stopPropagation(); clearDateRange(this)" style="display:none;">&#10005;</span>
-                                            <i class="fas fa-info-circle drp-info" title="Click to select a date range"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Row 2: Lease Signed Activity -->
-                                <div class="flex gap-1 items-center">
-                                    <span class="text-xs text-gray-500 flex-shrink-0 w-[140px]">Lease Signed Activity</span>
-                                    <div class="drp-wrapper flex-1 min-w-0" data-drp="rentalLeaseSigned">
-                                        <div class="drp-trigger" onclick="openDateRangePicker(this)">
-                                            <span class="drp-text">Select Date Range</span>
-                                            <span class="drp-clear" onclick="event.stopPropagation(); clearDateRange(this)" style="display:none;">&#10005;</span>
-                                            <i class="fas fa-info-circle drp-info" title="Click to select a date range"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Row 3: Rented Date Activity -->
-                                <div class="flex gap-1 items-center">
-                                    <span class="text-xs text-gray-500 flex-shrink-0 w-[140px]">Rented Date Activity</span>
-                                    <div class="drp-wrapper flex-1 min-w-0" data-drp="rentalRentedDate">
-                                        <div class="drp-trigger" onclick="openDateRangePicker(this)">
-                                            <span class="drp-text">Select Date Range</span>
-                                            <span class="drp-clear" onclick="event.stopPropagation(); clearDateRange(this)" style="display:none;">&#10005;</span>
-                                            <i class="fas fa-info-circle drp-info" title="Click to select a date range"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Quick Search (Rental) -->
-                        <div class="border rounded-lg p-3 overflow-hidden min-w-0 order-1">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
-                            <!-- 1. RLS ID / Web ID / Listing # + Zip -->
-                            <div class="flex items-end gap-2 mb-2">
-                                <div class="flex-1">
-                                    <input type="text" id="rentalQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
-                                </div>
-                                <div class="w-[72px]">
-                                    <input type="text" id="rentalQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
-                                </div>
-                            </div>
-                            <!-- 2. Neighborhood + Map icon + Transit icon -->
-                            <div class="mb-2">
-                                <div class="flex gap-1.5 items-center">
-                                    <div class="relative flex-1">
-                                        <input type="text" id="rentalNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'rentalNeighborhoodDropdown', 'rentalNeighborhoodTags')" autocomplete="off">
-                                        <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]"></i>
-                                        <div id="rentalNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                                    </div>
-                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Neighborhood Map">
-                                        <i class="fas fa-map-marked-alt text-sm"></i>
-                                    </button>
-                                    <button type="button" onclick="document.getElementById('rentalTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
-                                        <i class="fas fa-subway text-sm"></i>
-                                    </button>
-                                </div>
-                                <div id="rentalNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
-                                <!-- Transit expandable -->
-                                <div id="rentalTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
-                                    <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
-                                    <div class="flex flex-wrap gap-1 mb-2">
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
-                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
-                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
-                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
-                                        <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
-                                        <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
-                                    </div>
-                                    <div class="flex gap-2 flex-wrap">
-                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:8px"></i> LIRR
-                                        </label>
-                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
-                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:8px"></i> Ferry
-                                        </label>
-                                        <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                            <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600" style="font-size:8px"></i> Bus
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- 3. Address -->
-                            <div class="mb-1.5 relative">
-                                <input type="text" id="rentalSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'rentalSearchAddrResults')" autocomplete="off">
-                                <div id="rentalSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                            </div>
-                            <!-- 4. Unit (optional) -->
-                            <div class="mb-2">
-                                <input type="text" id="rentalQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
-                            </div>
-                            <!-- 5. Search -->
-                            <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
-                                <i class="fas fa-search mr-1"></i> Search
-                            </button>
-                            <!-- Open House Date Range -->
-                            <div class="mt-2 pt-2 border-t border-gray-200">
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <span class="text-xs font-semibold text-gray-700"><i class="fas fa-door-open text-blue-500 mr-1"></i>Open House</span>
-                                </div>
-                                <div class="flex flex-wrap gap-1 mb-1.5">
-                                    <button type="button" onclick="setOpenHouseDatePreset('today','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">Today</button>
-                                    <button type="button" onclick="setOpenHouseDatePreset('weekend','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">This Weekend</button>
-                                    <button type="button" onclick="setOpenHouseDatePreset('7days','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">Next 7 Days</button>
-                                    <button type="button" onclick="setOpenHouseDatePreset('30days','rentalOpenHouse')" class="px-2 py-0.5 rounded border border-gray-300 text-[10px] hover:bg-blue-50 hover:border-blue-300 transition oh-preset" data-oh="rentalOpenHouse">Next 30 Days</button>
-                                </div>
-                                <div class="flex gap-1 items-center">
-                                    <span class="text-xs text-gray-500 flex-shrink-0 w-[80px]">Date Range</span>
-                                    <div class="drp-wrapper flex-1 min-w-0" data-drp="rentalOpenHouse">
-                                        <div class="drp-trigger" onclick="openDateRangePicker(this)">
-                                            <span class="drp-text">Select Date Range</span>
-                                            <span class="drp-clear" onclick="event.stopPropagation(); clearDateRange(this); clearOpenHousePreset('rentalOpenHouse')" style="display:none;">&#10005;</span>
-                                            <i class="fas fa-info-circle drp-info" title="Click to select a date range"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 2: Listing Type, Ownership, OP/Free Rent/Concessions, Building Features -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
-                        <!-- Listing Type -->
-                        <div class="border rounded-lg p-3 overflow-hidden min-w-0">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Listing Type
-                                <button type="button" onclick="document.getElementById('searchListingTypeInfoModal').style.display=''" class="ml-1 text-blue-500 hover:text-blue-700" title="What do these mean?"><i class="fas fa-info-circle"></i></button>
-                            </p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightToLease"> Exclusive Right to Lease
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer ml-4">
-                                    <input type="checkbox" class="w-3 h-3" data-field="ListOfficeMlsId" data-value="OwnOffice"> In-House <span class="text-[9px] text-blue-600 font-medium">(Company)</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveAgency"> Exclusive Agency
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightWithException"> Exclusive w/ Exception
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="CoExclusive"> Co-Exclusive
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="InternetEntireListingDisplayYN" data-value="false"> RLS: Private Owner Opt-Out
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> RLS: Private Participant Only
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Ownership -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Ownership</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="RentalBuilding"> Rental Building
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="StockCooperative"> Co-op
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="Condominium"> Condo
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="Condop"> Condop
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="PropertySubType" data-value="Townhouse"> Townhouse
-                                </label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-1 mt-3">Land-Lease Buildings</p>
-                            <div class="flex gap-3 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LandLeaseYN" data-value="true"> Include Only
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LandLeaseYN" data-value="false"> Exclude
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- OP / Free Rent / Concessions + Attended Lobby -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">OP / Free Rent / Concessions</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="Concessions" data-value="Yes"> Has Concessions
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="OwnerPays" data-value="true"> Owner Pays
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="Furnished" data-value="Furnished"> Furnished
-                                </label>
-                            </div>
-
-                            <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Lease Type</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LeaseType" data-value="StabilizedLease"> Rent Stabilized
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LeaseType" data-value="NonStabilizedLease"> Non-Stabilized (Market Rate)
-                                </label>
-                            </div>
-
-                            <div class="flex items-center justify-between mb-2 mt-3">
-                                <p class="text-xs font-semibold text-gray-700">Attended Lobby</p>
-                                <div class="flex items-center gap-1 text-xs">
-                                    <span>And</span>
-                                    <div class="w-8 h-4 bg-gray-300 rounded-full relative cursor-pointer and-or-toggle" onclick="toggleAndOr(this)" role="switch" aria-checked="false" aria-label="Toggle And/Or filter" tabindex="0" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleAndOr(this)}">
-                                        <div class="w-3 h-3 bg-white rounded-full absolute top-0.5 left-0.5 transition-all"></div>
-                                    </div>
-                                    <span>Or</span>
-                                </div>
-                            </div>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="Any"> Any Attended
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="DoormanYes"> Doorman (Any)
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-6">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="DoormanFullTime"> Full-Time
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-6">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="DoormanPartTime"> Part-Time
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="VideoDoormanYes"> Video Doorman
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="ConciergeYes"> Concierge
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="ElevatorAttendanceYes"> Elevator Attendant
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="None"> Unattended
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Building Features -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Features</p>
-                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="CoolingYN" data-value="true"> Cooling
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Storage"> Storage
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club/Fitness
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Wheelchair Accessible
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="Any"> Laundry Facilities
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Elevators"> Elevator
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="GarageYN" data-value="true"> Parking
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingYes,BuildingCatsOK,BuildingDogsOK"> Building Allows Pets
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingPoolFeatures" data-value="Any"> Pool
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingSecurityFeatures" data-value="Any"> Security
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingSmokeFreeYN" data-value="true"> Smoke-Free
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="GuarantorsAccepted"> Guarantors Accepted
-                                </label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-1 mt-3">Building Period</p>
-                            <div class="flex gap-4 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="YearBuilt" data-value="lte:1946"> Pre-War
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="YearBuilt" data-value="gte:1947"> Post-War
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 3: Building Age/Size, Building Style/Period, Common Outdoor Space, Resale/New Dev -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-
-                        <!-- Building Age/Size -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Age/Size</p>
-                            <div class="space-y-2">
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalBuildingMinYear">
-                                        <option value="">Min Year</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1900">1900</option>
-                                        <option value="1910">1910</option>
-                                        <option value="1920">1920</option>
-                                        <option value="1930">1930</option>
-                                        <option value="1940">1940</option>
-                                        <option value="1950">1950</option>
-                                        <option value="1960">1960</option>
-                                        <option value="1970">1970</option>
-                                        <option value="1980">1980</option>
-                                        <option value="1990">1990</option>
-                                        <option value="2000">2000</option>
-                                        <option value="2005">2005</option>
-                                        <option value="2010">2010</option>
-                                        <option value="2015">2015</option>
-                                        <option value="2020">2020</option>
-                                        <option value="2024">2024</option>
-                                        <option value="2025">2025</option>
-                                        <option value="2026">2026</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalBuildingMaxYear">
-                                        <option value="">Max Year</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1910">1910</option>
-                                        <option value="1920">1920</option>
-                                        <option value="1930">1930</option>
-                                        <option value="1940">1940</option>
-                                        <option value="1950">1950</option>
-                                        <option value="1960">1960</option>
-                                        <option value="1970">1970</option>
-                                        <option value="1980">1980</option>
-                                        <option value="1990">1990</option>
-                                        <option value="2000">2000</option>
-                                        <option value="2005">2005</option>
-                                        <option value="2010">2010</option>
-                                        <option value="2015">2015</option>
-                                        <option value="2020">2020</option>
-                                        <option value="2024">2024</option>
-                                        <option value="2026">2026</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalBuildingMinUnits">
-                                        <option value="">Min Units</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="50">50</option>
-                                        <option value="75">75</option>
-                                        <option value="100">100</option>
-                                        <option value="150">150</option>
-                                        <option value="200">200</option>
-                                        <option value="300">300</option>
-                                        <option value="500">500+</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalBuildingMaxUnits">
-                                        <option value="">Max Units</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="50">50</option>
-                                        <option value="75">75</option>
-                                        <option value="100">100</option>
-                                        <option value="150">150</option>
-                                        <option value="200">200</option>
-                                        <option value="300">300</option>
-                                        <option value="500">500</option>
-                                        <option value="1000">1000+</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalBuildingMinFloors">
-                                        <option value="">Min Floors</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="15">15</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="40">40</option>
-                                        <option value="50">50</option>
-                                        <option value="60">60</option>
-                                        <option value="80">80</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="rentalBuildingMaxFloors">
-                                        <option value="">Max Floors</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="15">15</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="40">40</option>
-                                        <option value="50">50</option>
-                                        <option value="60">60</option>
-                                        <option value="80">80</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Building Style + Common Outdoor Space -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Style</p>
-                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-3">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="HighRise"> High-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StoriesTotal" data-value="lte:6" title="Derived: StoriesTotal &le; 6"> Low-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Loft"> Loft</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Common Outdoor Space</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
-                            </div>
-                        </div>
-
-                        <!-- Building Allows -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Allows</p>
-                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CRM" data-value="AdvertisingAllowed"> Advertising <span class="text-gray-400 text-[8px]">(CRM)</span></label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingYes,BuildingCatsOK,BuildingDogsOK"> Pets</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="CorporateOwnerAllowed"> Corporate Own.</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="PiedATerreAllowed"> Pied-A-Terre</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CRM" data-value="DiplomatsAllowed"> Diplomats <span class="text-gray-400 text-[8px]">(CRM)</span></label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="GuarantorsAccepted"> Guarantors</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MaximumFinancingPercent" data-value="gt:0"> Financing</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RentingAllowedYN" data-value="true"> Subletting</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="LiveWorkAllowed"> Live/Work</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="WasherDryerInstallAllowed"> Washer/Dryer Install</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="CopurchasersAllowed"> Co-Purchasers</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="ArtistInResidenceAllowed"> Artist in Residence</label>
-                            </div>
-                        </div>
-
-                        <!-- Building Does Not Allow -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Does Not Allow</p>
-                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingNo"> Pets</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="CorporateOwnerAllowed"> Corporate Own.</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="PiedATerreAllowed"> Pied-A-Terre</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="GuarantorsAccepted"> Guarantors</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MaximumFinancingPercent" data-value="eq:0"> Financing</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RentingAllowedYN" data-value="false"> Subletting</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="LiveWorkAllowed"> Live/Work</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-not="WasherDryerInstallAllowed"> Washer/Dryer Install</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="BuildingSmokingAllowed" data-not="true"> Smoking</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 4: Building Financing, Resale/New Dev, Keyword, Management + Save -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-
-                        <!-- Building Financing -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Financing</p>
-                            <div class="flex gap-1 items-center">
-                                <input type="text" placeholder="Min %" class="flex-1 border rounded px-2 py-1 text-xs" id="rentalBuildingFinancingMin">
-                                <span class="text-gray-400 text-xs">—</span>
-                                <input type="text" placeholder="Max %" class="flex-1 border rounded px-2 py-1 text-xs" id="rentalBuildingFinancingMax">
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="false"> Resale Building</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Development</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="Conversion" data-value="true"> Conversion</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Construction</label>
-                            </div>
-                        </div>
-
-                        <!-- Keyword Search -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Keyword Search</p>
-                            <input type="text" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs" id="rentalKeywordSearch">
-                        </div>
-
-                        <!-- Management Companies -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Management Companies</p>
-                            <input type="text" placeholder="Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs" id="rentalManagementCompany">
-                        </div>
-
-                        <!-- Save Search -->
-                        <div class="border rounded-lg p-3 flex flex-col justify-between">
-                            <div>
-                                <p class="text-xs font-semibold text-gray-700 mb-2">Actions</p>
-                                <button onclick="openSaveSearchModal()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition mb-2">
-                                    <i class="fas fa-bookmark"></i> Save Search
-                                </button>
-                                <button onclick="performSearch()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-900 transition mb-2">
-                                    <i class="fas fa-search"></i> Search
-                                </button>
-                                <button onclick="clearSearchForm()" class="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:text-red-500 font-medium transition">
-                                    <i class="fas fa-times"></i> Clear All
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ============================================== -->
-                <!-- BASIC SEARCH MODE - BUILDING SEARCH -->
-                <!-- ============================================== -->
-                <div id="searchBasicModeBuilding" class="bg-white rounded-xl shadow-sm border p-5" style="display: none;">
-
-                    <!-- Quick Search -->
-                    <div class="border rounded-lg p-3 overflow-hidden min-w-0 mb-5">
-                        <p class="text-xs font-semibold text-gray-700 mb-2">Quick Search</p>
-                        <!-- 1. RLS ID / Web ID / Listing # + Zip -->
-                        <div class="flex items-end gap-2 mb-2">
-                            <div class="flex-1">
-                                <input type="text" id="buildingQuickRls" placeholder="RLS ID, Web ID, Listing # (comma-separated)" class="w-full border rounded px-2 py-1.5 text-xs font-mono">
-                            </div>
-                            <div class="w-[72px]">
-                                <input type="text" id="buildingQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
-                            </div>
-                        </div>
-                        <!-- 2. Neighborhood + Map icon + Transit icon -->
-                        <div class="mb-2">
-                            <div class="flex gap-1.5 items-center">
-                                <div class="relative flex-1">
-                                    <input type="text" id="buildingNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'buildingNeighborhoodDropdown', 'buildingNeighborhoodTags')" autocomplete="off">
-                                    <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]"></i>
-                                    <div id="buildingNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                                </div>
-                                <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Neighborhood Map">
-                                    <i class="fas fa-map-marked-alt text-sm"></i>
-                                </button>
-                                <button type="button" onclick="document.getElementById('buildingTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
-                                    <i class="fas fa-subway text-sm"></i>
-                                </button>
-                            </div>
-                            <div id="buildingNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
-                            <!-- Transit expandable -->
-                            <div id="buildingTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
-                                <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
-                                <div class="flex flex-wrap gap-1 mb-2">
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
-                                </div>
-                                <div class="flex gap-2 flex-wrap">
-                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:8px"></i> LIRR
-                                    </label>
-                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:8px"></i> Ferry
-                                    </label>
-                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600" style="font-size:8px"></i> Bus
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- 3. Address -->
-                        <div class="mb-1.5 relative">
-                            <input type="text" id="buildingSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'buildingSearchAddrResults')" autocomplete="off">
-                            <div id="buildingSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                        </div>
-                        <!-- 4. Unit (optional) -->
-                        <div class="mb-2">
-                            <input type="text" id="buildingQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
-                        </div>
-                        <!-- 5. Search -->
-                        <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
-                            <i class="fas fa-search mr-1"></i> Search
-                        </button>
-                    </div>
-
-                    <!-- Manhattan Grid Selections -->
-                    <div class="border rounded-lg p-3 mb-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <p class="text-xs font-semibold text-gray-700">Manhattan Grid Selections above 14th Street</p>
-                            <button onclick="clearManhattanGrid()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <select id="bldg-grid-north" class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <select id="bldg-grid-west" class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                    <select id="bldg-grid-east" class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
-                                </div>
-                                <select id="bldg-grid-south" class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
-                            </div>
-                            <div class="space-y-2">
-                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                    <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
-                                </div>
-                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 2: Ownership, Building Allows, Building Does Not Allow -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                        <!-- Ownership -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Ownership</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="RentalBuilding"> Rental Building</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="StockCooperative"> Co-op</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="Condominium"> Condo</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="Condop"> Condop</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="PropertySubType" data-value="Townhouse"> Townhouse</label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-1 mt-3">Land-Lease Buildings</p>
-                            <div class="flex gap-3 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="any" checked data-field="LandLeaseYN"> Any</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="include" data-field="LandLeaseYN" data-value="true"> Include Only</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="exclude" data-field="LandLeaseYN" data-value="false"> Exclude</label>
-                            </div>
-                        </div>
-
-                        <!-- Building Allows -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Allows</p>
-                            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CRM" data-value="AdvertisingAllowed"> Advertising <span class="text-gray-400 text-[8px]">(CRM)</span></label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingYes,BuildingCatsOK,BuildingDogsOK"> Pets</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="CorporateOwnerAllowed"> Corporate Own.</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="PiedATerreAllowed"> Pied-A-Terre</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CRM" data-value="DiplomatsAllowed"> Diplomats <span class="text-gray-400 text-[8px]">(CRM)</span></label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="GuarantorsAccepted"> Guarantors</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MaximumFinancingPercent" data-value="gt:0"> Financing</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RentingAllowedYN" data-value="true"> Subletting</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="LiveWorkAllowed"> Live/Work</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="WasherDryerInstallAllowed"> Washer/Dryer Install</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="CopurchasersAllowed"> Co-Purchasers</label>
-                            </div>
-                        </div>
-
-                        <!-- Building Does Not Allow -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Does Not Allow</p>
-                            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingNo"> Pets</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="CorporateOwnerAllowed"> Corporate Own.</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="PiedATerreAllowed"> Pied-A-Terre</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="GuarantorsAccepted"> Guarantors</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MaximumFinancingPercent" data-value="eq:0"> Financing</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RentingAllowedYN" data-value="false"> Subletting</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="LiveWorkAllowed"> Live/Work</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-not="WasherDryerInstallAllowed"> Washer/Dryer Install</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="CopurchasersAllowed"> Co-Purchasers</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 3: Attended Lobby, Features, Building Period, Resale/New Development -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                        <!-- Attended Lobby -->
-                        <div class="border rounded-lg p-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="text-xs font-semibold text-gray-700">Attended Lobby</p>
-                                <div class="flex items-center gap-1 text-xs">
-                                    <span>And</span>
-                                    <div class="w-8 h-4 bg-blue-500 rounded-full relative cursor-pointer and-or-toggle" onclick="toggleAndOr(this)" role="switch" aria-checked="true" aria-label="Toggle And/Or filter" tabindex="0" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleAndOr(this)}"><div class="w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5 transition-all"></div></div>
-                                    <span>Or</span>
-                                </div>
-                            </div>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="Any"> Any Attended</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="DoormanYes"> Doorman</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="ConciergeYes"> Concierge</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="ElevatorAttendanceYes"> Elevator Attendant</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="VideoDoormanYes"> Video Doorman</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="None"> Unattended</label>
-                            </div>
-                        </div>
-
-                        <!-- Features -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Features</p>
-                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CoolingYN" data-value="true"> Cooling</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPoolFeatures" data-value="Any"> Pool</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingSecurityFeatures" data-value="Any"> Security</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="Any"> Laundry</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Storage"> Storage</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="GarageYN" data-value="true"> Parking</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Accessible</label>
-                                <label class="flex items-center gap-1 cursor-pointer col-span-2"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Elevators"> Elevator</label>
-                            </div>
-                        </div>
-
-                        <!-- Building Period -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Period</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="YearBuilt" data-value="lte:1946"> Pre-War</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="YearBuilt" data-value="gte:1947"> Post-War</label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstructionYN" data-value="false"> Resale Building</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstructionYN" data-value="true"> New Development</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="Conversion" data-value="true"> Conversion</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="ConstructionType" data-value="NewConstruction"> New Construction</label>
-                            </div>
-                        </div>
-
-                        <!-- Common Outdoor Space + Building Style -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Common Outdoor Space</p>
-                            <div class="space-y-1 text-xs mb-3">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Style</p>
-                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="HighRise"> High-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer" title="StoriesTotal ≤ 6"><input type="checkbox" class="w-3 h-3" data-field="StoriesTotal" data-value="lte:6"> Low-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Loft"> Loft</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 4: Building Age/Size, Building Financing, Keyword Search, Management -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- Building Age/Size -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Age/Size</p>
-                            <div class="space-y-2">
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMinYear">
-                                        <option value="">Min Year</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1900">1900</option>
-                                        <option value="1910">1910</option>
-                                        <option value="1920">1920</option>
-                                        <option value="1930">1930</option>
-                                        <option value="1940">1940</option>
-                                        <option value="1950">1950</option>
-                                        <option value="1960">1960</option>
-                                        <option value="1970">1970</option>
-                                        <option value="1980">1980</option>
-                                        <option value="1990">1990</option>
-                                        <option value="2000">2000</option>
-                                        <option value="2005">2005</option>
-                                        <option value="2010">2010</option>
-                                        <option value="2015">2015</option>
-                                        <option value="2020">2020</option>
-                                        <option value="2024">2024</option>
-                                        <option value="2025">2025</option>
-                                        <option value="2026">2026</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMaxYear">
-                                        <option value="">Max Year</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1910">1910</option>
-                                        <option value="1920">1920</option>
-                                        <option value="1930">1930</option>
-                                        <option value="1940">1940</option>
-                                        <option value="1950">1950</option>
-                                        <option value="1960">1960</option>
-                                        <option value="1970">1970</option>
-                                        <option value="1980">1980</option>
-                                        <option value="1990">1990</option>
-                                        <option value="2000">2000</option>
-                                        <option value="2005">2005</option>
-                                        <option value="2010">2010</option>
-                                        <option value="2015">2015</option>
-                                        <option value="2020">2020</option>
-                                        <option value="2024">2024</option>
-                                        <option value="2026">2026</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMinUnits">
-                                        <option value="">Min Units</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="50">50</option>
-                                        <option value="75">75</option>
-                                        <option value="100">100</option>
-                                        <option value="150">150</option>
-                                        <option value="200">200</option>
-                                        <option value="300">300</option>
-                                        <option value="400">400</option>
-                                        <option value="500">500+</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMaxUnits">
-                                        <option value="">Max Units</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="50">50</option>
-                                        <option value="75">75</option>
-                                        <option value="100">100</option>
-                                        <option value="150">150</option>
-                                        <option value="200">200</option>
-                                        <option value="300">300</option>
-                                        <option value="400">400</option>
-                                        <option value="500">500</option>
-                                        <option value="1000">1000+</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMinFloors">
-                                        <option value="">Min Floors</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                        <option value="6">6</option>
-                                        <option value="7">7</option>
-                                        <option value="8">8</option>
-                                        <option value="9">9</option>
-                                        <option value="10">10</option>
-                                        <option value="12">12</option>
-                                        <option value="15">15</option>
-                                        <option value="20">20</option>
-                                        <option value="25">25</option>
-                                        <option value="30">30</option>
-                                        <option value="35">35</option>
-                                        <option value="40">40</option>
-                                        <option value="45">45</option>
-                                        <option value="50">50</option>
-                                        <option value="55">55</option>
-                                        <option value="60">60</option>
-                                        <option value="70">70</option>
-                                        <option value="80">80</option>
-                                        <option value="90">90</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMaxFloors">
-                                        <option value="">Max Floors</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                        <option value="6">6</option>
-                                        <option value="7">7</option>
-                                        <option value="8">8</option>
-                                        <option value="9">9</option>
-                                        <option value="10">10</option>
-                                        <option value="12">12</option>
-                                        <option value="15">15</option>
-                                        <option value="20">20</option>
-                                        <option value="25">25</option>
-                                        <option value="30">30</option>
-                                        <option value="35">35</option>
-                                        <option value="40">40</option>
-                                        <option value="45">45</option>
-                                        <option value="50">50</option>
-                                        <option value="55">55</option>
-                                        <option value="60">60</option>
-                                        <option value="70">70</option>
-                                        <option value="80">80</option>
-                                        <option value="90">90</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Building Financing -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Financing</p>
-                            <div class="flex gap-1 items-center">
-                                <input type="number" id="buildingFinancingMin" placeholder="Financing Allowed % Min" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
-                                <span class="text-gray-400 text-xs">—</span>
-                                <input type="number" id="buildingFinancingMax" placeholder="% Max" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
-                            </div>
-                        </div>
-
-                        <!-- Keyword Search -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Keyword Search</p>
-                            <input type="text" id="buildingKeywordSearch" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs">
-                        </div>
-
-                        <!-- Management Companies -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Management Companies</p>
-                            <input type="text" id="buildingManagementCompany" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs">
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ADVANCED SEARCH MODE -->
                 <div id="searchAdvancedMode" class="space-y-4" style="display: none;">
@@ -16333,13 +15082,8 @@ function manageShowToast(msg) {
             if (advMode && advMode.style.display !== 'none' && !advMode.classList.contains('hidden')) {
                 return 'advancedNeighborhoodTags';
             }
-            // Basic mode — check which tab
-            var saleBasic = document.getElementById('searchBasicMode');
-            var rentalBasic = document.getElementById('searchBasicModeRental');
-            var buildingBasic = document.getElementById('searchBasicModeBuilding');
-            if (buildingBasic && buildingBasic.style.display !== 'none') return 'buildingNeighborhoodTags';
-            if (rentalBasic && rentalBasic.style.display !== 'none') return 'rentalNeighborhoodTags';
-            return 'saleNeighborhoodTags';
+            // Unified basic form — single tags container
+            return 'searchNeighborhoodTags';
         }
 
         /**
@@ -16618,16 +15362,9 @@ function manageShowToast(msg) {
         function quickSearch(btn) {
             // Quick Search now uses the full performSearch() pipeline.
             // Validate that at least one criterion exists (RLS ID, Zip, Address, or Neighborhoods).
-            var rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
-                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-            var zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
-                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-            var addrInputId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
-                              currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
-
-            var rlsVal = (document.getElementById(rlsInputId) || {}).value || '';
-            var zipVal = (document.getElementById(zipInputId) || {}).value || '';
-            var addrVal = (document.getElementById(addrInputId) || {}).value || '';
+            var rlsVal = (getFormEl('searchQuickRls') || {}).value || '';
+            var zipVal = (getFormEl('searchQuickZip') || {}).value || '';
+            var addrVal = (getFormEl('searchAddress') || {}).value || '';
 
             // Check neighborhood tags
             var hasNeighborhoods = false;
@@ -16830,15 +15567,8 @@ function manageShowToast(msg) {
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
 
-            // Determine which basic form is active
-            var activeBasicForm;
-            if (currentSearchTab === 'rent') {
-                activeBasicForm = document.getElementById('searchBasicModeRental');
-            } else if (currentSearchTab === 'building') {
-                activeBasicForm = document.getElementById('searchBasicModeBuilding');
-            } else {
-                activeBasicForm = document.getElementById('searchBasicMode');
-            }
+            // Unified basic form (single form for all tabs)
+            var activeBasicForm = document.getElementById('searchBasicMode');
 
             // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
             var _advMode = document.getElementById('searchAdvancedMode');
@@ -16857,17 +15587,10 @@ function manageShowToast(msg) {
                     customMaxId = 'advSaleMaxPriceCustom';
                 }
             } else {
-                if (currentSearchTab === 'rent') {
-                    priceMin = document.getElementById('rentalMinRent');
-                    priceMax = document.getElementById('rentalMaxRent');
-                    customMinId = 'rentalMinRentCustom';
-                    customMaxId = 'rentalMaxRentCustom';
-                } else {
-                    priceMin = document.getElementById('saleMinPrice');
-                    priceMax = document.getElementById('saleMaxPrice');
-                    customMinId = 'saleMinPriceCustom';
-                    customMaxId = 'saleMaxPriceCustom';
-                }
+                priceMin = getFormEl('searchMinPrice');
+                priceMax = getFormEl('searchMaxPrice');
+                customMinId = 'searchMinPriceCustom';
+                customMaxId = 'searchMaxPriceCustom';
             }
             if (priceMin && priceMin.value && priceMin.value !== '') {
                 if (priceMin.value === 'custom') {
@@ -16901,12 +15624,9 @@ function manageShowToast(msg) {
             if (_isAdvanced) {
                 bedsMin = document.getElementById('adv-min-beds');
                 bedsMax = document.getElementById('adv-max-beds');
-            } else if (currentSearchTab === 'rent') {
-                bedsMin = document.getElementById('rentalMinBeds');
-                bedsMax = document.getElementById('rentalMaxBeds');
             } else {
-                bedsMin = document.getElementById('saleMinBeds');
-                bedsMax = document.getElementById('saleMaxBeds');
+                bedsMin = getFormEl('searchMinBeds');
+                bedsMax = getFormEl('searchMaxBeds');
             }
             if (bedsMin && bedsMin.value !== '' && bedsMin.value !== 'custom') {
                 criteria.bedsMin = parseInt(bedsMin.value);
@@ -16922,12 +15642,9 @@ function manageShowToast(msg) {
             if (_isAdvanced) {
                 bathsMin = document.getElementById('adv-min-baths');
                 bathsMax = document.getElementById('adv-max-baths');
-            } else if (currentSearchTab === 'rent') {
-                bathsMin = document.getElementById('rentalMinBaths');
-                bathsMax = document.getElementById('rentalMaxBaths');
             } else {
-                bathsMin = document.getElementById('saleMinBaths');
-                bathsMax = document.getElementById('saleMaxBaths');
+                bathsMin = getFormEl('searchMinBaths');
+                bathsMax = getFormEl('searchMaxBaths');
             }
             if (bathsMin && bathsMin.value !== '' && bathsMin.value !== 'custom') {
                 criteria.bathsMin = parseFloat(bathsMin.value);
@@ -16943,12 +15660,9 @@ function manageShowToast(msg) {
             if (_isAdvanced) {
                 roomsMin = document.getElementById('adv-min-rooms');
                 roomsMax = document.getElementById('adv-max-rooms');
-            } else if (currentSearchTab === 'rent') {
-                roomsMin = document.getElementById('rentalMinRooms');
-                roomsMax = document.getElementById('rentalMaxRooms');
             } else {
-                roomsMin = document.getElementById('saleMinRooms');
-                roomsMax = document.getElementById('saleMaxRooms');
+                roomsMin = getFormEl('searchMinRooms');
+                roomsMax = getFormEl('searchMaxRooms');
             }
             if (roomsMin && roomsMin.value && roomsMin.value !== '' && roomsMin.value !== 'custom') {
                 criteria.roomsMin = parseInt(roomsMin.value);
@@ -16964,12 +15678,9 @@ function manageShowToast(msg) {
             if (_isAdvanced) {
                 sqftMin = document.getElementById('adv-min-sqft');
                 sqftMax = document.getElementById('adv-max-sqft');
-            } else if (currentSearchTab === 'rent') {
-                sqftMin = document.getElementById('rentalMinSqft');
-                sqftMax = document.getElementById('rentalMaxSqft');
             } else {
-                sqftMin = document.getElementById('saleMinSqft');
-                sqftMax = document.getElementById('saleMaxSqft');
+                sqftMin = getFormEl('searchMinSqft');
+                sqftMax = getFormEl('searchMaxSqft');
             }
             if (sqftMin && sqftMin.value && sqftMin.value !== '' && sqftMin.value !== 'custom') {
                 criteria.sqftMin = parseInt(sqftMin.value);
@@ -17051,10 +15762,8 @@ function manageShowToast(msg) {
                 }
             }
 
-            // Address / building name — collect from whichever form is active
-            var addressInputId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
-                                 currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
-            var addressInput = document.getElementById(addressInputId);
+            // Address / building name — collect from unified form
+            var addressInput = getFormEl('searchAddress');
             // Also check advanced mode address
             var advAddr = document.getElementById('advancedSearchAddress');
             var advancedMode2 = document.getElementById('searchAdvancedMode');
@@ -17084,49 +15793,34 @@ function manageShowToast(msg) {
             }
 
             // Quick Search fields — RLS ID, Zip, Unit (advanced mode has its own IDs)
-            var rlsInputId, zipInputId, unitInputId;
+            var rlsInput, zipInput, unitInput;
             if (_isAdvanced) {
-                rlsInputId = 'adv-rls-id';
-                zipInputId = 'adv-zip';
-                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
-                              currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
+                rlsInput = document.getElementById('adv-rls-id');
+                zipInput = document.getElementById('adv-zip');
+                unitInput = getFormEl('searchQuickUnit');
             } else {
-                rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
-                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-                zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
-                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
-                              currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
+                rlsInput = getFormEl('searchQuickRls');
+                zipInput = getFormEl('searchQuickZip');
+                unitInput = getFormEl('searchQuickUnit');
             }
-            var rlsInput = document.getElementById(rlsInputId);
-            var zipInput = document.getElementById(zipInputId);
-            var unitInput = document.getElementById(unitInputId);
             if (rlsInput && rlsInput.value.trim()) criteria.rlsId = rlsInput.value.trim();
             if (zipInput && zipInput.value.trim()) criteria.zip = zipInput.value.trim();
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             // Keyword search (PublicRemarks contains)
-            var keywordId = _isAdvanced ? 'adv-keyword' :
-                            currentSearchTab === 'rent' ? 'rentalKeywordSearch' :
-                            currentSearchTab === 'building' ? 'buildingKeywordSearch' : 'saleKeywordSearch';
-            var keywordEl = document.getElementById(keywordId);
+            var keywordEl = _isAdvanced ? document.getElementById('adv-keyword') : getFormEl('searchKeyword');
             if (keywordEl && keywordEl.value.trim()) {
                 criteria.keyword = keywordEl.value.trim();
             }
 
             // Management Company (search against ListOfficeName — Trestle's closest field)
-            var mgmtId = _isAdvanced ? 'adv-management' :
-                         currentSearchTab === 'rent' ? 'rentalManagementCompany' :
-                         currentSearchTab === 'building' ? 'buildingManagementCompany' : 'saleManagementCompany';
-            var mgmtEl = document.getElementById(mgmtId);
+            var mgmtEl = _isAdvanced ? document.getElementById('adv-management') : getFormEl('searchManagementCompany');
             if (mgmtEl && mgmtEl.value.trim()) {
                 criteria.managementCompany = mgmtEl.value.trim();
             }
 
             // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
-            var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
-                           currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
-            var finMinEl = document.getElementById(finMinId);
+            var finMinEl = document.getElementById('saleBuildingFinancingMin');
             if (finMinEl && finMinEl.value) {
                 var fv = parseInt(finMinEl.value);
                 if (!isNaN(fv) && fv > 0) criteria.financingMin = fv;
@@ -17134,10 +15828,10 @@ function manageShowToast(msg) {
 
             // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
             // Dates stored as MM/DD/YYYY, convert to YYYY-MM-DD (ISO) for OData API
-            var drpPrefix = currentSearchTab === 'rent' ? 'rental' : 'sale';
+            var drpPrefix = 'sale'; // unified form uses sale-prefixed date range pickers
 
             // Listed/Updated date range
-            var activityTypeEl = document.getElementById(drpPrefix === 'rental' ? 'rentalListingActivityType' : 'saleListingActivityType');
+            var activityTypeEl = document.getElementById('saleListingActivityType');
             var activityType = activityTypeEl ? activityTypeEl.value : '';
             var listedDrp = document.querySelector('[data-drp="' + drpPrefix + 'ListedUpdated"]');
             if (listedDrp && activityType) {
@@ -17173,7 +15867,7 @@ function manageShowToast(msg) {
             }
 
             // Open House date range
-            var ohDrpId = (currentSearchTab === 'rent') ? 'rentalOpenHouse' : 'saleOpenHouse';
+            var ohDrpId = 'saleOpenHouse'; // unified form uses single open house drp
             var ohWrapper = document.querySelector('.drp-wrapper[data-drp="' + ohDrpId + '"]');
             if (ohWrapper) {
                 var ohFrom = ohWrapper.getAttribute('data-from');
@@ -17238,10 +15932,12 @@ function manageShowToast(msg) {
                 if (!isNaN(fmx)) criteria.floorsMax = fmx;
             }
 
-            // Building name search
-            var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
-            if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
-                criteria.buildingName = buildingNameEl.value.trim();
+            // Building name search (uses unified address field when in building tab)
+            if (currentSearchTab === 'building') {
+                var buildingNameEl = getFormEl('searchAddress') || document.getElementById('buildingNameSearch');
+                if (buildingNameEl && buildingNameEl.value.trim()) {
+                    criteria.buildingName = buildingNameEl.value.trim();
+                }
             }
 
             // Transit — subway line proximity search via station coordinates
@@ -17296,10 +15992,9 @@ function manageShowToast(msg) {
         }
 
         function clearSearchForm() {
-            // Reset all select elements in basic forms
-            var forms = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'];
-            forms.forEach(function(formId) {
-                var form = document.getElementById(formId);
+            // Reset unified basic form + advanced mode
+            ['searchBasicMode', 'searchAdvancedMode'].forEach(function(containerId) {
+                var form = document.getElementById(containerId);
                 if (!form) return;
 
                 // Restore any selects that were replaced by custom text inputs
@@ -17317,47 +16012,19 @@ function manageShowToast(msg) {
 
                 form.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
                 form.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
-                form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
+                form.querySelectorAll('input[type="radio"]').forEach(function(r) { r.checked = false; });
+                form.querySelectorAll('input[type="text"], input[type="number"], input[type="date"]').forEach(function(inp) { inp.value = ''; });
             });
-            // Also clear advanced mode checkboxes
-            var advMode = document.getElementById('searchAdvancedMode');
-            if (advMode) {
-                // Restore replaced selects in advanced mode too
-                advMode.querySelectorAll('input[data-was-select="true"]').forEach(function(inp) {
-                    var wrapper = inp.closest('.flex.items-center');
-                    if (wrapper && inp.getAttribute('data-original-options')) {
-                        var restoredSelect = document.createElement('select');
-                        restoredSelect.id = inp.id;
-                        restoredSelect.className = inp.className;
-                        restoredSelect.innerHTML = inp.getAttribute('data-original-options');
-                        wrapper.parentNode.replaceChild(restoredSelect, wrapper);
-                    }
-                });
-
-                advMode.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
-                advMode.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
-                advMode.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
-            }
-            // Re-check the "Active" checkbox by default (sale basic form)
-            var activeCheck = document.querySelector('#searchBasicMode [data-field="MlsStatus"][data-value="Active"]');
-            if (activeCheck) activeCheck.checked = true;
-            // Re-check the "Active" checkbox by default (rental basic form)
-            var rentalActiveCheck = document.querySelector('#searchBasicModeRental [data-field="MlsStatus"][data-value="Active"]');
-            if (rentalActiveCheck) rentalActiveCheck.checked = true;
-            // Re-check the "Active" checkbox in advanced mode (sale status)
-            var advSaleActive = document.querySelector('#saleStatusOptions [data-field="MlsStatus"][data-value="Active"]');
-            if (advSaleActive) advSaleActive.checked = true;
-            // Re-check the "Active" checkbox in advanced mode (rental status)
-            var advRentalActive = document.querySelector('#rentalStatusOptions [data-field="MlsStatus"][data-value="Active"]');
-            if (advRentalActive) advRentalActive.checked = true;
+            // Re-check Active status everywhere
+            document.querySelectorAll('[data-field="MlsStatus"][data-value="Active"]').forEach(function(el) { el.checked = true; });
             // Clear neighborhood tags and internal selection state
             if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
 
-            // Hide custom price input rows
-            var saleCustomRow = document.getElementById('saleCustomPriceRow');
-            if (saleCustomRow) saleCustomRow.classList.add('hidden');
-            var rentalCustomRow = document.getElementById('rentalCustomPriceRow');
-            if (rentalCustomRow) rentalCustomRow.classList.add('hidden');
+            // Hide custom price rows
+            ['saleCustomPriceRow', 'rentalCustomPriceRow', 'searchCustomPriceRow'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
 
             // Clear all date range pickers (reset data-from/data-to, trigger text, clear buttons)
             document.querySelectorAll('.drp-wrapper').forEach(function(wrapper) {
@@ -17870,22 +16537,16 @@ function manageShowToast(msg) {
             try { _sm = sessionStorage.getItem('searchMode'); } catch(e) {}
             var isBasicMode = _sm !== 'advanced';
 
-            var basicModeSales = document.getElementById('searchBasicMode');
-            var basicModeRental = document.getElementById('searchBasicModeRental');
-            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            var basicMode = document.getElementById('searchBasicMode');
             var advancedMode = document.getElementById('searchAdvancedMode');
 
             // Hide all modes first
-            if (basicModeSales) basicModeSales.style.display = 'none';
-            if (basicModeRental) basicModeRental.style.display = 'none';
-            if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+            if (basicMode) basicMode.style.display = 'none';
             if (advancedMode) advancedMode.style.display = 'none';
 
             // Show the appropriate mode
             if (isBasicMode) {
-                if (currentSearchTab === 'sale' && basicModeSales) basicModeSales.style.display = 'block';
-                else if (currentSearchTab === 'rent' && basicModeRental) basicModeRental.style.display = 'block';
-                else if (currentSearchTab === 'building' && basicModeBuilding) basicModeBuilding.style.display = 'block';
+                if (basicMode) basicMode.style.display = 'block';
             } else {
                 if (advancedMode) advancedMode.style.display = 'block';
             }
@@ -18110,15 +16771,13 @@ function manageShowToast(msg) {
             var isRental = (c.searchTab === 'rent');
             var prefix = isRental ? 'rental' : 'sale';
 
-            var minPriceId = isRental ? 'rentalMinRent' : 'saleMinPrice';
-            var maxPriceId = isRental ? 'rentalMaxRent' : 'saleMaxPrice';
-            setSelectValue(minPriceId, c.priceMin || '');
-            setSelectValue(maxPriceId, c.priceMax || '');
+            setSelectValue('searchMinPrice', c.priceMin || '');
+            setSelectValue('searchMaxPrice', c.priceMax || '');
 
-            setSelectValue(prefix + 'MinBeds', c.bedsMin != null ? c.bedsMin : '');
-            setSelectValue(prefix + 'MaxBeds', c.bedsMax != null ? c.bedsMax : '');
-            setSelectValue(prefix + 'MinBaths', c.bathsMin != null ? c.bathsMin : '');
-            setSelectValue(prefix + 'MaxBaths', c.bathsMax != null ? c.bathsMax : '');
+            setSelectValue('searchMinBeds', c.bedsMin != null ? c.bedsMin : '');
+            setSelectValue('searchMaxBeds', c.bedsMax != null ? c.bedsMax : '');
+            setSelectValue('searchMinBaths', c.bathsMin != null ? c.bathsMin : '');
+            setSelectValue('searchMaxBaths', c.bathsMax != null ? c.bathsMax : '');
         }
 
         function clearRefinePanel() {
@@ -18224,9 +16883,7 @@ function manageShowToast(msg) {
                 var filtered = searchResultsState.filteredListings || [];
                 var ids = filtered.map(function(l) { return l.id; });
                 // Also capture the active address input value
-                var addrId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
-                             currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
-                var addrEl = document.getElementById(addrId);
+                var addrEl = getFormEl('searchAddress');
                 var adv = document.getElementById('advancedSearchAddress');
                 var advMode = document.getElementById('searchAdvancedMode');
                 var addr = '';
@@ -18380,14 +17037,11 @@ function manageShowToast(msg) {
             var btnRent = document.getElementById('btnRent');
             var btnBuilding = document.getElementById('btnBuilding');
 
-            // Basic Search Mode layouts
-            var basicModeSales = document.getElementById('searchBasicMode');
-            var basicModeRental = document.getElementById('searchBasicModeRental');
-            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            // Unified basic form (always visible in basic mode — sections toggle via data-show-on)
+            var basicMode = document.getElementById('searchBasicMode');
             var advancedMode = document.getElementById('searchAdvancedMode');
 
             // Check if we're in Basic mode — use sessionStorage as source of truth
-            // (CSS classes can be stale during init when render-blocking CSS is active)
             var _storedMode;
             try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {}
             var isBasicMode = _storedMode !== 'advanced';
@@ -18400,30 +17054,14 @@ function manageShowToast(msg) {
                 }
             });
 
-            // Hide all basic layouts
-            if (basicModeSales) basicModeSales.style.display = 'none';
-            if (basicModeRental) basicModeRental.style.display = 'none';
-            if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+            // Show unified basic form in basic mode (data-show-on handles section visibility)
+            if (basicMode) basicMode.style.display = isBasicMode ? 'block' : 'none';
 
-            // Activate selected tab
-            if (tab === 'sale') {
-                if (btnSale) {
-                    btnSale.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
-                    btnSale.classList.add('bg-gray-900', 'text-white');
-                }
-                if (isBasicMode && basicModeSales) basicModeSales.style.display = 'block';
-            } else if (tab === 'rent') {
-                if (btnRent) {
-                    btnRent.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
-                    btnRent.classList.add('bg-gray-900', 'text-white');
-                }
-                if (isBasicMode && basicModeRental) basicModeRental.style.display = 'block';
-            } else if (tab === 'building') {
-                if (btnBuilding) {
-                    btnBuilding.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
-                    btnBuilding.classList.add('bg-gray-900', 'text-white');
-                }
-                if (isBasicMode && basicModeBuilding) basicModeBuilding.style.display = 'block';
+            // Activate selected tab button
+            var activeBtn = tab === 'sale' ? btnSale : tab === 'rent' ? btnRent : btnBuilding;
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
+                activeBtn.classList.add('bg-gray-900', 'text-white');
             }
 
             // Toggle calculators based on mode (sale vs rent) in Advanced Search
@@ -18565,9 +17203,7 @@ function manageShowToast(msg) {
         function toggleSearchMode(mode) {
             var btnBasic = document.getElementById('btnSearchBasic');
             var btnAdvanced = document.getElementById('btnSearchAdvanced');
-            var basicModeSales = document.getElementById('searchBasicMode');
-            var basicModeRental = document.getElementById('searchBasicModeRental');
-            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            var basicMode = document.getElementById('searchBasicMode');
             var advancedMode = document.getElementById('searchAdvancedMode');
             var expandControls = document.getElementById('expandCollapseControls');
 
@@ -18581,20 +17217,9 @@ function manageShowToast(msg) {
                 btnAdvanced.classList.add('text-gray-500');
                 if (expandControls) expandControls.classList.add('hidden');
 
-                // Hide all first
-                if (basicModeSales) basicModeSales.style.display = 'none';
-                if (basicModeRental) basicModeRental.style.display = 'none';
-                if (basicModeBuilding) basicModeBuilding.style.display = 'none';
                 if (advancedMode) advancedMode.style.display = 'none';
-
-                // Show the appropriate basic layout based on current tab
-                if (currentSearchTab === 'sale' && basicModeSales) {
-                    basicModeSales.style.display = 'block';
-                } else if (currentSearchTab === 'rent' && basicModeRental) {
-                    basicModeRental.style.display = 'block';
-                } else if (currentSearchTab === 'building' && basicModeBuilding) {
-                    basicModeBuilding.style.display = 'block';
-                }
+                // Show unified basic form (data-show-on handles section visibility)
+                if (basicMode) basicMode.style.display = 'block';
             } else {
                 btnAdvanced.classList.remove('text-gray-500');
                 btnAdvanced.classList.add('bg-gray-900', 'text-white');
@@ -18603,9 +17228,7 @@ function manageShowToast(msg) {
                 if (expandControls) { expandControls.classList.remove('hidden'); expandControls.classList.add('flex'); }
 
                 if (advancedMode) advancedMode.style.display = 'block';
-                if (basicModeSales) basicModeSales.style.display = 'none';
-                if (basicModeRental) basicModeRental.style.display = 'none';
-                if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+                if (basicMode) basicMode.style.display = 'none';
             }
         }
 
@@ -18971,10 +17594,8 @@ function manageShowToast(msg) {
 
         // Map of price select IDs → their companion custom input row and field IDs
         var _priceCustomMap = {
-            saleMinPrice:      { row: 'saleCustomPriceRow',       input: 'saleMinPriceCustom' },
-            saleMaxPrice:      { row: 'saleCustomPriceRow',       input: 'saleMaxPriceCustom' },
-            rentalMinRent:     { row: 'rentalCustomPriceRow',     input: 'rentalMinRentCustom' },
-            rentalMaxRent:     { row: 'rentalCustomPriceRow',     input: 'rentalMaxRentCustom' },
+            searchMinPrice:    { row: 'searchCustomPriceRow',     input: 'searchMinPriceCustom' },
+            searchMaxPrice:    { row: 'searchCustomPriceRow',     input: 'searchMaxPriceCustom' },
             advSaleMinPrice:   { row: 'advSaleCustomPriceRow',    input: 'advSaleMinPriceCustom' },
             advSaleMaxPrice:   { row: 'advSaleCustomPriceRow',    input: 'advSaleMaxPriceCustom' },
             advRentalMinRent:  { row: 'advRentalCustomPriceRow',  input: 'advRentalMinRentCustom' },
@@ -18983,10 +17604,8 @@ function manageShowToast(msg) {
 
         // Pair map for price selects: each select ID → its partner select ID
         var _pricePairMap = {
-            saleMinPrice:     'saleMaxPrice',
-            saleMaxPrice:     'saleMinPrice',
-            rentalMinRent:    'rentalMaxRent',
-            rentalMaxRent:    'rentalMinRent',
+            searchMinPrice:   'searchMaxPrice',
+            searchMaxPrice:   'searchMinPrice',
             advSaleMinPrice:  'advSaleMaxPrice',
             advSaleMaxPrice:  'advSaleMinPrice',
             advRentalMinRent: 'advRentalMaxRent',
@@ -22995,47 +21614,43 @@ function parseBudgetValue(td) {
                 currentSearchTab = tab;
             }
 
-            // Determine element ID prefix based on tab
-            var prefix = tab === 'rent' ? 'rental' : 'sale';
+            // Unified form — use new IDs (getFormEl handles legacy fallback)
 
             // Price
-            _setSelectValue(prefix === 'rental' ? 'rentalMinRent' : 'saleMinPrice', criteria.min_price);
-            _setSelectValue(prefix === 'rental' ? 'rentalMaxRent' : 'saleMaxPrice', criteria.max_price);
+            _setSelectValue('searchMinPrice', criteria.min_price);
+            _setSelectValue('searchMaxPrice', criteria.max_price);
 
             // Beds
-            _setSelectValue(prefix + 'MinBeds', criteria.min_beds);
-            _setSelectValue(prefix + 'MaxBeds', criteria.max_beds);
+            _setSelectValue('searchMinBeds', criteria.min_beds);
+            _setSelectValue('searchMaxBeds', criteria.max_beds);
 
             // Baths
-            _setSelectValue(prefix + 'MinBaths', criteria.min_baths);
-            _setSelectValue(prefix + 'MaxBaths', criteria.max_baths);
+            _setSelectValue('searchMinBaths', criteria.min_baths);
+            _setSelectValue('searchMaxBaths', criteria.max_baths);
 
             // Rooms
-            _setSelectValue(prefix + 'MinRooms', criteria.min_rooms);
-            _setSelectValue(prefix + 'MaxRooms', criteria.max_rooms);
+            _setSelectValue('searchMinRooms', criteria.min_rooms);
+            _setSelectValue('searchMaxRooms', criteria.max_rooms);
 
             // Sqft
-            _setSelectValue(prefix + 'MinSqft', criteria.min_sqft);
-            _setSelectValue(prefix + 'MaxSqft', criteria.max_sqft);
+            _setSelectValue('searchMinSqft', criteria.min_sqft);
+            _setSelectValue('searchMaxSqft', criteria.max_sqft);
 
             // Address
-            var addrId = tab === 'rent' ? 'rentalSearchAddress' : tab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
-            var addrEl = document.getElementById(addrId);
+            var addrEl = getFormEl('searchAddress');
             if (addrEl && criteria.address) addrEl.value = criteria.address;
 
             // Zip
-            var zipId = tab === 'rent' ? 'rentalQuickZip' : tab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-            var zipEl = document.getElementById(zipId);
+            var zipEl = getFormEl('searchQuickZip');
             if (zipEl && criteria.zip) zipEl.value = criteria.zip;
 
             // RLS ID
-            var rlsId = tab === 'rent' ? 'rentalQuickRls' : tab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-            var rlsEl = document.getElementById(rlsId);
+            var rlsEl = getFormEl('searchQuickRls');
             if (rlsEl && criteria.listing_id) rlsEl.value = criteria.listing_id;
 
             // Neighborhoods
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0 && typeof selectNeighborhood === 'function') {
-                var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function' ? _resolveActiveNeighborhoodTagsId() : 'saleNeighborhoodTags';
+                var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function' ? _resolveActiveNeighborhoodTagsId() : 'searchNeighborhoodTags';
                 criteria.neighborhoods.forEach(function(n) {
                     var borough = typeof _findBoroughForNeighborhood === 'function' ? _findBoroughForNeighborhood(n) : '';
                     selectNeighborhood(n, borough, !borough, '', tagsId);
@@ -23077,7 +21692,7 @@ function parseBudgetValue(td) {
                     'EXPIRED': 'Expired', 'HOLD': 'Hold'
                 };
                 // First uncheck all status checkboxes in the active form
-                var activeForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
+                var activeForm = document.getElementById('searchBasicMode');
                 if (activeForm) {
                     activeForm.querySelectorAll('[data-field="MlsStatus"]').forEach(function(cb) { cb.checked = false; });
                 }
@@ -23091,7 +21706,7 @@ function parseBudgetValue(td) {
 
             // Restore ownership checkboxes
             if (criteria.property_type && Array.isArray(criteria.property_type) && criteria.property_type.length > 0) {
-                var ownerForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
+                var ownerForm = document.getElementById('searchBasicMode');
                 if (ownerForm) {
                     ownerForm.querySelectorAll('[data-field="CommonInterest"]').forEach(function(cb) { cb.checked = false; });
                     criteria.property_type.forEach(function(pt) {
@@ -31767,7 +30382,7 @@ function emailCurrentCalc() {
     // Clear all neighborhood selections and tags (called by clearSearchForm)
     window.clearAllNeighborhoods = function() {
         for (var key in _selected) { delete _selected[key]; }
-        ['saleNeighborhoodTags', 'rentalNeighborhoodTags', 'buildingNeighborhoodTags', 'advancedNeighborhoodTags'].forEach(function(id) {
+        ['searchNeighborhoodTags', 'advancedNeighborhoodTags'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.innerHTML = '';
         });
@@ -31869,7 +30484,7 @@ function emailCurrentCalc() {
 
     // Get selected neighborhoods (for search engine integration)
     window.getSelectedNeighborhoods = function(tagsId) {
-        return getSelected(tagsId || 'saleNeighborhoodTags').map(function(s) { return s.name; });
+        return getSelected(tagsId || 'searchNeighborhoodTags').map(function(s) { return s.name; });
     };
 
     // Close dropdowns when clicking outside
@@ -32310,8 +30925,6 @@ function emailCurrentCalc() {
         (function initCustomSelectDropdowns() {
             var searchContainerIds = [
                 'searchBasicMode',
-                'searchBasicModeRental',
-                'searchBasicModeBuilding',
                 'searchAdvancedMode'
             ];
 

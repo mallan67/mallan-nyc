@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-03-25T09:02:08.419Z",
-  "pass": 839,
+  "timestamp": "2026-03-25T10:48:48.174Z",
+  "pass": 841,
   "critical": 0,
-  "warning": 3,
+  "warning": 2,
   "info": 40,
   "sections": [
     {
@@ -63,7 +63,7 @@
       "section": 7,
       "title": "CRM fetch() → API Route Cross-Reference",
       "category": "CRM & API",
-      "pass": 74,
+      "pass": 75,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -135,9 +135,9 @@
       "section": 15,
       "title": "PII / Logging Redaction",
       "category": "Auth & Security",
-      "pass": 1,
+      "pass": 2,
       "critical": 0,
-      "warning": 1,
+      "warning": 0,
       "info": 0
     },
     {
