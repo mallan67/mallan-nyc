@@ -1832,37 +1832,196 @@ var Panels = (function () {
   }
 
   function _addToProspects(clientId, clientName, clientType) {
-    // Build agent list + prospect type selector
+    var isLandlord = clientType === 'landlord';
+    var isTenantType = clientType === 'tenant' || clientType === 'renter';
+
+    // Two paths: Prospects (pitch/sell/buy) or Lease Tracker (landlord/tenant with lease)
     var body = '<div class="space-y-4">' +
-      '<p class="text-sm text-gray-600">Move <strong>' + E(clientName) + '</strong> to an agent\'s Prospects pipeline.</p>' +
+      '<p class="text-sm text-gray-600">Where should <strong>' + E(clientName) + '</strong> go?</p>' +
+
+      // Option 1: Lease Tracker
+      '<div id="moveLeaseOption" class="p-4 border-2 rounded-xl cursor-pointer hover:border-gold transition-all ' + ((isLandlord || isTenantType) ? 'border-gold bg-gold-bg' : 'border-gray-200') + '" onclick="Panels._selectMoveOption(\'lease\')">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-100"><i class="fas fa-calendar-alt text-purple-600"></i></div>' +
+          '<div><p class="text-sm font-bold text-gray-900">Lease Tracker</p>' +
+          '<p class="text-xs text-gray-500">Landlord/tenant with active lease — track property, dates, renewals</p></div>' +
+        '</div>' +
+      '</div>' +
+
+      // Option 2: Prospects
+      '<div id="moveProspectsOption" class="p-4 border-2 rounded-xl cursor-pointer hover:border-gold transition-all ' + ((!isLandlord && !isTenantType) ? 'border-gold bg-gold-bg' : 'border-gray-200') + '" onclick="Panels._selectMoveOption(\'prospects\')">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100"><i class="fas fa-crosshairs text-blue-600"></i></div>' +
+          '<div><p class="text-sm font-bold text-gray-900">Prospects</p>' +
+          '<p class="text-xs text-gray-500">Seller, buyer, tenant search, or investor — prospecting pipeline</p></div>' +
+        '</div>' +
+      '</div>' +
+
+      // Dynamic content area (changes based on selection)
+      '<div id="moveFormArea"></div>' +
+    '</div>';
+
+    window._moveClientId = clientId;
+    window._moveClientName = clientName;
+    window._moveClientType = clientType;
+    window._moveSelection = (isLandlord || isTenantType) ? 'lease' : 'prospects';
+
+    CRM.openModal('Move Client — ' + clientName, body, { size: 'lg' });
+
+    // Auto-show the right form
+    setTimeout(function () { Panels._selectMoveOption(window._moveSelection); }, 100);
+  }
+
+  function _selectMoveOption(option) {
+    window._moveSelection = option;
+    var leaseOpt = document.getElementById('moveLeaseOption');
+    var prospectsOpt = document.getElementById('moveProspectsOption');
+    var formArea = document.getElementById('moveFormArea');
+    if (!formArea) return;
+
+    // Toggle active state
+    if (leaseOpt) { leaseOpt.className = leaseOpt.className.replace(/border-gold bg-gold-bg|border-gray-200/g, ''); leaseOpt.className += option === 'lease' ? ' border-gold bg-gold-bg' : ' border-gray-200'; }
+    if (prospectsOpt) { prospectsOpt.className = prospectsOpt.className.replace(/border-gold bg-gold-bg|border-gray-200/g, ''); prospectsOpt.className += option === 'prospects' ? ' border-gold bg-gold-bg' : ' border-gray-200'; }
+
+    if (option === 'lease') {
+      _renderLeaseForm(formArea);
+    } else {
+      _renderProspectsForm(formArea);
+    }
+  }
+
+  function _renderLeaseForm(el) {
+    var clientType = window._moveClientType || '';
+    var isLandlord = clientType === 'landlord';
+    var inp = 'class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gold/30 focus:outline-none"';
+    var lbl = 'class="text-xs font-semibold text-gray-700 block mb-1"';
+
+    var html = '<form id="leaseTrackerForm" class="space-y-3 mt-4 p-4 bg-gray-50 rounded-xl">' +
+      '<p class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2"><i class="fas fa-calendar-alt text-purple-500 mr-1"></i>Lease Details</p>' +
+
+      // This client's role
+      '<div><label ' + lbl + '>This client is the:</label>' +
+        '<select ' + inp + ' name="client_role">' +
+          '<option value="landlord"' + (isLandlord ? ' selected' : '') + '>Landlord (property owner)</option>' +
+          '<option value="tenant"' + (!isLandlord ? ' selected' : '') + '>Tenant (renter)</option>' +
+        '</select></div>' +
+
+      // Property
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label ' + lbl + '>Property Address *</label><input ' + inp + ' name="address" required placeholder="88 East End Avenue"></div>' +
+        '<div><label ' + lbl + '>Unit</label><input ' + inp + ' name="unit" placeholder="4A"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label ' + lbl + '>Borough</label><select ' + inp + ' name="borough">' +
+          '<option value="">Select...</option><option value="Manhattan">Manhattan</option><option value="Brooklyn">Brooklyn</option><option value="Queens">Queens</option><option value="Bronx">Bronx</option><option value="Staten Island">Staten Island</option>' +
+        '</select></div>' +
+        '<div><label ' + lbl + '>Monthly Rent *</label><input ' + inp + ' name="monthly_rent" type="number" required placeholder="3500"></div>' +
+      '</div>' +
+
+      // Lease dates
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label ' + lbl + '>Lease Start *</label><input ' + inp + ' name="lease_start_date" type="date" required></div>' +
+        '<div><label ' + lbl + '>Lease End *</label><input ' + inp + ' name="lease_end_date" type="date" required></div>' +
+      '</div>' +
+
+      // The OTHER party (if landlord, who is tenant? if tenant, who is landlord?)
+      '<div class="mt-2 p-3 bg-white rounded-lg border border-gray-200">' +
+        '<p class="text-xs font-bold text-gray-600 mb-2">' + (isLandlord ? 'Tenant (if known)' : 'Landlord') + '</p>' +
+        '<div class="grid grid-cols-3 gap-2">' +
+          '<div><label ' + lbl + '>Name</label><input ' + inp + ' name="other_name" placeholder="Name"></div>' +
+          '<div><label ' + lbl + '>Email</label><input ' + inp + ' name="other_email" type="email" placeholder="email@example.com"></div>' +
+          '<div><label ' + lbl + '>Phone</label><input ' + inp + ' name="other_phone" type="tel" placeholder="212-555-1234"></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<button type="button" class="btn btn-gold w-full" onclick="Panels._submitLeaseTrackerMove()"><i class="fas fa-calendar-check mr-1"></i>Add to Lease Tracker</button>' +
+    '</form>';
+
+    el.innerHTML = html;
+  }
+
+  function _renderProspectsForm(el) {
+    var clientType = window._moveClientType || '';
+    var html = '<div class="space-y-3 mt-4 p-4 bg-gray-50 rounded-xl">' +
+      '<p class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2"><i class="fas fa-crosshairs text-blue-500 mr-1"></i>Prospect Details</p>' +
       '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Prospect Type</label>' +
         '<select id="prospectTypeSelect" class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg">' +
           '<option value="seller"' + (clientType === 'seller' ? ' selected' : '') + '>Seller — pitch, CMA, listing prep</option>' +
           '<option value="buyer"' + (clientType === 'buyer' ? ' selected' : '') + '>Buyer — search, showings, offers</option>' +
-          '<option value="tenant"' + ((clientType === 'tenant' || clientType === 'renter') ? ' selected' : '') + '>Tenant — rental search, applications</option>' +
+          '<option value="tenant"' + ((clientType === 'tenant' || clientType === 'renter') ? ' selected' : '') + '>Tenant — rental search</option>' +
           '<option value="investor"' + (clientType === 'investor' ? ' selected' : '') + '>Investor — analysis, investment search</option>' +
         '</select></div>' +
       '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Assign to Agent</label>' +
         '<div id="prospectAgentList">' + UI.loading() + '</div></div>' +
     '</div>';
 
-    CRM.openModal('Add to Prospects — ' + clientName, body);
+    el.innerHTML = html;
 
     MallanAPI.agents.list().then(function (data) {
-      var el = document.getElementById('prospectAgentList');
-      if (!el) return;
+      var agentEl = document.getElementById('prospectAgentList');
+      if (!agentEl) return;
       var agents = data.agents || [];
-      var html = '<div class="space-y-2">';
+      var h = '<div class="space-y-2">';
       agents.forEach(function (a) {
-        html += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3 transition-all" ' +
-          'onclick="Panels._doAddToProspects(\'' + E(clientId) + '\',\'' + E(a.id) + '\',\'' + E(a.full_name || a.name || a.email) + '\')">' +
+        h += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3 transition-all" ' +
+          'onclick="Panels._doAddToProspects(\'' + E(window._moveClientId) + '\',\'' + E(a.id) + '\',\'' + E(a.full_name || a.name || a.email) + '\')">' +
           UI.avatar(a.full_name || a.name || a.email, 32) +
           '<div><span class="text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</span>' +
           '<p class="text-xs text-gray-500">' + E(a.email || '') + '</p></div></button>';
       });
-      html += '</div>';
-      el.innerHTML = html;
+      h += '</div>';
+      agentEl.innerHTML = h;
     });
+  }
+
+  function _submitLeaseTrackerMove() {
+    var form = document.getElementById('leaseTrackerForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+
+    var data = {};
+    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
+    data.monthly_rent = Number(data.monthly_rent) || 0;
+
+    var clientId = window._moveClientId;
+    var clientRole = data.client_role; // 'landlord' or 'tenant'
+    delete data.client_role;
+
+    // Build the ActiveLease payload
+    var leaseData = {
+      address: data.address,
+      unit: data.unit || '',
+      borough: data.borough || '',
+      monthly_rent: data.monthly_rent,
+      lease_start_date: data.lease_start_date,
+      lease_end_date: data.lease_end_date,
+    };
+
+    if (clientRole === 'landlord') {
+      leaseData.landlord_lead_id = clientId;
+      // Other party is tenant
+      if (data.other_name) leaseData.tenant_name = data.other_name;
+      if (data.other_email) leaseData.tenant_email = data.other_email;
+      if (data.other_phone) leaseData.tenant_phone = data.other_phone;
+    } else {
+      leaseData.tenant_lead_id = clientId;
+      // For tenant, landlord is the other party — we need landlord_lead_id (required)
+      // Store as tenant fields for now; landlord can be linked later
+      if (data.other_name) leaseData.landlord_name = data.other_name;
+      if (data.other_email) leaseData.landlord_email = data.other_email;
+    }
+
+    MallanAPI._fetch('/api/crm/rentals/leases', {
+      method: 'POST',
+      body: JSON.stringify(leaseData),
+    }).then(function () {
+      // Also update client role
+      var roles = [clientRole === 'landlord' ? 'landlord' : 'renter'];
+      return MallanAPI.clients.update(clientId, { roles: roles, pipeline_stage: clientRole === 'landlord' ? 'rented' : 'active_tenant' });
+    }).then(function () {
+      CRM.closeModal();
+      CRM.toast('Added to Lease Tracker', 'success');
+      Router.navigate('/lease-tracker');
+    }).catch(function (err) { CRM.toast('Error: ' + (err.message || ''), 'error'); });
   }
 
   function _doAddToProspects(clientId, agentId, agentName) {
@@ -12928,6 +13087,8 @@ var Panels = (function () {
     _sortCAB: _sortCAB,
     financeDashboard: financeDashboard,
     _addToProspects: _addToProspects,
+    _selectMoveOption: _selectMoveOption,
+    _submitLeaseTrackerMove: _submitLeaseTrackerMove,
     _doAddToProspects: _doAddToProspects,
     _reassignClient: _reassignClient,
     _doReassign: _doReassign,
