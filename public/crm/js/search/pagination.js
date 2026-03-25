@@ -1051,7 +1051,7 @@
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
                 var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
-                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(' + l.id + ')">'
+                return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab('' + l.id + '')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
                     + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'

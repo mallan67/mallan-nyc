@@ -1192,6 +1192,37 @@ function section29() {
     if (/consent|agreeToTerms|tcpa/i.test(content)) pass(s, `${path.basename(comp)}: TCPA consent`);
     else warning(s, `${path.basename(comp)}: no TCPA consent checkbox`, 'Required for lead capture');
   }
+
+  // Check for unquoted ID injection in onclick handlers (causes ReferenceError at runtime)
+  // Dangerous: onclick="func(' + l.id + ')"  → becomes func(RLS123) → ReferenceError
+  // Safe:      onclick="func(\'' + l.id + '\')"  → becomes func('RLS123') → works
+  // Safe:      onclick="func(' + idx + ')" → numeric, no issue
+  const jsFiles = [...findFiles('public/crm/js', '.js'), ...findFiles('public/crm', '.html')];
+  let unquotedCount = 0;
+  const unquotedFiles = [];
+  for (const file of jsFiles) {
+    const content = readFile(file);
+    if (!content) continue;
+    // Find: (' + variable.id + ') or (' + variable.lid + ') — string IDs without quotes
+    // These are the dangerous ones (numeric indices like idx, ti+1 are safe)
+    const dangerousPattern = /\(' \+ (\w+\.(?:id|lid|listing_id|listingId)) \+ '\)/g;
+    let m;
+    while ((m = dangerousPattern.exec(content)) !== null) {
+      // Check surrounding context for \' quotes (already safe)
+      const before20 = content.substring(Math.max(0, m.index - 20), m.index);
+      const after20 = content.substring(m.index + m[0].length, m.index + m[0].length + 20);
+      const fullMatch = before20 + m[0] + after20;
+      if (fullMatch.includes("\\\\'") || fullMatch.includes("\\\\'" + " + " + m[1])) continue; // already quoted
+      unquotedCount++;
+      if (!unquotedFiles.includes(file)) unquotedFiles.push(file);
+    }
+  }
+  if (unquotedCount === 0) {
+    pass(s, 'No unquoted ID injection in onclick handlers');
+  } else {
+    critical(s, `${unquotedCount} unquoted ID injections in onclick handlers`,
+      `Files: ${unquotedFiles.join(', ')}. String IDs like RLS20069227 cause ReferenceError. Quote with \\'.`);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
