@@ -426,9 +426,12 @@ function buildODataFilter(params: URLSearchParams): string {
         "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
         "DirectionFaces", "PropertyCondition", "NewConstructionYN",
         "StructureType", "ArchitecturalStyle", "BusinessType",
-        "PetsAllowedYN",
-        // AvailableLeaseType, ExistingLeaseType: field exists but has 0% population + invalid enum values — filter client-side only
-        "ConstructionMaterials",
+        "PetsAllowedYN", "ConstructionMaterials",
+        // Extended set — validated against Trestle OData metadata
+        "View", "AccessibilityFeatures", "ExteriorFeatures",
+        "BuildingFeatures", "LaundryFeatures", "SecurityFeatures",
+        "Concessions",
+        // AvailableLeaseType, ExistingLeaseType: 0% population + invalid enum — client-side only
       ]);
       for (const [htmlField, values] of Object.entries(cbFilters)) {
         if (!values || values.length === 0) continue;
