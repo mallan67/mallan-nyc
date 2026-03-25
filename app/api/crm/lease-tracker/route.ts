@@ -473,10 +473,68 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // ── 3. Build property objects ─────────────────────────────────────────────
+  // ── 3. Group leases by address + unit ────────────────────────────────────
+  //   Multiple lease records for the same property = multiple parties.
+  //   Group them so the frontend shows ONE card per property with all parties.
+  const grouped = new Map<string, typeof leases[number][]>();
+  for (const lease of leases) {
+    const key = `${lease.address}|${lease.unit ?? ""}`.toLowerCase();
+    const arr = grouped.get(key) || [];
+    arr.push(lease);
+    grouped.set(key, arr);
+  }
+
+  // For each property group, use the primary lease (most recent start date)
+  // and collect all unique landlords and tenants across the group.
+  const uniqueLeases: Array<typeof leases[number] & {
+    additional_landlords: Array<{ id: bigint; name: string; email: string | null; phone: string | null }>;
+    additional_tenants: Array<{ id: bigint | null; name: string; email: string | null; phone: string | null }>;
+  }> = [];
+
+  for (const [, group] of grouped) {
+    // Pick the primary lease (most recent start date, then highest id)
+    const sorted = group.sort((a, b) =>
+      b.lease_start_date.getTime() - a.lease_start_date.getTime() || Number(b.id - a.id)
+    );
+    const primary = sorted[0];
+
+    // Collect additional parties from other records in the group
+    const seenLandlordIds = new Set<bigint>([primary.landlord_lead_id]);
+    const seenTenantIds = new Set<bigint | null>([primary.tenant_lead_id]);
+    const additionalLandlords: Array<{ id: bigint; name: string; email: string | null; phone: string | null }> = [];
+    const additionalTenants: Array<{ id: bigint | null; name: string; email: string | null; phone: string | null }> = [];
+
+    for (const lease of sorted.slice(1)) {
+      if (!seenLandlordIds.has(lease.landlord_lead_id)) {
+        seenLandlordIds.add(lease.landlord_lead_id);
+        additionalLandlords.push({
+          id: lease.landlord.id,
+          name: `${lease.landlord.first_name} ${lease.landlord.last_name}`.trim(),
+          email: lease.landlord.email,
+          phone: lease.landlord.phone,
+        });
+      }
+      if (lease.tenant_lead_id && !seenTenantIds.has(lease.tenant_lead_id)) {
+        seenTenantIds.add(lease.tenant_lead_id);
+        const t = lease.tenant;
+        additionalTenants.push({
+          id: t ? t.id : null,
+          name: t ? `${t.first_name} ${t.last_name}`.trim() : (lease.tenant_name || "Unknown"),
+          email: t ? t.email : lease.tenant_email,
+          phone: t ? t.phone : lease.tenant_phone,
+        });
+      }
+    }
+
+    (primary as typeof primary & { additional_landlords: typeof additionalLandlords; additional_tenants: typeof additionalTenants }).additional_landlords = additionalLandlords;
+    (primary as typeof primary & { additional_landlords: typeof additionalLandlords; additional_tenants: typeof additionalTenants }).additional_tenants = additionalTenants;
+    uniqueLeases.push(primary as typeof primary & { additional_landlords: typeof additionalLandlords; additional_tenants: typeof additionalTenants });
+  }
+
+  // ── 4. Build property objects ─────────────────────────────────────────────
   const now = Date.now();
 
-  const properties = leases.map((lease) => {
+  const properties = uniqueLeases.map((lease) => {
     // Tenant object
     const tenantData = lease.tenant
       ? {
@@ -696,10 +754,14 @@ export async function GET(req: NextRequest) {
       qualification,
 
       priority_score,
+
+      // Multi-party: additional landlords/tenants from grouped lease records
+      additional_landlords: lease.additional_landlords || [],
+      additional_tenants: lease.additional_tenants || [],
     };
   });
 
-  // ── 4. Apply filters ──────────────────────────────────────────────────────
+  // ── 5. Apply filters ──────────────────────────────────────────────────────
 
   let filtered = properties;
 
@@ -738,7 +800,7 @@ export async function GET(req: NextRequest) {
   // Sort: highest priority first (descending priority_score)
   filtered.sort((a, b) => b.priority_score - a.priority_score);
 
-  // ── 5. Summary counts (computed from full unfiltered set) ─────────────────
+  // ── 6. Summary counts (computed from full unfiltered set) ─────────────────
   const summary = {
     total_properties: properties.length,
     rented: properties.filter((p) => p.status === "rented").length,
