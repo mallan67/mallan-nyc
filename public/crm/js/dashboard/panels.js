@@ -1759,8 +1759,8 @@ var Panels = (function () {
           '<td class="px-3 py-2 text-sm text-gray-600 hidden sm:table-cell">' + E(cl.phone || '-') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</td>' +
           '<td class="px-3 py-2"><div class="flex gap-1">' +
-            '<button class="btn btn-sm btn-gold" onclick="Panels._addToProspects(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email || '') + '\',\'' + E(cl.type || cl.client_type || '') + '\')" title="Add to Prospects"><i class="fas fa-crosshairs"></i></button>' +
-            '<button class="btn btn-sm btn-outline" onclick="Panels._reassignClient(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email || '') + '\')" title="Reassign"><i class="fas fa-exchange-alt"></i></button>' +
+            '<button class="btn btn-sm btn-gold" onclick="Panels._addToProspects(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email || '') + '\',\'' + E((cl.roles && cl.roles[0]) || cl.type || cl.client_type || '') + '\')" title="Move to Pipeline"><i class="fas fa-arrow-circle-right mr-1"></i>Move</button>' +
+            '<button class="btn btn-sm btn-outline" onclick="Panels._reassignClient(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email || '') + '\')" title="Reassign Agent"><i class="fas fa-exchange-alt"></i></button>' +
             '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')" title="Open"><i class="fas fa-arrow-right"></i></button>' +
           '</div></td>' +
         '</tr>';
