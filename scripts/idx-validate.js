@@ -1427,7 +1427,25 @@ function section34() {
   const mfaEnroll = readFile('app/api/auth/mfa/enroll/route.ts');
   const mfaVerify = readFile('app/api/auth/mfa/verify/route.ts');
   if (mfaEnroll && mfaVerify) pass(s, 'MFA endpoints: enroll + verify exist');
-  else info(s, 'MFA endpoints not yet implemented', 'Planned feature — /api/auth/mfa/enroll + /api/auth/mfa/verify');
+  else warning(s, 'MFA endpoints missing', 'Need /api/auth/mfa/enroll + /api/auth/mfa/verify');
+
+  // Check for MFA management endpoints
+  const mfaBackup = readFile('app/api/auth/mfa/backup-codes/route.ts');
+  const mfaDisable = readFile('app/api/auth/mfa/disable/route.ts');
+  if (mfaBackup && mfaDisable) pass(s, 'MFA management: backup-codes + disable exist');
+  else info(s, 'MFA management endpoints missing', 'Need /api/auth/mfa/backup-codes + /api/auth/mfa/disable');
+
+  // Check MFA core library exists with encryption
+  const mfaLib = readFile('lib/auth/mfa.ts');
+  if (mfaLib && /MFA_ENCRYPTION_KEY/.test(mfaLib) && /encryptSecret/.test(mfaLib)) {
+    pass(s, 'MFA core library: AES-256-GCM encryption at rest');
+  } else {
+    warning(s, 'MFA secrets not encrypted at rest', 'lib/auth/mfa.ts must use AES-256-GCM encryption');
+  }
+
+  // Check isAuthError guard on MFA endpoints
+  if (mfaEnroll && /isAuthError/.test(mfaEnroll)) pass(s, 'MFA enroll: isAuthError guard present');
+  else if (mfaEnroll) warning(s, 'MFA enroll: missing isAuthError guard', 'requireBroker returns NextResponse on failure');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
