@@ -1,28 +1,30 @@
 // Temporary diagnostic endpoint — DELETE AFTER TESTING
 // GET /api/auth/mfa/test-email
-// Sends a test email and returns the result
+// Calls sendEmail directly to capture the full SMTP error
 import { NextResponse } from "next/server";
-import { sendOtpEmail } from "@/lib/auth/mfa";
+import { sendEmail } from "@/lib/email/sendgrid";
 
 export async function GET() {
   const mfaEmail = process.env.MFA_EMAIL || "not-set";
   const smtpUser = process.env.SMTP_USER ? "set" : "not-set";
   const smtpPass = process.env.SMTP_PASS ? "set" : "not-set";
+  const smtpHost = process.env.SMTP_HOST || "smtp.office365.com (default)";
+  const smtpPort = process.env.SMTP_PORT || "587 (default)";
 
-  let emailResult = false;
-  let error = null;
-
-  try {
-    emailResult = await sendOtpEmail(mfaEmail, "123456", "Maya");
-  } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
-  }
+  const result = await sendEmail(
+    mfaEmail,
+    "MFA Test Email",
+    "<p>If you see this, SMTP is working.</p>",
+    undefined,
+    { channel: "company" }
+  );
 
   return NextResponse.json({
     mfa_email: mfaEmail,
     smtp_user: smtpUser,
     smtp_pass: smtpPass,
-    email_sent: emailResult,
-    error: error,
+    smtp_host: smtpHost,
+    smtp_port: smtpPort,
+    result,
   });
 }
