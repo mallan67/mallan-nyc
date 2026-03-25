@@ -539,14 +539,14 @@
                 if (l.addressDisplayYN === false) return addr; // no link for suppressed addresses
                 var baseStyle = 'color:inherit;text-decoration:none;border-bottom:1px dotted #C4A052;cursor:pointer';
                 if (extraStyle) baseStyle += ';' + extraStyle;
-                return '<a href="https://mallan.nyc/report.html?id=' + l.id + '" onclick="if(typeof openClientDetailReport===\'function\'){openClientDetailReport(' + l.id + ');return false;}" style="' + baseStyle + '">' + addr + '</a>';
+                return '<a href="https://mallan.nyc/report.html?id=' + l.id + '" onclick="if(typeof openClientDetailReport===\'function\'){openClientDetailReport(\'' + l.id + '\');return false;}" style="' + baseStyle + '">' + addr + '</a>';
             }
 
             // Helper: small "View Photos" link for a listing
             function mediaLink(l) {
                 var count = l.photoCount || (l.images ? l.images.length : 0);
                 if (count === 0) return '';
-                return '<a href="https://mallan.nyc/report.html?id=' + l.id + '" onclick="if(typeof openClientDetailReport===\'function\'){openClientDetailReport(' + l.id + ');return false;}" style="color:#C4A052;text-decoration:none;font-size:11px;white-space:nowrap;cursor:pointer"><i class="fas fa-camera" style="margin-right:3px"></i>' + count + ' Photos</a>';
+                return '<a href="https://mallan.nyc/report.html?id=' + l.id + '" onclick="if(typeof openClientDetailReport===\'function\'){openClientDetailReport(\'' + l.id + '\');return false;}" style="color:#C4A052;text-decoration:none;font-size:11px;white-space:nowrap;cursor:pointer"><i class="fas fa-camera" style="margin-right:3px"></i>' + count + ' Photos</a>';
             }
 
             var version = reportState.version || 'agent';
