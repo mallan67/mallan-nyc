@@ -49,6 +49,7 @@
     "public/crm",
     "mcp",
     "lib/rls-validator",
-    "lib/compliance/__tests__"
+    "lib/compliance/__tests__",
+    "lib/auth/__tests__"
   ]
 }

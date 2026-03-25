@@ -1,8 +1,10 @@
 // POST /api/auth/login
 // Authenticates agent or client. Sets session_token httpOnly cookie.
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
+import { MFA_SESSION_TTL_MS } from "@/lib/auth/mfa";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
 /**
@@ -57,6 +59,27 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        // ── MFA check for brokers ──
+        const isBroker = agent.role === 'BROKER' || agent.role === 'broker';
+        if (isBroker && agent.mfa_enabled && agent.mfa_secret_enc) {
+          const mfaToken = randomUUID();
+          await prisma.mfaSession.create({
+            data: {
+              token: mfaToken,
+              agent_id: agent.id,
+              expires_at: new Date(Date.now() + MFA_SESSION_TTL_MS),
+              ip_address: ip ?? null,
+              user_agent: ua ?? null,
+            },
+          });
+
+          return NextResponse.json({
+            mfa_required: true,
+            mfa_session: mfaToken,
+          });
+        }
+
+        // ── No MFA — create session directly ──
         const token = await createSession("agent", agent.id, agent.role, ip, ua);
 
         // Update last_login

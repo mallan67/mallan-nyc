@@ -221,6 +221,47 @@
             line-height: 1.5;
         }
 
+        /* MFA Step */
+        .mfa-step { display: none; }
+        .mfa-step.visible { display: block; }
+
+        .mfa-step .back-link {
+            display: inline-block;
+            font-size: 12px;
+            color: #9ca3af;
+            cursor: pointer;
+            margin-bottom: 16px;
+            text-decoration: none;
+        }
+
+        .mfa-step .back-link:hover { color: #B8860B; }
+
+        .mfa-input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 20px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            letter-spacing: 8px;
+            color: #111;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .mfa-input:focus {
+            border-color: #B8860B;
+            box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.12);
+        }
+
+        .mfa-hint {
+            font-size: 12px;
+            color: #9ca3af;
+            text-align: center;
+            margin-top: 8px;
+        }
+
         /* Mobile */
         @media (max-width: 480px) {
             .login-card { padding: 24px 20px; }
@@ -269,6 +310,23 @@
                 <!-- Submit -->
                 <button type="submit" id="submitBtn" class="submit-btn">Sign In</button>
             </form>
+
+            <!-- MFA Step (hidden by default) -->
+            <div id="mfaStep" class="mfa-step">
+                <a class="back-link" id="mfaBack">&larr; Back to login</a>
+                <div style="text-align:center;margin-bottom:16px;">
+                    <div style="font-size:14px;font-weight:600;color:#111;">Two-Factor Authentication</div>
+                    <div style="font-size:12px;color:#6b7280;margin-top:4px;">Enter the code from your authenticator app</div>
+                </div>
+                <div class="form-group">
+                    <input type="text" id="mfaCode" class="mfa-input"
+                        maxlength="8" inputmode="numeric" autocomplete="one-time-code"
+                        placeholder="------">
+                </div>
+                <div id="mfaError" class="error-msg"></div>
+                <button type="button" id="mfaSubmitBtn" class="submit-btn">Verify</button>
+                <div class="mfa-hint">You can also enter a backup code</div>
+            </div>
 
             <!-- Dev bypass (localhost only) -->
             <script>
@@ -395,7 +453,10 @@
             submitBtn.classList.add('loading');
 
             MallanAPI.auth.login(email, password, portalType).then(function (data) {
-                if (data.success) {
+                if (data.mfa_required) {
+                    showMfaStep(data.mfa_session);
+                    resetButton();
+                } else if (data.success) {
                     redirectAfterLogin();
                 } else {
                     showError(data.error || 'Login failed. Please try again.');
@@ -423,6 +484,86 @@
         function resetButton() {
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
+        }
+
+        // ── MFA Step ──
+        var mfaStep = document.getElementById('mfaStep');
+        var mfaCode = document.getElementById('mfaCode');
+        var mfaError = document.getElementById('mfaError');
+        var mfaSubmitBtn = document.getElementById('mfaSubmitBtn');
+        var mfaBack = document.getElementById('mfaBack');
+        var pendingMfaSession = null;
+
+        function showMfaStep(mfaSession) {
+            pendingMfaSession = mfaSession;
+            form.style.display = 'none';
+            var divider = document.querySelector('.divider');
+            var oauthRow = divider ? divider.nextElementSibling : null;
+            var forgotRow = document.querySelector('[href="/reset-password"]');
+            if (divider) divider.style.display = 'none';
+            if (oauthRow) oauthRow.style.display = 'none';
+            if (forgotRow && forgotRow.parentElement) forgotRow.parentElement.style.display = 'none';
+            // Hide portal selector during MFA
+            var portalRow = document.querySelector('.portal-select-row');
+            if (portalRow) portalRow.style.display = 'none';
+            mfaStep.classList.add('visible');
+            mfaCode.value = '';
+            mfaCode.focus();
+        }
+
+        function hideMfaStep() {
+            pendingMfaSession = null;
+            mfaStep.classList.remove('visible');
+            form.style.display = 'block';
+            var divider = document.querySelector('.divider');
+            var oauthRow = divider ? divider.nextElementSibling : null;
+            var forgotRow = document.querySelector('[href="/reset-password"]');
+            if (divider) divider.style.display = '';
+            if (oauthRow) oauthRow.style.display = '';
+            if (forgotRow && forgotRow.parentElement) forgotRow.parentElement.style.display = '';
+            var portalRow = document.querySelector('.portal-select-row');
+            if (portalRow) portalRow.style.display = '';
+            mfaError.classList.remove('visible');
+        }
+
+        mfaBack.addEventListener('click', hideMfaStep);
+
+        mfaSubmitBtn.addEventListener('click', submitMfa);
+        mfaCode.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') submitMfa();
+        });
+
+        function submitMfa() {
+            var code = mfaCode.value.trim();
+            if (!code) {
+                mfaError.textContent = 'Enter your verification code.';
+                mfaError.classList.add('visible');
+                return;
+            }
+
+            mfaError.classList.remove('visible');
+            mfaSubmitBtn.disabled = true;
+            mfaSubmitBtn.classList.add('loading');
+
+            MallanAPI.auth.verifyMfa(pendingMfaSession, code).then(function (data) {
+                if (data.success) {
+                    redirectAfterLogin();
+                } else {
+                    mfaError.textContent = data.error || 'Verification failed.';
+                    mfaError.classList.add('visible');
+                    mfaSubmitBtn.disabled = false;
+                    mfaSubmitBtn.classList.remove('loading');
+                    mfaCode.value = '';
+                    mfaCode.focus();
+                }
+            }).catch(function (err) {
+                mfaError.textContent = err.message || 'Verification failed. Please try again.';
+                mfaError.classList.add('visible');
+                mfaSubmitBtn.disabled = false;
+                mfaSubmitBtn.classList.remove('loading');
+                mfaCode.value = '';
+                mfaCode.focus();
+            });
         }
     })();
     </script>

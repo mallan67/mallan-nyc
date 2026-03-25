@@ -76,6 +76,24 @@ var MallanAPI = (function () {
           portalType: portalType || 'agent',
         }),
       }).then(function (data) {
+        if (data.mfa_required) return data; // Don't set user yet — MFA step pending
+        _user = data.user || null;
+        _ready = true;
+        return data;
+      });
+    },
+
+    /**
+     * Verify MFA code after login returns mfa_required.
+     */
+    verifyMfa: function (mfaSession, code) {
+      return _fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        body: JSON.stringify({
+          mfa_session: mfaSession,
+          code: code,
+        }),
+      }).then(function (data) {
         _user = data.user || null;
         _ready = true;
         return data;
