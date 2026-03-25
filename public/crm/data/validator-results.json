@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-03-24T22:30:41.714Z",
-  "pass": 689,
-  "critical": 104,
-  "warning": 65,
-  "info": 35,
+  "timestamp": "2026-03-25T00:09:13.547Z",
+  "pass": 757,
+  "critical": 0,
+  "warning": 75,
+  "info": 36,
   "sections": [
     {
       "section": 1,
       "title": "$select Field Completeness",
       "category": "IDX Pipeline",
-      "pass": 25,
-      "critical": 4,
+      "pass": 31,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -18,8 +18,8 @@
       "section": 2,
       "title": "Distribution Gate → DB Column Mapping",
       "category": "IDX Pipeline",
-      "pass": 17,
-      "critical": 4,
+      "pass": 21,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -37,7 +37,7 @@
       "title": "REQUIRED vs IDX Plus Availability",
       "category": "IDX Pipeline",
       "pass": 38,
-      "critical": 3,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -45,7 +45,7 @@
       "section": 5,
       "title": "Prisma Listing ↔ Mapper Return Type",
       "category": "IDX Pipeline",
-      "pass": 28,
+      "pass": 30,
       "critical": 0,
       "warning": 2,
       "info": 0
@@ -63,8 +63,8 @@
       "section": 7,
       "title": "CRM fetch() → API Route Cross-Reference",
       "category": "CRM & API",
-      "pass": 63,
-      "critical": 12,
+      "pass": 74,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -74,15 +74,15 @@
       "category": "CRM & API",
       "pass": 89,
       "critical": 0,
-      "warning": 41,
+      "warning": 48,
       "info": 0
     },
     {
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 85,
-      "critical": 31,
+      "pass": 86,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -90,8 +90,8 @@
       "section": 10,
       "title": "Cron Schedule Completeness",
       "category": "Cron",
-      "pass": 6,
-      "critical": 10,
+      "pass": 16,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -99,8 +99,8 @@
       "section": 11,
       "title": "Cron Secret Validation Pattern",
       "category": "Cron",
-      "pass": 0,
-      "critical": 16,
+      "pass": 16,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -108,8 +108,8 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 107,
-      "critical": 15,
+      "pass": 121,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -243,8 +243,8 @@
       "section": 27,
       "title": "CRM → API Body Field Alignment",
       "category": "CRM & API",
-      "pass": 3,
-      "critical": 7,
+      "pass": 8,
+      "critical": 0,
       "warning": 0,
       "info": 0
     },
@@ -253,9 +253,9 @@
       "title": "Search Filter Integrity",
       "category": "Search",
       "pass": 8,
-      "critical": 2,
-      "warning": 1,
-      "info": 0
+      "critical": 0,
+      "warning": 3,
+      "info": 1
     },
     {
       "section": 29,
@@ -288,9 +288,9 @@
       "section": 32,
       "title": "Run History & Trends",
       "category": "Platform",
-      "pass": 3,
+      "pass": 2,
       "critical": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 0
     }
   ]
