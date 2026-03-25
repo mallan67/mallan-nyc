@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   try {
     const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-    const { name, criteria, lead_id, alert_frequency, alert_enabled } = body as Record<string, any>;
+    const { name, criteria, lead_id, alert_frequency, alert_enabled } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json({ error: "name is required (non-empty string)" }, { status: 400 });

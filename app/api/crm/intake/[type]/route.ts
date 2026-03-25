@@ -83,7 +83,7 @@ export async function POST(
   const { type } = await params;
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { lead_id, ...intakeData } = body as Record<string, any>;
+  const { lead_id, ...intakeData } = body;
 
   if (!lead_id) {
     return NextResponse.json({ error: "lead_id required" }, { status: 400 });

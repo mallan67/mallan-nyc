@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { lead_id, title, description, due_date, priority, task_type } = body as Record<string, any>;
+  const { lead_id, title, description, due_date, priority, task_type } = body;
 
   if (!lead_id || !title || !due_date) {
     return NextResponse.json({ error: "lead_id, title, and due_date required" }, { status: 400 });

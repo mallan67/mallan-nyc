@@ -94,8 +94,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const buyers: Array<{ name: string; email?: string; phone?: string; notes?: string }> =
-    body.buyers;
+  const buyers = body.buyers as Array<{ name: string; email?: string; phone?: string; notes?: string }>;
 
   if (!Array.isArray(buyers) || buyers.length === 0) {
     return NextResponse.json({ error: "Provide an array of buyers" }, { status: 400 });

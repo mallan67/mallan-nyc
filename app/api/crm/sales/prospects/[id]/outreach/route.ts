@@ -116,7 +116,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-    const { status: newStatus, scheduled_date } = body as Record<string, any>;
+    const { status: newStatus, scheduled_date } = body;
 
     // ── Mark as "sent" ────────────────────────────────────────────────────
     if (newStatus === "sent") {
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     subject,
     type: stepType,
     content_preview,
-  } = body as Record<string, any>;
+  } = body;
 
   if (day_offset == null || typeof day_offset !== "number" || day_offset < 0) {
     return NextResponse.json(
