@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { lead_id, listing_id, address, unit, showing_date, price_at_time, reaction, notes } = body as Record<string, unknown>;
+  const { lead_id, listing_id, address, unit, showing_date, price_at_time, reaction, notes } = body as Record<string, any>;
 
   if (!lead_id || !address || !showing_date) {
     return NextResponse.json(

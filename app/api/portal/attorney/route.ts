@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest) {
 
   const [body, _parseErr] = await safeJson(req);
   if (_parseErr) return _parseErr;
-  const { name, email, phone, firm } = body as Record<string, unknown>;
+  const { name, email, phone, firm } = body as Record<string, any>;
 
   await prisma.lead.update({
     where: { id: auth.userId },
