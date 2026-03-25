@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     auth,
     {
       broker_id: auth.userId.toString(),
-      broker_name: auth.name || "Broker",
+      broker_name: "Broker",
       agent_name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
     },
     ip
