@@ -1463,32 +1463,8 @@ function REBNYComplianceDoctor(options) {
  * Green = all pass, Yellow = warnings, Red = failures. Click for full report.
  */
 function updateComplianceBadge(report) {
-    var badge = document.getElementById('complianceDoctorBadge');
-    if (!badge) {
-        badge = document.createElement('div');
-        badge.id = 'complianceDoctorBadge';
-        badge.style.cssText = 'position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:9999;padding:3px 12px;border-radius:6px 6px 0 0;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 -1px 4px rgba(0,0,0,0.08);transition:opacity 0.3s;opacity:0.85;';
-        badge.title = 'Click for REBNY Compliance Doctor report';
-        badge.addEventListener('click', function() {
-            var r = window._lastComplianceReport;
-            if (!r) return;
-            showComplianceDoctorModal(r);
-        });
-        document.body.appendChild(badge);
-    }
+    // Save report for access from Compliance Doctor modal (no separate badge — Test Suite badge handles display)
     window._lastComplianceReport = report;
-
-    var s = report.summary;
-    if (s.failed > 0) {
-        badge.style.background = '#fef2f2'; badge.style.color = '#dc2626'; badge.style.border = '1px solid #fca5a5';
-        badge.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:4px"></i>' + s.failed + ' compliance issue' + (s.failed > 1 ? 's' : '');
-    } else if (s.warnings > 0) {
-        badge.style.background = '#fffbeb'; badge.style.color = '#d97706'; badge.style.border = '1px solid #fcd34d';
-        badge.innerHTML = '<i class="fas fa-info-circle" style="margin-right:4px"></i>' + s.passed + '/' + s.total + ' pass, ' + s.warnings + ' warn';
-    } else {
-        badge.style.background = '#f0fdf4'; badge.style.color = '#16a34a'; badge.style.border = '1px solid #86efac';
-        badge.innerHTML = '<i class="fas fa-check-circle" style="margin-right:4px"></i>' + s.total + '/' + s.total + ' pass';
-    }
 }
 
 /**
@@ -2069,7 +2045,7 @@ function updateTestSuiteBadge(report) {
     if (!badge) {
         badge = document.createElement('div');
         badge.id = 'complianceDoctorBadge';
-        badge.style.cssText = 'position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:9999;padding:3px 12px;border-radius:6px 6px 0 0;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 -1px 4px rgba(0,0,0,0.08);line-height:1.3;opacity:0.85;';
+        badge.style.cssText = 'position:fixed;bottom:48px;left:50%;transform:translateX(-50%);z-index:9999;padding:3px 12px;border-radius:6px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 -1px 4px rgba(0,0,0,0.08);line-height:1.3;opacity:0.85;';
         badge.title = 'Click for REBNY Test Suite report';
         badge.addEventListener('click', function() { var r = window._lastTestSuiteReport; if (r) showTestSuiteModal(r); });
         document.body.appendChild(badge);
