@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await requireAuth(req);
+  const session = await requireAuth(request);
   if (isAuthError(session)) return session;
 
   const auth = await requirePortalRole(request, "buyer", "tenant");
