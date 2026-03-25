@@ -1759,6 +1759,7 @@ var Panels = (function () {
           '<td class="px-3 py-2 text-sm text-gray-600 hidden sm:table-cell">' + E(cl.phone || '-') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-500 hidden md:table-cell">' + Utils.formatTimeAgo(cl.updated_at || cl.updatedAt) + '</td>' +
           '<td class="px-3 py-2"><div class="flex gap-1">' +
+            '<button class="btn btn-sm btn-gold" onclick="Panels._addToProspects(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email || '') + '\',\'' + E(cl.type || cl.client_type || '') + '\')" title="Add to Prospects"><i class="fas fa-crosshairs"></i></button>' +
             '<button class="btn btn-sm btn-outline" onclick="Panels._reassignClient(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email || '') + '\')" title="Reassign"><i class="fas fa-exchange-alt"></i></button>' +
             '<button class="btn btn-sm btn-outline" onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')" title="Open"><i class="fas fa-arrow-right"></i></button>' +
           '</div></td>' +
@@ -1828,6 +1829,87 @@ var Panels = (function () {
     });
 
     _filterCAB(); // re-render with current filters + new sort
+  }
+
+  function _addToProspects(clientId, clientName, clientType) {
+    // Build agent list + prospect type selector
+    var body = '<div class="space-y-4">' +
+      '<p class="text-sm text-gray-600">Move <strong>' + E(clientName) + '</strong> to an agent\'s Prospects pipeline.</p>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Prospect Type</label>' +
+        '<select id="prospectTypeSelect" class="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg">' +
+          '<option value="seller"' + (clientType === 'seller' ? ' selected' : '') + '>Seller — pitch, CMA, listing prep</option>' +
+          '<option value="buyer"' + (clientType === 'buyer' ? ' selected' : '') + '>Buyer — search, showings, offers</option>' +
+          '<option value="tenant"' + ((clientType === 'tenant' || clientType === 'renter') ? ' selected' : '') + '>Tenant — rental search, applications</option>' +
+          '<option value="investor"' + (clientType === 'investor' ? ' selected' : '') + '>Investor — analysis, investment search</option>' +
+        '</select></div>' +
+      '<div><label class="text-xs font-semibold text-gray-700 block mb-1">Assign to Agent</label>' +
+        '<div id="prospectAgentList">' + UI.loading() + '</div></div>' +
+    '</div>';
+
+    CRM.openModal('Add to Prospects — ' + clientName, body);
+
+    MallanAPI.agents.list().then(function (data) {
+      var el = document.getElementById('prospectAgentList');
+      if (!el) return;
+      var agents = data.agents || [];
+      var html = '<div class="space-y-2">';
+      agents.forEach(function (a) {
+        html += '<button class="w-full text-left p-3 rounded-lg border hover:border-gold hover:bg-gold-bg flex items-center gap-3 transition-all" ' +
+          'onclick="Panels._doAddToProspects(\'' + E(clientId) + '\',\'' + E(a.id) + '\',\'' + E(a.full_name || a.name || a.email) + '\')">' +
+          UI.avatar(a.full_name || a.name || a.email, 32) +
+          '<div><span class="text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</span>' +
+          '<p class="text-xs text-gray-500">' + E(a.email || '') + '</p></div></button>';
+      });
+      html += '</div>';
+      el.innerHTML = html;
+    });
+  }
+
+  function _doAddToProspects(clientId, agentId, agentName) {
+    var typeSelect = document.getElementById('prospectTypeSelect');
+    var prospectType = typeSelect ? typeSelect.value : 'buyer';
+
+    if (prospectType === 'seller') {
+      // Create a SellerLead from this client
+      MallanAPI._fetch('/api/crm/clients/' + clientId).then(function (data) {
+        var cl = data.client || data;
+        return MallanAPI._fetch('/api/crm/sales/prospects', {
+          method: 'POST',
+          body: JSON.stringify({
+            address: cl.property_address || cl.home_address || '',
+            unit: cl.unit_number || '',
+            borough: cl.borough || '',
+            owner_name: ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.name || '',
+            owner_email: cl.email || '',
+            owner_phone: cl.phone || '',
+            entity_name: cl.entity_name || '',
+            entity_type: cl.entity_type || '',
+            source: cl.source || 'address_book',
+            source_detail: 'Moved from Client Address Book',
+          }),
+        });
+      }).then(function () {
+        // Also assign the client to the agent
+        return MallanAPI.clients.update(clientId, { agent_id: agentId, pipeline_stage: 'prospect' });
+      }).then(function () {
+        CRM.closeModal();
+        CRM.toast(agentName + '\'s Prospects — Seller added', 'success');
+        clientAddressBook();
+      }).catch(function (err) { CRM.toast('Error: ' + (err.message || ''), 'error'); });
+    } else {
+      // For buyer/tenant/investor — update the Lead with role + assign agent
+      var roles = [prospectType];
+      if (prospectType === 'tenant') roles = ['renter'];
+      MallanAPI.clients.update(clientId, {
+        agent_id: agentId,
+        pipeline_stage: prospectType === 'buyer' ? 'searching' : prospectType === 'investor' ? 'analyzing' : 'searching',
+        roles: roles,
+      }).then(function () {
+        CRM.closeModal();
+        CRM.toast(agentName + '\'s Prospects — ' + prospectType.charAt(0).toUpperCase() + prospectType.slice(1) + ' added', 'success');
+        clientAddressBook();
+      }).catch(function (err) { CRM.toast('Error: ' + (err.message || ''), 'error'); });
+    }
   }
 
   function _reassignClient(clientId, clientName) {
@@ -12845,6 +12927,8 @@ var Panels = (function () {
     _cabSwitchTab: _cabSwitchTab,
     _sortCAB: _sortCAB,
     financeDashboard: financeDashboard,
+    _addToProspects: _addToProspects,
+    _doAddToProspects: _doAddToProspects,
     _reassignClient: _reassignClient,
     _doReassign: _doReassign,
     _agentReferralsView: _agentReferralsView,
