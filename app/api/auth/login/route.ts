@@ -3,8 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
-import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
-import { MFA_SESSION_TTL_MS } from "@/lib/auth/mfa";
+import { verifyPassword, hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
+import { MFA_SESSION_TTL_MS, generateOtpCode, sendOtpEmail, sendOtpSms } from "@/lib/auth/mfa";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
 /**
@@ -59,19 +59,31 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // ── MFA check for brokers ──
+        // ── MFA for brokers — always on, email + optional SMS ──
         const isBroker = agent.role === 'BROKER' || agent.role === 'broker';
-        if (isBroker && agent.mfa_enabled && agent.mfa_secret_enc) {
+        if (isBroker) {
+          const code = generateOtpCode();
+          const codeHash = await hashPassword(code);
           const mfaToken = randomUUID();
           await prisma.mfaSession.create({
             data: {
               token: mfaToken,
               agent_id: agent.id,
+              code_hash: codeHash,
               expires_at: new Date(Date.now() + MFA_SESSION_TTL_MS),
               ip_address: ip ?? null,
               user_agent: ua ?? null,
             },
           });
+
+          // Send code via email
+          const agentName = agent.first_name || 'there';
+          await sendOtpEmail(agent.email, code, agentName);
+
+          // Also send via SMS if phone is set + Twilio configured
+          if (agent.phone) {
+            await sendOtpSms(agent.phone, code).catch(() => {});
+          }
 
           return NextResponse.json({
             mfa_required: true,

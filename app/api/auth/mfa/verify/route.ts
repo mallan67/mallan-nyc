@@ -1,17 +1,12 @@
 // POST /api/auth/mfa/verify
-// Validates a TOTP code (or backup code) against an MFA session.
+// Validates an OTP code (sent via email/SMS) against an MFA session.
 // On success: creates real session, sets cookie, destroys MFA session.
 // On failure: increments attempts, destroys session after 5 failures.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createSession, SESSION_COOKIE } from "@/lib/auth";
+import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
-import {
-  verifyTotpCode,
-  decryptSecret,
-  findBackupCodeIndex,
-  MFA_MAX_ATTEMPTS,
-} from "@/lib/auth/mfa";
+import { MFA_MAX_ATTEMPTS } from "@/lib/auth/mfa";
 import { logAuditEvent } from "@/lib/auth/middleware";
 import type { SessionUser } from "@/lib/auth/session";
 
@@ -37,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     if (!mfaSess) {
       return NextResponse.json(
-        { error: "Invalid or expired MFA session" },
+        { error: "Invalid or expired code. Please log in again." },
         { status: 422 }
       );
     }
@@ -46,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (mfaSess.expires_at < new Date()) {
       await prisma.mfaSession.delete({ where: { id: mfaSess.id } }).catch(() => {});
       return NextResponse.json(
-        { error: "MFA session expired. Please log in again." },
+        { error: "Code expired. Please log in again." },
         { status: 422 }
       );
     }
@@ -65,12 +60,12 @@ export async function POST(req: NextRequest) {
       where: { id: mfaSess.agent_id },
     });
 
-    if (!agent || !agent.mfa_secret_enc) {
+    if (!agent) {
       await prisma.mfaSession.delete({ where: { id: mfaSess.id } }).catch(() => {});
-      return NextResponse.json({ error: "MFA not configured" }, { status: 400 });
+      return NextResponse.json({ error: "Account not found" }, { status: 400 });
     }
 
-    // Audit helper (agent not yet authenticated — build partial SessionUser)
+    // Audit helper
     const auditUser: SessionUser = {
       userId: agent.id,
       userType: "agent",
@@ -78,61 +73,32 @@ export async function POST(req: NextRequest) {
       sessionId: "mfa-pending",
     };
 
-    // ── Try TOTP code first ──
-    const secret = decryptSecret(agent.mfa_secret_enc);
-    const totpValid = verifyTotpCode(secret, code.trim());
+    // ── Verify code against bcrypt hash ──
+    const codeValid = await verifyPassword(code.trim(), mfaSess.code_hash);
 
-    if (!totpValid) {
-      // ── Try backup code ──
-      const backupIdx = await findBackupCodeIndex(
-        code.trim().toLowerCase(),
-        agent.mfa_backup_hashes
-      );
-
-      if (backupIdx === -1) {
-        // Both failed — increment attempts
-        await prisma.mfaSession.update({
-          where: { id: mfaSess.id },
-          data: { attempts: { increment: 1 } },
-        });
-
-        await logAuditEvent(
-          "mfa_verify_fail",
-          "agent",
-          agent.id.toString(),
-          auditUser,
-          { attempts: mfaSess.attempts + 1 },
-          ip
-        );
-
-        const remaining = MFA_MAX_ATTEMPTS - (mfaSess.attempts + 1);
-        return NextResponse.json(
-          {
-            error: `Invalid code. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.`,
-          },
-          { status: 422 }
-        );
-      }
-
-      // ── Backup code matched — remove it ──
-      const updatedHashes = [...agent.mfa_backup_hashes];
-      updatedHashes.splice(backupIdx, 1);
-      await prisma.agent.update({
-        where: { id: agent.id },
-        data: { mfa_backup_hashes: updatedHashes },
+    if (!codeValid) {
+      await prisma.mfaSession.update({
+        where: { id: mfaSess.id },
+        data: { attempts: { increment: 1 } },
       });
 
       await logAuditEvent(
-        "mfa_backup_code_used",
+        "mfa_verify_fail",
         "agent",
         agent.id.toString(),
         auditUser,
-        { remaining_codes: updatedHashes.length },
+        { attempts: mfaSess.attempts + 1 },
         ip
+      );
+
+      const remaining = MFA_MAX_ATTEMPTS - (mfaSess.attempts + 1);
+      return NextResponse.json(
+        { error: `Invalid code. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.` },
+        { status: 422 }
       );
     }
 
-    // ── MFA verified — create real session ──
+    // ── Code valid — create real session ──
     const sessionToken = await createSession("agent", agent.id, agent.role, ip, ua);
 
     await prisma.agent.update({
@@ -148,7 +114,7 @@ export async function POST(req: NextRequest) {
       "agent",
       agent.id.toString(),
       auditUser,
-      { method: totpValid ? "totp" : "backup_code" },
+      { method: "email_otp" },
       ip
     );
 

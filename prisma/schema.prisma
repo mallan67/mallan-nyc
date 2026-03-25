@@ -515,12 +515,13 @@ model Session {
 }
 
 // ═══════════════════════════════════════════════════════════
-// MFA SESSION — Short-lived pending session for TOTP verification
+// MFA SESSION — Short-lived pending session for OTP verification
 // ═══════════════════════════════════════════════════════════
 model MfaSession {
   id          String   @id @default(cuid())
   token       String   @unique
   agent_id    BigInt   @map("agent_id")
+  code_hash   String   @map("code_hash")     // bcrypt hash of 6-digit OTP
   attempts    Int      @default(0)           // rate limit: max 5
   expires_at  DateTime @map("expires_at")
   created_at  DateTime @default(now()) @map("created_at")

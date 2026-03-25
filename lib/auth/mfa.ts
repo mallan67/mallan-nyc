@@ -1,159 +1,90 @@
 /**
  * lib/auth/mfa.ts
- * Core MFA (TOTP) logic for broker authentication.
+ * Email/SMS OTP for broker authentication.
  *
- * - TOTP: RFC 6238, 30-second window, 6-digit codes
- * - Encryption: AES-256-GCM for secret storage at rest
- * - Backup codes: 10 one-time codes, bcrypt-hashed
+ * Flow: login → generate 6-digit code → send via email (+ SMS if configured) → verify
+ * No enrollment needed — automatic for all brokers.
  */
-import { TOTP, Secret } from 'otpauth';
-import QRCode from 'qrcode';
-import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'crypto';
-import { verifyPassword } from './password';
-
-const ISSUER = 'Mallan Real Estate';
-const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16;
-const AUTH_TAG_LENGTH = 16;
-
-// ─── TOTP ────────────────────────────────────────────────────────────────
-
-/**
- * Generate a new random TOTP secret (base32-encoded).
- */
-export function generateTotpSecret(): string {
-  const secret = new Secret({ size: 20 });
-  return secret.base32;
-}
-
-/**
- * Verify a 6-digit TOTP code against a base32 secret.
- * Allows ±1 time step (30s window on each side) for clock drift.
- */
-export function verifyTotpCode(base32Secret: string, code: string): boolean {
-  if (!code || code.length !== 6) return false;
-  const totp = new TOTP({
-    issuer: ISSUER,
-    algorithm: 'SHA1',
-    digits: 6,
-    period: 30,
-    secret: Secret.fromBase32(base32Secret),
-  });
-  const delta = totp.validate({ token: code, window: 1 });
-  return delta !== null;
-}
-
-/**
- * Generate an otpauth:// URI for QR code scanning.
- */
-function buildOtpauthUri(base32Secret: string, userEmail: string): string {
-  const totp = new TOTP({
-    issuer: ISSUER,
-    label: userEmail,
-    algorithm: 'SHA1',
-    digits: 6,
-    period: 30,
-    secret: Secret.fromBase32(base32Secret),
-  });
-  return totp.toString();
-}
-
-/**
- * Generate a QR code data URL (PNG) for the TOTP secret.
- */
-export async function generateQrDataUrl(
-  base32Secret: string,
-  userEmail: string
-): Promise<string> {
-  const uri = buildOtpauthUri(base32Secret, userEmail);
-  return QRCode.toDataURL(uri, { width: 256, margin: 2 });
-}
-
-// ─── Encryption (AES-256-GCM) ───────────────────────────────────────────
-
-function getEncryptionKey(): Buffer {
-  const keyHex = process.env.MFA_ENCRYPTION_KEY;
-  if (!keyHex || keyHex.length !== 64) {
-    throw new Error('MFA_ENCRYPTION_KEY must be a 64-char hex string (32 bytes)');
-  }
-  return Buffer.from(keyHex, 'hex');
-}
-
-/**
- * Encrypt a TOTP secret for database storage.
- * Format: base64(iv + authTag + ciphertext)
- */
-export function encryptSecret(plaintext: string): string {
-  const key = getEncryptionKey();
-  const iv = randomBytes(IV_LENGTH);
-  const cipher = createCipheriv(ALGORITHM, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  const packed = Buffer.concat([iv, authTag, encrypted]);
-  return packed.toString('base64');
-}
-
-/**
- * Decrypt a TOTP secret from database storage.
- */
-export function decryptSecret(encryptedBase64: string): string {
-  const key = getEncryptionKey();
-  const packed = Buffer.from(encryptedBase64, 'base64');
-  const iv = packed.subarray(0, IV_LENGTH);
-  const authTag = packed.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
-  const ciphertext = packed.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  return decrypted.toString('utf8');
-}
-
-// ─── Backup Codes ────────────────────────────────────────────────────────
-
-/**
- * Generate 10 one-time backup codes (8-char lowercase alphanumeric).
- */
-export function generateBackupCodes(): string[] {
-  const codes: string[] = [];
-  for (let i = 0; i < 10; i++) {
-    codes.push(randomUUID().replace(/-/g, '').slice(0, 8).toLowerCase());
-  }
-  return codes;
-}
-
-/**
- * Verify a backup code against an array of bcrypt hashes.
- * Returns true if any hash matches.
- */
-export async function verifyBackupCode(
-  code: string,
-  hashes: string[]
-): Promise<boolean> {
-  for (const hash of hashes) {
-    if (await verifyPassword(code, hash)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Find the index of the matching backup code hash (for removal after use).
- * Returns -1 if no match.
- */
-export async function findBackupCodeIndex(
-  code: string,
-  hashes: string[]
-): Promise<number> {
-  for (let i = 0; i < hashes.length; i++) {
-    if (await verifyPassword(code, hashes[i])) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// ─── MFA Session ─────────────────────────────────────────────────────────
+import { randomInt } from 'crypto';
+import { sendEmail } from '@/lib/email/sendgrid';
 
 export const MFA_SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export const MFA_MAX_ATTEMPTS = 5;
+
+/**
+ * Generate a random 6-digit OTP code.
+ */
+export function generateOtpCode(): string {
+  return randomInt(100000, 999999).toString();
+}
+
+/**
+ * Send OTP code via email.
+ */
+export async function sendOtpEmail(
+  email: string,
+  code: string,
+  name: string
+): Promise<boolean> {
+  const result = await sendEmail(
+    email,
+    'Your Mallan CRM Login Code',
+    `
+    <div style="font-family:'Inter',system-ui,sans-serif;max-width:460px;margin:0 auto;padding:32px;">
+      <h2 style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">Your Login Code</h2>
+      <p style="font-size:14px;color:#6b7280;margin-bottom:24px;">
+        Hi ${name}, enter this code to complete your sign-in:
+      </p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+        <span style="font-family:'Courier New',monospace;font-size:32px;font-weight:700;letter-spacing:8px;color:#111;">${code}</span>
+      </div>
+      <p style="font-size:12px;color:#9ca3af;margin-bottom:4px;">This code expires in 5 minutes.</p>
+      <p style="font-size:12px;color:#9ca3af;">If you didn't try to log in, ignore this email.</p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="font-size:11px;color:#9ca3af;">Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128</p>
+    </div>
+    `,
+    undefined,
+    { channel: 'company' }
+  );
+  return result.success;
+}
+
+/**
+ * Send OTP code via SMS (Twilio). Only sends if TWILIO env vars are configured.
+ */
+export async function sendOtpSms(
+  phone: string,
+  code: string
+): Promise<boolean> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    return false; // Twilio not configured — silently skip
+  }
+
+  try {
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const body = new URLSearchParams({
+      To: phone,
+      From: fromNumber,
+      Body: `Your Mallan CRM login code is: ${code}. Expires in 5 minutes.`,
+    });
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+
+    return resp.ok;
+  } catch (err) {
+    console.error('[MFA] SMS send error:', err);
+    return false;
+  }
+}
