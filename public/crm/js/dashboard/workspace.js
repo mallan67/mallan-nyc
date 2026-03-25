@@ -3727,6 +3727,31 @@ var Workspace = (function () {
             '</select></div>' +
         '</div>' +
 
+        // Entity / Ownership
+        '<div class="border-t pt-3 mt-1">' +
+          '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Entity / Ownership</p>' +
+          '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="form-group"><label class="form-label">Ownership Type</label>' +
+              '<select class="form-input form-select" name="entity_type" onchange="Workspace._toggleEntityFields(this.value)">' +
+                '<option value="">Individual</option>' +
+                '<option value="llc"' + (cl.entity_type === 'llc' ? ' selected' : '') + '>LLC</option>' +
+                '<option value="trust"' + (cl.entity_type === 'trust' ? ' selected' : '') + '>Trust</option>' +
+                '<option value="corp"' + (cl.entity_type === 'corp' ? ' selected' : '') + '>Corporation</option>' +
+                '<option value="lp"' + (cl.entity_type === 'lp' ? ' selected' : '') + '>LP / LLP</option>' +
+                '<option value="inc"' + (cl.entity_type === 'inc' ? ' selected' : '') + '>Inc</option>' +
+                '<option value="partnership"' + (cl.entity_type === 'partnership' ? ' selected' : '') + '>Partnership</option>' +
+              '</select></div>' +
+            '<div class="form-group" id="entityNameGroup" style="' + (cl.entity_type ? '' : 'display:none') + '"><label class="form-label">Entity Name</label><input class="form-input" name="entity_name" value="' + E(cl.entity_name || '') + '" placeholder="Smith Family Trust LLC"></div>' +
+          '</div>' +
+          '<div id="entityExtraFields" style="' + (cl.entity_type ? '' : 'display:none') + '">' +
+            '<div class="grid grid-cols-3 gap-3">' +
+              '<div class="form-group"><label class="form-label">EIN / Tax ID</label><input class="form-input" name="entity_ein" value="' + E(cl.entity_ein || '') + '" placeholder="XX-XXXXXXX"></div>' +
+              '<div class="form-group"><label class="form-label">State of Formation</label><input class="form-input" name="entity_state" value="' + E(cl.entity_state || '') + '" placeholder="NY"></div>' +
+              '<div class="form-group"><label class="form-label">Managing Member</label><input class="form-input" name="entity_managing_member" value="' + E(cl.entity_managing_member || '') + '" placeholder="Name"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
         // Secondary person
         '<div class="border-t pt-3 mt-1">' +
           '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Second Person (Spouse / Partner / Co-Applicant)</p>' +
@@ -3749,6 +3774,17 @@ var Workspace = (function () {
             '</select></div>' +
         '</div>' +
 
+        // Additional People (from LeadParty)
+        '<div class="border-t pt-3 mt-1">' +
+          '<div class="flex items-center justify-between mb-2">' +
+            '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Additional People</p>' +
+            '<button type="button" class="text-xs text-gold font-bold cursor-pointer" onclick="Workspace._addPartyRow()">+ Add Person</button>' +
+          '</div>' +
+          '<div id="partyRowsContainer">' +
+            _renderPartyRows(cl.lead_parties || []) +
+          '</div>' +
+        '</div>' +
+
         // Address
         '<div class="border-t pt-3 mt-1">' +
           '<p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Address</p>' +
@@ -3766,6 +3802,70 @@ var Workspace = (function () {
           '<button class="btn btn-gold" onclick="Workspace._submitEditClient()"><i class="fas fa-save"></i> Save</button>',
       }
     );
+  }
+
+  function _renderPartyRows(parties) {
+    if (!parties || !parties.length) return '<p class="text-xs text-gray-400 italic">No additional people added.</p>';
+    var roleOptions = ['co_owner','co_buyer','co_renter','spouse','partner','roommate','guarantor','co_signer','authorized_signatory','trustee','managing_member','llc_member','corporate_officer','parent','family_member','observer'];
+    var h = '';
+    parties.forEach(function (p, idx) {
+      var roleOpts = roleOptions.map(function (r) {
+        return '<option value="' + r + '"' + (p.role === r ? ' selected' : '') + '>' + r.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }) + '</option>';
+      }).join('');
+      h += '<div class="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2" data-party-idx="' + idx + '">' +
+        '<div class="flex items-center justify-between mb-2">' +
+          '<span class="text-xs font-bold text-gray-600">Person ' + (idx + 1) + (p.id ? '' : ' (new)') + '</span>' +
+          '<button type="button" class="text-xs text-red-500 font-bold cursor-pointer" onclick="this.closest(\'[data-party-idx]\').remove()">Remove</button>' +
+        '</div>' +
+        '<input type="hidden" name="party_id_' + idx + '" value="' + (p.id || '') + '">' +
+        '<div class="grid grid-cols-2 gap-2">' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block">First Name *</label><input class="form-input text-sm" name="party_first_' + idx + '" value="' + E(p.first_name || '') + '" required></div>' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block">Last Name *</label><input class="form-input text-sm" name="party_last_' + idx + '" value="' + E(p.last_name || '') + '" required></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-2 mt-2">' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block">Email</label><input class="form-input text-sm" name="party_email_' + idx + '" value="' + E(p.email || '') + '"></div>' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block">Phone</label><input class="form-input text-sm" name="party_phone_' + idx + '" value="' + E(p.phone || '') + '"></div>' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block">Role</label><select class="form-input form-select text-sm" name="party_role_' + idx + '">' + roleOpts + '</select></div>' +
+        '</div>' +
+        '<div class="grid grid-cols-3 gap-2 mt-2">' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block"><input type="checkbox" name="party_signs_' + idx + '"' + (p.signs_documents ? ' checked' : '') + '> Signs Documents</label></div>' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block"><input type="checkbox" name="party_deed_' + idx + '"' + (p.appears_on_deed ? ' checked' : '') + '> On Deed/Title</label></div>' +
+          '<div><label class="text-[10px] font-semibold text-gray-500 block"><input type="checkbox" name="party_lease_' + idx + '"' + (p.appears_on_lease ? ' checked' : '') + '> On Lease</label></div>' +
+        '</div>' +
+      '</div>';
+    });
+    return h;
+  }
+
+  function _addPartyRow() {
+    var container = document.getElementById('partyRowsContainer');
+    if (!container) return;
+    // Remove "no additional people" message
+    var emptyMsg = container.querySelector('p.italic');
+    if (emptyMsg) emptyMsg.remove();
+    var idx = container.querySelectorAll('[data-party-idx]').length;
+    var newRow = _renderPartyRows([{ id: null, first_name: '', last_name: '', email: '', phone: '', role: 'co_owner', signs_documents: false, appears_on_deed: false, appears_on_lease: false }]);
+    // Fix the index
+    newRow = newRow.replace(/data-party-idx="0"/g, 'data-party-idx="' + idx + '"')
+      .replace(/party_id_0/g, 'party_id_' + idx)
+      .replace(/party_first_0/g, 'party_first_' + idx)
+      .replace(/party_last_0/g, 'party_last_' + idx)
+      .replace(/party_email_0/g, 'party_email_' + idx)
+      .replace(/party_phone_0/g, 'party_phone_' + idx)
+      .replace(/party_role_0/g, 'party_role_' + idx)
+      .replace(/party_signs_0/g, 'party_signs_' + idx)
+      .replace(/party_deed_0/g, 'party_deed_' + idx)
+      .replace(/party_lease_0/g, 'party_lease_' + idx)
+      .replace(/Person 1/g, 'Person ' + (idx + 1));
+    container.insertAdjacentHTML('beforeend', newRow);
+  }
+
+  function _toggleEntityFields(val) {
+    var nameGroup = document.getElementById('entityNameGroup');
+    var extraFields = document.getElementById('entityExtraFields');
+    var show = val && val !== '';
+    if (nameGroup) nameGroup.style.display = show ? '' : 'none';
+    if (extraFields) extraFields.style.display = show ? '' : 'none';
   }
 
   function _submitEditClient() {
@@ -3794,11 +3894,51 @@ var Workspace = (function () {
     if (raw.secondary_phone !== undefined) data.secondary_phone = raw.secondary_phone || null;
     if (raw.secondary_relationship !== undefined) data.secondary_relationship = raw.secondary_relationship || null;
 
+    // Entity
+    if (raw.entity_type !== undefined) data.entity_type = raw.entity_type || null;
+    if (raw.entity_name !== undefined) data.entity_name = raw.entity_name || null;
+    if (raw.entity_ein !== undefined) data.entity_ein = raw.entity_ein || null;
+    if (raw.entity_state !== undefined) data.entity_state = raw.entity_state || null;
+    if (raw.entity_managing_member !== undefined) data.entity_managing_member = raw.entity_managing_member || null;
+
     // Address
     if (raw.property_address !== undefined) data.property_address = raw.property_address || null;
     if (raw.unit_number !== undefined) data.unit_number = raw.unit_number || null;
 
+    // Collect party rows from dynamic form
+    var parties = [];
+    var container = document.getElementById('partyRowsContainer');
+    if (container) {
+      var rows = container.querySelectorAll('[data-party-idx]');
+      rows.forEach(function (row) {
+        var idx = row.getAttribute('data-party-idx');
+        var firstName = (form.querySelector('[name="party_first_' + idx + '"]') || {}).value || '';
+        var lastName = (form.querySelector('[name="party_last_' + idx + '"]') || {}).value || '';
+        if (!firstName && !lastName) return; // skip empty rows
+        parties.push({
+          id: (form.querySelector('[name="party_id_' + idx + '"]') || {}).value || null,
+          first_name: firstName,
+          last_name: lastName,
+          email: (form.querySelector('[name="party_email_' + idx + '"]') || {}).value || null,
+          phone: (form.querySelector('[name="party_phone_' + idx + '"]') || {}).value || null,
+          role: (form.querySelector('[name="party_role_' + idx + '"]') || {}).value || 'co_owner',
+          signs_documents: !!(form.querySelector('[name="party_signs_' + idx + '"]') || {}).checked,
+          appears_on_deed: !!(form.querySelector('[name="party_deed_' + idx + '"]') || {}).checked,
+          appears_on_lease: !!(form.querySelector('[name="party_lease_' + idx + '"]') || {}).checked,
+        });
+      });
+    }
+
+    // Save client + parties
     MallanAPI.clients.update(_clientId, data).then(function () {
+      // Save parties via separate API call
+      if (parties.length > 0) {
+        return MallanAPI._fetch('/api/crm/clients/' + _clientId + '/parties', {
+          method: 'PUT',
+          body: JSON.stringify({ parties: parties }),
+        });
+      }
+    }).then(function () {
       CRM.closeModal();
       CRM.toast('Client updated', 'success');
       openClient(_clientId, _clientTab);
@@ -5347,6 +5487,8 @@ var Workspace = (function () {
     switchClientTab: switchClientTab,
     editClient: editClient,
     _submitEditClient: _submitEditClient,
+    _addPartyRow: _addPartyRow,
+    _toggleEntityFields: _toggleEntityFields,
     _moveStage: _moveStage,
     _saveNurtureSettings: _saveNurtureSettings,
     _scheduleShowing: _scheduleShowing,

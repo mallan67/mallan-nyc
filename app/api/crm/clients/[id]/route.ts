@@ -31,6 +31,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     where: { id: safeBigInt(id) ?? BigInt(-1) },
     include: {
       preferences: true,
+      lead_parties: { orderBy: { created_at: "asc" } },
       actions: {
         include: {
           listing: {
@@ -293,6 +294,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // Entity ownership fields
   if (body.entity_name !== undefined) update.entity_name = body.entity_name ? String(body.entity_name) : null;
   if (body.entity_type !== undefined) update.entity_type = body.entity_type ? String(body.entity_type) : null;
+  if (body.entity_ein !== undefined) update.entity_ein = body.entity_ein ? String(body.entity_ein) : null;
+  if (body.entity_state !== undefined) update.entity_state = body.entity_state ? String(body.entity_state) : null;
+  if (body.entity_managing_member !== undefined) update.entity_managing_member = body.entity_managing_member ? String(body.entity_managing_member) : null;
   if (body.authorized_signatories !== undefined) update.authorized_signatories = body.authorized_signatories ?? null;
 
   // Seller intake fields (JSON)
