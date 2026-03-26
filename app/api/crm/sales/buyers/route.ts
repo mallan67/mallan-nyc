@@ -32,6 +32,15 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // Get view counts per buyer from ListingView
+  const buyerIds = buyers.map((b) => b.id);
+  const viewCounts = await prisma.listingView.groupBy({
+    by: ['lead_id'],
+    where: { lead_id: { in: buyerIds } },
+    _count: true,
+  });
+  const viewMap = new Map(viewCounts.map((v) => [v.lead_id.toString(), v._count]));
+
   const enriched = buyers.map((b) => {
     const sentListings = new Set<string>();
     (b.actions || []).forEach((a) => {
@@ -45,6 +54,7 @@ export async function GET(req: NextRequest) {
       conviction_score: b.lead_score?.score || 0,
       listings_sent_count: sentListings.size,
       showings_count: b.showings.length,
+      views_count: viewMap.get(b.id.toString()) || 0,
     };
   });
 

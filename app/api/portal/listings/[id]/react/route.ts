@@ -104,5 +104,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
+  // Update engagement timestamps on Lead
+  await prisma.lead.update({
+    where: { id: auth.userId },
+    data: {
+      last_click_at: new Date(),
+      last_response_at: new Date(),
+    },
+  });
+
   return NextResponse.json({ action, active: true });
 }

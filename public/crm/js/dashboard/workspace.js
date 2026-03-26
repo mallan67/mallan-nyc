@@ -88,6 +88,8 @@ var Workspace = (function () {
               UI.stageBadge(cl.pipeline_stage || cl.stage || cl.status || 'new') +
               (cl.is_investor ? '<span class="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded font-bold">Investor</span>' : '') +
               (cl.entity_name ? '<span class="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">' + E(cl.entity_type || 'Entity') + '</span>' : '') +
+              (cl.preferred_channel ? (function () { var _ci = { portal: 'fa-globe', email: 'fa-envelope', text: 'fa-sms', phone: 'fa-phone' }; return '<span class="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-bold"><i class="fas ' + (_ci[cl.preferred_channel] || '') + ' mr-1"></i>' + E(cl.preferred_channel) + '</span>'; })() : '') +
+              (cl.preferred_device ? '<span class="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded font-bold"><i class="fas ' + (cl.preferred_device === 'mobile' ? 'fa-mobile-alt' : 'fa-desktop') + ' mr-1"></i>' + E(cl.preferred_device) + '</span>' : '') +
               (hasSecondary ? '<span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">' + E(cl.secondary_relationship || 'partner') + '</span>' : '') +
             '</div>' +
           '</div>' +
@@ -106,6 +108,11 @@ var Workspace = (function () {
         (hasSecondary && cl.secondary_phone ? '<span><i class="fas fa-phone mr-1"></i>' + E(cl.secondary_phone) + '</span>' : '') +
         (cl.source ? '<span><i class="fas fa-tag mr-1"></i>Source: ' + E(cl.source) + '</span>' : '') +
       '</div>' +
+      ((cl.last_contacted_at || cl.last_click_at) ?
+        '<div class="flex gap-4 mt-1 text-xs text-gray-400">' +
+          (cl.last_contacted_at ? '<span>Last reached out: ' + (typeof Utils.formatTimeAgo === 'function' ? Utils.formatTimeAgo(cl.last_contacted_at) : D(cl.last_contacted_at)) + '</span>' : '') +
+          (cl.last_click_at ? '<span>Last engaged: ' + (typeof Utils.formatTimeAgo === 'function' ? Utils.formatTimeAgo(cl.last_click_at) : D(cl.last_click_at)) + '</span>' : '') +
+        '</div>' : '') +
     '</div>';
 
     // ── Smart Alerts ──

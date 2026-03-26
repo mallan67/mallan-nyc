@@ -11,6 +11,7 @@
     { "path": "/api/cron/listing-expiration", "schedule": "0 7 * * *" },
     { "path": "/api/cron/search-alerts", "schedule": "30 7 * * *" },
     { "path": "/api/cron/seller-scoring", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/tenant-nurture", "schedule": "30 8 * * *" },
     { "path": "/api/cron/prospect-triggers", "schedule": "0 9 * * *" },
     { "path": "/api/cron/experiment-metrics", "schedule": "0 9 30 * *" },
     { "path": "/api/cron/demand-signals", "schedule": "0 10 * * *" },

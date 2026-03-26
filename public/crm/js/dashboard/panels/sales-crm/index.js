@@ -1635,9 +1635,119 @@ var SalesCRM = (function () {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // OTHER TABS — placeholder until seller workspace is verified
+  // ACTIVE BUYERS — real grid with engagement data
   // ═══════════════════════════════════════════════════════════════════════
-  function activeBuyers() { Router.navigate('/sales/prospects'); }
+  function activeBuyers() {
+    CRM.setPanelTitle('Active Buyers');
+    var c = CRM.getContent();
+    c.innerHTML = '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
+
+    MallanAPI._fetch('/api/crm/sales/buyers').then(function (data) {
+      _s.buyers.data = (data.buyers || []).map(function (r) {
+        if (typeof ClientNormalizer !== 'undefined') r = ClientNormalizer.normalize(r);
+        r.name = r.name || ((r.first_name || '') + ' ' + (r.last_name || '')).trim();
+        r.stage = r.pipeline_stage || 'prospect';
+        var lastOut = r.last_contacted_at ? new Date(r.last_contacted_at) : null;
+        var lastIn = r.last_click_at ? new Date(r.last_click_at) : null;
+        r._gap = (lastOut && lastIn) ? Math.floor((lastOut - lastIn) / 86400000) : null;
+        return r;
+      });
+      _renderBuyers(c);
+    }).catch(function (err) {
+      c.innerHTML = '<div class="text-center py-12"><i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-3"></i><p class="text-sm text-gray-500">Failed to load: ' + E(err.message || '') + '</p></div>';
+    });
+  }
+
+  function _renderBuyers(c) {
+    var st = _s.buyers;
+    var rows = st.data.slice();
+    if (st.search) { var q = st.search.toLowerCase(); rows = rows.filter(function (r) { return (r.name + ' ' + (r.email || '')).toLowerCase().indexOf(q) !== -1; }); }
+    if (st.filter.stage) rows = rows.filter(function (r) { return r.stage === st.filter.stage; });
+    rows = ActivityTable.sortRows(rows, st.sort.key, st.sort.dir);
+
+    var total = st.data.length;
+    var active = st.data.filter(function (r) { return r.stage !== 'prospect' && r.stage !== 'new'; }).length;
+    var withViews = st.data.filter(function (r) { return Number(r.views_count || 0) > 0; }).length;
+
+    var h = _kpi([
+      { icon: 'fa-shopping-cart', label: 'Total Buyers', value: total, fg: '#3B82F6', bg: '#EFF6FF' },
+      { icon: 'fa-user-check', label: 'Active', value: active, fg: '#059669', bg: '#ECFDF5' },
+      { icon: 'fa-eye', label: 'With Views', value: withViews, fg: '#8B5CF6', bg: '#F5F3FF' },
+    ]);
+
+    h += FilterBar.render({
+      id: 'buyers', placeholder: 'Search by name or email...',
+      onSearch: 'SalesCRM._searchBuyers',
+      filters: [
+        { key: 'stage', label: 'Stage', options: [
+          { value: 'prospect', label: 'Prospect' },
+          { value: 'active_buyer', label: 'Active Buyer' },
+          { value: 'showing', label: 'Showing' },
+          { value: 'offer', label: 'Offer' },
+          { value: 'deal', label: 'In Contract' },
+        ]},
+      ],
+      onFilter: 'SalesCRM._filterBuyers',
+      quickActions: [],
+    });
+
+    h += ActivityTable.render({
+      id: 'buyers_tbl',
+      columns: [
+        { key: 'name', label: 'Buyer', render: function (r) {
+          var init = (r.name || '??').split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
+          return '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<div style="width:32px;height:32px;border-radius:50%;background:#3B82F615;color:#3B82F6;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">' + E(init) + '</div>' +
+            '<div><div class="font-semibold text-gray-900">' + E(r.name) + '</div></div></div>';
+        }},
+        { key: 'pre_approved_amount', label: 'Budget', render: function (r) {
+          return r.pre_approved_amount ? '<span class="font-semibold">' + $(Number(r.pre_approved_amount)) + '</span>' : '<span class="text-gray-400">\u2014</span>';
+        }},
+        { key: 'last_contacted_at', label: 'Last Outreach', render: function (r) {
+          return r.last_contacted_at ? '<span class="text-xs text-gray-600">' + _ago(r.last_contacted_at) + '</span>' : '<span class="text-xs text-gray-400">Never</span>';
+        }},
+        { key: 'last_click_at', label: 'Last Engaged', render: function (r) {
+          return r.last_click_at ? '<span class="text-xs text-gray-600">' + _ago(r.last_click_at) + '</span>' : '<span class="text-xs text-gray-400">Never</span>';
+        }},
+        { key: '_gap', label: 'Gap', render: function (r) {
+          if (r._gap === null) return '<span class="text-gray-400">\u2014</span>';
+          var color = Math.abs(r._gap) > 7 ? '#EF4444' : Math.abs(r._gap) > 3 ? '#F59E0B' : '#059669';
+          return '<span style="font-weight:700;color:' + color + ';">' + Math.abs(r._gap) + 'd</span>';
+        }},
+        { key: 'listings_sent_count', label: 'Sent', render: function (r) {
+          var n = Number(r.listings_sent_count || 0);
+          return n > 0 ? '<span class="font-bold">' + n + '</span>' : '<span class="text-gray-400">0</span>';
+        }},
+        { key: 'views_count', label: 'Views', render: function (r) {
+          var n = Number(r.views_count || 0);
+          return n > 0 ? '<span class="font-bold text-blue-600">' + n + '</span>' : '<span class="text-gray-400">0</span>';
+        }},
+        { key: 'preferred_channel', label: 'Channel', render: function (r) {
+          if (!r.preferred_channel) return '<span class="text-gray-400">\u2014</span>';
+          var icons = { portal: 'fa-globe', email: 'fa-envelope', text: 'fa-sms', phone: 'fa-phone' };
+          return '<span class="text-xs font-bold text-gray-600"><i class="fas ' + (icons[r.preferred_channel] || '') + ' mr-1"></i>' + E(r.preferred_channel) + '</span>';
+        }},
+      ],
+      rows: rows, sort: st.sort, onSort: 'SalesCRM._sortBuyers', onRowClick: 'SalesCRM._openBuyer',
+      page: st.page, pageSize: 25, onPage: 'SalesCRM._pageBuyers',
+      emptyIcon: 'fa-shopping-cart', emptyText: 'No buyers yet \u2014 assign a lead with role "buyer" to start',
+    });
+
+    c.innerHTML = h;
+  }
+
+  function _searchBuyers(q) { _s.buyers.search = q; _s.buyers.page = 1; _renderBuyers(CRM.getContent()); }
+  function _filterBuyers(k, v) { _s.buyers.filter[k] = v; _s.buyers.page = 1; _renderBuyers(CRM.getContent()); }
+  function _sortBuyers(k) { var st = _s.buyers; st.sort = { key: k, dir: st.sort.key === k && st.sort.dir === 'asc' ? 'desc' : 'asc' }; _renderBuyers(CRM.getContent()); }
+  function _pageBuyers(p) { _s.buyers.page = p; _renderBuyers(CRM.getContent()); }
+
+  function _openBuyer(id) {
+    Router.navigate('/workspace/client/' + id + '/overview');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // OTHER TABS
+  // ═══════════════════════════════════════════════════════════════════════
   function landlordSellers() { Router.navigate('/lease-tracker'); }
   function salesListings() { Router.navigate('/broker/listings/company'); }
   function salesMarketing() { Router.navigate('/sales/prospects'); }
@@ -1648,6 +1758,7 @@ var SalesCRM = (function () {
     activeSellers: activeSellers, activeBuyers: activeBuyers, landlordSellers: landlordSellers,
     salesListings: salesListings, salesMarketing: salesMarketing, salesActivity: salesActivity, salesAutomation: salesAutomation,
     _searchSellers: _searchSellers, _filterSellers: _filterSellers, _sortSellers: _sortSellers, _pageSellers: _pageSellers,
+    _searchBuyers: _searchBuyers, _filterBuyers: _filterBuyers, _sortBuyers: _sortBuyers, _pageBuyers: _pageBuyers, _openBuyer: _openBuyer,
     _openSeller: _openSeller, _newSeller: _newSeller, _submitNewSeller: _submitNewSeller,
     _editClient: _editClient, _submitEdit: _submitEdit, _deleteClient: _deleteClient,
     _wsTab: _wsTab, _wsAction: _wsAction, _editField: _editField,

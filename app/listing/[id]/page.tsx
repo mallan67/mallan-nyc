@@ -35,6 +35,7 @@ import { cache } from 'react';
 import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 import ListingViewTracker from '@/app/components/ListingViewTracker';
 import TrackListingView from '@/app/components/TrackListingView';
+import TrackListingSend from '@/app/components/TrackListingSend';
 
 import { getAccessToken } from '@/lib/idx/auth';
 import { soda } from '@/lib/soda';
@@ -958,6 +959,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       />
       <ListingViewTracker />
       <TrackListingView listingId={listing.id} refSource={refSource} />
+      <TrackListingSend listingId={listing.listingId || listing.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}

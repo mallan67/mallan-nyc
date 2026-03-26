@@ -6,6 +6,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingSendEmail } from "@/lib/email/templates";
 import type { Prisma } from "@prisma/client";
+import { generateTrackingToken } from "@/lib/tracking/listing-token";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -268,10 +269,22 @@ export async function POST(req: NextRequest) {
 
   const failed = emailResults.filter((r) => !r.success);
 
+  // Generate tracked URLs for each client
+  const tracked_urls: Record<string, string> = {};
+  try {
+    for (const cid of client_ids) {
+      const token = generateTrackingToken(BigInt(cid), listing_id);
+      tracked_urls[cid] = `https://mallan.nyc/listing/${listing.listing_id}?t=${token}`;
+    }
+  } catch {
+    // Token generation is optional — don't fail the send if TRACKING_SECRET is missing
+  }
+
   return NextResponse.json({ send_id: result.send_id,
     listing_id,
     client_ids,
     created_at: result.created_at.toISOString(),
+    tracked_urls,
     email: {
       sent: emailResults.filter((r) => r.success).length,
       failed: failed.length,
