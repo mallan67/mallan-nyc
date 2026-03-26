@@ -1,22 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 
-/** Fires tracked view API when ?t= param is present. Silent on failure. Renders nothing. */
-export default function TrackListingSend({ listingId }: { listingId: string }) {
-  const searchParams = useSearchParams();
-
+/** Fires tracked view API when trackToken is present. Silent on failure. Renders nothing. */
+export default function TrackListingSend({ listingId, trackToken }: { listingId: string; trackToken?: string }) {
   useEffect(() => {
-    const token = searchParams.get('t');
-    if (!token) return;
+    if (!trackToken) return;
 
     fetch('/api/tracking/listing-view', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, listing_id: listingId }),
+      body: JSON.stringify({ token: trackToken, listing_id: listingId }),
     }).catch(() => {}); // silent — page works normally
-  }, [listingId, searchParams]);
+  }, [listingId, trackToken]);
 
   return null;
 }

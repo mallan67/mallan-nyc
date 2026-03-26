@@ -174,7 +174,7 @@ async function fetchLastSaleFromACRIS(
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ key?: string; ref?: string }>;
+  searchParams: Promise<{ key?: string; ref?: string; t?: string }>;
 };
 
 /** County → Borough mapping for NYC */
@@ -645,7 +645,7 @@ function formatPrice(price: number, isRental: boolean): string {
 
 export default async function ListingPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { key, ref: refSource } = await searchParams;
+  const { key, ref: refSource, t: trackToken } = await searchParams;
 
   let result: ListingFetchResult | null = null;
   try {
@@ -959,7 +959,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       />
       <ListingViewTracker />
       <TrackListingView listingId={listing.id} refSource={refSource} />
-      <TrackListingSend listingId={listing.id} />
+      <TrackListingSend listingId={listing.id} trackToken={trackToken} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}

@@ -164,11 +164,11 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 | Feature | IDX | VOW |
 |---------|-----|-----|
 | Authentication | None | Consumer login required |
-| Data scope | IDX Plus fields (902) including sold data | IDX Plus + Trestle-only fields (DOM, etc.) |
+| Data scope | IDX Plus feed fields (902 in CSV + additional Trestle-provisioned fields) | Same feed + VOW registration requirements |
 | Address display | Follows `InternetAddressDisplayYN` | Same |
 | Agent info fields | Public fields only | Extended agent info |
-| Sold/closed data (ClosePrice, CloseDate) | **Available** (in IDX Plus spec) | Available |
-| DaysOnMarket, CumulativeDaysOnMarket | **Not in IDX Plus spec** | Available (Trestle-only) |
+| Sold/closed data (ClosePrice, CloseDate) | **Available** (in IDX Plus CSV) | Available |
+| DaysOnMarket, CumulativeDaysOnMarket | **Returned by Trestle on IDX Plus feed** (validated live 2026-03-04, not in CSV but provisioned) | Available |
 | Search | Basic property search | Advanced, saved searches |
 
 ### VOW Requirements
@@ -181,17 +181,26 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 | Attribution | Same as IDX — "Listing Courtesy of [Broker]" |
 | Opt-out respect | Same gate logic as IDX — all 6 gates apply |
 
-### Fields NOT in REBNY IDX Plus Spec (Trestle-only — no confirmed public display authorization)
+### Field Availability on IDX Plus Feed
 
 > **Corrected 2026-03-26:** ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice are IN the
 > IDX Plus CSV and CAN be displayed publicly. The previous version of this section incorrectly
 > classified them as "VOW-Only." The REBNY IDX/VOW Compliance Checklist has no such restriction.
+>
+> **Important:** The REBNY IDX Plus CSV (902 fields) is a subset. Trestle provisions additional
+> fields on the IDX Plus feed beyond the CSV. The live metadata has 1,457 Property definitions.
+> Fields returned by Trestle on your feed are authorized — Trestle filters payloads per feed type.
+> IDX_PLUS_EXCLUDED_FIELDS in `trestle-mapper.ts` was validated live against Trestle on 2026-03-04.
 
-| Field | In IDX Plus CSV? | Notes |
-|-------|:---:|-------|
-| DaysOnMarket | NO | Trestle-only. Not in 902-field IDX Plus spec. |
-| CumulativeDaysOnMarket | NO | Trestle-only. |
-| Concessions / ConcessionsAmount | NO | Trestle-only. |
+| Field | In IDX Plus CSV? | Returned by Trestle IDX Plus feed? | Notes |
+|-------|:---:|:---:|-------|
+| ClosePrice | YES | YES | IDX-safe |
+| CloseDate | YES | YES | IDX-safe |
+| OriginalListPrice | YES | YES | IDX-safe |
+| PreviousListPrice | YES | YES | IDX-safe |
+| DaysOnMarket | NO | **YES** (validated live) | Not in CSV but Trestle provisions it — in $select, not in excluded list |
+| CumulativeDaysOnMarket | NO | **YES** (validated live) | Same as DaysOnMarket |
+| Concessions / ConcessionsAmount | NO | Needs verification | Not in CSV, check if Trestle returns values |
 | CancelledDate | NO | Trestle-only. |
 | ExpirationDate | NO | Explicitly "Hidden" per UCBA Exhibit A — never display. |
 | PropertyCondition | NO | Agent-only per UCBA — with disclaimer if shown to agents. |

@@ -249,9 +249,10 @@ Every UI change should work seamlessly across all screen sizes and device types.
 - **mallan.nyc is not a full search platform.** Public search is IDX-only and limited to internet-display-approved listings and fields. Private CRM search is broader, but not guaranteed to match full RealPlus/LMP inventory or field coverage.
 - **Listing input:** Agents create/edit listings in RealPlus (LMP) → RealPlus submits to RLS → mallan.nyc reads via IDX Plus. REBNY does not grant LMP licenses to individual brokers.
 - **What mallan.nyc owns:** CRM, client database, portals, branded client emails, lead capture, commission tracking, and all agent/client workflows. RealPlus/LMP may still be used for broader internal brokerage workflows and is the sole path for listing submission to the RLS.
-- Trestle IDX Plus WebAPI (Trestle-11371-20) provides all 1,363 fields — IDX and VOW both active
-- VOW-enriched fields (ClosePrice, DaysOnMarket, OriginalListPrice, etc.) served to logged-in portal clients via sanitizeForVOW() in lib/compliance/dto.ts
-- Public site (mallan.nyc) uses IDX-tier data. Portal (logged-in clients) uses VOW-tier data.
+- Trestle IDX Plus WebAPI (Trestle-11371-20) — live metadata has 1,457 Property definitions. 902 in REBNY IDX Plus CSV + additional Trestle-provisioned fields.
+- **ClosePrice, OriginalListPrice, PreviousListPrice, DaysOnMarket ARE authorized for public IDX display** — verified against REBNY IDX Plus CSV, REBNY IDX/VOW Compliance Checklist (Dec 2021, no field-level restriction), Trestle live feed validation (2026-03-04), and NAR IDX Policy 7.58.
+- VOW adds consumer registration requirements and pre-registration display limits (image, ID, beds/baths, price, neighborhood only before login). VOW does NOT restrict additional fields beyond what IDX provides — it adds access control, not field restrictions.
+- Fields that MUST NOT be displayed: PrivateRemarks, ShowingInstructions, ExpirationDate (Hidden), PropertyCondition (agent-only), seller/occupant names/phone/email. These are prohibited on BOTH IDX and VOW per REBNY checklist.
 - Contact for any feed questions: rlssupport@rebny.com / 212-616-5270
 
 ---

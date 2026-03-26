@@ -76,8 +76,10 @@ const IDX_SUPPRESSED_FIELDS = [
  *     field spec (902 fields). They CAN be displayed publicly on IDX. The REBNY IDX/VOW
  *     Compliance Checklist (Dec 2021) contains NO field-level restriction blocking these
  *     from IDX display.
- *   - DaysOnMarket, CumulativeDaysOnMarket, Concessions, ConcessionsAmount are NOT in the
- *     IDX Plus CSV. They exist on Trestle but are not part of the REBNY IDX Plus spec.
+ *   - DaysOnMarket, CumulativeDaysOnMarket are NOT in the IDX Plus CSV but ARE returned by
+ *     Trestle on the IDX Plus feed (validated live 2026-03-04). Trestle provisions additional
+ *     fields beyond the 902-field CSV. Fields returned on the feed are authorized for display.
+ *   - Concessions, ConcessionsAmount are NOT in the IDX Plus CSV. Needs live verification.
  *   - ExpirationDate is explicitly "Hidden" per UCBA Exhibit A — never display.
  *   - CancelledDate is not in IDX Plus CSV.
  *
@@ -102,9 +104,10 @@ const VOW_ENRICHED_FIELDS = [
   "PurchaseContractDate",
   "BuyerFinancing",
   "WithdrawnDate",
-  // ── NOT in IDX Plus CSV (Trestle-only, no confirmed public display authorization) ──
+  // ── NOT in IDX Plus CSV but returned by Trestle on IDX Plus feed (validated live 2026-03-04) ──
   "DaysOnMarket",
   "CumulativeDaysOnMarket",
+  // ── NOT in IDX Plus CSV — needs live verification whether Trestle provisions these ──
   "Concessions",
   "ConcessionsAmount",
   // ── Explicitly hidden per UCBA Exhibit A ──
