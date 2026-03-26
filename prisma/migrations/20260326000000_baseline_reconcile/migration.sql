@@ -1,0 +1,3 @@
+-- Baseline reconciliation: marks current DB state as canonical.
+-- All tables/columns/indexes already exist via prior db push operations.
+-- This migration is marked as applied without executing.
