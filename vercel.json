@@ -7,7 +7,7 @@
   "crons": [
     { "path": "/api/cron/data-retention", "schedule": "0 3 * * *" },
     { "path": "/api/cron/dom-reset", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/idx-sync", "schedule": "0 */4 * * *" },
+    { "path": "/api/cron/idx-sync", "schedule": "*/12 * * * *" },
     { "path": "/api/cron/listing-expiration", "schedule": "0 7 * * *" },
     { "path": "/api/cron/search-alerts", "schedule": "30 7 * * *" },
     { "path": "/api/cron/seller-scoring", "schedule": "0 8 * * *" },
