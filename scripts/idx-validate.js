@@ -1417,41 +1417,51 @@ function section33() {
 // Checks if broker login requires MFA before session creation.
 // ═══════════════════════════════════════════════════════════════════════════
 function section34() {
-  const s = startSection(34, 'MFA Enforcement', 'Auth & Security');
+  const s = startSection(34, 'MFA Enforcement (Email OTP)', 'Auth & Security');
   const loginRoute = readFile('app/api/auth/login/route.ts');
   if (!loginRoute) { warning(s, 'login route not found', ''); return; }
 
-  // Check for MFA-related patterns
-  if (/mfa_required|mfa\.verify|totp|otp|two.?factor/i.test(loginRoute)) {
-    pass(s, 'Broker login: MFA flow detected');
+  // Check for MFA/OTP flow in broker login
+  if (/mfa_required|mfa\.verify|otp|two.?factor/i.test(loginRoute)) {
+    pass(s, 'Broker login: MFA/OTP flow detected');
   } else {
-    warning(s, 'Broker login: NO MFA enforcement',
-      'Broker accounts are highest-privilege. Add MFA (TOTP) before session creation.');
+    critical(s, 'Broker login: NO MFA enforcement',
+      'Broker accounts are highest-privilege. Login must require OTP verification.');
   }
 
-  // Check for MFA endpoints
-  const mfaEnroll = readFile('app/api/auth/mfa/enroll/route.ts');
+  // Check MFA verify endpoint (email OTP verification)
   const mfaVerify = readFile('app/api/auth/mfa/verify/route.ts');
-  if (mfaEnroll && mfaVerify) pass(s, 'MFA endpoints: enroll + verify exist');
-  else warning(s, 'MFA endpoints missing', 'Need /api/auth/mfa/enroll + /api/auth/mfa/verify');
-
-  // Check for MFA management endpoints
-  const mfaBackup = readFile('app/api/auth/mfa/backup-codes/route.ts');
-  const mfaDisable = readFile('app/api/auth/mfa/disable/route.ts');
-  if (mfaBackup && mfaDisable) pass(s, 'MFA management: backup-codes + disable exist');
-  else info(s, 'MFA management endpoints missing', 'Need /api/auth/mfa/backup-codes + /api/auth/mfa/disable');
-
-  // Check MFA core library exists with encryption
-  const mfaLib = readFile('lib/auth/mfa.ts');
-  if (mfaLib && /MFA_ENCRYPTION_KEY/.test(mfaLib) && /encryptSecret/.test(mfaLib)) {
-    pass(s, 'MFA core library: AES-256-GCM encryption at rest');
+  if (mfaVerify) {
+    pass(s, 'MFA verify endpoint exists (/api/auth/mfa/verify)');
+    // MFA verify uses mfa_session token (not session cookie) — user isn't logged in yet
+    if (/mfa_session|MfaSession|mfaSess/.test(mfaVerify)) pass(s, 'MFA verify: uses MFA session token (pre-login)');
+    else if (/isAuthError|requireAgent|requireBroker/.test(mfaVerify)) pass(s, 'MFA verify: session auth guard present');
+    else warning(s, 'MFA verify: no authentication mechanism found', '');
   } else {
-    warning(s, 'MFA secrets not encrypted at rest', 'lib/auth/mfa.ts must use AES-256-GCM encryption');
+    critical(s, 'MFA verify endpoint MISSING', '/api/auth/mfa/verify required for OTP verification');
   }
 
-  // Check isAuthError guard on MFA endpoints
-  if (mfaEnroll && /isAuthError/.test(mfaEnroll)) pass(s, 'MFA enroll: isAuthError guard present');
-  else if (mfaEnroll) warning(s, 'MFA enroll: missing isAuthError guard', 'requireBroker returns NextResponse on failure');
+  // Check MFA core library (OTP generation + email/SMS sending)
+  const mfaLib = readFile('lib/auth/mfa.ts');
+  if (mfaLib) {
+    if (/generateOtpCode|randomInt|crypto/i.test(mfaLib)) {
+      pass(s, 'MFA library: OTP code generation (crypto.randomInt)');
+    } else {
+      warning(s, 'MFA library: no OTP generation found', '');
+    }
+    if (/sendOtpEmail|sendMail|nodemailer|smtp/i.test(mfaLib)) {
+      pass(s, 'MFA library: email OTP delivery');
+    } else {
+      warning(s, 'MFA library: no email delivery found', '');
+    }
+    if (/sendOtpSms|twilio|sms/i.test(mfaLib)) {
+      pass(s, 'MFA library: SMS OTP delivery (ready when Twilio configured)');
+    } else {
+      info(s, 'MFA library: no SMS delivery (Twilio not configured yet)', '');
+    }
+  } else {
+    critical(s, 'MFA library MISSING (lib/auth/mfa.ts)', '');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
