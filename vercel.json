@@ -5,6 +5,7 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "crons": [
+    { "path": "/api/cron/db-keepalive", "schedule": "*/3 * * * *" },
     { "path": "/api/cron/data-retention", "schedule": "0 3 * * *" },
     { "path": "/api/cron/dom-reset", "schedule": "0 6 * * *" },
     { "path": "/api/cron/idx-sync", "schedule": "*/12 * * * *" },
