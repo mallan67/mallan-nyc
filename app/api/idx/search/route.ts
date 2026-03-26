@@ -182,8 +182,11 @@ function buildODataFilter(params: URLSearchParams): string {
 
   // Status — default to active statuses for CRM agents
   // StandardStatus uses RESO enum values (PascalCase, no spaces)
+  // Pass status=* to skip status filter entirely (used by RLS tracker for total count)
   const status = params.get("status");
-  if (status) {
+  if (status === "*") {
+    // No status filter — return all statuses (for total RLS count)
+  } else if (status) {
     const statuses = status.split(",").map(s => {
       const normalized = s.trim().replace(/\s+/g, ''); // "Coming Soon" → "ComingSoon"
       return `StandardStatus eq '${escapeOData(normalized)}'`;

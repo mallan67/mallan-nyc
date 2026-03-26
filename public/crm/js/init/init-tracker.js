@@ -11,10 +11,9 @@
         function _initListingTracker() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                // Fetch sale count — all agent-visible statuses (matches Perchwell/REBNY total)
-                // Includes Active, Pending, ComingSoon, Hold, Withdrawn, Expired (excludes Closed, Incomplete)
-                var _allStatuses = 'Active,ActiveUnderContract,ComingSoon,Hold,Withdrawn,Expired';
-                MallanAPI.idx.search({ type: 'sale', limit: 1, status: _allStatuses }).then(function(result) {
+                // Fetch sale count — ALL statuses on RLS (matches RealPlus total ~14K+)
+                // status=* skips status filter entirely for accurate RLS total
+                MallanAPI.idx.search({ type: 'sale', limit: 1, status: '*' }).then(function(result) {
                     var count = 0;
                     if (result && result.totalCount) {
                         count = result.totalCount;
@@ -29,8 +28,8 @@
                     _updateTrackerTotal();
                 }).catch(function() {});
 
-                // Fetch rental count — all agent-visible statuses
-                MallanAPI.idx.search({ type: 'rental', limit: 1, status: _allStatuses }).then(function(result) {
+                // Fetch rental count — ALL statuses on RLS
+                MallanAPI.idx.search({ type: 'rental', limit: 1, status: '*' }).then(function(result) {
                     var count = 0;
                     if (result && result.totalCount) {
                         count = result.totalCount;
