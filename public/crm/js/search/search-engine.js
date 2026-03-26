@@ -109,18 +109,12 @@
          * Resolve which neighborhood tags container is currently active.
          */
         function _resolveActiveNeighborhoodTagsId() {
-            // Check which search mode is visible
+            // Unified form: one tag container for basic, one for advanced
             var advMode = document.getElementById('searchAdvancedMode');
             if (advMode && advMode.style.display !== 'none' && !advMode.classList.contains('hidden')) {
                 return 'advancedNeighborhoodTags';
             }
-            // Basic mode — check which tab
-            var saleBasic = document.getElementById('searchBasicMode');
-            var rentalBasic = document.getElementById('searchBasicModeRental');
-            var buildingBasic = document.getElementById('searchBasicModeBuilding');
-            if (buildingBasic && buildingBasic.style.display !== 'none') return 'buildingNeighborhoodTags';
-            if (rentalBasic && rentalBasic.style.display !== 'none') return 'rentalNeighborhoodTags';
-            return 'saleNeighborhoodTags';
+            return 'searchNeighborhoodTags';
         }
 
         /**
