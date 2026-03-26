@@ -19,6 +19,7 @@ import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
 
 /** Map Trestle property fields to display type (no "Apartment") */
 function mapDisplayPropertyType(raw: Record<string, unknown>): string {
@@ -757,6 +758,16 @@ export async function GET(req: NextRequest) {
         gate.reason === "Internet display disabled"
       ) {
         displayable.push(record);
+      }
+    }
+
+    // Silent building upsert — populate building DB from search results
+    const seenBuildingKeys = new Set<number>();
+    for (const record of result.records) {
+      const bk = record.BuildingKeyNumeric;
+      if (bk != null && !seenBuildingKeys.has(Number(bk))) {
+        seenBuildingKeys.add(Number(bk));
+        upsertBuildingFromSearchResult(Number(bk), record).catch(() => {});
       }
     }
 
