@@ -2,7 +2,7 @@
 
 > **Brokerage:** Mallan Real Estate Inc. (#10991205323)
 > **Agent:** Maya Allan (#10311201806)
-> **LMP:** Direct (mallan.nyc)
+> **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
 > **RLS Backend:** Trestle / Cotality (formerly CoreLogic)
 > **Compiled:** 2026-02-19
 > **Sources:** UCBA 2026 (Jan revision), REBNY RLS Data Dictionary, RESO DD 2.0, Trestle API docs
@@ -834,9 +834,13 @@ Examples:
   saleBuildingPetsAllowed → BuildingPetsAllowed
 ```
 
-### Submission to RLS via LMP
+### Submission to RLS via LMP (RealPlus — external to mallan.nyc)
+
+> **NOTE:** mallan.nyc does NOT submit listings to the RLS. Agents use RealPlus (LMP) for actual RLS submission. The CRM forms collect listing data internally. The field mapping below shows the RESO field names that RealPlus expects.
+
 ```
-Form Data (HTML) → collectFormData() → JSON payload → Trestle Add/Edit API → REBNY RLS
+CRM Form Data (HTML) → collectFormData() → JSON payload → stored in CRM
+Agent enters listing in RealPlus (LMP) → RealPlus submits to RLS → mallan.nyc reads back via IDX Plus
 ```
 
 Each field in the JSON payload must use the RESO field name as the key:

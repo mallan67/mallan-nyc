@@ -1,6 +1,6 @@
 # Third-Party & Feed Governance
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** Direct (mallan.nyc)
+> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -55,13 +55,14 @@
 
 ---
 
-## 2. mallan.nyc (LMP — Direct via Trestle Add/Edit API)
+## 2. mallan.nyc (IDX Consumer — Read-Only Display via Trestle IDX Plus WebAPI)
 
 ### Role
 
-- mallan.nyc serves as its own listing management platform
-- Agents enter/edit listings via CRM forms, submitted directly to RLS via Trestle Add/Edit API
-- Manages distribution settings, status changes, photos
+- mallan.nyc is a PUBLIC-FACING IDX DISPLAY site — it does NOT submit listings to the RLS
+- RealPlus is the LMP (listing input to RLS). REBNY does not grant LMP licenses to individual brokers.
+- mallan.nyc reads listings via Trestle IDX Plus WebAPI (Trestle-11371-20) for search and display
+- All client communication (emails, portals, CRM) runs through mallan.nyc directly
 
 ### Capabilities
 
@@ -231,5 +232,5 @@ Per UCBA Art. III and Art. VIII:
 | Vercel | Hosting | SOC 2, GDPR |
 | Cloudflare R2 | Image storage | SOC 2, ISO 27001 |
 | Cotality/Trestle | RLS data feed | RESO certified, REBNY authorized |
-| mallan.nyc (Direct) | LMP via Trestle Add/Edit API | REBNY authorized |
+| mallan.nyc | IDX Plus read-only display (NOT an LMP — does not submit to RLS) | REBNY authorized |
 | PostgreSQL (managed) | Database | Per provider (e.g., Supabase, Neon) |

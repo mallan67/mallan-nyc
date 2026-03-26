@@ -3,7 +3,9 @@
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 > **Agent:** Maya Allan | **License:** #10311201806
 > **Jurisdiction:** New York State / NYC | **Feed:** REBNY RLS via Trestle (Cotality)
-> **LMP:** Direct (mallan.nyc) | **Stage:** Live Production
+> **LMP:** RealPlus (listing input to RLS — external to mallan.nyc) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc) | **Stage:** Live Production
+>
+> **IMPORTANT:** mallan.nyc is IDX read-only. It does NOT submit listings to the RLS and is NOT an LMP. Public search is IDX-only, limited to internet-display-approved listings and fields. Private CRM search is broader but not guaranteed to match full RealPlus/LMP inventory or field coverage. Mallan.nyc owns the CRM, client database, portals, and branded client emails. RealPlus/LMP is the sole path for listing submission to the RLS.
 
 ---
 
@@ -96,5 +98,6 @@
 |----------|---------|
 | REBNY RLS Support | rlssupport@rebny.com / 212-616-5270 |
 | Trestle/Cotality Support | trestlesupport@cotality.com |
-| LMP (mallan.nyc) | Direct via Trestle Add/Edit API |
+| LMP (RealPlus) | Listing input to RLS (REBNY does not grant LMP to individual brokers) |
+| mallan.nyc IDX Display | Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only |
 | Direct Data License | rlssupport@rebny.com |

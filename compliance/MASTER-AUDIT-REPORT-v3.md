@@ -802,7 +802,7 @@ v2 correctly flagged RBAC absence but did not define the required permission bou
 |---|---|---|---|---|---|---|---|
 | **Create listing** | Yes | Yes | -- | -- | -- | -- | -- |
 | **Edit listing** | Yes (any) | Yes (own) | -- | -- | -- | -- | -- |
-| **Submit listing to RLS** | Yes (approve) | Yes (own) | -- | -- | -- | -- | -- |
+| **Save listing to CRM** (RLS submission via RealPlus/LMP) | Yes (approve) | Yes (own) | -- | -- | -- | -- | -- |
 | **View listing (IDX)** | Yes | Yes | Yes | Yes | Yes (IDX-filtered) | Yes (own) | Yes (IDX-filtered) |
 | **View listing (non-IDX)** | Yes | Yes (own) | -- | -- | -- | Yes (own) | -- |
 | **Send listing to client** | Yes | Yes | Yes | Yes | -- | -- | -- |
@@ -1451,7 +1451,7 @@ A brokerage CRM without notifications is fundamentally incomplete. Agents and cl
 | **EmailJS / SendGrid** | Outbound | On delivery action | Fire-and-forget currently — needs delivery confirmation callback | Partial (EmailJS, no logging) |
 | **Google Maps** | Outbound | On search/map interaction | Read-only | Implemented (search engine) |
 | **REBNY company/agent lookup** | Outbound | On editor agent selection | Read-only | Implemented (editor dropdowns) |
-| **Trestle Add/Edit API** | Bidirectional | On listing lifecycle events | Direct submission to RLS | Not implemented |
+| **RealPlus (LMP)** | N/A — external to mallan.nyc | Agent uses RealPlus directly | RealPlus submits to RLS; mallan.nyc is IDX read-only | Not applicable (external system) |
 
 **Webhook model:** Not defined. Required for:
 - Cotality/Trestle → CRM: listing status updates from other agents
@@ -1484,8 +1484,7 @@ CoreLogic rebranded to **Cotality** (March 2025) and is migrating all Trestle AP
 
 **Risk if not addressed:** After March 31, 2026, all API calls using deprecated URLs will fail, causing:
 - No listing data ingestion from RLS
-- No listing submission to RLS
-- No IDX/VOW data refresh
+- No IDX/VOW data refresh (mallan.nyc is IDX read-only — RLS submission is via RealPlus/LMP)
 - No agent/company lookup
 - Complete CRM data blackout
 
@@ -2549,8 +2548,7 @@ Per vendor notice:
 Failure to migrate results in:
 
 * No listing ingestion from RLS
-* No listing submission to RLS
-* No IDX/VOW refresh
+* No IDX/VOW refresh (mallan.nyc is IDX read-only — RLS submission is via RealPlus/LMP)
 * No agent/company lookup
 * Complete CRM data blackout
 

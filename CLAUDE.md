@@ -38,10 +38,10 @@ The backend CRM supports 6 portal types, each with different access levels:
 | File | Role |
 |------|------|
 | `dashboard.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals. v2: Two-CRM lifecycle workspaces (Sales + Rentals) with prospect/active phases, Convert API, listing backend. |
-| `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search of REBNY RLS. Not shared. |
-| `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing → RLS. Audited 2026-03-19: 119 data-rls-field values verified against CSV, distribution gates clean (IDX+Syndication primary, InternetEntireListingDisplayYN locked for standard sales, no VOW), 34 Fair Housing patterns, 48 mandatory fields collected. |
+| `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search via IDX Plus (read-only). Not shared. Not guaranteed to match full RealPlus/LMP inventory or field coverage. |
+| `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc). Audited 2026-03-19: 119 data-rls-field values verified against CSV, distribution gates clean (IDX+Syndication primary, InternetEntireListingDisplayYN locked for standard sales, no VOW), 34 Fair Housing patterns, 48 mandatory fields collected. |
 | `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + buyers view exclusive sale listings (buyers see masked listing agent info) |
-| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive rental → RLS. Audited 2026-03-18: checkbox groups + fees + open houses + commercial fields fixed. |
+| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive rental (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc). Audited 2026-03-18: checkbox groups + fees + open houses + commercial fields fixed. |
 | `RENTAL-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + renters view exclusive rental listings (renters see masked listing agent info) |
 | `BUYER-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — buyer's agent → broker. Agent can check status + edit errors. Not client-facing. |
 | `TENANT-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — renter's agent → broker. Agent can check status + edit errors. Not client-facing. |
@@ -56,7 +56,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 > **Live production site at mallan.nyc (Vercel, Next.js 16.1.6)**
 >
 > **Components:**
-> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search with RLS direction normalization, `PropertySearch.tsx` is dead code.
+> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search. Public search is IDX-only — limited to internet-display-approved listings and IDX Plus fields. `PropertySearch.tsx` is dead code.
 > - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `public/crm/js/dashboard/` (app.js, panels.js, router.js, store.js, ui-components.js, workspace.js, portals.js + `panels/` subdirectory with sales-crm, rentals-crm, seller-prospects, lease-tracker, pitch-packet modules). **v2 Two-CRM redesign (2026-03-19):** lifecycle-based workspaces with prospect/active phases, `detectTypeAndPhase()` routing, Convert API, `Listing.owner_client_id` FK. Seller/Buyer/Landlord/Tenant each have full prospect + active workspace renderers.
 > - **API layer** — `app/api/` (235 route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
 > - **Database** — PostgreSQL on Neon (Prisma ORM, 61 models)
@@ -214,7 +214,8 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 - **Primary Feed:** REBNY RLS via Trestle (Cotality, formerly CoreLogic) — migrated Feb 2025 from Perchwell
 - **Trestle API:** `api.cotality.com/trestle` — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated, hard deadline March 31, 2026. Media proxy allowlists all 3 domains during transition.
-- **Trestle License:** IDX Plus - WebAPI (direct, independent — NOT through RealPlus or any LMP)
+- **LMP:** RealPlus (listing input to RLS — REBNY does not grant LMP licenses to individual brokers)
+- **Trestle License:** IDX Plus - WebAPI (Trestle-11371-20) — READ-ONLY display on mallan.nyc. No write access to RLS.
 - **IDX Plus Fields:** 902 across 7 REBNY-specified resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39)
 - **Additional Trestle Resources:** 5 beyond IDX Plus — PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only, empty shell)
 - **Total Trestle Fields:** ~1,364 across 12 data resources
@@ -243,7 +244,11 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | Realtor.com, Redfin, Homes.com, RentHop | FREE | Direct data license from REBNY (automatic) |
 | openigloo, Samaki.com, TBI Listings | FREE | Trestle IDX Plus opt-in toggles (all ON) |
 
-### Direct Data License (mallan.nyc)
+### IDX Plus Display License (mallan.nyc — READ-ONLY)
+- **mallan.nyc is public-facing IDX display only — it does NOT submit listings to the RLS and is NOT an LMP**
+- **mallan.nyc is not a full search platform.** Public search is IDX-only and limited to internet-display-approved listings and fields. Private CRM search is broader, but not guaranteed to match full RealPlus/LMP inventory or field coverage.
+- **Listing input:** Agents create/edit listings in RealPlus (LMP) → RealPlus submits to RLS → mallan.nyc reads via IDX Plus. REBNY does not grant LMP licenses to individual brokers.
+- **What mallan.nyc owns:** CRM, client database, portals, branded client emails, lead capture, commission tracking, and all agent/client workflows. RealPlus/LMP may still be used for broader internal brokerage workflows and is the sole path for listing submission to the RLS.
 - Trestle IDX Plus WebAPI (Trestle-11371-20) provides all 1,363 fields — IDX and VOW both active
 - VOW-enriched fields (ClosePrice, DaysOnMarket, OriginalListPrice, etc.) served to logged-in portal clients via sanitizeForVOW() in lib/compliance/dto.ts
 - Public site (mallan.nyc) uses IDX-tier data. Portal (logged-in clients) uses VOW-tier data.

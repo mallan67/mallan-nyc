@@ -68,25 +68,48 @@ const IDX_SUPPRESSED_FIELDS = [
 ] as const;
 
 /**
- * VOW-only fields — visible to authenticated consumers (login-required) but NOT on public IDX.
- * These fields are stripped from IDX/public responses but retained for VOW-tier consumers.
- * Per REBNY RLS rules, VOW display requires consumer registration + login.
+ * VOW-enriched fields — additional data available to authenticated portal consumers.
+ *
+ * IMPORTANT (verified 2026-03-26 against REBNY IDX Plus CSV + IDX/VOW Compliance Checklist):
+ *   - ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice, ListingContractDate,
+ *     PurchaseContractDate, BuyerFinancing, WithdrawnDate are ALL in the REBNY IDX Plus
+ *     field spec (902 fields). They CAN be displayed publicly on IDX. The REBNY IDX/VOW
+ *     Compliance Checklist (Dec 2021) contains NO field-level restriction blocking these
+ *     from IDX display.
+ *   - DaysOnMarket, CumulativeDaysOnMarket, Concessions, ConcessionsAmount are NOT in the
+ *     IDX Plus CSV. They exist on Trestle but are not part of the REBNY IDX Plus spec.
+ *   - ExpirationDate is explicitly "Hidden" per UCBA Exhibit A — never display.
+ *   - CancelledDate is not in IDX Plus CSV.
+ *
+ * This list is used by sanitizeForVOW() to re-add these fields after public sanitization.
+ * Since sanitizeForPublic() does NOT strip IDX Plus fields, the VOW enrichment is primarily
+ * relevant for fields NOT in IDX Plus (DaysOnMarket, Concessions, etc.) and for
+ * ExpirationDate which is hidden from all public display.
+ *
+ * Sources:
+ *   - REBNY IDX Plus CSV: data/rebny-rls-property-fields.csv (902 fields, "IDX Plus" feed)
+ *   - REBNY IDX/VOW Compliance Checklist (Dec 2021): no field-level VOW-only restrictions
+ *   - Trestle metadata: artifacts/metadata.xml (no IDX/VOW field annotations)
+ *   - NAR IDX Policy 7.58: sold data must be on IDX when publicly accessible (NYC has ACRIS)
  */
 const VOW_ENRICHED_FIELDS = [
+  // ── In IDX Plus CSV (can display publicly, included here for VOW completeness) ──
   "ClosePrice",
   "CloseDate",
-  "DaysOnMarket",
-  "CumulativeDaysOnMarket",
   "OriginalListPrice",
   "PreviousListPrice",
-  "WithdrawnDate",
-  "CancelledDate",
-  "ExpirationDate",
   "ListingContractDate",
   "PurchaseContractDate",
   "BuyerFinancing",
+  "WithdrawnDate",
+  // ── NOT in IDX Plus CSV (Trestle-only, no confirmed public display authorization) ──
+  "DaysOnMarket",
+  "CumulativeDaysOnMarket",
   "Concessions",
   "ConcessionsAmount",
+  // ── Explicitly hidden per UCBA Exhibit A ──
+  "CancelledDate",
+  "ExpirationDate",
 ] as const;
 
 // ─── DTO Sanitizers ───────────────────────────────────────────────────────

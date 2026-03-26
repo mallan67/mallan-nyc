@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-03-25T18:13:19.655Z",
-  "pass": 845,
+  "timestamp": "2026-03-26T22:20:16.629Z",
+  "pass": 872,
   "critical": 0,
-  "warning": 2,
+  "warning": 4,
   "info": 40,
   "sections": [
     {
@@ -63,7 +63,7 @@
       "section": 7,
       "title": "CRM fetch() → API Route Cross-Reference",
       "category": "CRM & API",
-      "pass": 76,
+      "pass": 77,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 141,
+      "pass": 144,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 90,
+      "pass": 92,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -90,7 +90,7 @@
       "section": 10,
       "title": "Cron Schedule Completeness",
       "category": "Cron",
-      "pass": 16,
+      "pass": 17,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -99,7 +99,7 @@
       "section": 11,
       "title": "Cron Secret Validation Pattern",
       "category": "Cron",
-      "pass": 16,
+      "pass": 17,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 127,
+      "pass": 129,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -216,7 +216,7 @@
       "section": 24,
       "title": "Dead Components",
       "category": "Bloat & Hygiene",
-      "pass": 90,
+      "pass": 91,
       "critical": 0,
       "warning": 0,
       "info": 11
@@ -304,18 +304,63 @@
     },
     {
       "section": 34,
-      "title": "MFA Enforcement",
+      "title": "MFA Enforcement (Email OTP)",
       "category": "Auth & Security",
-      "pass": 1,
+      "pass": 6,
       "critical": 0,
-      "warning": 2,
-      "info": 1
+      "warning": 0,
+      "info": 0
     },
     {
       "section": 35,
       "title": "Impersonation Audit Trail",
       "category": "Auth & Security",
       "pass": 5,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 36,
+      "title": "DOM ID Cross-Reference (JS → HTML)",
+      "category": "Frontend",
+      "pass": 2,
+      "critical": 0,
+      "warning": 1,
+      "info": 0
+    },
+    {
+      "section": 37,
+      "title": "Search Flow Integrity",
+      "category": "Search",
+      "pass": 4,
+      "critical": 0,
+      "warning": 2,
+      "info": 1
+    },
+    {
+      "section": 38,
+      "title": "onclick/onchange Function Existence",
+      "category": "Frontend",
+      "pass": 0,
+      "critical": 0,
+      "warning": 1,
+      "info": 0
+    },
+    {
+      "section": 39,
+      "title": "data-field vs Trestle/RESO Validation",
+      "category": "Search",
+      "pass": 3,
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    },
+    {
+      "section": 40,
+      "title": "Duplicate HTML ID Detection",
+      "category": "Frontend",
+      "pass": 2,
       "critical": 0,
       "warning": 0,
       "info": 0

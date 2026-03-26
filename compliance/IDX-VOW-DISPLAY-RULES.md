@@ -1,6 +1,6 @@
 # IDX & VOW Display Rules
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** Direct (mallan.nyc)
+> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -156,13 +156,19 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 
 ### VOW vs IDX Differences
 
+> **Verified 2026-03-26:** The REBNY IDX/VOW Compliance Checklist (Dec 2021) contains NO field-level
+> restriction blocking ClosePrice, OriginalListPrice, or PreviousListPrice from IDX display.
+> These fields are in the REBNY IDX Plus CSV (902 fields). NAR IDX Policy 7.58 requires sold data
+> on IDX when publicly accessible — NYC sold prices are public via ACRIS.
+
 | Feature | IDX | VOW |
 |---------|-----|-----|
 | Authentication | None | Consumer login required |
-| Data scope | Public marketing fields | Extended fields (sold data, DOM, etc.) |
+| Data scope | IDX Plus fields (902) including sold data | IDX Plus + Trestle-only fields (DOM, etc.) |
 | Address display | Follows `InternetAddressDisplayYN` | Same |
 | Agent info fields | Public fields only | Extended agent info |
-| Sold/closed data | Limited | Full historical access |
+| Sold/closed data (ClosePrice, CloseDate) | **Available** (in IDX Plus spec) | Available |
+| DaysOnMarket, CumulativeDaysOnMarket | **Not in IDX Plus spec** | Available (Trestle-only) |
 | Search | Basic property search | Advanced, saved searches |
 
 ### VOW Requirements
@@ -175,14 +181,34 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 | Attribution | Same as IDX — "Listing Courtesy of [Broker]" |
 | Opt-out respect | Same gate logic as IDX — all 6 gates apply |
 
-### VOW-Only Fields (Not in IDX)
+### Fields NOT in REBNY IDX Plus Spec (Trestle-only — no confirmed public display authorization)
 
-| Field | Notes |
-|-------|-------|
-| Historical sold/rented data | ClosePrice, CloseDate after Closed status |
-| Cumulative DOM | Full history |
-| Extended agent info | Additional contact details |
-| Property condition (with disclaimer) | Agent-view disclaimer still required |
+> **Corrected 2026-03-26:** ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice are IN the
+> IDX Plus CSV and CAN be displayed publicly. The previous version of this section incorrectly
+> classified them as "VOW-Only." The REBNY IDX/VOW Compliance Checklist has no such restriction.
+
+| Field | In IDX Plus CSV? | Notes |
+|-------|:---:|-------|
+| DaysOnMarket | NO | Trestle-only. Not in 902-field IDX Plus spec. |
+| CumulativeDaysOnMarket | NO | Trestle-only. |
+| Concessions / ConcessionsAmount | NO | Trestle-only. |
+| CancelledDate | NO | Trestle-only. |
+| ExpirationDate | NO | Explicitly "Hidden" per UCBA Exhibit A — never display. |
+| PropertyCondition | NO | Agent-only per UCBA — with disclaimer if shown to agents. |
+| Extended agent info (direct phone, email) | YES (in CSV) | But REBNY checklist prohibits seller/occupant contact info. Agent PII display is for attribution only. |
+
+### Fields IN IDX Plus Spec (CAN display publicly)
+
+| Field | Verified Source |
+|-------|----------------|
+| ClosePrice | IDX Plus CSV line 406 |
+| CloseDate | IDX Plus CSV line 405 |
+| OriginalListPrice | IDX Plus CSV line 694 |
+| PreviousListPrice | IDX Plus CSV line 742 |
+| ListingContractDate | IDX Plus CSV line 622 |
+| PurchaseContractDate | IDX Plus CSV line 752 |
+| BuyerFinancing | IDX Plus CSV line 393 |
+| WithdrawnDate | IDX Plus CSV line 847 |
 
 ---
 
