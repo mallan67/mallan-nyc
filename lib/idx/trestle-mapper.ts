@@ -777,24 +777,18 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
 
 /** 41 required REBNY RLS fields that must be present for a valid listing. */
 export const REQUIRED_RLS_FIELDS = [
+  // Absolute minimum to identify and store a listing.
+  // Verified against live Trestle data — only fields that are ALWAYS present.
+  // Many UCBA "mandatory" fields are mandatory for LISTING INPUT (via LMP),
+  // not for every record on the IDX feed. Trestle returns null for optional fields.
   "ListingId", "PropertyType", "ListPrice", "StandardStatus",
-  "StreetNumber", "StreetName", "City", "StateOrProvince", "PostalCode",
-  "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
-  // BathroomsTotal REMOVED — excluded from IDX Plus feed (use BathroomsTotalInteger)
-  "ListAgentMlsId", "ListAgentFullName", "ListOfficeMlsId", "ListOfficeName",
-  "ListingContractDate", "ModificationTimestamp",
-  "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  // IDXEntireListingDisplayYN REMOVED — pre-filtered by Trestle on IDX feed
-  // AttendanceType REMOVED — excluded from IDX Plus feed
-  "StructureType", "CommonInterest",
-  "OwnershipType", "NewConstructionYN",
-  "PublicRemarks", "PhotosCount",
-  "LivingArea", "StoriesTotal", "YearBuilt",
-  "AssociationFee", "AssociationFeeFrequency",
-  "TaxAnnualAmount", "TaxYear",
-  "MlsStatus", "OriginalEntryTimestamp",
-  "ActivationDate", "OnMarketDate",
-  "ListingAgreement",
+  "StreetName", "City", "StateOrProvince", "PostalCode",
+  "ListAgentMlsId", "ListOfficeName",
+  "ModificationTimestamp",
+  // Note: StreetNumber, BedroomsTotal, BathroomsFull, LivingArea, YearBuilt,
+  // TaxAnnualAmount, TaxYear, OwnershipType, MlsStatus, ActivationDate, PhotosCount,
+  // etc. are often null on Trestle — especially for new, incomplete, or special listings.
+  // The sync should accept these and store what's available, not reject the entire listing.
 ];
 
 /**
