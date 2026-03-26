@@ -43,6 +43,14 @@
                     if (el) el.textContent = count.toLocaleString();
                     _updateTrackerTotal();
                 }).catch(function() {});
+
+                // Fetch building count from local DB
+                MallanAPI._fetch('/api/crm/buildings?count_only=true').then(function(result) {
+                    var count = (result && result.count) || 0;
+                    _trackerCounts.buildings = count;
+                    var el = document.getElementById('trackerBuildingCount');
+                    if (el) el.textContent = count.toLocaleString();
+                }).catch(function() {});
             });
         }
 
