@@ -393,12 +393,9 @@
         function quickSearch(btn) {
             // Quick Search now uses the full performSearch() pipeline.
             // Validate that at least one criterion exists (RLS ID, Zip, Address, or Neighborhoods).
-            var rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
-                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-            var zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
-                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-            var addrInputId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
-                              currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
+            var rlsInputId = 'searchQuickRls';
+            var zipInputId = 'searchQuickZip';
+            var addrInputId = 'searchAddress';
 
             var rlsVal = (document.getElementById(rlsInputId) || {}).value || '';
             var zipVal = (document.getElementById(zipInputId) || {}).value || '';
@@ -605,15 +602,8 @@
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
 
-            // Determine which basic form is active
-            var activeBasicForm;
-            if (currentSearchTab === 'rent') {
-                activeBasicForm = document.getElementById('searchBasicModeRental');
-            } else if (currentSearchTab === 'building') {
-                activeBasicForm = document.getElementById('searchBasicModeBuilding');
-            } else {
-                activeBasicForm = document.getElementById('searchBasicMode');
-            }
+            // Unified basic form (all tabs share one form, data-show-on handles visibility)
+            var activeBasicForm = document.getElementById('searchBasicMode');
 
             // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
             var _advMode = document.getElementById('searchAdvancedMode');
@@ -863,15 +853,11 @@
             if (_isAdvanced) {
                 rlsInputId = 'adv-rls-id';
                 zipInputId = 'adv-zip';
-                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
-                              currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
+                unitInputId = 'searchQuickUnit';
             } else {
-                rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' :
-                             currentSearchTab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-                zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' :
-                             currentSearchTab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' :
-                              currentSearchTab === 'building' ? 'buildingQuickUnit' : 'saleQuickUnit';
+                rlsInputId = 'searchQuickRls';
+                zipInputId = 'searchQuickZip';
+                unitInputId = 'searchQuickUnit';
             }
             var rlsInput = document.getElementById(rlsInputId);
             var zipInput = document.getElementById(zipInputId);
@@ -881,18 +867,14 @@
             if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
 
             // Keyword search (PublicRemarks contains)
-            var keywordId = _isAdvanced ? 'adv-keyword' :
-                            currentSearchTab === 'rent' ? 'rentalKeywordSearch' :
-                            currentSearchTab === 'building' ? 'buildingKeywordSearch' : 'saleKeywordSearch';
+            var keywordId = _isAdvanced ? 'adv-keyword' : 'searchKeyword';
             var keywordEl = document.getElementById(keywordId);
             if (keywordEl && keywordEl.value.trim()) {
                 criteria.keyword = keywordEl.value.trim();
             }
 
             // Management Company (search against ListOfficeName — Trestle's closest field)
-            var mgmtId = _isAdvanced ? 'adv-management' :
-                         currentSearchTab === 'rent' ? 'rentalManagementCompany' :
-                         currentSearchTab === 'building' ? 'buildingManagementCompany' : 'saleManagementCompany';
+            var mgmtId = _isAdvanced ? 'adv-management' : 'searchManagementCompany';
             var mgmtEl = document.getElementById(mgmtId);
             if (mgmtEl && mgmtEl.value.trim()) {
                 criteria.managementCompany = mgmtEl.value.trim();
@@ -1085,8 +1067,8 @@
         }
 
         function clearSearchForm() {
-            // Reset all select elements in basic forms
-            var forms = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'];
+            // Reset all select elements in basic form (unified — one form for all tabs)
+            var forms = ['searchBasicMode'];
             forms.forEach(function(formId) {
                 var form = document.getElementById(formId);
                 if (!form) return;
@@ -1130,9 +1112,7 @@
             // Re-check the "Active" checkbox by default (sale basic form)
             var activeCheck = document.querySelector('#searchBasicMode [data-field="MlsStatus"][data-value="Active"]');
             if (activeCheck) activeCheck.checked = true;
-            // Re-check the "Active" checkbox by default (rental basic form)
-            var rentalActiveCheck = document.querySelector('#searchBasicModeRental [data-field="MlsStatus"][data-value="Active"]');
-            if (rentalActiveCheck) rentalActiveCheck.checked = true;
+            // (rental form unified — no separate re-check needed)
             // Re-check the "Active" checkbox in advanced mode (sale status)
             var advSaleActive = document.querySelector('#saleStatusOptions [data-field="MlsStatus"][data-value="Active"]');
             if (advSaleActive) advSaleActive.checked = true;
@@ -1706,23 +1686,15 @@
             try { _sm = sessionStorage.getItem('searchMode'); } catch(e) {}
             var isBasicMode = _sm !== 'advanced';
 
-            var basicModeSales = document.getElementById('searchBasicMode');
-            var basicModeRental = document.getElementById('searchBasicModeRental');
-            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            var basicMode = document.getElementById('searchBasicMode');
             var advancedMode = document.getElementById('searchAdvancedMode');
 
-            // Hide all modes first
-            if (basicModeSales) basicModeSales.style.display = 'none';
-            if (basicModeRental) basicModeRental.style.display = 'none';
-            if (basicModeBuilding) basicModeBuilding.style.display = 'none';
-            if (advancedMode) advancedMode.style.display = 'none';
-
-            // Show the appropriate mode
+            // Toggle between basic (unified) and advanced mode
             if (isBasicMode) {
-                if (currentSearchTab === 'sale' && basicModeSales) basicModeSales.style.display = 'block';
-                else if (currentSearchTab === 'rent' && basicModeRental) basicModeRental.style.display = 'block';
-                else if (currentSearchTab === 'building' && basicModeBuilding) basicModeBuilding.style.display = 'block';
+                if (basicMode) basicMode.style.display = 'block';
+                if (advancedMode) advancedMode.style.display = 'none';
             } else {
+                if (basicMode) basicMode.style.display = 'none';
                 if (advancedMode) advancedMode.style.display = 'block';
             }
 
@@ -2138,14 +2110,10 @@
             var btnRent = document.getElementById('btnRent');
             var btnBuilding = document.getElementById('btnBuilding');
 
-            // Basic Search Mode layouts
-            var basicModeSales = document.getElementById('searchBasicMode');
-            var basicModeRental = document.getElementById('searchBasicModeRental');
-            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            // Unified basic form (data-show-on handles section visibility per tab)
+            var basicMode = document.getElementById('searchBasicMode');
             var advancedMode = document.getElementById('searchAdvancedMode');
 
-            // Check if we're in Basic mode — use sessionStorage as source of truth
-            // (CSS classes can be stale during init when render-blocking CSS is active)
             var _storedMode;
             try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {}
             var isBasicMode = _storedMode !== 'advanced';
@@ -2158,30 +2126,20 @@
                 }
             });
 
-            // Hide all basic layouts
-            if (basicModeSales) basicModeSales.style.display = 'none';
-            if (basicModeRental) basicModeRental.style.display = 'none';
-            if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+            // Show unified basic form or advanced mode
+            if (isBasicMode) {
+                if (basicMode) basicMode.style.display = 'block';
+                if (advancedMode) advancedMode.style.display = 'none';
+            } else {
+                if (basicMode) basicMode.style.display = 'none';
+                if (advancedMode) advancedMode.style.display = 'block';
+            }
 
-            // Activate selected tab
-            if (tab === 'sale') {
-                if (btnSale) {
-                    btnSale.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
-                    btnSale.classList.add('bg-gray-900', 'text-white');
-                }
-                if (isBasicMode && basicModeSales) basicModeSales.style.display = 'block';
-            } else if (tab === 'rent') {
-                if (btnRent) {
-                    btnRent.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
-                    btnRent.classList.add('bg-gray-900', 'text-white');
-                }
-                if (isBasicMode && basicModeRental) basicModeRental.style.display = 'block';
-            } else if (tab === 'building') {
-                if (btnBuilding) {
-                    btnBuilding.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
-                    btnBuilding.classList.add('bg-gray-900', 'text-white');
-                }
-                if (isBasicMode && basicModeBuilding) basicModeBuilding.style.display = 'block';
+            // Activate selected tab button
+            var activeBtn = tab === 'rent' ? btnRent : tab === 'building' ? btnBuilding : btnSale;
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-white', 'text-gray-500', 'border', 'border-gray-200');
+                activeBtn.classList.add('bg-gray-900', 'text-white');
             }
 
             // Toggle calculators based on mode (sale vs rent) in Advanced Search
@@ -2324,13 +2282,10 @@
         function toggleSearchMode(mode) {
             var btnBasic = document.getElementById('btnSearchBasic');
             var btnAdvanced = document.getElementById('btnSearchAdvanced');
-            var basicModeSales = document.getElementById('searchBasicMode');
-            var basicModeRental = document.getElementById('searchBasicModeRental');
-            var basicModeBuilding = document.getElementById('searchBasicModeBuilding');
+            var basicMode = document.getElementById('searchBasicMode');
             var advancedMode = document.getElementById('searchAdvancedMode');
             var expandControls = document.getElementById('expandCollapseControls');
 
-            // Persist search mode + tab so refresh restores state
             try { sessionStorage.setItem('searchMode', mode); } catch(e) {}
 
             if (mode === 'basic') {
@@ -2339,32 +2294,16 @@
                 btnAdvanced.classList.remove('bg-gray-900', 'text-white');
                 btnAdvanced.classList.add('text-gray-500');
                 if (expandControls) expandControls.classList.add('hidden');
-
-                // Hide all first
-                if (basicModeSales) basicModeSales.style.display = 'none';
-                if (basicModeRental) basicModeRental.style.display = 'none';
-                if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+                if (basicMode) basicMode.style.display = 'block';
                 if (advancedMode) advancedMode.style.display = 'none';
-
-                // Show the appropriate basic layout based on current tab
-                if (currentSearchTab === 'sale' && basicModeSales) {
-                    basicModeSales.style.display = 'block';
-                } else if (currentSearchTab === 'rent' && basicModeRental) {
-                    basicModeRental.style.display = 'block';
-                } else if (currentSearchTab === 'building' && basicModeBuilding) {
-                    basicModeBuilding.style.display = 'block';
-                }
             } else {
                 btnAdvanced.classList.remove('text-gray-500');
                 btnAdvanced.classList.add('bg-gray-900', 'text-white');
                 btnBasic.classList.remove('bg-gray-900', 'text-white');
                 btnBasic.classList.add('text-gray-500');
                 if (expandControls) { expandControls.classList.remove('hidden'); expandControls.classList.add('flex'); }
-
                 if (advancedMode) advancedMode.style.display = 'block';
-                if (basicModeSales) basicModeSales.style.display = 'none';
-                if (basicModeRental) basicModeRental.style.display = 'none';
-                if (basicModeBuilding) basicModeBuilding.style.display = 'none';
+                if (basicMode) basicMode.style.display = 'none';
             }
             if (typeof updateFilterCount === 'function') updateFilterCount();
         }

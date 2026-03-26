@@ -62,6 +62,9 @@
  *   31. Portal Auth Flow
  *   ── Platform ──
  *   32. Run History & Trends
+ *   ── Cross-File Consistency ──
+ *   36. DOM ID Cross-Reference (JS → HTML)
+ *   37. Search Flow Integrity
  */
 
 const fs = require('fs');
@@ -1480,6 +1483,246 @@ function section35() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SECTION 36: DOM ID Cross-Reference (JS → HTML)
+// Scans getElementById calls in CRM JS files and verifies each ID exists in HTML.
+// Catches dangling references after refactors (e.g., form unification).
+// ═══════════════════════════════════════════════════════════════════════════
+function section36() {
+  const s = startSection(36, 'DOM ID Cross-Reference (JS → HTML)', 'Frontend');
+
+  const html = readFile('public/crm/index-built.html');
+  if (!html) { warning(s, 'Cannot read index-built.html', ''); return; }
+
+  // Extract all id="..." from HTML
+  const htmlIds = new Set();
+  const idRegex = /\bid=["']([^"']+)["']/g;
+  let m;
+  while ((m = idRegex.exec(html)) !== null) htmlIds.add(m[1]);
+
+  // Also count IDs created dynamically (innerHTML, createElement+id)
+  // These are expected to NOT be in the static HTML
+  const dynamicIdPatterns = [
+    /\.id\s*=\s*['"]([^'"]+)['"]/g,
+    /id=\\?["']([^"'\\]+)\\?["']/g, // inside template strings in JS
+  ];
+
+  const jsFiles = findFiles('public/crm/js', '.js');
+  const dynamicIds = new Set();
+  for (const file of jsFiles) {
+    const content = readFile(file);
+    if (!content) continue;
+    for (const pat of dynamicIdPatterns) {
+      pat.lastIndex = 0;
+      while ((m = pat.exec(content)) !== null) dynamicIds.add(m[1]);
+    }
+  }
+
+  // Also extract dynamic IDs from inline scripts in HTML
+  for (const pat of dynamicIdPatterns) {
+    pat.lastIndex = 0;
+    while ((m = pat.exec(html)) !== null) dynamicIds.add(m[1]);
+  }
+
+  // Scan all JS files for getElementById('X')
+  const getByIdRegex = /getElementById\(['"]([^'"]+)['"]\)/g;
+  const allRefs = new Map(); // id → [{ file, line }]
+  const searchCriticalFunctions = [
+    'collectSearchCriteria', '_resolveActiveNeighborhoodTagsId',
+    '_serverSearch', 'performSearch', 'updateFilterCount',
+    'toggleSearchTab', 'toggleSearchMode', 'clearSearchForm',
+    'getSelectedNeighborhoods',
+  ];
+
+  for (const file of [...jsFiles, 'public/crm/index-built.html']) {
+    const content = readFile(file);
+    if (!content) continue;
+    getByIdRegex.lastIndex = 0;
+    while ((m = getByIdRegex.exec(content)) !== null) {
+      const id = m[1];
+      if (!allRefs.has(id)) allRefs.set(id, []);
+      // Determine if this is inside a search-critical function
+      const before500 = content.substring(Math.max(0, m.index - 500), m.index);
+      const isSearchCritical = searchCriticalFunctions.some(fn => before500.includes('function ' + fn) || before500.includes(fn + '('));
+      allRefs.get(id).push({ file, isSearchCritical });
+    }
+  }
+
+  // Check each referenced ID
+  let danglingSearch = 0, danglingOther = 0, danglingDetails = [];
+  let validCount = 0;
+
+  for (const [id, refs] of allRefs) {
+    if (htmlIds.has(id) || dynamicIds.has(id)) {
+      validCount++;
+      continue;
+    }
+    // Skip IDs that are clearly parameterized (contain + or template vars)
+    if (id.includes('+') || id.includes('$') || id.includes('{')) continue;
+
+    const isSearchCritical = refs.some(r => r.isSearchCritical);
+    const files = [...new Set(refs.map(r => r.file))].map(f => f.replace('public/crm/', '')).join(', ');
+
+    if (isSearchCritical) {
+      danglingSearch++;
+      danglingDetails.push({ id, files, level: 'CRITICAL' });
+      critical(s, `SEARCH-BREAKING: getElementById('${id}') — ID not in HTML`,
+        `Referenced in search-critical function. Files: ${files}`);
+    } else {
+      danglingOther++;
+      danglingDetails.push({ id, files, level: 'WARNING' });
+    }
+  }
+
+  if (danglingSearch === 0) pass(s, 'All search-critical DOM IDs exist in HTML');
+  if (danglingOther > 0) {
+    warning(s, `${danglingOther} non-search getElementById refs target missing IDs`,
+      danglingDetails.filter(d => d.level === 'WARNING').map(d => `'${d.id}' in ${d.files}`).slice(0, 10).join('; '));
+  } else {
+    pass(s, 'All non-search DOM ID references valid');
+  }
+
+  pass(s, `${validCount} getElementById refs verified against ${htmlIds.size} HTML IDs`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 37: Search Flow Integrity
+// Validates the critical search data chain end-to-end (static analysis).
+// Would have caught: neighborhood tags ID mismatch, form unification gaps.
+// ═══════════════════════════════════════════════════════════════════════════
+function section37() {
+  const s = startSection(37, 'Search Flow Integrity', 'Search');
+
+  const searchEngine = readFile('public/crm/js/search/search-engine.js');
+  const html = readFile('public/crm/index-built.html');
+  const searchRoute = readFile('app/api/idx/search/route.ts');
+  if (!searchEngine || !html) { warning(s, 'Cannot read search files', ''); return; }
+
+  // 1. Neighborhood tag container IDs
+  const tagIdMatch = searchEngine.match(/return\s+['"](\w*[Nn]eighborhood\w*)['"]/g) || [];
+  const tagIds = tagIdMatch.map(m => m.match(/['"]([^'"]+)['"]/)[1]);
+  for (const id of tagIds) {
+    if (html.includes('id="' + id + '"')) {
+      pass(s, `Neighborhood tags container '${id}' exists in HTML`);
+    } else {
+      critical(s, `Neighborhood tags container '${id}' NOT in HTML — search by area BROKEN`,
+        `_resolveActiveNeighborhoodTagsId() returns '${id}' but no element with that ID exists. Neighborhood search will silently return no results.`);
+    }
+  }
+  if (tagIds.length === 0) {
+    warning(s, 'No neighborhood tag container IDs found in _resolveActiveNeighborhoodTagsId()', '');
+  }
+
+  // 2. data-show-on values match valid tab names
+  const showOnRegex = /data-show-on="([^"]+)"/g;
+  const validTabs = new Set(['sale', 'rent', 'building', 'cma']);
+  const invalidShowOn = [];
+  let showOnCount = 0;
+  let m;
+  while ((m = showOnRegex.exec(html)) !== null) {
+    showOnCount++;
+    const tabs = m[1].split(',').map(t => t.trim());
+    for (const t of tabs) {
+      if (!validTabs.has(t)) invalidShowOn.push(t);
+    }
+  }
+  if (invalidShowOn.length > 0) {
+    critical(s, `data-show-on references invalid tabs: ${[...new Set(invalidShowOn)].join(', ')}`,
+      'These sections will never show. Valid tabs: sale, rent, building, cma');
+  } else if (showOnCount > 0) {
+    pass(s, `${showOnCount} data-show-on attributes reference valid tab names`);
+  }
+
+  // 3. Status checkbox data-values match statusMap in _serverSearch
+  const statusMapMatch = searchEngine.match(/statusMap\s*=\s*\{([^}]+)\}/);
+  if (statusMapMatch) {
+    const mapKeys = (statusMapMatch[1].match(/'([^']+)'/g) || [])
+      .filter((_, i) => i % 2 === 0) // odd indices are values
+      .map(k => k.replace(/'/g, ''));
+
+    // Find status checkboxes in HTML
+    const statusCheckboxes = [];
+    const cbRegex = /data-field=["']MlsStatus["']\s+data-value=["']([^"']+)["']/g;
+    while ((m = cbRegex.exec(html)) !== null) statusCheckboxes.push(m[1]);
+
+    const unmapped = statusCheckboxes.filter(v => !mapKeys.includes(v));
+    if (unmapped.length > 0) {
+      warning(s, `${unmapped.length} status checkbox values not in statusMap: ${unmapped.join(', ')}`,
+        'These statuses will be sent as-is to Trestle (may not match RESO enum)');
+    } else if (statusCheckboxes.length > 0) {
+      pass(s, `${statusCheckboxes.length} status checkbox values all mapped in statusMap`);
+    }
+  }
+
+  // 4. Old form IDs still referenced in JS but deleted from HTML
+  const oldFormIds = ['searchBasicModeRental', 'searchBasicModeBuilding',
+    'saleNeighborhoodTags', 'rentalNeighborhoodTags', 'buildingNeighborhoodTags',
+    'saleQuickRls', 'rentalQuickRls', 'buildingQuickRls',
+    'saleQuickZip', 'rentalQuickZip', 'buildingQuickZip',
+    'saleQuickUnit', 'rentalQuickUnit', 'buildingQuickUnit'];
+  const staleRefs = [];
+  for (const id of oldFormIds) {
+    const inJs = searchEngine.includes("'" + id + "'") || searchEngine.includes('"' + id + '"');
+    const inHtml = html.includes('id="' + id + '"') || html.includes("id='" + id + "'");
+    if (inJs && !inHtml) staleRefs.push(id);
+  }
+  if (staleRefs.length > 0) {
+    critical(s, `${staleRefs.length} stale form IDs in search-engine.js (deleted from HTML)`,
+      `IDs: ${staleRefs.join(', ')}. These getElementById calls return null — search fields silently ignored.`);
+  } else {
+    pass(s, 'No stale form IDs in search-engine.js');
+  }
+
+  // 5. Select elements with data-field have values in SEARCH_SELECT_FIELDS
+  if (searchRoute) {
+    const selectFieldsMatch = searchRoute.match(/SEARCH_SELECT_FIELDS\s*=\s*\[([\s\S]*?)\]/);
+    if (selectFieldsMatch) {
+      const apiFields = new Set((selectFieldsMatch[1].match(/"([^"]+)"/g) || []).map(f => f.replace(/"/g, '')));
+      const htmlSelectFields = [];
+      const selRegex = /data-field=["']([^"']+)["']/g;
+      while ((m = selRegex.exec(html)) !== null) {
+        if (!htmlSelectFields.includes(m[1])) htmlSelectFields.push(m[1]);
+      }
+      // Fields used in HTML that the API doesn't request from Trestle
+      // (These would only work as client-side filters, not server-side OData)
+      const notInApi = htmlSelectFields.filter(f =>
+        !apiFields.has(f) && f !== 'MlsStatus' // MlsStatus handled specially
+      );
+      if (notInApi.length > 5) {
+        info(s, `${notInApi.length} HTML data-field values not in SEARCH_SELECT_FIELDS`,
+          `Client-side only filters: ${notInApi.slice(0, 8).join(', ')}...`);
+      } else {
+        pass(s, `HTML data-field values covered by SEARCH_SELECT_FIELDS`);
+      }
+    }
+  }
+
+  // 6. IP audit logging on mutation routes
+  const mutationRoutes = findFiles('app/api/crm', '.ts').filter(f => {
+    const content = readFile(f);
+    return content && /logAuditEvent/.test(content);
+  });
+  let ipLogged = 0, ipMissing = [];
+  for (const file of mutationRoutes) {
+    const content = readFile(file);
+    // Check if logAuditEvent calls include IP parameter (6th arg or ip variable)
+    const auditCalls = content.match(/logAuditEvent\([^)]+\)/g) || [];
+    for (const call of auditCalls) {
+      if (/x-forwarded-for|ipAddress|, ip\b/.test(call) || call.split(',').length >= 6) {
+        ipLogged++;
+      } else {
+        if (!ipMissing.includes(file)) ipMissing.push(file);
+      }
+    }
+  }
+  if (ipMissing.length > 0) {
+    warning(s, `${ipMissing.length} routes have logAuditEvent without IP`,
+      ipMissing.map(f => f.replace('app/api/', '')).slice(0, 5).join(', '));
+  } else if (ipLogged > 0) {
+    pass(s, `${ipLogged} audit log calls include IP address`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1487,7 +1730,7 @@ console.log('');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  IDX Plus Compliance Validator v3 — mallan.nyc');
 console.log('  REBNY RLS / UCBA 2026 / Trestle IDX Plus');
-console.log('  35 sections · 1,426 OData fields · Full-stack audit');
+console.log('  37 sections · 1,426 OData fields · Full-stack audit');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('');
 
@@ -1495,7 +1738,7 @@ const allSections = [section1,section2,section3,section4,section5,section6,secti
   section10,section11,section12,section13,section14,section15,section16,section17,section18,section19,
   section20,section21,section22,section23,section24,section25,section26,
   section27,section28,section29,section30,section31,section32,
-  section33,section34,section35];
+  section33,section34,section35,section36,section37];
 
 for (let i = 0; i < allSections.length; i++) {
   if (sectionFilter && sectionFilter !== (i + 1)) continue;
