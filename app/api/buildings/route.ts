@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { upsertBuildingFromRecords } from '@/lib/buildings/upsert';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -484,6 +485,12 @@ export async function GET(request: NextRequest) {
       // gatedRecordsCount stays 0 — IDX feed already excludes gated listings
     } catch (trestleErr) {
       console.warn('[/api/buildings] Trestle fetch error:', trestleErr);
+    }
+
+    // Silent upsert — populate building DB without triggering alerts
+    const bKey = allTrestleRecords[0]?.BuildingKeyNumeric;
+    if (bKey) {
+      upsertBuildingFromRecords(Number(bKey), allTrestleRecords).catch(() => {});
     }
 
     // Extract building-level info from ALL records BEFORE gate filtering.
