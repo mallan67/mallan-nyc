@@ -65,6 +65,9 @@
  *   ── Cross-File Consistency ──
  *   36. DOM ID Cross-Reference (JS → HTML)
  *   37. Search Flow Integrity
+ *   38. onclick/onchange Function Existence
+ *   39. data-field vs Trestle/RESO Validation
+ *   40. Duplicate HTML ID Detection
  */
 
 const fs = require('fs');
@@ -1723,6 +1726,246 @@ function section37() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SECTION 38: onclick/onchange Function Existence
+// Verifies that every function name in onclick/onchange handlers is defined.
+// ═══════════════════════════════════════════════════════════════════════════
+function section38() {
+  const s = startSection(38, 'onclick/onchange Function Existence', 'Frontend');
+
+  const html = readFile('public/crm/index-built.html');
+  if (!html) { warning(s, 'Cannot read index-built.html', ''); return; }
+
+  // Collect all function definitions from JS files + inline scripts
+  const definedFunctions = new Set();
+  const fnDefRegex = /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g;
+  const arrowOrVarRegex = /(?:var|let|const)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*function/g;
+  // Also: window.X = function, X.Y = function (for namespaced like LeaseTracker.init)
+  const windowFnRegex = /(?:window\.)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*function/g;
+
+  const jsFiles = findFiles('public/crm/js', '.js');
+  const allSources = [...jsFiles.map(f => readFile(f)).filter(Boolean), html];
+
+  for (const src of allSources) {
+    let m;
+    fnDefRegex.lastIndex = 0;
+    while ((m = fnDefRegex.exec(src)) !== null) definedFunctions.add(m[1]);
+    arrowOrVarRegex.lastIndex = 0;
+    while ((m = arrowOrVarRegex.exec(src)) !== null) definedFunctions.add(m[1]);
+    windowFnRegex.lastIndex = 0;
+    while ((m = windowFnRegex.exec(src)) !== null) definedFunctions.add(m[1]);
+  }
+
+  // Add known browser/lib globals
+  ['event','alert','confirm','prompt','console','setTimeout','clearTimeout',
+   'parseInt','parseFloat','encodeURIComponent','decodeURIComponent',
+   'history','location','window','document','navigator','this','return','void',
+   'stopPropagation','preventDefault'].forEach(g => definedFunctions.add(g));
+
+  // Extract function calls from onclick/onchange/oninput handlers
+  const handlerRegex = /on(?:click|change|input|submit|keydown|keyup|blur|focus|mouseover|mouseout|load)\s*=\s*["']([^"']+)["']/gi;
+  const fnCallRegex = /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g;
+
+  let missing = 0;
+  const missingFns = new Map(); // fnName → count
+  let totalHandlers = 0;
+  let m;
+
+  handlerRegex.lastIndex = 0;
+  while ((m = handlerRegex.exec(html)) !== null) {
+    totalHandlers++;
+    const handlerCode = m[1];
+    fnCallRegex.lastIndex = 0;
+    let fnMatch;
+    while ((fnMatch = fnCallRegex.exec(handlerCode)) !== null) {
+      const fnName = fnMatch[1];
+      // Skip: JS keywords, property accessors after dots, known safe patterns
+      if (/^(if|else|for|while|switch|new|typeof|void|return|true|false|null|undefined|this|event|NaN|Math|Date|JSON|Number|String|Array|Object|Set|Map|Error|RegExp|Promise|parseInt|parseFloat|isNaN|encodeURIComponent|decodeURIComponent|setTimeout|clearTimeout|setInterval|clearInterval|requestAnimationFrame|console|alert|confirm|prompt|navigator|location|history|document|window|getElementById|querySelector|querySelectorAll|closest|toggle|add|remove|contains|replace|indexOf|trim|split|join|push|pop|slice|splice|map|filter|forEach|reduce|find|findIndex|includes|keys|values|entries|hasOwnProperty|toString|valueOf|toFixed|toLocaleString|charAt|substring|match|test|exec|search|replace|toLowerCase|toUpperCase|startsWith|endsWith|padStart|padEnd|repeat|sort|reverse|concat|fill|every|some|from|assign|create|defineProperty|getPrototypeOf|freeze|log|warn|error|info|debug|dir|table|time|timeEnd|group|groupEnd|trace|clear|assert|count|print|open|close|focus|blur|click|submit|reset|scrollTo|scrollIntoView|scrollBy|getBoundingClientRect|getComputedStyle|setAttribute|getAttribute|removeAttribute|appendChild|removeChild|insertBefore|replaceChild|cloneNode|createElement|createTextNode|addEventListener|removeEventListener|dispatchEvent|preventDefault|stopPropagation|stopImmediatePropagation|parentNode|parentElement|nextSibling|previousSibling|firstChild|lastChild|childNodes|children|classList|style|dataset|innerHTML|innerText|textContent|value|checked|selected|disabled|type|name|id|className|href|src|alt|title|placeholder|reload|assign|back|forward|go|pushState|replaceState|postMessage|getItem|setItem|removeItem)$/.test(fnName)) continue;
+      if (!definedFunctions.has(fnName)) {
+        missing++;
+        missingFns.set(fnName, (missingFns.get(fnName) || 0) + 1);
+      }
+    }
+  }
+
+  if (missing === 0) {
+    pass(s, `All onclick/onchange handlers reference defined functions (${totalHandlers} handlers checked)`);
+  } else {
+    // Separate high-frequency (likely real bugs) from low-frequency (might be namespaced)
+    const sorted = [...missingFns.entries()].sort((a, b) => b[1] - a[1]);
+    const highFreq = sorted.filter(([, c]) => c >= 3);
+    const lowFreq = sorted.filter(([, c]) => c < 3);
+
+    if (highFreq.length > 0) {
+      critical(s, `${highFreq.length} undefined functions called ≥3 times in handlers`,
+        highFreq.map(([fn, c]) => `${fn}() ×${c}`).join(', '));
+    }
+    if (lowFreq.length > 0) {
+      warning(s, `${lowFreq.length} potentially undefined functions in handlers (called 1-2 times)`,
+        lowFreq.slice(0, 15).map(([fn, c]) => `${fn}() ×${c}`).join(', '));
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 39: data-field vs Trestle/RESO Field Validation
+// Cross-references data-field="X" in HTML against the 902-field CSV.
+// Catches invented field names that produce silent OData failures.
+// ═══════════════════════════════════════════════════════════════════════════
+function section39() {
+  const s = startSection(39, 'data-field vs Trestle/RESO Validation', 'Search');
+
+  const html = readFile('public/crm/index-built.html');
+  const csv = readFile('data/rebny-rls-property-fields.csv');
+  if (!html) { warning(s, 'Cannot read index-built.html', ''); return; }
+  if (!csv) { warning(s, 'Cannot read rebny-rls-property-fields.csv', ''); return; }
+
+  // Parse field names from CSV (column 2, 0-indexed column 1)
+  const trestleFields = new Set();
+  const csvLines = csv.split('\n');
+  for (const line of csvLines) {
+    const cols = line.split(',');
+    if (cols.length >= 2 && cols[1].trim() && cols[1].trim() !== 'Attribute Name - Current System') {
+      trestleFields.add(cols[1].trim());
+    }
+  }
+
+  // Also add known RESO standard fields that are on Trestle but may not be in IDX Plus CSV
+  // (distribution gates, status fields, etc.)
+  const extraTrestleFields = [
+    'MlsStatus', 'StandardStatus', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN',
+    'InternetAutomatedValuationDisplayYN', 'InternetConsumerCommentYN',
+    'ShowingInstructions', 'PropertyType', 'PropertySubType', 'CommonInterest',
+    'ListPrice', 'LeaseAmount', 'BedroomsTotal', 'BathroomsFull', 'BathroomsTotalInteger',
+    'LivingArea', 'RoomsTotal', 'ListingAgreement', 'Concessions', 'OwnerPays',
+    'Furnished', 'PetsAllowed', 'PetsAllowedYN', 'View', 'DirectionFaces',
+    'AccessibilityFeatures', 'ExteriorFeatures', 'BuildingFeatures',
+    'LaundryFeatures', 'SecurityFeatures', 'PoolFeatures', 'GarageYN', 'CoolingYN',
+    'ArchitecturalStyle', 'StructureType', 'PropertyCondition', 'ConstructionMaterials',
+    'LandLeaseYN', 'AvailableLeaseType', 'ExistingLeaseType', 'BusinessType',
+    'SubdivisionName', 'CityRegion',
+  ];
+  for (const f of extraTrestleFields) trestleFields.add(f);
+
+  // Known local-only fields (not on Trestle — intentionally client-side only)
+  const localOnlyFields = new Set([
+    'OpenHouseOnly', 'GuarantorRequired', 'BoardApprovalRequired', 'PurchasingOptions',
+    'SubLettingAllowed', 'LeaseType', 'LeaseTerm', 'LeaseTermOptions',
+    'RLSParticipantOnly', 'AttendanceType',
+    'BuildingLaundryFeatures', 'BuildingPetsAllowed', 'BuildingPoolFeatures',
+    'BuildingRules', 'BuildingSecurityFeatures', 'RentingAllowedYN',
+  ]);
+
+  // Extract data-field values ONLY from search form sections (not listing submission forms)
+  // Search sections: generalSearchSection, comparablesSection, searchAdvancedMode, searchBasicMode
+  // Listing forms use data-field for form binding (different purpose — not OData filters)
+  const searchSectionIds = ['generalSearchSection', 'comparablesSection', 'searchAdvancedMode', 'searchBasicMode'];
+  let searchHtml = '';
+  for (const secId of searchSectionIds) {
+    const startTag = new RegExp(`id=["']${secId}["']`);
+    const startIdx = html.search(startTag);
+    if (startIdx === -1) continue;
+    // Extract ~20k chars from section start (enough to cover the section)
+    searchHtml += html.substring(startIdx, startIdx + 20000);
+  }
+
+  const dataFieldRegex = /data-field=["']([^"']+)["']/g;
+  const htmlFields = new Map(); // field → count
+  let m;
+  while ((m = dataFieldRegex.exec(searchHtml)) !== null) {
+    const field = m[1];
+    htmlFields.set(field, (htmlFields.get(field) || 0) + 1);
+  }
+
+  let validCount = 0, inventedCount = 0, localCount = 0;
+  const invented = [];
+
+  for (const [field] of htmlFields) {
+    if (trestleFields.has(field)) {
+      validCount++;
+    } else if (localOnlyFields.has(field)) {
+      localCount++;
+    } else {
+      inventedCount++;
+      invented.push(field);
+    }
+  }
+
+  pass(s, `${validCount} data-field values match Trestle/RESO fields`);
+  if (localCount > 0) {
+    pass(s, `${localCount} data-field values are known local-only filters`);
+  }
+  if (inventedCount > 0) {
+    warning(s, `${inventedCount} data-field values NOT in Trestle or local-only list`,
+      `Fields: ${invented.join(', ')}. These may silently fail as OData filters. Add to localOnlyFields if intentional.`);
+  } else {
+    pass(s, 'All data-field values accounted for (Trestle or local-only)');
+  }
+
+  pass(s, `Checked against ${trestleFields.size} Trestle fields + ${localOnlyFields.size} local-only`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 40: Duplicate HTML ID Detection
+// Scans for id="X" appearing more than once — getElementById only returns the first.
+// ═══════════════════════════════════════════════════════════════════════════
+function section40() {
+  const s = startSection(40, 'Duplicate HTML ID Detection', 'Frontend');
+
+  const html = readFile('public/crm/index-built.html');
+  if (!html) { warning(s, 'Cannot read index-built.html', ''); return; }
+
+  const idRegex = /\bid=["']([^"']+)["']/g;
+  const idCounts = new Map();
+  let m;
+  while ((m = idRegex.exec(html)) !== null) {
+    const id = m[1];
+    // Skip dynamic/template IDs (contain +, $, {, }, spaces) and numeric-only IDs
+    if (/[\s+${}]/.test(id) || /^\d+$/.test(id)) continue;
+    idCounts.set(id, (idCounts.get(id) || 0) + 1);
+  }
+
+  const duplicates = [...idCounts.entries()].filter(([, count]) => count > 1);
+  const totalIds = idCounts.size;
+
+  if (duplicates.length === 0) {
+    pass(s, `All ${totalIds} HTML IDs are unique`);
+  } else {
+    // Separate search-critical duplicates from others
+    const searchIds = new Set([
+      'searchBasicMode', 'searchAdvancedMode', 'searchFormContainer',
+      'searchNeighborhoodTags', 'advancedNeighborhoodTags',
+      'searchMinPrice', 'searchMaxPrice', 'searchMinBeds', 'searchMaxBeds',
+      'searchMinBaths', 'searchMaxBaths', 'searchMinRooms', 'searchMaxRooms',
+      'searchMinSqft', 'searchMaxSqft', 'searchQuickRls', 'searchQuickZip',
+      'searchQuickUnit', 'searchAddress', 'searchKeyword',
+      'searchNeighborhoodInput', 'searchManagementCompany',
+      'stickySearchBar', 'activeFilterCount',
+    ]);
+
+    const searchDups = duplicates.filter(([id]) => searchIds.has(id));
+    const otherDups = duplicates.filter(([id]) => !searchIds.has(id));
+
+    if (searchDups.length > 0) {
+      critical(s, `${searchDups.length} SEARCH-CRITICAL duplicate IDs`,
+        searchDups.map(([id, c]) => `'${id}' ×${c}`).join(', ') +
+        '. getElementById returns only the first — search fields will be silently wrong.');
+    }
+
+    if (otherDups.length > 10) {
+      warning(s, `${otherDups.length} duplicate IDs in HTML`,
+        otherDups.slice(0, 10).map(([id, c]) => `'${id}' ×${c}`).join(', ') + '...');
+    } else if (otherDups.length > 0) {
+      warning(s, `${otherDups.length} duplicate IDs in HTML`,
+        otherDups.map(([id, c]) => `'${id}' ×${c}`).join(', '));
+    } else {
+      pass(s, 'No duplicate IDs in search-critical elements');
+    }
+  }
+
+  pass(s, `${totalIds} total unique IDs scanned`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1730,7 +1973,7 @@ console.log('');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  IDX Plus Compliance Validator v3 — mallan.nyc');
 console.log('  REBNY RLS / UCBA 2026 / Trestle IDX Plus');
-console.log('  37 sections · 1,426 OData fields · Full-stack audit');
+console.log('  40 sections · 1,426 OData fields · Full-stack audit');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('');
 
@@ -1738,7 +1981,7 @@ const allSections = [section1,section2,section3,section4,section5,section6,secti
   section10,section11,section12,section13,section14,section15,section16,section17,section18,section19,
   section20,section21,section22,section23,section24,section25,section26,
   section27,section28,section29,section30,section31,section32,
-  section33,section34,section35,section36,section37];
+  section33,section34,section35,section36,section37,section38,section39,section40];
 
 for (let i = 0; i < allSections.length; i++) {
   if (sectionFilter && sectionFilter !== (i + 1)) continue;
