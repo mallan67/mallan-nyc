@@ -106,7 +106,7 @@ Compliance is not optional and not abstract — it is contractual.
 
 ## IDX Plus / Trestle (REBNY RLS) — Rules of the Road
 
-> **Migration Note (2025):** REBNY migrated from Perchwell to Trestle/Cotality (formerly CoreLogic) in February 2025. The Trestle API endpoint migrated from `api-trestle.corelogic.com` to `api.cotality.com/trestle`. This platform uses the **IDX Plus - WebAPI** license (direct, independent — not through RealPlus or any LMP), providing 902 IDX Plus fields across 7 REBNY-specified resources plus 5 additional Trestle resources (PropertyRooms, Teams, TeamMembers, PropertyGreenVerification, Building).
+> **Migration Note (2025):** REBNY migrated from Perchwell to Trestle/Cotality (formerly CoreLogic) in February 2025. The Trestle API endpoint migrated from `api-trestle.corelogic.com` to `api.cotality.com/trestle`. This platform uses the **IDX Plus - WebAPI** license (Trestle-11371-20) for **read-only display**. RealPlus is the LMP for listing submission to the RLS — REBNY does not grant LMP licenses to individual brokers. mallan.nyc reads 902 IDX Plus fields across 7 REBNY-specified resources plus additional Trestle-provisioned fields (1,457 total Property definitions in live metadata).
 
 ### Environment Variables (server-only)
 
@@ -127,7 +127,7 @@ IDX_CLIENT_SECRET=...
 |----------|------|---------|
 | `GET /api/listings` | Public (rate-limited 60/min) | Frontend search — sanitized via `toPublicDTO()`, all 6 distribution gates enforced |
 | `GET /api/listings/suggest` | Public (rate-limited 60/min) | Address autocomplete — distribution gates enforced, no agent PII |
-| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, full listing data |
+| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, broader field set (not guaranteed to match full RealPlus/LMP inventory) |
 
 ### REBNY Distribution Gates (fail closed)
 
@@ -525,7 +525,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 #### IDX/Trestle (3)
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/idx/search` | GET | CRM search — agent/broker only, full listing data with proxied media URLs |
+| `/api/idx/search` | GET | CRM search — agent/broker only, broader field set with proxied media URLs (not guaranteed to match full RealPlus/LMP inventory) |
 | `/api/idx/sync` | POST | Manual sync trigger (broker-only, rate-limited) |
 | `/api/idx/status` | GET | IDX connection status + sync stats |
 
@@ -690,7 +690,7 @@ Trestle API (server-side only)
   │
   ├─→ /api/idx/search (CRM, on-demand) ─→ Direct Trestle query
   │     Agent-only, session cookie required
-  │     Returns full listing data with proxied media URLs
+  │     Broader field set than public search (not guaranteed to match full RealPlus/LMP inventory)
   │
   ├─→ /api/listings (public, on-demand) ─→ DB-first (20-80ms)
   │     Falls back to Trestle direct (10s timeout) if not in DB
