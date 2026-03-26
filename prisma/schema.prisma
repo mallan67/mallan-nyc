@@ -1,1566 +1,2067 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
+// prisma/schema.prisma
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-model active_leases {
-  id                                          BigInt    @id @default(autoincrement())
-  address                                     String
-  unit                                        String?
-  borough                                     String?
-  neighborhood                                String?
-  zip                                         String?
-  building_type                               String?
-  landlord_lead_id                            BigInt
-  tenant_lead_id                              BigInt?
-  tenant_name                                 String?
-  tenant_email                                String?
-  tenant_phone                                String?
-  monthly_rent                                Decimal   @db.Decimal(14, 2)
-  lease_start_date                            DateTime
-  lease_end_date                              DateTime
-  lease_type                                  String    @default("standard_1yr")
-  security_deposit                            Decimal?  @db.Decimal(14, 2)
-  pets_allowed                                Boolean   @default(false)
-  furnished                                   String    @default("unfurnished")
-  renewal_status                              String    @default("unknown")
-  renewal_notice_date                         DateTime?
-  renewal_rent                                Decimal?  @db.Decimal(14, 2)
-  relist_target_date                          DateTime?
-  original_rent                               Decimal?  @db.Decimal(14, 2)
-  last_rent_increase_date                     DateTime?
-  last_rent_increase_pct                      Decimal?  @db.Decimal(5, 2)
-  outreach_90d_sent_at                        DateTime?
-  outreach_60d_sent_at                        DateTime?
-  outreach_30d_sent_at                        DateTime?
-  seller_comps_6mo_sent_at                    DateTime?
-  seller_comps_1yr_sent_at                    DateTime?
-  board_required                              Boolean   @default(false)
-  board_app_status                            String?
-  board_approved_at                           DateTime?
-  move_in_date                                DateTime?
-  keys_given                                  Boolean   @default(false)
-  walkthrough_done                            Boolean   @default(false)
-  commission_paid                             Boolean   @default(false)
-  agent_id                                    BigInt?
-  notes                                       String?
-  custom_fields                               Json?
-  created_at                                  DateTime  @default(now())
-  updated_at                                  DateTime
-  status                                      String    @default("active")
-  agents                                      agents?   @relation(fields: [agent_id], references: [id])
-  leads_active_leases_landlord_lead_idToleads leads     @relation("active_leases_landlord_lead_idToleads", fields: [landlord_lead_id], references: [id])
-  leads_active_leases_tenant_lead_idToleads   leads?    @relation("active_leases_tenant_lead_idToleads", fields: [tenant_lead_id], references: [id])
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ═══════════════════════════════════════════════════════════
+// AGENT — Licensed real estate agent or broker
+// ═══════════════════════════════════════════════════════════
+model Agent {
+  id             BigInt    @id @default(autoincrement())
+  first_name     String
+  last_name      String
+  full_name      String?   @db.Text
+  email          String    @unique
+  password_hash  String    @map("password_hash")
+  phone          String?
+  license_no     String?   @map("license_no")
+  trestle_mls_id String?   @map("trestle_mls_id") // REBNY MLS member ID on Trestle (e.g. "39361") — different from state license_no
+  license_type   String?   @map("license_type") // "broker" | "salesperson"
+  license_expiry DateTime? @map("license_expiry")
+  sale_split     Decimal?  @map("sale_split") @db.Decimal(6, 3)
+  rental_split   Decimal?  @map("rental_split") @db.Decimal(6, 3)
+  role           String    @default("AGENT") // "BROKER" | "AGENT"
+  status         String    @default("active") // "active" | "inactive" | "suspended"
+  last_login     DateTime? @map("last_login")
+
+  // --- MFA (TOTP) ---
+  mfa_enabled       Boolean  @default(false) @map("mfa_enabled")
+  mfa_secret_enc    String?  @map("mfa_secret_enc") @db.Text // AES-256-GCM encrypted TOTP secret
+  mfa_backup_hashes String[] @default([]) @map("mfa_backup_hashes") // bcrypt hashes of one-time backup codes
+
+  // --- Public profile fields (shown on mallan.nyc/agents) ---
+  public_slug String?  @unique @map("public_slug") // URL slug e.g. "maya-allan"
+  title       String?  @db.Text // "Licensed Real Estate Broker"
+  bio         String?  @db.Text
+  photo       String? // URL path e.g. "/images/agents/maya-allan.jpg"
+  specialties String[] @default([])
+  languages   String[] @default([])
+  featured    Boolean  @default(false)
+
+  leads                Lead[]
+  listings             Listing[]
+  deals                Deal[]
+  past_deals           PastDeal[]
+  showings             Showing[]
+  saved_searches       SavedSearch[]
+  seller_leads         SellerLead[]
+  pricing_experiments  PricingExperiment[]
+  demand_alerts        DemandAlert[]
+  agent_metrics        AgentMetrics[]
+  performance_index    AgentPerformanceIndex?
+  cma_reports          CmaReport[]
+  documents            Document[]
+  assignment_rules     LeadAssignmentRule[]
+  protected_periods    ProtectedPeriod[]
+  marketing_activities MarketingActivity[]
+  follow_up_tasks      FollowUpTask[]         @relation("AgentTasks")
+  campaigns            Campaign[]
+
+  // --- Outlook integration (Microsoft Graph OAuth tokens) ---
+  outlook_access_token     String?   @map("outlook_access_token") @db.Text
+  outlook_refresh_token    String?   @map("outlook_refresh_token") @db.Text
+  outlook_token_expires_at DateTime? @map("outlook_token_expires_at")
+
+  active_leases ActiveLease[]
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@map("agents")
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAST DEAL — Closed deal for public agent profile display
+// Editable by broker from CRM backend
+// ═══════════════════════════════════════════════════════════
+model PastDeal {
+  id       BigInt @id @default(autoincrement())
+  agent_id BigInt @map("agent_id")
+  agent    Agent  @relation(fields: [agent_id], references: [id])
+
+  // --- Address ---
+  street       String
+  unit         String?
+  city         String  @default("New York")
+  postal_code  String? @map("postal_code")
+  neighborhood String?
+
+  // --- Deal info ---
+  deal_type     String    @map("deal_type") // "sale" | "rent"
+  property_type String?   @map("property_type") // "Condo" | "Co-op" | "Condop" | "Townhouse" | "Commercial" | "Rental"
+  close_price   Decimal?  @map("close_price") @db.Decimal(14, 2)
+  close_date    DateTime? @map("close_date")
+  beds          Int?
+  baths_full    Int?      @map("baths_full")
+  baths_half    Int?      @map("baths_half")
+  sqft          Int?
+
+  // --- Display ---
+  photo_url           String? @map("photo_url") // Uploaded by broker or from Trestle proxy
+  listing_courtesy    String? @map("listing_courtesy") // "Listing Courtesy of [broker]" for buyer-rep deals
+  source              String  @default("manual") // "trestle" | "manual"
+  trestle_listing_id  String? @map("trestle_listing_id") // Trestle ListingId reference
+  trestle_listing_key String? @map("trestle_listing_key") // Trestle ListingKey
+
+  // --- Sort order (optional manual override) ---
+  sort_order Int? @map("sort_order")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([agent_id, deal_type])
+  @@index([close_date])
+  @@map("past_deals")
+}
+
+// ═══════════════════════════════════════════════════════════
+// DEAL — Commission request (agent → broker)
+// ═══════════════════════════════════════════════════════════
+model Deal {
+  id                      BigInt              @id @default(autoincrement())
+  agent_id                BigInt              @map("agent_id")
+  agent                   Agent               @relation(fields: [agent_id], references: [id])
+  representation_code     String?             @map("representation_code") // "buyer" | "tenant"
+  property_address        String?             @map("property_address")
+  price_usd               Decimal?            @map("price_usd") @db.Decimal(14, 2)
+  commission_rate_percent Decimal?            @map("commission_rate_percent") @db.Decimal(6, 3)
+  split_percent           Decimal?            @map("split_percent") @db.Decimal(6, 3)
+  agent_fee_usd           Decimal?            @map("agent_fee_usd") @db.Decimal(14, 2)
+  company_fee_usd         Decimal?            @map("company_fee_usd") @db.Decimal(14, 2)
+  gross_commission_usd    Decimal?            @map("gross_commission_usd") @db.Decimal(14, 2)
+  status                  String              @default("draft") // "draft" | "submitted" | "approved" | "rejected" | "closed"
+  contract_signed         DateTime?           @map("contract_signed")
+  contract_closed         DateTime?           @map("contract_closed")
+  documents               Document[]
+  commission_payments     CommissionPayment[]
+  created_at              DateTime            @default(now()) @map("created_at")
+  updated_at              DateTime            @updatedAt @map("updated_at")
 
   @@index([agent_id])
-  @@index([landlord_lead_id])
-  @@index([lease_end_date])
-  @@index([renewal_status])
   @@index([status])
-  @@index([tenant_lead_id])
+  @@map("deals")
 }
 
-model activity_logs {
-  id            BigInt   @id @default(autoincrement())
-  lead_id       BigInt
-  activity_type String
-  title         String
-  detail        String?
-  metadata      Json     @default("{}")
-  actor_type    String   @default("system")
-  actor_id      BigInt?
-  created_at    DateTime @default(now())
-  leads         leads    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+// ═══════════════════════════════════════════════════════════
+// LEAD — Client (buyer/tenant/seller/landlord)
+// ═══════════════════════════════════════════════════════════
+model Lead {
+  id                      BigInt                @id @default(autoincrement())
+  first_name              String                @map("first_name")
+  last_name               String                @map("last_name")
+  email                   String                @unique
+  phone                   String
+  roles                   String[] // ["buyer","renter","seller","landlord"]
+  status                  String                @default("new") // new, contacted, active, closed
+  portal_role             String?               @map("portal_role") // "buyer" | "tenant" | "seller" | "landlord" — LEGACY, kept for compat
+  primary_portal_role     String?               @map("primary_portal_role") // default landing workspace ("seller"|"buyer"|"landlord"|"tenant")
+  enabled_workspaces      String[]              @default([]) @map("enabled_workspaces") // ["seller","buyer","landlord","tenant"] — portals this lead can access
+  portal_token            String?               @unique @map("portal_token") // SHA-256 hash of invite token
+  portal_token_expires_at DateTime?             @map("portal_token_expires_at") // TTL for invite token (72h)
+  password_hash           String?               @map("password_hash") // for portal login
+  agent_id                BigInt?               @map("agent_id")
+  agent                   Agent?                @relation(fields: [agent_id], references: [id])
+  source                  String                @default("website") // website, referral, manual
+  anonymous_session_id    String?               @map("anonymous_session_id") // links pre-identification behavioral events
+  consent_captured_at     DateTime?             @map("consent_captured_at") // TCPA/CAN-SPAM consent timestamp
+  attorney_name           String?               @map("attorney_name") // Seller's attorney name
+  attorney_email          String?               @map("attorney_email") // Seller's attorney email
+  attorney_phone          String?               @map("attorney_phone") // Seller's attorney phone
+  attorney_firm           String?               @map("attorney_firm") // Attorney's firm name
+  notes                   String?               @db.Text // Free-form notes
+  lease_end_date          DateTime?             @map("lease_end_date") // For renters: when current lease expires
+  lease_start_date        DateTime?             @map("lease_start_date") // For renters: when current lease started
+  annual_income           Decimal?              @map("annual_income") @db.Decimal(14, 2) // Financial qualification
+  bonuses                 Decimal?              @db.Decimal(14, 2) // Annual bonuses
+  credit_score_range      String?               @map("credit_score_range") // excellent/good/fair/poor
+  pre_approved            Boolean               @default(false) @map("pre_approved") // Mortgage pre-approval
+  pre_approved_amount     Decimal?              @map("pre_approved_amount") @db.Decimal(14, 2)
+  down_payment            Decimal?              @map("down_payment") @db.Decimal(14, 2)
+  available_funds         Decimal?              @map("available_funds") @db.Decimal(14, 2) // Deposit / liquid assets
+  monthly_debt            Decimal?              @map("monthly_debt") @db.Decimal(14, 2) // Monthly debt payments
+  employer                String? // Employer name
+  work_title              String?               @map("work_title") // Job title
+  rent_per_month          Decimal?              @map("rent_per_month") @db.Decimal(14, 2) // Renter: current monthly rent
+  rental_deposit          Decimal?              @map("rental_deposit") @db.Decimal(14, 2) // Renter: deposit paid
+  total_monthly_expense   Decimal?              @map("total_monthly_expense") @db.Decimal(14, 2) // Buyer: total monthly (mortgage+maint+tax)
+  pipeline_stage          String                @default("new") @map("pipeline_stage") // new/contacted/nurturing/prospect/active_seller/active_buyer/active_landlord/active_renter/showing/offer/deal/viewed_not_rent/current_tenant/closed/past
+  last_contacted_at       DateTime?             @map("last_contacted_at")
+  next_follow_up          DateTime?             @map("next_follow_up")
+  follow_up_tasks         FollowUpTask[]
+  activity_logs           ActivityLog[]
+  preferences             ClientPreference?
+  actions                 ClientListingAction[]
+  showings                Showing[]
+  saved_searches          SavedSearch[]
+  comments                Comment[]
+  family_members          FamilyMember[]
+  family_of               FamilyMember[]        @relation("FamilyOf")
+  intent_events           IntentEvent[]
+  intent_profile          BuyerIntentProfile?
+  lead_score              LeadScore?
+  showing_feedback        ShowingFeedback[]
+  // --- Secondary person (spouse, partner, co-buyer, co-owner, roommate) ---
+  secondary_first_name    String?               @map("secondary_first_name")
+  secondary_last_name     String?               @map("secondary_last_name")
+  secondary_email         String?               @map("secondary_email")
+  secondary_phone         String?               @map("secondary_phone")
+  secondary_relationship  String?               @map("secondary_relationship") // "spouse" | "partner" | "co-buyer" | "roommate" | "co-owner" | "parent" | "other"
 
-  @@index([lead_id, created_at])
-}
+  // --- Addresses (landlords: property + home; renters: current; sellers: listing + home) ---
+  property_address     String? @map("property_address") // The unit being rented/sold
+  home_address         String? @map("home_address") // Owner's personal address
+  unit_number          String? @map("unit_number")
+  legal_ownership_name String? @map("legal_ownership_name") // LLC, Trust, individual name
 
-model agent_metrics {
-  id         BigInt   @id @default(autoincrement())
-  agent_id   BigInt
-  month      DateTime
-  metrics    Json     @default("{}")
-  created_at DateTime @default(now())
-  updated_at DateTime
-  agents     agents   @relation(fields: [agent_id], references: [id])
+  buyer_rep_agreement      Boolean   @default(false) @map("buyer_rep_agreement") // UCBA E7: buyer rep agreement on file
+  buyer_rep_agreement_date DateTime? @map("buyer_rep_agreement_date") // Date agreement was signed
 
-  @@unique([agent_id, month])
-  @@index([agent_id])
-  @@index([month])
-}
+  // --- Contact behavior tracking (on the listing, not email) ---
+  last_login_at          DateTime? @map("last_login_at")
+  login_count            Int       @default(0) @map("login_count")
+  last_response_at       DateTime? @map("last_response_at")
+  last_click_at          DateTime? @map("last_click_at")
+  last_viewed_listing_id String?   @map("last_viewed_listing_id")
+  last_viewed_listing_at DateTime? @map("last_viewed_listing_at")
 
-model agent_performance_indices {
-  id              BigInt   @id @default(autoincrement())
-  agent_id        BigInt   @unique
-  index_score     Int      @default(0)
-  rank            Int?
-  tier            String   @default("bronze")
-  components      Json     @default("{}")
-  months_included Int      @default(0)
-  last_computed   DateTime @default(now())
-  created_at      DateTime @default(now())
-  updated_at      DateTime
-  agents          agents   @relation(fields: [agent_id], references: [id])
+  // --- Listing relationship ---
+  active_sale_listing_id   String? @map("active_sale_listing_id")
+  active_rental_listing_id String? @map("active_rental_listing_id")
 
-  @@index([index_score])
-  @@index([tier])
-}
+  // --- Financial profile (all client types — especially tenants/renters) ---
+  // Used to flag high-net-worth individuals for sales pursuit
+  net_worth_estimate       Decimal? @map("net_worth_estimate") @db.Decimal(16, 2)
+  net_worth_source         String?  @map("net_worth_source") // "stated" | "verified" | "estimated"
+  liquid_assets_total      Decimal? @map("liquid_assets_total") @db.Decimal(16, 2) // total liquid (cash + investments)
+  investment_properties    Int?     @default(0) @map("investment_properties") // # of properties owned
+  portfolio_value_estimate Decimal? @map("portfolio_value_estimate") @db.Decimal(16, 2) // total real estate portfolio value
+  is_high_net_worth        Boolean  @default(false) @map("is_high_net_worth") // flagged for priority sales pursuit
+  hnw_pursuit_level        String?  @map("hnw_pursuit_level") // "standard" | "active" | "priority"
+  hnw_notes                String?  @map("hnw_notes") // notes on why flagged, what they own
 
-model agents {
-  id                        BigInt                     @id @default(autoincrement())
-  first_name                String
-  last_name                 String
-  full_name                 String?
-  email                     String                     @unique
-  password_hash             String
-  phone                     String?
-  license_no                String?
-  license_type              String?
-  license_expiry            DateTime?
-  sale_split                Decimal?                   @db.Decimal(6, 3)
-  rental_split              Decimal?                   @db.Decimal(6, 3)
-  role                      String                     @default("AGENT")
-  status                    String                     @default("active")
-  last_login                DateTime?
-  created_at                DateTime                   @default(now())
-  updated_at                DateTime
-  bio                       String?
-  featured                  Boolean                    @default(false)
-  languages                 String[]                   @default([])
-  photo                     String?
-  public_slug               String?                    @unique
-  specialties               String[]                   @default([])
-  title                     String?
-  outlook_access_token      String?
-  outlook_refresh_token     String?
-  outlook_token_expires_at  DateTime?
-  trestle_mls_id            String?
-  mfa_backup_hashes         String[]                   @default([])
-  mfa_enabled               Boolean                    @default(false)
-  mfa_secret_enc            String?
-  active_leases             active_leases[]
-  agent_metrics             agent_metrics[]
-  agent_performance_indices agent_performance_indices?
-  campaigns                 campaigns[]
-  cma_reports               cma_reports[]
-  deals                     deals[]
-  demand_alerts             demand_alerts[]
-  documents                 documents[]
-  follow_up_tasks           follow_up_tasks[]
-  lead_assignment_rules     lead_assignment_rules[]
-  leads                     leads[]
-  listings                  listings[]
-  marketing_activities      marketing_activities[]
-  past_deals                past_deals[]
-  pricing_experiments       pricing_experiments[]
-  protected_periods         protected_periods[]
-  saved_searches            saved_searches[]
-  seller_leads              seller_leads[]
-  showings                  showings[]
-}
+  // --- Investor fields ---
+  is_investor            Boolean   @default(false) @map("is_investor")
+  investment_strategy    String?   @map("investment_strategy") // "cash_flow" | "appreciation" | "value_add" | "1031_exchange"
+  cap_rate_target        Decimal?  @map("cap_rate_target") @db.Decimal(5, 2)
+  cash_on_cash_target    Decimal?  @map("cash_on_cash_target") @db.Decimal(5, 2)
+  holding_period_years   Int?      @map("holding_period_years")
+  exchange_1031_status   String?   @map("exchange_1031_status") // "none" | "identifying" | "exchanging" | "completed"
+  exchange_1031_deadline DateTime? @map("exchange_1031_deadline")
+  current_portfolio      Json?     @map("current_portfolio")
 
-model audit_events {
-  id          BigInt   @id @default(autoincrement())
-  action      String
-  entity_type String
-  entity_id   String
-  user_type   String
-  user_id     BigInt?
-  changes     Json?
-  ip_address  String?
-  created_at  DateTime @default(now())
+  // --- Seller/landlord fields ---
+  seller_potential        String?   @default("none") @map("seller_potential") // "none" | "low" | "medium" | "high"
+  seller_potential_reason String[]  @map("seller_potential_reason")
+  vacancy_risk            String?   @map("vacancy_risk") // "low" | "medium" | "high"
+  relist_reminder_date    DateTime? @map("relist_reminder_date")
 
+  // --- Renter fields ---
+  no_fee_only               Boolean   @default(false) @map("no_fee_only")
+  exclusive_acceptable      Boolean   @default(true) @map("exclusive_acceptable")
+  building_type_pref        String[]  @map("building_type_pref") // ["condo", "coop", "condop", "rental"]
+  guarantor_needed          Boolean   @default(false) @map("guarantor_needed")
+  docs_readiness            Json?     @map("docs_readiness") // { pay_stubs: true, tax_returns: false, ... }
+  // Tenant origin + fee situation
+  tenant_origin             String?   @map("tenant_origin") // "local" | "out_of_state" | "international" | "relocation"
+  relocation_company        String?   @map("relocation_company") // if relocation, who is paying
+  fee_tolerance             String?   @map("fee_tolerance") // "no_fee_only" | "owner_pay_only" | "will_pay_fee" | "relocation_pays"
+  is_international          Boolean   @default(false) @map("is_international") // international tenant (needs guarantor or 40x income)
+  guarantor_type            String?   @map("guarantor_type") // "personal" | "third_party" (Insurent/TheGuarantors) | "none"
+  guarantor_name            String?   @map("guarantor_name")
+  guarantor_company         String?   @map("guarantor_company") // Insurent, TheGuarantors, etc.
+  understands_board_process Boolean   @default(false) @map("understands_board_process")
+  income_multiple           Decimal?  @map("income_multiple") @db.Decimal(5, 1) // annual income / annual rent (40x = standard NYC)
+  move_in_date              DateTime? @map("move_in_date") // desired move-in date
+  move_in_flexibility       String?   @map("move_in_flexibility") // "exact" | "flexible_1wk" | "flexible_1mo"
+
+  // --- Viewed/did-not-rent tracking ---
+  viewed_addresses Json? @map("viewed_addresses")
+  buyer_potential  Int?  @default(0) @map("buyer_potential") // 0-100
+
+  // --- Outreach dates (real DB fields, sortable) ---
+  outreach_6mo_date DateTime? @map("outreach_6mo_date")
+  outreach_90d_date DateTime? @map("outreach_90d_date")
+  outreach_60d_date DateTime? @map("outreach_60d_date")
+  outreach_30d_date DateTime? @map("outreach_30d_date")
+
+  // --- Drip/automation state ---
+  sales_drip_on            Boolean   @default(false) @map("sales_drip_on")
+  rental_drip_on           Boolean   @default(false) @map("rental_drip_on")
+  renewal_drip_on          Boolean   @default(false) @map("renewal_drip_on")
+  sales_drip_status        String?   @map("sales_drip_status") // "active" | "monthly" | "quarterly" | "biannual" | "paused"
+  rental_drip_status       String?   @map("rental_drip_status")
+  last_sales_email_opened  DateTime? @map("last_sales_email_opened")
+  last_rental_email_opened DateTime? @map("last_rental_email_opened")
+  last_unsubscribe_at      DateTime? @map("last_unsubscribe_at")
+  preferred_channel        String?   @map("preferred_channel") // "portal" | "email" | "text" | "phone" — derived from behavior
+  preferred_device         String?   @map("preferred_device") // "mobile" | "desktop" — derived from listing views
+  nurture_paused           Boolean   @default(false) @map("nurture_paused")
+
+  // --- Rental timeline ---
+  renewal_status       String?   @map("renewal_status") // "pending" | "renewing" | "not_renewing" | "month_to_month"
+  non_renewal_date     DateTime? @map("non_renewal_date")
+  reengage_anchor_date DateTime? @map("reengage_anchor_date")
+
+  // --- Showing date tracking ---
+  first_shown_date DateTime? @map("first_shown_date") // First showing date for this lead
+  last_shown_date  DateTime? @map("last_shown_date") // Most recent showing date
+
+  // --- Promotion tracking (cross-CRM routing) ---
+  promoted_to_buyer_at      DateTime? @map("promoted_to_buyer_at")
+  promoted_to_seller_at     DateTime? @map("promoted_to_seller_at")
+  promoted_from_landlord_at DateTime? @map("promoted_from_landlord_at")
+  promoted_from_tenant_at   DateTime? @map("promoted_from_tenant_at")
+  promotion_source          String?   @map("promotion_source") // "landlord" | "tenant" | "renter" | "viewer"
+  promotion_reason          String?   @map("promotion_reason") // free text reason for promotion
+
+  // --- Entity ownership (LLC, Trust, Corp, Inc) ---
+  entity_name            String?     @map("entity_name")
+  entity_type            String?     @map("entity_type") // "individual" | "llc" | "trust" | "corp" | "inc" | "lp" | "lllp"
+  entity_ein             String?     @map("entity_ein") // EIN / Tax ID
+  entity_state           String?     @map("entity_state") // State of formation (NY, DE, etc.)
+  entity_managing_member String?     @map("entity_managing_member") // Name of managing member / trustee / president
+  entity_formation_date  DateTime?   @map("entity_formation_date") // Date entity was formed
+  authorized_signatories Json?       @map("authorized_signatories") // LEGACY: [{ name, title, email, phone }] — superseded by LeadParty
+  lead_parties           LeadParty[] // All parties on this transaction
+
+  // --- Buyer closing cost estimates (for Move-In Cost Calculator) ---
+  // Mortgage
+  mortgage_rate           Decimal?  @map("mortgage_rate") @db.Decimal(5, 3) // Locked rate %
+  mortgage_term_years     Int?      @map("mortgage_term_years") // 30, 20, 15
+  mortgage_lender         String?   @map("mortgage_lender")
+  mortgage_broker_name    String?   @map("mortgage_broker_name")
+  mortgage_broker_email   String?   @map("mortgage_broker_email")
+  mortgage_broker_phone   String?   @map("mortgage_broker_phone")
+  // Buyer closing cost estimates
+  mansion_tax_estimate    Decimal?  @map("mansion_tax_estimate") @db.Decimal(14, 2) // Buyer pays (1%-3.9%)
+  mortgage_recording_tax  Decimal?  @map("mortgage_recording_tax") @db.Decimal(14, 2) // ~1.8% of loan (<$500K) or 1.925%
+  title_insurance         Decimal?  @map("title_insurance") @db.Decimal(14, 2)
+  attorney_fee_buyer      Decimal?  @map("attorney_fee_buyer") @db.Decimal(14, 2)
+  board_app_fee           Decimal?  @map("board_app_fee") @db.Decimal(14, 2) // Co-op/condo board application fee
+  move_in_fee             Decimal?  @map("move_in_fee") @db.Decimal(14, 2) // Building move-in fee
+  // Buyer agent fee (NAR settlement — negotiated, never pre-set)
+  buyer_agent_fee_pct     Decimal?  @map("buyer_agent_fee_pct") @db.Decimal(5, 2) // % (negotiable, must be in buyer rep agreement)
+  buyer_agent_fee_note    String?   @map("buyer_agent_fee_note") // "As per buyer rep agreement — fully negotiable"
+  // Board application status
+  board_app_status        String?   @map("board_app_status") // "not_started" | "in_progress" | "submitted" | "interview_scheduled" | "approved" | "rejected"
+  board_app_submitted_at  DateTime? @map("board_app_submitted_at")
+  board_interview_date    DateTime? @map("board_interview_date")
+  board_approved_at       DateTime? @map("board_approved_at")
+  board_rejection_reason  String?   @map("board_rejection_reason")
+  // Closing
+  closing_date            DateTime? @map("closing_date")
+  closing_celebrated      Boolean   @default(false) @map("closing_celebrated")
+  gift_sent_at            DateTime? @map("gift_sent_at")
+  anniversary_6mo_sent_at DateTime? @map("anniversary_6mo_sent_at")
+  anniversary_1yr_sent_at DateTime? @map("anniversary_1yr_sent_at")
+
+  // --- Seller intake fields ---
+  home_prep_checklist        Json? @map("home_prep_checklist")
+  building_mgmt_requirements Json? @map("building_mgmt_requirements")
+  disclosures                Json? @map("disclosures")
+  documents_collected        Json? @map("documents_collected")
+  marketing_strategy         Json? @map("marketing_strategy")
+
+  // --- Landlord intake fields ---
+  property_disclosures Json?   @map("property_disclosures")
+  lease_terms          Json?   @map("lease_terms")
+  fee_structure        String? @map("fee_structure") // "owner_pay" | "tenant_pay" | "no_fee"
+
+  // --- Relations for new models ---
+  owned_listings         Listing[]           @relation("ListingOwner")
+  showing_history        ShowingHistory[]
+  campaigns_targeted     CampaignRecipient[]
+  portal_events          PortalEvent[]
+  listing_views          ListingView[]
+  landlord_active_leases ActiveLease[]       @relation("LandlordActiveLeases")
+  tenant_active_leases   ActiveLease[]       @relation("TenantActiveLeases")
+
+  // --- Custom fields (agent-defined, no migration needed) ---
+  // Stored as { "Field Name": "value", "Another Field": "value" }
+  // Agent adds/removes fields directly from the CRM workspace.
+  // Use for any information not covered by the structured fields above.
+  custom_fields Json? @map("custom_fields")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
   @@index([created_at])
+  @@index([agent_id])
+  @@index([seller_potential])
+  @@index([renewal_status])
+  @@map("leads")
+}
+
+// ═══════════════════════════════════════════════════════════
+// LISTING — RLS listing (synced from Trestle or created manually)
+// ═══════════════════════════════════════════════════════════
+model Listing {
+  id              BigInt  @id @default(autoincrement())
+  listing_id      String  @unique @map("listing_id") // Trestle ListingId or internal SL-/RL- prefix
+  mls_id          String? @map("mls_id")
+  agent_id        BigInt? @map("agent_id") // Listing agent (for exclusive listings)
+  agent           Agent?  @relation(fields: [agent_id], references: [id])
+  owner_client_id BigInt? @map("owner_client_id") // FK to Lead — the seller/landlord who owns this listing
+  owner_client    Lead?   @relation("ListingOwner", fields: [owner_client_id], references: [id])
+
+  // --- Filter columns (indexed for queries) ---
+  status            String   @default("Active") // RESO StandardStatus
+  listing_type      String   @map("listing_type") // "sale" | "rent"
+  property_type     String?  @map("property_type") // RESO PropertyType
+  property_sub_type String?  @map("property_sub_type")
+  list_price        Decimal  @map("list_price") @db.Decimal(14, 2)
+  bedrooms_total    Int?     @map("bedrooms_total")
+  bathrooms_full    Int?     @map("bathrooms_full")
+  bathrooms_half    Int?     @map("bathrooms_half")
+  living_area       Decimal? @map("living_area") @db.Decimal(10, 2)
+  borough           String?
+  neighborhood      String?
+  city              String?
+  postal_code       String?  @map("postal_code")
+
+  // --- RLS eligibility ---
+  rls_eligible         Boolean @default(true) @map("rls_eligible") // false = website-only (commercial, off-RLS)
+  commercial_sub_type  String? @map("commercial_sub_type") // e.g. "RetailStore", "OfficeSpace", "Restaurant"
+  commercial_ownership String? @map("commercial_ownership") // e.g. "CommercialCondo", "CommercialCoop"
+
+  // --- Distribution gates (6 REBNY RLS gates) ---
+  idx_display_yn                          Boolean @default(true) @map("idx_display_yn")
+  internet_entire_listing_display_yn      Boolean @default(true) @map("internet_entire_listing_display_yn")
+  internet_address_display_yn             Boolean @default(true) @map("internet_address_display_yn")
+  internet_automated_valuation_display_yn Boolean @default(true) @map("internet_automated_valuation_display_yn")
+  internet_consumer_comment_yn            Boolean @default(true) @map("internet_consumer_comment_yn")
+  participant_only                        Boolean @default(false) @map("participant_only")
+  owner_opt_out                           Boolean @default(false) @map("owner_opt_out")
+
+  // --- JSON columns (nested/variable data) ---
+  address    Json  @default("{}")
+  features   Json  @default("{}")
+  media      Json  @default("[]")
+  compliance Json  @default("{}")
+  agent_info Json  @default("{}") @map("agent_info")
+  raw_data   Json? @map("raw_data")
+
+  // --- Relations ---
+  actions              ClientListingAction[]
+  showings             Showing[]
+  comments             Comment[]
+  price_history        PriceHistory[]
+  marketing_activities MarketingActivity[]
+
+  // --- DOM tracking (UCBA 2026: 30-day reset) ---
+  status_changed_at         DateTime? @map("status_changed_at")
+  first_active_date         DateTime? @map("first_active_date")
+  days_on_market            Int       @default(0) @map("days_on_market")
+  cumulative_days_on_market Int       @default(0) @map("cumulative_days_on_market")
+
+  // --- Protected Period (UCBA A6/A7/A8) ---
+  expiration_date         DateTime?        @map("expiration_date") // Exclusive agreement expiration (promoted from raw_data)
+  expiration_30d_notified Boolean          @default(false) @map("expiration_30d_notified")
+  expiration_7d_notified  Boolean          @default(false) @map("expiration_7d_notified")
+  protected_period        ProtectedPeriod?
+
+  // --- Sync tracking (Trestle IDX pipeline) ---
+  last_synced_from_trestle DateTime? @map("last_synced_from_trestle")
+  sync_status              String?   @default("pending") @map("sync_status") // "pending" | "synced" | "gated:*" | "error"
+
+  // --- Timestamps ---
+  modification_timestamp DateTime  @map("modification_timestamp")
+  listing_contract_date  DateTime? @map("listing_contract_date")
+  created_at             DateTime  @default(now()) @map("created_at")
+  updated_at             DateTime  @updatedAt @map("updated_at")
+  // Agent-defined custom fields — no migration needed to add new data
+  custom_fields          Json?     @map("custom_fields")
+
+  // Comp criteria — agent-adjustable filters for building + area comps
+  // Structure: { building: { beds_min, beds_max, baths_min, baths_max, sqft_min, sqft_max, sqft_enabled, statuses[], months_back },
+  //              area: { ...same + price_min, price_max, neighborhoods[] } }
+  comp_criteria Json? @map("comp_criteria")
+
+  @@index([status, listing_type])
+  @@index([list_price])
+  @@index([borough, neighborhood])
+  @@index([property_type])
+  @@index([rls_eligible])
+  @@index([bedrooms_total])
+  @@index([modification_timestamp])
+  @@index([idx_display_yn, owner_opt_out])
+  @@index([agent_id])
+  @@index([owner_client_id])
+  @@map("listings")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SESSION — Server-side session store
+// ═══════════════════════════════════════════════════════════
+model Session {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  user_type  String   @map("user_type") // "agent" | "lead"
+  user_id    BigInt   @map("user_id")
+  role       String // "BROKER" | "AGENT" | "buyer" | "tenant" | "seller" | "landlord"
+  expires_at DateTime @map("expires_at")
+  created_at DateTime @default(now()) @map("created_at")
+  ip_address String?  @map("ip_address")
+  user_agent String?  @map("user_agent") @db.Text
+
+  @@index([token])
+  @@index([user_type, user_id])
+  @@index([expires_at])
+  @@map("sessions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// MFA SESSION — Short-lived pending session for OTP verification
+// ═══════════════════════════════════════════════════════════
+model MfaSession {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  agent_id   BigInt   @map("agent_id")
+  code_hash  String   @map("code_hash") // bcrypt hash of 6-digit OTP
+  attempts   Int      @default(0) // rate limit: max 5
+  expires_at DateTime @map("expires_at")
+  created_at DateTime @default(now()) @map("created_at")
+  ip_address String?  @map("ip_address")
+  user_agent String?  @map("user_agent") @db.Text
+
+  @@index([token])
+  @@index([expires_at])
+  @@map("mfa_sessions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUDIT EVENT — Immutable log of all data mutations
+// ═══════════════════════════════════════════════════════════
+model AuditEvent {
+  id          BigInt   @id @default(autoincrement())
+  action      String // "create" | "update" | "delete" | "status_change" | "login" | "logout"
+  entity_type String   @map("entity_type") // "listing" | "deal" | "lead" | "agent" | "session"
+  entity_id   String   @map("entity_id") // ID of the affected record
+  user_type   String   @map("user_type") // "agent" | "lead" | "system"
+  user_id     BigInt?  @map("user_id")
+  changes     Json? // { field: { old, new } } diff
+  ip_address  String?  @map("ip_address")
+  created_at  DateTime @default(now()) @map("created_at")
+
   @@index([entity_type, entity_id])
   @@index([user_type, user_id])
+  @@index([created_at])
+  @@map("audit_events")
 }
 
-model behavioral_events {
-  id          BigInt   @id @default(autoincrement())
-  session_id  String
-  lead_id     BigInt?
-  listing_id  String?
-  event_type  String
-  value       Float?
-  metadata    Json     @default("{}")
-  page_path   String?
-  recorded_at DateTime @default(now())
+// ═══════════════════════════════════════════════════════════
+// CLIENT PREFERENCE — Buyer/tenant search criteria
+// ═══════════════════════════════════════════════════════════
+model ClientPreference {
+  id             BigInt    @id @default(autoincrement())
+  lead_id        BigInt    @unique @map("lead_id")
+  lead           Lead      @relation(fields: [lead_id], references: [id])
+  property_types String[]  @map("property_types")
+  neighborhoods  String[]
+  boroughs       String[]
+  min_beds       Int?      @map("min_beds")
+  max_beds       Int?      @map("max_beds")
+  min_baths      Int?      @map("min_baths")
+  max_baths      Int?      @map("max_baths")
+  min_price      Decimal?  @map("min_price") @db.Decimal(14, 2)
+  max_price      Decimal?  @map("max_price") @db.Decimal(14, 2)
+  min_sqft       Int?      @map("min_sqft")
+  must_haves     String[]  @map("must_haves")
+  deal_breakers  String[]  @map("deal_breakers")
+  move_in_date   DateTime? @map("move_in_date")
+  notes          String?   @db.Text
+  created_at     DateTime  @default(now()) @map("created_at")
+  updated_at     DateTime  @updatedAt @map("updated_at")
 
-  @@index([event_type])
-  @@index([lead_id, event_type])
   @@index([lead_id])
-  @@index([listing_id])
-  @@index([recorded_at])
-  @@index([session_id])
+  @@map("client_preferences")
 }
 
-model buyer_intent_profiles {
-  id                      BigInt    @id @default(autoincrement())
-  lead_id                 BigInt    @unique
-  intent_strength         Int       @default(0)
-  intent_stage            String    @default("browsing")
-  price_min               Decimal?  @db.Decimal(14, 2)
-  price_max               Decimal?  @db.Decimal(14, 2)
-  preferred_neighborhoods String[]
-  preferred_types         String[]
-  preferred_beds          Int[]
-  amenity_preferences     String[]
-  preferred_boroughs      String[]
-  top_features            Json      @default("{}")
-  event_count             Int       @default(0)
-  last_event_at           DateTime?
-  last_computed           DateTime  @default(now())
-  created_at              DateTime  @default(now())
-  updated_at              DateTime
-  leads                   leads     @relation(fields: [lead_id], references: [id])
-
-  @@index([intent_stage])
-  @@index([intent_strength])
-}
-
-model campaign_recipients {
-  id           BigInt    @id @default(autoincrement())
-  campaign_id  BigInt
-  lead_id      BigInt
-  sent_at      DateTime?
-  opened_at    DateTime?
-  clicked_at   DateTime?
-  responded_at DateTime?
-  campaigns    campaigns @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
-  leads        leads     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-
-  @@unique([campaign_id, lead_id])
-  @@index([lead_id])
-}
-
-model campaigns {
-  id                  BigInt                @id @default(autoincrement())
-  agent_id            BigInt
-  crm_type            String
-  name                String
-  audience_type       String
-  campaign_type       String
-  status              String                @default("draft")
-  frequency           String?
-  recipient_count     Int                   @default(0)
-  sent_count          Int                   @default(0)
-  open_count          Int                   @default(0)
-  click_count         Int                   @default(0)
-  response_count      Int                   @default(0)
-  last_run_at         DateTime?
-  next_run_at         DateTime?
-  template_id         String?
-  filters             Json?
-  created_at          DateTime              @default(now())
-  updated_at          DateTime
-  campaign_recipients campaign_recipients[]
-  agents              agents                @relation(fields: [agent_id], references: [id])
-
-  @@index([agent_id])
-  @@index([crm_type, status])
-}
-
-model client_listing_actions {
+// ═══════════════════════════════════════════════════════════
+// CLIENT LISTING ACTION — Reactions (liked, disliked, discuss, etc.)
+// ═══════════════════════════════════════════════════════════
+model ClientListingAction {
   id         BigInt   @id @default(autoincrement())
-  lead_id    BigInt
-  listing_id BigInt
-  action     String
-  comment    String?
-  created_at DateTime @default(now())
-  leads      leads    @relation(fields: [lead_id], references: [id])
-  listings   listings @relation(fields: [listing_id], references: [id])
+  lead_id    BigInt   @map("lead_id")
+  lead       Lead     @relation(fields: [lead_id], references: [id])
+  listing_id BigInt   @map("listing_id")
+  listing    Listing  @relation(fields: [listing_id], references: [id])
+  action     String // "liked" | "disliked" | "discuss" | "schedule" | "offer"
+  comment    String?  @db.Text
+  created_at DateTime @default(now()) @map("created_at")
 
   @@unique([lead_id, listing_id, action])
   @@index([lead_id])
   @@index([listing_id])
+  @@map("client_listing_actions")
 }
 
-model client_preferences {
-  id             BigInt    @id @default(autoincrement())
-  lead_id        BigInt    @unique
-  property_types String[]
-  neighborhoods  String[]
-  boroughs       String[]
-  min_beds       Int?
-  max_beds       Int?
-  min_baths      Int?
-  max_baths      Int?
-  min_price      Decimal?  @db.Decimal(14, 2)
-  max_price      Decimal?  @db.Decimal(14, 2)
-  min_sqft       Int?
-  must_haves     String[]
-  deal_breakers  String[]
-  move_in_date   DateTime?
-  notes          String?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime
-  leads          leads     @relation(fields: [lead_id], references: [id])
+// ═══════════════════════════════════════════════════════════
+// LISTING VIEW — Tracked listing link views (engagement data)
+// ═══════════════════════════════════════════════════════════
+model ListingView {
+  id          BigInt   @id @default(autoincrement())
+  lead_id     BigInt   @map("lead_id")
+  listing_id  String   @map("listing_id") // String FK matching PortalEvent/DemandSignalEvent pattern
+  viewed_at   DateTime @default(now()) @map("viewed_at")
+  device_type String?  @map("device_type") // "mobile" | "desktop" | "tablet"
+  ip_hash     String?  @map("ip_hash") // SHA-256(IP + TRACKING_SECRET) for unique viewer counting
+  referrer    String? // where the click came from
 
-  @@index([lead_id])
+  lead Lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, listing_id])
+  @@index([listing_id])
+  @@index([lead_id, viewed_at])
+  @@map("listing_views")
 }
 
-model cma_reports {
-  id               BigInt   @id @default(autoincrement())
-  agent_id         BigInt
-  property_address String
-  borough          String?
-  neighborhood     String?
-  subject_details  Json     @default("{}")
-  comps            Json     @default("[]")
-  adjustments      Json     @default("[]")
-  estimated_value  Decimal? @db.Decimal(14, 2)
-  price_range_low  Decimal? @db.Decimal(14, 2)
-  price_range_high Decimal? @db.Decimal(14, 2)
-  status           String   @default("draft")
-  notes            String?
-  created_at       DateTime @default(now())
-  updated_at       DateTime
-  agents           agents   @relation(fields: [agent_id], references: [id])
-
-  @@index([agent_id])
-  @@index([neighborhood])
-}
-
-model comments {
-  id             BigInt     @id @default(autoincrement())
-  listing_id     BigInt
-  lead_id        BigInt
-  parent_id      BigInt?
-  body           String
-  created_at     DateTime   @default(now())
-  updated_at     DateTime
-  leads          leads      @relation(fields: [lead_id], references: [id])
-  listings       listings   @relation(fields: [listing_id], references: [id])
-  comments       comments?  @relation("commentsTocomments", fields: [parent_id], references: [id])
-  other_comments comments[] @relation("commentsTocomments")
+// ═══════════════════════════════════════════════════════════
+// SHOWING — Property showing/tour
+// ═══════════════════════════════════════════════════════════
+model Showing {
+  id         BigInt           @id @default(autoincrement())
+  lead_id    BigInt?          @map("lead_id")
+  lead       Lead?            @relation(fields: [lead_id], references: [id])
+  listing_id BigInt           @map("listing_id")
+  listing    Listing          @relation(fields: [listing_id], references: [id])
+  agent_id   BigInt           @map("agent_id")
+  agent      Agent            @relation(fields: [agent_id], references: [id])
+  date       DateTime
+  time       String? // "10:00 AM" — display-only
+  type       String           @default("private") // "private" | "openhouse" | "brokersopen" | "virtual"
+  status     String           @default("requested") // "requested" | "confirmed" | "completed" | "cancelled"
+  notes      String?          @db.Text
+  feedback   ShowingFeedback?
+  created_at DateTime         @default(now()) @map("created_at")
+  updated_at DateTime         @updatedAt @map("updated_at")
 
   @@index([lead_id])
   @@index([listing_id])
+  @@index([agent_id])
+  @@index([date])
+  @@map("showings")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAVED SEARCH — Persisted search criteria
+// ═══════════════════════════════════════════════════════════
+model SavedSearch {
+  id              BigInt    @id @default(autoincrement())
+  lead_id         BigInt?   @map("lead_id")
+  lead            Lead?     @relation(fields: [lead_id], references: [id])
+  agent_id        BigInt?   @map("agent_id")
+  agent           Agent?    @relation(fields: [agent_id], references: [id])
+  name            String
+  criteria        Json // { type, minPrice, maxPrice, beds, neighborhoods, ... }
+  last_run        DateTime? @map("last_run")
+  result_count    Int?      @map("result_count")
+  alert_frequency String?   @map("alert_frequency") // 'daily' | 'weekly' | null (disabled)
+  alert_enabled   Boolean   @default(false) @map("alert_enabled")
+  last_alert_sent DateTime? @map("last_alert_sent")
+  alert_email     String?   @map("alert_email") // Override email; if null, uses lead/agent email
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
+  @@index([lead_id])
+  @@index([agent_id])
+  @@index([alert_enabled, alert_frequency])
+  @@map("saved_searches")
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMMENT — Threaded comments on listings (clients + family)
+// ═══════════════════════════════════════════════════════════
+model Comment {
+  id         BigInt    @id @default(autoincrement())
+  listing_id BigInt    @map("listing_id")
+  listing    Listing   @relation(fields: [listing_id], references: [id])
+  lead_id    BigInt    @map("lead_id")
+  lead       Lead      @relation(fields: [lead_id], references: [id])
+  parent_id  BigInt?   @map("parent_id") // null = top-level, set = reply
+  parent     Comment?  @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies    Comment[] @relation("CommentReplies")
+  body       String    @db.Text
+  created_at DateTime  @default(now()) @map("created_at")
+  updated_at DateTime  @updatedAt @map("updated_at")
+
+  @@index([listing_id])
+  @@index([lead_id])
   @@index([parent_id])
+  @@map("comments")
 }
 
-model commission_payments {
-  id           BigInt    @id @default(autoincrement())
-  deal_id      BigInt
-  payment_type String
-  amount       Decimal   @db.Decimal(14, 2)
-  date         DateTime?
-  status       String    @default("pending")
-  reference    String?
-  notes        String?
-  created_at   DateTime  @default(now())
-  updated_at   DateTime
-  deals        deals     @relation(fields: [deal_id], references: [id])
-
-  @@index([deal_id])
-  @@index([payment_type])
-  @@index([status])
-}
-
-model conviction_scores {
-  id                     BigInt    @id @default(autoincrement())
-  lead_id                BigInt    @unique
-  score                  Int       @default(0)
-  stage                  String    @default("browsing")
-  milestone_flags        Json      @default("{}")
-  hesitation_signals     Json      @default("{}")
-  ghost_status           String    @default("active")
-  last_active_at         DateTime?
-  silence_days           Int       @default(0)
-  search_narrowing_trend Float?
-  top_listings           Json      @default("[]")
-  last_computed          DateTime  @default(now())
-  created_at             DateTime  @default(now())
-  updated_at             DateTime
-
-  @@index([ghost_status])
-  @@index([score])
-}
-
-model deals {
-  id                      BigInt                @id @default(autoincrement())
-  agent_id                BigInt
-  representation_code     String?
-  property_address        String?
-  price_usd               Decimal?              @db.Decimal(14, 2)
-  commission_rate_percent Decimal?              @db.Decimal(6, 3)
-  split_percent           Decimal?              @db.Decimal(6, 3)
-  agent_fee_usd           Decimal?              @db.Decimal(14, 2)
-  company_fee_usd         Decimal?              @db.Decimal(14, 2)
-  gross_commission_usd    Decimal?              @db.Decimal(14, 2)
-  status                  String                @default("draft")
-  contract_signed         DateTime?
-  contract_closed         DateTime?
-  created_at              DateTime              @default(now())
-  updated_at              DateTime
-  commission_payments     commission_payments[]
-  agents                  agents                @relation(fields: [agent_id], references: [id])
-  documents               documents[]
-
-  @@index([agent_id])
-  @@index([status])
-}
-
-model demand_alerts {
-  id              BigInt         @id @default(autoincrement())
-  agent_id        BigInt
-  demand_index_id BigInt
-  neighborhood    String
-  alert_type      String
-  threshold       Int            @default(70)
-  enabled         Boolean        @default(true)
-  last_triggered  DateTime?
-  last_value      Int?
-  created_at      DateTime       @default(now())
-  updated_at      DateTime
-  agents          agents         @relation(fields: [agent_id], references: [id])
-  demand_indices  demand_indices @relation(fields: [demand_index_id], references: [id], onDelete: Cascade)
-
-  @@unique([agent_id, demand_index_id, alert_type])
-  @@index([agent_id])
-  @@index([enabled])
-}
-
-model demand_indices {
-  id            BigInt          @id @default(autoincrement())
-  neighborhood  String          @unique
-  borough       String?
-  score         Int             @default(0)
-  trend         String          @default("stable")
-  trend_delta   Float           @default(0)
-  components    Json            @default("{}")
-  signal_count  Int             @default(0)
-  last_computed DateTime        @default(now())
-  created_at    DateTime        @default(now())
-  updated_at    DateTime
-  demand_alerts demand_alerts[]
-
-  @@index([borough])
-  @@index([score])
-}
-
-model demand_signals {
-  id           BigInt   @id @default(autoincrement())
-  signal_type  String
-  neighborhood String
-  borough      String?
-  postal_code  String?
-  value        Float    @default(0)
-  normalized   Float    @default(0)
-  source       String   @default("soda")
-  metadata     Json?
-  period_start DateTime
-  period_end   DateTime
-  collected_at DateTime @default(now())
-
-  @@index([collected_at])
-  @@index([neighborhood, signal_type])
-  @@index([signal_type])
-}
-
-model document_signatures {
-  id           BigInt    @id @default(autoincrement())
-  document_id  BigInt
-  signer_name  String
-  signer_email String
-  signer_role  String
-  signed_at    DateTime?
-  ip_address   String?
-  status       String    @default("pending")
-  created_at   DateTime  @default(now())
-  documents    documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
-
-  @@index([document_id])
-}
-
-model documents {
-  id                  BigInt                @id @default(autoincrement())
-  deal_id             BigInt?
-  agent_id            BigInt
-  name                String
-  doc_type            String
-  file_url            String
-  file_size           Int?
-  mime_type           String?
-  status              String                @default("uploaded")
-  requires_signature  Boolean               @default(false)
-  notes               String?
-  created_at          DateTime              @default(now())
-  updated_at          DateTime
-  document_signatures document_signatures[]
-  agents              agents                @relation(fields: [agent_id], references: [id])
-  deals               deals?                @relation(fields: [deal_id], references: [id])
-
-  @@index([agent_id])
-  @@index([deal_id])
-  @@index([doc_type])
-  @@index([status])
-}
-
-model engagement_events {
-  id                    BigInt              @id @default(autoincrement())
-  experiment_listing_id BigInt
-  event_type            String
-  value                 Decimal?            @db.Decimal(14, 2)
-  metadata              Json?
-  recorded_at           DateTime            @default(now())
-  experiment_listings   experiment_listings @relation(fields: [experiment_listing_id], references: [id], onDelete: Cascade)
-
-  @@index([event_type])
-  @@index([experiment_listing_id])
-  @@index([recorded_at])
-}
-
-model experiment_arms {
-  id                  BigInt                @id @default(autoincrement())
-  experiment_id       BigInt
-  name                String
-  is_control          Boolean               @default(false)
-  config              Json                  @default("{}")
-  summary_metrics     Json                  @default("{}")
-  pricing_experiments pricing_experiments   @relation(fields: [experiment_id], references: [id], onDelete: Cascade)
-  experiment_listings experiment_listings[]
-
-  @@index([experiment_id])
-}
-
-model experiment_listings {
-  id                    BigInt              @id @default(autoincrement())
-  arm_id                BigInt
-  listing_id            String
-  listing_address       String?
-  seller_consent        Boolean             @default(false)
-  consent_timestamp     DateTime?
-  consent_method        String?
-  consent_terms_version String?
-  enrolled_at           DateTime            @default(now())
-  withdrawn_at          DateTime?
-  engagement_events     engagement_events[]
-  experiment_arms       experiment_arms     @relation(fields: [arm_id], references: [id], onDelete: Cascade)
-
-  @@unique([arm_id, listing_id])
-  @@index([listing_id])
-}
-
-model family_members {
-  id                                         BigInt   @id @default(autoincrement())
-  lead_id                                    BigInt
-  member_lead_id                             BigInt
-  relationship                               String?
-  created_at                                 DateTime @default(now())
-  leads_family_members_lead_idToleads        leads    @relation("family_members_lead_idToleads", fields: [lead_id], references: [id])
-  leads_family_members_member_lead_idToleads leads    @relation("family_members_member_lead_idToleads", fields: [member_lead_id], references: [id])
+// ═══════════════════════════════════════════════════════════
+// FAMILY MEMBER — Client invites family to follow along
+// ═══════════════════════════════════════════════════════════
+model FamilyMember {
+  id             BigInt   @id @default(autoincrement())
+  lead_id        BigInt   @map("lead_id") // The primary client
+  lead           Lead     @relation(fields: [lead_id], references: [id])
+  member_lead_id BigInt   @map("member_lead_id") // The family member (also a Lead)
+  member         Lead     @relation("FamilyOf", fields: [member_lead_id], references: [id])
+  relationship   String? // "spouse" | "parent" | "sibling" | "other"
+  created_at     DateTime @default(now()) @map("created_at")
 
   @@unique([lead_id, member_lead_id])
   @@index([lead_id])
   @@index([member_lead_id])
+  @@map("family_members")
 }
 
-model featured_configs {
-  id            BigInt   @id @default(autoincrement())
-  pinned_ids    String[] @default([])
-  filters       Json     @default("{}")
-  sort          String   @default("price-desc")
-  display_limit Int      @default(6)
-  is_active     Boolean  @default(true)
-  updated_by    BigInt?
-  created_at    DateTime @default(now())
-  updated_at    DateTime
-}
+// ═══════════════════════════════════════════════════════════
+// LEAD PARTY — All parties on a transaction
+//
+// Replaces the single secondary_* fields and authorized_signatories JSON.
+// Supports unlimited parties per lead: co-buyers, spouses, guarantors,
+// LLC members, trustees, family members, observers.
+//
+// Used for: buyers, sellers, renters, landlords, investors.
+// Anyone who needs to appear on the deed, lease, contract, or board package.
+// ═══════════════════════════════════════════════════════════
+model LeadParty {
+  id      BigInt @id @default(autoincrement())
+  lead_id BigInt @map("lead_id")
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
-model financial_ledger {
-  id              BigInt   @id @default(autoincrement())
-  deal_id         BigInt?
-  payment_id      BigInt?
-  entry_type      String
-  amount          Decimal  @db.Decimal(14, 2)
-  running_balance Decimal? @db.Decimal(14, 2)
-  description     String
-  reference       String?
-  recorded_by     BigInt
-  immutable_hash  String?
-  created_at      DateTime @default(now())
+  // ── Who they are ──────────────────────────────────────────
+  first_name String  @map("first_name")
+  last_name  String  @map("last_name")
+  email      String?
+  phone      String?
+  address    String? // Their personal address (if different from lead)
 
-  @@index([created_at])
-  @@index([deal_id])
-  @@index([entry_type])
-  @@index([payment_id])
-}
+  // ── Their role in this transaction ────────────────────────
+  // "co_buyer" | "co_renter" | "co_seller" | "co_owner" |
+  // "spouse" | "partner" | "parent" | "child" | "family_member" |
+  // "guarantor" | "co_signer" | "authorized_signatory" |
+  // "trustee" | "managing_member" | "llc_member" |
+  // "corporate_officer" | "observer"
+  role String @map("role")
 
-model follow_up_tasks {
-  id           BigInt    @id @default(autoincrement())
-  lead_id      BigInt
-  agent_id     BigInt
-  title        String
-  description  String?
-  due_date     DateTime
-  priority     String    @default("medium")
-  status       String    @default("pending")
-  task_type    String    @default("follow_up")
-  completed_at DateTime?
-  created_at   DateTime  @default(now())
-  agents       agents    @relation(fields: [agent_id], references: [id])
-  leads        leads     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  // ── Signing authority ──────────────────────────────────────
+  signs_documents  Boolean @default(false) @map("signs_documents")
+  // "individually" | "as_trustee" | "as_managing_member" |
+  // "as_authorized_signatory" | "as_guarantor" | "as_corporate_officer"
+  signing_capacity String? @map("signing_capacity")
+  appears_on_deed  Boolean @default(false) @map("appears_on_deed") // On deed/title
+  appears_on_lease Boolean @default(false) @map("appears_on_lease") // On lease agreement
+  appears_on_board Boolean @default(false) @map("appears_on_board") // On board application
 
-  @@index([agent_id, status])
-  @@index([due_date])
+  // ── Entity purchase (buying as LLC / Trust / Corp) ─────────
+  is_entity    Boolean @default(false) @map("is_entity")
+  // "llc" | "trust" | "corp" | "inc" | "lp" | "lllp"
+  entity_type  String? @map("entity_type")
+  entity_name  String? @map("entity_name")
+  entity_ein   String? @map("entity_ein") // EIN / Tax ID
+  entity_state String? @map("entity_state") // State of formation
+
+  // ── Financial qualification (for co-buyers and guarantors) ─
+  annual_income      Decimal? @map("annual_income") @db.Decimal(14, 2)
+  credit_score_range String?  @map("credit_score_range")
+  employer           String?
+  work_title         String?  @map("work_title")
+
+  // ── Portal access ──────────────────────────────────────────
+  has_portal_access Boolean @default(false) @map("has_portal_access")
+  portal_email      String? @map("portal_email") // email for portal login (may differ)
+
+  notes String? @db.Text
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
   @@index([lead_id])
+  @@map("lead_parties")
 }
 
-model geocode_cache {
+// ═══════════════════════════════════════════════════════════
+// ACTIVE LEASE — Already-leased/rented units
+//
+// Separate from Listing (which is an active market listing).
+// Tracks existing tenancies: address, tenant, lease terms,
+// renewal status, outreach schedule (90/60/30 days before expiry),
+// seller conversion outreach (6-month valuation).
+//
+// One landlord can have many active leases (multi-unit portfolio).
+// ═══════════════════════════════════════════════════════════
+model ActiveLease {
+  id BigInt @id @default(autoincrement())
+
+  // ── Lease status ──────────────────────────────────────────
+  // "active"    — currently rented, lease ongoing
+  // "historical" — past rental, lease ended (for outreach timing)
+  // "pending"   — signed, not yet moved in
+  status String @default("active") @map("status")
+
+  // ── The unit ──────────────────────────────────────────────
+  address       String  @map("address")
+  unit          String? @map("unit")
+  borough       String? @map("borough")
+  neighborhood  String? @map("neighborhood")
+  zip           String? @map("zip")
+  building_type String? @map("building_type") // "condo" | "coop" | "condop" | "rental_building" | "townhouse"
+
+  // ── The landlord ──────────────────────────────────────────
+  landlord_lead_id BigInt @map("landlord_lead_id")
+  landlord         Lead   @relation("LandlordActiveLeases", fields: [landlord_lead_id], references: [id])
+
+  // ── The tenant ────────────────────────────────────────────
+  tenant_lead_id BigInt? @map("tenant_lead_id")
+  tenant         Lead?   @relation("TenantActiveLeases", fields: [tenant_lead_id], references: [id])
+  // If tenant is not yet a Lead (existing tenant, not through this agency):
+  tenant_name    String? @map("tenant_name")
+  tenant_email   String? @map("tenant_email")
+  tenant_phone   String? @map("tenant_phone")
+
+  // ── Lease terms ───────────────────────────────────────────
+  monthly_rent     Decimal  @map("monthly_rent") @db.Decimal(14, 2)
+  lease_start_date DateTime @map("lease_start_date")
+  lease_end_date   DateTime @map("lease_end_date")
+  // "standard_1yr" | "standard_2yr" | "month_to_month" | "stabilized" | "commercial"
+  lease_type       String   @default("standard_1yr") @map("lease_type")
+  security_deposit Decimal? @map("security_deposit") @db.Decimal(14, 2)
+  pets_allowed     Boolean  @default(false) @map("pets_allowed")
+  furnished        String   @default("unfurnished") @map("furnished") // "furnished" | "unfurnished" | "partially"
+
+  // ── Renewal tracking ──────────────────────────────────────
+  // "unknown" | "renewing" | "not_renewing" | "pending_decision"
+  renewal_status      String    @default("unknown") @map("renewal_status")
+  renewal_notice_date DateTime? @map("renewal_notice_date")
+  renewal_rent        Decimal?  @map("renewal_rent") @db.Decimal(14, 2) // proposed renewal rent
+  relist_target_date  DateTime? @map("relist_target_date") // when to relist if not renewing
+
+  // ── Rent history ──────────────────────────────────────────
+  original_rent           Decimal?  @map("original_rent") @db.Decimal(14, 2)
+  last_rent_increase_date DateTime? @map("last_rent_increase_date")
+  last_rent_increase_pct  Decimal?  @map("last_rent_increase_pct") @db.Decimal(5, 2)
+
+  // ── Outreach schedule (90/60/30 days before expiry) ───────
+  outreach_90d_sent_at     DateTime? @map("outreach_90d_sent_at")
+  outreach_60d_sent_at     DateTime? @map("outreach_60d_sent_at")
+  outreach_30d_sent_at     DateTime? @map("outreach_30d_sent_at")
+  // Seller conversion (6-month valuation + comps to landlord)
+  seller_comps_6mo_sent_at DateTime? @map("seller_comps_6mo_sent_at")
+  seller_comps_1yr_sent_at DateTime? @map("seller_comps_1yr_sent_at")
+
+  // ── Board/approval status (condo/coop/condop tenants) ─────
+  board_required    Boolean   @default(false) @map("board_required")
+  board_app_status  String?   @map("board_app_status")
+  board_approved_at DateTime? @map("board_approved_at")
+
+  // ── Move-in record ────────────────────────────────────────
+  move_in_date     DateTime? @map("move_in_date")
+  keys_given       Boolean   @default(false) @map("keys_given")
+  walkthrough_done Boolean   @default(false) @map("walkthrough_done")
+  commission_paid  Boolean   @default(false) @map("commission_paid")
+
+  // ── Agent ─────────────────────────────────────────────────
+  agent_id BigInt? @map("agent_id")
+  agent    Agent?  @relation(fields: [agent_id], references: [id])
+
+  notes         String? @db.Text
+  custom_fields Json?   @map("custom_fields")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([landlord_lead_id])
+  @@index([tenant_lead_id])
+  @@index([lease_end_date])
+  @@index([renewal_status])
+  @@index([status])
+  @@index([agent_id])
+  @@map("active_leases")
+}
+
+// ═══════════════════════════════════════════════════════════
+// GEOCODE CACHE — Permanent lat/lng cache for addresses
+// US Census Geocoder results cached here so each address
+// is geocoded only once. ZIP centroid fallback if API fails.
+// ═══════════════════════════════════════════════════════════
+model GeocodeCache {
   id          BigInt   @id @default(autoincrement())
-  address_key String   @unique
+  address_key String   @unique @map("address_key") // normalized "123|MAIN ST|10001"
   latitude    Float
   longitude   Float
-  source      String   @default("census")
-  created_at  DateTime @default(now())
+  source      String   @default("census") // "census" | "zip_centroid"
+  created_at  DateTime @default(now()) @map("created_at")
 
   @@index([address_key])
+  @@map("geocode_cache")
 }
 
-model intent_events {
-  id          BigInt   @id @default(autoincrement())
-  lead_id     BigInt
-  event_type  String
-  payload     Json     @default("{}")
-  session_id  String?
-  recorded_at DateTime @default(now())
-  leads       leads    @relation(fields: [lead_id], references: [id])
+// ═══════════════════════════════════════════════════════════
+// SELLER LEAD — Predictive seller readiness scoring
+// Tracks addresses with public-data signals to estimate sell likelihood.
+// Uses ONLY non-MLS public data (ACRIS, DOB, first-party behavior).
+// ═══════════════════════════════════════════════════════════
+model SellerLead {
+  id           BigInt  @id @default(autoincrement())
+  address      String // Full street address
+  unit         String  @default("")
+  borough      String?
+  neighborhood String?
+  postal_code  String? @map("postal_code")
+  bbl          String? // 10-digit BBL (borough-block-lot)
+  bin          String? // BIN (building ID number)
 
-  @@index([event_type])
-  @@index([lead_id, event_type])
-  @@index([lead_id])
-  @@index([recorded_at])
+  // --- Owner info (from ACRIS / public records) ---
+  owner_name  String? @map("owner_name")
+  owner_email String? @map("owner_email")
+  owner_phone String? @map("owner_phone")
+
+  // --- Scoring ---
+  readiness_score Int       @default(0) @map("readiness_score") // 0-100
+  score_grade     String    @default("F") @map("score_grade") // A/B/C/D/F
+  last_scored_at  DateTime? @map("last_scored_at")
+
+  // --- Pipeline status ---
+  status            String  @default("new") // new | contacted | replied | meeting | signed | declined
+  assigned_agent_id BigInt? @map("assigned_agent_id")
+  assigned_agent    Agent?  @relation(fields: [assigned_agent_id], references: [id])
+
+  // --- Consent ---
+  consent_given  Boolean   @default(false) @map("consent_given")
+  consent_date   DateTime? @map("consent_date")
+  consent_method String?   @map("consent_method") // "web_form" | "email_reply" | "verbal"
+
+  // --- Notes ---
+  notes String? @db.Text
+
+  // --- Property details (from PLUTO/manual) ---
+  property_type String?  @map("property_type")
+  beds          Int?
+  baths         Decimal? @db.Decimal(3, 1)
+  sqft          Int?
+  year_built    Int?     @map("year_built")
+  building_name String?  @map("building_name")
+  floors        Int?
+  units_total   Int?     @map("units_total")
+  lot_area      Int?     @map("lot_area")
+
+  // --- Ownership enrichment (from ACRIS) ---
+  entity_type         String?   @map("entity_type")
+  entity_name         String?   @map("entity_name")
+  pitch_data          Json?     @map("pitch_data")
+  ownership_years     Decimal?  @map("ownership_years") @db.Decimal(4, 1)
+  last_purchase_price Decimal?  @map("last_purchase_price") @db.Decimal(14, 2)
+  last_purchase_date  DateTime? @map("last_purchase_date")
+  mortgage_amount     Decimal?  @map("mortgage_amount") @db.Decimal(14, 2)
+  mortgage_date       DateTime? @map("mortgage_date")
+  equity_ratio        Decimal?  @map("equity_ratio") @db.Decimal(3, 2)
+
+  // --- Tax (from DOF) ---
+  tax_class      String?  @map("tax_class")
+  annual_tax     Decimal? @map("annual_tax") @db.Decimal(12, 2)
+  market_value   Decimal? @map("market_value") @db.Decimal(14, 2)
+  assessed_value Decimal? @map("assessed_value") @db.Decimal(14, 2)
+
+  // --- Building health (from DOB) ---
+  open_violations Int?     @default(0) @map("open_violations")
+  recent_permits  Int?     @default(0) @map("recent_permits")
+  building_risk   Decimal? @map("building_risk") @db.Decimal(3, 2)
+
+  // --- Contact (secondary + professional) ---
+  secondary_name         String? @map("secondary_name")
+  secondary_phone        String? @map("secondary_phone")
+  secondary_email        String? @map("secondary_email")
+  secondary_relationship String? @map("secondary_relationship")
+  management_company     String? @map("management_company")
+  attorney_name          String? @map("attorney_name")
+  attorney_email         String? @map("attorney_email")
+  attorney_phone         String? @map("attorney_phone")
+  authorized_signatories Json?   @map("authorized_signatories")
+
+  // --- Prospecting ---
+  source             String?
+  source_detail      String?   @map("source_detail")
+  pitch_generated_at DateTime? @map("pitch_generated_at")
+  pitch_sent_at      DateTime? @map("pitch_sent_at")
+  pitch_pdf_url      String?   @map("pitch_pdf_url")
+
+  // --- Conversion ---
+  converted_to_lead_id BigInt?   @map("converted_to_lead_id")
+  converted_at         DateTime? @map("converted_at")
+
+  // --- Outreach scheduling ---
+  next_follow_up     DateTime? @map("next_follow_up")
+  last_contacted_at  DateTime? @map("last_contacted_at")
+  last_researched_at DateTime? @map("last_researched_at")
+
+  // --- TCPA (align with Lead pattern) ---
+  consent_captured_at DateTime? @map("consent_captured_at")
+  consent_opt_out_at  DateTime? @map("consent_opt_out_at")
+
+  // --- Relations ---
+  signals         ReadinessSignal[]
+  outreach_events OutreachEvent[]
+  cadence_steps   OutreachCadenceStep[]
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@unique([address, unit])
+  @@index([readiness_score])
+  @@index([status])
+  @@index([assigned_agent_id])
+  @@index([bbl])
+  @@index([next_follow_up])
+  @@index([source])
+  @@map("seller_leads")
 }
 
-model lead_assignment_rules {
-  id                  BigInt   @id @default(autoincrement())
-  agent_id            BigInt
-  criteria            Json     @default("{}")
-  priority            Int      @default(50)
-  max_leads_per_month Int      @default(50)
-  current_month_count Int      @default(0)
-  active              Boolean  @default(true)
-  created_at          DateTime @default(now())
-  updated_at          DateTime
-  agents              agents   @relation(fields: [agent_id], references: [id])
+// ═══════════════════════════════════════════════════════════
+// READINESS SIGNAL — Individual scoring signals per address
+// ═══════════════════════════════════════════════════════════
+model ReadinessSignal {
+  id             BigInt     @id @default(autoincrement())
+  seller_lead_id BigInt     @map("seller_lead_id")
+  seller_lead    SellerLead @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
 
-  @@index([active])
-  @@index([agent_id])
+  signal_type String  @map("signal_type") // ownership_duration | mortgage_age | equity_estimate | dob_permits | renovation_signal | building_risk | page_visit | cma_request | valuation_form
+  raw_value   String? @map("raw_value") // Original value (e.g., "12 years", "$450000")
+  normalized  Float   @default(0) // 0.0 – 1.0 normalized score
+  source      String  @default("system") // "acris" | "dob" | "first_party" | "manual"
+  metadata    Json? // Extra context (document IDs, dates, etc.)
+
+  collected_at DateTime @default(now()) @map("collected_at")
+
+  @@index([seller_lead_id])
+  @@index([signal_type])
+  @@map("readiness_signals")
 }
 
-model lead_parties {
-  id                 BigInt   @id @default(autoincrement())
-  lead_id            BigInt
-  first_name         String
-  last_name          String
-  email              String?
-  phone              String?
-  address            String?
-  role               String
-  signs_documents    Boolean  @default(false)
-  signing_capacity   String?
-  appears_on_deed    Boolean  @default(false)
-  appears_on_lease   Boolean  @default(false)
-  appears_on_board   Boolean  @default(false)
-  is_entity          Boolean  @default(false)
-  entity_type        String?
-  entity_name        String?
-  entity_ein         String?
-  entity_state       String?
-  annual_income      Decimal? @db.Decimal(14, 2)
-  credit_score_range String?
-  employer           String?
-  work_title         String?
-  has_portal_access  Boolean  @default(false)
-  portal_email       String?
-  notes              String?
-  created_at         DateTime @default(now())
-  updated_at         DateTime
-  leads              leads    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+// ═══════════════════════════════════════════════════════════
+// OUTREACH EVENT — Audit trail for seller outreach
+// ═══════════════════════════════════════════════════════════
+model OutreachEvent {
+  id             BigInt     @id @default(autoincrement())
+  seller_lead_id BigInt     @map("seller_lead_id")
+  seller_lead    SellerLead @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
 
-  @@index([lead_id])
-}
+  channel      String // "email" | "letter" | "phone" | "door_knock"
+  direction    String  @default("outbound") // "outbound" | "inbound"
+  template_id  String? @map("template_id") // Reference to outreach template used
+  subject      String?
+  body_preview String? @map("body_preview") @db.Text // First 500 chars for audit
+  outcome      String? // "sent" | "delivered" | "opened" | "replied" | "bounced" | "declined"
 
-model lead_scores {
-  id               BigInt   @id @default(autoincrement())
-  lead_id          BigInt   @unique
-  score            Int      @default(0)
-  grade            String   @default("C")
-  source_score     Int      @default(0)
-  engagement_score Int      @default(0)
-  recency_score    Int      @default(0)
-  fit_score        Int      @default(0)
-  last_computed    DateTime @default(now())
-  created_at       DateTime @default(now())
-  updated_at       DateTime
-  leads            leads    @relation(fields: [lead_id], references: [id])
+  // --- TCPA compliance ---
+  consent_verified Boolean @default(false) @map("consent_verified")
 
-  @@index([grade])
-  @@index([score])
-}
+  agent_id BigInt @map("agent_id")
 
-model leads {
-  id                                                  BigInt                   @id @default(autoincrement())
-  first_name                                          String
-  last_name                                           String
-  email                                               String                   @unique
-  phone                                               String
-  roles                                               String[]
-  status                                              String                   @default("new")
-  portal_role                                         String?
-  portal_token                                        String?                  @unique
-  password_hash                                       String?
-  agent_id                                            BigInt?
-  source                                              String                   @default("website")
-  created_at                                          DateTime                 @default(now())
-  updated_at                                          DateTime
-  anonymous_session_id                                String?
-  consent_captured_at                                 DateTime?
-  portal_token_expires_at                             DateTime?
-  buyer_rep_agreement                                 Boolean                  @default(false)
-  buyer_rep_agreement_date                            DateTime?
-  attorney_email                                      String?
-  attorney_firm                                       String?
-  attorney_name                                       String?
-  attorney_phone                                      String?
-  annual_income                                       Decimal?                 @db.Decimal(14, 2)
-  credit_score_range                                  String?
-  last_contacted_at                                   DateTime?
-  lease_end_date                                      DateTime?
-  next_follow_up                                      DateTime?
-  pipeline_stage                                      String                   @default("new")
-  pre_approved                                        Boolean                  @default(false)
-  pre_approved_amount                                 Decimal?                 @db.Decimal(14, 2)
-  notes                                               String?
-  lease_start_date                                    DateTime?
-  bonuses                                             Decimal?                 @db.Decimal(14, 2)
-  down_payment                                        Decimal?                 @db.Decimal(14, 2)
-  available_funds                                     Decimal?                 @db.Decimal(14, 2)
-  monthly_debt                                        Decimal?                 @db.Decimal(14, 2)
-  employer                                            String?
-  work_title                                          String?
-  rent_per_month                                      Decimal?                 @db.Decimal(14, 2)
-  rental_deposit                                      Decimal?                 @db.Decimal(14, 2)
-  total_monthly_expense                               Decimal?                 @db.Decimal(14, 2)
-  secondary_first_name                                String?
-  secondary_last_name                                 String?
-  secondary_email                                     String?
-  secondary_phone                                     String?
-  secondary_relationship                              String?
-  property_address                                    String?
-  home_address                                        String?
-  unit_number                                         String?
-  legal_ownership_name                                String?
-  active_rental_listing_id                            String?
-  active_sale_listing_id                              String?
-  authorized_signatories                              Json?
-  building_mgmt_requirements                          Json?
-  building_type_pref                                  String[]
-  buyer_potential                                     Int?                     @default(0)
-  cap_rate_target                                     Decimal?                 @db.Decimal(5, 2)
-  cash_on_cash_target                                 Decimal?                 @db.Decimal(5, 2)
-  current_portfolio                                   Json?
-  disclosures                                         Json?
-  docs_readiness                                      Json?
-  documents_collected                                 Json?
-  entity_name                                         String?
-  entity_type                                         String?
-  exchange_1031_deadline                              DateTime?
-  exchange_1031_status                                String?
-  exclusive_acceptable                                Boolean                  @default(true)
-  fee_structure                                       String?
-  guarantor_needed                                    Boolean                  @default(false)
-  holding_period_years                                Int?
-  home_prep_checklist                                 Json?
-  investment_strategy                                 String?
-  is_investor                                         Boolean                  @default(false)
-  last_click_at                                       DateTime?
-  last_login_at                                       DateTime?
-  last_rental_email_opened                            DateTime?
-  last_response_at                                    DateTime?
-  last_sales_email_opened                             DateTime?
-  last_unsubscribe_at                                 DateTime?
-  last_viewed_listing_at                              DateTime?
-  last_viewed_listing_id                              String?
-  lease_terms                                         Json?
-  login_count                                         Int                      @default(0)
-  marketing_strategy                                  Json?
-  no_fee_only                                         Boolean                  @default(false)
-  non_renewal_date                                    DateTime?
-  outreach_30d_date                                   DateTime?
-  outreach_60d_date                                   DateTime?
-  outreach_6mo_date                                   DateTime?
-  outreach_90d_date                                   DateTime?
-  promoted_from_landlord_at                           DateTime?
-  promoted_from_tenant_at                             DateTime?
-  promoted_to_buyer_at                                DateTime?
-  promoted_to_seller_at                               DateTime?
-  property_disclosures                                Json?
-  reengage_anchor_date                                DateTime?
-  relist_reminder_date                                DateTime?
-  renewal_drip_on                                     Boolean                  @default(false)
-  renewal_status                                      String?
-  rental_drip_on                                      Boolean                  @default(false)
-  rental_drip_status                                  String?
-  sales_drip_on                                       Boolean                  @default(false)
-  sales_drip_status                                   String?
-  seller_potential                                    String?                  @default("none")
-  seller_potential_reason                             String[]
-  vacancy_risk                                        String?
-  viewed_addresses                                    Json?
-  enabled_workspaces                                  String[]                 @default([])
-  first_shown_date                                    DateTime?
-  last_shown_date                                     DateTime?
-  primary_portal_role                                 String?
-  promotion_reason                                    String?
-  promotion_source                                    String?
-  anniversary_1yr_sent_at                             DateTime?
-  anniversary_6mo_sent_at                             DateTime?
-  attorney_fee_buyer                                  Decimal?                 @db.Decimal(14, 2)
-  board_app_fee                                       Decimal?                 @db.Decimal(14, 2)
-  board_app_status                                    String?
-  board_app_submitted_at                              DateTime?
-  board_approved_at                                   DateTime?
-  board_interview_date                                DateTime?
-  board_rejection_reason                              String?
-  buyer_agent_fee_note                                String?
-  buyer_agent_fee_pct                                 Decimal?                 @db.Decimal(5, 2)
-  closing_celebrated                                  Boolean                  @default(false)
-  closing_date                                        DateTime?
-  entity_ein                                          String?
-  entity_formation_date                               DateTime?
-  entity_managing_member                              String?
-  entity_state                                        String?
-  gift_sent_at                                        DateTime?
-  mansion_tax_estimate                                Decimal?                 @db.Decimal(14, 2)
-  mortgage_broker_email                               String?
-  mortgage_broker_name                                String?
-  mortgage_broker_phone                               String?
-  mortgage_lender                                     String?
-  mortgage_rate                                       Decimal?                 @db.Decimal(5, 3)
-  mortgage_recording_tax                              Decimal?                 @db.Decimal(14, 2)
-  mortgage_term_years                                 Int?
-  move_in_fee                                         Decimal?                 @db.Decimal(14, 2)
-  title_insurance                                     Decimal?                 @db.Decimal(14, 2)
-  custom_fields                                       Json?
-  fee_tolerance                                       String?
-  guarantor_company                                   String?
-  guarantor_name                                      String?
-  guarantor_type                                      String?
-  income_multiple                                     Decimal?                 @db.Decimal(5, 1)
-  is_international                                    Boolean                  @default(false)
-  move_in_date                                        DateTime?
-  move_in_flexibility                                 String?
-  relocation_company                                  String?
-  tenant_origin                                       String?
-  understands_board_process                           Boolean                  @default(false)
-  hnw_notes                                           String?
-  hnw_pursuit_level                                   String?
-  investment_properties                               Int?                     @default(0)
-  is_high_net_worth                                   Boolean                  @default(false)
-  liquid_assets_total                                 Decimal?                 @db.Decimal(16, 2)
-  net_worth_estimate                                  Decimal?                 @db.Decimal(16, 2)
-  net_worth_source                                    String?
-  portfolio_value_estimate                            Decimal?                 @db.Decimal(16, 2)
-  active_leases_active_leases_landlord_lead_idToleads active_leases[]          @relation("active_leases_landlord_lead_idToleads")
-  active_leases_active_leases_tenant_lead_idToleads   active_leases[]          @relation("active_leases_tenant_lead_idToleads")
-  activity_logs                                       activity_logs[]
-  buyer_intent_profiles                               buyer_intent_profiles?
-  campaign_recipients                                 campaign_recipients[]
-  client_listing_actions                              client_listing_actions[]
-  client_preferences                                  client_preferences?
-  comments                                            comments[]
-  family_members_family_members_lead_idToleads        family_members[]         @relation("family_members_lead_idToleads")
-  family_members_family_members_member_lead_idToleads family_members[]         @relation("family_members_member_lead_idToleads")
-  follow_up_tasks                                     follow_up_tasks[]
-  intent_events                                       intent_events[]
-  lead_parties                                        lead_parties[]
-  lead_scores                                         lead_scores?
-  agents                                              agents?                  @relation(fields: [agent_id], references: [id])
-  listings                                            listings[]
-  portal_events                                       portal_events[]
-  saved_searches                                      saved_searches[]
-  showing_feedback                                    showing_feedback[]
-  showing_history                                     showing_history[]
-  showings                                            showings[]
+  created_at DateTime @default(now()) @map("created_at")
 
+  @@index([seller_lead_id])
   @@index([agent_id])
   @@index([created_at])
-  @@index([renewal_status])
-  @@index([seller_potential])
+  @@map("outreach_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OUTREACH CADENCE STEP — Scheduled outreach for seller prospects
+// ═══════════════════════════════════════════════════════════════════════════════
+model OutreachCadenceStep {
+  id             BigInt     @id @default(autoincrement())
+  seller_lead_id BigInt     @map("seller_lead_id")
+  seller_lead    SellerLead @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
+
+  day_offset      Int     @map("day_offset")
+  type            String
+  channel         String  @default("email")
+  subject         String?
+  content_preview String? @map("content_preview") @db.Text
+
+  status         String    @default("pending")
+  scheduled_date DateTime? @map("scheduled_date")
+  sent_at        DateTime? @map("sent_at")
+  opened_at      DateTime? @map("opened_at")
+  replied_at     DateTime? @map("replied_at")
+
+  content_type String? @map("content_type")
+  content_data Json?   @map("content_data")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([seller_lead_id])
+  @@index([scheduled_date])
   @@index([status])
+  @@map("outreach_cadence_steps")
 }
 
-model lifecycle_triggers {
-  id                 BigInt               @id @default(autoincrement())
-  name               String
-  trigger_type       String
-  conditions         Json                 @default("{}")
-  action_type        String
-  action_config      Json                 @default("{}")
-  enabled            Boolean              @default(true)
-  cooldown_hours     Int                  @default(24)
-  last_executed_at   DateTime?
-  execution_count    Int                  @default(0)
-  created_at         DateTime             @default(now())
-  updated_at         DateTime
-  trigger_executions trigger_executions[]
+// ═══════════════════════════════════════════════════════════
+// PRICING EXPERIMENT — A/B marketing strategy experiments
+// Compares two arms (control + treatment) on internal listings.
+// Uses buyer engagement signals only — NO MLS data manipulation.
+// ═══════════════════════════════════════════════════════════
+model PricingExperiment {
+  id                     BigInt    @id @default(autoincrement())
+  name                   String
+  description            String?   @db.Text
+  experiment_type        String    @map("experiment_type") // exposure_level | showing_strategy | photo_order | description_variant
+  status                 String    @default("draft") // draft | active | concluded | archived
+  created_by_id          BigInt    @map("created_by_id")
+  created_by             Agent     @relation(fields: [created_by_id], references: [id])
+  start_date             DateTime? @map("start_date")
+  end_date               DateTime? @map("end_date")
+  target_sample_size     Int?      @map("target_sample_size")
+  significance_threshold Decimal   @default(0.95) @map("significance_threshold") @db.Decimal(4, 3)
+  conclusion_notes       String?   @map("conclusion_notes") @db.Text
+  result_summary         Json?     @map("result_summary") // Final ExperimentResult JSON
 
-  @@index([enabled])
-  @@index([trigger_type])
+  arms ExperimentArm[]
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([created_by_id])
+  @@index([experiment_type])
+  @@map("pricing_experiments")
 }
 
-model listing_audits {
-  id           BigInt   @id @default(autoincrement())
-  listing_id   String
-  agent_id     BigInt?
-  score        Int      @default(0)
-  passed       Boolean  @default(false)
-  issues       Json     @default("[]")
-  warnings     Json     @default("[]")
-  field_count  Int      @default(0)
-  filled_count Int      @default(0)
-  photo_count  Int      @default(0)
-  created_at   DateTime @default(now())
+// ═══════════════════════════════════════════════════════════
+// EXPERIMENT ARM — Control or treatment variant
+// ═══════════════════════════════════════════════════════════
+model ExperimentArm {
+  id              BigInt            @id @default(autoincrement())
+  experiment_id   BigInt            @map("experiment_id")
+  experiment      PricingExperiment @relation(fields: [experiment_id], references: [id], onDelete: Cascade)
+  name            String // "Control", "Extended Exposure", etc.
+  is_control      Boolean           @default(false) @map("is_control")
+  config          Json              @default("{}") // Strategy-specific config
+  summary_metrics Json              @default("{}") @map("summary_metrics") // Aggregated KPIs (computed by cron)
 
-  @@index([agent_id])
+  listings ExperimentListing[]
+
+  @@index([experiment_id])
+  @@map("experiment_arms")
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPERIMENT LISTING — Listing assignment to an arm
+// ═══════════════════════════════════════════════════════════
+model ExperimentListing {
+  id                    BigInt        @id @default(autoincrement())
+  arm_id                BigInt        @map("arm_id")
+  arm                   ExperimentArm @relation(fields: [arm_id], references: [id], onDelete: Cascade)
+  listing_id            String        @map("listing_id") // Listing.listing_id (string key)
+  listing_address       String?       @map("listing_address") // Denormalized for display
+  seller_consent        Boolean       @default(false) @map("seller_consent")
+  consent_timestamp     DateTime?     @map("consent_timestamp")
+  consent_method        String?       @map("consent_method") // seller_portal | email | in_person
+  consent_terms_version String?       @map("consent_terms_version")
+  enrolled_at           DateTime      @default(now()) @map("enrolled_at")
+  withdrawn_at          DateTime?     @map("withdrawn_at")
+
+  engagement_events EngagementEvent[]
+
+  @@unique([arm_id, listing_id])
   @@index([listing_id])
-  @@index([score])
+  @@map("experiment_listings")
 }
 
-model listing_momentum {
+// ═══════════════════════════════════════════════════════════
+// ENGAGEMENT EVENT — Buyer engagement signals per experiment listing
+// ═══════════════════════════════════════════════════════════
+model EngagementEvent {
+  id                    BigInt            @id @default(autoincrement())
+  experiment_listing_id BigInt            @map("experiment_listing_id")
+  experiment_listing    ExperimentListing @relation(fields: [experiment_listing_id], references: [id], onDelete: Cascade)
+  event_type            String            @map("event_type") // page_view | inquiry | showing_request | save_favorite | time_on_page | cta_click
+  value                 Decimal?          @db.Decimal(14, 2) // Numeric value (seconds for time, 1 for counts)
+  metadata              Json? // Extra context (no PII)
+  recorded_at           DateTime          @default(now()) @map("recorded_at")
+
+  @@index([experiment_listing_id])
+  @@index([event_type])
+  @@index([recorded_at])
+  @@map("engagement_events")
+}
+
+// ═══════════════════════════════════════════════════════════
+// G. DEMAND HEATMAP — Hyperlocal demand signals
+// ═══════════════════════════════════════════════════════════
+
+model DemandSignal {
+  id           BigInt   @id @default(autoincrement())
+  signal_type  String   @map("signal_type")
+  neighborhood String
+  borough      String?
+  postal_code  String?  @map("postal_code")
+  value        Float    @default(0)
+  normalized   Float    @default(0)
+  source       String   @default("soda")
+  metadata     Json?
+  period_start DateTime @map("period_start")
+  period_end   DateTime @map("period_end")
+  collected_at DateTime @default(now()) @map("collected_at")
+
+  @@index([neighborhood, signal_type])
+  @@index([signal_type])
+  @@index([collected_at])
+  @@map("demand_signals")
+}
+
+model DemandIndex {
+  id            BigInt   @id @default(autoincrement())
+  neighborhood  String   @unique
+  borough       String?
+  score         Int      @default(0)
+  trend         String   @default("stable")
+  trend_delta   Float    @default(0) @map("trend_delta")
+  components    Json     @default("{}")
+  signal_count  Int      @default(0) @map("signal_count")
+  last_computed DateTime @default(now()) @map("last_computed")
+
+  alerts DemandAlert[]
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([score])
+  @@index([borough])
+  @@map("demand_indices")
+}
+
+model DemandAlert {
+  id              BigInt      @id @default(autoincrement())
+  agent_id        BigInt      @map("agent_id")
+  agent           Agent       @relation(fields: [agent_id], references: [id])
+  demand_index_id BigInt      @map("demand_index_id")
+  demand_index    DemandIndex @relation(fields: [demand_index_id], references: [id], onDelete: Cascade)
+  neighborhood    String
+  alert_type      String      @map("alert_type")
+  threshold       Int         @default(70)
+  enabled         Boolean     @default(true)
+  last_triggered  DateTime?   @map("last_triggered")
+  last_value      Int?        @map("last_value")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@unique([agent_id, demand_index_id, alert_type])
+  @@index([agent_id])
+  @@index([enabled])
+  @@map("demand_alerts")
+}
+
+// ═══════════════════════════════════════════════════════════
+// H. BUYER INTENT — First-party behavioral graph
+// ═══════════════════════════════════════════════════════════
+
+model IntentEvent {
+  id          BigInt   @id @default(autoincrement())
+  lead_id     BigInt   @map("lead_id")
+  lead        Lead     @relation(fields: [lead_id], references: [id])
+  event_type  String   @map("event_type")
+  payload     Json     @default("{}")
+  session_id  String?  @map("session_id")
+  recorded_at DateTime @default(now()) @map("recorded_at")
+
+  @@index([lead_id])
+  @@index([event_type])
+  @@index([recorded_at])
+  @@index([lead_id, event_type])
+  @@map("intent_events")
+}
+
+model BuyerIntentProfile {
+  id                      BigInt    @id @default(autoincrement())
+  lead_id                 BigInt    @unique @map("lead_id")
+  lead                    Lead      @relation(fields: [lead_id], references: [id])
+  intent_strength         Int       @default(0) @map("intent_strength")
+  intent_stage            String    @default("browsing") @map("intent_stage")
+  price_min               Decimal?  @map("price_min") @db.Decimal(14, 2)
+  price_max               Decimal?  @map("price_max") @db.Decimal(14, 2)
+  preferred_neighborhoods String[]  @map("preferred_neighborhoods")
+  preferred_types         String[]  @map("preferred_types")
+  preferred_beds          Int[]     @map("preferred_beds")
+  amenity_preferences     String[]  @map("amenity_preferences")
+  preferred_boroughs      String[]  @map("preferred_boroughs")
+  top_features            Json      @default("{}") @map("top_features")
+  event_count             Int       @default(0) @map("event_count")
+  last_event_at           DateTime? @map("last_event_at")
+  last_computed           DateTime  @default(now()) @map("last_computed")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([intent_strength])
+  @@index([intent_stage])
+  @@map("buyer_intent_profiles")
+}
+
+// ═══════════════════════════════════════════════════════════
+// I. AGENT PERFORMANCE — Marketplace & performance index
+// ═══════════════════════════════════════════════════════════
+
+model AgentMetrics {
+  id       BigInt   @id @default(autoincrement())
+  agent_id BigInt   @map("agent_id")
+  agent    Agent    @relation(fields: [agent_id], references: [id])
+  month    DateTime
+  metrics  Json     @default("{}")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@unique([agent_id, month])
+  @@index([agent_id])
+  @@index([month])
+  @@map("agent_metrics")
+}
+
+model AgentPerformanceIndex {
   id              BigInt   @id @default(autoincrement())
-  listing_id      String   @unique
-  score           Int      @default(0)
-  view_velocity   Float    @default(0)
-  save_rate       Float    @default(0)
-  inquiry_rate    Float    @default(0)
-  showing_rate    Float    @default(0)
-  avg_dwell_secs  Float    @default(0)
-  comp_avg_score  Int      @default(50)
-  percentile_rank Int      @default(50)
+  agent_id        BigInt   @unique @map("agent_id")
+  agent           Agent    @relation(fields: [agent_id], references: [id])
+  index_score     Int      @default(0) @map("index_score")
+  rank            Int?
+  tier            String   @default("bronze")
   components      Json     @default("{}")
-  last_computed   DateTime @default(now())
+  months_included Int      @default(0) @map("months_included")
+  last_computed   DateTime @default(now()) @map("last_computed")
 
-  @@index([score])
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([index_score])
+  @@index([tier])
+  @@map("agent_performance_indices")
 }
 
-model listings {
-  id                                      BigInt                   @id @default(autoincrement())
-  listing_id                              String                   @unique
-  mls_id                                  String?
-  agent_id                                BigInt?
-  status                                  String                   @default("Active")
-  listing_type                            String
-  property_type                           String?
-  property_sub_type                       String?
-  list_price                              Decimal                  @db.Decimal(14, 2)
-  bedrooms_total                          Int?
-  bathrooms_full                          Int?
-  bathrooms_half                          Int?
-  living_area                             Decimal?                 @db.Decimal(10, 2)
-  borough                                 String?
-  neighborhood                            String?
-  city                                    String?
-  postal_code                             String?
-  idx_display_yn                          Boolean                  @default(true)
-  internet_entire_listing_display_yn      Boolean                  @default(true)
-  internet_address_display_yn             Boolean                  @default(true)
-  participant_only                        Boolean                  @default(false)
-  owner_opt_out                           Boolean                  @default(false)
-  address                                 Json                     @default("{}")
-  features                                Json                     @default("{}")
-  media                                   Json                     @default("[]")
-  compliance                              Json                     @default("{}")
-  agent_info                              Json                     @default("{}")
-  raw_data                                Json?
-  modification_timestamp                  DateTime
-  listing_contract_date                   DateTime?
-  created_at                              DateTime                 @default(now())
-  updated_at                              DateTime
-  last_synced_from_trestle                DateTime?
-  sync_status                             String?                  @default("pending")
-  commercial_ownership                    String?
-  commercial_sub_type                     String?
-  cumulative_days_on_market               Int                      @default(0)
-  days_on_market                          Int                      @default(0)
-  first_active_date                       DateTime?
-  rls_eligible                            Boolean                  @default(true)
-  status_changed_at                       DateTime?
-  expiration_30d_notified                 Boolean                  @default(false)
-  expiration_7d_notified                  Boolean                  @default(false)
-  expiration_date                         DateTime?
-  owner_client_id                         BigInt?
-  custom_fields                           Json?
-  comp_criteria                           Json?
-  internet_automated_valuation_display_yn Boolean                  @default(true)
-  internet_consumer_comment_yn            Boolean                  @default(true)
-  client_listing_actions                  client_listing_actions[]
-  comments                                comments[]
-  agents                                  agents?                  @relation(fields: [agent_id], references: [id])
-  leads                                   leads?                   @relation(fields: [owner_client_id], references: [id])
-  marketing_activities                    marketing_activities[]
-  price_history                           price_history[]
-  protected_periods                       protected_periods?
-  showings                                showings[]
+// ═══════════════════════════════════════════════════════════
+// J. CMA REPORT — Comparable Market Analysis
+// ═══════════════════════════════════════════════════════════
+model CmaReport {
+  id               BigInt   @id @default(autoincrement())
+  agent_id         BigInt   @map("agent_id")
+  agent            Agent    @relation(fields: [agent_id], references: [id])
+  property_address String   @map("property_address")
+  borough          String?
+  neighborhood     String?
+  subject_details  Json     @default("{}") @map("subject_details") // beds, baths, sqft, type, floor, etc.
+  comps            Json     @default("[]") // array of comparable listings
+  adjustments      Json     @default("[]") // array of adjustments per comp
+  estimated_value  Decimal? @map("estimated_value") @db.Decimal(14, 2)
+  price_range_low  Decimal? @map("price_range_low") @db.Decimal(14, 2)
+  price_range_high Decimal? @map("price_range_high") @db.Decimal(14, 2)
+  status           String   @default("draft") // "draft" | "final" | "sent"
+  notes            String?  @db.Text
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
 
   @@index([agent_id])
-  @@index([bedrooms_total])
-  @@index([borough, neighborhood])
-  @@index([idx_display_yn, owner_opt_out])
-  @@index([list_price])
-  @@index([modification_timestamp])
-  @@index([owner_client_id])
-  @@index([property_type])
-  @@index([rls_eligible])
-  @@index([status, listing_type])
+  @@index([neighborhood])
+  @@map("cma_reports")
 }
 
-model market_snapshots {
+// ═══════════════════════════════════════════════════════════
+// K. SHOWING FEEDBACK
+// ═══════════════════════════════════════════════════════════
+model ShowingFeedback {
+  id             BigInt   @id @default(autoincrement())
+  showing_id     BigInt   @map("showing_id")
+  showing        Showing  @relation(fields: [showing_id], references: [id])
+  lead_id        BigInt?  @map("lead_id")
+  lead           Lead?    @relation(fields: [lead_id], references: [id])
+  rating         Int      @default(3) // 1-5
+  interest_level String   @default("neutral") // "not_interested" | "neutral" | "interested" | "very_interested" | "ready_to_offer"
+  liked          String[] @default([]) // ["layout","light","location"]
+  disliked       String[] @default([]) // ["size","price","condition"]
+  objections     String[] @default([])
+  notes          String?  @db.Text
+  submitted_by   String   @default("agent") // "agent" | "client"
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@unique([showing_id])
+  @@index([lead_id])
+  @@index([interest_level])
+  @@map("showing_feedback")
+}
+
+// ═══════════════════════════════════════════════════════════
+// L. NOTIFICATION ENGINE
+// ═══════════════════════════════════════════════════════════
+model Notification {
+  id             BigInt    @id @default(autoincrement())
+  recipient_type String    @map("recipient_type") // "agent" | "lead"
+  recipient_id   BigInt    @map("recipient_id")
+  channel        String    @default("in_app") // "in_app" | "email" | "sms"
+  type           String // "new_match" | "price_drop" | "showing_confirmed" | "offer_status" | "listing_update" | "system"
+  title          String
+  body           String    @db.Text
+  data           Json? // { listing_id, deal_id, etc. }
+  read_at        DateTime? @map("read_at")
+  sent_at        DateTime? @map("sent_at")
+  status         String    @default("pending") // "pending" | "sent" | "delivered" | "failed"
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@index([recipient_type, recipient_id])
+  @@index([type])
+  @@index([status])
+  @@index([created_at])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id                 BigInt  @id @default(autoincrement())
+  recipient_type     String  @map("recipient_type") // "agent" | "lead"
+  recipient_id       BigInt  @map("recipient_id")
+  new_match          Boolean @default(true) @map("new_match")
+  price_drop         Boolean @default(true) @map("price_drop")
+  showing_updates    Boolean @default(true) @map("showing_updates")
+  offer_updates      Boolean @default(true) @map("offer_updates")
+  listing_expiration Boolean @default(true) @map("listing_expiration") // UCBA A6: expiration warnings
+  email_digest       String  @default("daily") // "none" | "instant" | "daily" | "weekly"
+  sms_enabled        Boolean @default(false) @map("sms_enabled")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@unique([recipient_type, recipient_id])
+  @@map("notification_preferences")
+}
+
+// ═══════════════════════════════════════════════════════════
+// M. DOCUMENT VAULT
+// ═══════════════════════════════════════════════════════════
+model Document {
+  id                 BigInt  @id @default(autoincrement())
+  deal_id            BigInt? @map("deal_id")
+  deal               Deal?   @relation(fields: [deal_id], references: [id])
+  agent_id           BigInt  @map("agent_id")
+  agent              Agent   @relation(fields: [agent_id], references: [id])
+  name               String
+  doc_type           String  @map("doc_type") // "contract" | "disclosure" | "co_broke" | "rider" | "amendment" | "other"
+  file_url           String  @map("file_url")
+  file_size          Int?    @map("file_size") // bytes
+  mime_type          String? @map("mime_type")
+  status             String  @default("uploaded") // "uploaded" | "sent" | "viewed" | "signed" | "countersigned" | "expired"
+  requires_signature Boolean @default(false) @map("requires_signature")
+  notes              String? @db.Text
+
+  signatures DocumentSignature[]
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([deal_id])
+  @@index([agent_id])
+  @@index([doc_type])
+  @@index([status])
+  @@map("documents")
+}
+
+model DocumentSignature {
+  id           BigInt    @id @default(autoincrement())
+  document_id  BigInt    @map("document_id")
+  document     Document  @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  signer_name  String    @map("signer_name")
+  signer_email String    @map("signer_email")
+  signer_role  String    @map("signer_role") // "buyer" | "seller" | "agent" | "broker" | "attorney"
+  signed_at    DateTime? @map("signed_at")
+  ip_address   String?   @map("ip_address")
+  status       String    @default("pending") // "pending" | "signed" | "declined"
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@index([document_id])
+  @@map("document_signatures")
+}
+
+// ═══════════════════════════════════════════════════════════
+// N. MARKET SNAPSHOT (for Market Pulse Dashboard)
+// ═══════════════════════════════════════════════════════════
+model MarketSnapshot {
   id             BigInt   @id @default(autoincrement())
   neighborhood   String
   borough        String?
-  period         String
-  listing_type   String
-  median_price   Decimal? @db.Decimal(14, 2)
-  avg_price      Decimal? @db.Decimal(14, 2)
-  avg_dom        Int?
-  inventory      Int      @default(0)
-  price_per_sqft Decimal? @db.Decimal(10, 2)
-  new_listings   Int      @default(0)
-  closed_sales   Int      @default(0)
-  metrics        Json     @default("{}")
-  created_at     DateTime @default(now())
+  period         String // "2026-03" (YYYY-MM)
+  listing_type   String   @map("listing_type") // "sale" | "rent"
+  median_price   Decimal? @map("median_price") @db.Decimal(14, 2)
+  avg_price      Decimal? @map("avg_price") @db.Decimal(14, 2)
+  avg_dom        Int?     @map("avg_dom") // average days on market
+  inventory      Int      @default(0) // active listing count
+  price_per_sqft Decimal? @map("price_per_sqft") @db.Decimal(10, 2)
+  new_listings   Int      @default(0) @map("new_listings")
+  closed_sales   Int      @default(0) @map("closed_sales")
+  metrics        Json     @default("{}") // additional metrics
+
+  created_at DateTime @default(now()) @map("created_at")
 
   @@unique([neighborhood, period, listing_type])
   @@index([borough])
   @@index([period])
-}
-
-model marketing_activities {
-  id            BigInt   @id @default(autoincrement())
-  listing_id    BigInt
-  activity_type String
-  title         String
-  description   String?
-  completed_at  DateTime @default(now())
-  agent_id      BigInt?
-  metadata      Json     @default("{}")
-  agents        agents?  @relation(fields: [agent_id], references: [id])
-  listings      listings @relation(fields: [listing_id], references: [id], onDelete: Cascade)
-
-  @@index([completed_at])
-  @@index([listing_id])
-}
-
-model mfa_sessions {
-  id         String   @id
-  token      String   @unique
-  agent_id   BigInt
-  attempts   Int      @default(0)
-  expires_at DateTime
-  created_at DateTime @default(now())
-  ip_address String?
-  user_agent String?
-  code_hash  String
-
-  @@index([expires_at])
-  @@index([token])
-}
-
-model micro_commitments {
-  id                   BigInt    @id @default(autoincrement())
-  anonymous_session_id String
-  lead_id              BigInt?
-  stage                String    @default("anonymous")
-  email                String?
-  source               String?
-  consent_captured_at  DateTime?
-  created_at           DateTime  @default(now())
-  updated_at           DateTime
-
-  @@index([anonymous_session_id])
-  @@index([email])
-  @@index([lead_id])
-}
-
-model notification_preferences {
-  id                 BigInt   @id @default(autoincrement())
-  recipient_type     String
-  recipient_id       BigInt
-  new_match          Boolean  @default(true)
-  price_drop         Boolean  @default(true)
-  showing_updates    Boolean  @default(true)
-  offer_updates      Boolean  @default(true)
-  email_digest       String   @default("daily")
-  sms_enabled        Boolean  @default(false)
-  created_at         DateTime @default(now())
-  updated_at         DateTime
-  listing_expiration Boolean  @default(true)
-
-  @@unique([recipient_type, recipient_id])
-}
-
-model notifications {
-  id             BigInt    @id @default(autoincrement())
-  recipient_type String
-  recipient_id   BigInt
-  channel        String    @default("in_app")
-  type           String
-  title          String
-  body           String
-  data           Json?
-  read_at        DateTime?
-  sent_at        DateTime?
-  status         String    @default("pending")
-  created_at     DateTime  @default(now())
-
-  @@index([created_at])
-  @@index([recipient_type, recipient_id])
-  @@index([status])
-  @@index([type])
-}
-
-model outreach_cadence_steps {
-  id              BigInt       @id @default(autoincrement())
-  seller_lead_id  BigInt
-  day_offset      Int
-  type            String
-  channel         String       @default("email")
-  subject         String?
-  content_preview String?
-  status          String       @default("pending")
-  scheduled_date  DateTime?
-  sent_at         DateTime?
-  opened_at       DateTime?
-  replied_at      DateTime?
-  content_type    String?
-  content_data    Json?
-  created_at      DateTime     @default(now())
-  updated_at      DateTime
-  seller_leads    seller_leads @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
-
-  @@index([scheduled_date])
-  @@index([seller_lead_id])
-  @@index([status])
-}
-
-model outreach_events {
-  id               BigInt       @id @default(autoincrement())
-  seller_lead_id   BigInt
-  channel          String
-  direction        String       @default("outbound")
-  template_id      String?
-  subject          String?
-  body_preview     String?
-  outcome          String?
-  consent_verified Boolean      @default(false)
-  agent_id         BigInt
-  created_at       DateTime     @default(now())
-  seller_leads     seller_leads @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
-
-  @@index([agent_id])
-  @@index([created_at])
-  @@index([seller_lead_id])
-}
-
-model past_deals {
-  id                  BigInt    @id @default(autoincrement())
-  agent_id            BigInt
-  street              String
-  unit                String?
-  city                String    @default("New York")
-  postal_code         String?
-  neighborhood        String?
-  deal_type           String
-  property_type       String?
-  close_price         Decimal?  @db.Decimal(14, 2)
-  close_date          DateTime?
-  beds                Int?
-  baths_full          Int?
-  baths_half          Int?
-  sqft                Int?
-  photo_url           String?
-  listing_courtesy    String?
-  source              String    @default("manual")
-  trestle_listing_id  String?
-  trestle_listing_key String?
-  sort_order          Int?
-  created_at          DateTime  @default(now())
-  updated_at          DateTime
-  agents              agents    @relation(fields: [agent_id], references: [id])
-
-  @@index([agent_id, deal_type])
-  @@index([close_date])
-}
-
-model portal_events {
-  id          BigInt   @id @default(autoincrement())
-  lead_id     BigInt
-  workspace   String
-  event_type  String
-  listing_id  String?
-  property_id String?
-  campaign_id BigInt?
-  metadata    Json?    @default("{}")
-  created_at  DateTime @default(now())
-  leads       leads    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-
-  @@index([campaign_id])
-  @@index([created_at])
-  @@index([event_type])
-  @@index([lead_id, workspace])
-  @@index([listing_id])
-}
-
-model price_history {
-  id             BigInt   @id @default(autoincrement())
-  listing_id     BigInt
-  price          Decimal  @db.Decimal(14, 2)
-  previous_price Decimal? @db.Decimal(14, 2)
-  change_type    String   @default("initial")
-  changed_by     BigInt?
-  notes          String?
-  created_at     DateTime @default(now())
-  listings       listings @relation(fields: [listing_id], references: [id], onDelete: Cascade)
-
-  @@index([created_at])
-  @@index([listing_id])
-}
-
-model pricing_experiments {
-  id                     BigInt            @id @default(autoincrement())
-  name                   String
-  description            String?
-  experiment_type        String
-  status                 String            @default("draft")
-  created_by_id          BigInt
-  start_date             DateTime?
-  end_date               DateTime?
-  target_sample_size     Int?
-  significance_threshold Decimal           @default(0.95) @db.Decimal(4, 3)
-  conclusion_notes       String?
-  result_summary         Json?
-  created_at             DateTime          @default(now())
-  updated_at             DateTime
-  experiment_arms        experiment_arms[]
-  agents                 agents            @relation(fields: [created_by_id], references: [id])
-
-  @@index([created_by_id])
-  @@index([experiment_type])
-  @@index([status])
-}
-
-model protected_buyers {
-  id                  BigInt            @id @default(autoincrement())
-  protected_period_id BigInt
-  buyer_name          String
-  buyer_email         String?
-  buyer_phone         String?
-  notes               String?
-  deal_executed       Boolean           @default(false)
-  deal_executed_at    DateTime?
-  deal_price          Decimal?          @db.Decimal(14, 2)
-  created_at          DateTime          @default(now())
-  protected_periods   protected_periods @relation(fields: [protected_period_id], references: [id], onDelete: Cascade)
-
-  @@index([protected_period_id])
-}
-
-model protected_periods {
-  id                   BigInt             @id @default(autoincrement())
-  listing_id           BigInt             @unique
-  agent_id             BigInt
-  agreement_expired_at DateTime
-  names_deadline       DateTime
-  protection_ends_at   DateTime
-  names_submitted_at   DateTime?
-  notice_uploaded_at   DateTime?
-  status               String             @default("pending_names")
-  notice_document_id   BigInt?
-  created_at           DateTime           @default(now())
-  updated_at           DateTime
-  protected_buyers     protected_buyers[]
-  agents               agents             @relation(fields: [agent_id], references: [id])
-  listings             listings           @relation(fields: [listing_id], references: [id])
-
-  @@index([agent_id])
-  @@index([names_deadline])
-  @@index([protection_ends_at])
-  @@index([status])
-}
-
-model readiness_signals {
-  id             BigInt       @id @default(autoincrement())
-  seller_lead_id BigInt
-  signal_type    String
-  raw_value      String?
-  normalized     Float        @default(0)
-  source         String       @default("system")
-  metadata       Json?
-  collected_at   DateTime     @default(now())
-  seller_leads   seller_leads @relation(fields: [seller_lead_id], references: [id], onDelete: Cascade)
-
-  @@index([seller_lead_id])
-  @@index([signal_type])
-}
-
-model saved_searches {
-  id              BigInt    @id @default(autoincrement())
-  lead_id         BigInt?
-  agent_id        BigInt?
-  name            String
-  criteria        Json
-  last_run        DateTime?
-  result_count    Int?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime
-  alert_email     String?
-  alert_enabled   Boolean   @default(false)
-  alert_frequency String?
-  last_alert_sent DateTime?
-  agents          agents?   @relation(fields: [agent_id], references: [id])
-  leads           leads?    @relation(fields: [lead_id], references: [id])
-
-  @@index([agent_id])
-  @@index([alert_enabled, alert_frequency])
-  @@index([lead_id])
-}
-
-model seller_leads {
-  id                     BigInt                   @id @default(autoincrement())
-  address                String
-  unit                   String                   @default("")
-  borough                String?
-  neighborhood           String?
-  postal_code            String?
-  bbl                    String?
-  bin                    String?
-  owner_name             String?
-  owner_email            String?
-  owner_phone            String?
-  readiness_score        Int                      @default(0)
-  score_grade            String                   @default("F")
-  last_scored_at         DateTime?
-  status                 String                   @default("new")
-  assigned_agent_id      BigInt?
-  consent_given          Boolean                  @default(false)
-  consent_date           DateTime?
-  consent_method         String?
-  notes                  String?
-  created_at             DateTime                 @default(now())
-  updated_at             DateTime
-  annual_tax             Decimal?                 @db.Decimal(12, 2)
-  assessed_value         Decimal?                 @db.Decimal(14, 2)
-  attorney_email         String?
-  attorney_name          String?
-  attorney_phone         String?
-  authorized_signatories Json?
-  baths                  Decimal?                 @db.Decimal(3, 1)
-  beds                   Int?
-  building_name          String?
-  building_risk          Decimal?                 @db.Decimal(3, 2)
-  consent_captured_at    DateTime?
-  consent_opt_out_at     DateTime?
-  converted_at           DateTime?
-  converted_to_lead_id   BigInt?
-  entity_name            String?
-  entity_type            String?
-  equity_ratio           Decimal?                 @db.Decimal(3, 2)
-  floors                 Int?
-  last_contacted_at      DateTime?
-  last_purchase_date     DateTime?
-  last_purchase_price    Decimal?                 @db.Decimal(14, 2)
-  last_researched_at     DateTime?
-  lot_area               Int?
-  management_company     String?
-  market_value           Decimal?                 @db.Decimal(14, 2)
-  mortgage_amount        Decimal?                 @db.Decimal(14, 2)
-  mortgage_date          DateTime?
-  next_follow_up         DateTime?
-  open_violations        Int?                     @default(0)
-  ownership_years        Decimal?                 @db.Decimal(4, 1)
-  pitch_generated_at     DateTime?
-  pitch_pdf_url          String?
-  pitch_sent_at          DateTime?
-  property_type          String?
-  recent_permits         Int?                     @default(0)
-  secondary_email        String?
-  secondary_name         String?
-  secondary_phone        String?
-  secondary_relationship String?
-  source                 String?
-  source_detail          String?
-  sqft                   Int?
-  tax_class              String?
-  units_total            Int?
-  year_built             Int?
-  pitch_data             Json?
-  outreach_cadence_steps outreach_cadence_steps[]
-  outreach_events        outreach_events[]
-  readiness_signals      readiness_signals[]
-  agents                 agents?                  @relation(fields: [assigned_agent_id], references: [id])
-
-  @@unique([address, unit])
-  @@index([assigned_agent_id])
-  @@index([bbl])
-  @@index([next_follow_up])
-  @@index([readiness_score])
-  @@index([source])
-  @@index([status])
-}
-
-model sessions {
-  id         String   @id
-  token      String   @unique
-  user_type  String
-  user_id    BigInt
-  role       String
-  expires_at DateTime
-  created_at DateTime @default(now())
-  ip_address String?
-  user_agent String?
-
-  @@index([expires_at])
-  @@index([token])
-  @@index([user_type, user_id])
-}
-
-model showing_feedback {
-  id             BigInt   @id @default(autoincrement())
-  showing_id     BigInt   @unique
-  lead_id        BigInt?
-  rating         Int      @default(3)
-  interest_level String   @default("neutral")
-  liked          String[] @default([])
-  disliked       String[] @default([])
-  objections     String[] @default([])
-  notes          String?
-  submitted_by   String   @default("agent")
-  created_at     DateTime @default(now())
-  updated_at     DateTime
-  leads          leads?   @relation(fields: [lead_id], references: [id])
-  showings       showings @relation(fields: [showing_id], references: [id])
-
-  @@index([interest_level])
-  @@index([lead_id])
-}
-
-model showing_history {
-  id                    BigInt   @id @default(autoincrement())
-  lead_id               BigInt
-  listing_id            String?
-  address               String
-  unit                  String?
-  showing_date          DateTime
-  price_at_time         Decimal? @db.Decimal(14, 2)
-  reaction              String?
-  what_caught_attention String?
-  why_not_rented        String?
-  notes                 String?
-  rented                Boolean  @default(false)
-  created_at            DateTime @default(now())
-  leads                 leads    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-
-  @@index([lead_id, showing_date])
-}
-
-model showings {
-  id               BigInt            @id @default(autoincrement())
-  lead_id          BigInt?
-  listing_id       BigInt
-  agent_id         BigInt
-  date             DateTime
-  time             String?
-  type             String            @default("private")
-  status           String            @default("requested")
-  notes            String?
-  created_at       DateTime          @default(now())
-  updated_at       DateTime
-  showing_feedback showing_feedback?
-  agents           agents            @relation(fields: [agent_id], references: [id])
-  leads            leads?            @relation(fields: [lead_id], references: [id])
-  listings         listings          @relation(fields: [listing_id], references: [id])
-
-  @@index([agent_id])
-  @@index([date])
-  @@index([lead_id])
-  @@index([listing_id])
-}
-
-model social_proof_cache {
-  id                 BigInt   @id @default(autoincrement())
-  listing_id         String   @unique
-  view_count_7d      Int      @default(0)
-  save_count         Int      @default(0)
-  showings_this_week Int      @default(0)
-  similar_sold_speed Int?
-  demand_level       String   @default("moderate")
-  last_computed      DateTime @default(now())
-}
-
-model trigger_executions {
-  id                 BigInt             @id @default(autoincrement())
-  trigger_id         BigInt
-  target_type        String
-  target_id          String
-  context            Json               @default("{}")
-  result             String             @default("success")
-  created_at         DateTime           @default(now())
-  lifecycle_triggers lifecycle_triggers @relation(fields: [trigger_id], references: [id])
-
-  @@index([created_at])
-  @@index([target_type, target_id])
-  @@index([trigger_id])
+  @@map("market_snapshots")
 }
 
 // ═══════════════════════════════════════════════════════════
-// BUILDING — Standalone building database (persists forever)
-// Populated silently from Trestle. Manual fields for management/board.
+// O. LEAD SCORE + ASSIGNMENT RULES
+// ═══════════════════════════════════════════════════════════
+model LeadScore {
+  id               BigInt   @id @default(autoincrement())
+  lead_id          BigInt   @unique @map("lead_id")
+  lead             Lead     @relation(fields: [lead_id], references: [id])
+  score            Int      @default(0) // 0-100
+  grade            String   @default("C") // A/B/C/D/F
+  source_score     Int      @default(0) @map("source_score")
+  engagement_score Int      @default(0) @map("engagement_score")
+  recency_score    Int      @default(0) @map("recency_score")
+  fit_score        Int      @default(0) @map("fit_score")
+  last_computed    DateTime @default(now()) @map("last_computed")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([score])
+  @@index([grade])
+  @@map("lead_scores")
+}
+
+model LeadAssignmentRule {
+  id                  BigInt  @id @default(autoincrement())
+  agent_id            BigInt  @map("agent_id")
+  agent               Agent   @relation(fields: [agent_id], references: [id])
+  criteria            Json    @default("{}") // { min_score, source, borough, lead_type }
+  priority            Int     @default(50) // higher = first pick
+  max_leads_per_month Int     @default(50) @map("max_leads_per_month")
+  current_month_count Int     @default(0) @map("current_month_count")
+  active              Boolean @default(true)
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([agent_id])
+  @@index([active])
+  @@map("lead_assignment_rules")
+}
+
+// ═══════════════════════════════════════════════════════════
+// P. COMMISSION TRACKER
+// ═══════════════════════════════════════════════════════════
+model CommissionPayment {
+  id           BigInt    @id @default(autoincrement())
+  deal_id      BigInt    @map("deal_id")
+  deal         Deal      @relation(fields: [deal_id], references: [id])
+  payment_type String    @map("payment_type") // "received" | "agent_split" | "company_split" | "referral" | "adjustment"
+  amount       Decimal   @db.Decimal(14, 2)
+  date         DateTime?
+  status       String    @default("pending") // "pending" | "received" | "paid" | "void"
+  reference    String? // check #, wire ref, etc.
+  notes        String?   @db.Text
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([deal_id])
+  @@index([payment_type])
+  @@index([status])
+  @@map("commission_payments")
+}
+
+// ═══════════════════════════════════════════════════════════
+// Q. LISTING QUALITY AUDIT
+// ═══════════════════════════════════════════════════════════
+model ListingAudit {
+  id           BigInt  @id @default(autoincrement())
+  listing_id   String  @map("listing_id")
+  agent_id     BigInt? @map("agent_id")
+  score        Int     @default(0) // 0-100 completeness
+  passed       Boolean @default(false)
+  issues       Json    @default("[]") // array of { field, severity, message }
+  warnings     Json    @default("[]")
+  field_count  Int     @default(0) @map("field_count")
+  filled_count Int     @default(0) @map("filled_count")
+  photo_count  Int     @default(0) @map("photo_count")
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@index([listing_id])
+  @@index([agent_id])
+  @@index([score])
+  @@map("listing_audits")
+}
+
+// ═══════════════════════════════════════════════════════════
+// R. FINANCIAL LEDGER — Immutable transaction log
+// ═══════════════════════════════════════════════════════════
+model FinancialLedger {
+  id              BigInt   @id @default(autoincrement())
+  deal_id         BigInt?  @map("deal_id")
+  payment_id      BigInt?  @map("payment_id")
+  entry_type      String   @map("entry_type") // "commission_received" | "agent_payout" | "company_share" | "referral_fee" | "adjustment" | "void"
+  amount          Decimal  @db.Decimal(14, 2)
+  running_balance Decimal? @map("running_balance") @db.Decimal(14, 2)
+  description     String   @db.Text
+  reference       String? // check #, wire ref, etc.
+  recorded_by     BigInt   @map("recorded_by") // agent or broker ID who recorded
+  immutable_hash  String?  @map("immutable_hash") // SHA-256 of previous entry + this entry for tamper detection
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@index([deal_id])
+  @@index([payment_id])
+  @@index([entry_type])
+  @@index([created_at])
+  @@map("financial_ledger")
+}
+
+// ═══════════════════════════════════════════════════════════
+// S. BEHAVIORAL EVENT — Granular micro-signal tracking
+// ═══════════════════════════════════════════════════════════
+model BehavioralEvent {
+  id          BigInt   @id @default(autoincrement())
+  session_id  String   @map("session_id") // anonymous or authenticated session
+  lead_id     BigInt?  @map("lead_id") // nullable until identified
+  listing_id  String?  @map("listing_id")
+  event_type  String   @map("event_type") // scroll_back_price, photo_dwell, calculator_depth, return_visit, comparison_add, share, transit_check, school_check, favorite_remove, search_narrow
+  value       Float? // numeric value (e.g., dwell seconds, calculator iterations)
+  metadata    Json     @default("{}") // additional context
+  page_path   String?  @map("page_path")
+  recorded_at DateTime @default(now()) @map("recorded_at")
+
+  @@index([session_id])
+  @@index([lead_id])
+  @@index([listing_id])
+  @@index([event_type])
+  @@index([recorded_at])
+  @@index([lead_id, event_type])
+  @@map("behavioral_events")
+}
+
+// ═══════════════════════════════════════════════════════════
+// T. CONVICTION SCORE — Buyer readiness assessment
+// ═══════════════════════════════════════════════════════════
+model ConvictionScore {
+  id                     BigInt    @id @default(autoincrement())
+  lead_id                BigInt    @unique @map("lead_id")
+  score                  Int       @default(0) // 0-100
+  stage                  String    @default("browsing") // browsing, considering, convinced, ready
+  milestone_flags        Json      @default("{}") // { repeated_views, shared, used_calculator, compared, checked_transit, checked_schools, requested_showing }
+  hesitation_signals     Json      @default("{}") // { price_scroll_backs, tab_switches, long_gaps }
+  ghost_status           String    @default("active") // active, cooling, silent, gone
+  last_active_at         DateTime? @map("last_active_at")
+  silence_days           Int       @default(0) @map("silence_days")
+  search_narrowing_trend Float?    @map("search_narrowing_trend")
+  top_listings           Json      @default("[]") // top 5 listing IDs by engagement
+  last_computed          DateTime  @default(now()) @map("last_computed")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([score])
+  @@index([ghost_status])
+  @@map("conviction_scores")
+}
+
+// ═══════════════════════════════════════════════════════════
+// U. LISTING MOMENTUM — Per-listing performance score
+// ═══════════════════════════════════════════════════════════
+model ListingMomentum {
+  id              BigInt   @id @default(autoincrement())
+  listing_id      String   @unique @map("listing_id")
+  score           Int      @default(0) // 0-100
+  view_velocity   Float    @default(0) @map("view_velocity") // views per day
+  save_rate       Float    @default(0) @map("save_rate") // saves / views
+  inquiry_rate    Float    @default(0) @map("inquiry_rate") // inquiries / views
+  showing_rate    Float    @default(0) @map("showing_rate") // showing requests / views
+  avg_dwell_secs  Float    @default(0) @map("avg_dwell_secs") // avg time on listing page
+  comp_avg_score  Int      @default(50) @map("comp_avg_score") // avg score of comparable listings
+  percentile_rank Int      @default(50) @map("percentile_rank") // 0-100 vs all active listings
+  components      Json     @default("{}") // breakdown of score components
+  last_computed   DateTime @default(now()) @map("last_computed")
+
+  @@index([score])
+  @@map("listing_momentum")
+}
+
+// ═══════════════════════════════════════════════════════════
+// V. SOCIAL PROOF CACHE — Anonymized demand signals per listing
+// ═══════════════════════════════════════════════════════════
+model SocialProofCache {
+  id                 BigInt   @id @default(autoincrement())
+  listing_id         String   @unique @map("listing_id")
+  view_count_7d      Int      @default(0) @map("view_count_7d")
+  save_count         Int      @default(0) @map("save_count")
+  showings_this_week Int      @default(0) @map("showings_this_week")
+  similar_sold_speed Int?     @map("similar_sold_speed") // avg days to sell for similar
+  demand_level       String   @default("moderate") // low, moderate, high, very_high
+  last_computed      DateTime @default(now()) @map("last_computed")
+
+  @@map("social_proof_cache")
+}
+
+// ═══════════════════════════════════════════════════════════
+// W. MICRO-COMMITMENT — Progressive identity capture
+// ═══════════════════════════════════════════════════════════
+model MicroCommitment {
+  id                   BigInt    @id @default(autoincrement())
+  anonymous_session_id String    @map("anonymous_session_id")
+  lead_id              BigInt?   @map("lead_id")
+  stage                String    @default("anonymous") // anonymous, soft_identity, full_identity
+  email                String?
+  source               String? // price_alert, save_search, cma_offer, registration_gate, calculator
+  consent_captured_at  DateTime? @map("consent_captured_at")
+  created_at           DateTime  @default(now()) @map("created_at")
+  updated_at           DateTime  @updatedAt @map("updated_at")
+
+  @@index([anonymous_session_id])
+  @@index([lead_id])
+  @@index([email])
+  @@map("micro_commitments")
+}
+
+// ═══════════════════════════════════════════════════════════
+// X. LIFECYCLE TRIGGERS — Event-driven automation rules
+// ═══════════════════════════════════════════════════════════
+model LifecycleTrigger {
+  id               BigInt    @id @default(autoincrement())
+  name             String
+  trigger_type     String    @map("trigger_type") // conviction_threshold, ghost_detected, comparable_sale, market_window, momentum_drop, inquiry_stale
+  conditions       Json      @default("{}") // e.g., { min_score: 75 } or { silence_days: 7 }
+  action_type      String    @map("action_type") // notification, email, agent_alert, crm_task
+  action_config    Json      @default("{}") // template, recipients, etc.
+  enabled          Boolean   @default(true)
+  cooldown_hours   Int       @default(24) @map("cooldown_hours")
+  last_executed_at DateTime? @map("last_executed_at")
+  execution_count  Int       @default(0) @map("execution_count")
+
+  executions TriggerExecution[]
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@index([trigger_type])
+  @@index([enabled])
+  @@map("lifecycle_triggers")
+}
+
+model TriggerExecution {
+  id          BigInt           @id @default(autoincrement())
+  trigger_id  BigInt           @map("trigger_id")
+  trigger     LifecycleTrigger @relation(fields: [trigger_id], references: [id])
+  target_type String           @map("target_type") // lead, listing, agent
+  target_id   String           @map("target_id")
+  context     Json             @default("{}")
+  result      String           @default("success") // success, suppressed, failed
+  created_at  DateTime         @default(now()) @map("created_at")
+
+  @@index([trigger_id])
+  @@index([target_type, target_id])
+  @@index([created_at])
+  @@map("trigger_executions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// Y. FEATURED CONFIG — Broker-managed homepage featured listings
+// ═══════════════════════════════════════════════════════════
+model FeaturedConfig {
+  id            BigInt   @id @default(autoincrement())
+  pinned_ids    String[] @default([]) // listing IDs or MLS IDs to pin first
+  filters       Json     @default("{}") // { type, boroughs, neighborhoods, minPrice, maxPrice, minBeds }
+  sort          String   @default("price-desc") // price-desc, price-asc, newest, exclusives, neighborhood, new-development
+  display_limit Int      @default(6) @map("display_limit")
+  is_active     Boolean  @default(true) @map("is_active")
+  updated_by    BigInt?  @map("updated_by")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@map("featured_configs")
+}
+
+// ═══════════════════════════════════════════════════════════
+// Z. PROTECTED PERIOD — UCBA A6/A7/A8 exclusive expiration
+// Internal audit compliance — NOT sent to RLS/Trestle.
+// Agent has 7 business days to submit up to 6 buyer names after
+// exclusive expires. 90-day protection window for compensation.
+// ═══════════════════════════════════════════════════════════
+model ProtectedPeriod {
+  id         BigInt  @id @default(autoincrement())
+  listing_id BigInt  @unique @map("listing_id")
+  listing    Listing @relation(fields: [listing_id], references: [id])
+  agent_id   BigInt  @map("agent_id")
+  agent      Agent   @relation(fields: [agent_id], references: [id])
+
+  // Dates
+  agreement_expired_at DateTime  @map("agreement_expired_at") // When the exclusive agreement expired
+  names_deadline       DateTime  @map("names_deadline") // 7 business days after expiration
+  protection_ends_at   DateTime  @map("protection_ends_at") // 90 calendar days after expiration
+  names_submitted_at   DateTime? @map("names_submitted_at")
+  notice_uploaded_at   DateTime? @map("notice_uploaded_at") // When notice of expired listing was uploaded
+
+  // Status tracking
+  // pending_names → active → expired | converted
+  // pending_names → missed_deadline (if 7 biz days pass with no names)
+  status String @default("pending_names")
+
+  // Notice document (internal audit — not sent to RLS)
+  notice_document_id BigInt? @map("notice_document_id")
+
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  protected_buyers ProtectedBuyer[]
+
+  @@index([agent_id])
+  @@index([status])
+  @@index([protection_ends_at])
+  @@index([names_deadline])
+  @@map("protected_periods")
+}
+
+model ProtectedBuyer {
+  id                  BigInt          @id @default(autoincrement())
+  protected_period_id BigInt          @map("protected_period_id")
+  protected_period    ProtectedPeriod @relation(fields: [protected_period_id], references: [id], onDelete: Cascade)
+
+  buyer_name  String  @map("buyer_name")
+  buyer_email String? @map("buyer_email")
+  buyer_phone String? @map("buyer_phone")
+  notes       String? @db.Text
+
+  // If a deal is executed with this buyer within 90 days
+  deal_executed    Boolean   @default(false) @map("deal_executed")
+  deal_executed_at DateTime? @map("deal_executed_at")
+  deal_price       Decimal?  @map("deal_price") @db.Decimal(14, 2)
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@index([protected_period_id])
+  @@map("protected_buyers")
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRICE HISTORY — Track listing price changes over time
+// ═══════════════════════════════════════════════════════════
+model PriceHistory {
+  id             BigInt   @id @default(autoincrement())
+  listing_id     BigInt   @map("listing_id")
+  listing        Listing  @relation(fields: [listing_id], references: [id], onDelete: Cascade)
+  price          Decimal  @db.Decimal(14, 2)
+  previous_price Decimal? @map("previous_price") @db.Decimal(14, 2)
+  change_type    String   @default("initial") @map("change_type") // initial, reduction, increase, correction
+  changed_by     BigInt?  @map("changed_by") // agent_id who made the change
+  notes          String?  @db.Text
+  created_at     DateTime @default(now()) @map("created_at")
+
+  @@index([listing_id])
+  @@index([created_at])
+  @@map("price_history")
+}
+
+// ═══════════════════════════════════════════════════════════
+// MARKETING ACTIVITY — Track marketing actions for a listing
+// ═══════════════════════════════════════════════════════════
+model MarketingActivity {
+  id            BigInt   @id @default(autoincrement())
+  listing_id    BigInt   @map("listing_id")
+  listing       Listing  @relation(fields: [listing_id], references: [id], onDelete: Cascade)
+  activity_type String   @map("activity_type") // photos, video, virtual_tour, streeteasy, zillow, social_media, email_blast, print_ad, open_house_promo, broker_tour, price_reduction_notice
+  title         String
+  description   String?  @db.Text
+  completed_at  DateTime @default(now()) @map("completed_at")
+  agent_id      BigInt?  @map("agent_id")
+  agent         Agent?   @relation(fields: [agent_id], references: [id])
+  metadata      Json     @default("{}")
+
+  @@index([listing_id])
+  @@index([completed_at])
+  @@map("marketing_activities")
+}
+
+// ═══════════════════════════════════════════════════════════
+// FOLLOW-UP TASK — Agent reminders and scheduled actions
+// ═══════════════════════════════════════════════════════════
+model FollowUpTask {
+  id           BigInt    @id @default(autoincrement())
+  lead_id      BigInt    @map("lead_id")
+  lead         Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  agent_id     BigInt    @map("agent_id")
+  agent        Agent     @relation("AgentTasks", fields: [agent_id], references: [id])
+  title        String
+  description  String?   @db.Text
+  due_date     DateTime  @map("due_date")
+  priority     String    @default("medium") // low, medium, high, urgent
+  status       String    @default("pending") // pending, completed, cancelled, overdue
+  task_type    String    @default("follow_up") @map("task_type") // follow_up, call, email, showing, meeting, review, renewal_check, buyer_conversion
+  completed_at DateTime? @map("completed_at")
+  created_at   DateTime  @default(now()) @map("created_at")
+
+  @@index([agent_id, status])
+  @@index([due_date])
+  @@index([lead_id])
+  @@map("follow_up_tasks")
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIVITY LOG — Unified timeline per lead
+// ═══════════════════════════════════════════════════════════
+model ActivityLog {
+  id            BigInt   @id @default(autoincrement())
+  lead_id       BigInt   @map("lead_id")
+  lead          Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  activity_type String   @map("activity_type") // status_change, score_change, showing, comment, reaction, contact, email, note, task_completed, offer, portal_login, lease_alert, conversion_flag
+  title         String
+  detail        String?  @db.Text
+  metadata      Json     @default("{}")
+  actor_type    String   @default("system") @map("actor_type") // system, agent, broker, client
+  actor_id      BigInt?  @map("actor_id")
+  created_at    DateTime @default(now()) @map("created_at")
+
+  @@index([lead_id, created_at])
+  @@map("activity_logs")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMPAIGN — Marketing campaigns (sales + rentals CRM)
+// ═══════════════════════════════════════════════════════════
+model Campaign {
+  id              BigInt              @id @default(autoincrement())
+  agent_id        BigInt              @map("agent_id")
+  agent           Agent               @relation(fields: [agent_id], references: [id])
+  crm_type        String              @map("crm_type") // "sales" | "rentals"
+  name            String
+  audience_type   String              @map("audience_type") // "buyers" | "sellers" | "investors" | "landlords" | "tenants" | "prospects"
+  campaign_type   String              @map("campaign_type") // "listing_alert" | "market_update" | "showing_summary" | "valuation" | "reactivation" | "renewal"
+  status          String              @default("draft") // "draft" | "scheduled" | "sent" | "recurring"
+  frequency       String? // "daily" | "weekly" | "monthly" | "quarterly" | "biannual" | "one_time"
+  recipient_count Int                 @default(0) @map("recipient_count")
+  sent_count      Int                 @default(0) @map("sent_count")
+  open_count      Int                 @default(0) @map("open_count")
+  click_count     Int                 @default(0) @map("click_count")
+  response_count  Int                 @default(0) @map("response_count")
+  last_run_at     DateTime?           @map("last_run_at")
+  next_run_at     DateTime?           @map("next_run_at")
+  template_id     String?             @map("template_id")
+  filters         Json? // audience filter criteria
+  created_at      DateTime            @default(now()) @map("created_at")
+  updated_at      DateTime            @updatedAt @map("updated_at")
+  recipients      CampaignRecipient[]
+
+  @@index([agent_id])
+  @@index([crm_type, status])
+  @@map("campaigns")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CAMPAIGN RECIPIENT — Links campaigns to leads
+// ═══════════════════════════════════════════════════════════
+model CampaignRecipient {
+  id           BigInt    @id @default(autoincrement())
+  campaign_id  BigInt    @map("campaign_id")
+  campaign     Campaign  @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  lead_id      BigInt    @map("lead_id")
+  lead         Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  sent_at      DateTime? @map("sent_at")
+  opened_at    DateTime? @map("opened_at")
+  clicked_at   DateTime? @map("clicked_at")
+  responded_at DateTime? @map("responded_at")
+
+  @@unique([campaign_id, lead_id])
+  @@index([lead_id])
+  @@map("campaign_recipients")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHOWING HISTORY — Per-lead showing records for viewed/did-not-rent
+// ═══════════════════════════════════════════════════════════
+model ShowingHistory {
+  id                    BigInt   @id @default(autoincrement())
+  lead_id               BigInt   @map("lead_id")
+  lead                  Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  listing_id            String?  @map("listing_id")
+  address               String
+  unit                  String?
+  showing_date          DateTime @map("showing_date")
+  price_at_time         Decimal? @map("price_at_time") @db.Decimal(14, 2)
+  reaction              String? // "interested" | "neutral" | "not_interested"
+  what_caught_attention String?  @map("what_caught_attention") @db.Text
+  why_not_rented        String?  @map("why_not_rented") // "fee_objection" | "price" | "location" | "building" | "timing" | "other"
+  notes                 String?  @db.Text
+  rented                Boolean  @default(false)
+  created_at            DateTime @default(now()) @map("created_at")
+
+  @@index([lead_id, showing_date])
+  @@map("showing_history")
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTAL EVENT — Per-workspace event tracking for client portals
+// Tracks: logins, listing views, email opens, comments, showing requests, approvals
+// Separate from AuditEvent (compliance) and ActivityLog (agent-side) — this is the CLIENT event layer
+// ═══════════════════════════════════════════════════════════
+model PortalEvent {
+  id      BigInt @id @default(autoincrement())
+  lead_id BigInt @map("lead_id")
+  lead    Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  workspace  String // "seller" | "buyer" | "landlord" | "tenant"
+  event_type String @map("event_type") // login, listing_view, email_open, comment_view, comment_add, showing_request, offer_view, document_view, approval, reaction
+
+  listing_id  String? @map("listing_id") // Which listing this event relates to (if any)
+  property_id String? @map("property_id") // Building/property reference (if any)
+  campaign_id BigInt? @map("campaign_id") // Marketing campaign reference (if any)
+  metadata    Json?   @default("{}") // Additional event-specific data
+
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@index([lead_id, workspace])
+  @@index([event_type])
+  @@index([listing_id])
+  @@index([campaign_id])
+  @@index([created_at])
+  @@map("portal_events")
+}
+
+// ═══════════════════════════════════════════════════════════
+// BUILDING — Permanent building database (populated from Trestle)
 // ═══════════════════════════════════════════════════════════
 model Building {
   id              BigInt   @id @default(autoincrement())
-  building_key    Int      @unique @map("building_key") // Trestle BuildingKeyNumeric
+  building_key    Int      @unique @map("building_key")
   name            String?  @map("name")
-  // Address
   street_number   String?  @map("street_number")
   street_name     String?  @map("street_name")
-  street_dir      String?  @map("street_dir") // E, W, N, S
-  street_suffix   String?  @map("street_suffix") // Street, Avenue, etc.
-  neighborhood    String?  @map("neighborhood") // SubdivisionName
-  borough         String?  @map("borough") // CityRegion
+  street_dir      String?  @map("street_dir")
+  street_suffix   String?  @map("street_suffix")
+  neighborhood    String?  @map("neighborhood")
+  borough         String?  @map("borough")
   zip             String?  @map("zip")
-  city            String?  @map("city") // PostalCity
+  city            String?  @map("city")
   latitude        Decimal? @map("latitude") @db.Decimal(10, 7)
   longitude       Decimal? @map("longitude") @db.Decimal(10, 7)
-  // Classification
-  ownership_type  String?  @map("ownership_type") // Condo, Co-op (StockCooperative), Condop
-  structure_type  String?  @map("structure_type") // HighRise, MidRise, WalkUp, Townhouse, etc.
-  // New construction / conversion / development
-  new_construction    Boolean? @map("new_construction") // NewConstructionYN
-  building_condition  String?  @map("building_condition") // NewConstruction, UnderConstruction, UpdatedRemodeled, etc.
-  development_status  String?  @map("development_status") // Proposed, UnderConstruction, Completed, etc.
-  construction_materials String? @map("construction_materials") // Brick, Steel, Concrete, etc.
-  // Size
+  ownership_type  String?  @map("ownership_type")
+  structure_type  String?  @map("structure_type")
+  new_construction    Boolean? @map("new_construction")
+  building_condition  String?  @map("building_condition")
+  development_status  String?  @map("development_status")
+  construction_materials String? @map("construction_materials")
   year_built      Int?     @map("year_built")
   stories_total   Int?     @map("stories_total")
-  total_units     Int?     @map("total_units") // NumberOfUnitsTotal or NumberOfUnitsInCommunity
-  units_leased    Int?     @map("units_leased") // NumberOfUnitsLeased
-  units_vacant    Int?     @map("units_vacant") // NumberOfUnitsVacant
-  units_mo_to_mo  Int?     @map("units_mo_to_mo") // NumberOfUnitsMoMo
-  // Amenities (from BuildingFeatures — 57 possible values)
+  total_units     Int?     @map("total_units")
+  units_leased    Int?     @map("units_leased")
+  units_vacant    Int?     @map("units_vacant")
+  units_mo_to_mo  Int?     @map("units_mo_to_mo")
   building_features   String[] @default([]) @map("building_features")
-  // Doorman / lobby / concierge (from AttendanceType)
   attendance_type     String[] @default([]) @map("attendance_type")
-  // Security (from SecurityFeatures)
   security_features   String[] @default([]) @map("security_features")
-  // Other amenity categories
   community_features      String[] @default([]) @map("community_features")
   association_amenities   String[] @default([]) @map("association_amenities")
   accessibility_features  String[] @default([]) @map("accessibility_features")
@@ -1578,39 +2079,29 @@ model Building {
   door_features           String[] @default([]) @map("door_features")
   window_features         String[] @default([]) @map("window_features")
   roof                    String[] @default([]) @map("roof")
-  // Utilities
   electric                String[] @default([]) @map("electric")
   water_source            String[] @default([]) @map("water_source")
   sewer                   String[] @default([]) @map("sewer")
   utilities               String[] @default([]) @map("utilities")
-  // Pets
   pets_allowed            String[] @default([]) @map("pets_allowed")
-  // Views & waterfront
   view                    String[] @default([]) @map("view")
   waterfront_features     String[] @default([]) @map("waterfront_features")
-  // Green
   green_features          String[] @default([]) @map("green_features")
-  // Parking numbers
   garage_spaces   Int?     @map("garage_spaces")
   parking_total   Int?     @map("parking_total")
   carport_spaces  Int?     @map("carport_spaces")
   open_parking    Int?     @map("open_parking")
   garage_yn       Boolean? @map("garage_yn")
-  // Financial — NYC terms (NOT "HOA")
-  // Co-op: maintenance | Condo: common charges | Both: AssociationFee on Trestle
-  maintenance_fee Decimal? @map("maintenance_fee") @db.Decimal(10, 2) // AssociationFee
-  maintenance_fee_frequency String? @map("maintenance_fee_frequency") // Monthly, Quarterly, etc.
-  maintenance_includes  String[] @default([]) @map("maintenance_includes") // AssociationFeeIncludes
+  maintenance_fee Decimal? @map("maintenance_fee") @db.Decimal(10, 2)
+  maintenance_fee_frequency String? @map("maintenance_fee_frequency")
+  maintenance_includes  String[] @default([]) @map("maintenance_includes")
   tax_annual      Decimal? @map("tax_annual") @db.Decimal(12, 2)
-  mgmt_expense    Decimal? @map("mgmt_expense") @db.Decimal(10, 2) // ProfessionalManagementExpense
-  // Board / Association (Trestle data)
-  board_name      String?  @map("board_name") // AssociationName
-  board_phone     String?  @map("board_phone") // AssociationPhone
-  board_name_2    String?  @map("board_name_2") // AssociationName2
-  board_phone_2   String?  @map("board_phone_2") // AssociationPhone2
-  // Walk score
+  mgmt_expense    Decimal? @map("mgmt_expense") @db.Decimal(10, 2)
+  board_name      String?  @map("board_name")
+  board_phone     String?  @map("board_phone")
+  board_name_2    String?  @map("board_name_2")
+  board_phone_2   String?  @map("board_phone_2")
   walk_score      Int?     @map("walk_score")
-  // ── Manual-entry fields (NOT from Trestle) ──
   management_company  String?  @map("management_company")
   management_phone    String?  @map("management_phone")
   management_email    String?  @map("management_email")
@@ -1621,14 +2112,12 @@ model Building {
   porter_phone        String?  @map("porter_phone")
   board_approval_required Boolean? @map("board_approval_required")
   board_notes         String?  @db.Text @map("board_notes")
-  agent_notes         String?  @db.Text @map("agent_notes") // Your private notes
-  custom_tags         String[] @default([]) @map("custom_tags") // Freeform tags
-  // Tracking
+  agent_notes         String?  @db.Text @map("agent_notes")
+  custom_tags         String[] @default([]) @map("custom_tags")
   first_seen_at       DateTime @default(now()) @map("first_seen_at")
   last_synced_at      DateTime @default(now()) @map("last_synced_at")
   active_listing_count Int    @default(0) @map("active_listing_count")
   total_listing_count  Int    @default(0) @map("total_listing_count")
-  // Relations
   units BuildingUnit[]
   @@index([borough])
   @@index([neighborhood])
@@ -1642,17 +2131,14 @@ model BuildingUnit {
   id             BigInt   @id @default(autoincrement())
   building_id    BigInt   @map("building_id")
   unit_number    String   @map("unit_number")
-  listing_id     String?  @map("listing_id") // Trestle ListingId (if from IDX)
-  // Unit details (from the listing)
+  listing_id     String?  @map("listing_id")
   bedrooms       Int?
   bathrooms_full Int?     @map("bathrooms_full")
   bathrooms_half Int?     @map("bathrooms_half")
-  living_area    Int?     @map("living_area") // sqft
+  living_area    Int?     @map("living_area")
   floor_number   Int?     @map("floor_number")
-  // Floor plan
-  floor_plan_url String?  @map("floor_plan_url") // MediaCategory=FloorPlan URL (proxied)
-  // Status snapshot
-  status         String?  // Active, Closed, etc.
+  floor_plan_url String?  @map("floor_plan_url")
+  status         String?
   list_price     Decimal? @map("list_price") @db.Decimal(14, 2)
   close_price    Decimal? @map("close_price") @db.Decimal(14, 2)
   close_date     DateTime? @map("close_date")

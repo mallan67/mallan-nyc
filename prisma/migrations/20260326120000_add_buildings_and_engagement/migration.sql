@@ -1,0 +1,2 @@
+-- Added Building, BuildingUnit models + ListingView + Lead engagement fields
+-- Applied via db push, formalized as migration.
