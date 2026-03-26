@@ -959,7 +959,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       />
       <ListingViewTracker />
       <TrackListingView listingId={listing.id} refSource={refSource} />
-      <TrackListingSend listingId={listing.listingId || listing.id} />
+      <TrackListingSend listingId={listing.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
