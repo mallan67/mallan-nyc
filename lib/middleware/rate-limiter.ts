@@ -23,7 +23,7 @@ const RATE_WINDOW_MS = 60_000;
 
 const SCRAPING_WINDOW_S = 30;
 const SCRAPING_THRESHOLD = 20;
-const SCRAPING_BLOCK_S = 3600; // 1hr block for confirmed scraping
+const SCRAPING_BLOCK_S = 300; // 5min block for confirmed scraping (was 1hr — too aggressive for testing)
 
 // ── Upstash rate limiters (null if Redis not configured) ──
 const pageRl = redis
