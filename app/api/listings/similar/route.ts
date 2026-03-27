@@ -84,7 +84,17 @@ export async function GET(request: NextRequest) {
         const streetName = addr?.StreetName || '';
         const unit = addr?.UnitNumber ? `, ${addr.UnitNumber}` : '';
         const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
-        const firstPhoto = mediaArr.find(m => !m.mediaType || m.mediaType === 'Photo');
+        // DB stores raw Trestle format { MediaURL, MediaCategory } OR mapped { url, mediaType }.
+        // Normalize: get the URL and classify the content type.
+        const normalized = mediaArr
+          .map(m => {
+            const url = m.url || m.MediaURL || '';
+            const cat = (m.MediaCategory || m.mediaType || '').toLowerCase();
+            const isFloorPlan = cat.includes('floor plan') || cat.includes('floorplan') || cat === 'FloorPlan';
+            return { url, isPhoto: !isFloorPlan && !cat.includes('video') && !cat.includes('virtual') };
+          })
+          .filter(m => m.url);
+        const firstPhoto = normalized.find(m => m.isPhoto) || normalized[0];
 
         return {
           id: String(l.id),
@@ -97,7 +107,7 @@ export async function GET(request: NextRequest) {
           address: `${streetNum} ${streetName}${unit}`.trim(),
           neighborhood: l.neighborhood || '',
           photoUrl: firstPhoto?.url ? proxyUrl(firstPhoto.url) : null,
-          photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
+          photosCount: normalized.filter(m => m.isPhoto).length,
           propertyType: l.property_sub_type || l.property_type || '',
           office: (l.agent_info as Record<string, string> | null)?.company || '',
         };
