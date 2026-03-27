@@ -421,6 +421,17 @@ export async function GET(request: Request) {
               }
             }
 
+            // Geocode DB listings — DB stores null lat/lng (Trestle doesn't provide them).
+            // Without this, the map shows "location data not available" for all DB-sourced listings.
+            try {
+              await Promise.race([
+                geocodeListings(publicListings),
+                new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+              ]);
+            } catch {
+              // Non-fatal — listings still display, just without map pins
+            }
+
             // yearBuilt filter
             if (yearBuiltParam === 'pre-war') {
               publicListings = publicListings.filter(l => l.yearBuilt != null && l.yearBuilt <= 1946);
