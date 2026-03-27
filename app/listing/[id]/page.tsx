@@ -326,9 +326,23 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // Convert DB record to PublicListingDTO
     const addr = (dbListing.address as Record<string, string>) || {};
     const features = (dbListing.features as Record<string, unknown>) || {};
-    const mediaArr = Array.isArray(dbListing.media)
+    let mediaArr = Array.isArray(dbListing.media)
       ? (dbListing.media as { url: string; mediaType: string; order: number }[])
       : [];
+
+    // If DB has no media but listing exists on Trestle, fetch media live.
+    // This handles listings synced before media fetch was added to the sync pipeline.
+    if (mediaArr.length === 0 && dbListing.listing_id) {
+      try {
+        const trestleMedia = await fetchListingMedia(dbListing.listing_id);
+        if (trestleMedia.length > 0) {
+          mediaArr = trestleMedia;
+        }
+      } catch {
+        // Non-fatal — listing still renders without photos
+      }
+    }
+
     const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
     const suppressAddress = dbListing.internet_address_display_yn === false;
