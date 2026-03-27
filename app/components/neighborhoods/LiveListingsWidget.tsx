@@ -177,8 +177,8 @@ function ListingCard({ listing }: { listing: ListingItem }) {
     ? `$${listing.listPrice.toLocaleString()}/mo`
     : `$${listing.listPrice.toLocaleString()}`;
 
-  const primaryPhoto = listing.media?.find(m => m.mediaType === 'Photo' || m.order === 0);
-  const photoUrl = primaryPhoto?.url;
+  const primaryPhoto = listing.media?.find(m => !m.mediaType || m.mediaType === 'Photo');
+  const photoUrl = primaryPhoto?.url || listing.media?.[0]?.url;
 
   const isComingSoon = listing.status === 'ComingSoon' || listing.status === 'Coming Soon';
 

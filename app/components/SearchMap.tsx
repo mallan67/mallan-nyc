@@ -8,6 +8,12 @@ import { listingHref } from '@/lib/idx/display-adapter';
 import 'leaflet/dist/leaflet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+/** Get first photo URL from media array (skips floor plans, videos) */
+function heroPhotoUrl(media: { url: string; mediaType?: string }[]): string | undefined {
+  const photo = media?.find(m => !m.mediaType || m.mediaType === 'Photo');
+  return photo?.url || media?.[0]?.url;
+}
+
 // Fix Leaflet default marker icons in Next.js/webpack
 const DefaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -318,10 +324,10 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
             >
               <Popup maxWidth={260} minWidth={260} className="map-card-popup">
                 <a href={listingHref(listing)} style={{ display: 'block', width: 260, textDecoration: 'none', color: 'inherit' }}>
-                  {listing.media[0]?.url ? (
+                  {heroPhotoUrl(listing.media) ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={listing.media[0].url}
+                      src={heroPhotoUrl(listing.media)!}
                       alt=""
                       style={{ width: 260, height: 150, objectFit: 'cover', display: 'block' }}
                       loading="lazy"
