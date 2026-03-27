@@ -190,7 +190,9 @@ export async function GET(request: Request) {
           },
         });
 
-        if (syncedCount > 0) {
+        if (syncedCount >= 500) {
+          // Only use DB path when we have enough synced data to serve meaningful results.
+          // Below 500 listings, fall through to live Trestle for full coverage.
           // Two display paths: RLS listings (must pass 6 distribution gates) OR
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const dbWhere: Prisma.ListingWhereInput = {
