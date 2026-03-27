@@ -330,15 +330,13 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       ? (dbListing.media as { url: string; mediaType: string; order: number }[])
       : [];
 
-    // If DB has no media but listing exists on Trestle, fetch media live.
-    // This handles listings synced before media fetch was added to the sync pipeline.
-    if (mediaArr.length === 0 && dbListing.listing_id) {
+    // If DB has no photos (only floor plans or empty), fetch media from Trestle.
+    // Check for actual Photo-type items, not just array length.
+    const hasPhotos = mediaArr.some(m => !m.mediaType || m.mediaType === 'Photo');
+    if (!hasPhotos && dbListing.listing_id) {
       try {
-        // Extract numeric key from listing_id (e.g., "RLS20064772" → "20064772")
-        // Trestle Media resource uses ResourceRecordKeyNumeric for lookup
-        const numericKey = dbListing.listing_id.replace(/^[A-Za-z]+/, '');
-        const mediaKey = /^\d+$/.test(numericKey) ? numericKey : dbListing.listing_id;
-        const trestleMedia = await fetchListingMedia(mediaKey);
+        // Use listing_id directly (e.g., "RLS20064772") — Trestle matches on ResourceRecordID
+        const trestleMedia = await fetchListingMedia(dbListing.listing_id);
         if (trestleMedia.length > 0) {
           mediaArr = trestleMedia;
         }
