@@ -20,6 +20,31 @@ import { logFetchAttempt } from "@/lib/idx/logger";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
+import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
+
+/**
+ * Expand a canonical neighborhood name into all SubdivisionName variants
+ * found in the RLS feed. E.g. "Kips Bay" → ["Kips Bay","KIPS","KIPSBAY",
+ * "Murray Hill / Kips B","Murray Hill Kips Bay","Murray Hill-kips Bay"].
+ */
+function expandNeighborhood(canonical: string): string[] {
+  const aliases = (neighborhoodAliases as Record<string, unknown>).aliases as Record<string, string | string[] | null> | undefined;
+  if (!aliases) return [canonical];
+
+  const variants = new Set<string>([canonical]);
+  const canonLower = canonical.toLowerCase();
+
+  for (const [raw, target] of Object.entries(aliases)) {
+    if (target === null) continue;
+    if (typeof target === "string") {
+      if (target.toLowerCase() === canonLower) variants.add(raw);
+    } else if (Array.isArray(target)) {
+      if (target.some(t => t.toLowerCase() === canonLower)) variants.add(raw);
+    }
+  }
+
+  return [...variants];
+}
 
 /** Map Trestle property fields to display type (no "Apartment") */
 function mapDisplayPropertyType(raw: Record<string, unknown>): string {
@@ -164,13 +189,23 @@ function buildODataFilter(params: URLSearchParams): string {
 
   // Neighborhood (SubdivisionName in REBNY RLS) — supports comma-separated multi-select
   // CityRegion = borough (Manhattan/Brooklyn/etc.), SubdivisionName = neighborhood (UWS/UES/Tribeca/etc.)
+  // Expands each canonical name through the alias system to capture all RLS variants
+  // (e.g., "Kips Bay" → "Kips Bay","KIPS","KIPSBAY","Murray Hill Kips Bay", etc.)
   const neighborhood = params.get("neighborhood");
   if (neighborhood) {
-    const neighborhoods = neighborhood.split(",").map(n => n.trim()).filter(Boolean);
-    if (neighborhoods.length === 1) {
-      parts.push(`SubdivisionName eq '${escapeOData(neighborhoods[0])}'`);
-    } else if (neighborhoods.length > 1) {
-      const nParts = neighborhoods.map(n => `SubdivisionName eq '${escapeOData(n)}'`);
+    const canonicals = neighborhood.split(",").map(n => n.trim()).filter(Boolean);
+    // Expand each canonical through aliases to get all SubdivisionName variants
+    const allVariants = new Set<string>();
+    for (const canon of canonicals) {
+      for (const variant of expandNeighborhood(canon)) {
+        allVariants.add(variant);
+      }
+    }
+    const variants = [...allVariants];
+    if (variants.length === 1) {
+      parts.push(`SubdivisionName eq '${escapeOData(variants[0])}'`);
+    } else if (variants.length > 1) {
+      const nParts = variants.map(n => `SubdivisionName eq '${escapeOData(n)}'`);
       parts.push(`(${nParts.join(" or ")})`);
     }
   }
