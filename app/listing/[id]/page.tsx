@@ -326,22 +326,29 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // Convert DB record to PublicListingDTO
     const addr = (dbListing.address as Record<string, string>) || {};
     const features = (dbListing.features as Record<string, unknown>) || {};
-    let mediaArr = Array.isArray(dbListing.media)
-      ? (dbListing.media as { url: string; mediaType: string; order: number }[])
-      : [];
+    // DB media can be in two formats:
+    //   Raw Trestle: { MediaURL, MediaCategory, Order }
+    //   Mapped:      { url, mediaType, order }
+    // Normalize to the mapped format.
+    const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
+    let mediaArr = rawMedia.map((m) => ({
+      url: String(m.url || m.MediaURL || ''),
+      mediaType: String(m.mediaType || m.MediaCategory || 'Photo'),
+      order: Number(m.order ?? m.Order ?? 0),
+    })).filter(m => m.url);
 
-    // If DB has no photos (only floor plans or empty), fetch media from Trestle.
-    // Check for actual Photo-type items, not just array length.
-    const hasPhotos = mediaArr.some(m => !m.mediaType || m.mediaType === 'Photo');
-    if (!hasPhotos && dbListing.listing_id) {
+    // If DB has few photos (≤4 and listing claims more via photosCount), fetch full set from Trestle.
+    // Also fetch if DB only has floor plans and no actual photos.
+    const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
+    const shouldFetchMedia = mediaArr.length === 0 || photoCount <= 4;
+    if (shouldFetchMedia && dbListing.listing_id) {
       try {
-        // Use listing_id directly (e.g., "RLS20064772") — Trestle matches on ResourceRecordID
         const trestleMedia = await fetchListingMedia(dbListing.listing_id);
-        if (trestleMedia.length > 0) {
+        if (trestleMedia.length > mediaArr.length) {
           mediaArr = trestleMedia;
         }
       } catch {
-        // Non-fatal — listing still renders without photos
+        // Non-fatal — listing still renders with whatever DB has
       }
     }
 
