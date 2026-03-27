@@ -168,21 +168,23 @@ export default function NeighborhoodExplorer({
     [latitude, longitude]
   );
 
-  if (!loading && categories.length === 0 && !fetchError) return null;
+  // If no POI data (Overpass down, empty result, or error), show map-only fallback.
+  // NEVER return null — the neighborhood section must always render.
+  const hasData = categories.length > 0;
 
-  if (fetchError) {
+  if (!loading && !hasData) {
     return (
       <section className="border-t border-black/10 py-6">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-[15px] font-semibold tracking-tight">Neighborhood</h2>
         </div>
-        <div className="bg-gray-50 rounded-xl p-6">
+        <div className="rounded-xl overflow-hidden">
           <iframe
             title="Map"
             src={mapUrl}
             width="100%"
-            height="300"
-            style={{ border: 0, borderRadius: '12px' }}
+            height="350"
+            style={{ border: 0 }}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />

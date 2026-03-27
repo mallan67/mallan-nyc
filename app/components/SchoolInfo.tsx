@@ -86,8 +86,9 @@ export default function SchoolInfo({ latitude, longitude }: SchoolInfoProps) {
     return () => { cancelled = true; };
   }, [latitude, longitude]);
 
-  // Don't render if no data or error
-  if (error || (!loading && groups.length === 0)) return null;
+  // Always render the section header — never vanish completely.
+  // If data unavailable, show the header with a note.
+  const hasData = !loading && groups.length > 0 && !error;
 
   // Count total schools
   const totalSchools = groups.reduce((sum, g) => sum + g.schools.length, 0);
@@ -104,7 +105,7 @@ export default function SchoolInfo({ latitude, longitude }: SchoolInfoProps) {
           Nearby Schools
         </h2>
         <div className="flex items-center gap-2">
-          {!loading && (
+          {!loading && hasData && (
             <span className="text-xs text-brand-dark/50">
               {totalSchools} {totalSchools === 1 ? 'school' : 'schools'} within 1 mile
             </span>
@@ -133,6 +134,14 @@ export default function SchoolInfo({ latitude, longitude }: SchoolInfoProps) {
                 </div>
               ))}
             </div>
+          ) : !hasData ? (
+            <p className="text-[12px] text-brand-dark/50 py-2">
+              School data temporarily unavailable. Visit{' '}
+              <a href="https://schoolsearch.schools.nyc/" target="_blank" rel="noopener noreferrer" className="underline hover:text-brand-dark/60">
+                schools.nyc.gov
+              </a>{' '}
+              for current zoning information.
+            </p>
           ) : (
             <div className="space-y-5">
               {groups.map((group) => (
