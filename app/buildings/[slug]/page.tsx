@@ -212,7 +212,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
   const { building, activeUnits, saleHistory, stats, gatedRecordsCount } = data;
   const buildingLabel = building.name || building.address;
   const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0);
-  const heroPhoto = activeUnits.find((u) => u.photoUrl)?.photoUrl || null;
+  // No hero photo — unit listing photos are not building exterior photos
   const buildingType = displayLabel(building.commonInterest) || displayLabel(building.ownershipType);
   const structure = displayLabel(building.structureType);
   const isCoop = building.commonInterest === 'StockCooperative' || building.ownershipType === 'Co-op';
@@ -222,7 +222,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
   const hasParking = building.parking.features.length > 0 || building.parking.garageSpaces || building.parking.totalSpaces;
   const hasHvac = building.heating.length > 0 || building.cooling.length > 0;
   const hasInterior = building.flooring.length > 0 || building.interiorFeatures.length > 0 || building.appliances.length > 0;
-  const hasFeeInfo = building.associationFee && building.associationFee > 0;
+  // Maintenance/common charges are per-unit, not shown at building level
   const hasAnyData = activeUnits.length > 0 || saleHistory.length > 0 || building.amenities.length > 0 || building.yearBuilt || building.storiesTotal || building.totalUnits || building.structureType || building.commonInterest;
 
   // JSON-LD structured data
@@ -262,19 +262,10 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
       </div>
 
       {/* Hero */}
-      <section className="relative text-white overflow-hidden">
-        {/* Background: photo if available, gradient fallback */}
-        {heroPhoto ? (
-          <>
-            <Image src={heroPhoto} alt={buildingLabel} fill className="object-cover" priority unoptimized />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
-          </>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] to-[#2a2a2a]" />
-        )}
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16">
+      <section className="bg-gradient-to-b from-[#1a1a1a] to-[#2a2a2a] text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-14">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-brand-gold/20 flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 rounded-xl bg-brand-gold/20 flex items-center justify-center">
               <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
               </svg>
@@ -434,7 +425,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
           )}
 
           {/* Building Details & Amenities */}
-          {(building.amenities.length > 0 || hasBuildingDetails || hasParking || hasHvac || hasFeeInfo || hasInterior || building.view.length > 0) && (
+          {(building.amenities.length > 0 || hasBuildingDetails || hasParking || hasHvac || hasInterior || building.view.length > 0) && (
             <section className="py-6 border-t border-black/[0.06]">
               <h2 className="font-display text-xl font-bold text-brand-dark mb-6">Building Details</h2>
               {hasBuildingDetails && (
@@ -527,17 +518,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                 {building.appliances.length > 0 && (
                   <div><span className="text-brand-dark/50">Appliances:</span> <span className="font-medium text-brand-dark">{building.appliances.join(', ')}</span></div>
                 )}
-                {hasFeeInfo && (
-                  <div>
-                    <span className="text-brand-dark/50">{isCoop ? 'Maintenance' : 'Common Charges'}:</span>{' '}
-                    <span className="font-medium text-brand-dark">
-                      {formatPrice(building.associationFee!)}{building.associationFeeFrequency ? `/${building.associationFeeFrequency.toLowerCase()}` : ''}
-                    </span>
-                    {building.associationFeeIncludes.length > 0 && (
-                      <p className="text-brand-dark/50 text-[12px] mt-0.5">Includes: {building.associationFeeIncludes.join(', ')}</p>
-                    )}
-                  </div>
-                )}
+                {/* Maintenance/common charges are per-unit, not building-level — shown on individual listing pages */}
               </div>
             </section>
           )}
