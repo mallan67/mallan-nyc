@@ -28,7 +28,7 @@ export default function FavoriteButton({ listing, size = 'sm', className = '' }:
     listingType: listing.listingType,
     beds: listing.bedroomsTotal,
     baths: listing.bathroomsFull,
-    photoUrl: listing.media[0]?.url,
+    photoUrl: listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url,
     savedAt: '',
   };
 

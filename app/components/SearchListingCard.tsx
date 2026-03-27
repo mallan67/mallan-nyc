@@ -38,7 +38,7 @@ interface CardProps {
 /** Get the first photo URL (skips floor plans, videos, virtual tours) */
 function heroPhoto(listing: DisplayListing): string {
   const photo = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo');
-  return photo?.url || heroPhoto(listing);
+  return photo?.url || listing.media[0]?.url || '/images/listing-placeholder.svg';
 }
 
 /** Grid card — standard card with photo on top */

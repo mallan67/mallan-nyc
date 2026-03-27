@@ -594,7 +594,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? ` ${listing.address.unitNumber}` : ''}`;
   // Canonical URL uses the address slug (or MLS-ID slug if address suppressed)
   const canonicalUrl = `https://mallan.nyc/listing/${listing.slug}`;
-  const ogImage = listing.media[0]?.url || '/images/og-default.png';
+  const ogImage = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url || '/images/og-default.png';
   const borough = countyToBorough(listing.address.county);
 
   return {
@@ -927,7 +927,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
     description: listing.publicRemarks?.substring(0, 300) || undefined,
     datePosted: listing.onMarketDate || listing.listingContractDate,
     dateModified: listing.modificationTimestamp || undefined,
-    image: listing.media[0]?.url || undefined,
+    image: listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url || undefined,
     offers: {
       '@type': 'Offer',
       price: listing.listPrice,
@@ -1050,7 +1050,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               listingType={isRental ? 'rent' : 'sale'}
               beds={listing.bedroomsTotal}
               baths={listing.bathroomsFull}
-              photoUrl={listing.media[0]?.url}
+              photoUrl={listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url}
             />
             <a
               href="tel:646-258-4460"
@@ -1141,7 +1141,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         listingType={isRental ? 'rent' : 'sale'}
                         beds={listing.bedroomsTotal}
                         baths={listing.bathroomsFull}
-                        photoUrl={listing.media[0]?.url}
+                        photoUrl={listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url}
                       />
                       <ShareButton title={`${fullAddress} | ${formatPrice(listing.listPrice, isRental)}`} />
                     </div>

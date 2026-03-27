@@ -47,11 +47,15 @@ interface TrestleRecord {
   Media?: Array<{ MediaURL?: string; MediaCategory?: string; Order?: number; PreferredPhotoYN?: boolean }>;
 }
 
-/** Get the primary photo URL from a Trestle record's expanded Media */
+/** Get the primary photo URL from a Trestle record's expanded Media (skips floor plans) */
 function getPhotoUrl(record: TrestleRecord): string | null {
   const media = record.Media;
   if (!media || !Array.isArray(media) || media.length === 0) return null;
-  const photo = media[0];
+  // Find first actual photo (not floor plan, video, or virtual tour)
+  const photo = media.find(m => {
+    const cat = String(m.MediaCategory || '').toLowerCase();
+    return !cat || cat === 'photo' || cat === 'photos';
+  }) || media[0]; // fallback to first item if no photos found
   if (!photo?.MediaURL) return null;
   // Proxy through our server to avoid exposing Trestle Bearer tokens
   return `/api/media/proxy?url=${encodeURIComponent(String(photo.MediaURL))}`;
@@ -575,8 +579,12 @@ export async function GET(request: NextRequest) {
         photoUrl: (() => {
           const media = l.media as unknown[];
           if (!Array.isArray(media) || media.length === 0) return null;
-          const first = media[0] as Record<string, unknown>;
-          const url = first?.url || first?.MediaURL;
+          // Find first photo (skip floor plans, videos, virtual tours)
+          const photo = (media as Record<string, unknown>[]).find(m => {
+            const mt = String(m?.mediaType || '').toLowerCase();
+            return !mt || mt === 'photo';
+          }) || media[0] as Record<string, unknown>;
+          const url = photo?.url || photo?.MediaURL;
           return url ? `/api/media/proxy?url=${encodeURIComponent(String(url))}` : null;
         })(),
       });
