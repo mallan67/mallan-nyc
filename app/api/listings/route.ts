@@ -919,10 +919,14 @@ export async function GET(request: Request) {
         if (boundsParam) {
           const [south, west, north, east] = boundsParam.split(',').map(Number);
           if (south && west && north && east) {
-            // Geocode all filtered listings BEFORE bounds check
+            // Geocode filtered listings BEFORE bounds check, with a 5s timeout.
             // (Trestle gives null lat/lng — Census geocoder fills them in)
+            // Without timeout, Census API + Neon cold starts can hang for 26s+.
             try {
-              await geocodeListings(filtered);
+              await Promise.race([
+                geocodeListings(filtered),
+                new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+              ]);
             } catch (geoErr) {
               console.warn('[/api/listings] Pre-bounds geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
             }

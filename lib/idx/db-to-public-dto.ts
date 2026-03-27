@@ -77,9 +77,11 @@ interface DbMediaItem {
   MediaURL?: string;
   url?: string;
   MediaType?: string;
+  MediaCategory?: string;
   mediaType?: string;
   Order?: number;
   order?: number;
+  PreferredPhotoYN?: boolean | string;
 }
 
 // The shape returned by Prisma listing.findMany with our select
@@ -213,13 +215,34 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     } catch { /* not a valid URL */ }
     return rawUrl;
   }
+  // Classify media type: DB stores raw Trestle format { MediaURL, MediaCategory, Order }
+  // MediaCategory = content type (Photo, Floor Plan), MediaType = file format (jpeg) — NOT content type.
+  // Must check MediaCategory first, then mediaType (mapped format), then default to Photo.
+  function classifyMedia(m: DbMediaItem): string {
+    const cat = String(m.MediaCategory || '').toLowerCase();
+    if (cat.includes('floor plan') || cat.includes('floorplan')) return 'FloorPlan';
+    if (cat.includes('video')) return 'Video';
+    if (cat.includes('virtual tour') || cat.includes('virtualtour') || cat === '3d') return 'VirtualTour';
+    if (cat && cat !== 'photo') return cat; // pass through other categories
+    // Mapped format (from fetchListingMedia)
+    const mapped = String(m.mediaType || '');
+    if (mapped === 'FloorPlan' || mapped === 'Video' || mapped === 'VirtualTour') return mapped;
+    return 'Photo';
+  }
+
   const media = mediaArr
     .filter((m) => m.MediaURL || m.url)
     .map((m, i) => ({
       url: proxyUrl((m.MediaURL || m.url || '') as string),
-      mediaType: (m.MediaType || m.mediaType || 'Photo') as string,
-      order: m.Order ?? m.order ?? i,
-    }));
+      mediaType: classifyMedia(m),
+      order: (m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true') ? -1 : (m.Order ?? m.order ?? i),
+    }))
+    // Sort: Photos first (rank 0), Videos/Tours (rank 1), FloorPlans last (rank 2)
+    .sort((a, b) => {
+      const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
+      const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
+      return rankDiff !== 0 ? rankDiff : a.order - b.order;
+    });
 
   return {
     id: listing.listing_id,

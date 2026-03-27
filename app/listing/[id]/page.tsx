@@ -234,14 +234,8 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
     // Non-fatal — listing displays without photos
   }
 
-  // Geocode if coordinates are missing (Trestle IDX Plus often returns null lat/lng)
-  if (!dto.address.latitude || !dto.address.longitude) {
-    try {
-      await geocodeListings([dto]);
-    } catch {
-      // Non-fatal — page renders without map/transit sections
-    }
-  }
+  // Geocode moved to ListingPage — runs in parallel with last-sale lookups
+  // instead of blocking DTO creation (was adding 2-4s to every Trestle-path page load).
 
   // Extract extra fields from raw Trestle record (not part of public DTO)
   const tax: TrestleExtraFields = {
@@ -330,17 +324,33 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     //   Raw Trestle: { MediaURL, MediaCategory, Order }
     //   Mapped:      { url, mediaType, order }
     // Normalize to the mapped format.
+    // DB stores raw Trestle format { MediaURL, MediaCategory, Order } — MediaCategory is the
+    // content type ("Photo", "Floor Plan"), not MediaType (file format like "jpeg").
     const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
-    let mediaArr = rawMedia.map((m) => ({
-      url: String(m.url || m.MediaURL || ''),
-      mediaType: String(m.mediaType || m.MediaCategory || 'Photo'),
-      order: Number(m.order ?? m.Order ?? 0),
-    })).filter(m => m.url);
+    let mediaArr = rawMedia.map((m) => {
+      const cat = String(m.MediaCategory || m.mediaType || 'Photo').toLowerCase();
+      let mediaType = 'Photo';
+      if (cat.includes('floor plan') || cat.includes('floorplan') || cat === 'FloorPlan') mediaType = 'FloorPlan';
+      else if (cat.includes('video')) mediaType = 'Video';
+      else if (cat.includes('virtual tour') || cat.includes('virtualtour') || cat === '3d') mediaType = 'VirtualTour';
+      else if (String(m.mediaType || '') === 'FloorPlan') mediaType = 'FloorPlan';
+      return {
+        url: String(m.url || m.MediaURL || ''),
+        mediaType,
+        order: Number(m.order ?? m.Order ?? 0),
+      };
+    }).filter(m => m.url)
+    // Sort: Photos first, then Videos/Tours, FloorPlans last
+    .sort((a, b) => {
+      const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
+      const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
+      return rankDiff !== 0 ? rankDiff : a.order - b.order;
+    });
 
-    // If DB has few photos (≤4 and listing claims more via photosCount), fetch full set from Trestle.
-    // Also fetch if DB only has floor plans and no actual photos.
+    // Only fetch media from Trestle when DB has NO photos at all.
+    // DB photos are refreshed during IDX sync — no need to re-fetch on every page load.
     const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
-    const shouldFetchMedia = mediaArr.length === 0 || photoCount <= 4;
+    const shouldFetchMedia = photoCount === 0;
     if (shouldFetchMedia && dbListing.listing_id) {
       try {
         const trestleMedia = await fetchListingMedia(dbListing.listing_id);
@@ -700,29 +710,48 @@ export default async function ListingPage({ params, searchParams }: Props) {
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 
-  // Fetch last closed sale for this specific unit (server-side)
-  // Run Trestle + ACRIS in parallel, prefer Trestle result
-  // Wrapped in try/catch to prevent page crash if these supplementary APIs fail
-  let lastUnitSale: LastSaleInfo | null = null;
-  try {
-    if (listing.address.streetName !== 'Address Undisclosed') {
-      const [trestleSale, acrisSale] = await Promise.all([
-        fetchLastUnitSale(
-          listing.address.streetNumber,
-          listing.address.streetName,
-          listing.address.unitNumber,
-          listing.address.postalCode,
-        ),
-        fetchLastSaleFromACRIS(
-          listing.address.county,
-          tax.taxBlock,
-          tax.taxLot,
-        ),
-      ]);
-      lastUnitSale = trestleSale || acrisSale;
+  // Run ALL supplementary fetches in parallel (geocoding + last-sale lookups).
+  // Previously these ran sequentially after fetchListing, adding 4-8s per page.
+  // Each is wrapped in its own catch — none of these should block page render.
+  const needsGeocode = !listing.address.latitude || !listing.address.longitude;
+  const hasAddress = listing.address.streetName !== 'Address Undisclosed';
+
+  const [geocodeResult, lastSaleResult] = await Promise.all([
+    // Geocode (was inside rawToDTO — moved here for parallelism)
+    needsGeocode
+      ? geocodeListings([listing]).catch(() => { /* non-fatal */ })
+      : Promise.resolve(),
+    // Last closed sale: Trestle + ACRIS in parallel
+    hasAddress
+      ? Promise.all([
+          fetchLastUnitSale(
+            listing.address.streetNumber,
+            listing.address.streetName,
+            listing.address.unitNumber,
+            listing.address.postalCode,
+          ).catch(() => null),
+          fetchLastSaleFromACRIS(
+            listing.address.county,
+            tax.taxBlock,
+            tax.taxLot,
+          ).catch(() => null),
+        ]).then(([trestleSale, acrisSale]) => trestleSale || acrisSale)
+      : Promise.resolve(null),
+  ]);
+
+  const lastUnitSale: LastSaleInfo | null = lastSaleResult || null;
+  void geocodeResult; // consumed via mutation on listing.address
+
+  // Last-resort: if geocoding failed entirely, use ZIP centroid so neighborhood/schools/transit
+  // sections still render. Without this, those 5 sections vanish on geocode failure.
+  if (!listing.address.latitude || !listing.address.longitude) {
+    const { ZIP_CENTROIDS } = await import('@/lib/geo/geocode');
+    const zip = (listing.address.postalCode || '').split('-')[0].trim();
+    const centroid = ZIP_CENTROIDS[zip];
+    if (centroid) {
+      listing.address.latitude = centroid[0];
+      listing.address.longitude = centroid[1];
     }
-  } catch (err) {
-    console.warn(`[/listing/${id}] Last sale fetch failed (non-fatal):`, err);
   }
 
   // ── Building amenities ── STRICT WHITELIST

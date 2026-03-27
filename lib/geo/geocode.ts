@@ -136,9 +136,13 @@ export async function geocodeListings(
 
   const needsCensus: { listing: typeof listings[0]; key: string }[] = [];
   try {
-    const dbResults = await prisma.geocodeCache.findMany({
-      where: { address_key: { in: keys } },
-    });
+    // 3s timeout on DB lookup — Neon cold starts can hang for 10s+
+    const dbResults = await Promise.race([
+      prisma.geocodeCache.findMany({
+        where: { address_key: { in: keys } },
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('DB geocode cache timeout')), 3000)),
+    ]);
     const dbMap = new Map(dbResults.map(r => [r.address_key, [r.latitude, r.longitude] as [number, number]]));
 
     for (let i = 0; i < stillNeedDb.length; i++) {
@@ -154,7 +158,7 @@ export async function geocodeListings(
       }
     }
   } catch {
-    // DB read failed — all go to Census + ZIP fallback
+    // DB read failed or timed out — all go to Census + ZIP fallback
     for (let i = 0; i < stillNeedDb.length; i++) {
       needsCensus.push({ listing: stillNeedDb[i], key: keys[i] });
     }
@@ -228,14 +232,15 @@ export async function geocodeListings(
     }
   }
 
-  // Wait for all DB writes to complete (they're fast, don't block much)
-  if (dbWrites.length > 0) {
-    await Promise.allSettled(dbWrites);
-  }
+  // Fire-and-forget DB writes — don't block the response waiting for upserts.
+  // Previously awaited all writes, which could add 2-5s when Neon is cold.
+  // Writes still happen, they just don't delay the page/API response.
+  // No-op: dbWrites run in background via their existing .catch() handlers.
 }
 
 // ── NYC ZIP Code Centroids (instant fallback) ──
-const ZIP_CENTROIDS: Record<string, [number, number]> = {
+// Exported for use as last-resort fallback in listing pages when geocoding fails entirely.
+export const ZIP_CENTROIDS: Record<string, [number, number]> = {
   // Manhattan
   '10001': [40.7506, -73.9971], '10002': [40.7157, -73.9863], '10003': [40.7317, -73.9893],
   '10004': [40.6988, -74.0384], '10005': [40.7069, -74.0089], '10006': [40.7094, -74.0131],
