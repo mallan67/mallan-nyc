@@ -5,6 +5,7 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingSendEmail } from "@/lib/email/templates";
+import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";
 import { generateTrackingToken } from "@/lib/tracking/listing-token";
 
@@ -204,7 +205,7 @@ export async function POST(req: NextRequest) {
 
   // ── Email delivery (non-blocking — don't fail the API if email fails) ──
   const emailResults: { clientId: string; success: boolean; error?: string }[] = [];
-  const personalNote = (body.note as string) || undefined;
+  const personalNote = body.note ? escapeHtml(String(body.note)) : undefined;
 
   // Build listing card data for email template
   const price = listing.list_price

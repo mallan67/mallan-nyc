@@ -7,6 +7,7 @@ import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sendEmail, sendBulkEmail } from "@/lib/email/sendgrid";
 import { genericCrmEmail } from "@/lib/email/templates";
+import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -120,8 +121,8 @@ export async function POST(req: NextRequest) {
     const isEblast = type === "eblast" || type === "campaign" || clientIds.length > 10;
     const channel = isEblast ? "listings" as const : "agent" as const;
 
-    const html = genericCrmEmail(bodyText, agentName);
-    const emailSubject = subject || "Message from Mallan Real Estate";
+    const html = genericCrmEmail(escapeHtml(bodyText), escapeHtml(agentName));
+    const emailSubject = escapeHtml(subject || "Message from Mallan Real Estate");
 
     for (const client of clients) {
       if (!client.email) {

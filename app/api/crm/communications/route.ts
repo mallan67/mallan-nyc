@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
+import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
     ? `${agent.first_name || ""} ${agent.last_name || ""}`.trim() || "Mallan Real Estate"
     : "Mallan Real Estate";
 
-  const html = genericCrmEmail(bodyText, agentName);
+  const html = genericCrmEmail(escapeHtml(bodyText), escapeHtml(agentName));
   const emailSubject = subject || "Message from Mallan Real Estate";
   const now = new Date();
   let sent = 0;

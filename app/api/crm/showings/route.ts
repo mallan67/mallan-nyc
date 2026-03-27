@@ -7,6 +7,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { showingConfirmEmail } from "@/lib/email/templates";
+import { escapeHtml } from "@/lib/sanitize";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -229,7 +230,7 @@ export async function POST(req: NextRequest) {
         time: (body.time as string) || "TBD",
         type: (body.type as string) || "private",
         agentName: agName,
-        notes: (body.notes as string) || undefined,
+        notes: body.notes ? escapeHtml(String(body.notes)) : undefined,
       });
       // Showing confirmations: sent from company email (system notification),
       // reply-to goes to agent so client replies reach the right person
