@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     const result = await syncListings({
       since: since || undefined,
-      maxRecords: 2000,
+      maxRecords: 5000,
       fullSync: !since, // Full sync if no previous sync
     });
 
