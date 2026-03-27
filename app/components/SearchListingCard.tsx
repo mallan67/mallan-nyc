@@ -35,6 +35,12 @@ interface CardProps {
   onHover?: (id: string | null) => void;
 }
 
+/** Get the first photo URL (skips floor plans, videos, virtual tours) */
+function heroPhoto(listing: DisplayListing): string {
+  const photo = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo');
+  return photo?.url || heroPhoto(listing);
+}
+
 /** Grid card — standard card with photo on top */
 export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
   return (
@@ -48,7 +54,7 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
     >
       <div className="relative overflow-hidden">
         <IDXImage
-          src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
+          src={heroPhoto(listing)}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"
@@ -128,7 +134,7 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
     >
       <div className="relative w-48 sm:w-64 flex-shrink-0">
         <IDXImage
-          src={listing.media[0]?.url || '/images/listing-placeholder.svg'}
+          src={heroPhoto(listing)}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"

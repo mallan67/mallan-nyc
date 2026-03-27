@@ -108,14 +108,30 @@ export default function NeighborhoodExplorer({
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
 
+  const [fetchError, setFetchError] = useState(false);
+
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFetchError(false);
     fetch(`/api/nearby-poi?lat=${latitude}&lng=${longitude}&radius=800`)
-      .then((r) => r.json())
-      .then((data) => {
-        setCategories(data.categories || []);
-        setLoading(false);
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
       })
-      .catch(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) {
+          setCategories(data.categories || []);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFetchError(true);
+          setLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
   }, [latitude, longitude]);
 
   const selectedItems = selectedCategory
@@ -152,7 +168,28 @@ export default function NeighborhoodExplorer({
     [latitude, longitude]
   );
 
-  if (!loading && categories.length === 0) return null;
+  if (!loading && categories.length === 0 && !fetchError) return null;
+
+  if (fetchError) {
+    return (
+      <section className="border-t border-black/10 py-6">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-[15px] font-semibold tracking-tight">Neighborhood</h2>
+        </div>
+        <div className="bg-gray-50 rounded-xl p-6">
+          <iframe
+            title="Map"
+            src={mapUrl}
+            width="100%"
+            height="300"
+            style={{ border: 0, borderRadius: '12px' }}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section>
