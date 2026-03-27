@@ -116,5 +116,47 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Non-fatal
   }
 
-  return [...staticPages, ...legalPages, ...listingPages, ...agentPages];
+  // Building profile pages — from local DB (populated by silent upsert)
+  let buildingPages: MetadataRoute.Sitemap = [];
+  try {
+    const buildings = await prisma.building.findMany({
+      where: { active_listing_count: { gt: 0 } },
+      select: {
+        building_key: true,
+        name: true,
+        street_number: true,
+        street_name: true,
+        zip: true,
+        last_synced_at: true,
+      },
+      take: 500,
+      orderBy: { last_synced_at: 'desc' },
+    });
+    buildingPages = buildings
+      .filter((b) => b.street_number && b.street_name)
+      .map((b) => {
+        const slug = [b.name || '', b.street_number, b.street_name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '');
+        const sp = new URLSearchParams({
+          sn: b.street_number || '',
+          st: b.street_name || '',
+        });
+        if (b.zip) sp.set('z', b.zip);
+        if (b.name) sp.set('bn', b.name);
+        return {
+          url: `${BASE_URL}/buildings/${slug}?${sp.toString()}`,
+          lastModified: b.last_synced_at || now,
+          changeFrequency: 'weekly' as const,
+          priority: 0.6,
+        };
+      });
+  } catch {
+    // Non-fatal
+  }
+
+  return [...staticPages, ...legalPages, ...listingPages, ...agentPages, ...buildingPages];
 }

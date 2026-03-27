@@ -125,6 +125,30 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
+/** Map raw Trestle enum values to human-readable NYC display labels */
+function displayLabel(raw: string | null): string {
+  if (!raw) return '';
+  const map: Record<string, string> = {
+    StockCooperative: 'Co-op',
+    Condominium: 'Condo',
+    Condop: 'Condop',
+    RentalBuilding: 'Rental Building',
+    HighRise: 'High Rise',
+    MidRise: 'Mid Rise',
+    LowRise: 'Low Rise',
+    WalkUp: 'Walk-Up',
+    Townhouse: 'Townhouse',
+    MultiFamily: 'Multi-Family',
+    SingleFamily: 'Single Family',
+    Brownstone: 'Brownstone',
+    PreWar: 'Pre-War',
+    PostWar: 'Post-War',
+    NewConstruction: 'New Construction',
+    Apartment: 'Apartment',
+  };
+  return map[raw] || raw.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
 function AmenityIcon({ label }: { label: string }) {
   const icons: Record<string, string> = {
     Doorman: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z',
@@ -188,6 +212,10 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
   const { building, activeUnits, saleHistory, stats, gatedRecordsCount } = data;
   const buildingLabel = building.name || building.address;
   const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0);
+  const heroPhoto = activeUnits.find((u) => u.photoUrl)?.photoUrl || null;
+  const buildingType = displayLabel(building.commonInterest) || displayLabel(building.ownershipType);
+  const structure = displayLabel(building.structureType);
+  const isCoop = building.commonInterest === 'StockCooperative' || building.ownershipType === 'Co-op';
   const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
   const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
   const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType || building.structureType || building.newConstruction || building.taxAnnualAmount;
@@ -234,10 +262,19 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
       </div>
 
       {/* Hero */}
-      <section className="bg-gradient-to-b from-[#1a1a1a] to-[#2a2a2a] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-14">
+      <section className="relative text-white overflow-hidden">
+        {/* Background: photo if available, gradient fallback */}
+        {heroPhoto ? (
+          <>
+            <Image src={heroPhoto} alt={buildingLabel} fill className="object-cover" priority unoptimized />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] to-[#2a2a2a]" />
+        )}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-brand-gold/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-brand-gold/20 flex items-center justify-center backdrop-blur-sm">
               <svg className="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
               </svg>
@@ -248,13 +285,13 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
           <p className="text-white/70 text-lg">
             {building.address}{building.postalCode && <>, New York, NY {building.postalCode}</>}
           </p>
-          {/* Quick stats inline */}
+          {/* Quick stats inline with display labels */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 text-sm">
             {building.yearBuilt && <span className="text-white/50">Built {building.yearBuilt}</span>}
             {building.storiesTotal && <span className="text-white/50">{building.storiesTotal} Stories</span>}
             {building.totalUnits && <span className="text-white/50">{building.totalUnits} Units</span>}
-            {building.commonInterest && <span className="text-white/50">{building.commonInterest}</span>}
-            {building.structureType && <span className="text-white/50">{building.structureType.replace(/([a-z])([A-Z])/g, '$1 $2')}</span>}
+            {buildingType && <span className="text-white/50">{buildingType}</span>}
+            {structure && <span className="text-white/50">{structure}</span>}
           </div>
         </div>
       </section>
@@ -402,16 +439,16 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
               <h2 className="font-display text-xl font-bold text-brand-dark mb-6">Building Details</h2>
               {hasBuildingDetails && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
-                  {building.commonInterest && (
+                  {buildingType && (
                     <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
                       <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Type</p>
-                      <p className="text-[14px] font-semibold text-brand-dark">{building.commonInterest}</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{buildingType}</p>
                     </div>
                   )}
-                  {building.structureType && (
+                  {structure && (
                     <div className="rounded-xl bg-[#F8F7F4] border border-black/[0.03] p-4">
                       <p className="text-[11px] text-brand-dark/50 uppercase tracking-wider mb-1">Structure</p>
-                      <p className="text-[14px] font-semibold text-brand-dark">{building.structureType.replace(/([a-z])([A-Z])/g, '$1 $2')}</p>
+                      <p className="text-[14px] font-semibold text-brand-dark">{structure}</p>
                     </div>
                   )}
                   {building.totalUnits && (
@@ -492,7 +529,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                 )}
                 {hasFeeInfo && (
                   <div>
-                    <span className="text-brand-dark/50">HOA/Common Charges:</span>{' '}
+                    <span className="text-brand-dark/50">{isCoop ? 'Maintenance' : 'Common Charges'}:</span>{' '}
                     <span className="font-medium text-brand-dark">
                       {formatPrice(building.associationFee!)}{building.associationFeeFrequency ? `/${building.associationFeeFrequency.toLowerCase()}` : ''}
                     </span>

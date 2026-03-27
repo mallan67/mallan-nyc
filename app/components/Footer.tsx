@@ -121,6 +121,9 @@ export default function Footer() {
             <Link href="/open-houses" className="block text-[13px] font-light text-brand-dark/90 hover:text-brand-dark mb-3 transition-all duration-500">
               Open Houses
             </Link>
+            <Link href="/search?view=buildings" className="block text-[13px] font-light text-brand-dark/90 hover:text-brand-dark mb-3 transition-all duration-500">
+              Buildings
+            </Link>
           </div>
 
           {/* Company */}
