@@ -61,8 +61,9 @@ export default function LiveListingsWidget({
       limit: '6',
       sort: 'price-desc',
     });
-    // ZIP codes narrow the Trestle query; bounds post-filter for precision.
-    // Send both when available — ZIPs for OData push, bounds for server-side filter.
+    // Primary: filter by neighborhood name (matches Trestle CityRegion + DB neighborhood field)
+    // Fallback: ZIP codes narrow the Trestle query; bounds post-filter for precision.
+    params.set('neighborhood', name);
     if (zipCodes && zipCodes.length > 0) {
       params.set('zipCodes', zipCodes.join(','));
     }
