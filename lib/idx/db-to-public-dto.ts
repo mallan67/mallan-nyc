@@ -200,11 +200,23 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
 
   const listPrice = parseFloat(listing.list_price) || 0;
 
-  // Map media items
+  // Map media items — proxy Trestle URLs through /api/media/proxy
+  // (Trestle WAF blocks direct browser <img> requests)
+  const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
+  function proxyUrl(rawUrl: string): string {
+    if (!rawUrl) return rawUrl;
+    try {
+      const parsed = new URL(rawUrl);
+      if (TRESTLE_HOSTS.includes(parsed.hostname)) {
+        return `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`;
+      }
+    } catch { /* not a valid URL */ }
+    return rawUrl;
+  }
   const media = mediaArr
     .filter((m) => m.MediaURL || m.url)
     .map((m, i) => ({
-      url: (m.MediaURL || m.url || '') as string,
+      url: proxyUrl((m.MediaURL || m.url || '') as string),
       mediaType: (m.MediaType || m.mediaType || 'Photo') as string,
       order: m.Order ?? m.order ?? i,
     }));
