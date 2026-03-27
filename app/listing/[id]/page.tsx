@@ -334,7 +334,11 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // This handles listings synced before media fetch was added to the sync pipeline.
     if (mediaArr.length === 0 && dbListing.listing_id) {
       try {
-        const trestleMedia = await fetchListingMedia(dbListing.listing_id);
+        // Extract numeric key from listing_id (e.g., "RLS20064772" → "20064772")
+        // Trestle Media resource uses ResourceRecordKeyNumeric for lookup
+        const numericKey = dbListing.listing_id.replace(/^[A-Za-z]+/, '');
+        const mediaKey = /^\d+$/.test(numericKey) ? numericKey : dbListing.listing_id;
+        const trestleMedia = await fetchListingMedia(mediaKey);
         if (trestleMedia.length > 0) {
           mediaArr = trestleMedia;
         }
