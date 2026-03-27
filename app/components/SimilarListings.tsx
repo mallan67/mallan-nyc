@@ -40,16 +40,17 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
   return (
     <Link
       href={`/listing/${item.slug || item.mlsId}?key=${encodeURIComponent(item.mlsId || item.id)}`}
-      className="flex-shrink-0 w-[280px] sm:w-[300px] group"
+      className="flex-shrink-0 w-[220px] sm:w-[240px] group rounded-2xl border border-black/[0.06] bg-white overflow-hidden hover:shadow-md transition-shadow"
     >
-      {/* Photo */}
-      <div className="relative overflow-hidden rounded-xl bg-gray-100">
+      {/* Photo — fixed aspect ratio */}
+      <div className="relative overflow-hidden bg-gray-100">
         {item.photoUrl ? (
           <div className="aspect-[4/3] overflow-hidden">
             <IDXImage
               src={item.photoUrl}
               alt={item.address}
               aspect="card"
+              className="group-hover:scale-105 transition-transform duration-500"
             />
           </div>
         ) : (
@@ -59,45 +60,41 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
             </svg>
           </div>
         )}
-        {/* Photo count badge */}
         {item.photosCount && item.photosCount > 1 && (
           <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-0.5 rounded z-10">
             1/{item.photosCount}
           </span>
         )}
-        {/* Next arrow */}
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-          <svg className="w-4 h-4 text-brand-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-        </div>
       </div>
 
-      {/* Card body */}
-      <div className="pt-3 pb-1">
+      {/* Card body — fixed height, truncated text */}
+      <div className="p-3 h-[140px] flex flex-col">
         {/* Neighborhood */}
-        <p className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">
+        <p className="text-[10px] font-semibold text-brand-dark/45 uppercase tracking-wider truncate">
           {item.neighborhood || 'New York'}
         </p>
         {/* Address */}
-        <p className="text-[15px] text-brand-dark mt-0.5 leading-snug">
+        <p className="text-sm font-medium text-brand-dark mt-0.5 leading-snug truncate">
           {item.address}
         </p>
-        {/* Property type + stats */}
-        <p className="text-[13px] text-brand-dark/60 mt-1 uppercase tracking-wide">
+        {/* Type + stats */}
+        <p className="text-xs text-brand-dark/55 mt-1 uppercase tracking-wide truncate">
           {item.propertyType}
         </p>
-        <p className="text-[13px] text-brand-dark/60 mt-0.5">
-          {item.beds} BD | {item.baths} BA{item.sqft > 0 && <> | {item.sqft.toLocaleString()} SQ. FT.</>}
+        <p className="text-xs text-brand-dark/55 mt-0.5">
+          {item.beds} BD | {item.baths} BA{item.sqft > 0 && <> | {item.sqft.toLocaleString()} SF</>}
         </p>
-        {/* Courtesy line */}
-        <p className="text-[11px] text-brand-dark/40 mt-2">
-          Courtesy of {item.office}
+        {/* Spacer pushes price to bottom */}
+        <div className="flex-1" />
+        {/* Courtesy + Price */}
+        <p className="text-[10px] text-brand-dark/35 truncate">
+          {item.office ? `Courtesy of ${item.office}` : '\u00A0'}
         </p>
-        {/* Price */}
-        <div className="flex items-center justify-between mt-2">
-          <p className="font-display font-bold text-base text-brand-dark">
+        <div className="flex items-center justify-between mt-1">
+          <p className="font-display font-bold text-[15px] text-brand-dark">
             {formatPrice(item.listPrice, isRental)}
           </p>
-          <svg className="w-5 h-5 text-brand-dark/25 hover:text-brand-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+          <svg className="w-4.5 h-4.5 text-brand-dark/20 hover:text-brand-gold transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
         </div>
       </div>
     </Link>
@@ -172,14 +169,15 @@ export default function SimilarListings({
       </div>
 
       {loading && (
-        <div className="flex gap-4 overflow-hidden">
+        <div className="flex gap-3 overflow-hidden">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex-shrink-0 w-[280px] sm:w-[300px]">
-              <div className="aspect-[4/3] bg-gray-100 rounded-xl animate-pulse" />
-              <div className="pt-3 space-y-2">
-                <div className="h-3 bg-gray-100 rounded w-1/3 animate-pulse" />
-                <div className="h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
-                <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
+            <div key={i} className="flex-shrink-0 w-[220px] sm:w-[240px] rounded-2xl border border-black/[0.06] overflow-hidden">
+              <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+              <div className="p-3 space-y-2">
+                <div className="h-2.5 bg-gray-100 rounded w-1/3 animate-pulse" />
+                <div className="h-3.5 bg-gray-100 rounded w-3/4 animate-pulse" />
+                <div className="h-2.5 bg-gray-100 rounded w-1/2 animate-pulse" />
+                <div className="h-4 bg-gray-100 rounded w-2/5 animate-pulse mt-3" />
               </div>
             </div>
           ))}
@@ -189,7 +187,7 @@ export default function SimilarListings({
       {!loading && listings.length > 0 && (
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+          className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {listings.map((item) => (
