@@ -67,7 +67,7 @@ const B3_LISTING_AGREEMENT = [
   "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   "SyndicationRemarks",
-  "Permissions", // Owner opt-out detection — required by checkDistributionGates()
+  "Permission", // Owner opt-out detection — required by checkDistributionGates() (singular, not "Permissions")
 ];
 
 // B4: Status & Dates (32 fields)
@@ -625,10 +625,10 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
   const internetAddress = raw.InternetAddressDisplayYN !== false;
   const participantOnly = raw.ParticipantOnlyYN === true;
-  // Owner opt-out: derived from Permissions field (RESO standard), NOT from IDX display flags.
+  // Owner opt-out: derived from Permission field (Trestle uses singular "Permission", not "Permissions").
   // IDXEntireListingDisplayYN = false means IDX display disabled (separate gate).
-  // Permissions = "OwnerOptOut" / "Owner Opt-Out" / "Private" means owner opted out entirely.
-  const permissions = typeof raw.Permissions === 'string' ? raw.Permissions : '';
+  // Permission = "OwnerOptOut" / "Owner Opt-Out" / "Private" means owner opted out entirely.
+  const permissions = typeof raw.Permission === 'string' ? raw.Permission : (typeof raw.Permissions === 'string' ? raw.Permissions : '');
   const ownerOptOut =
     permissions === 'OwnerOptOut' ||
     permissions === 'Owner Opt-Out' ||
@@ -726,8 +726,8 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
 } {
   const normalized = normalizeRenames(raw);
 
-  // Gate 1a: Owner Opt-Out (via Permissions field)
-  const permissions = typeof normalized.Permissions === 'string' ? String(normalized.Permissions) : '';
+  // Gate 1a: Owner Opt-Out (via Permission field — Trestle uses singular)
+  const permissions = typeof normalized.Permission === 'string' ? String(normalized.Permission) : (typeof normalized.Permissions === 'string' ? String(normalized.Permissions) : '');
   if (
     permissions === 'OwnerOptOut' ||
     permissions === 'Owner Opt-Out' ||
