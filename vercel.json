@@ -27,6 +27,9 @@
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "app/api/cron/idx-sync/route.ts": {
+      "maxDuration": 120
     }
   },
   "redirects": [
