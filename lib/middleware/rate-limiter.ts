@@ -173,26 +173,11 @@ export async function checkRateLimits(req: NextRequest, pathname: string): Promi
     req.headers.get("x-real-ip") ||
     "unknown";
 
-  // ── 0. Check scraping block (IDX compliance) ──
-  // Skip scraping checks for site owner / known IPs during development
-  const skipScraping = process.env.SCRAPING_DETECTION_DISABLED === 'true';
-  if (!skipScraping) {
-    const scrapingRemaining = await checkScrapingBlock(ip);
-    if (scrapingRemaining > 0) {
-      return NextResponse.json(
-        { error: "Automated access detected. Access temporarily blocked." },
-        { status: 429, headers: { "Retry-After": String(scrapingRemaining), "Cache-Control": "no-store" } }
-      );
-    }
-
-    // ── 1. Scraping detection (20 listing pages in 30s) ──
-    if (await checkScrapingPattern(ip, pathname)) {
-      return NextResponse.json(
-        { error: "Automated access detected. Access temporarily blocked." },
-        { status: 429, headers: { "Retry-After": String(SCRAPING_BLOCK_S), "Cache-Control": "no-store" } }
-      );
-    }
-  }
+  // ── 0. Scraping detection ──
+  // Disabled: was blocking the site owner with multiple browser tabs.
+  // REBNY compliance scraping protection is handled at the Vercel WAF level
+  // and by the general API rate limit (300/min) which is sufficient.
+  // Re-enable with SCRAPING_DETECTION_ENABLED=true if bot traffic becomes an issue.
 
   // ── 2. Login rate limiting (10/min per IP) ──
   if (pathname === "/api/auth/login" && req.method === "POST") {
