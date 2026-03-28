@@ -174,20 +174,24 @@ export async function checkRateLimits(req: NextRequest, pathname: string): Promi
     "unknown";
 
   // ── 0. Check scraping block (IDX compliance) ──
-  const scrapingRemaining = await checkScrapingBlock(ip);
-  if (scrapingRemaining > 0) {
-    return NextResponse.json(
-      { error: "Automated access detected. Access temporarily blocked." },
-      { status: 429, headers: { "Retry-After": String(scrapingRemaining) } }
-    );
-  }
+  // Skip scraping checks for site owner / known IPs during development
+  const skipScraping = process.env.SCRAPING_DETECTION_DISABLED === 'true';
+  if (!skipScraping) {
+    const scrapingRemaining = await checkScrapingBlock(ip);
+    if (scrapingRemaining > 0) {
+      return NextResponse.json(
+        { error: "Automated access detected. Access temporarily blocked." },
+        { status: 429, headers: { "Retry-After": String(scrapingRemaining), "Cache-Control": "no-store" } }
+      );
+    }
 
-  // ── 1. Scraping detection (20 listing pages in 30s) ──
-  if (await checkScrapingPattern(ip, pathname)) {
-    return NextResponse.json(
-      { error: "Automated access detected. Access temporarily blocked." },
-      { status: 429, headers: { "Retry-After": String(SCRAPING_BLOCK_S) } }
-    );
+    // ── 1. Scraping detection (20 listing pages in 30s) ──
+    if (await checkScrapingPattern(ip, pathname)) {
+      return NextResponse.json(
+        { error: "Automated access detected. Access temporarily blocked." },
+        { status: 429, headers: { "Retry-After": String(SCRAPING_BLOCK_S), "Cache-Control": "no-store" } }
+      );
+    }
   }
 
   // ── 2. Login rate limiting (10/min per IP) ──
