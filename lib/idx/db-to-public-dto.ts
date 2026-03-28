@@ -204,7 +204,8 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
 
   // Map media items — proxy Trestle URLs through /api/media/proxy
   // (Trestle WAF blocks direct browser <img> requests)
-  const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
+  // Only current Cotality domain — legacy CoreLogic hosts ceased March 31, 2026
+  const TRESTLE_HOSTS = ['api.cotality.com'];
   function proxyUrl(rawUrl: string): string {
     if (!rawUrl) return rawUrl;
     try {
