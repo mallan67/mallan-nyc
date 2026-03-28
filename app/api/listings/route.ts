@@ -335,15 +335,31 @@ export async function GET(request: Request) {
               break;
           }
 
-          // Address search: push StreetNumber into Prisma JSON path filter
-          // so the DB narrows results in SQL before the street name post-filter
+          // Address search: push both StreetNumber and StreetName into Prisma JSON filters
+          // so the DB narrows results in SQL (not post-filter which breaks pagination)
           if (addressParam) {
-            const addrMatch = addressParam.trim().match(/^(\d+[-\w]*)\s+/);
-            if (addrMatch) {
-              const addrCondition: Prisma.ListingWhereInput = {
-                address: { path: ['StreetNumber'], equals: addrMatch[1] },
-              };
-              dbWhere.AND = [...(Array.isArray(dbWhere.AND) ? dbWhere.AND : dbWhere.AND ? [dbWhere.AND] : []), addrCondition];
+            const dirMap: Record<string, string> = { 'west': 'w', 'east': 'e', 'north': 'n', 'south': 's' };
+            const suffixRe = /\b(street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct)\b\.?/gi;
+            const cleaned = addressParam.trim()
+              .replace(/\b(west|east|north|south)\b/gi, (m) => dirMap[m.toLowerCase()] || m)
+              .replace(suffixRe, '').replace(/\s+/g, ' ').trim();
+
+            const addrConditions: Prisma.ListingWhereInput[] = [];
+            const numMatch = cleaned.match(/^(\d+[-\w]*)\s+(.*)/);
+            if (numMatch) {
+              // "400 E 90th" → StreetNumber=400, StreetName contains "90"
+              addrConditions.push({ address: { path: ['StreetNumber'], equals: numMatch[1] } });
+              const streetPart = numMatch[2].replace(/\b[ensw]\b/gi, '').trim();
+              if (streetPart) {
+                addrConditions.push({ address: { path: ['StreetName'], string_contains: streetPart.replace(/(\d+)(st|nd|rd|th)/gi, '$1') } });
+              }
+            } else if (cleaned) {
+              // "Park Avenue" → StreetName contains "park"
+              const streetPart = cleaned.replace(/(\d+)(st|nd|rd|th)/gi, '$1');
+              addrConditions.push({ address: { path: ['StreetName'], string_contains: streetPart } });
+            }
+            if (addrConditions.length > 0) {
+              dbWhere.AND = [...(Array.isArray(dbWhere.AND) ? dbWhere.AND : dbWhere.AND ? [dbWhere.AND] : []), ...addrConditions];
             }
           }
 
@@ -446,23 +462,8 @@ export async function GET(request: Request) {
               );
             }
 
-            // Address/text search (contains on street name)
-            // Normalize direction words: WEST→W, EAST→E, NORTH→N, SOUTH→S
-            // Strip street suffixes for flexible matching (Street/St, Avenue/Ave, etc.)
-            if (addressParam) {
-              const dirMap: Record<string, string> = { 'west': 'w', 'east': 'e', 'north': 'n', 'south': 's' };
-              const suffixRe = /\b(street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct)\b\.?/gi;
-              const normalized = addressParam.trim().toLowerCase()
-                .replace(/\b(west|east|north|south)\b/gi, (m) => dirMap[m.toLowerCase()] || m)
-                .replace(suffixRe, '').replace(/\s+/g, ' ').trim();
-              if (normalized) {
-                publicListings = publicListings.filter(l => {
-                  const street = `${l.address.streetNumber || ''} ${l.address.streetName || ''}`
-                    .toLowerCase().replace(suffixRe, '').replace(/\s+/g, ' ').trim();
-                  return street.includes(normalized);
-                });
-              }
-            }
+            // Address search is now handled in the Prisma query (JSON path filters)
+            // so no post-filter needed here — results are already narrowed by SQL
 
             // Amenity post-filtering on DB path (same AND logic as Trestle path)
             // DB listings store amenity fields in the features JSON column with
