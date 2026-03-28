@@ -233,11 +233,16 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
 
   const media = mediaArr
     .filter((m) => m.MediaURL || m.url)
-    .map((m, i) => ({
-      url: proxyUrl((m.MediaURL || m.url || '') as string),
-      mediaType: classifyMedia(m),
-      order: (m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true') ? -1 : (m.Order ?? m.order ?? i),
-    }))
+    .map((m, i) => {
+      const mt = classifyMedia(m);
+      const isPreferred = (m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true');
+      return {
+        url: proxyUrl((m.MediaURL || m.url || '') as string),
+        mediaType: mt,
+        // PreferredPhotoYN only boosts actual Photos — FloorPlans always sort last
+        order: (isPreferred && mt === 'Photo') ? -1 : (m.Order ?? m.order ?? i),
+      };
+    })
     // Sort: Photos first (rank 0), Videos/Tours (rank 1), FloorPlans last (rank 2)
     .sort((a, b) => {
       const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;

@@ -36,12 +36,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const since = await getLastSyncTimestamp();
+    const forceFull = req.nextUrl.searchParams.get('full') === 'true';
+    const since = forceFull ? null : await getLastSyncTimestamp();
 
     const result = await syncListings({
       since: since || undefined,
       maxRecords: 12000,
-      fullSync: !since, // Full sync if no previous sync
+      fullSync: forceFull || !since, // Full sync if forced or no previous sync
     });
 
     // Log audit
