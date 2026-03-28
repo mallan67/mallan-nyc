@@ -96,6 +96,17 @@ export default function Header() {
     { title: 'Investors Guide', href: '/resources/investors-guide' },
   ];
 
+  // "More" dropdown — consolidates secondary nav items to reduce cognitive load
+  const moreItems: ResourceItem[] = [
+    { title: 'Open Houses', href: '/open-houses' },
+    { title: 'Agents', href: '/agents' },
+    { title: 'About', href: '/about' },
+    { title: 'Market Report', href: '/market' },
+    { title: "Buyer's Guide", href: '/resources/buyers-guide' },
+    { title: "Seller's Guide", href: '/resources/sellers-guide' },
+    { title: 'Investors Guide', href: '/resources/investors-guide' },
+  ];
+
   // Homepage: absolute (overlays hero). Inner pages: fixed.
   const dark = pathname !== '/';
 
@@ -155,7 +166,8 @@ export default function Header() {
     { title: 'View All', href: '/neighborhoods' },
   ];
 
-  const positionClass = dark ? 'fixed' : 'absolute';
+  // Consistently fixed across all pages — absolute on homepage caused layout shift
+  const positionClass = 'fixed';
   const bgClass = mobileOpen
     ? 'bg-[rgba(20,27,45,0.95)] backdrop-blur-2xl'
     : 'nav-glass';
@@ -225,32 +237,13 @@ export default function Header() {
             className="hidden lg:flex items-center ml-auto"
             aria-label="Main navigation"
           >
-            <ul className="flex items-center gap-5 lg:gap-6 xl:gap-8 text-[13px] font-light">
+            <ul className="flex items-center gap-4 lg:gap-5 xl:gap-7 text-sm font-light">
               <li><NavDropdown label="Buy" items={buyItems} dark={dark} /></li>
               <li><NavDropdown label="Rent" items={rentItems} dark={dark} /></li>
               <li><NavDropdown label="Sell" items={sellItems} dark={dark} /></li>
               <li><NavDropdown label="Listings" items={exclusivesItems} dark={dark} /></li>
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
-
-              <li>
-                <Link href="/open-houses" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-white/80">
-                  Open Houses
-                </Link>
-              </li>
-
-              <li><NavDropdown label="Resources" items={resources} dark={dark} /></li>
-
-              <li>
-                <Link href="/agents" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-white/80">
-                  Agents
-                </Link>
-              </li>
-
-              <li>
-                <Link href="/about" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-white/80">
-                  About
-                </Link>
-              </li>
+              <li><NavDropdown label="More" items={moreItems} dark={dark} /></li>
 
               <li>
                 <Link href="/favorites" className="inline-flex items-center whitespace-nowrap transition-all duration-500 text-white hover:text-white/80" title="Saved Properties" aria-label="Saved Properties">
@@ -261,20 +254,30 @@ export default function Header() {
               <li>
                 <a href="tel:+16462584460" className="inline-flex items-center gap-1.5 whitespace-nowrap transition-all duration-500 text-white hover:text-white/80" title="Call (646) 258-4460" aria-label="Call (646) 258-4460">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                  <span className="hidden xl:inline text-[12px]">(646) 258-4460</span>
+                  <span className="hidden lg:inline text-[13px]">(646) 258-4460</span>
                 </a>
               </li>
 
-              {/* Google Translate */}
+              {/* Google Translate — moved to end, minimal footprint */}
               <li>
                 <div id="google_translate_element" className="translate-widget" />
+              </li>
+
+              {/* Primary CTA: Search Listings — gold filled, highest visual weight */}
+              <li>
+                <Link
+                  href="/search"
+                  className="text-[13px] font-medium bg-brand-gold text-brand-dark px-5 py-2 rounded-full hover:bg-brand-gold-deep transition-colors"
+                >
+                  Search
+                </Link>
               </li>
 
               {isLoggedIn ? (
                 <li className="relative group">
                   <Link
                     href={authHref}
-                    className="btn-liquid text-[13px] font-medium border border-brand-gold text-white px-5 py-2 rounded-full hover:bg-brand-gold hover:text-brand-dark transition-colors"
+                    className="text-[13px] font-medium border border-brand-gold text-white px-5 py-2 rounded-full hover:bg-brand-gold hover:text-brand-dark transition-colors"
                   >
                     {authLabel}
                   </Link>
@@ -297,7 +300,7 @@ export default function Header() {
                 <li>
                   <Link
                     href="/sign-in"
-                    className="btn-liquid text-[13px] font-medium border border-white/40 text-white px-5 py-2 rounded-full hover:bg-white hover:text-brand-dark transition-colors"
+                    className="text-[13px] font-medium border border-white/40 text-white px-5 py-2 rounded-full hover:bg-white hover:text-brand-dark transition-colors"
                   >
                     Sign In
                   </Link>
