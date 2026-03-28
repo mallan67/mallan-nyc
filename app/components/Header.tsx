@@ -267,15 +267,7 @@ export default function Header() {
                 <div id="google_translate_element" className="translate-widget" />
               </li>
 
-              {/* Primary CTA: Search Listings — gold filled, highest visual weight */}
-              <li>
-                <Link
-                  href="/search"
-                  className="text-[13px] font-medium bg-brand-gold text-brand-dark px-5 py-2 rounded-full hover:bg-brand-gold-deep transition-colors"
-                >
-                  Search
-                </Link>
-              </li>
+
 
               {isLoggedIn ? (
                 <li className="relative group">
