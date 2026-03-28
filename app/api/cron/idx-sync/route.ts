@@ -23,20 +23,23 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Concurrency guard — prevent overlapping sync runs
-  const recentSync = await prisma.auditEvent.findFirst({
-    where: {
-      action: "idx_sync_cron",
-      created_at: { gte: new Date(Date.now() - 10 * 60 * 1000) }, // Within last 10 min
-    },
-    orderBy: { created_at: "desc" },
-  });
-  if (recentSync) {
-    return NextResponse.json({ skipped: true, reason: "Sync already ran within last 10 minutes" });
+  const forceFull = req.nextUrl.searchParams.get('full') === 'true';
+
+  // Concurrency guard — prevent overlapping sync runs (skip for manual full sync)
+  if (!forceFull) {
+    const recentSync = await prisma.auditEvent.findFirst({
+      where: {
+        action: "idx_sync_cron",
+        created_at: { gte: new Date(Date.now() - 10 * 60 * 1000) }, // Within last 10 min
+      },
+      orderBy: { created_at: "desc" },
+    });
+    if (recentSync) {
+      return NextResponse.json({ skipped: true, reason: "Sync already ran within last 10 minutes" });
+    }
   }
 
   try {
-    const forceFull = req.nextUrl.searchParams.get('full') === 'true';
     const since = forceFull ? null : await getLastSyncTimestamp();
 
     const result = await syncListings({

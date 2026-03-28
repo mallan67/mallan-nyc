@@ -55,24 +55,28 @@ function NavDropdown({ label, items, dark: _dark }: { label: string; items: { ti
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="true"
-        className={`inline-flex items-center gap-1 whitespace-nowrap transition-all duration-500 ${linkColor}`}
+        className={`inline-flex items-center gap-1 whitespace-nowrap transition-all duration-500 py-2 ${linkColor}`}
       >
         {label}
         <ChevronIcon open={open} />
       </button>
       {open && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/90 backdrop-blur-xl rounded-xl shadow-lg ring-1 ring-black/5 z-50 overflow-hidden whitespace-nowrap">
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm text-brand-dark/90 hover:bg-black/[0.03] hover:text-brand-dark transition-colors font-light"
-            >
-              {item.title}
-            </Link>
-          ))}
-        </div>
+        <>
+          {/* Invisible bridge — prevents hover gap from closing dropdown */}
+          <div className="absolute top-full left-0 right-0 h-2" />
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/90 backdrop-blur-xl rounded-xl shadow-lg ring-1 ring-black/5 z-50 overflow-hidden whitespace-nowrap min-w-[160px]">
+            {items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="block px-5 py-2.5 text-sm text-brand-dark/90 hover:bg-black/[0.03] hover:text-brand-dark transition-colors"
+              >
+                {item.title}
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
