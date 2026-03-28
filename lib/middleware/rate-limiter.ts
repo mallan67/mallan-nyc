@@ -16,14 +16,14 @@ import redis from "@/lib/redis";
  */
 
 // ── Constants ──
-const GENERAL_RATE_LIMIT = 300;
-const API_RATE_LIMIT = 60;
+const GENERAL_RATE_LIMIT = 600;
+const API_RATE_LIMIT = 300;
 const LOGIN_RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
 const SCRAPING_WINDOW_S = 30;
-const SCRAPING_THRESHOLD = 20;
-const SCRAPING_BLOCK_S = 300; // 5min block for confirmed scraping (was 1hr — too aggressive for testing)
+const SCRAPING_THRESHOLD = 60;
+const SCRAPING_BLOCK_S = 120; // 2min block — short enough to not lock out power users, long enough to deter scrapers
 
 // ── Upstash rate limiters (null if Redis not configured) ──
 const pageRl = redis
