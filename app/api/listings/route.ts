@@ -313,12 +313,12 @@ export async function GET(request: Request) {
             }
           }
 
-          // Sort order
-          let dbOrderBy: Prisma.ListingOrderByWithRelationInput = { modification_timestamp: 'desc' };
+          // Sort order — default to price-desc (most relevant for buyers)
+          let dbOrderBy: Prisma.ListingOrderByWithRelationInput = { list_price: 'desc' };
           switch (sortParam) {
             case 'price-asc': dbOrderBy = { list_price: 'asc' }; break;
             case 'price-desc': dbOrderBy = { list_price: 'desc' }; break;
-            case 'newest': dbOrderBy = { modification_timestamp: 'desc' }; break;
+            case 'newest': dbOrderBy = { listing_contract_date: 'desc' }; break;
             case 'sqft-desc': dbOrderBy = { living_area: 'desc' }; break;
             case 'beds-desc': dbOrderBy = { bedrooms_total: 'desc' }; break;
             case 'exclusives':
@@ -801,7 +801,8 @@ export async function GET(request: Request) {
             // Exclusives are DB-only (our own listings) — skip Trestle, handled by merge
             orderby = 'ModificationTimestamp desc';
             break;
-          case 'newest': default: orderby = 'ModificationTimestamp desc'; break;
+          case 'newest': orderby = 'ListingContractDate desc'; break;
+          default: orderby = 'ListPrice desc'; break;
         }
 
         // Fetch extra to account for gate filtering + post-filters

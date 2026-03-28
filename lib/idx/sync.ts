@@ -170,12 +170,12 @@ export async function syncListings(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
-          const mediaFilter = `(${idFilter}) and (Order le 3 or MediaCategory ne 'Photo')`;
+          const mediaFilter = `(${idFilter}) and Order le 30`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
           mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
           mediaParams.set("$orderby", "ResourceRecordID asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 4));
+          mediaParams.set("$top", String(batch.length * 30));
 
           try {
             const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
@@ -435,12 +435,12 @@ export async function syncAgentHistory(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
-          const mediaFilter = `(${idFilter}) and (Order le 3 or MediaCategory ne 'Photo')`;
+          const mediaFilter = `(${idFilter}) and Order le 30`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
           mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
           mediaParams.set("$orderby", "ResourceRecordID asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 4));
+          mediaParams.set("$top", String(batch.length * 30));
 
           try {
             const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
