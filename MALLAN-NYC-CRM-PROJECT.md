@@ -53,9 +53,11 @@ This project integrates **REBNY Residential Listing Service (RLS) IDX data** und
 
 **Non-compliance exposes the brokerage to immediate suspension and liquidated damages up to $40,000.**
 
-#### ✅ Allowed Use
+#### ✅ Allowed Use (REBNY Confirmed 2026-03-27)
 - MLS/IDX data may be accessed only via **authorized server-side connections** using credentials issued through Trestle/CoreLogic
-- Data is used solely for **public display of real estate listings** on broker-operated websites
+- IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27)
+- IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search
+- Client data stays on mallan.nyc — never passes through RealPlus or third parties
 - Data may be **cached locally** for performance and compliance purposes
 - Media (photos) are accessed via **approved MLS media URLs** unless otherwise authorized
 

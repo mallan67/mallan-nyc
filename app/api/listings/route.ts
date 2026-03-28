@@ -59,7 +59,7 @@ function setCache(key: string, data: unknown): void {
  * Prevents bulk scraping of listing data per REBNY RLS compliance
  */
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 60;
+const RATE_LIMIT = 300;
 const RATE_WINDOW_MS = 60_000;
 
 function checkRateLimit(ip: string): boolean {

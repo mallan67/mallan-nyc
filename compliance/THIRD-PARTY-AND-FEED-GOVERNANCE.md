@@ -55,14 +55,16 @@
 
 ---
 
-## 2. mallan.nyc (IDX Consumer — Read-Only Display via Trestle IDX Plus WebAPI)
+## 2. mallan.nyc (IDX Consumer — Public Display + Internal CRM + Reporting)
 
-### Role
+### Role (Confirmed by REBNY 2026-03-27, Michaela Parker mparker@rebny.com)
 
-- mallan.nyc is a PUBLIC-FACING IDX DISPLAY site — it does NOT submit listings to the RLS
+- mallan.nyc uses IDX Plus feed for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting**
+- mallan.nyc does NOT submit listings to the RLS and is NOT an LMP
 - RealPlus is the LMP (listing input to RLS). REBNY does not grant LMP licenses to individual brokers.
-- mallan.nyc reads listings via Trestle IDX Plus WebAPI (Trestle-11371-20) for search and display
-- All client communication (emails, portals, CRM) runs through mallan.nyc directly
+- mallan.nyc reads listings via Trestle IDX Plus WebAPI (Trestle-11371-20) — **IDX-released fields and IDX-eligible inventory only (not full-market search)**
+- All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through RealPlus or third parties
+- Agents use RealPlus for full RLS inventory search and listing submission
 
 ### Capabilities
 
@@ -144,25 +146,30 @@ None — these are automatic via REBNY membership. Listings that pass all distri
 
 ---
 
-## 6. Direct Data License for mallan.nyc
+## 6. IDX License Scope Clarification (REBNY Confirmed 2026-03-27)
 
-### Status: Applying
+### Status: Confirmed — Current IDX Plus License Covers CRM Use
+
+REBNY confirmed (Michaela Parker, mparker@rebny.com, 2026-03-27) that the IDX Plus WebAPI license authorizes:
+1. **Public website listing display** (mallan.nyc/search, listing pages)
+2. **Internal backend dashboard with client management** (CRM, portals, search alerts)
+3. **Reporting features** (market reports, analytics, agent dashboards)
 
 | Parameter | Detail |
 |-----------|--------|
-| Purpose | Pull RLS data into mallan.nyc for IDX + VOW display |
+| License | IDX Plus - WebAPI (Trestle-11371-20) |
+| Scope | Public display + internal CRM + reporting |
+| Limitation | IDX-released field set and IDX-eligible inventory only — NOT full-market search |
+| Client data | Stays on mallan.nyc — never passes through third parties |
 | Contact | rlssupport@rebny.com / 212-616-5270 |
-| Need | Both IDX feed (public search) and VOW feed (client portal) |
-| Example | Like Compass, which has its own direct data license |
 
-### Requirements for Direct License
+### Direct Data License (Future Option)
 
-- REBNY RBD membership
-- Compliance with all UCBA/IDX rules
-- Attribution on all displayed listings
-- Server-side only data access
-- No redistribution, scraping, or AI training
-- Regular compliance audits
+A direct data license (like Compass) would upgrade from IDX Plus to full RLS read access through the same Trestle API. This would add PrivateRemarks, ShowingInstructions, and non-IDX-eligible listings to the CRM. Not currently needed for authorized CRM use, but would eliminate the need for RealPlus for agent search.
+
+### Connect NYC (Separate Product)
+
+Connect NYC is a separate REBNY building database product (1M+ buildings). It does NOT replace the Trestle IDX Plus WebAPI. They are independent services.
 
 ---
 
@@ -232,5 +239,5 @@ Per UCBA Art. III and Art. VIII:
 | Vercel | Hosting | SOC 2, GDPR |
 | Cloudflare R2 | Image storage | SOC 2, ISO 27001 |
 | Cotality/Trestle | RLS data feed | RESO certified, REBNY authorized |
-| mallan.nyc | IDX Plus read-only display (NOT an LMP — does not submit to RLS) | REBNY authorized |
+| mallan.nyc | IDX Plus: public display + internal CRM + reporting (NOT an LMP — does not submit to RLS). IDX-eligible inventory only, not full-market. | REBNY authorized (confirmed 2026-03-27) |
 | PostgreSQL (managed) | Database | Per provider (e.g., Supabase, Neon) |

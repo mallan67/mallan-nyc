@@ -4,7 +4,7 @@
 **Verified Against:** Live Trestle API `api.cotality.com/trestle` metadata + live feed (2026-03-20)
 **IDX Plus Coverage:** 902/902 = **100%** — every REBNY IDX Plus field found in Trestle live feed
 **Total Trestle Resources:** 12 data entities + 5 system entities
-**License:** IDX Plus feed for Mallan Real Estate Inc (Trestle-11371-20)
+**License:** IDX Plus feed for Mallan Real Estate Inc (Trestle-11371-20) — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 
 ---
 

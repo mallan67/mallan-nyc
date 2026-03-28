@@ -3,7 +3,7 @@
 
 **Status:** Active Development · **Live Production** (mallan.nyc on Vercel)
 **Jurisdiction:** New York State / NYC
-**Data Feed:** REBNY RLS via Trestle/Cotality — **IDX Plus** license (902 IDX Plus fields across 7 resources; 12 total Trestle data resources)
+**Data Feed:** REBNY RLS via Trestle/Cotality — **IDX Plus** license (902 IDX Plus fields across 7 resources; 12 total Trestle data resources). IDX feed powers public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only — not full-market search.
 **Policies:** NY DOS Advertising · REBNY RLS Display Rules · Fair Housing · TCPA/CTIA · CAN-SPAM · NY SHIELD · WCAG 2.1 AA
 
 ---
@@ -34,9 +34,11 @@ Non-compliance exposes the brokerage to immediate suspension and liquidated dama
 
 ---
 
-### Allowed Use
+### Allowed Use (REBNY Confirmed 2026-03-27)
 - MLS/IDX data may be accessed **only via authorized server-side connections** using credentials issued through Trestle/Cotality.
-- Data is used **solely for public display of real estate listings** on broker-operated websites.
+- IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27).
+- IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search. Agents use RealPlus for full RLS inventory.
+- Client data stays on mallan.nyc — never passes through RealPlus or third parties.
 - Data may be cached locally for performance and compliance purposes.
 - Media (photos) are accessed via approved MLS media URLs unless otherwise authorized.
 
@@ -106,7 +108,7 @@ Compliance is not optional and not abstract — it is contractual.
 
 ## IDX Plus / Trestle (REBNY RLS) — Rules of the Road
 
-> **Migration Note (2025):** REBNY migrated from Perchwell to Trestle/Cotality (formerly CoreLogic) in February 2025. The Trestle API endpoint migrated from `api-trestle.corelogic.com` to `api.cotality.com/trestle`. This platform uses the **IDX Plus - WebAPI** license (Trestle-11371-20) for **read-only display**. RealPlus is the LMP for listing submission to the RLS — REBNY does not grant LMP licenses to individual brokers. mallan.nyc reads 902 IDX Plus fields across 7 REBNY-specified resources plus additional Trestle-provisioned fields (1,457 total Property definitions in live metadata).
+> **Migration Note (2025):** REBNY migrated from Perchwell to Trestle/Cotality (formerly CoreLogic) in February 2025. The Trestle API endpoint migrated from `api-trestle.corelogic.com` to `api.cotality.com/trestle`. This platform uses the **IDX Plus - WebAPI** license (Trestle-11371-20) for **public display, internal CRM client management, and reporting** (REBNY confirmed 2026-03-27). The IDX feed provides IDX-released fields and IDX-eligible inventory only — it is NOT full-market search. RealPlus is the LMP for listing submission and full RLS search — REBNY does not grant LMP licenses to individual brokers. mallan.nyc reads 902 IDX Plus fields across 7 REBNY-specified resources plus additional Trestle-provisioned fields (1,457 total Property definitions in live metadata).
 
 ### Environment Variables (server-only)
 
@@ -127,7 +129,7 @@ IDX_CLIENT_SECRET=...
 |----------|------|---------|
 | `GET /api/listings` | Public (rate-limited 60/min) | Frontend search — sanitized via `toPublicDTO()`, all 6 distribution gates enforced |
 | `GET /api/listings/suggest` | Public (rate-limited 60/min) | Address autocomplete — distribution gates enforced, no agent PII |
-| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, broader field set (not guaranteed to match full RealPlus/LMP inventory) |
+| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, broader field set. IDX-eligible inventory only (not full-market — agents use RealPlus for full RLS) |
 
 ### REBNY Distribution Gates (fail closed)
 

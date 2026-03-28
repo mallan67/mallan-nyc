@@ -3,7 +3,7 @@
 > **Researched:** 2026-02-08
 > **Brokerage:** Mallan Real Estate Inc.
 > **LMP:** RealPlus (listing input to RLS — REBNY does not grant LMP licenses to individual brokers)
-> **IDX Display:** Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only on mallan.nyc
+> **IDX Display:** Trestle IDX Plus WebAPI (Trestle-11371-20) — public display + internal CRM + reporting on mallan.nyc (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 > **RLS Backend:** CoreLogic / Trestle (migrated Feb 2025 from Perchwell)
 
 ---
@@ -142,10 +142,12 @@ You → RealPlus (LMP) → Trestle Add/Edit API → REBNY RLS (Cotality)
         Homes.com/Citysnap      TBI Listings
         RentHop
 
-mallan.nyc (IDX Plus, read-only) ← Trestle IDX API ← REBNY RLS
+mallan.nyc (IDX Plus) ← Trestle IDX API ← REBNY RLS
   ↓
 Public search + display (no write access to RLS)
+Internal CRM dashboard + client management + reporting
 All client emails/portals/CRM from mallan.nyc directly
+(IDX-eligible inventory only — not full-market search)
 ```
 
 ### IDX = True is the Gate

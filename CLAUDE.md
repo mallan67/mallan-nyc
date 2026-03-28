@@ -38,7 +38,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 | File | Role |
 |------|------|
 | `dashboard.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals. v2: Two-CRM lifecycle workspaces (Sales + Rentals) with prospect/active phases, Convert API, listing backend. |
-| `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search via IDX Plus (read-only). Not shared. Not guaranteed to match full RealPlus/LMP inventory or field coverage. |
+| `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search via IDX Plus (read-only, IDX-eligible inventory only). Not shared. Not full-market search — limited to IDX-released fields and IDX-eligible listings. Agents use RealPlus for full RLS inventory. |
 | `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc). Audited 2026-03-19: 119 data-rls-field values verified against CSV, distribution gates clean (IDX+Syndication primary, InternetEntireListingDisplayYN locked for standard sales, no VOW), 34 Fair Housing patterns, 48 mandatory fields collected. |
 | `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + buyers view exclusive sale listings (buyers see masked listing agent info) |
 | `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive rental (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc). Audited 2026-03-18: checkbox groups + fees + open houses + commercial fields fixed. |
@@ -56,7 +56,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 > **Live production site at mallan.nyc (Vercel, Next.js 16.1.6)**
 >
 > **Components:**
-> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search. Public search is IDX-only — limited to internet-display-approved listings and IDX Plus fields. `PropertySearch.tsx` is dead code.
+> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search. Public search is IDX-only — limited to IDX-released fields and IDX-eligible listings (not full-market search). `PropertySearch.tsx` is dead code.
 > - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `public/crm/js/dashboard/` (app.js, panels.js, router.js, store.js, ui-components.js, workspace.js, portals.js + `panels/` subdirectory with sales-crm, rentals-crm, seller-prospects, lease-tracker, pitch-packet modules). **v2 Two-CRM redesign (2026-03-19):** lifecycle-based workspaces with prospect/active phases, `detectTypeAndPhase()` routing, Convert API, `Listing.owner_client_id` FK. Seller/Buyer/Landlord/Tenant each have full prospect + active workspace renderers.
 > - **API layer** — `app/api/` (235 route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
 > - **Database** — PostgreSQL on Neon (Prisma ORM, 61 models)
@@ -244,11 +244,12 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | Realtor.com, Redfin, Homes.com, RentHop | FREE | Direct data license from REBNY (automatic) |
 | openigloo, Samaki.com, TBI Listings | FREE | Trestle IDX Plus opt-in toggles (all ON) |
 
-### IDX Plus Display License (mallan.nyc — READ-ONLY)
-- **mallan.nyc is public-facing IDX display only — it does NOT submit listings to the RLS and is NOT an LMP**
-- **mallan.nyc is not a full search platform.** Public search is IDX-only and limited to internet-display-approved listings and fields. Private CRM search is broader, but not guaranteed to match full RealPlus/LMP inventory or field coverage.
+### IDX Plus License Scope (mallan.nyc — Confirmed by REBNY 2026-03-27)
+- **REBNY confirmed (Michaela Parker, mparker@rebny.com, 2026-03-27):** IDX feed may power: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting features. Client data stays on mallan.nyc.
+- **mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.** It is a read-only IDX consumer + internal CRM platform.
+- **IDX feed is NOT full-market search.** Limited to the IDX-released field set (902 fields) and IDX-eligible listing inventory only. Excludes Participant Only, Owner Opt-Out, and listings where InternetEntireListingDisplayYN = False. Agents use RealPlus for full RLS inventory.
 - **Listing input:** Agents create/edit listings in RealPlus (LMP) → RealPlus submits to RLS → mallan.nyc reads via IDX Plus. REBNY does not grant LMP licenses to individual brokers.
-- **What mallan.nyc owns:** CRM, client database, portals, branded client emails, lead capture, commission tracking, and all agent/client workflows. RealPlus/LMP may still be used for broader internal brokerage workflows and is the sole path for listing submission to the RLS.
+- **What mallan.nyc owns:** CRM, client database, portals, branded client emails, lead capture, commission tracking, search alerts, reporting, and all agent/client workflows. Client data never passes through RealPlus or any third party. RealPlus is used only for listing submission to the RLS and full-market agent search.
 - Trestle IDX Plus WebAPI (Trestle-11371-20) — live metadata has 1,457 Property definitions. 902 in REBNY IDX Plus CSV + additional Trestle-provisioned fields.
 - **ClosePrice, OriginalListPrice, PreviousListPrice, DaysOnMarket ARE authorized for public IDX display** — verified against REBNY IDX Plus CSV, REBNY IDX/VOW Compliance Checklist (Dec 2021, no field-level restriction), Trestle live feed validation (2026-03-04), and NAR IDX Policy 7.58.
 - VOW adds consumer registration requirements and pre-registration display limits (image, ID, beds/baths, price, neighborhood only before login). VOW does NOT restrict additional fields beyond what IDX provides — it adds access control, not field restrictions.
