@@ -179,45 +179,30 @@ export async function checkRateLimits(req: NextRequest, pathname: string): Promi
   // and by the general API rate limit (300/min) which is sufficient.
   // Re-enable with SCRAPING_DETECTION_ENABLED=true if bot traffic becomes an issue.
 
-  // ── 2. Login rate limiting (10/min per IP) ──
+  // ── Only rate-limit sensitive write endpoints ──
+  // Login: 10/min per IP (prevent brute force)
   if (pathname === "/api/auth/login" && req.method === "POST") {
     if (!(await rateLimitCheck(loginRl, ip, `${ip}:login`, LOGIN_RATE_LIMIT))) {
       return NextResponse.json(
         { error: "Too many login attempts. Try again later." },
-        { status: 429, headers: { "Retry-After": "60" } }
+        { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } }
       );
     }
   }
 
-  // ── 3. General rate limiting ──
-  const isMediaProxy = pathname === "/api/media/proxy";
-  const isApi = pathname.startsWith("/api") && !isMediaProxy;
-
-  if (isApi) {
-    if (!(await rateLimitCheck(apiRl, ip, `${ip}:api`, API_RATE_LIMIT))) {
-      return new NextResponse("Too Many Requests", {
-        status: 429,
-        headers: { "Retry-After": "60" },
-      });
-    }
-  } else {
-    if (!(await rateLimitCheck(pageRl, ip, `${ip}:page`, GENERAL_RATE_LIMIT))) {
-      return new NextResponse("Too Many Requests", {
-        status: 429,
-        headers: { "Retry-After": "60" },
-      });
-    }
-  }
-
-  // ── 4. IDX sync rate limit (1 per 5 min per IP) ──
+  // IDX sync: 1 per 5 min per IP (prevent abuse)
   if (pathname === "/api/idx/sync" && req.method === "POST") {
     if (!(await rateLimitCheck(idxSyncRl, ip, `${ip}:idx-sync`, 1))) {
       return new NextResponse(
         JSON.stringify({ error: "IDX sync rate limited. Max 1 call per 5 minutes." }),
-        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": "300" } }
+        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": "300", "Cache-Control": "no-store" } }
       );
     }
   }
+
+  // General browsing (pages, API reads, media) — no rate limiting.
+  // A single-broker site with <10 concurrent users doesn't need it.
+  // The /api/listings route has its own in-route rate limiter if needed.
 
   return null;
 }
