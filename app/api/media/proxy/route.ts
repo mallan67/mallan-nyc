@@ -12,9 +12,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAccessToken } from "@/lib/idx/auth";
 
 // Allow proxying from Trestle/Cotality media domains
-// Old CoreLogic hosts deprecated — ceased March 31, 2026
+// Old CoreLogic hosts deprecated — deadline April 30, 2026
+// Old media URLs still work through 2026 warranty per Cotality email
 const ALLOWED_HOSTS = new Set([
   "api.cotality.com",
+  "api-trestle.corelogic.com",
+  "api-prod.corelogic.com",
 ]);
 
 function isAllowedUrl(url: string): boolean {

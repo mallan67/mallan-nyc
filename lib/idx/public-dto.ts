@@ -48,8 +48,8 @@ function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: str
  *
  * Until photos are replicated to R2, the proxy is required.
  */
-// Only current Cotality domain — legacy CoreLogic hosts ceased March 31, 2026
-const TRESTLE_HOSTS = ['api.cotality.com'];
+// Cotality + legacy CoreLogic hosts (old media URLs work through 2026 warranty)
+const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
 
 function proxyMediaUrl(url: string): string {
   if (!url) return url;
