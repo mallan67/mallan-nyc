@@ -440,6 +440,9 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       cooling: features.Cooling ? String(features.Cooling) : undefined,
       laundryFeatures: features.LaundryFeatures ? String(features.LaundryFeatures) : undefined,
       petsAllowedDetail: features.PetsAllowed ? String(features.PetsAllowed) : undefined,
+      moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
+      ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
+      tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
       appliances: features.Appliances ? String(features.Appliances) : undefined,
       exteriorFeatures: features.ExteriorFeatures ? String(features.ExteriorFeatures) : undefined,
       communityFeatures: features.CommunityFeatures ? String(features.CommunityFeatures) : undefined,
@@ -1415,7 +1418,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               )}
 
               {/* ── 7. RENTAL DETAILS ── */}
-              {isRental && (listing.petsAllowed || listing.furnished || listing.availabilityDate) && (
+              {isRental && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Rental Details</h2>
                   <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0">
@@ -1437,6 +1440,34 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         <span className="text-[13px] font-medium text-brand-dark">{listing.furnished}</span>
                       </div>
                     )}
+                    {listing.moveInCosts && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/80">Move-In Costs</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{listing.moveInCosts}</span>
+                      </div>
+                    )}
+                    {listing.ongoingFees && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/80">Ongoing Fees</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{listing.ongoingFees}</span>
+                      </div>
+                    )}
+                    {listing.tenantPaysDescription && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/80">Tenant Pays</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{listing.tenantPaysDescription}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* FARE Act Fee Disclosure (NYC Local Law 119/2024) */}
+                  <div className="mt-4 p-3 bg-[#F8F7F4] rounded-lg border border-black/5">
+                    <p className="text-[11px] text-brand-dark/60 leading-relaxed">
+                      <span className="font-semibold text-brand-dark/70">Fee Disclosure (NYC Local Law 119/2024):</span> Fee
+                      and move-in cost information is provided by the listing broker via the REBNY Listing Service.
+                      Where fee details are not displayed, the listing broker has not provided this information.
+                      Contact the listing office directly for complete fee disclosure. Prospective tenants are not
+                      required to pay a broker fee unless they have specifically engaged a broker to act on their behalf.
+                    </p>
                   </div>
                 </section>
               )}
@@ -1749,7 +1780,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
           </p>
           <span className="text-brand-dark/30">|</span>
           <p className="text-[13px] text-brand-dark/50">
-            Updated {new Date(listing.modificationTimestamp).toLocaleDateString()}
+            Updated {(() => { const d = new Date(listing.modificationTimestamp); return isNaN(d.getTime()) ? new Date().toLocaleDateString() : d.toLocaleDateString(); })()}
           </p>
         </div>
       </section>

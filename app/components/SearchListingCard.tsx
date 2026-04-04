@@ -110,6 +110,9 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
             {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
         )}
+        {isRental && listing.moveInCosts && (
+          <p className="text-sm text-brand-dark/70 mt-1">Move-In: {listing.moveInCosts}</p>
+        )}
         <p className="text-xs text-brand-dark/50 mt-2.5 pt-2 border-t border-black/5">
           Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
           {listing.modificationTimestamp && (
@@ -190,6 +193,9 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
           <p className="text-sm text-brand-dark/70 mt-1">
             {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
+        )}
+        {isRental && listing.moveInCosts && (
+          <p className="text-sm text-brand-dark/70 mt-1">Move-In: {listing.moveInCosts}</p>
         )}
         <p className="text-xs text-brand-dark/50 mt-2">
           Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
@@ -319,6 +325,9 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
           <p className="text-[13px] text-brand-dark/70 mt-0.5">
             {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
+        )}
+        {isRental && listing.moveInCosts && (
+          <p className="text-[13px] text-brand-dark/70 mt-0.5">Move-In: {listing.moveInCosts}</p>
         )}
         <p className="text-xs text-brand-dark/50 mt-1.5">
           Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}

@@ -45,7 +45,11 @@ export default function IDXDisclaimer({
   variant = 'compact',
   className = '',
 }: IDXDisclaimerProps) {
-  const timestamp = lastUpdated ? formatDate(lastUpdated) : 'N/A';
+  const timestamp = (() => {
+    if (!lastUpdated) return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const d = typeof lastUpdated === 'string' ? new Date(lastUpdated) : lastUpdated;
+    return isNaN(d.getTime()) ? new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : formatDate(lastUpdated);
+  })();
 
   if (variant === 'compact') {
     return (

@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
           photoUrl: firstPhoto?.url ? proxyUrl(firstPhoto.url) : null,
           photosCount: normalized.filter(m => m.isPhoto).length,
           propertyType: l.property_sub_type || l.property_type || '',
-          office: (l.agent_info as Record<string, string> | null)?.company || '',
+          office: (l.agent_info as Record<string, string> | null)?.ListOfficeName || (l.agent_info as Record<string, string> | null)?.company || '',
         };
       });
 

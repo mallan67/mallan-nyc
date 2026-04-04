@@ -232,7 +232,7 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
           )}
           {listing.listOfficeName && (
             <p className="text-[11px] text-brand-dark/50 mt-2 font-light">
-              <span className="font-semibold text-brand-dark/70">RLS</span> &middot; {listing.listOfficeName}
+              Listing Courtesy of {listing.listOfficeName}
             </p>
           )}
         </Link>
