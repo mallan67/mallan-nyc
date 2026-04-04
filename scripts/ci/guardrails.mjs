@@ -403,7 +403,7 @@ const DEPRECATED_HOSTS = [
 ];
 
 const hostScanExtensions = /\.(ts|tsx|js|jsx|json|env|env\.local|env\.production)$/;
-const hostScanExcludes = [/node_modules/, /\.next/, /\.git/, /archive\//, /scripts\/trestle-deep-check/, /audit-trestle-report/, /db-to-public-dto\.ts$/, /media\/proxy/];
+const hostScanExcludes = [/node_modules/, /\.next/, /\.git/, /archive\//, /scripts\/trestle-deep-check/, /audit-trestle-report/, /db-to-public-dto\.ts$/, /public-dto\.ts$/, /media\/proxy/];
 
 const hostScanFiles = allFiles.filter((f) => {
   if (!hostScanExtensions.test(f)) return false;
