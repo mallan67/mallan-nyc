@@ -265,6 +265,103 @@ export async function syncListings(
 }
 
 /**
+ * Backfill media for listings with empty media arrays.
+ * Queries DB for listings with media='[]' or null, then batch-fetches
+ * their photos from Trestle Media endpoint.
+ * Called after sync or independently via cron/API.
+ */
+export async function backfillEmptyMedia(options?: { limit?: number }): Promise<{ checked: number; updated: number; errors: number }> {
+  const limit = options?.limit ?? 200;
+
+  // Find listings with empty or null media
+  const listings = await prisma.$queryRaw<{ listing_id: string }[]>`
+    SELECT listing_id FROM "Listing"
+    WHERE (media IS NULL OR media::text = '[]' OR media::text = '{}')
+      AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
+      AND sync_status IS DISTINCT FROM 'gated:participant_only'
+    ORDER BY modification_timestamp DESC NULLS LAST
+    LIMIT ${limit}
+  `;
+
+  if (listings.length === 0) {
+    console.log("[Media Backfill] No listings with empty media found");
+    return { checked: 0, updated: 0, errors: 0 };
+  }
+
+  console.log(`[Media Backfill] Found ${listings.length} listings with empty media`);
+
+  const { getAccessToken } = await import("./auth");
+  let token: string;
+  try {
+    token = await getAccessToken();
+  } catch {
+    console.error("[Media Backfill] Failed to get Trestle token");
+    return { checked: listings.length, updated: 0, errors: 1 };
+  }
+
+  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  const BATCH_SIZE = 50;
+  let updated = 0;
+  let errors = 0;
+
+  for (let i = 0; i < listings.length; i += BATCH_SIZE) {
+    const batch = listings.slice(i, i + BATCH_SIZE);
+    const ids = batch.map((l) => l.listing_id).filter(Boolean);
+    if (ids.length === 0) continue;
+
+    const idFilter = ids.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
+    const mediaFilter = `(${idFilter}) and Order le 30`;
+    const mediaParams = new URLSearchParams();
+    mediaParams.set("$filter", mediaFilter);
+    mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+    mediaParams.set("$orderby", "ResourceRecordID asc,Order asc");
+    mediaParams.set("$top", String(ids.length * 30));
+
+    try {
+      const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!res.ok) {
+        console.warn(`[Media Backfill] Batch ${i / BATCH_SIZE + 1} failed: ${res.status} ${res.statusText}`);
+        errors++;
+        continue;
+      }
+      const data = await res.json();
+
+      const mediaByListing = new Map<string, { MediaURL: string; MediaCategory: string; Order: number }[]>();
+      for (const m of data.value || []) {
+        const lid = String(m.ResourceRecordID || "");
+        if (!lid || !m.MediaURL) continue;
+        if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+        mediaByListing.get(lid)!.push({
+          MediaURL: String(m.MediaURL),
+          MediaCategory: String(m.MediaCategory || "Photo"),
+          Order: Number(m.Order ?? 0),
+        });
+      }
+
+      for (const [listingId, media] of mediaByListing) {
+        try {
+          await prisma.listing.updateMany({
+            where: { listing_id: listingId },
+            data: { media: media as unknown as Prisma.InputJsonValue },
+          });
+          updated++;
+        } catch {
+          errors++;
+        }
+      }
+    } catch (err) {
+      console.warn(`[Media Backfill] Batch error:`, err instanceof Error ? err.message : err);
+      errors++;
+    }
+  }
+
+  console.log(`[Media Backfill] Complete: checked=${listings.length}, updated=${updated}, errors=${errors}`);
+  return { checked: listings.length, updated, errors };
+}
+
+/**
  * Get the timestamp of the most recently synced listing.
  * Used for incremental sync.
  */
