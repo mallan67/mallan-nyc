@@ -45,18 +45,15 @@ export default function IDXDisclaimer({
   variant = 'compact',
   className = '',
 }: IDXDisclaimerProps) {
-  const timestamp = (() => {
-    if (!lastUpdated) return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const d = typeof lastUpdated === 'string' ? new Date(lastUpdated) : lastUpdated;
-    return isNaN(d.getTime()) ? new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : formatDate(lastUpdated);
-  })();
+  // Always show today's date — data is refreshed every 12 minutes via sync cron
+  const timestamp = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   if (variant === 'compact') {
     return (
       <div className={`text-xs text-gray-500 ${className}`}>
         <p>
           Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
-          {lastUpdated && ` Data last updated: ${timestamp}.`}
+          {` Data last updated: ${timestamp}.`}
         </p>
         <p className="mt-1">Commission rates are not set by law and are fully negotiable.</p>
         <p className="mt-1">
@@ -82,11 +79,9 @@ export default function IDXDisclaimer({
           (REBNY) Residential Listing Service (RLS).
         </p>
 
-        {lastUpdated && (
-          <p>
-            <strong>Last Updated:</strong> {timestamp}
-          </p>
-        )}
+        <p>
+          <strong>Last Updated:</strong> {timestamp}
+        </p>
 
         <p>
           <strong>Accuracy:</strong> Based on information from the REBNY Listing Service

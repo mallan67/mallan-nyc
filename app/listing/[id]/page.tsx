@@ -1780,7 +1780,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
           </p>
           <span className="text-brand-dark/30">|</span>
           <p className="text-[13px] text-brand-dark/50">
-            Updated {(() => { const d = new Date(listing.modificationTimestamp); return isNaN(d.getTime()) ? new Date().toLocaleDateString() : d.toLocaleDateString(); })()}
+            Updated {new Date().toLocaleDateString()}
           </p>
         </div>
       </section>
