@@ -3,9 +3,24 @@
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 
-// Session duration: 24 hours. Refresh threshold: 1 hour before expiry.
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+// Per-role session durations (must match cookie-config.ts maxAge values)
+const SESSION_TTL_MS = {
+  broker: 24 * 60 * 60 * 1000,   // 24 hours
+  agent:   8 * 60 * 60 * 1000,   //  8 hours
+  client: 30 * 24 * 60 * 60 * 1000, // 30 days
+  default: 24 * 60 * 60 * 1000,  // 24 hours fallback
+} as const;
+
+// Refresh threshold: 1 hour before expiry (or 10% of TTL, whichever is smaller)
 const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;
+
+/** Resolve the correct TTL for a user type + role combination */
+function getSessionDurationMs(userType: string, role: string): number {
+  if (role === "BROKER" || role === "broker") return SESSION_TTL_MS.broker;
+  if (userType === "agent") return SESSION_TTL_MS.agent;
+  if (userType === "lead") return SESSION_TTL_MS.client;
+  return SESSION_TTL_MS.default;
+}
 
 export interface SessionUser {
   userId: bigint;
@@ -17,6 +32,7 @@ export interface SessionUser {
 /**
  * Create a new session for a user.
  * Returns the session token (to set as httpOnly cookie).
+ * DB expires_at matches the cookie maxAge for the user's role.
  */
 export async function createSession(
   userType: "agent" | "lead",
@@ -26,7 +42,8 @@ export async function createSession(
   userAgent?: string
 ): Promise<string> {
   const token = randomUUID();
-  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+  const durationMs = getSessionDurationMs(userType, role);
+  const expiresAt = new Date(Date.now() + durationMs);
 
   await prisma.session.create({
     data: {
@@ -62,12 +79,13 @@ export async function validateSession(
     return null;
   }
 
-  // Rotate if within refresh threshold
+  // Rotate if within refresh threshold — use role-appropriate duration
   const timeUntilExpiry = session.expires_at.getTime() - Date.now();
   if (timeUntilExpiry < REFRESH_THRESHOLD_MS) {
+    const durationMs = getSessionDurationMs(session.user_type, session.role);
     await prisma.session.update({
       where: { token },
-      data: { expires_at: new Date(Date.now() + SESSION_DURATION_MS) },
+      data: { expires_at: new Date(Date.now() + durationMs) },
     });
   }
 
