@@ -309,7 +309,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 All deployments and CI/CD workflows must maintain compliance with the above standards.
 
-**Cron jobs (vercel.json):** 6 scheduled tasks — data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 4h), listing expiration (daily 7am), search alerts (daily 7:30am), prospect triggers (daily 9am). 10 cron route handlers exist but are NOT scheduled in vercel.json.
+**Cron jobs (vercel.json):** 7 scheduled tasks — db-keepalive (every 3min), data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 12min), media backfill (every 8min), listing expiration (daily 7am), search alerts (daily 7:30am) + 11 more scheduled. 19 cron route handlers total.
 
 **Validation (CI):** `npm run ci` runs: lint → type-check → compliance-check → **idx:validate (32-section validator)** → build. The IDX Plus Validator (`scripts/idx-validate.js`) blocks builds on critical issues. Results saved to `public/crm/data/validator-results.json` for the CRM System Health dashboard. Run history stored in `.idx-validate/history.json`.
 

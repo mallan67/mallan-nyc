@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-26T22:20:16.629Z",
-  "pass": 872,
+  "timestamp": "2026-04-04T05:32:39.327Z",
+  "pass": 851,
   "critical": 0,
   "warning": 4,
   "info": 40,
@@ -9,7 +9,7 @@
       "section": 1,
       "title": "$select Field Completeness",
       "category": "IDX Pipeline",
-      "pass": 31,
+      "pass": 32,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -36,7 +36,7 @@
       "section": 4,
       "title": "REQUIRED vs IDX Plus Availability",
       "category": "IDX Pipeline",
-      "pass": 38,
+      "pass": 12,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -90,7 +90,7 @@
       "section": 10,
       "title": "Cron Schedule Completeness",
       "category": "Cron",
-      "pass": 17,
+      "pass": 19,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -99,7 +99,7 @@
       "section": 11,
       "title": "Cron Secret Validation Pattern",
       "category": "Cron",
-      "pass": 17,
+      "pass": 19,
       "critical": 0,
       "warning": 0,
       "info": 0
