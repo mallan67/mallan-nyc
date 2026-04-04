@@ -4,7 +4,7 @@
 // Protected by CRON_SECRET header (Vercel Cron).
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { syncListings, getLastSyncTimestamp, backfillEmptyMedia } from "@/lib/idx/sync";
+import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
 import prisma from "@/lib/prisma";
 
@@ -48,10 +48,6 @@ export async function GET(req: NextRequest) {
       fullSync: forceFull || !since, // Full sync if forced or no previous sync
     });
 
-    // Backfill media for listings that have empty media arrays
-    // (catches listings where previous media batch-fetches failed)
-    const backfill = await backfillEmptyMedia({ limit: 200 });
-
     // Log audit
     await prisma.auditEvent.create({
       data: {
@@ -64,7 +60,6 @@ export async function GET(req: NextRequest) {
           ...result,
           incremental: !!since,
           since: since?.toISOString() ?? null,
-          media_backfill: backfill,
         },
       },
     });
@@ -72,7 +67,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       ...result,
-      media_backfill: backfill,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
