@@ -184,16 +184,22 @@ export async function syncListings(
             if (!res.ok) continue;
             const data = await res.json();
 
-            // Group media by listing ID
-            const mediaByListing = new Map<string, { MediaURL: string; MediaCategory: string; Order: number }[]>();
+            // Group media by listing ID — normalize to {url, mediaType, order} for display adapter
+            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
             for (const m of data.value || []) {
               const lid = String(m.ResourceRecordID || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+              const cat = String(m.MediaCategory || "").toLowerCase();
+              let mediaType: string = "Photo";
+              if (cat.includes("floor plan")) mediaType = "FloorPlan";
+              else if (cat.includes("video")) mediaType = "Video";
+              else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
               mediaByListing.get(lid)!.push({
-                MediaURL: String(m.MediaURL),
-                MediaCategory: String(m.MediaCategory || "Photo"),
-                Order: Number(m.Order ?? 0),
+                url: String(m.MediaURL),
+                mediaType,
+                order: isPreferred ? -1 : Number(m.Order ?? 0),
               });
             }
 
@@ -328,15 +334,21 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       }
       const data = await res.json();
 
-      const mediaByListing = new Map<string, { MediaURL: string; MediaCategory: string; Order: number }[]>();
+      const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
       for (const m of data.value || []) {
         const lid = String(m.ResourceRecordID || "");
         if (!lid || !m.MediaURL) continue;
         if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+        const cat = String(m.MediaCategory || "").toLowerCase();
+        let mediaType: string = "Photo";
+        if (cat.includes("floor plan")) mediaType = "FloorPlan";
+        else if (cat.includes("video")) mediaType = "Video";
+        else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+        const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
         mediaByListing.get(lid)!.push({
-          MediaURL: String(m.MediaURL),
-          MediaCategory: String(m.MediaCategory || "Photo"),
-          Order: Number(m.Order ?? 0),
+          url: String(m.MediaURL),
+          mediaType,
+          order: isPreferred ? -1 : Number(m.Order ?? 0),
         });
       }
 
@@ -546,15 +558,21 @@ export async function syncAgentHistory(
             if (!res.ok) continue;
             const data = await res.json();
 
-            const mediaByListing = new Map<string, { MediaURL: string; MediaCategory: string; Order: number }[]>();
+            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
             for (const m of data.value || []) {
               const lid = String(m.ResourceRecordID || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+              const cat = String(m.MediaCategory || "").toLowerCase();
+              let mediaType: string = "Photo";
+              if (cat.includes("floor plan")) mediaType = "FloorPlan";
+              else if (cat.includes("video")) mediaType = "Video";
+              else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
               mediaByListing.get(lid)!.push({
-                MediaURL: String(m.MediaURL),
-                MediaCategory: String(m.MediaCategory || "Photo"),
-                Order: Number(m.Order ?? 0),
+                url: String(m.MediaURL),
+                mediaType,
+                order: isPreferred ? -1 : Number(m.Order ?? 0),
               });
             }
 

@@ -25,7 +25,8 @@ jobs:
         id: check_diff
         run: |
           git fetch origin main
-          if (git diff --quiet origin/main -- data\geoclient_addresses_out.csv) {
+          git diff --quiet origin/main -- data\geoclient_addresses_out.csv
+          if ($LASTEXITCODE -eq 0) {
             echo "No changes to geocoded file."
             echo "changed=false" >> $env:GITHUB_OUTPUT
           } else {
