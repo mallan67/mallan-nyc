@@ -8,6 +8,8 @@ import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
 import prisma from "@/lib/prisma";
 
+export const maxDuration = 120;
+
 export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");

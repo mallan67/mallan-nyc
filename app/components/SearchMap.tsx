@@ -11,7 +11,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 /** Get first photo URL from media array (skips floor plans, videos) */
 function heroPhotoUrl(media: { url: string; mediaType?: string }[]): string | undefined {
   const photo = media?.find(m => !m.mediaType || m.mediaType === 'Photo');
-  return photo?.url || media?.[0]?.url;
+  return photo?.url;
 }
 
 // Fix Leaflet default marker icons in Next.js/webpack

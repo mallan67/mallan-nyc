@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DOM_RESET_DAYS } from "@/lib/compliance/dom-tracker";
 
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");

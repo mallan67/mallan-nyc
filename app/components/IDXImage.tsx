@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 /**
  * IDXImage — native <img> for all listing photos (IDX + R2).
@@ -41,6 +41,20 @@ export default function IDXImage({
 }: IDXImageProps) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Only animate when the card is in the viewport — saves GPU layers for off-screen cards
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { rootMargin: '100px' }  // start animation slightly before card scrolls in
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   if (!src || failed) {
     return (
@@ -67,8 +81,10 @@ export default function IDXImage({
     );
   }
 
+  const shouldAnimate = loaded && visible;
+
   return (
-    <div className={`relative overflow-hidden ${ASPECT_CLASSES[aspect]} ${className}`}>
+    <div ref={wrapperRef} className={`relative overflow-hidden ${ASPECT_CLASSES[aspect]} ${className}`}>
       {/* Shimmer skeleton while loading */}
       {!loaded && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse" />
@@ -83,7 +99,7 @@ export default function IDXImage({
         onError={() => setFailed(true)}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{
-          animation: loaded ? 'liquidMotion 10s ease-in-out infinite' : undefined,
+          animation: shouldAnimate ? 'liquidMotion 10s ease-in-out infinite' : undefined,
           transformOrigin: '50% 60%',
         }}
       />

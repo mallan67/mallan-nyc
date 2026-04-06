@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email/sendgrid';
+import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { escapeHtml } from '@/lib/sanitize';
 
@@ -133,12 +134,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Admin endpoint to retrieve submissions (requires broker auth)
+// GET - Admin endpoint to retrieve submissions (requires agent/broker session)
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('x-admin-key');
-  if (!authHeader || authHeader !== process.env.ADMIN_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireAgentOrBroker(request);
+  if (isAuthError(auth)) return auth;
 
   try {
     const leads = await prisma.lead.findMany({

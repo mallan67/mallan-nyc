@@ -1,6 +1,7 @@
 // GET /api/crm/outlook/callback
 // Handles Microsoft OAuth callback — exchanges code for tokens, stores them
 import { NextRequest, NextResponse } from "next/server";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { exchangeCodeForTokens } from "@/lib/outlook/graph-client";
 import prisma from "@/lib/prisma";
 
@@ -22,8 +23,21 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Extract agent ID from state
+  // Verify the caller has an active agent/broker session
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) {
+    return NextResponse.redirect(
+      new URL("/crm/dashboard#/ops/outlook&message=session_expired", req.url)
+    );
+  }
+
+  // Extract agent ID from state and verify it matches the authenticated user
   const agentId = state.split("_")[0];
+  if (agentId !== String(auth.userId)) {
+    return NextResponse.redirect(
+      new URL("/crm/dashboard#/ops/outlook&message=session_mismatch", req.url)
+    );
+  }
 
   try {
     const tokens = await exchangeCodeForTokens(code);

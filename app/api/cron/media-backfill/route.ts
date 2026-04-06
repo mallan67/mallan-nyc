@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { backfillEmptyMedia } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
 
+export const maxDuration = 120;
+
 export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");

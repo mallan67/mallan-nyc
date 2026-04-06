@@ -116,13 +116,12 @@ async function generateListingId(
   // Advisory lock (pg_advisory_xact_lock) prevents concurrent transactions
   // from reading the same MAX and generating duplicate IDs.
   const lockId = prefix === "RL" ? 200001 : 200002;
-  await tx.$queryRawUnsafe(`SELECT pg_advisory_xact_lock(${lockId})`);
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockId})`;
 
-  const result = await tx.$queryRawUnsafe<{ max_seq: number | null }[]>(
-    `SELECT MAX(CAST(SUBSTRING(listing_id FROM '${prefix}-(\\d+)') AS INTEGER)) AS max_seq
-     FROM listings WHERE listing_id LIKE $1`,
-    pattern
-  );
+  const regexPattern = `${prefix}-(\\d+)`;
+  const result = await tx.$queryRaw<{ max_seq: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING(listing_id FROM ${regexPattern}) AS INTEGER)) AS max_seq
+    FROM listings WHERE listing_id LIKE ${pattern}`;
 
   const nextSeq = ((result[0]?.max_seq ?? 0) + 1).toString().padStart(4, "0");
   return `${prefix}-${nextSeq}`;

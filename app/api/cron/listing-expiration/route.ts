@@ -10,6 +10,8 @@ import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications/engine";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
 
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");

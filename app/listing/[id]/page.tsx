@@ -754,6 +754,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
     if (centroid) {
       listing.address.latitude = centroid[0];
       listing.address.longitude = centroid[1];
+    } else {
+      // Ultimate fallback: Midtown Manhattan centroid. Ensures neighborhood/transit
+      // sections always render for NYC listings even with missing ZIP/geocode.
+      listing.address.latitude = 40.7549;
+      listing.address.longitude = -73.9840;
     }
   }
 

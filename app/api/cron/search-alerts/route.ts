@@ -10,6 +10,8 @@ import { listingAlertEmail } from "@/lib/email/templates";
 import type { Prisma } from "@prisma/client";
 import { escapeHtml } from "@/lib/sanitize";
 
+export const maxDuration = 60;
+
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
 
 export async function GET(req: NextRequest) {

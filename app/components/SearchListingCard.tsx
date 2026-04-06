@@ -35,10 +35,10 @@ interface CardProps {
   onHover?: (id: string | null) => void;
 }
 
-/** Get the first photo URL (prefers Photo type, falls back to any media) */
+/** Get the first photo URL (prefers Photo type, never falls back to FloorPlan) */
 function heroPhoto(listing: DisplayListing): string {
   const photo = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo');
-  return photo?.url || listing.media[0]?.url || '/images/listing-placeholder.svg';
+  return photo?.url || '/images/listing-placeholder.svg';
 }
 
 /** Grid card — standard card with photo on top */
