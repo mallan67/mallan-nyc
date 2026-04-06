@@ -720,8 +720,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const hasAddress = listing.address.streetName !== 'Address Undisclosed';
 
   const [geocodeResult, lastSaleResult] = await Promise.all([
-    // Geocode (was inside rawToDTO — moved here for parallelism)
-    needsGeocode
+    // Geocode — only when address is NOT suppressed (InternetAddressDisplayYN).
+    // Suppressed listings must NOT have coordinates re-added via geocoding or ZIP
+    // centroid, as that would leak approximate location via map pins/transit/schools.
+    needsGeocode && hasAddress
       ? geocodeListings([listing]).catch(() => { /* non-fatal */ })
       : Promise.resolve(),
     // Last closed sale: Trestle + ACRIS in parallel
@@ -747,7 +749,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   // Last-resort: if geocoding failed entirely, use ZIP centroid so neighborhood/schools/transit
   // sections still render. Without this, those 5 sections vanish on geocode failure.
-  if (!listing.address.latitude || !listing.address.longitude) {
+  // COMPLIANCE: Only for listings with a displayable address. Address-suppressed listings
+  // (InternetAddressDisplayYN=false) must NOT get coordinates re-added — that would leak
+  // approximate location via map pins, transit, and school sections.
+  if (hasAddress && (!listing.address.latitude || !listing.address.longitude)) {
     const { ZIP_CENTROIDS } = await import('@/lib/geo/geocode');
     const zip = (listing.address.postalCode || '').split('-')[0].trim();
     const centroid = ZIP_CENTROIDS[zip];

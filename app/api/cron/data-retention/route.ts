@@ -1,5 +1,5 @@
 // GET /api/cron/data-retention
-// Weekly cron job: enforce data retention policies per NY SHIELD Act + REBNY.
+// Daily cron job: enforce data retention policies per NY SHIELD Act + REBNY.
 // - Purge expired sessions (24h TTL)
 // - Archive audit logs older than 2 years
 // - Flag closed listings for removal (REBNY: 24h after status change)
