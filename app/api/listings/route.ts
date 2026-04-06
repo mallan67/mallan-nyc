@@ -987,89 +987,29 @@ export async function GET(request: Request) {
         // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
         // When $expand=Media was used, photos are already inline — skip batch fetch.
         // Fallback batch-fetch only runs for large queries where $expand was disabled.
+        // Use fetchListingMedia per listing — Trestle batch OR queries silently
+        // return empty for ~50% of listings (OData navigation property bug).
+        // Individual queries via fetchListingMedia always work.
+        const { fetchListingMedia } = await import('@/lib/idx/fetch');
         const photoPromise = (async () => {
           const needsPhotos = pageListings.filter(l => l.media.length === 0);
           if (needsPhotos.length === 0) return;
           try {
-            const token = await getAccessToken();
-            const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
-
-            function classifyMedia(m: Record<string, unknown>): 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' {
-              const cat = String(m.MediaCategory || '').toLowerCase();
-              if (cat.includes('floor plan')) return 'FloorPlan';
-              if (cat.includes('video')) return 'Video';
-              if (cat.includes('virtual tour')) return 'VirtualTour';
-              if (cat === 'photo' || cat === '') return 'Photo';
-              const desc = String(m.ShortDescription || '').toLowerCase();
-              if (desc.includes('floor plan') || desc.includes('floorplan')) return 'FloorPlan';
-              return 'Photo';
-            }
-
-            // Batch in groups of 20 — large batches with low $top truncate results.
-            // Luxury NYC listings have 20-30+ media items; $top must cover all items in the batch.
-            const MEDIA_BATCH = 20;
-            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            const chunks: typeof needsPhotos[] = [];
-            for (let i = 0; i < needsPhotos.length; i += MEDIA_BATCH) {
-              chunks.push(needsPhotos.slice(i, i + MEDIA_BATCH));
-            }
-
-            const fetchChunk = async (chunk: typeof needsPhotos) => {
-              const ids = chunk.map(l => l.listingId);
-              const idFilter = ids.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(' or ');
-              // No Order/MediaCategory filter — null values in OData cause false negatives.
-              // Limit via $top instead; client-side takes first 3 photos per listing.
-              const mediaParams = new URLSearchParams();
-              mediaParams.set('$filter', `(${idFilter})`);
-              mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
-              mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-              mediaParams.set('$top', String(chunk.length * 15));
-
-              const mediaUrl = `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`;
-              console.log(`[Listings] Media batch fetch: ${ids.length} listings, URL length=${mediaUrl.length}`);
-              const res = await fetch(mediaUrl, {
-                headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-              });
-              if (!res.ok) { console.warn(`[Listings] Media batch failed: ${res.status}`); return; }
-              const data = await res.json();
-              const records = data.value || [];
-              console.log(`[Listings] Media batch returned ${records.length} items for ${ids.length} listings. IDs requested: ${ids.slice(0,5).join(',')}`);
-              // Log which requested IDs got media and which didn't
-              const returnedIds = new Set(records.map((m: Record<string, unknown>) => String(m.ResourceRecordID || '')));
-              const missingIds = ids.filter(id => !returnedIds.has(id));
-              if (missingIds.length > 0) console.warn(`[Listings] ${missingIds.length} listings got 0 media: ${missingIds.slice(0,5).join(',')}`);
-              for (const m of records) {
-                const lid = String(m.ResourceRecordID || '');
-                if (!lid || !m.MediaURL) continue;
-                const mediaType = classifyMedia(m);
-                const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-                if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-                mediaByListing.get(lid)!.push({
-                  url: String(m.MediaURL),
-                  mediaType,
-                  order: isPreferred ? -1 : Number(m.Order ?? 0),
-                });
-              }
-            };
-
-            // Run up to 4 chunks in parallel
-            for (let i = 0; i < chunks.length; i += 4) {
-              await Promise.allSettled(chunks.slice(i, i + 4).map(fetchChunk));
-            }
-
-            // Inject media into listings
-            const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
-            for (const listing of needsPhotos) {
-              const media = mediaByListing.get(listing.listingId) || [];
-              if (media.length > 0) {
-                listing.media = media.sort((a, b) => {
-                  const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
-                  return rankDiff !== 0 ? rankDiff : a.order - b.order;
-                }) as typeof listing.media;
-              }
+            // Fetch media for up to 10 listings in parallel
+            const CONCURRENCY = 10;
+            for (let i = 0; i < needsPhotos.length; i += CONCURRENCY) {
+              const batch = needsPhotos.slice(i, i + CONCURRENCY);
+              await Promise.allSettled(batch.map(async (listing) => {
+                try {
+                  const media = await fetchListingMedia(listing.listingId);
+                  if (media.length > 0) {
+                    listing.media = media as typeof listing.media;
+                  }
+                } catch { /* non-fatal per listing */ }
+              }));
             }
           } catch (mediaErr) {
-            console.warn('[/api/listings] Photo batch fetch failed:', mediaErr instanceof Error ? mediaErr.message : mediaErr);
+            console.warn('[/api/listings] Photo fetch failed:', mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         })();
 
