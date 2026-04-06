@@ -993,25 +993,29 @@ export async function GET(request: Request) {
         const { fetchListingMedia } = await import('@/lib/idx/fetch');
         const photoPromise = (async () => {
           const needsPhotos = pageListings.filter(l => l.media.length === 0);
+          console.log(`[Photos] ${needsPhotos.length}/${pageListings.length} listings need media`);
           if (needsPhotos.length === 0) return;
 
-          // Phase 1: Try Trestle per-listing (works for ~50% of listings)
+          // Phase 1: Fetch from Trestle per-listing
           try {
-            const CONCURRENCY = 10;
+            const CONCURRENCY = 5;
             for (let i = 0; i < needsPhotos.length; i += CONCURRENCY) {
               const batch = needsPhotos.slice(i, i + CONCURRENCY);
-              await Promise.allSettled(batch.map(async (listing) => {
-                try {
-                  const media = await fetchListingMedia(listing.listingId, {
-                    listingKeyNumeric: listing.listingKeyNumeric,
-                  });
-                  if (media.length > 0) {
-                    listing.media = media as typeof listing.media;
-                  }
-                } catch { /* non-fatal per listing */ }
+              const results = await Promise.allSettled(batch.map(async (listing) => {
+                const media = await fetchListingMedia(listing.listingId, {
+                  listingKeyNumeric: listing.listingKeyNumeric,
+                });
+                if (media.length > 0) {
+                  listing.media = media as typeof listing.media;
+                }
+                return { id: listing.listingId, count: media.length };
               }));
+              const summary = results.map(r => r.status === 'fulfilled' ? `${r.value.id}:${r.value.count}` : `ERR:${(r as PromiseRejectedResult).reason?.message?.substring(0,30)}`);
+              console.log(`[Photos] Batch ${i/CONCURRENCY}: ${summary.join(', ')}`);
             }
-          } catch { /* non-fatal */ }
+          } catch (e) { console.warn('[Photos] Phase 1 error:', e instanceof Error ? e.message : e); }
+          const afterPhase1 = pageListings.filter(l => l.media.length === 0).length;
+          console.log(`[Photos] After Trestle fetch: ${afterPhase1} still empty`);
 
           // Phase 2: For listings STILL empty, check DB (photos from sync/backfill)
           const stillEmpty = pageListings.filter(l => l.media.length === 0);
