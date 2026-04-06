@@ -195,7 +195,7 @@ export function toDisplayListing(raw: any): DisplayListing {
     modificationTimestamp: raw.listing?.modificationTimestamp || '',
     media: raw.media?.images?.map((img: { url: string }, i: number) => ({
       url: img.url,
-      mediaType: 'image',
+      mediaType: 'Photo',
       order: i,
     })) || [],
     photosCount: raw.media?.images?.length,
