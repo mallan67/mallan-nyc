@@ -31,7 +31,7 @@ function isAllowedUrl(url: string): boolean {
 
 // Semaphore: limit concurrent outbound requests to Trestle.
 // Prevents connection pool exhaustion that causes alternating photo failures.
-const MAX_CONCURRENT = 15;
+const MAX_CONCURRENT = 30;
 let inFlight = 0;
 const waitQueue: (() => void)[] = [];
 
@@ -88,12 +88,27 @@ export async function GET(req: NextRequest) {
     }
 
     if (!response.ok) {
-      return new NextResponse(null, { status: response.status });
+      // Do NOT cache error responses — prevents CDN poisoning
+      return new NextResponse(null, {
+        status: response.status,
+        headers: { "Cache-Control": "no-store" },
+      });
     }
 
     const contentType = response.headers.get("content-type") || "image/jpeg";
 
-    // Stream the response instead of buffering the full image in memory
+    // CRITICAL: Only cache responses that are actually images.
+    // Trestle sometimes returns HTML error pages as 200 (WAF, rate limit, maintenance).
+    // Caching non-image 200s poisons the CDN for 7 days, breaking photos persistently.
+    const isImage = contentType.startsWith("image/");
+    if (!isImage) {
+      console.warn(`[Media Proxy] Non-image response: ${contentType} for ${mediaUrl.substring(0, 80)}`);
+      return new NextResponse(null, {
+        status: 502,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
     const body = response.body;
 
     return new NextResponse(body, {

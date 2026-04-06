@@ -347,15 +347,18 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       return rankDiff !== 0 ? rankDiff : a.order - b.order;
     });
 
-    // Only fetch media from Trestle when DB has NO photos at all.
+    // Fetch media from Trestle when DB has NO photos (only FloorPlans/Videos/empty).
     // DB photos are refreshed during IDX sync — no need to re-fetch on every page load.
     const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
     const shouldFetchMedia = photoCount === 0;
     if (shouldFetchMedia && dbListing.listing_id) {
       try {
         const trestleMedia = await fetchListingMedia(dbListing.listing_id);
-        if (trestleMedia.length > mediaArr.length) {
-          mediaArr = trestleMedia;
+        const trestlePhotos = trestleMedia.filter(m => m.mediaType === 'Photo');
+        if (trestlePhotos.length > 0) {
+          // Merge: Trestle photos + existing non-photo media (FloorPlans, Videos)
+          const existingNonPhotos = mediaArr.filter(m => m.mediaType !== 'Photo');
+          mediaArr = [...trestlePhotos, ...existingNonPhotos];
         }
       } catch {
         // Non-fatal — listing still renders with whatever DB has
