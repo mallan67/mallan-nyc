@@ -53,6 +53,7 @@ export default function HeroSearch() {
   const [activeTab, setActiveTab] = useState<SearchTab>('buy');
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
 
   // Reset search state when navigating back to homepage
   useEffect(() => {
@@ -143,11 +144,15 @@ export default function HeroSearch() {
 
   // API fetch — debounced, merges with dictionary results
   const fetchApiSuggestions = useCallback(async (searchQuery: string) => {
-    if (searchQuery.length < 2) return;
+    if (searchQuery.length < 2) {
+      setSuggestLoading(false);
+      return;
+    }
 
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    setSuggestLoading(true);
 
     try {
       const res = await fetch(
@@ -164,11 +169,14 @@ export default function HeroSearch() {
           (s) => !seenLabels.has(s.label.toLowerCase()),
         );
         setSuggestions([...dict, ...dedupedApi].slice(0, 6));
+        setShowSuggestions(true);
       }
       // If API returned nothing, keep dictionary results (already set)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       // On API error, keep dictionary results
+    } finally {
+      setSuggestLoading(false);
     }
   }, []);
 
@@ -176,10 +184,10 @@ export default function HeroSearch() {
     // Dictionary: instant
     showDictionaryResults(query);
 
-    // API: debounced 250ms
+    // API: debounced 150ms (fast for addresses)
     const timer = setTimeout(() => {
       fetchApiSuggestions(query);
-    }, 250);
+    }, 150);
     return () => clearTimeout(timer);
   }, [query, showDictionaryResults, fetchApiSuggestions]);
 
@@ -498,7 +506,7 @@ export default function HeroSearch() {
           </div>
 
           {/* Typeahead Suggestions */}
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && (suggestions.length > 0 || (suggestLoading && query.length >= 2)) && (
             <div
               ref={suggestionsRef}
               id="hero-search-listbox"
@@ -506,6 +514,12 @@ export default function HeroSearch() {
               aria-label="Search suggestions"
               className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden z-50"
             >
+              {suggestLoading && suggestions.length === 0 && (
+                <div className="px-5 py-4 flex items-center gap-3">
+                  <div className="w-4 h-4 border-2 border-brand-dark/20 border-t-brand-dark/60 rounded-full animate-spin" />
+                  <span className="text-sm text-brand-dark/50 font-light">Searching addresses...</span>
+                </div>
+              )}
               {suggestions.map((suggestion, index) => (
                 <button
                   key={`${suggestion.type}-${suggestion.value}`}

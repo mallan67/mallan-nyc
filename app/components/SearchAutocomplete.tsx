@@ -142,11 +142,16 @@ export default function SearchAutocomplete({
     // Dictionary: instant (0ms)
     showDictionaryResults(newValue);
 
-    // API: debounced (300ms)
+    // Show loading spinner immediately for non-dictionary queries (addresses, etc.)
+    if (newValue.length >= 2 && dictRef.current.length === 0) {
+      setLoading(true);
+    }
+
+    // API: debounced (150ms — fast enough for addresses)
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       fetchApiSuggestions(newValue);
-    }, 300);
+    }, 150);
   };
 
   const handleSelect = (suggestion: Suggestion) => {
