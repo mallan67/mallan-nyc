@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { getSuggestions as getDictionarySuggestions } from '@/lib/search/nyc-dictionary';
+import type { DictionarySuggestion } from '@/lib/search/nyc-dictionary';
 
 export interface Suggestion {
-  type: 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing' | 'location';
+  type: 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing' | 'location' | 'filter';
   label: string;
   sublabel: string;
   value: string;
@@ -26,6 +28,7 @@ interface SearchAutocompleteProps {
 const CATEGORY_ORDER: { type: Suggestion['type']; header: string }[] = [
   { type: 'location', header: 'SEARCH BY LOCATION' },
   { type: 'neighborhood', header: 'LOCATIONS' },
+  { type: 'filter', header: 'FILTERS' },
   { type: 'agent', header: 'AGENTS' },
   { type: 'listing', header: 'LISTINGS' },
   { type: 'address', header: 'BUILDINGS' },
@@ -42,6 +45,7 @@ function typeLabel(s: Suggestion): string {
     case 'zip': return 'ZIP CODE';
     case 'agent': return 'AGENT';
     case 'listing': return 'LISTING';
+    case 'filter': return 'FILTER';
     case 'location': return '';
     default: return '';
   }
@@ -69,6 +73,23 @@ export default function SearchAutocomplete({
       return;
     }
 
+    // Instant dictionary matches (neighborhoods, lingo, transit)
+    const dictResults = getDictionarySuggestions(query, 4);
+    const dictSuggestions: Suggestion[] = dictResults.map((d: DictionarySuggestion) => ({
+      type: d.type === 'neighborhood' || d.type === 'borough' ? 'neighborhood' as const : 'filter' as const,
+      label: d.label,
+      sublabel: d.type === 'borough' ? 'Borough' : (d.context ?? ''),
+      value: d.value,
+      ...(d.type === 'neighborhood' ? { neighborhood: d.value, borough: d.context } : {}),
+    }));
+
+    // Show dictionary results immediately (no network wait)
+    if (dictSuggestions.length > 0) {
+      setSuggestions(dictSuggestions);
+      setIsOpen(true);
+      setActiveIndex(-1);
+    }
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -82,17 +103,27 @@ export default function SearchAutocomplete({
       const data = await res.json();
 
       if (data.success && data.suggestions?.length > 0) {
-        setSuggestions(data.suggestions);
+        // Merge: dictionary first, then API results (deduplicated), limit 8
+        const seen = new Set(dictSuggestions.map(s => `${s.type}:${s.value}`));
+        const apiFiltered = (data.suggestions as Suggestion[]).filter(
+          s => !seen.has(`${s.type}:${s.value}`)
+        );
+        const merged = [...dictSuggestions, ...apiFiltered].slice(0, 8);
+        setSuggestions(merged);
         setIsOpen(true);
         setActiveIndex(-1);
-      } else {
+      } else if (dictSuggestions.length === 0) {
         setSuggestions([]);
         setIsOpen(false);
       }
+      // If API returned nothing but we have dict results, keep them (already set above)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      setSuggestions([]);
-      setIsOpen(false);
+      // Keep dictionary results even if API fails
+      if (dictSuggestions.length === 0) {
+        setSuggestions([]);
+        setIsOpen(false);
+      }
     } finally {
       setLoading(false);
     }
