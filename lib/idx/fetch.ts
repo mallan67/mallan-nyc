@@ -390,7 +390,8 @@ export function buildAgentAllFilter(
  * Falls back to ListingId-based ResourceRecordID if key is not numeric.
  */
 export async function fetchListingMedia(
-  listingKey: string
+  listingKey: string,
+  options?: { listingKeyNumeric?: number | string }
 ): Promise<{ url: string; mediaType: string; order: number }[]> {
   let token: string;
   try {
@@ -405,12 +406,15 @@ export async function fetchListingMedia(
   // match Property.ListingId. Some listings use ResourceRecordKey or ListingId instead.
   const isNumeric = /^\d+$/.test(listingKey);
   const escaped = listingKey.replace(/'/g, "''");
+  const numKey = options?.listingKeyNumeric;
   const keyFieldsToTry = isNumeric
     ? [`ResourceRecordKeyNumeric eq ${listingKey}`]
     : [
         `ResourceRecordID eq '${escaped}'`,
         `ResourceRecordKey eq '${escaped}'`,
         `ListingId eq '${escaped}'`,
+        // Try numeric key if available (Property.ListingKeyNumeric → Media.ResourceRecordKeyNumeric)
+        ...(numKey ? [`ResourceRecordKeyNumeric eq ${numKey}`] : []),
       ];
 
   let records: Record<string, unknown>[] = [];

@@ -251,6 +251,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
 
   const listingId = String(normalized.ListingId || normalized.ListingKey || '');
   if (!listingId) return null;
+  const listingKeyNumeric = normalized.ListingKeyNumeric ? Number(normalized.ListingKeyNumeric) : undefined;
 
   // Compose full street name from RESO address components:
   // StreetDirPrefix (e.g. "East") + StreetName (e.g. "83rd") + StreetSuffix (e.g. "Street") + StreetDirSuffix
@@ -281,6 +282,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
 
   return {
     listingId,
+    listingKeyNumeric,
     mlsId: String(normalized.ListingKey || listingId),
     standardStatus: String(normalized.StandardStatus || normalized.MlsStatus || 'Active') as IDXListing['standardStatus'],
     listingType: isRental ? 'rent' : 'sale',

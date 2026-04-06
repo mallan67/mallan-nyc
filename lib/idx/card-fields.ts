@@ -18,8 +18,9 @@ export const CARD_SELECT_FIELDS = [
   "StreetSuffix", "UnitNumber", "City", "CityRegion", "PostalCity",
   "PostalCode", "StateOrProvince", "CountyOrParish",
   "Latitude", "Longitude",
-  // Classification
-  "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
+  // Classification + keys (ListingKey/Numeric needed for Media resource queries)
+  "ListingId", "ListingKey", "ListingKeyNumeric", "SourceSystemKey",
+  "PropertyType", "PropertySubType",
   "CommonInterest", "OwnershipType",
   // Status & Dates
   "StandardStatus", "MlsStatus", "ModificationTimestamp",

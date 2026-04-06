@@ -1002,7 +1002,9 @@ export async function GET(request: Request) {
               const batch = needsPhotos.slice(i, i + CONCURRENCY);
               await Promise.allSettled(batch.map(async (listing) => {
                 try {
-                  const media = await fetchListingMedia(listing.listingId);
+                  const media = await fetchListingMedia(listing.listingId, {
+                    listingKeyNumeric: listing.listingKeyNumeric,
+                  });
                   if (media.length > 0) {
                     listing.media = media as typeof listing.media;
                   }

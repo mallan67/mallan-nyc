@@ -38,6 +38,7 @@ export type TrestleRawListing = Record<string, unknown>;
 export interface IDXListing {
   // Identifiers
   listingId: string;
+  listingKeyNumeric?: number;
   mlsId: string;
 
   // Status
