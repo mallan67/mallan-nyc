@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import listingsData from '@/data/listings.json';
 import { sanitizeForPublicDisplay } from '@/lib/compliance/idx-display-gate';
-import { fetchSingleListing } from '@/lib/idx/fetch';
+import { fetchSingleListing, fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
+import { geocodeListings } from '@/lib/geo/geocode';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -68,6 +69,37 @@ export async function GET(request: Request, { params }: Props) {
 
           // Step 3: Convert to public DTO (strips private data, suppresses address)
           const publicListing = toPublicDTO(listing);
+
+          // Step 4: Fetch media if empty (Trestle Media resource, separate from Property)
+          if (!publicListing.media || publicListing.media.length === 0) {
+            try {
+              const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
+              const mediaItems = await fetchListingMedia(listingKey);
+              if (mediaItems.length > 0) {
+                publicListing.media = mediaItems.map(m => ({
+                  ...m,
+                  url: m.url.includes('cotality.com') || m.url.includes('corelogic.com')
+                    ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+                    : m.url,
+                }));
+                publicListing.photosCount = mediaItems.length;
+              }
+            } catch (mediaErr) {
+              // Non-fatal — listing displays without photos
+              console.warn(`[/api/listings/${id}] Media fetch failed:`, mediaErr);
+            }
+          }
+
+          // Step 5: Geocode if lat/lng missing (non-fatal)
+          const hasCoords = publicListing.address.latitude && publicListing.address.longitude;
+          const hasAddress = publicListing.address.streetName !== 'Address Undisclosed';
+          if (!hasCoords && hasAddress) {
+            try {
+              await geocodeListings([publicListing]);
+            } catch {
+              // Non-fatal — listing displays without coordinates
+            }
+          }
 
           return NextResponse.json(
             {

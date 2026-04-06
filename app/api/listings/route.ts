@@ -287,12 +287,20 @@ export async function GET(request: Request) {
             }
           }
 
-          // Statuses
+          // Statuses (plural param — comma-separated)
           if (statusesParam) {
             const allowedStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
             const requested = statusesParam.split(',').filter(s => allowedStatuses.includes(s));
             if (requested.length > 0) {
               dbWhere.status = { in: requested };
+            }
+          }
+
+          // Status (singular param)
+          if (statusFilter && !statusesParam) {
+            const allowedStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
+            if (allowedStatuses.includes(statusFilter)) {
+              dbWhere.status = statusFilter;
             }
           }
 

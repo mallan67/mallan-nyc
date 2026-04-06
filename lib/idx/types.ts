@@ -166,6 +166,10 @@ export interface IDXListing {
   petsAllowed?: string;
   furnished?: string;
 
+  // Days on Market
+  daysOnMarket?: number;
+  cumulativeDaysOnMarket?: number;
+
   // FARE Act fee transparency (NYC LL 119/2024)
   moveInCosts?: string;
   ongoingFees?: string;

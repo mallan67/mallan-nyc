@@ -494,8 +494,11 @@ function buildODataFilter(params: URLSearchParams): string {
   // Manhattan Grid bounding box — Latitude/Longitude filter
   const gridFilter = params.get("gridFilter");
   if (gridFilter) {
-    // gridFilter is pre-built OData: "Latitude ge 40.73 and Latitude le 40.79 and ..."
-    parts.push(gridFilter);
+    // Only allow numeric comparisons on Latitude/Longitude to prevent OData injection
+    const safeGrid = /^[\s()]*(?:(?:Latitude|Longitude)\s+(?:ge|le|gt|lt)\s+-?\d+(?:\.\d+)?(?:\s+and\s+)?)+[\s()]*$/i.test(gridFilter);
+    if (safeGrid) {
+      parts.push(gridFilter);
+    }
   }
 
   // Single listing by ListingId (for detail page direct fetch)

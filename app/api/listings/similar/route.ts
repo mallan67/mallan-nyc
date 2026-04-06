@@ -78,36 +78,84 @@ export async function GET(request: NextRequest) {
 
     if (dbResults.length >= 3) {
       // Enough results from DB — use those (faster, no Trestle dependency)
-      const listings = dbResults.slice(0, 6).map(l => {
+      // Filter out listings with null beds or empty/missing media
+      const usable = dbResults.filter(l => {
+        if (l.bedrooms_total == null) return false;
+        const mediaArr = Array.isArray(l.media) ? l.media : [];
+        if (mediaArr.length === 0) return false;
+        return true;
+      });
+
+      // Backfill media from Trestle for listings with empty media (up to 5 concurrent)
+      const needsMedia = dbResults.filter(l => {
+        if (l.bedrooms_total == null) return false;
+        const mediaArr = Array.isArray(l.media) ? l.media : [];
+        return mediaArr.length === 0;
+      });
+
+      // Try to backfill up to 5 listings that have no media
+      const backfilled: typeof dbResults = [];
+      if (needsMedia.length > 0) {
+        const toBackfill = needsMedia.slice(0, 5);
+        const mediaResults = await Promise.allSettled(
+          toBackfill.map(l => fetchListingMedia(l.listing_id))
+        );
+        for (let i = 0; i < toBackfill.length; i++) {
+          const result = mediaResults[i];
+          if (result.status === 'fulfilled' && result.value.length > 0) {
+            // Attach fetched media as a synthetic media array
+            (toBackfill[i] as Record<string, unknown>)._backfilledMedia = result.value;
+            backfilled.push(toBackfill[i]);
+          }
+        }
+      }
+
+      const combined = [...usable, ...backfilled].slice(0, 6);
+
+      const listings = combined.map(l => {
         const addr = l.address as Record<string, string> | null;
         const streetNum = addr?.StreetNumber || '';
         const streetName = [addr?.StreetDirPrefix, addr?.StreetName, addr?.StreetSuffix, addr?.StreetDirSuffix].filter(Boolean).join(' ') || '';
         const unit = addr?.UnitNumber ? `, ${addr.UnitNumber}` : '';
-        const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
-        // DB stores raw Trestle format { MediaURL, MediaCategory } OR mapped { url, mediaType }.
-        // Normalize: get the URL and classify the content type.
-        const normalized = mediaArr
-          .map(m => {
-            const url = m.url || m.MediaURL || '';
-            const cat = (m.MediaCategory || m.mediaType || '').toLowerCase();
-            const isFloorPlan = cat.includes('floor plan') || cat.includes('floorplan') || cat === 'FloorPlan';
-            return { url, isPhoto: !isFloorPlan && !cat.includes('video') && !cat.includes('virtual') };
-          })
-          .filter(m => m.url);
-        const firstPhoto = normalized.find(m => m.isPhoto) || normalized[0];
+
+        // Check for backfilled media first, then DB media
+        const backfilledMedia = (l as Record<string, unknown>)._backfilledMedia as { url: string; mediaType: string; order: number }[] | undefined;
+        let photoUrl: string | null = null;
+        let photosCount = 0;
+
+        if (backfilledMedia && backfilledMedia.length > 0) {
+          const photos = backfilledMedia.filter(m => m.mediaType === 'Photo' || !m.mediaType);
+          photosCount = photos.length;
+          if (photos.length > 0) {
+            photoUrl = proxyUrl(photos[0].url);
+          }
+        } else {
+          const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
+          const normalized = mediaArr
+            .map(m => {
+              const url = m.url || m.MediaURL || '';
+              const cat = (m.MediaCategory || m.mediaType || '').toLowerCase();
+              const isFloorPlan = cat.includes('floor plan') || cat.includes('floorplan') || cat === 'FloorPlan';
+              return { url, isPhoto: !isFloorPlan && !cat.includes('video') && !cat.includes('virtual') };
+            })
+            .filter(m => m.url);
+          const firstPhoto = normalized.find(m => m.isPhoto) || normalized[0];
+          photosCount = normalized.filter(m => m.isPhoto).length;
+          photoUrl = firstPhoto?.url ? proxyUrl(firstPhoto.url) : null;
+        }
 
         return {
-          id: String(l.id),
+          id: l.listing_id,
           mlsId: l.listing_id,
           slug: l.listing_id,
           listPrice: Number(l.list_price),
-          beds: l.bedrooms_total || 0,
-          baths: l.bathrooms_full || 0,
+          beds: l.bedrooms_total ?? 0,
+          baths: l.bathrooms_full ?? 0,
           sqft: l.living_area ? Number(l.living_area) : 0,
           address: `${streetNum} ${streetName}${unit}`.trim(),
           neighborhood: l.neighborhood || '',
-          photoUrl: firstPhoto?.url ? proxyUrl(firstPhoto.url) : null,
-          photosCount: normalized.filter(m => m.isPhoto).length,
+          photoUrl,
+          photosCount,
           propertyType: l.property_sub_type || l.property_type || '',
           office: (l.agent_info as Record<string, string> | null)?.ListOfficeName || (l.agent_info as Record<string, string> | null)?.company || '',
         };

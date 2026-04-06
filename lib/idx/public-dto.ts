@@ -142,6 +142,9 @@ export interface PublicListingDTO {
   petsAllowed?: string;
   furnished?: string;
   availabilityDate?: string;
+  // Days on Market
+  daysOnMarket?: number;
+  cumulativeDaysOnMarket?: number;
   // FARE Act fee transparency
   moveInCosts?: string;
   ongoingFees?: string;
@@ -277,6 +280,8 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     petsAllowed: listing.petsAllowed,
     furnished: listing.furnished,
     availabilityDate: listing.availabilityDate,
+    daysOnMarket: listing.daysOnMarket,
+    cumulativeDaysOnMarket: listing.cumulativeDaysOnMarket,
     moveInCosts: listing.moveInCosts,
     ongoingFees: listing.ongoingFees,
     tenantPaysDescription: listing.tenantPaysDescription,

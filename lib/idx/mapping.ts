@@ -103,6 +103,10 @@ export const RESO_FIELDS = {
   TaxAnnualAmount: 'TaxAnnualAmount',
   TaxYear: 'TaxYear',
 
+  // Days on Market
+  DaysOnMarket: 'DaysOnMarket',
+  CumulativeDaysOnMarket: 'CumulativeDaysOnMarket',
+
   // Dates
   ListingContractDate: 'ListingContractDate',
   ModificationTimestamp: 'ModificationTimestamp',
@@ -203,6 +207,8 @@ export const FIELD_MAP: Record<string, string> = {
   [RESO_FIELDS.AssociationFeeFrequency]: 'associationFeeFrequency',
   [RESO_FIELDS.TaxAnnualAmount]: 'taxAnnualAmount',
   [RESO_FIELDS.TaxYear]: 'taxYear',
+  [RESO_FIELDS.DaysOnMarket]: 'daysOnMarket',
+  [RESO_FIELDS.CumulativeDaysOnMarket]: 'cumulativeDaysOnMarket',
   [RESO_FIELDS.ListingContractDate]: 'listingContractDate',
   [RESO_FIELDS.ModificationTimestamp]: 'modificationTimestamp',
   [RESO_FIELDS.OnMarketDate]: 'onMarketDate',
@@ -382,6 +388,9 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     leaseAmountFrequency: normalized.LeaseAmountFrequency ? String(normalized.LeaseAmountFrequency) : undefined,
     petsAllowed: normalized.PetsAllowed ? String(normalized.PetsAllowed) : undefined,
     furnished: normalized.Furnished ? String(normalized.Furnished) : undefined,
+    // Days on Market
+    daysOnMarket: normalized.DaysOnMarket != null ? Number(normalized.DaysOnMarket) : undefined,
+    cumulativeDaysOnMarket: normalized.CumulativeDaysOnMarket != null ? Number(normalized.CumulativeDaysOnMarket) : undefined,
     // FARE Act fee fields
     moveInCosts: normalized.MoveInCosts ? String(normalized.MoveInCosts) : undefined,
     ongoingFees: normalized.OngoingFees ? String(normalized.OngoingFees) : undefined,
