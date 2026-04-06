@@ -526,6 +526,28 @@ export async function GET(request: Request) {
               }
             }
 
+            // Fill photos for DB listings with empty media — DB may have stale/empty
+            // media from broken syncs. Fetch from Trestle per-listing (proven to work).
+            const { fetchListingMedia } = await import('@/lib/idx/fetch');
+            const emptyMedia = publicListings.filter(l => !l.media || l.media.length === 0);
+            if (emptyMedia.length > 0) {
+              try {
+                const CONCURRENCY = 5;
+                for (let i = 0; i < emptyMedia.length; i += CONCURRENCY) {
+                  const batch = emptyMedia.slice(i, i + CONCURRENCY);
+                  await Promise.allSettled(batch.map(async (listing) => {
+                    try {
+                      const media = await fetchListingMedia(listing.id);
+                      if (media.length > 0) {
+                        listing.media = media;
+                        listing.photosCount = media.filter(m => m.mediaType === 'Photo').length;
+                      }
+                    } catch { /* non-fatal */ }
+                  }));
+                }
+              } catch { /* non-fatal */ }
+            }
+
             const responseBody = {
               success: true,
               count: publicListings.length,
