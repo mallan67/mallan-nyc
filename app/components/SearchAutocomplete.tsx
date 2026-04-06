@@ -66,14 +66,17 @@ export default function SearchAutocomplete({
   const abortRef = useRef<AbortController | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const fetchSuggestions = useCallback(async (query: string) => {
+  // Dictionary lookup — runs instantly on every keystroke (no debounce)
+  const dictRef = useRef<Suggestion[]>([]);
+
+  const showDictionaryResults = useCallback((query: string) => {
     if (query.length < 2) {
+      dictRef.current = [];
       setSuggestions([]);
       setIsOpen(false);
       return;
     }
 
-    // Instant dictionary matches (neighborhoods, lingo, transit)
     const dictResults = getDictionarySuggestions(query, 4);
     const dictSuggestions: Suggestion[] = dictResults.map((d: DictionarySuggestion) => ({
       type: d.type === 'neighborhood' || d.type === 'borough' ? 'neighborhood' as const : 'filter' as const,
@@ -83,12 +86,18 @@ export default function SearchAutocomplete({
       ...(d.type === 'neighborhood' ? { neighborhood: d.value, borough: d.context } : {}),
     }));
 
-    // Show dictionary results immediately (no network wait)
+    dictRef.current = dictSuggestions;
+
     if (dictSuggestions.length > 0) {
       setSuggestions(dictSuggestions);
       setIsOpen(true);
       setActiveIndex(-1);
     }
+  }, []);
+
+  // API fetch — debounced, merges with dictionary results
+  const fetchApiSuggestions = useCallback(async (query: string) => {
+    if (query.length < 2) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -102,25 +111,23 @@ export default function SearchAutocomplete({
       );
       const data = await res.json();
 
+      const dict = dictRef.current;
       if (data.success && data.suggestions?.length > 0) {
-        // Merge: dictionary first, then API results (deduplicated), limit 8
-        const seen = new Set(dictSuggestions.map(s => `${s.type}:${s.value}`));
+        const seen = new Set(dict.map(s => `${s.type}:${s.value}`));
         const apiFiltered = (data.suggestions as Suggestion[]).filter(
           s => !seen.has(`${s.type}:${s.value}`)
         );
-        const merged = [...dictSuggestions, ...apiFiltered].slice(0, 8);
+        const merged = [...dict, ...apiFiltered].slice(0, 8);
         setSuggestions(merged);
         setIsOpen(true);
         setActiveIndex(-1);
-      } else if (dictSuggestions.length === 0) {
+      } else if (dict.length === 0) {
         setSuggestions([]);
         setIsOpen(false);
       }
-      // If API returned nothing but we have dict results, keep them (already set above)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      // Keep dictionary results even if API fails
-      if (dictSuggestions.length === 0) {
+      if (dictRef.current.length === 0) {
         setSuggestions([]);
         setIsOpen(false);
       }
@@ -132,9 +139,13 @@ export default function SearchAutocomplete({
   const handleChange = (newValue: string) => {
     onChange(newValue);
 
+    // Dictionary: instant (0ms)
+    showDictionaryResults(newValue);
+
+    // API: debounced (300ms)
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      fetchSuggestions(newValue);
+      fetchApiSuggestions(newValue);
     }, 300);
   };
 

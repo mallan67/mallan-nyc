@@ -118,23 +118,33 @@ export default function HeroSearch() {
     [],
   );
 
-  // Fetch suggestions: dictionary (instant) + API (background), merged & deduped
-  const fetchSuggestions = useCallback(async (searchQuery: string) => {
+  // Dictionary lookup — runs instantly on every keystroke (no debounce)
+  const dictRef = useRef<SearchSuggestion[]>([]);
+
+  const showDictionaryResults = useCallback((searchQuery: string) => {
     if (searchQuery.length < 2) {
+      dictRef.current = [];
       setSuggestions([]);
+      setShowSuggestions(false);
       return;
     }
 
-    // 1. Instant dictionary results — no network wait
     const dictHits = getDictionarySuggestions(searchQuery, 4)
       .filter((d) => d.type === 'neighborhood' || d.type === 'borough')
       .map(toDictionarySearchSuggestion);
 
+    dictRef.current = dictHits;
+
     if (dictHits.length > 0) {
       setSuggestions(dictHits);
+      setShowSuggestions(true);
     }
+  }, [toDictionarySearchSuggestion]);
 
-    // 2. Background API fetch (addresses, listings, agents, additional neighborhoods)
+  // API fetch — debounced, merges with dictionary results
+  const fetchApiSuggestions = useCallback(async (searchQuery: string) => {
+    if (searchQuery.length < 2) return;
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -146,37 +156,32 @@ export default function HeroSearch() {
       );
       const data = await res.json();
 
+      const dict = dictRef.current;
       if (data.success && data.suggestions?.length > 0) {
         const apiResults: SearchSuggestion[] = data.suggestions;
-
-        // Deduplicate: dictionary results take priority (they appeared first).
-        // Key on lowercase label to catch "Upper East Side" from both sources.
-        const seenLabels = new Set(dictHits.map((s) => s.label.toLowerCase()));
+        const seenLabels = new Set(dict.map((s) => s.label.toLowerCase()));
         const dedupedApi = apiResults.filter(
           (s) => !seenLabels.has(s.label.toLowerCase()),
         );
-
-        // Merge: dictionary first, then API, capped at 6 total
-        setSuggestions([...dictHits, ...dedupedApi].slice(0, 6));
-      } else if (dictHits.length === 0) {
-        setSuggestions([]);
+        setSuggestions([...dict, ...dedupedApi].slice(0, 6));
       }
-      // If API returned nothing but we have dictHits, keep them (already set above)
+      // If API returned nothing, keep dictionary results (already set)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      // On API error, keep dictionary results if any
-      if (dictHits.length === 0) {
-        setSuggestions([]);
-      }
+      // On API error, keep dictionary results
     }
-  }, [toDictionarySearchSuggestion]);
+  }, []);
 
   useEffect(() => {
+    // Dictionary: instant
+    showDictionaryResults(query);
+
+    // API: debounced 250ms
     const timer = setTimeout(() => {
-      fetchSuggestions(query);
+      fetchApiSuggestions(query);
     }, 250);
     return () => clearTimeout(timer);
-  }, [query, fetchSuggestions]);
+  }, [query, showDictionaryResults, fetchApiSuggestions]);
 
   // Cleanup abort controller
   useEffect(() => {
