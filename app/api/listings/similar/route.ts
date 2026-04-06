@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       const listings = dbResults.slice(0, 6).map(l => {
         const addr = l.address as Record<string, string> | null;
         const streetNum = addr?.StreetNumber || '';
-        const streetName = addr?.StreetName || '';
+        const streetName = [addr?.StreetDirPrefix, addr?.StreetName, addr?.StreetSuffix, addr?.StreetDirSuffix].filter(Boolean).join(' ') || '';
         const unit = addr?.UnitNumber ? `, ${addr.UnitNumber}` : '';
         const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
         // DB stores raw Trestle format { MediaURL, MediaCategory } OR mapped { url, mediaType }.
