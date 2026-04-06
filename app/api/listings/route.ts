@@ -987,15 +987,16 @@ export async function GET(request: Request) {
         // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
         // When $expand=Media was used, photos are already inline — skip batch fetch.
         // Fallback batch-fetch only runs for large queries where $expand was disabled.
-        // Use fetchListingMedia per listing — Trestle batch OR queries silently
-        // return empty for ~50% of listings (OData navigation property bug).
-        // Individual queries via fetchListingMedia always work.
+        // Fetch media: try Trestle per-listing first, then fall back to DB.
+        // Trestle Media queries are unreliable for ~50% of listings (OData bug).
+        // DB has photos from previous successful syncs — use as fallback.
         const { fetchListingMedia } = await import('@/lib/idx/fetch');
         const photoPromise = (async () => {
           const needsPhotos = pageListings.filter(l => l.media.length === 0);
           if (needsPhotos.length === 0) return;
+
+          // Phase 1: Try Trestle per-listing (works for ~50% of listings)
           try {
-            // Fetch media for up to 10 listings in parallel
             const CONCURRENCY = 10;
             for (let i = 0; i < needsPhotos.length; i += CONCURRENCY) {
               const batch = needsPhotos.slice(i, i + CONCURRENCY);
@@ -1008,8 +1009,43 @@ export async function GET(request: Request) {
                 } catch { /* non-fatal per listing */ }
               }));
             }
-          } catch (mediaErr) {
-            console.warn('[/api/listings] Photo fetch failed:', mediaErr instanceof Error ? mediaErr.message : mediaErr);
+          } catch { /* non-fatal */ }
+
+          // Phase 2: For listings STILL empty, check DB (photos from sync/backfill)
+          const stillEmpty = pageListings.filter(l => l.media.length === 0);
+          if (stillEmpty.length > 0) {
+            try {
+              const dbListings = await prisma.listing.findMany({
+                where: {
+                  listing_id: { in: stillEmpty.map(l => l.listingId) },
+                },
+                select: { listing_id: true, media: true },
+              });
+              for (const dbL of dbListings) {
+                const mediaArr = Array.isArray(dbL.media) ? (dbL.media as Record<string, unknown>[]) : [];
+                if (mediaArr.length === 0) continue;
+                const listing = stillEmpty.find(l => l.listingId === dbL.listing_id);
+                if (!listing) continue;
+                // Normalize DB media (handles both raw Trestle and mapped formats)
+                const normalized = mediaArr
+                  .map((m) => {
+                    const cat = String(m.MediaCategory || m.mediaType || 'Photo').toLowerCase();
+                    let mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' = 'Photo';
+                    if (cat.includes('floor plan') || cat.includes('floorplan')) mediaType = 'FloorPlan';
+                    else if (cat.includes('video')) mediaType = 'Video';
+                    else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
+                    return {
+                      url: String(m.url || m.MediaURL || ''),
+                      mediaType,
+                      order: Number(m.order ?? m.Order ?? 0),
+                    };
+                  })
+                  .filter((m) => m.url);
+                if (normalized.length > 0) {
+                  listing.media = normalized as typeof listing.media;
+                }
+              }
+            } catch { /* non-fatal — DB fallback is best-effort */ }
           }
         })();
 
