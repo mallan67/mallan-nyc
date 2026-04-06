@@ -4,10 +4,33 @@
  * Parses queries like "2BR condo under $2M in Tribeca with doorman"
  * and maps them to SearchFilters + tab selection.
  *
+ * Uses NYC dictionary for neighborhood/borough resolution, property lingo,
+ * and transit matching. Keeps all original amenity/bed/bath/price/sqft patterns.
+ *
  * Runs client-side — no API calls needed.
+ *
+ * Parse order (matters for disambiguation):
+ *   1. Rent/buy intent
+ *   2. "True N" bedrooms
+ *   3. Lingo (before beds — "alcove studio" must match before "studio")
+ *   4. Beds/baths
+ *   5. Price
+ *   6. Keywords (high floor, exposure, open kitchen)
+ *   7. Amenities
+ *   8. Neighborhoods/boroughs (before transit — "the bronx" must match before "the B")
+ *   9. Transit
+ *  10. Furnished, open house, sqft
+ *  11. Filler word cleanup
  */
 
 import type { SearchFilters, SearchTab, AmenityFilter } from './types';
+import {
+  resolveNeighborhood,
+  resolveBorough,
+  matchLingo,
+  matchTransit,
+} from './nyc-dictionary';
+import type { LingoMatch } from './nyc-dictionary';
 
 interface ParsedSearch {
   tab: SearchTab;
@@ -23,6 +46,9 @@ const BED_PATTERNS = [
   /studio/i,
 ];
 
+// ── "True N" bedroom pattern (actual bedrooms, not flex) ──
+const TRUE_BED_PATTERN = /\btrue\s+(\d)\b/i;
+
 // ── Bathroom patterns ──
 const BATH_PATTERNS = [
   /(\d+(?:\.\d+)?)\s*(?:bath(?:room)?s?|ba)/i,
@@ -34,38 +60,15 @@ const PRICE_PATTERNS = [
   { regex: /(?:under|below|max|up\s*to|less\s*than|<)\s*\$?([\d,.]+)\s*(m(?:illion)?|k)?/i, type: 'max' as const },
   // "over $1M", "above $500K", "min $2M", "at least $1M"
   { regex: /(?:over|above|min(?:imum)?|at\s*least|more\s*than|from|starting\s*at|>)\s*\$?([\d,.]+)\s*(m(?:illion)?|k)?/i, type: 'min' as const },
-  // "$1M - $3M", "$500K-$1M"
+  // "$1M - $3M", "$500K-$1M", "2-4M", "2M-4M"
   { regex: /\$?([\d,.]+)\s*(m(?:illion)?|k)?\s*[-–—to]+\s*\$?([\d,.]+)\s*(m(?:illion)?|k)?/i, type: 'range' as const },
+  // "2M+", "$2M+" (min price with + suffix)
+  { regex: /\$?([\d,.]+)\s*(m(?:illion)?|k)\s*\+/i, type: 'min' as const },
   // "$2M", "$500K" (standalone — treated as maxPrice)
   { regex: /\$\s*([\d,.]+)\s*(m(?:illion)?|k)?/i, type: 'max' as const },
 ];
 
-// ── Property type patterns ──
-const PROPERTY_TYPE_MAP: Record<string, string[]> = {
-  'condo': ['Condo'],
-  'condop': ['Condop'],
-  'co-op': ['Co-op'],
-  'coop': ['Co-op'],
-  'co op': ['Co-op'],
-  'townhouse': ['Townhouse'],
-  'town house': ['Townhouse'],
-  'brownstone': ['Townhouse'],
-  'loft': ['Loft'],
-  'duplex': ['Duplex'],
-  'triplex': ['Triplex'],
-  'multi-family': ['Multi-Family'],
-  'multifamily': ['Multi-Family'],
-  'single family': ['Single Family'],
-  'house': ['Single Family', 'Townhouse'],
-  'new development': ['New Development'],
-  'new construction': ['New Development'],
-  'prewar': [],
-  'pre-war': [],
-  'postwar': [],
-  'post-war': [],
-};
-
-// ── Amenity patterns ──
+// ── Amenity patterns (all ~45 original entries preserved) ──
 const AMENITY_MAP: Record<string, AmenityFilter> = {
   'doorman': 'doorman',
   'concierge': 'doorman',
@@ -140,34 +143,22 @@ const AMENITY_MAP: Record<string, AmenityFilter> = {
   'gut renovated': 'renovated',
   'move-in ready': 'renovated',
   'move in ready': 'renovated',
+  // no-fee and no broker fee are handled by lingo (matchLingo) — kept here
+  // as fallback in case lingo doesn't catch them
   'no fee': 'no-fee',
   'no broker fee': 'no-fee',
 };
 
-// ── NYC neighborhoods (lowercased for matching) ──
-const NEIGHBORHOODS = [
-  'battery park city', 'chelsea', 'chinatown', 'east harlem', 'east village',
-  'financial district', 'fidi', 'flatiron', 'gramercy', 'greenwich village',
-  'harlem', 'hells kitchen', "hell's kitchen", 'hudson yards', 'kips bay',
-  'les', 'lower east side', 'lower manhattan', 'midtown', 'midtown east',
-  'midtown west', 'morningside heights', 'murray hill', 'noho', 'nolita',
-  'roosevelt island', 'soho', 'stuyvesant town', 'tribeca', 'upper east side',
-  'ues', 'upper west side', 'uws', 'washington heights', 'west village',
-  'inwood', 'marble hill', 'two bridges',
-  // Brooklyn
-  'bed-stuy', 'bedford-stuyvesant', 'boerum hill', 'brooklyn heights',
-  'bushwick', 'carroll gardens', 'clinton hill', 'cobble hill', 'crown heights',
-  'ditmas park', 'downtown brooklyn', 'dumbo', 'dyker heights', 'flatbush',
-  'fort greene', 'gowanus', 'greenpoint', 'park slope', 'prospect heights',
-  'red hook', 'sunset park', 'williamsburg', 'windsor terrace',
-  // Queens
-  'astoria', 'forest hills', 'jackson heights', 'lic', 'long island city',
-  'sunnyside', 'flushing', 'bayside',
-  // Bronx
-  'riverdale', 'mott haven',
+// ── Keyword patterns (matched as keywords for PublicRemarks text search) ──
+const KEYWORD_PATTERNS: { regex: RegExp; keyword: string }[] = [
+  { regex: /\bhigh\s+floor\b/i, keyword: 'high floor' },
+  { regex: /\blow\s+floor\b/i, keyword: 'low floor' },
+  { regex: /\b(?:south|southern)\s+(?:facing|exposure)\b/i, keyword: 'south facing' },
+  { regex: /\b(?:north|northern)\s+(?:facing|exposure)\b/i, keyword: 'north facing' },
+  { regex: /\b(?:east|eastern)\s+(?:facing|exposure)\b/i, keyword: 'east facing' },
+  { regex: /\b(?:west|western)\s+(?:facing|exposure)\b/i, keyword: 'west facing' },
+  { regex: /\bopen\s+kitchen\b/i, keyword: 'open kitchen' },
 ];
-
-const BOROUGHS = ['manhattan', 'brooklyn', 'queens', 'bronx', 'staten island'];
 
 // ── Rent/buy intent ──
 const RENT_PATTERNS = /\b(?:rent(?:al)?s?|renting|lease|leasing|for\s+rent)\b/i;
@@ -182,12 +173,74 @@ function parsePrice(numStr: string, suffix?: string): number {
   return num;
 }
 
+/**
+ * Add a value to filters.keywords, deduplicating.
+ */
+function addKeyword(filters: SearchFilters, keyword: string): void {
+  if (!filters.keywords) filters.keywords = [];
+  if (!filters.keywords.includes(keyword)) {
+    filters.keywords.push(keyword);
+  }
+}
+
+/**
+ * Add a value to filters.propertySubTypes, deduplicating.
+ */
+function addPropertySubType(filters: SearchFilters, value: string): void {
+  if (!filters.propertySubTypes) filters.propertySubTypes = [];
+  if (!filters.propertySubTypes.includes(value)) {
+    filters.propertySubTypes.push(value);
+  }
+}
+
+/**
+ * Add an amenity to filters.amenities, deduplicating.
+ */
+function addAmenity(filters: SearchFilters, amenity: AmenityFilter): void {
+  if (!filters.amenities) filters.amenities = [];
+  if (!filters.amenities.includes(amenity)) {
+    filters.amenities.push(amenity);
+  }
+}
+
+/**
+ * Apply a lingo match to the appropriate filter field.
+ */
+function applyLingoMatch(filters: SearchFilters, match: LingoMatch): void {
+  switch (match.filterKey) {
+    case 'propertySubTypes':
+      addPropertySubType(filters, match.filterValue as string);
+      break;
+    case 'ownershipTypes':
+      if (!filters.ownershipTypes) filters.ownershipTypes = [];
+      if (!filters.ownershipTypes.includes(match.filterValue as string)) {
+        filters.ownershipTypes.push(match.filterValue as string);
+      }
+      break;
+    case 'yearBuilt':
+      filters.yearBuilt = match.filterValue as 'pre-war' | 'post-war';
+      break;
+    case 'amenities':
+      // "no-fee" from lingo → add to amenities
+      addAmenity(filters, match.filterValue as AmenityFilter);
+      break;
+    case 'furnished':
+      filters.furnished = true;
+      break;
+    case 'keywords':
+      addKeyword(filters, match.filterValue as string);
+      break;
+    default:
+      break;
+  }
+}
+
 export function parseNaturalLanguageSearch(query: string): ParsedSearch {
   const filters: SearchFilters = {};
   let remaining = query;
   let tab: SearchTab = 'buy-residential';
 
-  // ── Detect rent vs buy ──
+  // ── 1. Detect rent vs buy ──
   if (RENT_PATTERNS.test(query)) {
     tab = 'rent-residential';
     remaining = remaining.replace(RENT_PATTERNS, '');
@@ -196,32 +249,57 @@ export function parseNaturalLanguageSearch(query: string): ParsedSearch {
     remaining = remaining.replace(BUY_PATTERNS, '');
   }
 
-  // ── Bedrooms ──
-  if (/studio/i.test(remaining)) {
-    filters.beds = 0;
-    remaining = remaining.replace(/studio/i, '');
-  } else {
-    const bedMatch = remaining.match(BED_PATTERNS[0]);
-    if (bedMatch) {
-      filters.beds = parseInt(bedMatch[1]);
-      remaining = remaining.replace(bedMatch[0], '');
+  // ── 2. "True N" bedrooms (actual bedrooms, not flex — store as keyword + beds) ──
+  const trueBedMatch = remaining.match(TRUE_BED_PATTERN);
+  if (trueBedMatch) {
+    filters.beds = parseInt(trueBedMatch[1]);
+    addKeyword(filters, `true ${trueBedMatch[1]}`);
+    remaining = remaining.replace(trueBedMatch[0], '');
+  }
+
+  // ── 3. NYC Property Lingo (via dictionary) — BEFORE beds ──
+  // Must run before bed parsing so "alcove studio" is matched as a layout type,
+  // not as "studio" (0 beds). Also handles: jr4, flex 2/3, sponsor unit, condo,
+  // co-op, prewar/postwar, brownstone, townhouse, penthouse, no fee, furnished, walk-up.
+  const lingoResult = matchLingo(remaining);
+  for (const match of lingoResult.matches) {
+    applyLingoMatch(filters, match);
+  }
+  remaining = lingoResult.remainder;
+
+  // ── 4. Bedrooms (skip if "true N" already set beds) ──
+  if (filters.beds == null) {
+    if (/\bstudio\b/i.test(remaining)) {
+      filters.beds = 0;
+      remaining = remaining.replace(/\bstudio\b/i, '');
+    } else {
+      const bedMatch = remaining.match(BED_PATTERNS[0]);
+      if (bedMatch) {
+        filters.beds = parseInt(bedMatch[1]);
+        remaining = remaining.replace(bedMatch[0], '');
+      }
     }
   }
 
-  // ── Bathrooms ──
+  // ── 4b. Bathrooms ──
   const bathMatch = remaining.match(BATH_PATTERNS[0]);
   if (bathMatch) {
     filters.baths = parseFloat(bathMatch[1]);
     remaining = remaining.replace(bathMatch[0], '');
   }
 
-  // ── Price (range first, then individual) ──
+  // ── 5. Price (range first, then individual) ──
   for (const pp of PRICE_PATTERNS) {
     const match = remaining.match(pp.regex);
     if (match) {
       if (pp.type === 'range') {
-        filters.minPrice = parsePrice(match[1], match[2]);
-        filters.maxPrice = parsePrice(match[3], match[4]);
+        // For ranges like "2-4M", if first number has no suffix but second does,
+        // inherit the second suffix for both (NYC shorthand: "2-4M" means $2M-$4M)
+        const suffix1 = match[2];
+        const suffix2 = match[4];
+        const effectiveSuffix1 = suffix1 || suffix2;
+        filters.minPrice = parsePrice(match[1], effectiveSuffix1);
+        filters.maxPrice = parsePrice(match[3], suffix2);
       } else if (pp.type === 'max') {
         filters.maxPrice = parsePrice(match[1], match[2]);
       } else if (pp.type === 'min') {
@@ -232,75 +310,91 @@ export function parseNaturalLanguageSearch(query: string): ParsedSearch {
     }
   }
 
-  // ── Property types ──
-  const matchedSubTypes: string[] = [];
-  for (const [pattern, types] of Object.entries(PROPERTY_TYPE_MAP)) {
-    const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (regex.test(remaining)) {
-      matchedSubTypes.push(...types);
-      remaining = remaining.replace(regex, '');
-      // Handle pre-war/post-war
-      if (pattern === 'prewar' || pattern === 'pre-war') filters.yearBuilt = 'pre-war';
-      if (pattern === 'postwar' || pattern === 'post-war') filters.yearBuilt = 'post-war';
+  // ── 6. Keyword patterns (high floor, exposure, open kitchen) ──
+  for (const kp of KEYWORD_PATTERNS) {
+    if (kp.regex.test(remaining)) {
+      addKeyword(filters, kp.keyword);
+      remaining = remaining.replace(kp.regex, '');
     }
   }
-  if (matchedSubTypes.length > 0) {
-    filters.propertySubTypes = [...new Set(matchedSubTypes)];
-  }
 
-  // ── Amenities (match longer phrases first) ──
-  const matchedAmenities: AmenityFilter[] = [];
+  // ── 7. Amenities (match longer phrases first) ──
+  // These map to Trestle multi-value picklist fields (BuildingFeatures, etc.)
   const sortedAmenityKeys = Object.keys(AMENITY_MAP).sort((a, b) => b.length - a.length);
   for (const pattern of sortedAmenityKeys) {
     const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
     if (regex.test(remaining)) {
       const amenity = AMENITY_MAP[pattern];
-      if (!matchedAmenities.includes(amenity)) {
-        matchedAmenities.push(amenity);
-      }
+      addAmenity(filters, amenity);
       remaining = remaining.replace(regex, '');
     }
   }
-  if (matchedAmenities.length > 0) {
-    filters.amenities = matchedAmenities;
-  }
 
-  // ── Neighborhoods (match longer names first) ──
+  // ── 8. Neighborhoods (via dictionary) — BEFORE transit ──
+  // Must resolve neighborhoods/boroughs before transit to prevent false positives
+  // (e.g., "the bronx" being parsed as "the B" subway line).
+  //
+  // Strategy: try every contiguous substring of words (longest first) against resolveNeighborhood.
+  // This catches multi-word names ("upper east side", "park slope") and abbreviations ("UES", "HK").
   let matchedNeighborhood: string | undefined;
   let matchedBorough: string | undefined;
-  const lowerRemaining = remaining.toLowerCase();
 
-  const sortedNeighborhoods = [...NEIGHBORHOODS].sort((a, b) => b.length - a.length);
-  for (const n of sortedNeighborhoods) {
-    if (lowerRemaining.includes(n)) {
-      matchedNeighborhood = n;
-      // Map abbreviations to full names
-      if (n === 'ues') matchedNeighborhood = 'upper east side';
-      if (n === 'uws') matchedNeighborhood = 'upper west side';
-      if (n === 'les') matchedNeighborhood = 'lower east side';
-      if (n === 'fidi') matchedNeighborhood = 'financial district';
-      if (n === 'lic') matchedNeighborhood = 'long island city';
-      // Title case
-      matchedNeighborhood = matchedNeighborhood.replace(/\b\w/g, (c) => c.toUpperCase());
-      const regex = new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-      remaining = remaining.replace(regex, '');
-      break;
-    }
-  }
+  const words = remaining.split(/\s+/).filter(w => w.length > 0);
+  let neighborhoodFound = false;
 
-  if (!matchedNeighborhood) {
-    for (const b of BOROUGHS) {
-      if (lowerRemaining.includes(b)) {
-        matchedBorough = b.replace(/\b\w/g, (c) => c.toUpperCase());
-        const regex = new RegExp(`\\b${b}\\b`, 'i');
+  // Try longest possible phrases first (up to 5 words)
+  for (let len = Math.min(5, words.length); len >= 1 && !neighborhoodFound; len--) {
+    for (let start = 0; start <= words.length - len && !neighborhoodFound; start++) {
+      const phrase = words.slice(start, start + len).join(' ');
+      const resolved = resolveNeighborhood(phrase);
+      if (resolved) {
+        // For multi-word phrases, only accept exact or alias matches.
+        // Fuzzy matches on multi-word phrases cause false positives
+        // (e.g., "L williamsburg" fuzzy-matching to "Williamsburg").
+        if (len > 1 && resolved.matchType === 'fuzzy') continue;
+        matchedNeighborhood = resolved.canonical;
+        matchedBorough = resolved.borough;
+        const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escaped}\\b`, 'i');
         remaining = remaining.replace(regex, '');
-        break;
+        neighborhoodFound = true;
       }
     }
   }
 
-  // ── Furnished ──
-  if (/\bfurnished\b/i.test(remaining)) {
+  // ── 8b. Borough (via dictionary — only if no neighborhood was matched) ──
+  if (!matchedNeighborhood) {
+    const boroughWords = remaining.split(/\s+/).filter(w => w.length > 0);
+    for (let len = Math.min(3, boroughWords.length); len >= 1; len--) {
+      let boroughFound = false;
+      for (let start = 0; start <= boroughWords.length - len; start++) {
+        const phrase = boroughWords.slice(start, start + len).join(' ');
+        const resolved = resolveBorough(phrase);
+        if (resolved) {
+          matchedBorough = resolved;
+          const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+          remaining = remaining.replace(regex, '');
+          boroughFound = true;
+          break;
+        }
+      }
+      if (boroughFound) break;
+    }
+  }
+
+  // ── 9. Transit (via dictionary) — AFTER neighborhoods/boroughs ──
+  const transitResult = matchTransit(remaining);
+  if (transitResult.match) {
+    filters.transit = {
+      line: transitResult.match.lines.join('/') || 'subway',
+      label: transitResult.match.label,
+    };
+    remaining = transitResult.remainder;
+  }
+
+  // ── 10. Furnished (fallback — lingo may have already set it) ──
+  if (!filters.furnished && /\bfurnished\b/i.test(remaining)) {
     filters.furnished = true;
     remaining = remaining.replace(/\bfurnished\b/i, '');
   }
@@ -318,7 +412,7 @@ export function parseNaturalLanguageSearch(query: string): ParsedSearch {
     remaining = remaining.replace(sqftMatch[0], '');
   }
 
-  // Clean up remaining
+  // ── 11. Clean up remaining ──
   remaining = remaining
     .replace(/\b(?:in|with|and|near|on|at|the|a|an|for|that|has|have|having)\b/gi, '')
     .replace(/[,;.!?]+/g, '')

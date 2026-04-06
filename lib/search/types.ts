@@ -35,6 +35,10 @@ export interface SearchFilters {
   // Open House
   openHouse?: boolean;
   openHouseDate?: string; // ISO date string (YYYY-MM-DD)
+  // Keywords (free-text terms for PublicRemarks search — e.g., "high floor", "south facing")
+  keywords?: string[];
+  // Transit (subway line/service proximity)
+  transit?: { line: string; label: string };
   // Sort
   sort?: string;
   // Location
