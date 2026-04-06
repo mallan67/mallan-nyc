@@ -1066,6 +1066,16 @@
             return criteria;
         }
 
+        function clearWorkingClient() {
+            var banner = document.getElementById('workingWithClientBanner');
+            if (banner) banner.classList.add('hidden');
+            var label = document.getElementById('workingClientLabel');
+            if (label) label.textContent = '';
+            var info = document.getElementById('workingClientInfo');
+            if (info) info.textContent = '';
+            try { sessionStorage.removeItem('workingClient'); } catch(e) {}
+        }
+
         function clearSearchForm() {
             // Reset all select elements in basic form (unified — one form for all tabs)
             var forms = ['searchBasicMode'];

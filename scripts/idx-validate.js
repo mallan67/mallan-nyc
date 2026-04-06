@@ -1506,11 +1506,21 @@ function section36() {
   const html = readFile('public/crm/index-built.html');
   if (!html) { warning(s, 'Cannot read index-built.html', ''); return; }
 
-  // Extract all id="..." from HTML
+  // Extract all id="..." from ALL CRM HTML files (search + forms + dashboard)
+  // Form JS files reference IDs in form HTML pages, not just the search page.
   const htmlIds = new Set();
   const idRegex = /\bid=["']([^"']+)["']/g;
   let m;
   while ((m = idRegex.exec(html)) !== null) htmlIds.add(m[1]);
+  // Also scan form and dashboard HTML files for IDs
+  const extraHtmlFiles = findFiles('public/crm/html', '.html')
+    .concat(findFiles('public/crm', '.html').filter(f => !f.includes('index-built') && !f.includes('.backups')));
+  for (const hf of extraHtmlFiles) {
+    const hContent = readFile(hf);
+    if (!hContent) continue;
+    idRegex.lastIndex = 0;
+    while ((m = idRegex.exec(hContent)) !== null) htmlIds.add(m[1]);
+  }
 
   // Also count IDs created dynamically (innerHTML, createElement+id)
   // These are expected to NOT be in the static HTML
@@ -1588,7 +1598,11 @@ function section36() {
 
   if (danglingSearch === 0) pass(s, 'All search-critical DOM IDs exist in HTML');
   if (danglingOther > 0) {
-    warning(s, `${danglingOther} non-search getElementById refs target missing IDs`,
+    // INFO not WARNING: non-search IDs span multiple pages and include dynamically
+    // created elements (innerHTML, template strings). The validator scans all CRM HTML
+    // files but can't resolve which JS runs on which page or which IDs are created at runtime.
+    // Search-critical IDs are checked at CRITICAL level above — that's the gate that matters.
+    info(s, `${danglingOther} non-search getElementById refs target dynamically-created or cross-page IDs`,
       danglingDetails.filter(d => d.level === 'WARNING').map(d => `'${d.id}' in ${d.files}`).slice(0, 10).join('; '));
   } else {
     pass(s, 'All non-search DOM ID references valid');
@@ -1646,23 +1660,40 @@ function section37() {
   }
 
   // 3. Status checkbox data-values match statusMap in _serverSearch
+  // statusMap maps CRM uppercase → RESO PascalCase. The code uses `statusMap[s] || s`
+  // so values already in RESO format (Active, ComingSoon, etc.) pass through correctly.
+  // Compound values like "Withdrawn,Canceled,Expired,Hold" are split by the server
+  // (idx/search/route.ts: status.split(",")).
   const statusMapMatch = searchEngine.match(/statusMap\s*=\s*\{([^}]+)\}/);
   if (statusMapMatch) {
     const mapKeys = (statusMapMatch[1].match(/'([^']+)'/g) || [])
       .filter((_, i) => i % 2 === 0) // odd indices are values
       .map(k => k.replace(/'/g, ''));
+    // Valid RESO StandardStatus values that pass through the `|| s` fallback correctly
+    const resoStandardStatuses = new Set([
+      'Active', 'ActiveUnderContract', 'Canceled', 'Closed', 'ComingSoon',
+      'Delete', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn',
+    ]);
 
     // Find status checkboxes in HTML
     const statusCheckboxes = [];
     const cbRegex = /data-field=["']MlsStatus["']\s+data-value=["']([^"']+)["']/g;
     while ((m = cbRegex.exec(html)) !== null) statusCheckboxes.push(m[1]);
 
-    const unmapped = statusCheckboxes.filter(v => !mapKeys.includes(v));
+    const unmapped = statusCheckboxes.filter(v => {
+      // In statusMap keys → mapped explicitly
+      if (mapKeys.includes(v)) return false;
+      // Valid RESO value → passes through via || s fallback
+      if (resoStandardStatuses.has(v)) return false;
+      // Compound value — check each part is valid RESO
+      if (v.includes(',') && v.split(',').every(p => resoStandardStatuses.has(p.trim()))) return false;
+      return true;
+    });
     if (unmapped.length > 0) {
-      warning(s, `${unmapped.length} status checkbox values not in statusMap: ${unmapped.join(', ')}`,
-        'These statuses will be sent as-is to Trestle (may not match RESO enum)');
+      warning(s, `${unmapped.length} status checkbox values not in statusMap or RESO enum: ${unmapped.join(', ')}`,
+        'These statuses will be sent as-is to Trestle and may not match any RESO StandardStatus');
     } else if (statusCheckboxes.length > 0) {
-      pass(s, `${statusCheckboxes.length} status checkbox values all mapped in statusMap`);
+      pass(s, `${statusCheckboxes.length} status checkbox values all mapped or valid RESO`);
     }
   }
 
@@ -1728,7 +1759,7 @@ function section37() {
     }
   }
   if (ipMissing.length > 0) {
-    warning(s, `${ipMissing.length} routes have logAuditEvent without IP`,
+    info(s, `${ipMissing.length} routes call logAuditEvent without IP (ipAddress param is optional)`,
       ipMissing.map(f => f.replace('app/api/', '')).slice(0, 5).join(', '));
   } else if (ipLogged > 0) {
     pass(s, `${ipLogged} audit log calls include IP address`);
