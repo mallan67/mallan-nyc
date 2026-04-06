@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useListings } from '@/lib/hooks/useListings';
 // IDX disclaimer shown inline in toolbar row 2 (single line for space efficiency)
 import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
+import SearchChips, { buildChips, type FilterChip } from '@/app/components/SearchChips';
 import SaveSearchButton from '@/app/components/SaveSearchButton';
 import { GridCard, ListCard, SplitCard } from '@/app/components/SearchListingCard';
 import SearchFilterPanel from '@/app/components/SearchFilterPanel';
@@ -528,6 +529,77 @@ function SearchClient() {
 
   const filterCount = activeFilterPills.length;
 
+  // ── Search Chips — built from merged toolbar + NL filters ──
+  const chips = useMemo(() => {
+    // Merge: toolbar filters take priority, NL fills gaps (same pattern as useListings call)
+    const merged: SearchFilters = {
+      ...filters,
+      beds: filters.beds ?? nl?.beds ?? null,
+      baths: filters.baths ?? nl?.baths ?? null,
+      minPrice: filters.minPrice ?? nl?.minPrice,
+      maxPrice: filters.maxPrice ?? nl?.maxPrice,
+      propertySubTypes: filters.propertySubTypes?.length ? filters.propertySubTypes : nl?.propertySubTypes,
+      yearBuilt: filters.yearBuilt ?? nl?.yearBuilt,
+      furnished: filters.furnished ?? nl?.furnished,
+      amenities: (filters.amenities?.length ? filters.amenities : nl?.amenities) as SearchFilters['amenities'],
+      keywords: nl?.keywords,
+      transit: nl?.transit,
+    };
+    return buildChips(merged, selectedNeighborhoods, resolvedSearch.borough || boroughParam || undefined);
+  }, [filters, nl, selectedNeighborhoods, resolvedSearch.borough, boroughParam]);
+
+  const handleChipRemove = useCallback((chip: FilterChip) => {
+    switch (chip.type) {
+      case 'neighborhood':
+        setSelectedNeighborhoods(prev => prev.filter(n => n !== chip.filterValue));
+        break;
+      case 'borough':
+        setSearchQuery('');
+        break;
+      case 'beds':
+        setFilters(prev => ({ ...prev, beds: null }));
+        break;
+      case 'baths':
+        setFilters(prev => ({ ...prev, baths: null }));
+        break;
+      case 'price':
+        setFilters(prev => ({ ...prev, minPrice: undefined, maxPrice: undefined }));
+        break;
+      case 'property':
+        setFilters(prev => ({
+          ...prev,
+          propertySubTypes: prev.propertySubTypes?.filter(t => t !== chip.filterValue),
+        }));
+        break;
+      case 'yearBuilt':
+        setFilters(prev => ({ ...prev, yearBuilt: undefined }));
+        break;
+      case 'amenity':
+        setFilters(prev => ({
+          ...prev,
+          amenities: prev.amenities?.filter(a => a !== chip.filterValue) as SearchFilters['amenities'],
+        }));
+        break;
+      case 'other':
+        // Furnished or Open House
+        if (chip.filterKey === 'furnished') {
+          setFilters(prev => ({ ...prev, furnished: undefined }));
+        } else if (chip.filterKey === 'openHouse') {
+          setFilters(prev => ({ ...prev, openHouse: undefined, openHouseDate: undefined }));
+        }
+        break;
+      case 'keyword':
+      case 'transit':
+        // These come from NL parse — clearing the search query removes them
+        setSearchQuery('');
+        break;
+    }
+  }, []);
+
+  const handleChipClearAll = useCallback(() => {
+    clearFilters();
+  }, [clearFilters]);
+
   // toolbarRef kept for potential future use
 
   // ── Show footer only in grid/list modes ──
@@ -719,6 +791,20 @@ function SearchClient() {
       </div>
 
       {/* RecentlyViewed removed — not needed on search page */}
+
+      {/* ── Filter Chips ── */}
+      {chips.length > 0 && (
+        <div className="flex-shrink-0 bg-white border-b border-black/5 px-4 md:px-6 py-2">
+          <div className="max-w-[1920px] mx-auto">
+            <SearchChips
+              chips={chips}
+              onRemove={handleChipRemove}
+              onClearAll={handleChipClearAll}
+              total={loading ? undefined : total}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Main Area ── */}
       <div className={`flex-1 min-h-0 ${isFullViewport ? 'overflow-hidden isolate' : 'overflow-y-auto'}`}>
