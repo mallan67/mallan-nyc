@@ -401,33 +401,46 @@ export async function fetchListingMedia(
   }
   const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
 
-  // Try numeric key first, then string-based ResourceRecordID
+  // Try multiple key fields — Trestle's Media.ResourceRecordID doesn't always
+  // match Property.ListingId. Some listings use ResourceRecordKey or ListingId instead.
   const isNumeric = /^\d+$/.test(listingKey);
-  const filterField = isNumeric ? "ResourceRecordKeyNumeric" : "ResourceRecordID";
-  const filterValue = isNumeric ? listingKey : `'${listingKey.replace(/'/g, "''")}'`;
+  const escaped = listingKey.replace(/'/g, "''");
+  const keyFieldsToTry = isNumeric
+    ? [`ResourceRecordKeyNumeric eq ${listingKey}`]
+    : [
+        `ResourceRecordID eq '${escaped}'`,
+        `ResourceRecordKey eq '${escaped}'`,
+        `ListingId eq '${escaped}'`,
+      ];
 
-  const params = new URLSearchParams();
-  params.set("$filter", `${filterField} eq ${filterValue}`);
-  params.set("$select", "MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN");
-  params.set("$orderby", "Order asc");
-  params.set("$top", "50");
+  let records: Record<string, unknown>[] = [];
+  for (const keyFilter of keyFieldsToTry) {
+    const params = new URLSearchParams();
+    params.set("$filter", keyFilter);
+    params.set("$select", "MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN");
+    params.set("$orderby", "Order asc");
+    params.set("$top", "50");
 
-  const url = `${base}/odata/Media?${params.toString()}`;
-  let response = await fetchWithRetry(url, token);
+    const url = `${base}/odata/Media?${params.toString()}`;
+    let response = await fetchWithRetry(url, token);
 
-  if (response.status === 401) {
-    invalidateToken();
-    const newToken = await getAccessToken();
-    response = await fetchWithRetry(url, newToken);
+    if (response.status === 401) {
+      invalidateToken();
+      const newToken = await getAccessToken();
+      token = newToken;
+      response = await fetchWithRetry(url, newToken);
+    }
+
+    if (!response.ok) continue;
+
+    const data = await response.json();
+    records = data.value || [];
+    if (records.length > 0) break; // Found media — stop trying other keys
   }
 
-  if (!response.ok) {
-    console.warn(`[IDX Fetch] Media fetch failed (${response.status}) for key ${listingKey}`);
+  if (records.length === 0) {
     return [];
   }
-
-  const data = await response.json();
-  const records = data.value || [];
   return records.map((m: Record<string, unknown>, i: number) => {
     // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
     //          MediaType = file format (jpeg, png) — NOT content type
