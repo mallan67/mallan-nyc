@@ -816,9 +816,9 @@ export async function GET(request: Request) {
         // pet-friendly, and relies on DB path for all other amenity filters.
         const selectFields = [...CARD_SELECT_FIELDS];
 
-        // $expand=Media eliminates separate photo batch-fetch (saves 5-10s).
-        // Trestle supports it for $top ≤ ~200. For larger queries, batch-fetch separately.
-        const useExpandMedia = fetchTop <= 200;
+        // NEVER use $expand=Media — Trestle's OData $expand returns empty arrays for
+        // ~50% of listings (broken navigation property). Always batch-fetch separately.
+        const useExpandMedia = false;
 
         const result = await fetchFromTrestle({
           filter: filterParts.join(' and '),
