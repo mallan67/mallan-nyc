@@ -8,6 +8,8 @@ module.exports = {
     '<rootDir>/lib/auth/jest.config.js',
     // lib/compliance tests (ts-jest)
     '<rootDir>/lib/compliance/jest.config.js',
+    // lib/search tests (ts-jest)
+    '<rootDir>/lib/search/jest.config.js',
     // lib/rls-validator tests (ts-jest) — commented out: config missing
     // '<rootDir>/lib/rls-validator/jest.config.js',
     // scripts tests (plain JS, node runner)
