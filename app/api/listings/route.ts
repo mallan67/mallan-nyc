@@ -1017,12 +1017,13 @@ export async function GET(request: Request) {
             const fetchChunk = async (chunk: typeof needsPhotos) => {
               const ids = chunk.map(l => l.listingId);
               const idFilter = ids.map(id => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(' or ');
-              const mediaFilter = `(${idFilter}) and (Order le 3 or MediaCategory ne 'Photo')`;
+              // No Order/MediaCategory filter — null values in OData cause false negatives.
+              // Limit via $top instead; client-side takes first 3 photos per listing.
               const mediaParams = new URLSearchParams();
-              mediaParams.set('$filter', mediaFilter);
+              mediaParams.set('$filter', `(${idFilter})`);
               mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
               mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-              mediaParams.set('$top', String(chunk.length * 10));
+              mediaParams.set('$top', String(chunk.length * 15));
 
               const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },

@@ -170,7 +170,7 @@ export async function syncListings(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
-          const mediaFilter = `(${idFilter}) and Order le 30`;
+          const mediaFilter = `(${idFilter})`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
           mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
@@ -316,7 +316,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     if (ids.length === 0) continue;
 
     const idFilter = ids.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
-    const mediaFilter = `(${idFilter}) and Order le 30`;
+    const mediaFilter = `(${idFilter})`;
     const mediaParams = new URLSearchParams();
     mediaParams.set("$filter", mediaFilter);
     mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
@@ -664,7 +664,7 @@ export async function syncAgentHistory(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
-          const mediaFilter = `(${idFilter}) and Order le 30`;
+          const mediaFilter = `(${idFilter})`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
           mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");

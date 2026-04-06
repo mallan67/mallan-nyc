@@ -104,13 +104,14 @@ export async function getListingsServer(
           for (let bi = 0; bi < needsMedia.length; bi += MEDIA_BATCH) {
             const batchListings = needsMedia.slice(bi, bi + MEDIA_BATCH);
             const filterParts2 = batchListings.map(l => `ResourceRecordID eq '${l.listingId.replace(/'/g, "''")}'`);
-            // Photos (up to 3 per listing) + all non-photos (floor plans, videos, tours)
-            const mediaFilter = `(${filterParts2.join(' or ')}) and (Order le 3 or MediaCategory ne 'Photo')`;
+            // No Order/MediaCategory filter — null values in OData cause false negatives
+            // (null Order AND null MediaCategory = false, filtering out ALL media).
+            // Limit via $top; client-side takes first 3 photos per listing after sorting.
             const mediaParams = new URLSearchParams();
-            mediaParams.set('$filter', mediaFilter);
+            mediaParams.set('$filter', `(${filterParts2.join(' or ')})`);
             mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
             mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-            mediaParams.set('$top', String(batchListings.length * 10));
+            mediaParams.set('$top', String(batchListings.length * 15));
 
             const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
               headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
