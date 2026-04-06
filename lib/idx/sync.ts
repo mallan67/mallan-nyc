@@ -178,9 +178,15 @@ export async function syncListings(
           mediaParams.set("$top", String(batch.length * 30));
 
           try {
-            const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-              headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-            });
+            const _mc = new AbortController();
+            const _mt = setTimeout(() => _mc.abort(), 15_000);
+            let res: Response;
+            try {
+              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                signal: _mc.signal,
+              });
+            } finally { clearTimeout(_mt); }
             if (!res.ok) continue;
             const data = await res.json();
 
@@ -672,9 +678,15 @@ export async function syncAgentHistory(
           mediaParams.set("$top", String(batch.length * 30));
 
           try {
-            const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-              headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-            });
+            const _mc = new AbortController();
+            const _mt = setTimeout(() => _mc.abort(), 15_000);
+            let res: Response;
+            try {
+              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                signal: _mc.signal,
+              });
+            } finally { clearTimeout(_mt); }
             if (!res.ok) continue;
             const data = await res.json();
 
