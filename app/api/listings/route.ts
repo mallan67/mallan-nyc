@@ -146,6 +146,7 @@ export async function GET(request: Request) {
     const amenitiesParam = searchParams.get('amenities'); // comma-separated amenity keys
     const openHouseParam = searchParams.get('openHouse') === 'true';
     const addressParam = searchParams.get('address'); // free-text street name search
+    const keywords = searchParams.get('keywords')?.split(',').filter(Boolean) || [];
 
     // Min > Max price validation
     if (minPrice && maxPrice && parseInt(minPrice, 10) > parseInt(maxPrice, 10)) {
@@ -416,6 +417,13 @@ export async function GET(request: Request) {
             const displayable = filterDisplayableDbListings(serialized);
             let publicListings = displayable.map(dbListingToPublicDTO);
 
+            // Build features lookup — shared by ownershipTypes, amenities, and keywords post-filters
+            const featuresById = new Map<string, Record<string, unknown>>();
+            for (const dbL of serialized) {
+              const feat = (dbL.features || {}) as Record<string, unknown>;
+              featuresById.set(dbL.listing_id, feat);
+            }
+
             // Post-filter for fields stored in features JSON (not DB columns)
             // ownershipTypes → CommonInterest in features
             if (ownershipTypes) {
@@ -487,13 +495,6 @@ export async function GET(request: Request) {
                 (a): a is import('@/lib/search/types').AmenityFilter => a in AMENITY_FIELD_MAP
               );
 
-              // Build a lookup from listing ID → features JSON for fields not on DTO
-              const featuresById = new Map<string, Record<string, unknown>>();
-              for (const dbL of serialized) {
-                const feat = (dbL.features || {}) as Record<string, unknown>;
-                featuresById.set(dbL.listing_id, feat);
-              }
-
               // AND logic: each selected amenity must be present
               for (const amenityKey of requestedAmenities) {
                 const mapping = AMENITY_FIELD_MAP[amenityKey];
@@ -524,6 +525,17 @@ export async function GET(request: Request) {
                   });
                 }
               }
+            }
+
+            // Keywords post-filter: search PublicRemarks in features JSON (AND logic)
+            // PublicRemarks is a PUB-tier IDX field — safe for public text search.
+            // Do NOT search PrivateRemarks or ShowingInstructions (HID tier).
+            if (keywords.length > 0) {
+              publicListings = publicListings.filter(listing => {
+                const feat = featuresById.get(listing.id) || {};
+                const remarks = String(feat.PublicRemarks || listing.publicRemarks || '').toLowerCase();
+                return keywords.every(kw => remarks.includes(kw.toLowerCase().trim()));
+              });
             }
 
             // Fill photos for DB listings with empty media — DB may have stale/empty
@@ -825,6 +837,18 @@ export async function GET(request: Request) {
             break;
           case 'newest': orderby = 'ListingContractDate desc'; break;
           default: orderby = 'ListPrice desc'; break;
+        }
+
+        // Keywords → OData contains() on PublicRemarks (AND logic — all must match)
+        // PublicRemarks is a PUB-tier IDX field available on Trestle $select.
+        // OData-safe: escape single quotes, strip SQL wildcards.
+        if (keywords.length > 0) {
+          for (const kw of keywords) {
+            const safe = kw.replace(/[%_]/g, '').replace(/'/g, "''").trim().toLowerCase();
+            if (safe) {
+              filterParts.push(`contains(tolower(PublicRemarks),'${safe}')`);
+            }
+          }
         }
 
         // Fetch extra to account for gate filtering + post-filters

@@ -31,6 +31,7 @@ export interface UseListingsParams {
   openHouseDate?: string;
   zipCodes?: string;
   address?: string;
+  keywords?: string[];
   /** Pre-fetched listings from server (ISR) — skips initial client fetch */
   initialListings?: DisplayListing[];
   initialTotal?: number;
@@ -113,6 +114,7 @@ function buildQueryString(params: UseListingsParams): string {
   if (params.openHouseDate) qs.set('openHouseDate', params.openHouseDate);
   if (params.zipCodes) qs.set('zipCodes', params.zipCodes);
   if (params.address) qs.set('address', params.address);
+  if (params.keywords?.length) qs.set('keywords', params.keywords.join(','));
 
   qs.set('limit', String(params.limit || 50));
 
@@ -144,6 +146,7 @@ function hasActiveFilters(params: UseListingsParams): boolean {
     params.openHouseDate ||
     params.zipCodes ||
     params.address ||
+    params.keywords?.length ||
     (params.sort && params.sort !== 'newest')
   );
 }
@@ -332,6 +335,8 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     params.openHouseDate,
     params.zipCodes,
     params.address,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    params.keywords?.join(','),
     fetchListings,
     hasInitial,
   ]);
