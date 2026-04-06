@@ -70,12 +70,22 @@ export async function GET(req: NextRequest) {
   try {
     const token = await getAccessToken();
 
-    const response = await fetch(mediaUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "image/*",
-      },
-    });
+    // 10s timeout — prevents hanging when Trestle is slow. Without this,
+    // a single slow image blocks the proxy slot (semaphore) for up to 300s.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    let response: Response;
+    try {
+      response = await fetch(mediaUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "image/*",
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       return new NextResponse(null, { status: response.status });

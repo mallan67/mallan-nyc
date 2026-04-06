@@ -374,6 +374,126 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 }
 
 /**
+ * Migrate Trestle media URLs → R2 permanent URLs.
+ *
+ * Finds DB listings whose media still points at Trestle (cotality.com / corelogic.com),
+ * downloads each photo, uploads to R2, and updates the DB record.
+ *
+ * After migration, those photos load directly from R2 CDN — no more proxy round-trips.
+ * Runs after backfillEmptyMedia in the media-backfill cron.
+ */
+export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ checked: number; migrated: number; errors: number }> {
+  const { hasR2Config } = await import("@/lib/images/r2");
+  if (!hasR2Config()) {
+    return { checked: 0, migrated: 0, errors: 0 };
+  }
+
+  const limit = options?.limit ?? 50;
+
+  // Find listings with Trestle media URLs (not yet cached to R2)
+  const listings = await prisma.$queryRaw<{ id: bigint; listing_id: string; media: unknown }[]>`
+    SELECT id, listing_id, media FROM "Listing"
+    WHERE media IS NOT NULL AND media::text != '[]' AND media::text != '{}'
+      AND (media::text LIKE '%cotality.com%' OR media::text LIKE '%corelogic.com%')
+    ORDER BY modification_timestamp DESC NULLS LAST
+    LIMIT ${limit}
+  `;
+
+  if (listings.length === 0) {
+    return { checked: 0, migrated: 0, errors: 0 };
+  }
+
+  console.log(`[R2 Migration] Found ${listings.length} listings with Trestle media URLs`);
+
+  const { getAccessToken } = await import("./auth");
+  const { uploadToR2, existsInR2, getR2PublicUrl } = await import("@/lib/images/r2");
+
+  let token: string;
+  try {
+    token = await getAccessToken();
+  } catch {
+    console.error("[R2 Migration] Failed to get Trestle token");
+    return { checked: listings.length, migrated: 0, errors: 1 };
+  }
+
+  const TRESTLE_HOSTS = ["cotality.com", "corelogic.com"];
+  const MAX_CONCURRENT = 5;
+  let migrated = 0;
+  let errors = 0;
+
+  for (const listing of listings) {
+    const mediaArr = Array.isArray(listing.media) ? (listing.media as Record<string, unknown>[]) : [];
+    if (mediaArr.length === 0) continue;
+
+    let changed = false;
+    const updatedMedia = [...mediaArr];
+
+    // Process photos in small batches to avoid overwhelming R2/Trestle
+    for (let i = 0; i < updatedMedia.length; i += MAX_CONCURRENT) {
+      const batch = updatedMedia.slice(i, i + MAX_CONCURRENT);
+      await Promise.allSettled(batch.map(async (m, batchIdx) => {
+        const rawUrl = String(m.url || m.MediaURL || "");
+        if (!rawUrl || !TRESTLE_HOSTS.some(h => rawUrl.includes(h))) return;
+
+        const mediaType = String(m.mediaType || m.MediaCategory || "Photo");
+        const order = Number(m.order ?? m.Order ?? batchIdx);
+        const safe = listing.listing_id.replace(/[^a-zA-Z0-9_-]/g, "_");
+        const folder = mediaType === "FloorPlan" ? "floorplans" : "photos";
+        const key = `${folder}/${safe}/${order}.jpg`;
+
+        try {
+          // Skip if already in R2
+          if (await existsInR2(key)) {
+            updatedMedia[i + batchIdx] = { ...m, url: getR2PublicUrl(key), MediaURL: undefined };
+            changed = true;
+            return;
+          }
+
+          // Download from Trestle
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 8_000);
+          let resp: Response;
+          try {
+            resp = await fetch(rawUrl, {
+              headers: { Authorization: `Bearer ${token}`, Accept: "image/*" },
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(tid);
+          }
+          if (!resp.ok) return;
+
+          const buffer = Buffer.from(await resp.arrayBuffer());
+          const contentType = resp.headers.get("content-type") || "image/jpeg";
+          await uploadToR2(key, buffer, contentType);
+
+          // Swap to R2 URL in the media array
+          updatedMedia[i + batchIdx] = { ...m, url: getR2PublicUrl(key), MediaURL: undefined };
+          changed = true;
+        } catch {
+          // Non-fatal — keep original Trestle URL for this photo
+        }
+      }));
+    }
+
+    if (changed) {
+      try {
+        await prisma.listing.updateMany({
+          where: { listing_id: listing.listing_id },
+          data: { media: updatedMedia as unknown as Prisma.InputJsonValue },
+        });
+        migrated++;
+      } catch {
+        errors++;
+      }
+    }
+  }
+
+  console.log(`[R2 Migration] Complete: checked=${listings.length}, migrated=${migrated}, errors=${errors}`);
+  return { checked: listings.length, migrated, errors };
+}
+
+/**
  * Get the timestamp of the most recently synced listing.
  * Used for incremental sync.
  */
