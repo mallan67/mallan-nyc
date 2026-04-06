@@ -1005,7 +1005,9 @@ export async function GET(request: Request) {
               return 'Photo';
             }
 
-            const MEDIA_BATCH = 50;
+            // Batch in groups of 20 — large batches with low $top truncate results.
+            // Luxury NYC listings have 20-30+ media items; $top must cover all items in the batch.
+            const MEDIA_BATCH = 20;
             const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
             const chunks: typeof needsPhotos[] = [];
             for (let i = 0; i < needsPhotos.length; i += MEDIA_BATCH) {
@@ -1020,7 +1022,7 @@ export async function GET(request: Request) {
               mediaParams.set('$filter', mediaFilter);
               mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
               mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-              mediaParams.set('$top', String(chunk.length * 4));
+              mediaParams.set('$top', String(chunk.length * 10));
 
               const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
