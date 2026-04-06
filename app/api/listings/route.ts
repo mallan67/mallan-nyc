@@ -551,7 +551,14 @@ export async function GET(request: Request) {
                     try {
                       const media = await fetchListingMedia(listing.id);
                       if (media.length > 0) {
-                        listing.media = media;
+                        // Wrap raw Trestle URLs in proxy (WAF blocks direct browser access)
+                        const PROXY_HOSTS = ['cotality.com', 'corelogic.com'];
+                        listing.media = media.map(m => ({
+                          ...m,
+                          url: PROXY_HOSTS.some(h => m.url.includes(h))
+                            ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+                            : m.url,
+                        }));
                         listing.photosCount = media.filter(m => m.mediaType === 'Photo').length;
                       }
                     } catch { /* non-fatal */ }
@@ -1052,7 +1059,13 @@ export async function GET(request: Request) {
                   listingKeyNumeric: listing.listingKeyNumeric,
                 });
                 if (media.length > 0) {
-                  listing.media = media as typeof listing.media;
+                  const PH = ['cotality.com', 'corelogic.com'];
+                  listing.media = media.map(m => ({
+                    ...m,
+                    url: PH.some(h => m.url.includes(h))
+                      ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+                      : m.url,
+                  })) as typeof listing.media;
                 }
                 return { id: listing.listingId, count: media.length };
               }));

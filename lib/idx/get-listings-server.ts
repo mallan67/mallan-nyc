@@ -105,7 +105,13 @@ export async function getListingsServer(
                   listingKeyNumeric: listing.listingKeyNumeric,
                 });
                 if (media.length > 0) {
-                  listing.media = media as typeof listing.media;
+                  const PH = ['cotality.com', 'corelogic.com'];
+                  listing.media = media.map(m => ({
+                    ...m,
+                    url: PH.some(h => m.url.includes(h))
+                      ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
+                      : m.url,
+                  })) as typeof listing.media;
                 }
               } catch { /* non-fatal per listing */ }
             }));
