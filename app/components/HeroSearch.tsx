@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
+import { getSuggestions as getDictionarySuggestions } from '@/lib/search/nyc-dictionary';
+import type { DictionarySuggestion } from '@/lib/search/nyc-dictionary';
 
 type SearchTab = 'buy' | 'rent';
 
@@ -36,12 +38,14 @@ const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
 
 // Example queries shown as placeholder hints (rotate)
 const EXAMPLE_QUERIES = [
-  '2 bed midtown, pets, doorman',
-  'studio under $500K in Chelsea',
-  '3 bed condo UES with views',
-  'rent 1 bed Williamsburg no fee',
-  'pre-war co-op Upper West Side',
-  'loft in Tribeca under $3M',
+  '2br UES doorman under 3M',
+  'studio Chelsea no fee pet friendly',
+  'prewar coop Park Slope',
+  'wburg 1bed w/d near the L',
+  'sunny loft Tribeca with views',
+  'penthouse FiDi high floor',
+  'brownstone Brooklyn 2-4M',
+  'jr4 Gramercy elevator',
 ];
 
 export default function HeroSearch() {
@@ -103,13 +107,34 @@ export default function HeroSearch() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  // Fetch suggestions from API (debounced)
+  /** Convert a DictionarySuggestion to the SearchSuggestion shape used by the dropdown */
+  const toDictionarySearchSuggestion = useCallback(
+    (d: DictionarySuggestion): SearchSuggestion => ({
+      type: d.type === 'borough' ? 'neighborhood' : (d.type as SearchSuggestion['type']),
+      label: d.label,
+      sublabel: d.context ?? '',
+      value: d.value,
+    }),
+    [],
+  );
+
+  // Fetch suggestions: dictionary (instant) + API (background), merged & deduped
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 2) {
       setSuggestions([]);
       return;
     }
 
+    // 1. Instant dictionary results — no network wait
+    const dictHits = getDictionarySuggestions(searchQuery, 4)
+      .filter((d) => d.type === 'neighborhood' || d.type === 'borough')
+      .map(toDictionarySearchSuggestion);
+
+    if (dictHits.length > 0) {
+      setSuggestions(dictHits);
+    }
+
+    // 2. Background API fetch (addresses, listings, agents, additional neighborhoods)
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -117,19 +142,34 @@ export default function HeroSearch() {
     try {
       const res = await fetch(
         `/api/listings/suggest?q=${encodeURIComponent(searchQuery)}`,
-        { signal: controller.signal }
+        { signal: controller.signal },
       );
       const data = await res.json();
+
       if (data.success && data.suggestions?.length > 0) {
-        setSuggestions(data.suggestions);
-      } else {
+        const apiResults: SearchSuggestion[] = data.suggestions;
+
+        // Deduplicate: dictionary results take priority (they appeared first).
+        // Key on lowercase label to catch "Upper East Side" from both sources.
+        const seenLabels = new Set(dictHits.map((s) => s.label.toLowerCase()));
+        const dedupedApi = apiResults.filter(
+          (s) => !seenLabels.has(s.label.toLowerCase()),
+        );
+
+        // Merge: dictionary first, then API, capped at 6 total
+        setSuggestions([...dictHits, ...dedupedApi].slice(0, 6));
+      } else if (dictHits.length === 0) {
         setSuggestions([]);
       }
+      // If API returned nothing but we have dictHits, keep them (already set above)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      setSuggestions([]);
+      // On API error, keep dictionary results if any
+      if (dictHits.length === 0) {
+        setSuggestions([]);
+      }
     }
-  }, []);
+  }, [toDictionarySearchSuggestion]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
