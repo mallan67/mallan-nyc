@@ -1025,12 +1025,20 @@ export async function GET(request: Request) {
               mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
               mediaParams.set('$top', String(chunk.length * 15));
 
-              const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+              const mediaUrl = `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`;
+              console.log(`[Listings] Media batch fetch: ${ids.length} listings, URL length=${mediaUrl.length}`);
+              const res = await fetch(mediaUrl, {
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
               });
-              if (!res.ok) return;
+              if (!res.ok) { console.warn(`[Listings] Media batch failed: ${res.status}`); return; }
               const data = await res.json();
-              for (const m of (data.value || [])) {
+              const records = data.value || [];
+              console.log(`[Listings] Media batch returned ${records.length} items for ${ids.length} listings. IDs requested: ${ids.slice(0,5).join(',')}`);
+              // Log which requested IDs got media and which didn't
+              const returnedIds = new Set(records.map((m: Record<string, unknown>) => String(m.ResourceRecordID || '')));
+              const missingIds = ids.filter(id => !returnedIds.has(id));
+              if (missingIds.length > 0) console.warn(`[Listings] ${missingIds.length} listings got 0 media: ${missingIds.slice(0,5).join(',')}`);
+              for (const m of records) {
                 const lid = String(m.ResourceRecordID || '');
                 if (!lid || !m.MediaURL) continue;
                 const mediaType = classifyMedia(m);
