@@ -9,8 +9,8 @@
  * Only revalidation triggers a fresh Trestle call.
  */
 
-import { fetchFromTrestle } from './fetch';
-import { getAccessToken, hasCredentials } from './auth';
+import { fetchFromTrestle, fetchListingMedia } from './fetch';
+import { hasCredentials } from './auth';
 import { checkDistributionGates } from './trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from './mapping';
 import { toPublicDTO, type PublicListingDTO } from './public-dto';
@@ -90,65 +90,25 @@ export async function getListingsServer(
     // Take page
     const pageListings = mapped.slice(0, limit);
 
-    // Batch-fetch media (photos, floor plans, videos) for listings
+    // Fetch media per-listing using fetchListingMedia (proven reliable).
+    // Batch OR queries on Trestle Media are unreliable for ~50% of listings.
     if (pageListings.length > 0) {
       try {
-        const token = await getAccessToken();
-        const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
         const needsMedia = pageListings.filter(l => l.media.length === 0);
         if (needsMedia.length > 0) {
-          // Batch in groups of 20 to avoid OData $top truncation.
-          // Luxury listings have 20-30+ media items. A single query with 50 listings
-          // and $top=400 only covers the first ~15 alphabetically — the rest get nothing.
-          const MEDIA_BATCH = 20;
-          for (let bi = 0; bi < needsMedia.length; bi += MEDIA_BATCH) {
-            const batchListings = needsMedia.slice(bi, bi + MEDIA_BATCH);
-            const filterParts2 = batchListings.map(l => `ResourceRecordID eq '${l.listingId.replace(/'/g, "''")}'`);
-            // No Order/MediaCategory filter — null values in OData cause false negatives
-            // (null Order AND null MediaCategory = false, filtering out ALL media).
-            // Limit via $top; client-side takes first 3 photos per listing after sorting.
-            const mediaParams = new URLSearchParams();
-            mediaParams.set('$filter', `(${filterParts2.join(' or ')})`);
-            mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN');
-            mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
-            mediaParams.set('$top', String(batchListings.length * 15));
-
-            const mediaResponse = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-              headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-            });
-
-            if (mediaResponse.ok) {
-              const mediaData = await mediaResponse.json();
-              const mediaRecords = mediaData.value || [];
-
-              const mediaByListing = new Map<string, { url: string; mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour'; order: number }[]>();
-              for (const m of mediaRecords) {
-                const lid = String(m.ResourceRecordID || '');
-                if (!lid || !m.MediaURL) continue;
-                const cat = String(m.MediaCategory || '').toLowerCase();
-                let mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' = 'Photo';
-                if (cat.includes('floor plan')) mediaType = 'FloorPlan';
-                else if (cat.includes('video')) mediaType = 'Video';
-                else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
-                const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-                if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-                mediaByListing.get(lid)!.push({
-                  url: String(m.MediaURL),
-                  mediaType,
-                  order: isPreferred ? -1 : Number(m.Order ?? 0),
+          const CONCURRENCY = 5;
+          for (let i = 0; i < needsMedia.length; i += CONCURRENCY) {
+            const batch = needsMedia.slice(i, i + CONCURRENCY);
+            await Promise.allSettled(batch.map(async (listing) => {
+              try {
+                const media = await fetchListingMedia(listing.listingId, {
+                  listingKeyNumeric: listing.listingKeyNumeric,
                 });
-              }
-              for (const listing of batchListings) {
-                const media = mediaByListing.get(listing.listingId);
-                if (media && media.length > 0) {
-                  const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
-                  listing.media = media.sort((a, b) => {
-                    const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
-                    return rankDiff !== 0 ? rankDiff : a.order - b.order;
-                  });
+                if (media.length > 0) {
+                  listing.media = media as typeof listing.media;
                 }
-              }
-            }
+              } catch { /* non-fatal per listing */ }
+            }));
           }
         }
       } catch {
