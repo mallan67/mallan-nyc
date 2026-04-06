@@ -281,7 +281,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 
   // Find listings with empty or null media
   const listings = await prisma.$queryRaw<{ listing_id: string }[]>`
-    SELECT listing_id FROM "Listing"
+    SELECT listing_id FROM "listings"
     WHERE (media IS NULL OR media::text = '[]' OR media::text = '{}')
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
       AND sync_status IS DISTINCT FROM 'gated:participant_only'
@@ -392,7 +392,7 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
 
   // Find listings with Trestle media URLs (not yet cached to R2)
   const listings = await prisma.$queryRaw<{ id: bigint; listing_id: string; media: unknown }[]>`
-    SELECT id, listing_id, media FROM "Listing"
+    SELECT id, listing_id, media FROM "listings"
     WHERE media IS NOT NULL AND media::text != '[]' AND media::text != '{}'
       AND (media::text LIKE '%cotality.com%' OR media::text LIKE '%corelogic.com%')
     ORDER BY modification_timestamp DESC NULLS LAST

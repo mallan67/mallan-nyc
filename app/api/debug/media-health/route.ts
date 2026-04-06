@@ -37,18 +37,18 @@ export async function GET(req: NextRequest) {
       where: { status: { in: ["Active", "ComingSoon", "ActiveUnderContract"] } },
     });
     const emptyMedia = await prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*) as count FROM "Listing"
+      SELECT COUNT(*) as count FROM "listings"
       WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')
         AND (media IS NULL OR media::text = '[]' OR media::text = '{}')
     `;
     const trestleUrls = await prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*) as count FROM "Listing"
+      SELECT COUNT(*) as count FROM "listings"
       WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')
         AND media IS NOT NULL AND media::text != '[]'
         AND (media::text LIKE '%cotality.com%' OR media::text LIKE '%corelogic.com%')
     `;
     const r2Urls = await prisma.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*) as count FROM "Listing"
+      SELECT COUNT(*) as count FROM "listings"
       WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')
         AND media IS NOT NULL AND media::text != '[]'
         AND media::text LIKE '%r2.dev%' OR media::text LIKE '%mallan.nyc/photos%'
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
   // 5. Test actual photo fetch (pick first listing with media)
   try {
     const sample = await prisma.$queryRaw<{ listing_id: string; media: unknown }[]>`
-      SELECT listing_id, media FROM "Listing"
+      SELECT listing_id, media FROM "listings"
       WHERE status = 'Active' AND media IS NOT NULL AND media::text != '[]'
       LIMIT 1
     `;
