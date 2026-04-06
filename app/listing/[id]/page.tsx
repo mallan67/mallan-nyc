@@ -167,7 +167,6 @@ async function fetchLastSaleFromACRIS(
 
     return null;
   } catch (err) {
-    console.warn('[ACRIS fallback] Error:', err);
     return null;
   }
 }
@@ -212,7 +211,6 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
   try {
     dto = toPublicDTO(listing);
   } catch (dtoErr) {
-    console.error(`[/listing/${debugId}] toPublicDTO failed:`, dtoErr);
     return null;
   }
 
@@ -230,7 +228,6 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
       dto.photosCount = mediaItems.length;
     }
   } catch (mediaErr) {
-    console.warn(`[/listing/${debugId}] Media fetch failed:`, mediaErr);
     // Non-fatal — listing displays without photos
   }
 
@@ -466,7 +463,6 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       tax: { taxBlock: null, taxLot: null },
     };
   } catch (err) {
-    console.warn(`[/listing/${slug}] DB lookup failed (non-fatal):`, err);
     return null;
   }
 }
@@ -568,7 +564,7 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
     const dbResult = await fetchFromDB(slug, keyOverride);
     if (dbResult) return dbResult;
   } catch (err) {
-    console.warn(`[/listing/${slug}] DB lookup failed:`, err);
+    // DB lookup failed — fall through to Trestle
   }
 
   // Fallback 1: direct Trestle fetch (slower but freshest data)
@@ -582,7 +578,7 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
       ]);
       if (trestleResult) return trestleResult;
     } catch (err) {
-      console.error(`[/listing/${slug}] Trestle fetch failed:`, err);
+      // Trestle fetch failed — fall through to API fallback
     }
   }
 
@@ -690,7 +686,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
   try {
     result = await fetchListing(id, key);
   } catch (err) {
-    console.error(`[/listing/${id}] Fatal fetch error:`, err);
+    // Fatal fetch error — will show notFound()
   }
 
   if (!result) {

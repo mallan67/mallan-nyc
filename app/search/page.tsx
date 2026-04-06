@@ -27,8 +27,8 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.warn('[SearchMap] Map failed to load:', error.message, info.componentStack?.slice(0, 200));
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    // Error boundary renders fallback UI — no console logging in production
   }
   render() {
     if (this.state.hasError) {
@@ -329,6 +329,7 @@ function SearchClient() {
     borough: resolvedSearch.borough || boroughParam || undefined,
     zipCodes: zipParam || (/^\d{5}$/.test(searchQuery?.trim() || '') ? searchQuery.trim() : undefined),
     address: resolvedSearch.address || undefined,
+    keywords: nl?.keywords,
     limit: 50,
   });
 
