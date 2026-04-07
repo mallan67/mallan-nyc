@@ -88,6 +88,7 @@ function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: strin
         src={images[idx]?.url || '/images/listing-placeholder.svg'}
         alt={alt}
         aspect="card"
+        className="scale-[1.03]"
       />
       {images.length > 1 && (
         <>
