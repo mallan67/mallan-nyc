@@ -84,12 +84,14 @@ function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: strin
       onTouchMove={swipe.onTouchMove}
       onTouchEnd={swipe.onTouchEnd}
     >
-      <IDXImage
-        src={images[idx]?.url || '/images/listing-placeholder.svg'}
-        alt={alt}
-        aspect="card"
-        className="scale-[1.03]"
-      />
+      {/* Scale inner content so overflow-hidden on parent crops white-bordered source images */}
+      <div className="absolute inset-0 scale-[1.06]">
+        <IDXImage
+          src={images[idx]?.url || '/images/listing-placeholder.svg'}
+          alt={alt}
+          aspect="card"
+        />
+      </div>
       {images.length > 1 && (
         <>
           <button
