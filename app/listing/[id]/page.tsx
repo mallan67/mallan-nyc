@@ -1019,6 +1019,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
         beds={listing.bedroomsTotal}
         baths={listing.bathroomsFull}
         type={isRental ? 'rent' : 'sale'}
+        officeName={listing.listOfficeName}
       />
       <ListingViewTracker />
       <TrackListingView listingId={listing.id} refSource={refSource} />

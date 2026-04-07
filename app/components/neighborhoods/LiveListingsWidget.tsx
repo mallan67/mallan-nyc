@@ -226,7 +226,7 @@ function ListingCard({ listing }: { listing: ListingItem }) {
         </p>
 
         {/* REBNY Compliance H1/F6: "Listing Courtesy of [Broker Name]" - REQUIRED */}
-        <p className="text-[11px] text-brand-dark/75 mt-2">
+        <p className="text-sm text-brand-dark/55 mt-2.5 pt-2 border-t border-brand-gold-deep/8 font-light">
           Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
         </p>
       </div>

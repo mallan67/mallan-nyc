@@ -94,14 +94,17 @@ export default function RecentlyViewed() {
                 </div>
               )}
               <div className="py-1.5 min-w-0">
-                <p className="text-xs font-semibold text-brand-dark truncate max-w-[140px]">
+                <p className="text-xs font-semibold text-brand-dark truncate max-w-[160px]">
                   {formatPrice(item.price, item.type)}
                 </p>
-                <p className="text-[10px] text-brand-dark/60 truncate max-w-[140px]">
+                <p className="text-[10px] text-brand-dark/60 truncate max-w-[160px]">
                   {item.address}
                 </p>
                 <p className="text-[10px] text-brand-dark/40">
                   {item.beds === 0 ? 'Studio' : `${item.beds} bed`} / {item.baths} bath
+                </p>
+                <p className="text-[10px] text-brand-dark/40 truncate max-w-[160px]">
+                  Courtesy of {(item as unknown as { officeName?: string }).officeName || 'REBNY RLS'}
                 </p>
               </div>
             </Link>

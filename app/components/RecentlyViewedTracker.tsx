@@ -11,6 +11,7 @@ interface RecentlyViewedItem {
   beds: number;
   baths: number;
   type: 'sale' | 'rent';
+  officeName?: string;
   viewedAt: number;
 }
 
@@ -22,7 +23,7 @@ const MAX_ITEMS = 12;
  * Drop this into the listing detail page as a client component.
  */
 export default function RecentlyViewedTracker({
-  id, slug, address, price, photo, beds, baths, type,
+  id, slug, address, price, photo, beds, baths, type, officeName,
 }: Omit<RecentlyViewedItem, 'viewedAt'>) {
   useEffect(() => {
     try {
@@ -31,7 +32,7 @@ export default function RecentlyViewedTracker({
       // Remove duplicate if already viewed
       const filtered = items.filter((item) => item.id !== id);
       // Add to front
-      filtered.unshift({ id, slug, address, price, photo, beds, baths, type, viewedAt: Date.now() });
+      filtered.unshift({ id, slug, address, price, photo, beds, baths, type, officeName, viewedAt: Date.now() });
       // Cap at MAX_ITEMS
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered.slice(0, MAX_ITEMS)));
       // Reset dismiss flag so strip reappears with new content
@@ -39,7 +40,7 @@ export default function RecentlyViewedTracker({
     } catch {
       // localStorage unavailable — no-op
     }
-  }, [id, slug, address, price, photo, beds, baths, type]);
+  }, [id, slug, address, price, photo, beds, baths, type, officeName]);
 
   return null;
 }

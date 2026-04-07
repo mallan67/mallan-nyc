@@ -363,8 +363,8 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
-                    <span style={{ fontSize: 10, color: '#999' }}>
-                      RLS · {listing.listOfficeName}
+                    <span style={{ fontSize: 12, color: '#777' }}>
+                      Courtesy of {listing.listOfficeName || 'REBNY RLS'}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#C4A052' }}>
                       View &rarr;

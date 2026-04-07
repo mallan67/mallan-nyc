@@ -195,12 +195,14 @@ export default function OpenHousesList() {
                           <div className="pt-3 border-t border-black/5 flex justify-between items-center">
                             <div className="text-sm">
                               <p className="font-medium">{oh.agentName}</p>
-                              <a
-                                href={`tel:${oh.agentPhone.replace(/[^0-9]/g, '')}`}
-                                className="text-brand-gold hover:underline"
-                              >
-                                {oh.agentPhone}
-                              </a>
+                              {oh.agentPhone && (
+                                <a
+                                  href={`tel:${oh.agentPhone.replace(/[^0-9]/g, '')}`}
+                                  className="text-brand-gold hover:underline"
+                                >
+                                  {oh.agentPhone}
+                                </a>
+                              )}
                             </div>
                             <OpenHouseRSVP
                               openHouseId={oh.id}
@@ -210,6 +212,10 @@ export default function OpenHousesList() {
                               variant="button"
                             />
                           </div>
+                          {/* REBNY RLS Attribution — required on all listing displays */}
+                          <p className="text-sm text-brand-dark/55 mt-2.5 pt-2 border-t border-brand-gold-deep/8 font-light">
+                            Listing Courtesy of {oh.agentName || 'REBNY RLS'}
+                          </p>
                         </div>
                       </div>
                     ))}

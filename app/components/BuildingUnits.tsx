@@ -260,8 +260,8 @@ export default function BuildingUnits({
                       </Link>
                     ))}
 
-                    <p className="text-[10px] text-brand-dark/40 mt-2">
-                      {activeUnits.map((u) => `Courtesy of ${u.office}`).filter((v, i, a) => a.indexOf(v) === i).join(' | ')}
+                    <p className="text-sm text-brand-dark/55 mt-2.5 pt-2 border-t border-brand-gold-deep/8 font-light">
+                      {activeUnits.map((u) => `Listing Courtesy of ${u.office || 'REBNY RLS'}`).filter((v, i, a) => a.indexOf(v) === i).join(' | ')}
                     </p>
                   </>
                 ) : null}
