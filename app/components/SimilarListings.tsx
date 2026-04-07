@@ -88,8 +88,8 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
           {item.propertyType}{item.neighborhood ? ` · ${item.neighborhood}` : ''}
         </p>
         <div className="flex-1 min-h-[8px]" />
-        <p className="text-sm text-brand-dark/55 pt-2 mt-1.5 border-t border-brand-gold-deep/8 font-light truncate">
-          Listing Courtesy of {item.office || 'REBNY RLS'}
+        <p className="text-[11px] text-brand-dark/45 pt-1.5 mt-1.5 font-light truncate">
+          RLS · Listing Courtesy of {item.office || 'REBNY RLS'}
         </p>
       </div>
     </Link>

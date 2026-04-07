@@ -113,8 +113,8 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
         {isRental && listing.moveInCosts && (
           <p className="text-sm text-brand-dark/70 mt-1">Move-In: {listing.moveInCosts}</p>
         )}
-        <p className="text-sm text-brand-dark/55 mt-2.5 pt-2 border-t border-brand-gold-deep/8 font-light">
-          Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+        <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
           {listing.modificationTimestamp && (
             <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>
           )}
@@ -197,8 +197,8 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         {isRental && listing.moveInCosts && (
           <p className="text-sm text-brand-dark/70 mt-1">Move-In: {listing.moveInCosts}</p>
         )}
-        <p className="text-sm text-brand-dark/55 mt-2 pt-2 border-t border-brand-gold-deep/8 font-light">
-          Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+        <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
           {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
         </p>
       </div>
@@ -329,8 +329,8 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         {isRental && listing.moveInCosts && (
           <p className="text-[13px] text-brand-dark/70 mt-0.5">Move-In: {listing.moveInCosts}</p>
         )}
-        <p className="text-sm text-brand-dark/55 mt-2 pt-2 border-t border-brand-gold-deep/8 font-light">
-          Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+        <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
           {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
         </p>
       </Link>

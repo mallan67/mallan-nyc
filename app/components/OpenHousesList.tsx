@@ -213,8 +213,8 @@ export default function OpenHousesList() {
                             />
                           </div>
                           {/* REBNY RLS Attribution — required on all listing displays */}
-                          <p className="text-sm text-brand-dark/55 mt-2.5 pt-2 border-t border-brand-gold-deep/8 font-light">
-                            Listing Courtesy of {oh.agentName || 'REBNY RLS'}
+                          <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
+                            RLS · Listing Courtesy of {oh.agentName || 'REBNY RLS'}
                           </p>
                         </div>
                       </div>

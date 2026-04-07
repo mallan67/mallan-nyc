@@ -103,8 +103,8 @@ export default function RecentlyViewed() {
                 <p className="text-[10px] text-brand-dark/40">
                   {item.beds === 0 ? 'Studio' : `${item.beds} bed`} / {item.baths} bath
                 </p>
-                <p className="text-[10px] text-brand-dark/40 truncate max-w-[160px]">
-                  Courtesy of {(item as unknown as { officeName?: string }).officeName || 'REBNY RLS'}
+                <p className="text-[9px] text-brand-dark/35 truncate max-w-[160px]">
+                  RLS · {(item as unknown as { officeName?: string }).officeName || 'REBNY RLS'}
                 </p>
               </div>
             </Link>

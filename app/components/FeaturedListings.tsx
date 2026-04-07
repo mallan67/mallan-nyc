@@ -79,7 +79,7 @@ function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: strin
 
   return (
     <div
-      className="relative overflow-hidden aspect-[4/3] bg-gray-50 touch-pan-y"
+      className="relative overflow-hidden aspect-[4/3] bg-gray-100 touch-pan-y"
       onTouchStart={swipe.onTouchStart}
       onTouchMove={swipe.onTouchMove}
       onTouchEnd={swipe.onTouchEnd}
@@ -230,8 +230,8 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
               CC: ${cc.toLocaleString()}/mo
             </p>
           )}
-          <p className="text-sm text-brand-dark/55 mt-2.5 pt-2 border-t border-brand-gold-deep/8 font-light">
-            Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+          <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
+            RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
           </p>
         </Link>
 
