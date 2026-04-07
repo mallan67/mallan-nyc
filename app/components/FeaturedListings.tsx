@@ -69,7 +69,7 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-function PhotoGallery({ photos }: { photos: { url: string; mediaType: string }[] }) {
+function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: string }[]; alt: string }) {
   const [idx, setIdx] = useState(0);
   const images = photos.length > 0 ? photos : [{ url: '/images/listing-placeholder.svg', mediaType: 'Photo' }];
 
@@ -86,7 +86,7 @@ function PhotoGallery({ photos }: { photos: { url: string; mediaType: string }[]
     >
       <IDXImage
         src={images[idx]?.url || '/images/listing-placeholder.svg'}
-        alt="Listing photo"
+        alt={alt}
         aspect="card"
       />
       {images.length > 1 && (
@@ -96,14 +96,14 @@ function PhotoGallery({ photos }: { photos: { url: string; mediaType: string }[]
             className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
             aria-label="Previous photo"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); goNext(); }}
             className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
             aria-label="Next photo"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
           <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-20">
             {idx + 1}/{images.length}
@@ -203,7 +203,7 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
         </span>
       )}
       <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer group">
-        <PhotoGallery photos={photos} />
+        <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
       </Link>
 
       <div className="p-5 md:p-6">
@@ -243,10 +243,10 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
             className="flex items-center justify-between w-full text-[12px] group/calc"
           >
             <span className="flex items-center gap-1.5 text-brand-dark/85 group-hover/calc:text-brand-dark transition-colors">
-              <svg className="w-4 h-4 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <svg className="w-4 h-4 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               {isRental ? 'Rent vs Buy Calculator' : 'Mortgage + Closing Costs'}
             </span>
-            <svg className={`w-4 h-4 text-brand-dark/85 transition-transform ${calcOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            <svg className={`w-4 h-4 text-brand-dark/85 transition-transform ${calcOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </button>
           {calcOpen && (
             <div className="mt-3 animate-in">

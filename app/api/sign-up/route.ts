@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma';
 import dns from 'dns/promises';
 import { isDisposableDomain } from '@/lib/disposable-domains';
 import { hashPassword } from '@/lib/auth';
+import { randomInt } from 'crypto';
+import { sendEmail } from '@/lib/email/sendgrid';
 
 const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
 
@@ -159,6 +161,31 @@ export async function POST(req: NextRequest) {
       } as any,
     });
 
+    // ── Send email verification code (self-signup only) ──
+    const verifyCode = randomInt(100000, 999999).toString();
+    const verifyExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { email_verify_token: verifyCode, email_verify_expires: verifyExpires },
+    });
+    // Fire-and-forget — don't block signup response on email delivery
+    sendEmail(
+      email.trim().toLowerCase(),
+      'Verify Your Email — Mallan Real Estate',
+      `<div style="font-family:'Inter',system-ui,sans-serif;max-width:460px;margin:0 auto;padding:32px;">
+        <h2 style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">Verify Your Email</h2>
+        <p style="font-size:14px;color:#6b7280;margin-bottom:24px;">Hi ${firstName.trim()}, enter this code to verify your email:</p>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+          <span style="font-family:'Courier New',monospace;font-size:32px;font-weight:700;letter-spacing:8px;color:#111;">${verifyCode}</span>
+        </div>
+        <p style="font-size:12px;color:#9ca3af;">This code expires in 15 minutes.</p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+        <p style="font-size:11px;color:#9ca3af;">Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128</p>
+      </div>`,
+      undefined,
+      { channel: 'company' }
+    ).catch(() => { /* non-fatal */ });
+
     // Notify ALL brokers of the new unassigned lead
     const brokers = await prisma.agent.findMany({
       where: { role: 'BROKER' },
@@ -202,7 +229,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: 'Account created successfully. You will be contacted shortly.',
+        message: 'Account created. Please check your email for a verification code.',
+        requiresVerification: true,
         id: lead.id.toString(),
         role: portalRole,
       },

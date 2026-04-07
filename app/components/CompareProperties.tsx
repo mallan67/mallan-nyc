@@ -112,14 +112,10 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
     Promise.all(
       entries.map(async (entry) => {
         try {
-          const res = await fetch(`/api/listings?limit=1&type=${entry.listingType}`);
+          const res = await fetch(`/api/listings/${encodeURIComponent(entry.id)}`);
           if (!res.ok) return null;
           const data = await res.json();
-          // Find matching listing by ID
-          const match = data.listings?.find(
-            (l: ListingDetail) => l.id === entry.id
-          );
-          return match || null;
+          return data?.listing || data || null;
         } catch {
           return null;
         }

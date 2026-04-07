@@ -107,6 +107,7 @@ export async function POST(
         password_hash: hash,
         portal_token: null, // Consume the token (single-use)
         portal_token_expires_at: null,
+        email_verified_at: new Date(), // Invited clients are pre-verified by agent/broker
         status: "active",
       },
     });

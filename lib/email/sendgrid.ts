@@ -53,7 +53,7 @@ function getTransporter(): nodemailer.Transporter {
         pass: SMTP_PASS,
       },
       tls: {
-        ciphers: "SSLv3",
+        minVersion: "TLSv1.2",
         rejectUnauthorized: true,
       },
     });
@@ -80,12 +80,12 @@ export async function sendEmail(
     channel?: SendChannel;
     replyTo?: string;
   }
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean }> {
   if (!isConfigured) {
-    // Dev mode: log to console instead of sending
-    console.log(`[Email:DEV] To: ${to} | Subject: ${subject} | Channel: ${opts?.channel || "company"} | Body length: ${html.length} chars`);
+    // Dev mode: log WARNING — emails are NOT actually sent
+    console.warn(`[Email:DEV] SMTP not configured (SMTP_USER/SMTP_PASS missing). Email NOT sent. To: ${to} | Subject: ${subject}`);
     await logEmailAudit("send_dev", to, subject, user);
-    return { success: true, messageId: "dev-mode" };
+    return { success: true, messageId: "dev-mode", _devMode: true };
   }
 
   // Resolve sender identity based on channel
@@ -145,7 +145,7 @@ export async function sendTemplatedEmail(
   templateKey: string,
   dynamicData: Record<string, unknown>,
   user?: SessionUser
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean }> {
   console.warn(
     `[Email] sendTemplatedEmail called with key "${templateKey}". ` +
     `SendGrid templates are no longer configured — use sendEmail() with pre-rendered HTML.`

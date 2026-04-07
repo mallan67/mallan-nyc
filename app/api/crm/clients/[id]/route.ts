@@ -59,11 +59,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 
   // Fetch recent activity logs
-  const activityLogs = await prisma.activityLog.findMany({
-    where: { lead_id: lead.id },
-    orderBy: { created_at: "desc" },
-    take: 10,
-  }).catch(() => []);
+  let activityLogs: { id: bigint; activity_type: string; title: string | null; detail: string | null; created_at: Date }[] = [];
+  try {
+    activityLogs = await prisma.activityLog.findMany({
+      where: { lead_id: lead.id },
+      orderBy: { created_at: "desc" },
+      take: 10,
+    });
+  } catch (logErr) {
+    console.error("[CRM:Clients] Activity log fetch error:", logErr);
+  }
 
   return NextResponse.json({
     id: lead.id.toString(),

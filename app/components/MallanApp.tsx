@@ -177,13 +177,13 @@ function Lightbox({ items, startIndex = 0, onClose }: { items: { src: string; al
       </div>
       <div className="flex-1 overflow-hidden flex items-center justify-center">
         <div className="relative w-full h-full" style={{ transform: `scale(${scale})` }}>
-          <Image src={items[i].src} alt={items[i].alt || ""} fill className="object-contain select-none" unoptimized />
+          <Image src={items[i].src} alt={items[i].alt || ""} fill className="object-contain select-none" sizes="100vw" />
         </div>
       </div>
       <div className="p-3 overflow-x-auto whitespace-nowrap bg-black/60">
         {items.map((it, idx) => (
           <button key={idx} onClick={() => setI(idx)} className={`inline-block mr-2 ${idx === i ? "ring-2 ring-white" : ""}`}>
-            <Image src={it.src} alt="" width={96} height={64} className="h-16 w-24 object-cover" unoptimized />
+            <Image src={it.src} alt="" width={96} height={64} className="h-16 w-24 object-cover" loading="lazy" />
           </button>
         ))}
       </div>
@@ -199,7 +199,7 @@ function ExpandableMedia({ items }: { items: { src: string; alt?: string }[] }) 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {items.slice(0, 6).map((m, idx) => (
           <button key={idx} className="relative group h-40" onClick={() => { setStartIndex(idx); setOpen(true); }}>
-            <Image src={m.src} alt={m.alt || "Listing media"} fill className="rounded-xl object-cover" unoptimized />
+            <Image src={m.src} alt={m.alt || "Listing media"} fill className="rounded-xl object-cover" sizes="(max-width: 768px) 50vw, 33vw" loading="lazy" />
             <span className="absolute bottom-2 right-2 text-xs bg-black/70 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 z-10">Expand 🔍</span>
           </button>
         ))}
@@ -284,7 +284,7 @@ function ListingCard({ listing, onSelect, selected }: { listing: Listing; onSele
   return (
     <div className="rounded-2xl border overflow-hidden">
       <div className="relative w-full h-44">
-        <Image src={media[0]?.src || ""} alt={media[0]?.alt || listing.address} fill className="object-cover" unoptimized />
+        <Image src={media[0]?.src || ""} alt={media[0]?.alt || listing.address} fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" loading="lazy" />
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between">
@@ -674,7 +674,7 @@ export default function MallanApp() {
       {/* Hero with search */}
       <section id="home" className="relative">
         <div className="relative w-full h-[42vh]">
-          <Image src={heroMedia} alt="NYC skyline" fill className="object-cover" priority unoptimized />
+          <Image src={heroMedia} alt="NYC skyline" fill className="object-cover" priority sizes="100vw" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         <div className="absolute inset-0 flex items-end">

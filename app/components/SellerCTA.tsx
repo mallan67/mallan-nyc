@@ -4,7 +4,7 @@ export default function SellerCTA() {
   return (
     <section className="px-4 sm:px-6 md:px-12 lg:px-20 py-16 md:py-24">
       <div className="max-w-6xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center rounded-3xl bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] p-8 md:p-12 lg:p-16 overflow-hidden">
+        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center rounded-3xl bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-8 md:p-12 lg:p-16 overflow-hidden gold-glow">
           {/* Left — Copy */}
           <div>
             <p className="text-brand-gold text-[11px] font-medium tracking-[0.2em] uppercase mb-4">
@@ -43,10 +43,10 @@ export default function SellerCTA() {
             ].map((item) => (
               <div
                 key={item.label}
-                className="rounded-2xl p-5"
+                className="rounded-2xl p-5 transition-all duration-500 hover:scale-[1.02]"
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(184,134,11,0.04)',
+                  border: '1px solid rgba(184,134,11,0.1)',
                 }}
               >
                 <p className="text-2xl font-display font-bold text-brand-gold mb-0.5">

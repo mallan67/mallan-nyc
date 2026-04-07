@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
+  title: "Verify Email — Mallan Real Estate",
   robots: { index: false, follow: false },
 };
 
-export default function ClientAccessLayout({ children }: { children: ReactNode }) {
+export default function VerifyEmailLayout({ children }: { children: ReactNode }) {
   return children;
 }

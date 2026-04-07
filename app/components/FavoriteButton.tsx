@@ -69,6 +69,7 @@ export default function FavoriteButton({ listing, size = 'sm', className = '' }:
         fill={active ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeWidth={active ? 0 : 2}
+        aria-hidden="true"
       >
         <path
           strokeLinecap="round"

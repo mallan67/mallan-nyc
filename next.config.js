@@ -9,6 +9,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'picsum.photos', pathname: '/**' },
       { protocol: 'https', hostname: '*.trestle.com', pathname: '/**' },
       { protocol: 'https', hostname: 'api.cotality.com', pathname: '/**' },
       { protocol: 'https', hostname: '*.r2.dev', pathname: '/**' },

@@ -1054,7 +1054,7 @@ export async function GET(request: Request) {
         const { fetchListingMedia } = await import('@/lib/idx/fetch');
         const photoPromise = (async () => {
           const needsPhotos = pageListings.filter(l => l.media.length === 0);
-          console.log(`[Photos] ${needsPhotos.length}/${pageListings.length} listings need media`);
+          // Batch photo fetch for listings missing media
           if (needsPhotos.length === 0) return;
 
           // Phase 1: Fetch from Trestle per-listing
@@ -1078,11 +1078,11 @@ export async function GET(request: Request) {
                 return { id: listing.listingId, count: media.length };
               }));
               const summary = results.map(r => r.status === 'fulfilled' ? `${r.value.id}:${r.value.count}` : `ERR:${(r as PromiseRejectedResult).reason?.message?.substring(0,30)}`);
-              console.log(`[Photos] Batch ${i/CONCURRENCY}: ${summary.join(', ')}`);
+              // Photo batch result logged via audit trail
             }
           } catch (e) { console.warn('[Photos] Phase 1 error:', e instanceof Error ? e.message : e); }
           const afterPhase1 = pageListings.filter(l => l.media.length === 0).length;
-          console.log(`[Photos] After Trestle fetch: ${afterPhase1} still empty`);
+          // Remaining empty listings fall through to DB phase
 
           // Phase 2: For listings STILL empty, check DB (photos from sync/backfill)
           const stillEmpty = pageListings.filter(l => l.media.length === 0);

@@ -1344,7 +1344,9 @@ var SalesCRM = (function () {
       _scheduleShowing();
     } else if (action === 'send_weekly_report') {
       CRM.toast('Sending weekly report...', 'info');
-      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'weekly_report', client_ids: [String(cl.id)] }) })
+      var rptSubject = 'Weekly Listing Update — ' + (cl.name || 'Your Properties');
+      var rptBody = 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere is your weekly listing update from Mallan Real Estate.\n\nPlease reach out if you have any questions.\n\nBest regards,\nMallan Real Estate Inc.';
+      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'weekly_report', client_ids: [String(cl.id)], subject: rptSubject, body: rptBody }) })
         .then(function () { CRM.toast('Weekly report sent!', 'success'); })
         .catch(function () { CRM.toast('Send failed', 'error'); });
     }

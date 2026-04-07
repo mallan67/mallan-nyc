@@ -75,7 +75,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
-    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListAgentOfficePhone,ListOfficeName,PublicRemarks,PhotosCount,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN)');
+    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListAgentOfficePhone,ListOfficeName,PublicRemarks,PhotosCount,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,Permission,ParticipantOnlyYN)');
 
     const res = await fetch(`${base}/odata/OpenHouse?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -117,8 +117,8 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         sqft: (prop.LivingArea as number) || 0,
         type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
         openHouseType: (r.OpenHouseType as string) || 'Public',
-        agentName: (prop.ListAgentFullName as string) || '',
-        agentPhone: (prop.ListAgentDirectPhone as string) || (prop.ListAgentOfficePhone as string) || '',
+        agentName: (prop.ListOfficeName as string) || 'Mallan Real Estate Inc.',
+        agentPhone: '',
         description: (prop.PublicRemarks as string) || '',
         image: '', // Will be filled by media proxy if needed
         featured: false,
@@ -178,7 +178,7 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
     // Filter out non-displayable listings
     const displayableOH = ohRecords.filter((r: Record<string, unknown>) => {
       const prop = propMap.get(r.ListingKey as string);
-      if (!prop) return true; // No property data — allow (open house record exists)
+      if (!prop) return false; // No property data — fail closed (cannot verify distribution gates)
       return checkDistributionGates(prop as Record<string, unknown>).displayable;
     });
 
@@ -203,8 +203,8 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
         sqft: (prop.LivingArea as number) || 0,
         type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
         openHouseType: (r.OpenHouseType as string) || 'Public',
-        agentName: (prop.ListAgentFullName as string) || '',
-        agentPhone: (prop.ListAgentDirectPhone as string) || '',
+        agentName: (prop.ListOfficeName as string) || 'Mallan Real Estate Inc.',
+        agentPhone: '',
         description: (prop.PublicRemarks as string) || '',
         image: '',
         featured: false,

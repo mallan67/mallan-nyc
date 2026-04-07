@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-04-06T01:41:55.116Z",
-  "pass": 853,
+  "timestamp": "2026-04-06T23:50:49.813Z",
+  "pass": 826,
   "critical": 0,
-  "warning": 0,
-  "info": 42,
+  "warning": 3,
+  "info": 41,
   "sections": [
     {
       "section": 1,
@@ -45,9 +45,9 @@
       "section": 5,
       "title": "Prisma Listing ↔ Mapper Return Type",
       "category": "IDX Pipeline",
-      "pass": 32,
+      "pass": 0,
       "critical": 0,
-      "warning": 0,
+      "warning": 3,
       "info": 0
     },
     {
@@ -63,7 +63,7 @@
       "section": 7,
       "title": "CRM fetch() → API Route Cross-Reference",
       "category": "CRM & API",
-      "pass": 77,
+      "pass": 79,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 92,
+      "pass": 94,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -216,10 +216,10 @@
       "section": 24,
       "title": "Dead Components",
       "category": "Bloat & Hygiene",
-      "pass": 91,
+      "pass": 92,
       "critical": 0,
       "warning": 0,
-      "info": 11
+      "info": 10
     },
     {
       "section": 25,

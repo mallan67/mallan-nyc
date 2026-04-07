@@ -102,8 +102,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Log for Vercel dashboard visibility (redacted PII)
-    console.log(`[CONTACT] New submission lead=${lead.id} at ${receivedAt}`);
+    // Audit trail is in DB (AuditEvent above) — no console PII logging in production
 
     // Send email notification (non-fatal — don't fail the API response if email fails)
     try {
@@ -120,9 +119,10 @@ export async function POST(request: NextRequest) {
         </table>
       `.trim();
 
-      console.log('[CONTACT] Sending [email redacted] notification...');
       const emailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
-      console.log(`[CONTACT] [email redacted] ${emailResult.success ? 'sent' : 'failed'}:`, emailResult.messageId || emailResult.error);
+      if (!emailResult.success) {
+        console.error('[CONTACT] Notification email failed:', emailResult.error);
+      }
     } catch (emailErr) {
       console.error('[CONTACT] [email redacted] notification error (non-fatal):', emailErr);
     }
@@ -144,8 +144,12 @@ export async function GET(request: NextRequest) {
       where: { source: 'contact_form' },
       orderBy: { created_at: 'desc' },
       take: 100,
+      select: {
+        id: true, first_name: true, last_name: true, email: true, phone: true,
+        source: true, status: true, notes: true, created_at: true,
+      },
     });
-    return NextResponse.json(leads);
+    return NextResponse.json(leads.map(l => ({ ...l, id: String(l.id) })));
   } catch (error) {
     console.error('[CONTACT] Error reading submissions:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

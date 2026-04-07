@@ -21,7 +21,9 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const landlordId = safeBigInt(sp.get("landlord_id") ?? "");
-  const expiringDays = sp.get("expiring_days") ? parseInt(sp.get("expiring_days")!) : null;
+  const rawExpiring = sp.get("expiring_days");
+  const parsedExpiring = rawExpiring ? parseInt(rawExpiring) : NaN;
+  const expiringDays = Number.isFinite(parsedExpiring) ? parsedExpiring : null;
   const renewalStatus = sp.get("renewal_status") ?? null;
 
   const where: Record<string, unknown> = {};

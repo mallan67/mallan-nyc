@@ -14,18 +14,23 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const { id } = await params;
-  const deal = await findDealById(id);
+  try {
+    const { id } = await params;
+    const deal = await findDealById(id);
 
-  if (!deal) {
-    return NextResponse.json({ error: "Deal not found" }, { status: 404 });
+    if (!deal) {
+      return NextResponse.json({ error: "Deal not found" }, { status: 404 });
+    }
+
+    if (auth.role !== "BROKER" && String(deal.agent_id) !== String(auth.userId)) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    return NextResponse.json(deal);
+  } catch (err) {
+    console.error("[CRM:Deals] GET [id] error:", err);
+    return NextResponse.json({ error: "Failed to fetch deal" }, { status: 500 });
   }
-
-  if (auth.role !== "BROKER" && String(deal.agent_id) !== String(auth.userId)) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
-  }
-
-  return NextResponse.json(deal);
 }
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
@@ -66,21 +71,29 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
-  const numericId = parseInt(id);
-  const updated = await updateDeal(BigInt(numericId), update);
+  try {
+    const numericId = parseInt(id);
+    if (isNaN(numericId)) {
+      return NextResponse.json({ error: "Invalid deal ID" }, { status: 400 });
+    }
+    const updated = await updateDeal(BigInt(numericId), update);
 
-  await logAuditEvent(
-    "update",
-    "deal",
-    String(deal.id),
-    auth,
-    { fields_updated: Object.keys(update) },
-    req.headers.get("x-forwarded-for") ?? undefined
-  );
+    await logAuditEvent(
+      "update",
+      "deal",
+      String(deal.id),
+      auth,
+      { fields_updated: Object.keys(update) },
+      req.headers.get("x-forwarded-for") ?? undefined
+    );
 
-  return NextResponse.json({
-    id: updated.id,
-    status: updated.status,
-    updated_fields: Object.keys(update),
-  });
+    return NextResponse.json({
+      id: updated.id,
+      status: updated.status,
+      updated_fields: Object.keys(update),
+    });
+  } catch (err) {
+    console.error("[CRM:Deals] PATCH error:", err);
+    return NextResponse.json({ error: "Failed to update deal" }, { status: 500 });
+  }
 }

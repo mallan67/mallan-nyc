@@ -394,6 +394,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     // FARE Act fee fields
     moveInCosts: normalized.MoveInCosts ? String(normalized.MoveInCosts) : undefined,
     ongoingFees: normalized.OngoingFees ? String(normalized.OngoingFees) : undefined,
+    tenantPays: normalized.TenantPays ? String(normalized.TenantPays) : undefined,
     tenantPaysDescription: normalized.TenantPaysDescription ? String(normalized.TenantPaysDescription) : undefined,
     additionalFeeYN: normalized.AdditionalFeeYN === true || normalized.AdditionalFeeYN === 'true' ? true : undefined,
     additionalFee: normalized.AdditionalFee != null ? Number(normalized.AdditionalFee) : undefined,

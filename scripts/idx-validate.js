@@ -549,6 +549,7 @@ function section12() {
       || file.includes('/auth/forgot-password') || file.includes('/auth/reset-password')
       || file.includes('/auth/dev-login') || file.includes('/auth/invite/')
       || file.includes('/auth/agent/register')
+      || file.includes('/auth/verify-email')
       || file.includes('/open-houses/rsvp')
       || file.includes('/pages/');
     if (isCron || isPublic) continue; // Skip public lead-capture and cron endpoints

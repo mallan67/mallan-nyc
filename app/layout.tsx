@@ -369,9 +369,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <ErrorBoundary>
             <FavoriteEmailProvider>
               <Header />
-              <div id="main-content">
+              <main id="main-content" tabIndex={-1}>
                 {children}
-              </div>
+              </main>
               <Footer />
             </FavoriteEmailProvider>
           </ErrorBoundary>

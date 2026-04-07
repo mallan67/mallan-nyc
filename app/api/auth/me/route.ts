@@ -135,6 +135,8 @@ export async function GET(req: NextRequest) {
         primary_portal_role: true,
         enabled_workspaces: true,
         roles: true,
+        email_verified_at: true,
+        source: true,
       },
     });
     if (!lead) {
@@ -163,6 +165,8 @@ export async function GET(req: NextRequest) {
       roles: lead.roles || [],
       primaryPortalRole,
       enabledWorkspaces,
+      emailVerified: !!lead.email_verified_at,
+      source: lead.source || 'website',
       user: {
         id: lead.id.toString(),
         name: `${lead.first_name} ${lead.last_name}`,

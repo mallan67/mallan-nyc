@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 
@@ -82,6 +82,18 @@ export default function ListingMediaGallery({
       setFailed(prev => new Set(prev).add(idx));
     }
   }, [retryCount]);
+
+  // Keyboard navigation for lightbox (Escape, ArrowLeft, ArrowRight)
+  useEffect(() => {
+    if (!fullscreen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+      else if (e.key === 'ArrowLeft') prevPhoto();
+      else if (e.key === 'ArrowRight') nextPhoto();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [fullscreen, prevPhoto, nextPhoto]);
 
   const showPlaceholder = !hasImages || (failed.size === sortedImages.length);
 
@@ -279,6 +291,9 @@ export default function ListingMediaGallery({
         <div
           className="fixed inset-0 z-50 bg-black flex items-center justify-center"
           onClick={() => setFullscreen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Photo ${photoIdx + 1} of ${sortedImages.length}`}
         >
           {/* Close button */}
           <button

@@ -173,6 +173,7 @@ export interface IDXListing {
   // FARE Act fee transparency (NYC LL 119/2024)
   moveInCosts?: string;
   ongoingFees?: string;
+  tenantPays?: string;
   tenantPaysDescription?: string;
   additionalFeeYN?: boolean;
   additionalFee?: number;

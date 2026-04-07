@@ -148,6 +148,7 @@ export interface PublicListingDTO {
   // FARE Act fee transparency
   moveInCosts?: string;
   ongoingFees?: string;
+  tenantPays?: string;
   tenantPaysDescription?: string;
   additionalFeeYN?: boolean;
   additionalFee?: number;
@@ -284,6 +285,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     cumulativeDaysOnMarket: listing.cumulativeDaysOnMarket,
     moveInCosts: listing.moveInCosts,
     ongoingFees: listing.ongoingFees,
+    tenantPays: listing.tenantPays,
     tenantPaysDescription: listing.tenantPaysDescription,
     additionalFeeYN: listing.additionalFeeYN,
     additionalFee: listing.additionalFee,

@@ -36,7 +36,8 @@ export function checkRouteGuards(req: NextRequest, pathname: string): NextRespon
     !pathname.startsWith("/crm/login") &&
     !pathname.startsWith("/crm/js/") &&
     !pathname.startsWith("/crm/css/") &&
-    false // no CRM page exceptions — all require auth
+    !pathname.startsWith("/crm/images/") &&
+    !pathname.endsWith(".ico")
   ) {
     if (!req.cookies.has(SESSION_COOKIE)) {
       const loginUrl = req.nextUrl.clone();

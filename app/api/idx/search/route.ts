@@ -102,8 +102,9 @@ const SEARCH_SELECT_FIELDS = [
   "PublicRemarks",
   // Display flags (IDX/VOW/Participant gates pre-filtered by Trestle on IDX Plus feed)
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  // Rental
+  // Rental + FARE Act fee transparency
   "PetsAllowed", "Furnished",
+  "MoveInCosts", "OngoingFees", "TenantPays", "TenantPaysDescription",
   // ── Searchable checkbox fields (wired to CRM search form data-field checkboxes) ──
   // These are returned so local filterListings() can match against them.
   "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",

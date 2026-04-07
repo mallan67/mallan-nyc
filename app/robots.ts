@@ -22,8 +22,6 @@ const PRIVATE_AND_MLS_PATHS = [
   '/admin',
   '/agent/',
   '/agent',
-  '/client-access/',
-  '/client-access',
   '/demo/',
   '/demo',
   '/style-preview/',

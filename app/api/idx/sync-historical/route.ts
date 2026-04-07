@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     }
 
     const agentName = agent.full_name || `${agent.first_name} ${agent.last_name}`;
-    console.log(`[IDX Historical] Syncing history for ${agentName} (license: ${agentMlsId})`);
+    // Audit-logged in syncAgentHistory — no console PII in production
 
     const result = await syncAgentHistory({
       agentMlsId,

@@ -12,18 +12,25 @@ export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const { searchParams } = req.nextUrl;
-  const result = await findClients({
-    userId: auth.userId,
-    role: auth.role,
-    status: searchParams.get("status"),
-    search: searchParams.get("search"),
-    clientRole: searchParams.get("role"),
-    limit: parseInt(searchParams.get("limit") || "50"),
-    offset: parseInt(searchParams.get("offset") || "0"),
-  });
+  try {
+    const { searchParams } = req.nextUrl;
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50") || 50, 1), 200);
+    const offset = Math.max(parseInt(searchParams.get("offset") || "0") || 0, 0);
+    const result = await findClients({
+      userId: auth.userId,
+      role: auth.role,
+      status: searchParams.get("status"),
+      search: searchParams.get("search"),
+      clientRole: searchParams.get("role"),
+      limit,
+      offset,
+    });
 
-  return NextResponse.json(result);
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error("[CRM:Clients] GET error:", err);
+    return NextResponse.json({ error: "Failed to fetch clients" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -35,44 +42,49 @@ export async function POST(req: NextRequest) {
   const { data, error } = await parseBody(req, createClientSchema);
   if (error) return error;
 
-  if (await clientEmailExists(data.email)) {
-    return NextResponse.json(
-      { error: "A client with this email already exists" },
-      { status: 409 }
+  try {
+    if (await clientEmailExists(data.email)) {
+      return NextResponse.json(
+        { error: "A client with this email already exists" },
+        { status: 409 }
+      );
+    }
+
+    const client = await createClient({
+      first_name: data.first_name,
+      last_name: data.last_name,
+      email: data.email,
+      phone: data.phone,
+      roles: data.roles as string[] | undefined,
+      portal_role: data.portal_role ?? null,
+      agent_id: auth.userId,
+      source: data.source ?? "manual",
+      secondary_first_name: data.secondary_first_name ?? null,
+      secondary_last_name: data.secondary_last_name ?? null,
+      secondary_email: data.secondary_email ?? null,
+      secondary_phone: data.secondary_phone ?? null,
+      secondary_relationship: data.secondary_relationship ?? null,
+      property_address: data.property_address ?? null,
+      home_address: data.home_address ?? null,
+      unit_number: data.unit_number ?? null,
+      legal_ownership_name: data.legal_ownership_name ?? null,
+    });
+
+    await logAuditEvent(
+      "create",
+      "lead",
+      String(client.id),
+      auth,
+      { email: data.email, roles: data.roles },
+      req.headers.get("x-forwarded-for") ?? undefined
     );
+
+    return NextResponse.json(
+      { id: client.id, email: client.email, status: client.status },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("[CRM:Clients] POST error:", err);
+    return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
   }
-
-  const client = await createClient({
-    first_name: data.first_name,
-    last_name: data.last_name,
-    email: data.email,
-    phone: data.phone,
-    roles: data.roles as string[] | undefined,
-    portal_role: data.portal_role ?? null,
-    agent_id: auth.userId,
-    source: data.source ?? "manual",
-    secondary_first_name: data.secondary_first_name ?? null,
-    secondary_last_name: data.secondary_last_name ?? null,
-    secondary_email: data.secondary_email ?? null,
-    secondary_phone: data.secondary_phone ?? null,
-    secondary_relationship: data.secondary_relationship ?? null,
-    property_address: data.property_address ?? null,
-    home_address: data.home_address ?? null,
-    unit_number: data.unit_number ?? null,
-    legal_ownership_name: data.legal_ownership_name ?? null,
-  });
-
-  await logAuditEvent(
-    "create",
-    "lead",
-    String(client.id),
-    auth,
-    { email: data.email, roles: data.roles },
-    req.headers.get("x-forwarded-for") ?? undefined
-  );
-
-  return NextResponse.json(
-    { id: client.id, email: client.email, status: client.status },
-    { status: 201 }
-  );
 }

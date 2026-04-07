@@ -1839,6 +1839,8 @@ window.addEventListener('unhandledrejection', function (event) {
 
 // ── Listen for postMessage from listing forms (auto-refresh on save) ──
 window.addEventListener('message', function (event) {
+  // Security: only accept messages from our own origin
+  if (event.origin !== window.location.origin) return;
   if (!event.data || typeof event.data !== 'object') return;
   if (event.data.type === 'listing_saved') {
     CRM.toast('Listing ' + (event.data.mode === 'create' ? 'created' : 'updated'), 'success');

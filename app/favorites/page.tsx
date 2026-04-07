@@ -96,9 +96,15 @@ export default function FavoritesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-2xl font-display font-semibold">Saved Properties</h1>
-              <p className="text-brand-dark/85 text-sm mt-1">
-                {loaded ? `${favorites.length} saved listing${favorites.length !== 1 ? 's' : ''}` : 'Loading...'}
-              </p>
+              {loaded ? (
+                <p className="text-brand-dark/85 text-sm mt-1">
+                  {favorites.length} saved listing{favorites.length !== 1 ? 's' : ''}
+                </p>
+              ) : (
+                <div className="animate-pulse mt-1.5">
+                  <div className="h-3.5 w-32 bg-gray-200/70 rounded" />
+                </div>
+              )}
             </div>
             {favorites.length > 0 && (
               <div className="flex items-center gap-4">
@@ -135,25 +141,48 @@ export default function FavoritesPage() {
           )}
 
           {!loaded ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-28" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-2xl ring-1 ring-black/[0.03] overflow-hidden"
+                >
+                  <div className="aspect-[4/3] bg-gray-100" />
+                  <div className="p-4 space-y-2.5">
+                    <div className="h-5 w-28 bg-gray-200/70 rounded" />
+                    <div className="h-3.5 w-full bg-gray-100 rounded" />
+                    <div className="h-3 w-24 bg-gray-100 rounded" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : favorites.length === 0 ? (
-            <div className="text-center py-20">
-              <svg className="w-16 h-16 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-              </svg>
-              <h2 className="text-lg font-medium text-brand-dark/90 mb-2">No saved properties yet</h2>
-              <p className="text-brand-dark/85 text-sm mb-6">
-                Click the heart icon on any listing to save it here.
+            <div className="text-center py-20 max-w-md mx-auto">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-50 flex items-center justify-center">
+                <svg className="w-10 h-10 text-brand-dark/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-brand-dark mb-2">No saved properties yet</h2>
+              <p className="text-brand-dark/60 text-sm leading-relaxed mb-8">
+                Browse listings and tap the heart icon to save your favorites.
+                <br />
+                Your shortlist will appear here for easy comparison.
               </p>
-              <div className="flex gap-3 justify-center">
-                <Link href="/buy" className="px-5 py-2.5 bg-brand-dark text-white rounded-2xl text-sm font-medium hover:bg-brand-dark/90 transition-colors">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link
+                  href="/search"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-dark text-white rounded-2xl text-sm font-medium hover:bg-brand-dark/90 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Search Listings
+                </Link>
+                <Link href="/buy" className="px-6 py-2.5 ring-1 ring-black/10 text-brand-dark rounded-2xl text-sm font-medium hover:bg-gray-50 transition-colors">
                   Browse Sales
                 </Link>
-                <Link href="/rent" className="px-5 py-2.5 ring-1 ring-black/10 text-brand-dark rounded-2xl text-sm font-medium hover:bg-gray-50 transition-colors">
+                <Link href="/rent" className="px-6 py-2.5 ring-1 ring-black/10 text-brand-dark rounded-2xl text-sm font-medium hover:bg-gray-50 transition-colors">
                   Browse Rentals
                 </Link>
               </div>

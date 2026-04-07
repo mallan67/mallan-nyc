@@ -48,9 +48,15 @@ export default function SavedSearchesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-2xl font-display font-semibold">Saved Searches</h1>
-              <p className="text-brand-dark/85 text-sm mt-1">
-                {loaded ? `${searches.length} saved search${searches.length !== 1 ? 'es' : ''}` : 'Loading...'}
-              </p>
+              {loaded ? (
+                <p className="text-brand-dark/85 text-sm mt-1">
+                  {searches.length} saved search{searches.length !== 1 ? 'es' : ''}
+                </p>
+              ) : (
+                <div className="animate-pulse mt-1.5">
+                  <div className="h-3.5 w-32 bg-gray-200/70 rounded" />
+                </div>
+              )}
             </div>
             {searches.length > 0 && (
               <button
@@ -65,23 +71,52 @@ export default function SavedSearchesPage() {
           </div>
 
           {!loaded ? (
-            <div className="space-y-3">
-              {[1, 2].map((i) => (
-                <div key={i} className="animate-pulse bg-gray-100 rounded-2xl h-20" />
+            <div className="space-y-3 animate-pulse">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-2xl ring-1 ring-black/[0.03] p-4 flex items-center gap-4"
+                >
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="h-4 w-40 bg-gray-200/70 rounded" />
+                    <div className="h-3 w-64 bg-gray-100 rounded" />
+                    <div className="h-2.5 w-24 bg-gray-100/80 rounded" />
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <div className="h-8 w-24 bg-gray-200/50 rounded-xl" />
+                    <div className="h-8 w-8 bg-gray-100 rounded-xl" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : searches.length === 0 ? (
-            <div className="text-center py-20">
-              <svg className="w-16 h-16 text-brand-dark/10 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
-              <h2 className="text-lg font-medium text-brand-dark/90 mb-2">No saved searches yet</h2>
-              <p className="text-brand-dark/85 text-sm mb-6">
-                Save a search from the results page to quickly access it later.
+            <div className="text-center py-20 max-w-md mx-auto">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-50 flex items-center justify-center">
+                <svg className="w-10 h-10 text-brand-dark/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-brand-dark mb-2">No saved searches yet</h2>
+              <p className="text-brand-dark/60 text-sm leading-relaxed mb-8">
+                Set your ideal criteria and save the search.
+                <br />
+                Come back anytime to run it with a single tap.
               </p>
-              <div className="flex gap-3 justify-center">
-                <Link href="/search" className="px-5 py-2.5 bg-brand-dark text-white rounded-2xl text-sm font-medium hover:bg-brand-dark/90 transition-colors">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link
+                  href="/search"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-dark text-white rounded-2xl text-sm font-medium hover:bg-brand-dark/90 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                   Start Searching
+                </Link>
+                <Link href="/buy" className="px-6 py-2.5 ring-1 ring-black/10 text-brand-dark rounded-2xl text-sm font-medium hover:bg-gray-50 transition-colors">
+                  Browse Sales
+                </Link>
+                <Link href="/rent" className="px-6 py-2.5 ring-1 ring-black/10 text-brand-dark rounded-2xl text-sm font-medium hover:bg-gray-50 transition-colors">
+                  Browse Rentals
                 </Link>
               </div>
             </div>

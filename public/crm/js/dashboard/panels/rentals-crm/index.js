@@ -343,6 +343,12 @@ var RentalsCRM = (function () {
 
   // ── PITCH PACKET ──────────────────────────────────────────────────────
   function _lwsPitch(el, cl) {
+    // Render the full Rental Pitch Packet with auto-CMA
+    if (typeof RentalPitchPacket !== 'undefined') {
+      RentalPitchPacket.render(el, cl);
+      return;
+    }
+    // Fallback if script not loaded
     var h = '<div class="space-y-4">';
     h += '<div class="bg-white border rounded-xl p-5">';
     h += '<h3 class="text-sm font-bold text-gray-900 mb-1"><i class="fas fa-file-powerpoint text-gold mr-2"></i>Pitch Packet for ' + E(cl.name) + '</h3>';
@@ -1170,6 +1176,11 @@ var RentalsCRM = (function () {
         .catch(function () { CRM.toast('Failed', 'error'); });
     } else if (action === 'send_weekly_report') {
       CRM.toast('Sending weekly report...', 'info');
+      var rptSubject = 'Weekly Rental Update — ' + (cl.name || 'Your Properties');
+      var rptBody = 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere is your weekly rental listing update from Mallan Real Estate.\n\nPlease reach out if you have any questions.\n\nBest regards,\nMallan Real Estate Inc.';
+      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'weekly_report', client_ids: [String(cl.id)], subject: rptSubject, body: rptBody }) })
+        .then(function () { CRM.toast('Weekly report sent!', 'success'); })
+        .catch(function () { CRM.toast('Send failed', 'error'); });
     } else {
       CRM.toast('Action: ' + action, 'info');
     }
@@ -1236,15 +1247,24 @@ var RentalsCRM = (function () {
     var data = {};
     new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
     if (data.monthly_rent) data.monthly_rent = Number(data.monthly_rent);
+    if (_s.ws.client) data.landlord_lead_id = String(_s.ws.client.id);
     MallanAPI._fetch('/api/crm/active-leases', { method: 'POST', body: JSON.stringify(data) })
       .then(function() { CRM.toast('Lease added', 'success'); CRM.closeModal(); Router.navigate('/lease-tracker'); })
       .catch(function(err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
-  function _findRentalComps() { CRM.toast('Fetching rental comps...', 'info'); }
-  function _editRentalPricing() { CRM.toast('Edit pricing strategy', 'info'); }
-  function _editMarketing() { CRM.toast('Edit marketing strategy', 'info'); }
-  function _editTimeline() { CRM.toast('Edit timeline', 'info'); }
+  function _findRentalComps() {
+    // Open the Rental Pitch Packet (includes comp search + auto-CMA)
+    if (typeof RentalPitchPacket !== 'undefined' && _s.ws.client) {
+      var el = document.getElementById('ws-pitch-container') || CRM.getContent();
+      RentalPitchPacket.render(el, _s.ws.client);
+    } else {
+      CRM.toast('Rental pitch packet not available', 'error');
+    }
+  }
+  function _editRentalPricing() { _findRentalComps(); } // Same panel handles pricing
+  function _editMarketing() { CRM.toast('Marketing strategy — use Pitch tab for comp-based outreach', 'info'); }
+  function _editTimeline() { CRM.toast('Timeline — track lease dates in Leases tab', 'info'); }
 
   function _logOutreach(clientId) {
     var body = '<form id="logOutreachForm">' +
@@ -1263,7 +1283,7 @@ var RentalsCRM = (function () {
     '</form>';
     CRM.openModal('Log Outreach', body, {
       footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-        '<button class="btn btn-gold" onclick="CRM.toast(\'Outreach logged\', \'success\');CRM.closeModal()">Save</button>',
+        '<button class="btn btn-gold" onclick="RentalsCRM._submitOutreach()">Save</button>',
     });
   }
 
@@ -1280,7 +1300,7 @@ var RentalsCRM = (function () {
     '</form>';
     CRM.openModal('Schedule Showing', body, {
       footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-        '<button class="btn btn-gold" onclick="CRM.toast(\'Showing scheduled\', \'success\');CRM.closeModal()">Schedule</button>',
+        '<button class="btn btn-gold" onclick="RentalsCRM._submitShowing()">Schedule</button>',
     });
   }
 
@@ -1299,7 +1319,7 @@ var RentalsCRM = (function () {
     '</form>';
     CRM.openModal('Add Application', body, {
       footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-        '<button class="btn btn-gold" onclick="CRM.toast(\'Application added\', \'success\');CRM.closeModal()">Add</button>',
+        '<button class="btn btn-gold" onclick="RentalsCRM._submitApplication()">Add</button>',
     });
   }
 
@@ -1319,8 +1339,65 @@ var RentalsCRM = (function () {
     '</div>';
     CRM.openModal('Upload Document', body, {
       footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-        '<button class="btn btn-gold" onclick="CRM.toast(\'Document uploaded\', \'success\');CRM.closeModal()">Upload</button>',
+        '<button class="btn btn-gold" onclick="RentalsCRM._submitUpload()">Upload</button>',
     });
+  }
+
+  function _submitOutreach() {
+    var cl = _s.ws.client;
+    if (!cl) return;
+    var form = document.getElementById('logOutreachForm');
+    if (!form) return;
+    var data = {};
+    new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
+    MallanAPI._fetch('/api/crm/activity', { method: 'POST', body: JSON.stringify({ client_id: cl.id, type: 'outreach_' + (data.channel || 'email'), title: (data.channel || 'Email') + ' — ' + (data.outcome || 'reached'), description: data.notes || '' }) })
+      .then(function () { CRM.toast('Outreach logged', 'success'); CRM.closeModal(); _openLandlord(cl.id); })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
+  }
+
+  function _submitShowing() {
+    var cl = _s.ws.client;
+    if (!cl) return;
+    var form = document.getElementById('scheduleShowingForm');
+    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
+    var data = {};
+    new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
+    var listingId = (cl.active_rental_listing_id || '');
+    MallanAPI._fetch('/api/crm/showings', { method: 'POST', body: JSON.stringify({ listing_id: String(listingId), lead_id: String(cl.id), date: data.date || '', time: data.time || '', notes: data.notes || '' }) })
+      .then(function () { CRM.toast('Showing scheduled', 'success'); CRM.closeModal(); _openLandlord(cl.id); })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
+  }
+
+  function _submitApplication() {
+    var cl = _s.ws.client;
+    if (!cl) return;
+    var form = document.getElementById('addAppForm');
+    if (!form) return;
+    var data = {};
+    new FormData(form).forEach(function(v, k) { if (v) data[k] = v; });
+    MallanAPI._fetch('/api/crm/rentals/applications', { method: 'POST', body: JSON.stringify({ lead_id: String(cl.id), address: data.address || '', showing_date: new Date().toISOString().slice(0, 10), notes: (data.status || '') + ' — ' + (data.notes || '') }) })
+      .then(function () { CRM.toast('Application added', 'success'); CRM.closeModal(); _openLandlord(cl.id); })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
+  }
+
+  function _submitUpload() {
+    var cl = _s.ws.client;
+    if (!cl) return;
+    var fileInput = document.getElementById('docFile');
+    var docType = (document.getElementById('docType') || {}).value || 'other';
+    var docNotes = (document.getElementById('docNotes') || {}).value || '';
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) { CRM.toast('Please select a file', 'error'); return; }
+    var fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    fd.append('scope', 'client');
+    fd.append('entity_type', 'lead');
+    fd.append('entity_id', String(cl.id));
+    fd.append('doc_type', docType);
+    fd.append('notes', docNotes);
+    fetch('/api/crm/documents/upload', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error('Upload failed'); return r.json(); })
+      .then(function () { CRM.toast('Document uploaded', 'success'); CRM.closeModal(); _openLandlord(cl.id); })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
   return {
@@ -1350,6 +1427,8 @@ var RentalsCRM = (function () {
     _logOutreach: _logOutreach, _scheduleShowing: _scheduleShowing,
     _addApplication: _addApplication, _createListing: _createListing,
     _viewListing: _viewListing, _uploadDoc: _uploadDoc,
+    _submitOutreach: _submitOutreach, _submitShowing: _submitShowing,
+    _submitApplication: _submitApplication, _submitUpload: _submitUpload,
     _editClient: _editClient,
   };
 })();

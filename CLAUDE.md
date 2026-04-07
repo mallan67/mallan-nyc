@@ -4,6 +4,10 @@
 
 > **Compliance-First · Fast · Scalable**
 >
+> **Last Comprehensive Audit:** 2026-04-06 — [Full findings in memory/FULL-SITE-AUDIT-2026-04-06.md]
+> Build PASS, TypeScript 0 errors, IDX Validator 822/0 critical. 5 critical bugs fixed, 25+ medium findings documented.
+> **IMPORTANT: Trestle does NOT provide Latitude/Longitude.** All geocoding is mallan.nyc's responsibility via `lib/geo/geocode.ts` (address geocoding) + ZIP centroid fallback. No hardcoded coordinate fallbacks.
+>
 > **REBNY Compliance Skill:** `.claude/skills/rebny-compliance/SKILL.md` — READ AT SESSION START. Contains all REBNY UCBA 2026, IDX Plus/Trestle connector (auth, fetch, mapper, all 902 fields), Fair Housing (20+ protected classes), FARE Act, NY DOS advertising law, real estate law, TCPA, CAN-SPAM, NY SHIELD Act, penalties, and audit checklists.
 
 | | |
@@ -220,7 +224,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 - **Additional Trestle Resources:** 5 beyond IDX Plus — PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only, empty shell)
 - **Total Trestle Fields:** ~1,364 across 12 data resources
 - **Critical Beyond-CSV Fields:** Distribution gates (`InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`) + `ShowingInstructions` are on Trestle Property but NOT in the IDX Plus CSV
-- **Fields NOT on Trestle:** `IDXEntireListingDisplayYN` (use `InternetEntireListingDisplayYN`), `SyndicateYN` (use `SyndicateTo`), all VOW-prefixed gate fields
+- **Fields NOT on Trestle:** `IDXEntireListingDisplayYN` (use `InternetEntireListingDisplayYN`), `SyndicateYN` (use `SyndicateTo`), all VOW-prefixed gate fields, **Latitude**, **Longitude** (Trestle REBNY feed does NOT provide coordinates — all geocoding is mallan.nyc's responsibility via `lib/geo/geocode.ts` + ZIP centroid fallback)
 - **Picklist Values:** 2,066 lookup values
 - **Data Dictionary:** `Desktop/mallan nyc web/Trestle fields/Data_Migration_2025_RLS_Data_Rules.xlsx`
 - **Full Registry:** `data/RLS-FIELD-REGISTRY.md` — all 12 resources, media/video/3D, field corrections
@@ -313,12 +317,12 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 
 **Validation (CI):** `npm run ci` runs: lint → type-check → compliance-check → **idx:validate (32-section validator)** → build. The IDX Plus Validator (`scripts/idx-validate.js`) blocks builds on critical issues. Results saved to `public/crm/data/validator-results.json` for the CRM System Health dashboard. Run history stored in `.idx-validate/history.json`.
 
-**Repo surface area (auto-verified — do not hand-edit):**
-- Scheduled crons: **6** (vercel.json)
-- Cron route files: **16** (app/api/cron/)
-- Prisma models: **61** (schema.prisma)
-- API route files: **235** (app/api/)
-- Components: **101** (app/components/)
+**Repo surface area (verified 2026-04-06):**
+- Scheduled crons: **19** (vercel.json)
+- Cron route files: **19** (app/api/cron/)
+- Prisma models: **65** (schema.prisma)
+- API route files: **258** (app/api/)
+- Components: **102** (app/components/)
 - Verify: `node scripts/regenerate-claude-counts.js`
 
 ---
@@ -330,3 +334,36 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 - `data/RLS-Syndication-Research.md` — Feed types, syndication, costs, providers
 - `data/rebny-rls-property-fields.csv` — All 902 REBNY IDX Plus fields (replaced 2026-03-19)
 - `data/rebny-rls-property-lookup.csv` — All 2,066 picklist values
+
+---
+
+## Comprehensive Site Audit — 2026-04-06
+
+> **Scope:** Full-stack deep audit — build, TypeScript, IDX validator, all 258 API routes, all frontend pages, CRM dashboard, 4 client portals, 65 Prisma models, compliance gates, IDX field mapping pipeline, public pages.
+>
+> **Build:** PASS | **TypeScript:** 0 errors | **IDX Validator:** 822 pass, 0 critical, 3 warning
+>
+> **CRITICAL fixes applied:**
+> 1. `CompareProperties` fetched wrong listings (`limit=1&type=` instead of by ID) — **FIXED**
+> 2. Midtown Manhattan hardcoded fallback coordinates (Trestle has NO lat/lng) — **REMOVED**
+> 3. `/client-access` demo AI chat exposed in production — **DELETED**
+> 4. `/api/crm/activity` was a stub returning empty — **IMPLEMENTED** (real AuditEvent query)
+> 5. "Weekly Report" button missing required `subject`/`body` fields — **FIXED**
+> 6. `TenantPays` dropped from IDX mapping pipeline (FARE Act) — **FIXED** (types + mapping + DTO)
+> 7. Missing `loading.tsx`/`error.tsx` on building and market pages — **ADDED**
+>
+> **Known gaps (not yet fixed):**
+> - `/style-preview` and `/demo/ecb` dev pages still in production
+> - Offer status email lookup has no rate limiting
+> - Public "Save Search" (localStorage) doesn't trigger email alerts (cron queries DB)
+> - StructureType, LivingAreaUnits, LotSizeUnits in FIELD_MAP but not in IDX pipeline
+> - 4 orphaned Prisma models: FinancialLedger, MicroCommitment, CampaignRecipient, ExperimentListing
+> - No runtime/integration tests — all validation is static code analysis
+> - Neighborhood market stats are static JSON (stale until manually updated)
+>
+> **Trestle does NOT provide Latitude/Longitude.** Geocoding responsibility:
+> 1. `geocodeListings()` in `lib/geo/geocode.ts` — address-based
+> 2. ZIP centroid fallback from `ZIP_CENTROIDS` table
+> 3. If both fail → lat/lng stay null → map/transit/schools sections hide gracefully
+>
+> **Full findings:** `memory/FULL-SITE-AUDIT-2026-04-06.md`

@@ -487,8 +487,8 @@ const PRIVATE_FIELDS = new Set([
   'BuyerAgentEmail', 'BuyerAgentDirectPhone', 'BuyerAgentMlsId',
   'CoBuyerAgentEmail', 'CoBuyerAgentDirectPhone', 'CoBuyerAgentMlsId',
   'ListAgentAOR', 'BuyerAgentAOR',
-  'ClosePrice', 'BuyerFinancing', 'ConcessionComments',
-  'ListingContractDate', 'ExpirationDate',
+  'BuyerFinancing', 'ConcessionComments',
+  'ExpirationDate',
 ]);
 
 function stripPrivateFields(raw: Record<string, unknown>): Record<string, unknown> {

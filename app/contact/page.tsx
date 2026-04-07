@@ -212,11 +212,11 @@ export default function ContactPage() {
                   <form onSubmit={handleSubmit} noValidate>
                     {/* Honeypot field — invisible to users, catches bots */}
                     <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-                      <label htmlFor="website">Website</label>
+                      <label htmlFor="fax_line">Fax</label>
                       <input
                         type="text"
-                        id="website"
-                        name="website"
+                        id="fax_line"
+                        name="fax_line"
                         value={hp}
                         onChange={(e) => setHp(e.target.value)}
                         tabIndex={-1}

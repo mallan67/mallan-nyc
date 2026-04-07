@@ -758,12 +758,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
     if (centroid) {
       listing.address.latitude = centroid[0];
       listing.address.longitude = centroid[1];
-    } else {
-      // Ultimate fallback: Midtown Manhattan centroid. Ensures neighborhood/transit
-      // sections always render for NYC listings even with missing ZIP/geocode.
-      listing.address.latitude = 40.7549;
-      listing.address.longitude = -73.9840;
     }
+    // No hardcoded fallback. Trestle does NOT provide lat/lng — geocoding is our
+    // responsibility. If both geocode and ZIP centroid fail, lat/lng stay null and
+    // map/transit/schools sections gracefully hide for that listing. Showing wrong
+    // coordinates (e.g., Midtown for a Queens listing) is worse than showing nothing.
   }
 
   // ── Building amenities ── STRICT WHITELIST

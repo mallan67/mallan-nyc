@@ -422,6 +422,47 @@ header button:focus-visible {
   @page { margin: 1cm; }
 }
 
+/* ═══ PREMIUM SECTION ACCENTS ═══ */
+
+.section-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(184,134,11,0.15), transparent);
+}
+
+.gold-accent-border {
+  border: 1px solid rgba(184,134,11,0.08);
+}
+
+.gold-gradient-icon {
+  background: linear-gradient(135deg, rgba(184,134,11,0.12), rgba(184,134,11,0.04));
+}
+
+.premium-card {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--float-shadow);
+  border: 1px solid rgba(184,134,11,0.06);
+  transition: transform 0.8s var(--liquid), box-shadow 0.8s var(--liquid), border-color 0.8s var(--liquid);
+}
+.premium-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--float-shadow-hover);
+  border-color: rgba(184,134,11,0.12);
+}
+
+/* Elegant skeleton shimmer for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
 /* ═══ SEARCH PAGE — Filter panel slide-in ═══ */
 @keyframes slideInRight {
   from { transform: translateX(100%); }
