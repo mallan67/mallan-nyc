@@ -115,9 +115,6 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
         )}
         <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
           RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
-          {listing.modificationTimestamp && (
-            <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>
-          )}
         </p>
       </div>
     </Link>
@@ -199,7 +196,6 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         )}
         <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
           RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
-          {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
         </p>
       </div>
     </Link>
@@ -331,7 +327,6 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         )}
         <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
           RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
-          {listing.modificationTimestamp && <> &middot; {new Date(listing.modificationTimestamp).toLocaleDateString()}</>}
         </p>
       </Link>
     </div>
