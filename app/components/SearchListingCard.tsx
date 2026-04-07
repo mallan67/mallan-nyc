@@ -206,7 +206,9 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
 export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
   const [photoIdx, setPhotoIdx] = useState(0);
   const [hovered, setHovered] = useState(false);
-  const photos = listing.media.filter(m => !m.mediaType || m.mediaType === 'Photo');
+  const photos = listing.media
+    .filter(m => !m.mediaType || m.mediaType === 'Photo')
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const hasMultiple = photos.length > 1;
 
   const goPrev = useCallback(() => setPhotoIdx(i => (i > 0 ? i - 1 : photos.length - 1)), [photos.length]);

@@ -71,7 +71,14 @@ function formatPrice(price: number, isRental: boolean): string {
 
 function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: string }[]; alt: string }) {
   const [idx, setIdx] = useState(0);
-  const images = photos.length > 0 ? photos : [{ url: '/images/listing-placeholder.svg', mediaType: 'Photo' }];
+  // Ensure actual photos always come before floor plans (defensive re-sort)
+  const sorted = photos.length > 0
+    ? [...photos].sort((a, b) => {
+        const rank = (t: string) => t === 'Photo' || !t ? 0 : t === 'FloorPlan' ? 2 : 1;
+        return rank(a.mediaType) - rank(b.mediaType);
+      })
+    : [{ url: '/images/listing-placeholder.svg', mediaType: 'Photo' }];
+  const images = sorted;
 
   const goPrev = useCallback(() => setIdx(i => i === 0 ? images.length - 1 : i - 1), [images.length]);
   const goNext = useCallback(() => setIdx(i => i === images.length - 1 ? 0 : i + 1), [images.length]);

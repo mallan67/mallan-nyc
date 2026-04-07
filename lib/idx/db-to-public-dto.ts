@@ -79,6 +79,8 @@ interface DbMediaItem {
   MediaType?: string;
   MediaCategory?: string;
   mediaType?: string;
+  ShortDescription?: string;
+  shortDescription?: string;
   Order?: number;
   order?: number;
   PreferredPhotoYN?: boolean | string;
@@ -221,7 +223,8 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   // Must check MediaCategory first, then mediaType (mapped format), then default to Photo.
   function classifyMedia(m: DbMediaItem): string {
     const cat = String(m.MediaCategory || '').toLowerCase();
-    if (cat.includes('floor plan') || cat.includes('floorplan')) return 'FloorPlan';
+    const desc = String(m.ShortDescription || m.shortDescription || '').toLowerCase();
+    if (cat.includes('floor plan') || cat.includes('floorplan') || desc.includes('floor plan') || desc.includes('floorplan')) return 'FloorPlan';
     if (cat.includes('video')) return 'Video';
     if (cat.includes('virtual tour') || cat.includes('virtualtour') || cat === '3d') return 'VirtualTour';
     if (cat && cat !== 'photo') return cat; // pass through other categories
