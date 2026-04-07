@@ -230,11 +230,9 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
               CC: ${cc.toLocaleString()}/mo
             </p>
           )}
-          {listing.listOfficeName && (
-            <p className="text-[11px] text-brand-dark/50 mt-2 font-light">
-              Listing Courtesy of {listing.listOfficeName}
-            </p>
-          )}
+          <p className="text-sm text-brand-dark/55 mt-2.5 pt-2 border-t border-brand-gold-deep/8 font-light">
+            Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+          </p>
         </Link>
 
         <div className="mt-3 pt-3 border-t border-black/5">

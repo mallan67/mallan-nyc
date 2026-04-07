@@ -1781,13 +1781,13 @@ export default async function ListingPage({ params, searchParams }: Props) {
       </main>
 
       {/* ═══ Listing Courtesy Attribution (REBNY compliance) ═══ */}
-      <section className="border-t border-black/[0.06] py-5 px-4 sm:px-6">
+      <section className="border-t border-brand-gold-deep/10 py-5 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-1">
-          <p className="text-[13px] text-brand-dark/70">
-            Listing courtesy of <span className="font-medium text-brand-dark/85">{listing.listOfficeName || 'Mallan Real Estate Inc.'}</span>
+          <p className="text-sm text-brand-dark/70">
+            Listing Courtesy of <span className="font-medium text-brand-dark/85">{listing.listOfficeName || 'Mallan Real Estate Inc.'}</span>
           </p>
           <span className="text-brand-dark/30">|</span>
-          <p className="text-[13px] text-brand-dark/50">
+          <p className="text-sm text-brand-dark/50">
             Updated {new Date().toLocaleDateString()}
           </p>
         </div>
