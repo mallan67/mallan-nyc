@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
           neighborhood: l.neighborhood || '',
           photoUrl,
           photosCount,
-          propertyType: l.property_sub_type || l.property_type || '',
+          propertyType: mapPropertyType({ CommonInterest: (l.features as Record<string, unknown>)?.CommonInterest, PropertySubType: l.property_sub_type, PropertyType: l.property_type }),
           office: (l.agent_info as Record<string, string> | null)?.ListOfficeName || (l.agent_info as Record<string, string> | null)?.company || '',
         };
       });

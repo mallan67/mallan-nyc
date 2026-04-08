@@ -85,6 +85,7 @@ interface UserProfile {
 
 const TABS = [
   { key: 'listings',    label: 'Listings',    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { key: 'lease',       label: 'My Lease',    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   { key: 'showings',    label: 'Showings',    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
   { key: 'preferences', label: 'Preferences', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
   { key: 'family',      label: 'Family',      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
@@ -191,6 +192,15 @@ export default function TenantPortalPage() {
   const [preferences, setPreferences] = useState<Preferences | null>(null);
   const [family, setFamily] = useState<FamilyMember[]>([]);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
+  const [leaseData, setLeaseData] = useState<{
+    lease_start_date: string | null;
+    lease_end_date: string | null;
+    rent_per_month: number | null;
+    property_address: string | null;
+    unit_number: string | null;
+    renewal_status: string | null;
+    days_remaining: number | null;
+  } | null>(null);
 
   /* ── UI state ──────────────────────────────────────────────────── */
   const [loading, setLoading] = useState(false);
@@ -279,6 +289,14 @@ export default function TenantPortalPage() {
     } catch { /* silent */ }
   }, []);
 
+  const loadLease = useCallback(async () => {
+    try {
+      const r = await fetch('/api/portal/tenant/lease');
+      const d = await r.json();
+      setLeaseData(d);
+    } catch { /* silent */ }
+  }, []);
+
   const loadComments = useCallback(async (listingId: string) => {
     try {
       const r = await fetch(`/api/portal/listings/${listingId}/comments`);
@@ -295,6 +313,7 @@ export default function TenantPortalPage() {
     setLoading(true);
     const load = async () => {
       if (tab === 'listings') await loadListings();
+      else if (tab === 'lease') await loadLease();
       else if (tab === 'showings') await loadShowings();
       else if (tab === 'preferences') await loadPreferences();
       else if (tab === 'family') await loadFamily();
@@ -527,6 +546,86 @@ export default function TenantPortalPage() {
                 onShowingModal={setShowShowingModal}
                 onShowingRequest={handleShowingRequest}
               />
+            )}
+            {tab === 'lease' && (
+              <div className="space-y-6">
+                {!leaseData || (!leaseData.lease_start_date && !leaseData.property_address) ? (
+                  <div className="text-center py-12">
+                    <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm text-gray-500 font-medium">No lease information available</p>
+                    <p className="text-xs text-gray-400 mt-1">Your agent will add lease details when your rental is confirmed.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Lease Summary Card */}
+                    <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                      <h3 className="text-sm font-bold text-gray-900 mb-4">Lease Details</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-xs text-gray-500 mb-0.5">Property</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {leaseData.property_address || 'Not set'}
+                            {leaseData.unit_number && ` #${leaseData.unit_number}`}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-0.5">Monthly Rent</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {leaseData.rent_per_month ? `$${leaseData.rent_per_month.toLocaleString()}/mo` : 'Not set'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-0.5">Lease Start</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {leaseData.lease_start_date ? new Date(leaseData.lease_start_date).toLocaleDateString() : 'Not set'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-0.5">Lease End</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {leaseData.lease_end_date ? new Date(leaseData.lease_end_date).toLocaleDateString() : 'Not set'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Days Remaining + Renewal Status */}
+                    {leaseData.days_remaining != null && (
+                      <div className={`rounded-2xl border p-6 ${
+                        leaseData.days_remaining <= 30 ? 'bg-red-50 border-red-200' :
+                        leaseData.days_remaining <= 90 ? 'bg-amber-50 border-amber-200' :
+                        'bg-green-50 border-green-200'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-xs text-gray-600 mb-0.5">Days Remaining</div>
+                            <div className={`text-2xl font-bold ${
+                              leaseData.days_remaining <= 30 ? 'text-red-700' :
+                              leaseData.days_remaining <= 90 ? 'text-amber-700' :
+                              'text-green-700'
+                            }`}>
+                              {leaseData.days_remaining}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-gray-600 mb-0.5">Renewal Status</div>
+                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                              leaseData.renewal_status === 'renewed' ? 'bg-green-100 text-green-800' :
+                              leaseData.renewal_status === 'negotiating' ? 'bg-amber-100 text-amber-800' :
+                              leaseData.renewal_status === 'not_renewing' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {leaseData.renewal_status ? leaseData.renewal_status.replace(/_/g, ' ') : 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             )}
             {tab === 'showings' && <ShowingsTab showings={showings} />}
             {tab === 'preferences' && (

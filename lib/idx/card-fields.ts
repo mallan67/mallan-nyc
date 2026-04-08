@@ -41,8 +41,8 @@ export const CARD_SELECT_FIELDS = [
   "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
   // Agent/Office
   "ListAgentFullName", "ListOfficeName",
-  // Media
-  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  // Media — PhotosChangeTimestamp is high-level trigger for media changes (Trestle guidance 2026-04-07)
+  "PhotosCount", "PhotosChangeTimestamp", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
   // Remarks
   "PublicRemarks",
   // Display gates

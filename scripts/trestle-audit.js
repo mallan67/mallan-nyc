@@ -562,7 +562,8 @@ async function runAudit() {
     const testListing = listings[0];
     const testKey = testListing.SourceSystemKey || testListing.ListingId;
     const isNumeric = /^\d+$/.test(String(testKey));
-    const filterField = isNumeric ? 'ResourceRecordKeyNumeric' : 'ResourceRecordID';
+    // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique), not ResourceRecordID
+    const filterField = isNumeric ? 'ResourceRecordKeyNumeric' : 'ResourceRecordKey';
     const filterVal = isNumeric ? testKey : `'${testKey}'`;
 
     const mediaResult = await fetchOData(token, 'Media', {

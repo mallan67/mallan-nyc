@@ -210,6 +210,8 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
 
 /**
  * Batch fetch primary photos from Trestle Media endpoint for listings missing media.
+ * Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+ * NOT ResourceRecordID (can duplicate). IDXListing.mlsId = ListingKey = ResourceRecordKey.
  */
 async function batchFetchPhotos(listings: IDXListing[]) {
   const needsPhotos = listings.filter((l) => l.media.length === 0);
@@ -218,13 +220,20 @@ async function batchFetchPhotos(listings: IDXListing[]) {
   try {
     const token = await getAccessToken();
     const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
-    const listingIds = needsPhotos.map((l) => l.listingId);
-    const filterParts = listingIds.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
+    // Use mlsId (= ListingKey = ResourceRecordKey) for unique media lookups
+    const keyToListing = new Map<string, IDXListing>();
+    const filterParts: string[] = [];
+    for (const l of needsPhotos) {
+      const key = l.mlsId || l.listingId;
+      keyToListing.set(key, l);
+      const escaped = key.replace(/'/g, "''");
+      filterParts.push(l.mlsId ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
+    }
     const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3`;
     const mediaParams = new URLSearchParams();
     mediaParams.set('$filter', mediaFilter);
-    mediaParams.set('$select', 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN');
-    mediaParams.set('$orderby', 'ResourceRecordID asc,Order asc');
+    mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN');
+    mediaParams.set('$orderby', 'Order asc');
     mediaParams.set('$top', String(needsPhotos.length * 4));
 
     const resp = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
@@ -236,15 +245,16 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     const data = await resp.json();
     const records = data.value || [];
 
-    const byListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+    const byKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
     for (const m of records) {
-      const lid = String(m.ResourceRecordID || '');
-      if (!lid || !m.MediaURL) continue;
+      // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
+      const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || '');
+      if (!mkey || !m.MediaURL) continue;
       const cat = String(m.MediaCategory || '').toLowerCase();
       if (cat.includes('floor plan')) continue; // Skip floorplans for cards
       const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-      if (!byListing.has(lid)) byListing.set(lid, []);
-      byListing.get(lid)!.push({
+      if (!byKey.has(mkey)) byKey.set(mkey, []);
+      byKey.get(mkey)!.push({
         url: String(m.MediaURL),
         mediaType: 'Photo',
         order: isPreferred ? -1 : Number(m.Order ?? 0),
@@ -252,7 +262,9 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     }
 
     for (const listing of needsPhotos) {
-      const photos = byListing.get(listing.listingId);
+      // Match by mlsId (ResourceRecordKey) first, fall back to listingId (ResourceRecordID)
+      const key = listing.mlsId || listing.listingId;
+      const photos = byKey.get(key);
       if (photos && photos.length > 0) {
         listing.media = photos.sort((a, b) => a.order - b.order) as typeof listing.media;
       }

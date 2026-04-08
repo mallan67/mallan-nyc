@@ -292,6 +292,8 @@ OAuth2 Client Credentials → `POST https://api.cotality.com/trestle/oidc/connec
 
 ### Media — Video, 3D Tours, Floor Plans
 
+> **⚠️ TRESTLE VENDOR GUIDANCE (2026-04-07, deep-audited):** Query Media by `ResourceRecordKey` (always unique across MLOs), NOT `ResourceRecordID` (can duplicate). Property.`ListingKey` = Media.`ResourceRecordKey`. Use `Media.ModificationTimestamp` for row-level change tracking and `Property.PhotosChangeTimestamp` as high-level trigger. `Media/All` endpoint is deprecated — use filtered `/odata/Media` queries directly. Enforced across 17 files (7 production, 3 utility, 7 test).
+
 All accessible via Media resource (`$expand=Media` or direct query). Classified by `MediaCategory`:
 - `Photo` — standard listing photos
 - `Floor Plan` — floor plan images

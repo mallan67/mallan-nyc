@@ -63,10 +63,10 @@ The backend CRM supports 6 portal types, each with different access levels:
 > - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search. Public search is IDX-only — limited to IDX-released fields and IDX-eligible listings (not full-market search). `PropertySearch.tsx` is dead code.
 > - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `public/crm/js/dashboard/` (app.js, panels.js, router.js, store.js, ui-components.js, workspace.js, portals.js + `panels/` subdirectory with sales-crm, rentals-crm, seller-prospects, lease-tracker, pitch-packet modules). **v2 Two-CRM redesign (2026-03-19):** lifecycle-based workspaces with prospect/active phases, `detectTypeAndPhase()` routing, Convert API, `Listing.owner_client_id` FK. Seller/Buyer/Landlord/Tenant each have full prospect + active workspace renderers.
 > - **API layer** — `app/api/` (235 route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
-> - **Database** — PostgreSQL on Neon (Prisma ORM, 61 models)
+> - **Database** — PostgreSQL on Neon (Prisma ORM, 60 models)
 > - **Outlook integration** — Microsoft Graph OAuth for email scanning (StreetEasy lead import, folder browser)
 > - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
-> - **Cron** — 6 scheduled jobs via `vercel.json` (data retention, DOM reset, IDX sync, listing expiration, search alerts, prospect triggers). 10 additional cron route files exist but are NOT scheduled (lead-scoring, intent-profiles, conviction-scores, seller-scoring, listing-momentum, social-proof, agent-metrics, market-snapshots, experiment-metrics, demand-signals).
+> - **Cron** — 19 scheduled jobs via `vercel.json`: db-keepalive (*/3), data-retention (daily 3am), dom-reset (daily 6am), idx-sync (*/12), media-backfill (*/8), listing-expiration (daily 7am), search-alerts (daily 7:30am), tenant-nurture (daily 8:30am), prospect-triggers (daily 9am), seller-scoring (daily 8am), demand-signals (daily 10am), intent-profiles (daily 11am), agent-metrics (weekly Mon), lead-scoring (daily 1pm), conviction-scores (daily 2pm), listing-momentum (daily 3pm), social-proof (daily 4pm), experiment-metrics (weekly Sun), market-snapshots (monthly 1st).
 >
 > **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure). Per-role TTL: Broker 24h, Agent 8h, Client 30d. Bearer fully removed.
 >
@@ -74,11 +74,11 @@ The backend CRM supports 6 portal types, each with different access levels:
 >
 > **Listing fetch strategy:** DB-first (Prisma, 20-80ms) → Trestle direct fallback (10s timeout) → API endpoint fallback. AbortController timeouts on all external calls (10s fetch, 8s auth). Graceful null returns on failure — pages never crash from Trestle outages.
 >
-> **Media pipeline:** Trestle photos/floor plans cached to R2 during ISR. `/api/media/proxy` as fallback (Bearer auth server-side, 7-day CDN cache).
+> **Media pipeline:** Trestle photos/floor plans cached to R2 during ISR. `/api/media/proxy` as fallback (Bearer auth server-side, 7-day CDN cache). **CRITICAL (Trestle guidance 2026-04-07):** All Media queries MUST use `ResourceRecordKey` (always unique across MLOs), NOT `ResourceRecordID` (can duplicate). Property.`ListingKey` = Media.`ResourceRecordKey`. DB `mls_id` stores `ListingKey`. `Media/All` endpoint is deprecated — query Media resource directly with filters. See "Trestle Media API Rules" section below.
 >
 > **Lead capture:** 8 public endpoints (inquiries, contact, sign-up, CMA, guides, favorites, search-alerts, open-house RSVP). All record `consent_captured_at` for TCPA/CAN-SPAM compliance. Contact form has honeypot bot protection.
 >
-> **Commission system:** `CommissionPayment` model with fail-closed split validation. `FinancialLedger` schema exists for immutable transaction logging with tamper-detection hash chain (schema-only — hash chain implementation pending).
+> **Commission system:** `CommissionPayment` model with fail-closed split validation.
 >
 > **Client data model (Lead):** Multi-person support — primary person (`first_name`, `last_name`, `email`, `phone`) + secondary person (`secondary_first_name`, `secondary_last_name`, `secondary_email`, `secondary_phone`, `secondary_relationship`). Dual addresses: `property_address` (rental/sale unit) + `home_address` (owner's personal). `legal_ownership_name` for LLC/Trust. Roles array supports combos: `["landlord","seller"]`.
 >
@@ -199,7 +199,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `MALLAN-NYC-CRM-PROJECT.md` | Master project document |
 | `CRM-ENHANCEMENT-SPEC.md` | Detailed enhancement specifications |
 | `compliance/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes, 47 BLOCKERs) |
-| `prisma/schema.prisma` | Database schema — 42 Prisma models (Listing, Agent, Lead, Deal, CommissionPayment, FinancialLedger, AuditEvent, etc.) |
+| `prisma/schema.prisma` | Database schema — 60 Prisma models (Listing, Agent, Lead, Deal, CommissionPayment, AuditEvent, etc.) |
 | `lib/compliance/` | Server-side compliance: RLS enforcement gate, DOM tracker, portal DTO sanitizer |
 | `lib/compliance/` | CI-gateable REBNY RLS validator (10 sections, 4-layer resolution) |
 | `compliance/FULL-AUDIT-2026-03-13.md` | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY |
@@ -262,6 +262,61 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 ---
 
+## ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
+
+> **Source:** Direct feedback from CoreLogic/Trestle (Cotality) support, received 2026-04-07.
+> **These rules are AUTHORITATIVE and override any prior assumptions about Media resource queries.**
+
+### 1. ResourceRecordKey, NOT ResourceRecordID (CRITICAL)
+- **`ResourceRecordKey`** and **`ResourceRecordKeyNumeric`** are ALWAYS unique across all MLOs (Multiple Listing Organizations).
+- **`ResourceRecordID`** MAY BE DUPLICATED across MLOs. Using it can return wrong photos for listings.
+- **Field mapping:** Property.`ListingKey` = Media.`ResourceRecordKey` | Property.`ListingKeyNumeric` = Media.`ResourceRecordKeyNumeric`
+- **DB mapping:** `mls_id` column on Listing model stores `ListingKey` (= `ResourceRecordKey`)
+- **All Media OData queries MUST filter by `ResourceRecordKey`**, falling back to `ResourceRecordID` only if `mls_id`/`ListingKey` is null.
+
+### 2. Media/All Endpoint is DEPRECATED
+- The `Media/All` endpoint is being removed by Trestle.
+- **Use filtered queries on the `/odata/Media` resource directly** (e.g., `$filter=ResourceRecordKey eq '...'`).
+- mallan.nyc already does this correctly — no `Media/All` usage exists.
+
+### 3. Two-Tier Timestamp Strategy for Media Sync
+- **`Media.ModificationTimestamp`** — Source of truth for individual media row changes. Use to detect when specific photos/floorplans were added, modified, or removed.
+- **`Property.PhotosChangeTimestamp`** — High-level trigger on the Property resource. Modified when ANYTHING in the listing's media record changes. Use as a lightweight signal to decide which listings need their media re-fetched.
+- **Recommended workflow:** Check `PhotosChangeTimestamp > lastSyncTime` on Property to identify changed listings → then query their Media with `ModificationTimestamp` filter for granular updates.
+
+### 4. Files Enforcing These Rules (17 total — deep-audited 2026-04-07)
+
+**Production code (7 files):**
+| File | What it does |
+|------|-------------|
+| `lib/idx/sync.ts` | 3 batch media sections (syncListings, backfill, agent history) |
+| `lib/idx/fetch.ts` | `fetchListingMedia()` priority order + inline `$expand=Media` |
+| `lib/idx/card-fields.ts` | `PhotosChangeTimestamp` in $select |
+| `app/api/media/batch/route.ts` | CRM media batch endpoint (detail + primary photo modes) — DB lookup for mls_id |
+| `app/api/agents/[slug]/listings/route.ts` | Agent listing photo batch fetch |
+| `app/api/idx/search/route.ts` | Search result photo backfill (uses `wid` = SourceSystemKey) |
+| `scripts/import-closed-from-trestle.ts` | Closed listing import with idToKeyMap |
+
+**Utility scripts (3 files):**
+| File | What it does |
+|------|-------------|
+| `scripts/rebuild-past-deals.js` | Past deals rebuild — idToKeyMap from ListingKey |
+| `scripts/fetch-real-photos.js` | Past deals photo fix — combined ResourceRecordKey OR ResourceRecordID filter |
+| `scripts/trestle-audit.js` | Trestle health audit — ResourceRecordKey for non-numeric keys |
+
+**Test/diagnostic scripts (7 files):**
+| File | What it does |
+|------|-------------|
+| `scripts/test-media-coverage.js` | Media coverage diagnostic |
+| `scripts/test-media-fix.js` | Media fix verification |
+| `scripts/test-photos.js` | Photo fetch test |
+| `scripts/test-media-types.js` | Media type diagnostic |
+| `scripts/time-pipeline.js` | Pipeline performance benchmark |
+| `scripts/test-media-public.js` | Public media test |
+| `scripts/test-media-cats.js` | Media category diagnostic |
+
+---
+
 ## UI/UX Standards
 
 ### Color Scheme
@@ -320,8 +375,8 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 **Repo surface area (verified 2026-04-06):**
 - Scheduled crons: **19** (vercel.json)
 - Cron route files: **19** (app/api/cron/)
-- Prisma models: **65** (schema.prisma)
-- API route files: **258** (app/api/)
+- Prisma models: **60** (schema.prisma)
+- API route files: **253** (app/api/)
 - Components: **102** (app/components/)
 - Verify: `node scripts/regenerate-claude-counts.js`
 
@@ -339,7 +394,7 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 
 ## Comprehensive Site Audit — 2026-04-06
 
-> **Scope:** Full-stack deep audit — build, TypeScript, IDX validator, all 258 API routes, all frontend pages, CRM dashboard, 4 client portals, 65 Prisma models, compliance gates, IDX field mapping pipeline, public pages.
+> **Scope:** Full-stack deep audit — build, TypeScript, IDX validator, all 253 API routes, all frontend pages, CRM dashboard, 4 client portals, 60 Prisma models, compliance gates, IDX field mapping pipeline, public pages.
 >
 > **Build:** PASS | **TypeScript:** 0 errors | **IDX Validator:** 822 pass, 0 critical, 3 warning
 >
@@ -352,12 +407,36 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 > 6. `TenantPays` dropped from IDX mapping pipeline (FARE Act) — **FIXED** (types + mapping + DTO)
 > 7. Missing `loading.tsx`/`error.tsx` on building and market pages — **ADDED**
 >
-> **Known gaps (not yet fixed):**
-> - `/style-preview` and `/demo/ecb` dev pages still in production
+> **Round 2 fixes (2026-04-06):**
+> 8. DB-to-public DTO field parity — added 20+ missing fields (prices, DOM, virtualTour, rental, amenities)
+> 9. Rental CRM: Add Lease form injected `landlord_lead_id`, 4 modal stubs wired to real APIs
+> 10. CRM auth guard re-enabled (was disabled with `&& false`)
+> 11. FARE Act fields added to CRM search `$select`
+> 12. Email dev-mode changed to `console.warn` + `_devMode` flag
+>
+> **Round 3 fixes (2026-04-06):**
+> 13. Contact form GET BigInt crash — **FIXED** (serialized `id`)
+> 14. Open houses: agent PII stripped (office name only), `OwnerOptOut`→`Permission`, fail-open→fail-closed
+> 15. `_submitShowing` field names aligned with API, `_submitUpload` `doc_type` match, DB DTO falsy zero drops
+>
+> **Quality improvements (2026-04-07):**
+> 16. 10 dead components + 7 unused npm deps removed (reduced bundle)
+> 17. About + Agents pages server-rendered (SEO: agent names/bios now in initial HTML)
+> 18. ECB violations integrated into building profiles (`app/components/BuildingViolations.tsx` + `/api/dob/ecb-violations`)
+> 19. Tenant portal: "My Lease" tab (dates, rent, days remaining, renewal status)
+> 20. Outreach cadence auto-scheduler in prospect-triggers cron (sends ready email steps)
+> 21. Email verification for self-signup clients (OTP, invited clients pre-verified)
+> 22. `ClosePrice`/`CloseDate`/`ListingContractDate` removed from `PRIVATE_FIELDS` (IDX-authorized per REBNY)
+> 23. Rental pitch packet with auto-CMA on address + editable financials
+> 24. Honeypot field renamed (`website`→`fax_line`), lightbox keyboard accessibility (WCAG 2.1 AA)
+> 25. Count regenerator script fixed (recursive component counting)
+>
+> **Remaining known gaps:**
+> - `/style-preview` dev page still in production (blocked by route guards)
 > - Offer status email lookup has no rate limiting
 > - Public "Save Search" (localStorage) doesn't trigger email alerts (cron queries DB)
 > - StructureType, LivingAreaUnits, LotSizeUnits in FIELD_MAP but not in IDX pipeline
-> - 4 orphaned Prisma models: FinancialLedger, MicroCommitment, CampaignRecipient, ExperimentListing
+> - 5 orphaned Prisma models removed (2026-04-07): FinancialLedger, MicroCommitment, CampaignRecipient, ExperimentListing, EngagementEvent
 > - No runtime/integration tests — all validation is static code analysis
 > - Neighborhood market stats are static JSON (stale until manually updated)
 >
@@ -365,5 +444,7 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 > 1. `geocodeListings()` in `lib/geo/geocode.ts` — address-based
 > 2. ZIP centroid fallback from `ZIP_CENTROIDS` table
 > 3. If both fail → lat/lng stay null → map/transit/schools sections hide gracefully
+>
+> **Compliance status (2026-04-07):** IDX Validator 823/0 critical | UCBA 42/46 pass, 0 regressions | CRM Smoke 218/0
 >
 > **Full findings:** `memory/FULL-SITE-AUDIT-2026-04-06.md`

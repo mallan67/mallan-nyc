@@ -1140,23 +1140,9 @@ var RentalsCRM = (function () {
   }
 
   function _loadPropertyResearch() {
-    var cl = _s.ws.client;
-    if (!cl) return;
     var container = document.getElementById('rws-live-content');
     if (!container) return;
-    container.innerHTML = '<div class="flex items-center gap-2 py-3 text-sm text-gray-500"><i class="fas fa-spinner fa-spin text-blue-500"></i> Loading...</div>';
-    var params = cl.bbl ? 'bbl=' + encodeURIComponent(cl.bbl) : cl.id ? 'client_id=' + encodeURIComponent(cl.id) : '';
-    if (!params && cl.property_address) params = 'address=' + encodeURIComponent(cl.property_address);
-    if (!params) { container.innerHTML = '<p class="text-xs text-amber-600">Enter property address in Intake first.</p>'; return; }
-    MallanAPI._fetch('/api/crm/property-research?' + params)
-      .then(function (data) {
-        if (typeof SalesCRM !== 'undefined' && typeof SalesCRM._renderPropertyResearch === 'function') {
-          SalesCRM._renderPropertyResearch(container, data);
-        } else {
-          container.innerHTML = '<p class="text-xs text-green-600">Data loaded. BBL: ' + E(data.bbl || 'N/A') + '</p>';
-        }
-      })
-      .catch(function (err) { container.innerHTML = '<p class="text-xs text-red-500">Failed: ' + E(err.message || '') + '</p>'; });
+    container.innerHTML = '<p class="text-xs text-gray-400">Property research not yet available.</p>';
   }
 
   function _wsAction(action) {

@@ -5190,33 +5190,11 @@ var Panels = (function () {
   }
 
   function _generate1099(agentId, taxYear) {
-    if (!confirm('Generate 1099-NEC for this agent for tax year ' + taxYear + '?')) return;
-    MallanAPI._fetch('/api/crm/1099/generate', {
-      method: 'POST',
-      body: JSON.stringify({ agentId: agentId, taxYear: taxYear }),
-    }).then(function () {
-      Events.log('1099_generated', 'agent', agentId, { taxYear: taxYear });
-      CRM.toast('1099-NEC generated for ' + taxYear, 'success');
-      yearEnd1099();
-    }).catch(function () {
-      Events.log('1099_generated', 'agent', agentId, { taxYear: taxYear });
-      CRM.toast('1099 generation queued', 'info');
-    });
+    CRM.toast('1099 generation not yet implemented', 'warning');
   }
 
   function _generateAll1099s(taxYear) {
-    if (!confirm('Generate 1099-NEC for ALL agents for tax year ' + taxYear + '?')) return;
-    MallanAPI._fetch('/api/crm/1099/generate-all', {
-      method: 'POST',
-      body: JSON.stringify({ taxYear: taxYear }),
-    }).then(function () {
-      Events.log('1099_batch_generated', 'system', null, { taxYear: taxYear });
-      CRM.toast('All 1099s generated for ' + taxYear, 'success');
-      yearEnd1099();
-    }).catch(function () {
-      Events.log('1099_batch_generated', 'system', null, { taxYear: taxYear });
-      CRM.toast('1099 batch generation queued', 'info');
-    });
+    CRM.toast('1099 batch generation not yet implemented', 'warning');
   }
 
   function _export1099AuditReport() {
@@ -5298,16 +5276,7 @@ var Panels = (function () {
   }
 
   function _mark1099Status(agentId, status) {
-    MallanAPI._fetch('/api/crm/1099/status', {
-      method: 'POST',
-      body: JSON.stringify({ agentId: agentId, status: status }),
-    }).then(function () {
-      Events.log('1099_status_updated', 'agent', agentId, { status: status });
-      CRM.toast('1099 status updated to ' + status, 'success');
-      yearEnd1099();
-    }).catch(function () {
-      CRM.toast('Could not update 1099 status', 'error');
-    });
+    CRM.toast('1099 status tracking not yet implemented', 'warning');
   }
 
   // ─── E-Signature ─────────────────────────────────────────────────────

@@ -1134,11 +1134,7 @@ var SalesCRM = (function () {
       return;
     }
 
-    MallanAPI._fetch('/api/crm/property-research?' + params.join('&'))
-      .then(function (data) { _renderPropertyResearch(container, data); })
-      .catch(function (err) {
-        container.innerHTML = '<p class="text-xs text-red-500"><i class="fas fa-times-circle mr-1"></i>Failed to load: ' + E(err.message || 'Unknown error') + '</p>';
-      });
+    container.innerHTML = '<p class="text-xs text-gray-400">Property research not yet available.</p>';
   }
 
   function _renderPropertyResearch(container, d) {

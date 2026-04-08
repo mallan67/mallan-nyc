@@ -19,8 +19,10 @@ async function run() {
 
   for (const id of testIds) {
     const params = new URLSearchParams();
-    params.set('$filter', `ResourceRecordID eq '${id}'`);
-    params.set('$select', 'ResourceRecordID,MediaURL,ShortDescription,LongDescription,Order,PreferredPhotoYN');
+    // Trestle guidance (2026-04-07): prefer ResourceRecordKey (always unique)
+    // These are hardcoded ListingIds — try both fields
+    params.set('$filter', `(ResourceRecordKey eq '${id}' or ResourceRecordID eq '${id}')`);
+    params.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,ShortDescription,LongDescription,Order,PreferredPhotoYN');
     params.set('$orderby', 'Order asc');
     params.set('$top', '10');
 

@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-04-06T23:50:49.813Z",
-  "pass": 826,
+  "timestamp": "2026-04-07T22:31:29.253Z",
+  "pass": 823,
   "critical": 0,
-  "warning": 3,
-  "info": 41,
+  "warning": 4,
+  "info": 25,
   "sections": [
     {
       "section": 1,
@@ -135,9 +135,9 @@
       "section": 15,
       "title": "PII / Logging Redaction",
       "category": "Auth & Security",
-      "pass": 2,
+      "pass": 1,
       "critical": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 0
     },
     {
@@ -219,7 +219,7 @@
       "pass": 92,
       "critical": 0,
       "warning": 0,
-      "info": 10
+      "info": 1
     },
     {
       "section": 25,
@@ -228,7 +228,7 @@
       "pass": 24,
       "critical": 0,
       "warning": 0,
-      "info": 12
+      "info": 5
     },
     {
       "section": 26,
@@ -261,7 +261,7 @@
       "section": 29,
       "title": "Interactive Element Wiring",
       "category": "Frontend",
-      "pass": 23,
+      "pass": 21,
       "critical": 0,
       "warning": 0,
       "info": 0

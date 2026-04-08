@@ -180,7 +180,7 @@ var Workspace = (function () {
     _renderClientTab();
     // Fetch lead score + health for right rail
     _fetchRailLeadScore();
-    _fetchRailHealth();
+    // _fetchRailHealth removed — stub endpoint deleted
   }
 
   function _fetchHeaderPartner() {
@@ -275,11 +275,6 @@ var Workspace = (function () {
         '<div class="flex justify-between text-xs"><span>Next Task</span><span class="font-bold truncate max-w-[120px]" title="' + E(railNextTask) + '">' + E(railNextTask) + '</span></div>' +
       '</div></div>';
 
-    // Health Metrics — fetched async from client-health endpoint
-    html += '<div class="card p-3"><h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Health</h4>' +
-      '<div id="wsRailHealth" class="space-y-2">' +
-        '<div class="text-xs text-gray-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i></div>' +
-      '</div></div>';
 
     // Nurture Status
     var nurture = (cl.preferences && cl.preferences.nurture) || {};
@@ -409,30 +404,6 @@ var Workspace = (function () {
     });
   }
 
-  function _fetchRailHealth() {
-    MallanAPI._fetch('/api/crm/client-health/' + _clientId).then(function (data) {
-      var el = document.getElementById('wsRailHealth');
-      if (!el) return;
-      var urgencyColors = { high: '#EF4444', medium: '#F59E0B', low: '#3B82F6', none: '#9CA3AF' };
-      var urgencyLabels = { high: 'Needs Attention', medium: 'Monitor', low: 'Healthy', none: 'Stable' };
-      var color = urgencyColors[data.urgencyLevel] || '#9CA3AF';
-      var label = urgencyLabels[data.urgencyLevel] || 'Unknown';
-      var html = '<div class="flex justify-between text-xs"><span>Score</span><span class="font-bold">' + (data.healthScore || 0) + '/100</span></div>' +
-        '<div class="flex justify-between text-xs"><span>Status</span><span class="font-bold" style="color:' + color + '">' + E(label) + '</span></div>' +
-        '<div class="flex justify-between text-xs"><span>Suggested Stage</span><span class="font-bold">' + E(data.suggestedStage || '-') + '</span></div>';
-      if (data.reasons && data.reasons.length > 0) {
-        html += '<div class="mt-2 pt-2 border-t">';
-        data.reasons.slice(0, 3).forEach(function (r) {
-          html += '<p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1" style="color:' + color + '"></i>' + E(r) + '</p>';
-        });
-        html += '</div>';
-      }
-      el.innerHTML = html;
-    }).catch(function () {
-      var el = document.getElementById('wsRailHealth');
-      if (el) el.innerHTML = '<p class="text-xs text-gray-400 text-center">N/A</p>';
-    });
-  }
 
   function _loadClientSecondary() {
     // Load tasks, showings, documents, conviction, intent in background

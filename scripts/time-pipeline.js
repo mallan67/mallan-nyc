@@ -29,7 +29,7 @@ async function run() {
     "StreetNumber","StreetName","StreetDirPrefix","StreetDirSuffix",
     "StreetSuffix","UnitNumber","City","CityRegion","PostalCity",
     "PostalCode","StateOrProvince","CountyOrParish","Latitude","Longitude",
-    "ListingId","SourceSystemKey","PropertyType","PropertySubType",
+    "ListingId","ListingKey","SourceSystemKey","PropertyType","PropertySubType",
     "CommonInterest","OwnershipType",
     "StandardStatus","MlsStatus","ModificationTimestamp",
     "ListingContractDate","OnMarketDate","DaysOnMarket","CumulativeDaysOnMarket",
@@ -61,14 +61,15 @@ async function run() {
   console.log('2. Listings:', Date.now() - t + 'ms', `(${records.length} records, count=${listData['@odata.count']})`);
 
   // Step 3: Media batch (for first 50 listings)
+  // Trestle guidance (2026-04-07): use ListingKey (= Media.ResourceRecordKey)
   t = Date.now();
-  const ids = records.slice(0, 50).map(r => r.ListingId);
-  const filterParts = ids.map(id => `ResourceRecordID eq '${id}'`);
+  const ids = records.slice(0, 50).map(r => r.ListingKey || r.SourceSystemKey || r.ListingId);
+  const filterParts = ids.map(id => `ResourceRecordKey eq '${id}'`);
   const mFilter = `(${filterParts.join(' or ')}) and Order le 2`;
   const mParams = new URLSearchParams({
     '$filter': mFilter,
-    '$select': 'ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN',
-    '$orderby': 'ResourceRecordID asc,Order asc',
+    '$select': 'ResourceRecordKey,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN',
+    '$orderby': 'Order asc',
     '$top': String(ids.length * 3),
   });
   const mRes = await fetch(`${apiUrl}/odata/Media?${mParams}`, {

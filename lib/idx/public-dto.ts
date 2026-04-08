@@ -15,7 +15,7 @@ import type { IDXListing } from './types';
 import { generateListingSlug } from '@/lib/listing-slug';
 
 /** Map Trestle property fields to user-friendly property type */
-function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
+export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
   // 1. CommonInterest is the most reliable for co-op/condo distinction
   if (commonInterest) {
     switch (commonInterest) {

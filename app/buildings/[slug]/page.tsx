@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import BackButton from '@/app/components/BackButton';
+import BuildingViolations from '@/app/components/BuildingViolations';
 
 export const revalidate = 600;
 
@@ -698,6 +699,9 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
               </div>
             </section>
           )}
+
+          {/* ECB Violations — expandable, loads on click from NYC Open Data */}
+          <BuildingViolations address={building.address} />
 
           <IDXDisclaimer />
         </div>

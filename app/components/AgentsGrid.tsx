@@ -18,9 +18,8 @@ interface Agent {
   featured: boolean;
 }
 
-export default function AgentsGrid() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AgentsGrid({ initialAgents }: { initialAgents?: Agent[] } = {}) {
+  const [agents] = useState<Agent[]>(initialAgents || []);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [bioOverflows, setBioOverflows] = useState(false);
   const photoRef = useRef<HTMLDivElement>(null);
@@ -28,6 +27,7 @@ export default function AgentsGrid() {
   const heroRef = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
   const featuredRef = useGsapReveal<HTMLDivElement>({ y: 50, duration: 1 });
   const teamRef = useGsapReveal<HTMLDivElement>({ children: true, y: 40, scale: 0.98, stagger: 0.12 });
+  const loading = agents.length === 0;
 
   useEffect(() => {
     if (photoRef.current && bioRef.current) {
@@ -35,17 +35,7 @@ export default function AgentsGrid() {
       const bioH = bioRef.current.scrollHeight;
       setBioOverflows(bioH > photoH);
     }
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/agents/public')
-      .then(res => res.json())
-      .then(data => {
-        setAgents(data.agents || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+  }, [agents]);
 
   if (loading) {
     return (

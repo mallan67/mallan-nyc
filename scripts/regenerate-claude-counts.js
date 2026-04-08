@@ -33,9 +33,21 @@ const cronRoutes = countFiles('app/api/cron', 'route.ts');
 const apiRoutes = countFiles('app/api', 'route.ts');
 const schema = fs.readFileSync(path.join(ROOT, 'prisma/schema.prisma'), 'utf8');
 const models = (schema.match(/^\s*model\s+/gm) || []).length;
-const components = countFiles('app/components', '.tsx').length > 0
-  ? fs.readdirSync(path.join(ROOT, 'app/components')).filter(f => f.endsWith('.tsx')).length
-  : 0;
+// Recursive count — includes subdirectories like neighborhoods/
+function countTsxFiles(dir) {
+  const abs = path.join(ROOT, dir);
+  if (!fs.existsSync(abs)) return 0;
+  let count = 0;
+  for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
+    if (entry.isDirectory() && !entry.name.startsWith('.')) {
+      count += countTsxFiles(path.join(dir, entry.name));
+    } else if (entry.isFile() && entry.name.endsWith('.tsx')) {
+      count++;
+    }
+  }
+  return count;
+}
+const components = countTsxFiles('app/components');
 const errorBoundaries = countFiles('app', 'error.tsx');
 const loadingStates = countFiles('app', 'loading.tsx');
 const layouts = countFiles('app', 'layout.tsx');

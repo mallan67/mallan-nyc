@@ -17,7 +17,7 @@ async function run() {
   });
   const { access_token } = await tr.json();
 
-  const r = await fetch(`${apiUrl}/odata/Media?$select=ResourceRecordID,MediaCategory,MediaType,Order,PreferredPhotoYN&$top=200&$orderby=Order asc`, {
+  const r = await fetch(`${apiUrl}/odata/Media?$select=ResourceRecordKey,ResourceRecordID,MediaCategory,MediaType,Order,PreferredPhotoYN&$top=200&$orderby=Order asc`, {
     headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/json' },
   });
   const d = await r.json();

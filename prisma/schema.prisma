@@ -379,7 +379,7 @@ model Lead {
   // --- Relations for new models ---
   owned_listings         Listing[]           @relation("ListingOwner")
   showing_history        ShowingHistory[]
-  campaigns_targeted     CampaignRecipient[]
+
   portal_events          PortalEvent[]
   listing_views          ListingView[]
   landlord_active_leases ActiveLease[]       @relation("LandlordActiveLeases")
@@ -1145,52 +1145,10 @@ model ExperimentArm {
   config          Json              @default("{}") // Strategy-specific config
   summary_metrics Json              @default("{}") @map("summary_metrics") // Aggregated KPIs (computed by cron)
 
-  listings ExperimentListing[]
-
   @@index([experiment_id])
   @@map("experiment_arms")
 }
 
-// ═══════════════════════════════════════════════════════════
-// EXPERIMENT LISTING — Listing assignment to an arm
-// ═══════════════════════════════════════════════════════════
-model ExperimentListing {
-  id                    BigInt        @id @default(autoincrement())
-  arm_id                BigInt        @map("arm_id")
-  arm                   ExperimentArm @relation(fields: [arm_id], references: [id], onDelete: Cascade)
-  listing_id            String        @map("listing_id") // Listing.listing_id (string key)
-  listing_address       String?       @map("listing_address") // Denormalized for display
-  seller_consent        Boolean       @default(false) @map("seller_consent")
-  consent_timestamp     DateTime?     @map("consent_timestamp")
-  consent_method        String?       @map("consent_method") // seller_portal | email | in_person
-  consent_terms_version String?       @map("consent_terms_version")
-  enrolled_at           DateTime      @default(now()) @map("enrolled_at")
-  withdrawn_at          DateTime?     @map("withdrawn_at")
-
-  engagement_events EngagementEvent[]
-
-  @@unique([arm_id, listing_id])
-  @@index([listing_id])
-  @@map("experiment_listings")
-}
-
-// ═══════════════════════════════════════════════════════════
-// ENGAGEMENT EVENT — Buyer engagement signals per experiment listing
-// ═══════════════════════════════════════════════════════════
-model EngagementEvent {
-  id                    BigInt            @id @default(autoincrement())
-  experiment_listing_id BigInt            @map("experiment_listing_id")
-  experiment_listing    ExperimentListing @relation(fields: [experiment_listing_id], references: [id], onDelete: Cascade)
-  event_type            String            @map("event_type") // page_view | inquiry | showing_request | save_favorite | time_on_page | cta_click
-  value                 Decimal?          @db.Decimal(14, 2) // Numeric value (seconds for time, 1 for counts)
-  metadata              Json? // Extra context (no PII)
-  recorded_at           DateTime          @default(now()) @map("recorded_at")
-
-  @@index([experiment_listing_id])
-  @@index([event_type])
-  @@index([recorded_at])
-  @@map("engagement_events")
-}
 
 // ═══════════════════════════════════════════════════════════
 // G. DEMAND HEATMAP — Hyperlocal demand signals
@@ -1602,28 +1560,6 @@ model ListingAudit {
 }
 
 // ═══════════════════════════════════════════════════════════
-// R. FINANCIAL LEDGER — Immutable transaction log
-// ═══════════════════════════════════════════════════════════
-model FinancialLedger {
-  id              BigInt   @id @default(autoincrement())
-  deal_id         BigInt?  @map("deal_id")
-  payment_id      BigInt?  @map("payment_id")
-  entry_type      String   @map("entry_type") // "commission_received" | "agent_payout" | "company_share" | "referral_fee" | "adjustment" | "void"
-  amount          Decimal  @db.Decimal(14, 2)
-  running_balance Decimal? @map("running_balance") @db.Decimal(14, 2)
-  description     String   @db.Text
-  reference       String? // check #, wire ref, etc.
-  recorded_by     BigInt   @map("recorded_by") // agent or broker ID who recorded
-  immutable_hash  String?  @map("immutable_hash") // SHA-256 of previous entry + this entry for tamper detection
-
-  created_at DateTime @default(now()) @map("created_at")
-
-  @@index([deal_id])
-  @@index([payment_id])
-  @@index([entry_type])
-  @@index([created_at])
-  @@map("financial_ledger")
-}
 
 // ═══════════════════════════════════════════════════════════
 // S. BEHAVIORAL EVENT — Granular micro-signal tracking
@@ -1711,24 +1647,6 @@ model SocialProofCache {
 }
 
 // ═══════════════════════════════════════════════════════════
-// W. MICRO-COMMITMENT — Progressive identity capture
-// ═══════════════════════════════════════════════════════════
-model MicroCommitment {
-  id                   BigInt    @id @default(autoincrement())
-  anonymous_session_id String    @map("anonymous_session_id")
-  lead_id              BigInt?   @map("lead_id")
-  stage                String    @default("anonymous") // anonymous, soft_identity, full_identity
-  email                String?
-  source               String? // price_alert, save_search, cma_offer, registration_gate, calculator
-  consent_captured_at  DateTime? @map("consent_captured_at")
-  created_at           DateTime  @default(now()) @map("created_at")
-  updated_at           DateTime  @updatedAt @map("updated_at")
-
-  @@index([anonymous_session_id])
-  @@index([lead_id])
-  @@index([email])
-  @@map("micro_commitments")
-}
 
 // ═══════════════════════════════════════════════════════════
 // X. LIFECYCLE TRIGGERS — Event-driven automation rules
@@ -1956,31 +1874,11 @@ model Campaign {
   filters         Json? // audience filter criteria
   created_at      DateTime            @default(now()) @map("created_at")
   updated_at      DateTime            @updatedAt @map("updated_at")
-  recipients      CampaignRecipient[]
-
   @@index([agent_id])
   @@index([crm_type, status])
   @@map("campaigns")
 }
 
-// ═══════════════════════════════════════════════════════════
-// CAMPAIGN RECIPIENT — Links campaigns to leads
-// ═══════════════════════════════════════════════════════════
-model CampaignRecipient {
-  id           BigInt    @id @default(autoincrement())
-  campaign_id  BigInt    @map("campaign_id")
-  campaign     Campaign  @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
-  lead_id      BigInt    @map("lead_id")
-  lead         Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-  sent_at      DateTime? @map("sent_at")
-  opened_at    DateTime? @map("opened_at")
-  clicked_at   DateTime? @map("clicked_at")
-  responded_at DateTime? @map("responded_at")
-
-  @@unique([campaign_id, lead_id])
-  @@index([lead_id])
-  @@map("campaign_recipients")
-}
 
 // ═══════════════════════════════════════════════════════════
 // SHOWING HISTORY — Per-lead showing records for viewed/did-not-rent

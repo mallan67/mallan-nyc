@@ -61,16 +61,22 @@ async function fetchByAddress(token, streetNumber, streetName, unit) {
   return data.value || [];
 }
 
-async function batchFetchPhotos(token, listingIds) {
+// Trestle guidance (2026-04-07): use ResourceRecordKey (always unique), not ResourceRecordID (can duplicate).
+async function batchFetchPhotos(token, listingIds, idToKeyMap) {
   const map = new Map();
   if (listingIds.length === 0) return map;
   // Batch in groups of 20
   for (let i = 0; i < listingIds.length; i += 20) {
     const batch = listingIds.slice(i, i + 20);
-    const filterParts = batch.map(id => `ResourceRecordID eq '${id}'`);
+    const keyToId = new Map();
+    const filterParts = batch.map(id => {
+      const key = idToKeyMap?.get(id);
+      if (key) { keyToId.set(key, id); return `ResourceRecordKey eq '${key}'`; }
+      keyToId.set(id, id); return `ResourceRecordID eq '${id}'`;
+    });
     const params = new URLSearchParams();
     params.set('$filter', `(${filterParts.join(' or ')}) and Order le 1`);
-    params.set('$select', 'ResourceRecordID,MediaURL,Order');
+    params.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,Order');
     params.set('$top', String(batch.length * 2));
     const res = await fetch(`${TRESTLE_API_URL}/odata/Media?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -78,7 +84,8 @@ async function batchFetchPhotos(token, listingIds) {
     if (!res.ok) continue;
     const data = await res.json();
     for (const m of (data.value || [])) {
-      const lid = String(m.ResourceRecordID || '');
+      const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || '');
+      const lid = keyToId.get(mkey) || mkey;
       if (lid && m.MediaURL && !map.has(lid)) {
         map.set(lid, `/api/media/proxy?url=${encodeURIComponent(String(m.MediaURL))}`);
       }
@@ -251,8 +258,15 @@ async function main() {
   }
 
   // Step 4: Fetch photos for ALL trestle listings
+  // Build ListingId → ListingKey map for ResourceRecordKey queries (Trestle guidance 2026-04-07)
+  const idToKeyMap = new Map();
+  for (const records of [exclusives, ...addressLookupResults.values()]) {
+    for (const r of records) {
+      if (r.ListingId && r.ListingKey) idToKeyMap.set(r.ListingId, r.ListingKey);
+    }
+  }
   console.log(`Fetching photos for ${allTrestleListingIds.size} listings...`);
-  const photoMap = await batchFetchPhotos(token, [...allTrestleListingIds]);
+  const photoMap = await batchFetchPhotos(token, [...allTrestleListingIds], idToKeyMap);
   console.log(`  Got photos for ${photoMap.size} listings`);
 
   // Step 5: Build final output

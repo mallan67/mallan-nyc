@@ -154,9 +154,23 @@ export async function syncListings(
   // and update DB records. Uses Trestle Media endpoint (separate quota: 18K req/hr).
   if (!useExpandMedia && upserted > 0) {
     try {
-      const listingsNeedMedia = fetchResult.records
-        .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0)
-        .map((r) => String(r.ListingId || r.SourceSystemKey || ""));
+      // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+      // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
+      const listingsNeedMediaRaw = fetchResult.records
+        .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
+      const keyToIdMap = new Map<string, string>();
+      const listingsNeedMedia: string[] = [];
+      for (const r of listingsNeedMediaRaw) {
+        const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
+        const listingId = String(r.ListingId || listingKey);
+        if (listingKey) {
+          keyToIdMap.set(listingKey, listingId);
+          listingsNeedMedia.push(listingKey);
+        } else if (listingId) {
+          keyToIdMap.set(listingId, listingId);
+          listingsNeedMedia.push(listingId);
+        }
+      }
 
       if (listingsNeedMedia.length > 0) {
         console.log(`[IDX Sync] Batch-fetching media for ${listingsNeedMedia.length} listings`);
@@ -169,12 +183,12 @@ export async function syncListings(
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
 
-          const idFilter = batch.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
+          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
           const mediaFilter = `(${idFilter})`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
-          mediaParams.set("$orderby", "ResourceRecordID asc,Order asc");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           mediaParams.set("$top", String(batch.length * 30));
 
           try {
@@ -190,10 +204,10 @@ export async function syncListings(
             if (!res.ok) continue;
             const data = await res.json();
 
-            // Group media by listing ID — normalize to {url, mediaType, order} for display adapter
+            // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
             const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
             for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordID || "");
+              const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
               const cat = String(m.MediaCategory || "").toLowerCase();
@@ -209,8 +223,9 @@ export async function syncListings(
               });
             }
 
-            // Update DB records with media
-            for (const [listingId, media] of mediaByListing) {
+            // Update DB records — convert ResourceRecordKey back to listing_id via map
+            for (const [key, media] of mediaByListing) {
+              const listingId = keyToIdMap.get(key) || key;
               await prisma.listing.updateMany({
                 where: { listing_id: listingId },
                 data: { media: media as unknown as Prisma.InputJsonValue },
@@ -285,9 +300,9 @@ export async function syncListings(
 export async function backfillEmptyMedia(options?: { limit?: number }): Promise<{ checked: number; updated: number; errors: number }> {
   const limit = options?.limit ?? 200;
 
-  // Find listings with empty or null media
-  const listings = await prisma.$queryRaw<{ listing_id: string }[]>`
-    SELECT listing_id FROM "listings"
+  // Find listings with empty or null media — include mls_id (= ListingKey = Media.ResourceRecordKey)
+  const listings = await prisma.$queryRaw<{ listing_id: string; mls_id: string | null }[]>`
+    SELECT listing_id, mls_id FROM "listings"
     WHERE (media IS NULL OR media::text = '[]' OR media::text = '{}')
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
       AND sync_status IS DISTINCT FROM 'gated:participant_only'
@@ -318,16 +333,27 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 
   for (let i = 0; i < listings.length; i += BATCH_SIZE) {
     const batch = listings.slice(i, i + BATCH_SIZE);
-    const ids = batch.map((l) => l.listing_id).filter(Boolean);
-    if (ids.length === 0) continue;
+    // Trestle guidance: use ResourceRecordKey (always unique), not ResourceRecordID (can duplicate across MLOs).
+    // mls_id = ListingKey = Media.ResourceRecordKey. Fall back to listing_id → ResourceRecordID if mls_id is null.
+    const keyToId = new Map<string, string>();
+    const filterParts: string[] = [];
+    for (const l of batch) {
+      if (l.mls_id) {
+        filterParts.push(`ResourceRecordKey eq '${l.mls_id.replace(/'/g, "''")}'`);
+        keyToId.set(l.mls_id, l.listing_id);
+      } else if (l.listing_id) {
+        filterParts.push(`ResourceRecordID eq '${l.listing_id.replace(/'/g, "''")}'`);
+        keyToId.set(l.listing_id, l.listing_id);
+      }
+    }
+    if (filterParts.length === 0) continue;
 
-    const idFilter = ids.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
-    const mediaFilter = `(${idFilter})`;
+    const mediaFilter = `(${filterParts.join(" or ")})`;
     const mediaParams = new URLSearchParams();
     mediaParams.set("$filter", mediaFilter);
-    mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
-    mediaParams.set("$orderby", "ResourceRecordID asc,Order asc");
-    mediaParams.set("$top", String(ids.length * 30));
+    mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+    mediaParams.set("$orderby", "Order asc");
+    mediaParams.set("$top", String(filterParts.length * 30));
 
     try {
       const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
@@ -340,26 +366,28 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       }
       const data = await res.json();
 
-      const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+      const mediaByKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
       for (const m of data.value || []) {
-        const lid = String(m.ResourceRecordID || "");
+        // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
+        const lid = String(m.ResourceRecordKey || m.ResourceRecordID || "");
         if (!lid || !m.MediaURL) continue;
-        if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+        if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
         const cat = String(m.MediaCategory || "").toLowerCase();
         let mediaType: string = "Photo";
         if (cat.includes("floor plan")) mediaType = "FloorPlan";
         else if (cat.includes("video")) mediaType = "Video";
         else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
         const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-        mediaByListing.get(lid)!.push({
+        mediaByKey.get(lid)!.push({
           url: String(m.MediaURL),
           mediaType,
           order: isPreferred ? -1 : Number(m.Order ?? 0),
         });
       }
 
-      for (const [listingId, media] of mediaByListing) {
+      for (const [key, media] of mediaByKey) {
         try {
+          const listingId = keyToId.get(key) || key;
           await prisma.listing.updateMany({
             where: { listing_id: listingId },
             data: { media: media as unknown as Prisma.InputJsonValue },
@@ -654,9 +682,23 @@ export async function syncAgentHistory(
   // ── Batch-fetch media for listings without inline media ──
   if (!useExpandMedia && upserted > 0) {
     try {
-      const listingsNeedMedia = fetchResult.records
-        .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0)
-        .map((r) => String(r.ListingId || r.SourceSystemKey || ""));
+      // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+      // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
+      const listingsNeedMediaRaw = fetchResult.records
+        .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
+      const agentKeyToIdMap = new Map<string, string>();
+      const listingsNeedMedia: string[] = [];
+      for (const r of listingsNeedMediaRaw) {
+        const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
+        const listingId = String(r.ListingId || listingKey);
+        if (listingKey) {
+          agentKeyToIdMap.set(listingKey, listingId);
+          listingsNeedMedia.push(listingKey);
+        } else if (listingId) {
+          agentKeyToIdMap.set(listingId, listingId);
+          listingsNeedMedia.push(listingId);
+        }
+      }
 
       if (listingsNeedMedia.length > 0) {
         console.log(`[IDX Agent History] Batch-fetching media for ${listingsNeedMedia.length} listings`);
@@ -669,12 +711,12 @@ export async function syncAgentHistory(
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
 
-          const idFilter = batch.map((id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`).join(" or ");
+          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
           const mediaFilter = `(${idFilter})`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
-          mediaParams.set("$orderby", "ResourceRecordID asc,Order asc");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           mediaParams.set("$top", String(batch.length * 30));
 
           try {
@@ -690,25 +732,27 @@ export async function syncAgentHistory(
             if (!res.ok) continue;
             const data = await res.json();
 
-            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+            const mediaByKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
             for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordID || "");
+              const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
-              if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+              if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
               const cat = String(m.MediaCategory || "").toLowerCase();
               let mediaType: string = "Photo";
               if (cat.includes("floor plan")) mediaType = "FloorPlan";
               else if (cat.includes("video")) mediaType = "Video";
               else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              mediaByListing.get(lid)!.push({
+              mediaByKey.get(lid)!.push({
                 url: String(m.MediaURL),
                 mediaType,
                 order: isPreferred ? -1 : Number(m.Order ?? 0),
               });
             }
 
-            for (const [listingId, media] of mediaByListing) {
+            // Convert ResourceRecordKey back to listing_id via map
+            for (const [key, media] of mediaByKey) {
+              const listingId = agentKeyToIdMap.get(key) || key;
               await prisma.listing.updateMany({
                 where: { listing_id: listingId },
                 data: { media: media as unknown as Prisma.InputJsonValue },

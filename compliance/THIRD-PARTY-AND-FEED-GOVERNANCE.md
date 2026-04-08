@@ -37,6 +37,30 @@
 - Store API base URL as environment variable (`TRESTLE_API_URL=https://api.cotality.com/trestle`) — never hardcode
 - **v3.3 enforcement:** CI deployment fails if `api-trestle.corelogic.com` or `api-prod.corelogic.com` detected in codebase. Go-Live gate #21 requires 0 deprecated URLs + successful live API call. See Master Audit Report Section AR.
 
+### ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
+
+> **Source:** Direct feedback from CoreLogic/Trestle (Cotality) support.
+> **Classification:** MANDATORY — these rules govern all Media resource queries in the codebase.
+
+| # | Rule | Rationale | Enforcement |
+|---|------|-----------|-------------|
+| 1 | **Use `ResourceRecordKey` (or `ResourceRecordKeyNumeric`), NOT `ResourceRecordID`** | `ResourceRecordID` can be duplicated across MLOs (Multiple Listing Organizations). `ResourceRecordKey`/`Numeric` are always unique. Using `ResourceRecordID` risks returning wrong media for a listing. | All batch Media OData queries filter by `ResourceRecordKey`. DB column `mls_id` (Listing model) stores `ListingKey` = `ResourceRecordKey`. Fallback to `ResourceRecordID` only when `mls_id` is null. |
+| 2 | **`Media/All` endpoint is DEPRECATED** | Trestle is removing `Media/All`. | Query `/odata/Media` with explicit `$filter`. No `Media/All` usage exists in codebase (verified). |
+| 3 | **Use `Media.ModificationTimestamp` for individual media changes** | Source of truth for when a specific photo/floorplan was added, modified, or removed. | Included in `$expand=Media($select=...,ModificationTimestamp,ResourceRecordKey)` and batch `$select`. |
+| 4 | **Use `Property.PhotosChangeTimestamp` as media change trigger** | High-level signal on the Property resource — modified when ANY media for that listing changes. Cheaper than querying Media for every listing. | Included in `CARD_SELECT_FIELDS` (`card-fields.ts`). Available for backfill optimization. |
+
+**Field mapping reference:**
+- Property.`ListingKey` = Media.`ResourceRecordKey` (string, always unique)
+- Property.`ListingKeyNumeric` = Media.`ResourceRecordKeyNumeric` (numeric, always unique)
+- Property.`ListingId` = Media.`ResourceRecordID` (string, **NOT guaranteed unique across MLOs**)
+
+**Files enforcing these rules (17 total — deep-audited 2026-04-07):**
+- **Production (7):** `lib/idx/sync.ts`, `lib/idx/fetch.ts`, `lib/idx/card-fields.ts`, `app/api/media/batch/route.ts`, `app/api/agents/[slug]/listings/route.ts`, `app/api/idx/search/route.ts`, `scripts/import-closed-from-trestle.ts`
+- **Utility (3):** `scripts/rebuild-past-deals.js`, `scripts/fetch-real-photos.js`, `scripts/trestle-audit.js`
+- **Test/diagnostic (7):** `scripts/test-media-coverage.js`, `scripts/test-media-fix.js`, `scripts/test-photos.js`, `scripts/test-media-types.js`, `scripts/time-pipeline.js`, `scripts/test-media-public.js`, `scripts/test-media-cats.js`
+
+---
+
 ### Data Dictionary
 
 - **RESO DD 2.0** certified (April 15, 2025) — **NOW LIVE** on Trestle

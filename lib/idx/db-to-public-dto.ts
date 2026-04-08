@@ -16,6 +16,7 @@
  */
 
 import type { PublicListingDTO } from './public-dto';
+import { mapPropertyTypeToDisplay } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 
 /** Borough → County mapping (reverse of display-adapter) */
@@ -284,7 +285,11 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     originalListPrice: rawData.OriginalListPrice != null ? Number(rawData.OriginalListPrice) : listPrice,
     previousListPrice: rawData.PreviousListPrice != null ? Number(rawData.PreviousListPrice) : undefined,
     closePrice: rawData.ClosePrice != null ? Number(rawData.ClosePrice) : (features.ClosePrice != null ? Number(features.ClosePrice) : null),
-    propertyType: listing.property_type || 'Residential',
+    propertyType: mapPropertyTypeToDisplay(
+      features.CommonInterest as string | undefined,
+      listing.property_sub_type,
+      listing.property_type || 'Residential',
+    ),
     propertySubType: listing.property_sub_type,
     bedroomsTotal: listing.bedrooms_total || 0,
     bathroomsFull: listing.bathrooms_full || 0,

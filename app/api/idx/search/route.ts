@@ -833,16 +833,23 @@ export async function GET(req: NextRequest) {
           const { getAccessToken: getToken } = await import("@/lib/idx/auth");
           const token = await getToken();
           const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-          const missingIds = missingMedia.map((l) => String(l.id)).filter(Boolean);
-          const filterParts = missingIds.map(
-            (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
-          );
+          // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+          // NOT ResourceRecordID (can duplicate). wid = SourceSystemKey = ListingKey = ResourceRecordKey.
+          const keyToId = new Map<string, string>();
+          const filterParts: string[] = [];
+          for (const l of missingMedia) {
+            const lid = String(l.id);
+            const key = l.wid ? String(l.wid) : lid;
+            keyToId.set(key, lid);
+            const escaped = key.replace(/'/g, "''");
+            filterParts.push(l.wid ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
+          }
           const mediaFilter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
+          mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
           mediaParams.set("$orderby", "Order asc");
-          mediaParams.set("$top", String(missingIds.length * 2));
+          mediaParams.set("$top", String(filterParts.length * 2));
 
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 8_000);
@@ -857,19 +864,21 @@ export async function GET(req: NextRequest) {
 
           if (mediaRes.ok) {
             const mediaData = await mediaRes.json();
-            // Group by listing ID — take first photo per listing
-            const photoByListing = new Map<string, string>();
+            // Group by ResourceRecordKey — take first photo per listing
+            const photoByKey = new Map<string, string>();
             for (const m of (mediaData.value || [])) {
-              const lid = String(m.ResourceRecordID || "");
-              if (lid && !photoByListing.has(lid) && m.MediaURL) {
+              // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
+              const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
+              if (mkey && !photoByKey.has(mkey) && m.MediaURL) {
                 const rawUrl = String(m.MediaURL);
-                photoByListing.set(lid, rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
+                photoByKey.set(mkey, rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
                   ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl);
               }
             }
-            // Patch listings with backfilled photos
+            // Patch listings with backfilled photos — convert key back to listing ID
             for (const listing of missingMedia) {
-              const url = photoByListing.get(String(listing.id));
+              const key = listing.wid ? String(listing.wid) : String(listing.id);
+              const url = photoByKey.get(key);
               if (url) {
                 (listing as Record<string, unknown>).images = [{ url, isPrimary: true, order: 0, mediaType: "Photo" }];
                 (listing as Record<string, unknown>).photoCount = 1;

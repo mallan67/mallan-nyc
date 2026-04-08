@@ -1,61 +1,5 @@
 [
   {
-    "timestamp": "2026-03-25T04:04:27.786Z",
-    "pass": 814,
-    "critical": 0,
-    "warning": 0,
-    "info": 37
-  },
-  {
-    "timestamp": "2026-03-25T06:30:29.271Z",
-    "pass": 820,
-    "critical": 1,
-    "warning": 0,
-    "info": 37
-  },
-  {
-    "timestamp": "2026-03-25T06:30:44.794Z",
-    "pass": 820,
-    "critical": 1,
-    "warning": 0,
-    "info": 37
-  },
-  {
-    "timestamp": "2026-03-25T06:32:08.304Z",
-    "pass": 820,
-    "critical": 0,
-    "warning": 0,
-    "info": 37
-  },
-  {
-    "timestamp": "2026-03-25T07:31:26.660Z",
-    "pass": 830,
-    "critical": 0,
-    "warning": 0,
-    "info": 37
-  },
-  {
-    "timestamp": "2026-03-25T09:02:08.411Z",
-    "pass": 824,
-    "critical": 0,
-    "warning": 1,
-    "info": 39
-  },
-  {
-    "timestamp": "2026-03-25T10:48:48.166Z",
-    "pass": 826,
-    "critical": 0,
-    "warning": 0,
-    "info": 39
-  },
-  {
-    "timestamp": "2026-03-25T18:13:19.648Z",
-    "pass": 830,
-    "critical": 0,
-    "warning": 0,
-    "info": 39
-  },
-  {
     "timestamp": "2026-03-25T22:29:30.615Z",
     "pass": 837,
     "critical": 0,
@@ -348,5 +292,61 @@
     "critical": 0,
     "warning": 3,
     "info": 38
+  },
+  {
+    "timestamp": "2026-04-07T00:36:36.587Z",
+    "pass": 792,
+    "critical": 0,
+    "warning": 4,
+    "info": 38
+  },
+  {
+    "timestamp": "2026-04-07T07:33:21.244Z",
+    "pass": 792,
+    "critical": 0,
+    "warning": 4,
+    "info": 38
+  },
+  {
+    "timestamp": "2026-04-07T07:33:27.985Z",
+    "pass": 792,
+    "critical": 0,
+    "warning": 4,
+    "info": 38
+  },
+  {
+    "timestamp": "2026-04-07T07:33:39.538Z",
+    "pass": 792,
+    "critical": 0,
+    "warning": 4,
+    "info": 38
+  },
+  {
+    "timestamp": "2026-04-07T07:46:03.623Z",
+    "pass": 790,
+    "critical": 0,
+    "warning": 4,
+    "info": 22
+  },
+  {
+    "timestamp": "2026-04-07T07:56:19.079Z",
+    "pass": 790,
+    "critical": 0,
+    "warning": 4,
+    "info": 22
+  },
+  {
+    "timestamp": "2026-04-07T22:21:51.469Z",
+    "pass": 790,
+    "critical": 0,
+    "warning": 4,
+    "info": 22
+  },
+  {
+    "timestamp": "2026-04-07T22:31:29.177Z",
+    "pass": 790,
+    "critical": 0,
+    "warning": 4,
+    "info": 22
   }
 ]

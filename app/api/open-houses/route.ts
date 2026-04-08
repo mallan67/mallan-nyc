@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -240,6 +241,8 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             bathrooms_half: true,
             living_area: true,
             property_type: true,
+            property_sub_type: true,
+            features: true,
             media: true,
           },
         },
@@ -283,7 +286,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         beds: l.bedrooms_total || 0,
         baths: totalBaths,
         sqft: l.living_area ? Number(l.living_area) : 0,
-        type: l.property_type || 'Residential',
+        type: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || 'Residential'),
         openHouseType: 'Public',
         agentName: s.agent?.full_name || '',
         agentPhone: s.agent?.phone || '',

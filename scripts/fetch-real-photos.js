@@ -31,11 +31,13 @@ async function run() {
 
   for (let i = 0; i < ids.length; i += 10) {
     const batch = ids.slice(i, i + 10);
-    const filterParts = batch.map(id => `ResourceRecordID eq '${id}'`);
+    // Trestle guidance (2026-04-07): prefer ResourceRecordKey (always unique).
+    // This script uses ListingId from JSON — try ResourceRecordKey first, fallback to ResourceRecordID.
+    const filterParts = batch.map(id => `(ResourceRecordKey eq '${id}' or ResourceRecordID eq '${id}')`);
     const params = new URLSearchParams();
     params.set('$filter', `(${filterParts.join(' or ')})`);
-    params.set('$select', 'ResourceRecordID,MediaURL,Order');
-    params.set('$orderby', 'ResourceRecordID asc,Order asc');
+    params.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,Order');
+    params.set('$orderby', 'Order asc');
     params.set('$top', String(batch.length * 10));
 
     const res = await fetch(`${base}/odata/Media?${params}`, {
@@ -46,7 +48,7 @@ async function run() {
 
     for (const m of (media.value || [])) {
       const url = m.MediaURL || '';
-      const lid = String(m.ResourceRecordID || '');
+      const lid = String(m.ResourceRecordID || m.ResourceRecordKey || '');
       if (!lid || !url) continue;
 
       // Only accept PHOTO URLs

@@ -572,6 +572,19 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 1. `VirtualTourURLUnbranded` field on Property resource (RESO standard)
 2. Media resource items with `MediaCategory = 'Virtual Tour'` (fallback)
 
+#### ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
+
+> **DO NOT IGNORE — Direct CoreLogic/Trestle (Cotality) vendor guidance.**
+
+| Rule | Detail |
+|------|--------|
+| **Use `ResourceRecordKey`, NOT `ResourceRecordID`** | `ResourceRecordID` can duplicate across MLOs. `ResourceRecordKey`/`ResourceRecordKeyNumeric` are always unique. Property.`ListingKey` = Media.`ResourceRecordKey`. DB column `mls_id` stores `ListingKey`. |
+| **`Media/All` endpoint is DEPRECATED** | Filter the `/odata/Media` resource directly. Do not use `Media/All`. |
+| **`Media.ModificationTimestamp`** | Source of truth for individual media row changes. Include in `$select` for change tracking. |
+| **`Property.PhotosChangeTimestamp`** | High-level trigger — fires when ANY media for a listing changes. Use to decide which listings need media re-fetch. |
+
+**All batch media queries in this codebase filter by `ResourceRecordKey` (with `ResourceRecordID` fallback only when `mls_id` is null). Enforced across 17 files: 7 production (`sync.ts`, `fetch.ts`, `card-fields.ts`, `media/batch/route.ts`, `agents/[slug]/listings/route.ts`, `idx/search/route.ts`, `import-closed-from-trestle.ts`), 3 utility scripts (`rebuild-past-deals.js`, `fetch-real-photos.js`, `trestle-audit.js`), and 7 test/diagnostic scripts. Deep-audited 2026-04-07.**
+
 ### Security
 
 - **CORS:** Same-origin in production; `http://localhost:3000`, `http://localhost:5500` in dev only

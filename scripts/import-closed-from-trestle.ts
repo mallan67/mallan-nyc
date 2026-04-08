@@ -35,8 +35,9 @@ const SELECT_FIELDS = [
   "CrossStreet", "Latitude", "Longitude",
   "BuildingName",
 
-  // B2: Classification
-  "ListingId", "PropertyType", "PropertySubType", "CommonInterest",
+  // B2: Classification — ListingKey needed for Media.ResourceRecordKey (Trestle guidance 2026-04-07)
+  "ListingId", "ListingKey", "ListingKeyNumeric", "SourceSystemKey",
+  "PropertyType", "PropertySubType", "CommonInterest",
   "OwnershipType", "StructureType",
   "StoriesTotal",
 
@@ -122,9 +123,16 @@ async function main() {
   console.log(`\nTotal unique closed listings from Trestle: ${allRecords.size}`);
 
   // ── Fetch photos for all listings ──
+  // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique), not ResourceRecordID.
+  // Build listingKey → listingId map for the photo fetch.
   console.log("Fetching photos...");
+  const idToKeyMap = new Map<string, string>();
+  for (const [listingId, r] of allRecords) {
+    const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
+    if (listingKey) idToKeyMap.set(listingId, listingKey);
+  }
   const listingIds = Array.from(allRecords.keys());
-  const photoMap = await fetchPhotos(token, TRESTLE_API, listingIds);
+  const photoMap = await fetchPhotos(token, TRESTLE_API, listingIds, idToKeyMap);
 
   // ── Import into DB ──
   let created = 0;
@@ -394,10 +402,13 @@ async function fetchTrestle(
 // ═══════════════════════════════════════════════════════════
 // Fetch photos from Trestle Media endpoint
 // ═══════════════════════════════════════════════════════════
+// Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+// NOT ResourceRecordID (can duplicate). idToKeyMap maps ListingId → ListingKey.
 async function fetchPhotos(
   token: string,
   apiUrl: string,
-  listingIds: string[]
+  listingIds: string[],
+  idToKeyMap?: Map<string, string>
 ): Promise<
   Map<string, { MediaURL: string; MediaType: string; Order: number }[]>
 > {
@@ -416,18 +427,28 @@ async function fetchPhotos(
   let totalPhotos = 0;
   for (const batch of batches) {
     try {
-      const filterParts = batch.map(
-        (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
-      );
+      // Build key→id mapping for this batch
+      const keyToId = new Map<string, string>();
+      const filterParts: string[] = [];
+      for (const id of batch) {
+        const key = idToKeyMap?.get(id);
+        if (key) {
+          filterParts.push(`ResourceRecordKey eq '${key.replace(/'/g, "''")}'`);
+          keyToId.set(key, id);
+        } else {
+          filterParts.push(`ResourceRecordID eq '${id.replace(/'/g, "''")}'`);
+          keyToId.set(id, id);
+        }
+      }
       // Get top 8 photos per listing (sorted by Order)
       const mediaFilter = `(${filterParts.join(" or ")})`;
       const params = new URLSearchParams();
       params.set("$filter", mediaFilter);
       params.set(
         "$select",
-        "ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,ShortDescription"
+        "ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,ShortDescription"
       );
-      params.set("$orderby", "ResourceRecordID asc,Order asc");
+      params.set("$orderby", "Order asc");
       params.set("$top", String(batch.length * 8));
 
       const resp = await fetch(
@@ -444,8 +465,11 @@ async function fetchPhotos(
 
       const data = await resp.json();
       for (const m of data.value || []) {
-        const lid = String(m.ResourceRecordID || "");
-        if (!lid || !m.MediaURL) continue;
+        // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
+        const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
+        if (!mkey || !m.MediaURL) continue;
+        // Convert key back to listing ID for the result map
+        const lid = keyToId.get(mkey) || mkey;
         // Skip floor plans, virtual tours, etc. — photos only
         const cat = String(m.MediaCategory || "").toLowerCase();
         if (cat.includes("floor plan") || cat.includes("virtual tour")) continue;

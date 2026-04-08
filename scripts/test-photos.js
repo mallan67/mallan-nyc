@@ -14,7 +14,8 @@ async function run() {
   // Get closed listings
   const p = new URLSearchParams();
   p.set('$filter', "ListAgentFullName eq 'Maya Allan' and StandardStatus eq 'Closed'");
-  p.set('$select', 'ListingId,PhotosCount,StreetNumber,StreetName');
+  // Trestle guidance (2026-04-07): use ListingKey (= Media.ResourceRecordKey) for media queries
+  p.set('$select', 'ListingId,ListingKey,PhotosCount,StreetNumber,StreetName');
   p.set('$top', '5');
   const r = await fetch(`${BASE}/odata/Property?${p}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -22,15 +23,15 @@ async function run() {
   const d = await r.json();
   console.log('Listings:');
   for (const x of (d.value || [])) {
-    console.log(x.ListingId, x.StreetNumber, x.StreetName, 'photos:', x.PhotosCount);
+    console.log(x.ListingId, x.ListingKey, x.StreetNumber, x.StreetName, 'photos:', x.PhotosCount);
   }
 
-  // Check media for first listing
+  // Check media for first listing using ResourceRecordKey (= ListingKey)
   if (d.value && d.value[0]) {
-    const lid = d.value[0].ListingId;
+    const lid = d.value[0].ListingKey || d.value[0].ListingId;
     const mp = new URLSearchParams();
-    mp.set('$filter', `ResourceRecordID eq '${lid}'`);
-    mp.set('$select', 'ResourceRecordID,MediaURL,Order,PreferredPhotoYN');
+    mp.set('$filter', `ResourceRecordKey eq '${lid}'`);
+    mp.set('$select', 'ResourceRecordKey,MediaURL,Order,PreferredPhotoYN');
     mp.set('$top', '5');
     const mr = await fetch(`${BASE}/odata/Media?${mp}`, {
       headers: { Authorization: `Bearer ${token}` },

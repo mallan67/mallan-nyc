@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getAccessToken } from "@/lib/idx/auth";
+import prisma from "@/lib/prisma";
 
 const TRESTLE_API =
   process.env.TRESTLE_API_URL ||
@@ -60,6 +61,27 @@ export async function GET(req: NextRequest) {
   const photoResult: Record<string, string | null> = {};
   const mediaResult: Record<string, MediaEntry[]> = {};
 
+  // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+  // NOT ResourceRecordID (can duplicate). Resolve mls_id (= ListingKey = ResourceRecordKey) from DB.
+  const dbListings = await prisma.listing.findMany({
+    where: { listing_id: { in: ids } },
+    select: { listing_id: true, mls_id: true },
+  });
+  const idToKey = new Map<string, string>();
+  const keyToId = new Map<string, string>();
+  for (const l of dbListings) {
+    const key = l.mls_id || l.listing_id;
+    idToKey.set(l.listing_id, key);
+    keyToId.set(key, l.listing_id);
+  }
+  // For IDs not in DB, use the ID itself as fallback
+  for (const id of ids) {
+    if (!idToKey.has(id)) {
+      idToKey.set(id, id);
+      keyToId.set(id, id);
+    }
+  }
+
   if (detail) {
     // ── DETAIL MODE: all media types for a small batch (detail panel) ──
     const detailIds = ids.slice(0, 25); // Limit to 25 for reports (was 5 — too few for multi-listing reports)
@@ -79,15 +101,18 @@ export async function GET(req: NextRequest) {
     if (uncached.length > 0) {
       try {
         const token = await getAccessToken();
-        const filterParts = uncached.map(
-          (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
-        );
+        // Use ResourceRecordKey (unique) per Trestle guidance, fallback to ResourceRecordID
+        const filterParts = uncached.map((id) => {
+          const key = idToKey.get(id) || id;
+          const escaped = key.replace(/'/g, "''");
+          return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
+        });
         // Fetch ALL media for detail view — photos, floorplans, videos, virtual tours, 3D
         const filter = `(${filterParts.join(" or ")})`;
         const params = new URLSearchParams();
         params.set("$filter", filter);
-        params.set("$select", "ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription");
-        params.set("$orderby", "ResourceRecordID asc,MediaCategory asc,Order asc");
+        params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription");
+        params.set("$orderby", "MediaCategory asc,Order asc");
         params.set("$top", String(uncached.length * 40)); // Up to 40 media items per listing
 
         const response = await fetch(`${TRESTLE_API}/odata/Media?${params.toString()}`, {
@@ -96,23 +121,24 @@ export async function GET(req: NextRequest) {
 
         if (response.ok) {
           const data = await response.json();
-          const allByListing = new Map<string, MediaEntry[]>();
+          const allByKey = new Map<string, MediaEntry[]>();
           for (const m of (data.value || [])) {
-            const lid = String(m.ResourceRecordID || "");
-            if (!lid || !m.MediaURL) continue;
+            const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
+            if (!mkey || !m.MediaURL) continue;
             const rawUrl = String(m.MediaURL);
             const proxiedUrl = rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
               ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
             const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-            if (!allByListing.has(lid)) allByListing.set(lid, []);
-            allByListing.get(lid)!.push({
+            if (!allByKey.has(mkey)) allByKey.set(mkey, []);
+            allByKey.get(mkey)!.push({
               url: proxiedUrl,
               mediaType: classifyMediaCategory(m),
               order: isPreferred ? -1 : Number(m.Order ?? 0),
             });
           }
           for (const id of uncached) {
-            const items = allByListing.get(id) || [];
+            const key = idToKey.get(id) || id;
+            const items = allByKey.get(key) || [];
             mediaResult[id] = items;
             mediaCache.set(id, { items, expiresAt: now + CACHE_TTL });
             const photo = items.find(m => m.mediaType === "Photo");
@@ -149,13 +175,16 @@ export async function GET(req: NextRequest) {
   if (uncached.length > 0) {
     try {
       const token = await getAccessToken();
-      const filterParts = uncached.map(
-        (id) => `ResourceRecordID eq '${id.replace(/'/g, "''")}'`
-      );
+      // Use ResourceRecordKey (unique) per Trestle guidance
+      const filterParts = uncached.map((id) => {
+        const key = idToKey.get(id) || id;
+        const escaped = key.replace(/'/g, "''");
+        return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
+      });
       const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
       const params = new URLSearchParams();
       params.set("$filter", filter);
-      params.set("$select", "ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
+      params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
       params.set("$orderby", "Order asc");
       params.set("$top", String(uncached.length * 2));
 
@@ -165,17 +194,18 @@ export async function GET(req: NextRequest) {
 
       if (response.ok) {
         const data = await response.json();
-        const byListing = new Map<string, string>();
+        const byKey = new Map<string, string>();
         for (const m of (data.value || [])) {
-          const lid = String(m.ResourceRecordID || "");
-          if (lid && !byListing.has(lid) && m.MediaURL) {
+          const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
+          if (mkey && !byKey.has(mkey) && m.MediaURL) {
             const rawUrl = String(m.MediaURL);
-            byListing.set(lid, rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
+            byKey.set(mkey, rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
               ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl);
           }
         }
         for (const id of uncached) {
-          const url = byListing.get(id) || null;
+          const key = idToKey.get(id) || id;
+          const url = byKey.get(key) || null;
           result[id] = url;
           photoCache.set(id, { url, expiresAt: now + CACHE_TTL });
         }

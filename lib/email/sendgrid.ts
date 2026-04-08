@@ -38,6 +38,10 @@ export type SendChannel = "agent" | "company" | "listings";
 
 const isConfigured = !!(SMTP_USER && SMTP_PASS);
 
+if (!isConfigured) {
+  console.error("[Email] ⚠ SMTP NOT CONFIGURED — all emails will be dropped silently. Set SMTP_USER and SMTP_PASS env vars.");
+}
+
 // Single transporter — all channels authenticate with SMTP_USER (contact@)
 // and use "Send As" for different From addresses (M365 shared mailbox permission)
 let transporter: nodemailer.Transporter | null = null;
@@ -82,10 +86,9 @@ export async function sendEmail(
   }
 ): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean }> {
   if (!isConfigured) {
-    // Dev mode: log WARNING — emails are NOT actually sent
-    console.warn(`[Email:DEV] SMTP not configured (SMTP_USER/SMTP_PASS missing). Email NOT sent. To: ${to} | Subject: ${subject}`);
+    console.error(`[Email:DEV] SMTP not configured — email DROPPED. To: ${to} | Subject: ${subject}`);
     await logEmailAudit("send_dev", to, subject, user);
-    return { success: true, messageId: "dev-mode", _devMode: true };
+    return { success: false, error: "SMTP not configured", _devMode: true };
   }
 
   // Resolve sender identity based on channel

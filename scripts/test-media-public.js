@@ -22,7 +22,7 @@ async function run() {
   const { access_token } = await tokenRes.json();
 
   // Get a few media URLs
-  const mediaRes = await fetch(`${apiUrl}/odata/Media?$filter=MediaType eq 'jpeg'&$select=MediaURL,ResourceRecordID&$top=3`, {
+  const mediaRes = await fetch(`${apiUrl}/odata/Media?$filter=MediaType eq 'jpeg'&$select=MediaURL,ResourceRecordKey,ResourceRecordID&$top=3`, {
     headers: { Authorization: 'Bearer ' + access_token, Accept: 'application/json' },
   });
   const mediaData = await mediaRes.json();

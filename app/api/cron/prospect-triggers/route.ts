@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { getAccessToken } from "@/lib/idx/auth";
+import { sendEmail } from "@/lib/email/sendgrid";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -36,6 +37,59 @@ export async function GET(req: NextRequest) {
       data: { status: "ready" },
     });
     summary.cadence_ready = readyResult.count;
+
+    // ──────────────────────────────────────────────────────────────
+    // Step 1.5: Auto-send "ready" email cadence steps
+    // ──────────────────────────────────────────────────────────────
+    const readySteps = await prisma.outreachCadenceStep.findMany({
+      where: { status: "ready", channel: "email" },
+      include: {
+        seller_lead: {
+          select: {
+            id: true, owner_email: true, owner_name: true,
+            assigned_agent_id: true, consent_opt_out_at: true,
+          },
+        },
+      },
+      take: 20, // Process max 20 per cron run to stay within time budget
+    });
+
+    let cadenceSent = 0;
+    for (const step of readySteps) {
+      const prospect = step.seller_lead;
+      // Skip if no email or opted out
+      if (!prospect.owner_email || prospect.consent_opt_out_at) {
+        await prisma.outreachCadenceStep.update({
+          where: { id: step.id },
+          data: { status: "skipped" },
+        });
+        continue;
+      }
+
+      const subject = step.subject || `Follow-up from Mallan Real Estate`;
+      const body = step.content_preview || `Hi ${prospect.owner_name || 'there'},\n\nWe wanted to follow up regarding your property. Please let us know if you have any questions.\n\nBest regards,\nMallan Real Estate Inc.`;
+
+      const result = await sendEmail(
+        prospect.owner_email,
+        subject,
+        `<div style="font-family:'Inter',system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px;">
+          <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${body.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+          <p style="font-size:11px;color:#9ca3af;">Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128</p>
+        </div>`,
+        undefined,
+        { channel: "company" }
+      );
+
+      if (result.success) {
+        await prisma.outreachCadenceStep.update({
+          where: { id: step.id },
+          data: { status: "sent", sent_at: new Date() },
+        });
+        cadenceSent++;
+      }
+    }
+    (summary as Record<string, number>).cadence_sent = cadenceSent;
 
     // ──────────────────────────────────────────────────────────────
     // Step 2: Detect overdue hot prospects (no contact in 48h)

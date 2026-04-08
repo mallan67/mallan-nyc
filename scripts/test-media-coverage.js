@@ -18,30 +18,34 @@ async function run() {
   const { access_token } = await tr.json();
 
   // Get 50 active sale listings
-  const listRes = await fetch(`${apiUrl}/odata/Property?$filter=${encodeURIComponent("StandardStatus eq 'Active' and PropertyType ne 'ResidentialLease'")}&$select=ListingId,PhotosCount&$top=50&$orderby=${encodeURIComponent('ModificationTimestamp desc')}`, {
+  // Trestle guidance (2026-04-07): use ResourceRecordKey (= ListingKey), not ResourceRecordID (= ListingId)
+  const listRes = await fetch(`${apiUrl}/odata/Property?$filter=${encodeURIComponent("StandardStatus eq 'Active' and PropertyType ne 'ResidentialLease'")}&$select=ListingId,ListingKey,PhotosCount&$top=50&$orderby=${encodeURIComponent('ModificationTimestamp desc')}`, {
     headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/json' },
   });
   const listings = (await listRes.json()).value || [];
   console.log(`Got ${listings.length} listings`);
 
-  const ids = listings.map(l => l.ListingId);
+  // Use ListingKey (= Media.ResourceRecordKey) for media queries, fallback to ListingId
+  const ids = listings.map(l => l.ListingKey || l.ListingId);
+  const keyToId = new Map();
+  for (const l of listings) { keyToId.set(l.ListingKey || l.ListingId, l.ListingId); }
 
   // Query 1: With MediaCategory eq 'Photo' filter
-  const filter1 = `(${ids.map(id => `ResourceRecordID eq '${id}'`).join(' or ')}) and MediaCategory eq 'Photo'`;
-  const r1 = await fetch(`${apiUrl}/odata/Media?$filter=${encodeURIComponent(filter1)}&$select=ResourceRecordID,MediaCategory,Order&$top=${ids.length * 3}&$orderby=${encodeURIComponent('ResourceRecordID asc,Order asc')}`, {
+  const filter1 = `(${ids.map(id => `ResourceRecordKey eq '${id}'`).join(' or ')}) and MediaCategory eq 'Photo'`;
+  const r1 = await fetch(`${apiUrl}/odata/Media?$filter=${encodeURIComponent(filter1)}&$select=ResourceRecordKey,ResourceRecordID,MediaCategory,Order&$top=${ids.length * 3}&$orderby=${encodeURIComponent('Order asc')}`, {
     headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/json' },
   });
   const d1 = await r1.json();
-  const photoIds1 = new Set((d1.value || []).map(m => m.ResourceRecordID));
+  const photoIds1 = new Set((d1.value || []).map(m => m.ResourceRecordKey || m.ResourceRecordID));
   console.log(`\nWith MediaCategory eq 'Photo': ${(d1.value||[]).length} media items, covering ${photoIds1.size}/${listings.length} listings`);
 
   // Query 2: Without category filter (original Order le 2)
-  const filter2 = `(${ids.map(id => `ResourceRecordID eq '${id}'`).join(' or ')}) and Order le 2`;
-  const r2 = await fetch(`${apiUrl}/odata/Media?$filter=${encodeURIComponent(filter2)}&$select=ResourceRecordID,MediaCategory,Order&$top=${ids.length * 3}&$orderby=${encodeURIComponent('ResourceRecordID asc,Order asc')}`, {
+  const filter2 = `(${ids.map(id => `ResourceRecordKey eq '${id}'`).join(' or ')}) and Order le 2`;
+  const r2 = await fetch(`${apiUrl}/odata/Media?$filter=${encodeURIComponent(filter2)}&$select=ResourceRecordKey,ResourceRecordID,MediaCategory,Order&$top=${ids.length * 3}&$orderby=${encodeURIComponent('Order asc')}`, {
     headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/json' },
   });
   const d2 = await r2.json();
-  const photoIds2 = new Set((d2.value || []).map(m => m.ResourceRecordID));
+  const photoIds2 = new Set((d2.value || []).map(m => m.ResourceRecordKey || m.ResourceRecordID));
   console.log(`With Order le 2 (no category): ${(d2.value||[]).length} media items, covering ${photoIds2.size}/${listings.length} listings`);
 
   // Which listings have NO photos with category filter?
@@ -50,14 +54,14 @@ async function run() {
 
   // Check what those missing listings have
   if (missing.length > 0) {
-    const mFilter = `(${missing.slice(0, 10).map(id => `ResourceRecordID eq '${id}'`).join(' or ')})`;
-    const mr = await fetch(`${apiUrl}/odata/Media?$filter=${encodeURIComponent(mFilter)}&$select=ResourceRecordID,MediaCategory,MediaType,Order&$top=50`, {
+    const mFilter = `(${missing.slice(0, 10).map(id => `ResourceRecordKey eq '${id}'`).join(' or ')})`;
+    const mr = await fetch(`${apiUrl}/odata/Media?$filter=${encodeURIComponent(mFilter)}&$select=ResourceRecordKey,ResourceRecordID,MediaCategory,MediaType,Order&$top=50`, {
       headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/json' },
     });
     const md = await mr.json();
     console.log('\nMedia for missing listings:');
     for (const m of (md.value || [])) {
-      console.log(`  ${m.ResourceRecordID}: Category=${m.MediaCategory}, Type=${m.MediaType}, Order=${m.Order}`);
+      console.log(`  ${m.ResourceRecordKey || m.ResourceRecordID}: Category=${m.MediaCategory}, Type=${m.MediaType}, Order=${m.Order}`);
     }
 
     // Also check PhotosCount for missing

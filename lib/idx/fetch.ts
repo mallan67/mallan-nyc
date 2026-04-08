@@ -61,7 +61,8 @@ export async function fetchFromTrestle(
     // For bulk queries (500+), set expandMedia: false and batch-fetch photos separately.
     if (options.expandMedia !== false) {
       // $expand=Media for photos + CustomProperty for DPA fields (Trestle 6.17)
-      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription;$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
+      // Trestle guidance (2026-04-07): include ModificationTimestamp for change tracking
+      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey;$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
     } else {
       // Even without media, still expand CustomProperty for DPA fields
       params.set("$expand", "CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
@@ -386,8 +387,9 @@ export function buildAgentAllFilter(
 
 /**
  * Fetch media/photos for a single listing from Trestle's Media resource.
- * Uses ResourceRecordKeyNumeric (SourceSystemKey) to query.
- * Falls back to ListingId-based ResourceRecordID if key is not numeric.
+ * Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+ * NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
+ * Falls back through key fields in priority order until media is found.
  */
 export async function fetchListingMedia(
   listingKey: string,
@@ -402,19 +404,21 @@ export async function fetchListingMedia(
   }
   const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
 
-  // Try multiple key fields — Trestle's Media.ResourceRecordID doesn't always
-  // match Property.ListingId. Some listings use ResourceRecordKey or ListingId instead.
+  // Priority order per Trestle guidance:
+  // 1. ResourceRecordKeyNumeric (numeric, always unique)
+  // 2. ResourceRecordKey (string, always unique — matches Property.ListingKey)
+  // 3. ResourceRecordID (string, NOT unique across MLOs — last resort fallback)
   const isNumeric = /^\d+$/.test(listingKey);
   const escaped = listingKey.replace(/'/g, "''");
   const numKey = options?.listingKeyNumeric;
   const keyFieldsToTry = isNumeric
     ? [`ResourceRecordKeyNumeric eq ${listingKey}`]
     : [
-        `ResourceRecordID eq '${escaped}'`,
         `ResourceRecordKey eq '${escaped}'`,
-        `ListingId eq '${escaped}'`,
-        // Try numeric key if available (Property.ListingKeyNumeric → Media.ResourceRecordKeyNumeric)
+        // Numeric key preferred if available
         ...(numKey ? [`ResourceRecordKeyNumeric eq ${numKey}`] : []),
+        // Last resort: ResourceRecordID (NOT unique across MLOs per Trestle guidance)
+        `ResourceRecordID eq '${escaped}'`,
       ];
 
   let records: Record<string, unknown>[] = [];

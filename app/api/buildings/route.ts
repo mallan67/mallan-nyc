@@ -4,6 +4,7 @@ import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { upsertBuildingFromRecords } from '@/lib/buildings/upsert';
+import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -572,7 +573,7 @@ export async function GET(request: NextRequest) {
         bathsHalf: l.bathrooms_half || 0,
         sqft: l.living_area ? Number(l.living_area) : 0,
         unit: String(addr.UnitNumber || ''),
-        propertyType: l.property_sub_type || l.property_type || '',
+        propertyType: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || ''),
         office: '',
         status: l.status,
         listingType: l.listing_type || 'sale',
@@ -646,7 +647,7 @@ export async function GET(request: NextRequest) {
         sqft: l.living_area ? Number(l.living_area) : 0,
         unit: String(addr.UnitNumber || ''),
         closeDate: raw?.CloseDate ? String(raw.CloseDate) : null,
-        propertyType: l.property_sub_type || l.property_type || '',
+        propertyType: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || ''),
         office: '',
         source: 'mls',
       });
