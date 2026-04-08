@@ -579,24 +579,43 @@ var RentalsCRM = (function () {
 
   // ── APPLICATIONS ──────────────────────────────────────────────────────
   function _lwsApplications(el, cl) {
-    var h = '<div class="space-y-4">';
-    h += '<div class="flex items-center justify-between">';
-    h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-file-alt text-gold mr-2"></i>Tenant Applications</h3>';
-    h += '<button class="btn btn-sm btn-gold" onclick="RentalsCRM._addApplication()"><i class="fas fa-plus mr-1"></i>Add Application</button>';
-    h += '</div>';
-    h += '<div class="p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl text-center">';
-    h += '<p class="text-sm text-gray-500">Applications will appear here once received.</p>';
-    h += '<p class="text-xs text-gray-400 mt-1">Each application includes: tenant info, all supporting documents, financials, and approval status.</p>';
-    h += '</div>';
-    h += '<div class="bg-blue-50 border border-blue-200 rounded-xl p-4">';
-    h += '<div class="text-xs font-bold text-blue-700 mb-2">Document Checklist per Applicant</div>';
-    var docs = ['Financial Statement', 'Pay Stubs (3 months)', 'Tax Returns (2 years)', 'W-2 / 1099', 'Bank Statements (3 months)', 'Employment Letter', 'Landlord Reference Letter', 'Photo ID'];
-    h += '<div class="grid grid-cols-2 gap-1">';
-    docs.forEach(function (d) {
-      h += '<div class="text-xs text-blue-600"><i class="fas fa-circle text-[6px] mr-1"></i>' + E(d) + '</div>';
+    el.innerHTML = '<div class="flex items-center justify-center py-8"><i class="fas fa-spinner fa-spin text-gold text-xl"></i></div>';
+    MallanAPI._fetch('/api/crm/rentals/applications?landlord_id=' + cl.id).catch(function () { return { applications: [] }; }).then(function (data) {
+      var apps = data.applications || [];
+      var h = '<div class="space-y-4">';
+      h += '<div class="flex items-center justify-between">';
+      h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-file-alt text-gold mr-2"></i>Tenant Applications (' + apps.length + ')</h3>';
+      h += '<button class="btn btn-sm btn-gold" onclick="RentalsCRM._addApplication()"><i class="fas fa-plus mr-1"></i>Add Application</button>';
+      h += '</div>';
+      if (apps.length === 0) {
+        h += '<div class="p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl text-center">';
+        h += '<p class="text-sm text-gray-500">No applications yet</p>';
+        h += '<p class="text-xs text-gray-400 mt-1">Click "Add Application" to log a new tenant application.</p>';
+        h += '</div>';
+      } else {
+        apps.forEach(function (a) {
+          var statusColors = { submitted: '#2563EB', under_review: '#D97706', approved: '#059669', rejected: '#DC2626' };
+          var statusColor = statusColors[a.status] || '#6B7280';
+          h += '<div class="bg-white border border-gray-200 rounded-xl p-4">';
+          h += '<div class="flex items-start justify-between">';
+          h += '<div><div class="font-semibold text-sm text-gray-900">' + E(a.address || a.property_address || 'No address') + '</div>';
+          h += '<div class="text-xs text-gray-500 mt-0.5">' + (a.created_at ? D(a.created_at) : '') + '</div></div>';
+          h += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#F9FAFB;color:' + statusColor + '">' + E((a.status || '').replace(/_/g, ' ')) + '</span>';
+          h += '</div>';
+          if (a.notes) h += '<div class="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">' + E(a.notes) + '</div>';
+          h += '</div>';
+        });
+      }
+      h += '<div class="bg-blue-50 border border-blue-200 rounded-xl p-4">';
+      h += '<div class="text-xs font-bold text-blue-700 mb-2">Document Checklist per Applicant</div>';
+      var docs = ['Financial Statement', 'Pay Stubs (3 months)', 'Tax Returns (2 years)', 'W-2 / 1099', 'Bank Statements (3 months)', 'Employment Letter', 'Landlord Reference Letter', 'Photo ID'];
+      h += '<div class="grid grid-cols-2 gap-1">';
+      docs.forEach(function (d) {
+        h += '<div class="text-xs text-blue-600"><i class="fas fa-circle text-[6px] mr-1"></i>' + E(d) + '</div>';
+      });
+      h += '</div></div></div>';
+      el.innerHTML = h;
     });
-    h += '</div></div></div>';
-    el.innerHTML = h;
   }
 
   // ── BOARD (condo/coop/condop) ─────────────────────────────────────────
@@ -784,14 +803,35 @@ var RentalsCRM = (function () {
 
   // ── DOCUMENTS ─────────────────────────────────────────────────────────
   function _lwsDocs(el, cl) {
-    var h = '<div class="space-y-4">';
-    h += '<div class="flex items-center justify-between mb-2">';
-    h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-folder text-gold mr-2"></i>Documents</h3>';
-    h += '<button class="btn btn-sm btn-gold" onclick="RentalsCRM._uploadDoc()"><i class="fas fa-upload mr-1"></i>Upload</button>';
-    h += '</div>';
-    h += '<div class="text-center py-8 bg-gray-50 rounded-xl"><i class="fas fa-folder-open text-3xl text-gray-300 mb-3"></i><p class="text-sm text-gray-500">No documents yet</p></div>';
-    h += '</div>';
-    el.innerHTML = h;
+    el.innerHTML = '<div class="flex items-center justify-center py-8"><i class="fas fa-spinner fa-spin text-gold text-xl"></i></div>';
+    Documents.list('client', cl.id).then(function (docs) {
+      docs = docs || [];
+      var h = '<div class="space-y-4">';
+      h += '<div class="flex items-center justify-between mb-2">';
+      h += '<h3 class="text-sm font-bold text-gray-900"><i class="fas fa-folder text-gold mr-2"></i>Documents (' + docs.length + ')</h3>';
+      h += '<button class="btn btn-sm btn-gold" onclick="RentalsCRM._uploadDoc()"><i class="fas fa-upload mr-1"></i>Upload</button>';
+      h += '</div>';
+      if (docs.length === 0) {
+        h += '<div class="text-center py-8 bg-gray-50 rounded-xl"><i class="fas fa-folder-open text-3xl text-gray-300 mb-3"></i><p class="text-sm text-gray-500">No documents yet</p></div>';
+      } else {
+        docs.forEach(function (d) {
+          var statusColors = { uploaded: '#6B7280', pending: '#D97706', approved: '#059669', signed: '#2563EB', rejected: '#DC2626' };
+          var statusColor = statusColors[d.status] || '#6B7280';
+          h += '<div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">';
+          h += '<div class="flex items-center gap-3 min-w-0">';
+          h += '<i class="fas fa-file text-gray-400"></i>';
+          h += '<div class="min-w-0"><div class="text-sm font-medium text-gray-900 truncate">' + E(d.title || d.name || d.doc_type || 'Untitled') + '</div>';
+          h += '<div class="text-xs text-gray-500">' + E(d.doc_type || '') + (d.created_at ? ' · ' + D(d.created_at) : '') + '</div></div>';
+          h += '</div>';
+          h += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#F9FAFB;color:' + statusColor + '">' + E(d.status || 'uploaded') + '</span>';
+          h += '</div>';
+        });
+      }
+      h += '</div>';
+      el.innerHTML = h;
+    }).catch(function () {
+      el.innerHTML = '<div class="space-y-4"><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold text-gray-900"><i class="fas fa-folder text-gold mr-2"></i>Documents</h3><button class="btn btn-sm btn-gold" onclick="RentalsCRM._uploadDoc()"><i class="fas fa-upload mr-1"></i>Upload</button></div><div class="text-center py-8 bg-gray-50 rounded-xl"><p class="text-sm text-gray-500">Could not load documents</p></div></div>';
+    });
   }
 
   // ── TOOLS ─────────────────────────────────────────────────────────────
@@ -1167,8 +1207,20 @@ var RentalsCRM = (function () {
       MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'weekly_report', client_ids: [String(cl.id)], subject: rptSubject, body: rptBody }) })
         .then(function () { CRM.toast('Weekly report sent!', 'success'); })
         .catch(function () { CRM.toast('Send failed', 'error'); });
-    } else {
-      CRM.toast('Action: ' + action, 'info');
+    } else if (action === 'send_comps') {
+      _wsTab('pitch');
+    } else if (action === 'send_market_report') {
+      CRM.toast('Generating market report...', 'info');
+      MallanAPI._fetch('/api/crm/market-report', { method: 'POST', body: JSON.stringify({ borough: cl.borough, neighborhoods: cl.neighborhood ? [cl.neighborhood] : [] }) })
+        .then(function () { CRM.toast('Market report generated!', 'success'); })
+        .catch(function () { CRM.toast('Report generation failed', 'error'); });
+    } else if (action === 'schedule_open_house') {
+      _scheduleShowing();
+    } else if (action === 'send_seller_comps') {
+      CRM.toast('Sending sale comps...', 'info');
+      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'sale_comps', client_ids: [String(cl.id)], subject: 'Sale Comps for Your Property — ' + (cl.property_address || ''), body: 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere are recent comparable sales in your building and area from Mallan Real Estate.\n\nBest regards,\nMallan Real Estate Inc.' }) })
+        .then(function () { CRM.toast('Sale comps sent!', 'success'); })
+        .catch(function () { CRM.toast('Send failed', 'error'); });
     }
   }
 

@@ -1556,8 +1556,26 @@ var SalesCRM = (function () {
     '</div>';
     CRM.openModal('Marketing Strategy', body, {
       footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-        '<button class="btn btn-gold" onclick="CRM.toast(\'Marketing strategy saved\', \'success\');CRM.closeModal()">Save</button>',
+        '<button class="btn btn-gold" onclick="SalesCRM._saveMarketingStrategy()">Save</button>',
     });
+  }
+
+  function _saveMarketingStrategy() {
+    var cl = _s.ws.client;
+    if (!cl) return;
+    var form = document.querySelector('#modalContainer form') || document.querySelector('#modalContainer');
+    var photography = (form.querySelector('[name="photography"]') || {}).value || '';
+    var floorplan = (form.querySelector('[name="floorplan"]') || {}).value || '';
+    var staging = (form.querySelector('[name="staging"]') || {}).value || '';
+    var notes = (form.querySelector('[name="notes"]') || {}).value || '';
+    var ms = cl.marketing_strategy || {};
+    ms.photography = photography;
+    ms.floorplan = floorplan;
+    ms.staging = staging;
+    ms.marketing_notes = notes;
+    MallanAPI._fetch('/api/crm/clients/' + cl.id, { method: 'PATCH', body: JSON.stringify({ marketing_strategy: ms }) })
+      .then(function () { cl.marketing_strategy = ms; CRM.toast('Marketing strategy saved', 'success'); CRM.closeModal(); _renderSellerWorkspace(CRM.getContent()); })
+      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────
@@ -1767,7 +1785,7 @@ var SalesCRM = (function () {
     _editBuildingMgmt: _editBuildingMgmt, _saveBuildingMgmt: _saveBuildingMgmt,
     _generateCMA: _generateCMA, _generateMarketReport: _generateMarketReport, _findNeighborSales: _findNeighborSales,
     _scheduleShowing: _scheduleShowing, _submitShowing: _submitShowing, _createListing: _createListing,
-    _editPricingStrategy: _editPricingStrategy, _editMarketingStrategy: _editMarketingStrategy,
+    _editPricingStrategy: _editPricingStrategy, _editMarketingStrategy: _editMarketingStrategy, _saveMarketingStrategy: _saveMarketingStrategy,
     _loadPropertyResearch: _loadPropertyResearch, _prefillCalculator: _prefillCalculator,
     _showCalc: _showCalc,
     _saveCompCriteria: _saveCompCriteria, _resetCompCriteria: _resetCompCriteria,

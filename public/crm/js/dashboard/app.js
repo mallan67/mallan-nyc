@@ -1161,7 +1161,7 @@ var CRM = (function () {
       '</div>',
       {
         footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="CRM._executeSend()"><i class="fas fa-paper-plane mr-1"></i> Send</button>',
+          '<button class="btn btn-gold" onclick="CRM._doQuickSend()"><i class="fas fa-paper-plane mr-1"></i> Send</button>',
       }
     );
   }
