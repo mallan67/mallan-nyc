@@ -796,7 +796,11 @@ var Portals = (function () {
   // SELLER / LANDLORD — Marketing
   // ═══════════════════════════════════════════════════════════════════════════
   function _loadMarketing(pc) {
-    MallanAPI._fetch('/api/portal/marketing').then(function (data) {
+    MallanAPI.portal.listings().then(function (listData) {
+      var listings = listData.listings || [];
+      var listingId = (listings[0] && (listings[0].listing_id || listings[0].id)) || '';
+      return MallanAPI._fetch('/api/portal/marketing?listingId=' + encodeURIComponent(listingId));
+    }).then(function (data) {
       var activities = data.activities || data.marketing || [];
       if (activities.length === 0) {
         pc.innerHTML = _emptyState('fa-bullhorn',

@@ -26,10 +26,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ documents: [] });
   }
 
-  // Find documents uploaded by this agent (for deals involving this lead)
+  // Find listings owned by this lead to scope documents
+  const ownedListings = await prisma.listing.findMany({
+    where: { owner_client_id: auth.userId },
+    select: { address: true },
+  });
+  const ownedAddresses = ownedListings
+    .map((l) => l.address)
+    .filter(Boolean) as string[];
+
+  // Scope documents to this agent's deals that match the lead's listing addresses
   const documents = await prisma.document.findMany({
     where: {
       agent_id: lead.agent_id,
+      deal: {
+        property_address: ownedAddresses.length > 0
+          ? { in: ownedAddresses }
+          : undefined,
+      },
     },
     include: {
       signatures: {

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const message = (body.message as string)?.trim();
+  const message = ((body.message || body.body) as string)?.trim();
   if (!message) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }

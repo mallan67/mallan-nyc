@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
           id: { in: listingDbIds },
           idx_display_yn: true,
           owner_opt_out: false,
+          participant_only: false,
+          internet_entire_listing_display_yn: true,
         },
         select: {
           listing_id: true,
