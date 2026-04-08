@@ -295,7 +295,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     bathroomsFull: listing.bathrooms_full || 0,
     bathroomsHalf: listing.bathrooms_half || 0,
     livingArea: listing.living_area ? parseFloat(listing.living_area) : null,
-    lotSizeArea: null,
+    lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
     yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
     storiesTotal: features.StoriesTotal ? Number(features.StoriesTotal) : undefined,
     roomsTotal: features.Rooms ? Number(features.Rooms) : undefined,

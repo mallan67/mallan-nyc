@@ -108,7 +108,9 @@ const SEARCH_SELECT_FIELDS = [
   // ── Searchable checkbox fields (wired to CRM search form data-field checkboxes) ──
   // These are returned so local filterListings() can match against them.
   "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
-  "DirectionFaces", "View", "PropertyCondition", "Concessions", "OwnerPays",
+  "DirectionFaces", "View", "OwnerPays",
+  // PropertyCondition: NOT in IDX Plus CSV, prohibited for public IDX per REBNY — removed
+  // Concessions: does NOT exist on Trestle Property entity — removed
   "ArchitecturalStyle", "StructureType", "BusinessType",
   "AccessibilityFeatures", "ExteriorFeatures", "BuildingFeatures",
   "LaundryFeatures", "SecurityFeatures", "PoolFeatures",
@@ -464,13 +466,14 @@ function buildODataFilter(params: URLSearchParams): string {
       // Fields safe for OData eq/contains filtering
       const odataSafe = new Set([
         "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
-        "DirectionFaces", "PropertyCondition", "NewConstructionYN",
+        "DirectionFaces", "NewConstructionYN",
         "StructureType", "ArchitecturalStyle", "BusinessType",
         "PetsAllowedYN", "ConstructionMaterials",
-        // Extended set — validated against Trestle OData metadata
+        // Extended set — validated against Trestle OData metadata 2026-04-07
         "View", "AccessibilityFeatures", "ExteriorFeatures",
         "BuildingFeatures", "LaundryFeatures", "SecurityFeatures",
-        "Concessions",
+        // PropertyCondition: NOT in IDX Plus CSV, prohibited for public IDX per REBNY — removed
+        // Concessions: does NOT exist on Trestle Property entity — removed
         // AvailableLeaseType, ExistingLeaseType: 0% population + invalid enum — client-side only
       ]);
       for (const [htmlField, values] of Object.entries(cbFilters)) {
@@ -700,8 +703,8 @@ function mapTrestleToCRM(
     GarageYN: raw.GarageYN === true || raw.GarageYN === "true",
     DirectionFaces: raw.DirectionFaces ? String(raw.DirectionFaces) : null,
     View: raw.View ? String(raw.View) : null,
-    PropertyCondition: raw.PropertyCondition ? String(raw.PropertyCondition) : null,
-    Concessions: raw.Concessions ? String(raw.Concessions) : null,
+    // PropertyCondition: removed — not in IDX Plus, prohibited for public IDX
+    // Concessions: removed — does not exist on Trestle Property entity
     OwnerPays: raw.OwnerPays ? String(raw.OwnerPays) : null,
     ArchitecturalStyle: raw.ArchitecturalStyle ? String(raw.ArchitecturalStyle) : null,
     StructureType: raw.StructureType ? String(raw.StructureType) : null,
