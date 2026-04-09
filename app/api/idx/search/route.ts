@@ -117,6 +117,9 @@ const SEARCH_SELECT_FIELDS = [
   // BuildingRules: NOT on Trestle Property entity (400 error). Filtered client-side only.
   "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType",
   "ConstructionMaterials", "PriceChangeTimestamp",
+  // Detail panel fields (verified in Trestle metadata 2026-04-08)
+  "PatioAndPorchFeatures",
+  // NOT on Trestle: AttendanceType, DoormanYN, ElevatorYN, MaximumFinancingPercent — detail panel shows "--" for these
 ];
 
 // ── In-memory cache ────────────────────────────────────────────────────
@@ -716,6 +719,7 @@ function mapTrestleToCRM(
     LaundryFeatures: raw.LaundryFeatures ? String(raw.LaundryFeatures) : null,
     SecurityFeatures: raw.SecurityFeatures ? String(raw.SecurityFeatures) : null,
     PoolFeatures: raw.PoolFeatures ? String(raw.PoolFeatures) : null,
+    PatioAndPorchFeatures: raw.PatioAndPorchFeatures ? String(raw.PatioAndPorchFeatures) : null,
     PetsAllowedYN: raw.PetsAllowedYN === true || raw.PetsAllowedYN === "true",
     AvailableLeaseType: raw.AvailableLeaseType ? String(raw.AvailableLeaseType) : null,
     ExistingLeaseType: raw.ExistingLeaseType ? String(raw.ExistingLeaseType) : null,

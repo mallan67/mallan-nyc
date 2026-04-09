@@ -20199,8 +20199,8 @@ function parseBudgetValue(td) {
             priceChange:        { label: 'PRICE CHANGE',   reso: 'PriceChangeTimestamp',    render: function(l) { return l.priceChange === 'down' ? '<span class="text-red-500"><i class="fas fa-arrow-down"></i> Drop</span>' : '--'; } },
             primaryAgentEmail:  { label: 'AGENT EMAIL',    reso: 'ListAgentEmail',          render: function(l) { return '<span' + resoData('agentEmail', l.agentEmail) + '>' + escapeHtml(l.agentEmail || '--') + '</span>'; } },
             primaryAgentPhone:  { label: 'AGENT PHONE',    reso: 'ListAgentDirectPhone',    render: function(l) { return '<span' + resoData('agentPhone', l.agentPhone) + '>' + escapeHtml(l.agentPhone || '--') + '</span>'; } },
-            privateOutdoorSpace:{ label: 'OUTDOOR',        reso: 'PatioAndPorchFeatures',   render: function(l) { return '--'; } },
-            resaleNewDev:       { label: 'RESALE/NEW',     reso: 'NewConstructionYN',       render: function(l) { return '--'; } },
+            privateOutdoorSpace:{ label: 'OUTDOOR',        reso: 'PatioAndPorchFeatures',   render: function(l) { var v = l.PatioAndPorchFeatures || l.outdoorSpace; return v ? '<span' + resoData('outdoor', v) + '>' + escapeHtml(String(v).split(',')[0]) + '</span>' : '--'; } },
+            resaleNewDev:       { label: 'RESALE/NEW',     reso: 'NewConstructionYN',       render: function(l) { return l.NewConstructionYN ? '<span class="text-blue-600 font-semibold">New Dev</span>' : 'Resale'; } },
             shares:             { label: 'SHARES',         reso: null,                      render: function(l) { return '--'; } },
             shown:              { label: 'SHOWN',          reso: null,                      render: function(l) { return '--'; } },
             sponsorUnit:        { label: 'SPONSOR',        reso: null,                      render: function(l) { return '--'; } },
@@ -20208,8 +20208,8 @@ function parseBudgetValue(td) {
             verifiedEstimated:  { label: 'VERIFIED/EST',   reso: null,                      render: function(l) { return '--'; } },
             verifiedBuyer:      { label: 'VER. BUYER',     reso: null,                      render: function(l) { return '--'; } },
             verifiedSeller:     { label: 'VER. SELLER',    reso: null,                      render: function(l) { return '--'; } },
-            washerDryerBuilding:{ label: 'W/D BLDG',       reso: 'LaundryFeatures',         render: function(l) { return '--'; } },
-            washerDryerUnit:    { label: 'W/D UNIT',       reso: 'LaundryFeatures',         render: function(l) { return '--'; } },
+            washerDryerBuilding:{ label: 'W/D BLDG',       reso: 'LaundryFeatures',         render: function(l) { var v = l.LaundryFeatures; if (!v) return '--'; v = String(v); return v.match(/common|building|shared/i) ? '<span class="text-green-600 font-semibold">Yes</span>' : '--'; } },
+            washerDryerUnit:    { label: 'W/D UNIT',       reso: 'LaundryFeatures',         render: function(l) { var v = l.LaundryFeatures; if (!v) return '--'; v = String(v); return v.match(/in unit|hookup|washer.*dryer/i) ? '<span class="text-green-600 font-semibold">Yes</span>' : '--'; } },
             webId:              { label: 'WEB ID',         reso: 'SourceSystemKey',              render: function(l) { return '<span' + resoData('wid', l.wid) + '>' + escapeHtml(l.wid || '--') + '</span>'; } },
             yearBuilt:          { label: 'YEAR BUILT',     reso: 'YearBuilt',               render: function(l) { return '<span' + resoData('yearBuilt', l.yearBuilt) + '>' + (l.yearBuilt || '--') + '</span>'; } },
             zipCode:            { label: 'ZIP',            reso: 'PostalCode',              render: function(l) { return '<span' + resoData('zip', l.zip) + '>' + escapeHtml(l.zip || '--') + '</span>'; } },
@@ -20632,15 +20632,15 @@ function parseBudgetValue(td) {
                             <div>
                                 <div class="flex justify-between"><span class="text-gray-500">${listing.listingCategory === 'rental' ? 'Rent:' : 'Common Charges:'}</span><span>$${listing.maintCC.toLocaleString()}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">RE Taxes:</span><span>$${listing.reTaxes.toLocaleString()}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Cooling:</span><span>--</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Washer/Dryer:</span><span>--</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Cooling:</span><span>${listing.CoolingYN ? 'Yes' : '--'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Washer/Dryer:</span><span>${listing.LaundryFeatures && String(listing.LaundryFeatures).match(/washer|dryer|w\/d/i) ? 'Yes' : '--'}</span></div>
                             </div>
                             <!-- Col 3: Features -->
                             <div>
-                                <div class="flex justify-between"><span class="text-gray-500">Condition:</span><span>--</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Doorman:</span><span>--</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Elevators:</span><span>--</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Private Outdoor:</span><span>--</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Condition:</span><span>${escapeHtml(listing.condition || '--')}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Doorman:</span><span>${listing.SecurityFeatures && String(listing.SecurityFeatures).match(/doorman|concierge/i) ? 'Yes' : '--'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Elevators:</span><span>${listing.BuildingFeatures && String(listing.BuildingFeatures).match(/elevator/i) ? 'Yes' : '--'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Private Outdoor:</span><span>${listing.PatioAndPorchFeatures ? escapeHtml(String(listing.PatioAndPorchFeatures).split(',')[0]) : '--'}</span></div>
                             </div>
                             <!-- Col 4: Dates -->
                             <div>
@@ -20970,8 +20970,8 @@ function parseBudgetValue(td) {
                         <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
                         <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>
                         <div><span class="text-gray-500">Condition</span><div class="font-semibold">${escapeHtml(listing.condition || '--')}</div></div>
-                        <div><span class="text-gray-500">Outdoor Space</span><div class="font-semibold">--</div></div>
-                        <div><span class="text-gray-500">W/D</span><div class="font-semibold">--</div></div>
+                        <div><span class="text-gray-500">Outdoor Space</span><div class="font-semibold">${escapeHtml(listing.PatioAndPorchFeatures || listing.outdoorSpace || '--')}</div></div>
+                        <div><span class="text-gray-500">W/D</span><div class="font-semibold">${listing.LaundryFeatures ? (String(listing.LaundryFeatures).match(/washer|dryer|w\/d/i) ? 'Yes' : escapeHtml(listing.LaundryFeatures)) : '--'}</div></div>
                     </div>
                 </div>
 
@@ -20982,9 +20982,9 @@ function parseBudgetValue(td) {
                         <div><span class="text-gray-500">Building Name</span><div class="font-semibold">${escapeHtml(listing.buildingName || '--')}</div></div>
                         <div><span class="text-gray-500">Ownership</span><div class="font-semibold">${ownershipLabel(listing.ownership)}</div></div>
                         <div><span class="text-gray-500">Era</span><div class="font-semibold">${escapeHtml(listing.era || '--')}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
-                        <div><span class="text-gray-500">Elevator</span><div class="font-semibold">--</div></div>
-                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">--</div></div>
-                        <div><span class="text-gray-500">Financing</span><div class="font-semibold">--</div></div>
+                        <div><span class="text-gray-500">Elevator</span><div class="font-semibold">${listing.BuildingFeatures && String(listing.BuildingFeatures).match(/elevator/i) ? 'Yes' : '--'}</div></div>
+                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">${listing.SecurityFeatures && String(listing.SecurityFeatures).match(/doorman|concierge/i) ? 'Yes' : '--'}</div></div>
+                        <div><span class="text-gray-500">Financing</span><div class="font-semibold">${listing.CurrentFinancing ? escapeHtml(listing.CurrentFinancing) : '--'}</div></div>
                     </div>
                 </div>
 
