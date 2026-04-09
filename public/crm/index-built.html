@@ -20638,8 +20638,8 @@ function parseBudgetValue(td) {
                             <!-- Col 3: Features -->
                             <div>
                                 <div class="flex justify-between"><span class="text-gray-500">Condition:</span><span>${escapeHtml(listing.condition || '--')}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Doorman:</span><span>${listing.SecurityFeatures && String(listing.SecurityFeatures).match(/doorman|concierge/i) ? 'Yes' : '--'}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Elevators:</span><span>${listing.BuildingFeatures && String(listing.BuildingFeatures).match(/elevator/i) ? 'Yes' : '--'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Doorman:</span><span>${listing.AssociationAmenities && String(listing.AssociationAmenities).match(/doorman|concierge/i) ? 'Yes' : '--'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Elevators:</span><span>${(listing.AssociationAmenities && String(listing.AssociationAmenities).match(/elevator/i)) || (listing.BuildingFeatures && String(listing.BuildingFeatures).match(/elevator/i)) ? 'Yes' : '--'}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Private Outdoor:</span><span>${listing.PatioAndPorchFeatures ? escapeHtml(String(listing.PatioAndPorchFeatures).split(',')[0]) : '--'}</span></div>
                             </div>
                             <!-- Col 4: Dates -->
@@ -20982,9 +20982,9 @@ function parseBudgetValue(td) {
                         <div><span class="text-gray-500">Building Name</span><div class="font-semibold">${escapeHtml(listing.buildingName || '--')}</div></div>
                         <div><span class="text-gray-500">Ownership</span><div class="font-semibold">${ownershipLabel(listing.ownership)}</div></div>
                         <div><span class="text-gray-500">Era</span><div class="font-semibold">${escapeHtml(listing.era || '--')}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
-                        <div><span class="text-gray-500">Elevator</span><div class="font-semibold">${listing.BuildingFeatures && String(listing.BuildingFeatures).match(/elevator/i) ? 'Yes' : '--'}</div></div>
-                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">${listing.SecurityFeatures && String(listing.SecurityFeatures).match(/doorman|concierge/i) ? 'Yes' : '--'}</div></div>
-                        <div><span class="text-gray-500">Financing</span><div class="font-semibold">${listing.CurrentFinancing ? escapeHtml(listing.CurrentFinancing) : '--'}</div></div>
+                        <div><span class="text-gray-500">Elevator</span><div class="font-semibold">${(listing.AssociationAmenities && String(listing.AssociationAmenities).match(/elevator/i)) || (listing.BuildingFeatures && String(listing.BuildingFeatures).match(/elevator/i)) ? 'Yes' : '--'}</div></div>
+                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">${listing.AssociationAmenities && String(listing.AssociationAmenities).match(/doorman|concierge/i) ? 'Yes' : '--'}</div></div>
+                        <div><span class="text-gray-500">Financing</span><div class="font-semibold">${listing.CurrentFinancing ? escapeHtml(String(listing.CurrentFinancing).replace(/,/g, ', ')) : '--'}</div></div>
                     </div>
                 </div>
 

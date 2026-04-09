@@ -119,7 +119,9 @@ const SEARCH_SELECT_FIELDS = [
   "ConstructionMaterials", "PriceChangeTimestamp",
   // Detail panel fields (verified in Trestle metadata 2026-04-08)
   "PatioAndPorchFeatures",
-  // NOT on Trestle: AttendanceType, DoormanYN, ElevatorYN, MaximumFinancingPercent — detail panel shows "--" for these
+  "AssociationAmenities", // Contains: Elevators, Concierge, Doorman values (enum)
+  "CurrentFinancing",     // Financing type (e.g., Conventional, FHA, VA)
+  // AttendanceType: NOT in Trestle metadata — REBNY lookup CSV only. Doorman info lives in AssociationAmenities.
 ];
 
 // ── In-memory cache ────────────────────────────────────────────────────
@@ -720,6 +722,8 @@ function mapTrestleToCRM(
     SecurityFeatures: raw.SecurityFeatures ? String(raw.SecurityFeatures) : null,
     PoolFeatures: raw.PoolFeatures ? String(raw.PoolFeatures) : null,
     PatioAndPorchFeatures: raw.PatioAndPorchFeatures ? String(raw.PatioAndPorchFeatures) : null,
+    AssociationAmenities: raw.AssociationAmenities ? String(raw.AssociationAmenities) : null,
+    CurrentFinancing: raw.CurrentFinancing ? String(raw.CurrentFinancing) : null,
     PetsAllowedYN: raw.PetsAllowedYN === true || raw.PetsAllowedYN === "true",
     AvailableLeaseType: raw.AvailableLeaseType ? String(raw.AvailableLeaseType) : null,
     ExistingLeaseType: raw.ExistingLeaseType ? String(raw.ExistingLeaseType) : null,
