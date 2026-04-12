@@ -8,7 +8,9 @@ export interface UseListingsParams {
   minPrice?: number;
   maxPrice?: number;
   beds?: number | null;
+  maxBeds?: number | null;
   minBaths?: number | null;
+  maxBaths?: number | null;
   propertyType?: string;
   status?: string;
   statuses?: string[];
@@ -92,7 +94,9 @@ function buildQueryString(params: UseListingsParams): string {
   if (params.minPrice && params.minPrice > 0) qs.set('minPrice', String(params.minPrice));
   if (params.maxPrice && params.maxPrice < 99999999) qs.set('maxPrice', String(params.maxPrice));
   if (params.beds != null && params.beds >= 0) qs.set('beds', String(params.beds));
+  if (params.maxBeds != null && params.maxBeds >= 0) qs.set('maxBeds', String(params.maxBeds));
   if (params.minBaths != null && params.minBaths > 0) qs.set('minBaths', String(params.minBaths));
+  if (params.maxBaths != null && params.maxBaths > 0) qs.set('maxBaths', String(params.maxBaths));
   if (params.propertyType) qs.set('propertyType', params.propertyType);
   if (params.status) qs.set('status', params.status);
   if (params.borough) qs.set('borough', params.borough);
@@ -127,7 +131,9 @@ function hasActiveFilters(params: UseListingsParams): boolean {
     params.minPrice ||
     (params.maxPrice && params.maxPrice < 99999999) ||
     (params.beds != null && params.beds >= 0) ||
+    (params.maxBeds != null && params.maxBeds >= 0) ||
     (params.minBaths != null && params.minBaths > 0) ||
+    (params.maxBaths != null && params.maxBaths > 0) ||
     params.propertyType ||
     params.status ||
     params.statuses?.length ||
@@ -310,7 +316,9 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     params.minPrice,
     params.maxPrice,
     params.beds,
+    params.maxBeds,
     params.minBaths,
+    params.maxBaths,
     params.propertyType,
     params.status,
     params.borough,

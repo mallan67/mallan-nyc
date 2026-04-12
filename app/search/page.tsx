@@ -208,7 +208,9 @@ function SearchClient() {
       minPrice: sp?.get('minPrice') ? Number(sp.get('minPrice')) : undefined,
       maxPrice: sp?.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined,
       beds: sp?.get('beds') ? Number(sp.get('beds')) : null,
+      maxBeds: sp?.get('maxBeds') ? Number(sp.get('maxBeds')) : null,
       baths: sp?.get('baths') ? Number(sp.get('baths')) : null,
+      maxBaths: sp?.get('maxBaths') ? Number(sp.get('maxBaths')) : null,
       propertySubTypes: csv('subTypes'),
       ownershipTypes: csv('ownership'),
       statuses: csv('statuses'),
@@ -234,7 +236,9 @@ function SearchClient() {
     setOrDel('minPrice', filters.minPrice?.toString());
     setOrDel('maxPrice', filters.maxPrice?.toString());
     setOrDel('beds', filters.beds != null ? filters.beds.toString() : undefined);
+    setOrDel('maxBeds', filters.maxBeds != null ? filters.maxBeds.toString() : undefined);
     setOrDel('baths', filters.baths != null ? filters.baths.toString() : undefined);
+    setOrDel('maxBaths', filters.maxBaths != null ? filters.maxBaths.toString() : undefined);
     setOrDel('subTypes', filters.propertySubTypes?.length ? filters.propertySubTypes.join(',') : undefined);
     setOrDel('ownership', filters.ownershipTypes?.length ? filters.ownershipTypes.join(',') : undefined);
     setOrDel('statuses', filters.statuses?.length ? filters.statuses.join(',') : undefined);
@@ -313,7 +317,9 @@ function SearchClient() {
     minPrice: filters.minPrice ?? nl?.minPrice,
     maxPrice: filters.maxPrice ?? nl?.maxPrice,
     beds: filters.beds ?? nl?.beds,
+    maxBeds: filters.maxBeds ?? null,
     minBaths: filters.baths ?? nl?.baths,
+    maxBaths: filters.maxBaths ?? null,
     propertySubTypes: filters.propertySubTypes?.length ? filters.propertySubTypes : nl?.propertySubTypes,
     ownershipTypes: filters.ownershipTypes,
     statuses: filters.statuses,
@@ -509,8 +515,33 @@ function SearchClient() {
       });
     }
     if (zipParam) pills.push({ label: `ZIP: ${zipParam}`, key: 'zip' });
-    if (filters.beds != null) pills.push({ label: filters.beds === 0 ? 'Studio' : `${filters.beds}+ beds`, key: 'beds' });
-    if (filters.baths != null) pills.push({ label: `${filters.baths}+ baths`, key: 'baths' });
+    if (filters.beds != null || filters.maxBeds != null) {
+      const min = filters.beds;
+      const max = filters.maxBeds;
+      const bedLabel = (v: number) => v === 0 ? 'Studio' : String(v);
+      let label: string;
+      if (min != null && max != null) {
+        label = min === max ? `${bedLabel(min)} bed` : `${bedLabel(min)}–${bedLabel(max)} beds`;
+      } else if (min != null) {
+        label = `${bedLabel(min)}+ beds`;
+      } else {
+        label = `≤${bedLabel(max!)} beds`;
+      }
+      pills.push({ label, key: 'beds' });
+    }
+    if (filters.baths != null || filters.maxBaths != null) {
+      const min = filters.baths;
+      const max = filters.maxBaths;
+      let label: string;
+      if (min != null && max != null) {
+        label = min === max ? `${min} bath` : `${min}–${max} baths`;
+      } else if (min != null) {
+        label = `${min}+ baths`;
+      } else {
+        label = `≤${max} baths`;
+      }
+      pills.push({ label, key: 'baths' });
+    }
     if (filters.minPrice) pills.push({ label: `Min ${formatPriceShort(filters.minPrice)}`, key: 'minPrice' });
     if (filters.maxPrice) pills.push({ label: `Max ${formatPriceShort(filters.maxPrice)}`, key: 'maxPrice' });
     if (filters.propertySubTypes?.length) pills.push({ label: filters.propertySubTypes.join(', '), key: 'propertySubTypes' });
@@ -558,10 +589,10 @@ function SearchClient() {
         setSearchQuery('');
         break;
       case 'beds':
-        setFilters(prev => ({ ...prev, beds: null }));
+        setFilters(prev => ({ ...prev, beds: null, maxBeds: null }));
         break;
       case 'baths':
-        setFilters(prev => ({ ...prev, baths: null }));
+        setFilters(prev => ({ ...prev, baths: null, maxBaths: null }));
         break;
       case 'price':
         setFilters(prev => ({ ...prev, minPrice: undefined, maxPrice: undefined }));
@@ -682,39 +713,77 @@ function SearchClient() {
               })()}
             </div>
 
-            {/* Beds quick-access */}
-            <select
-              value={filters.beds != null ? filters.beds.toString() : ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFilters(prev => ({ ...prev, beds: val !== '' ? Number(val) : null }));
-              }}
-              className="hidden sm:block w-20 sm:w-24 rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
-              aria-label="Bedrooms"
-            >
-              <option value="">Beds</option>
-              <option value="0">Studio</option>
-              <option value="1">1+</option>
-              <option value="2">2+</option>
-              <option value="3">3+</option>
-              <option value="4">4+</option>
-            </select>
+            {/* Beds min/max */}
+            <div className="hidden sm:flex items-center gap-1">
+              <select
+                value={filters.beds != null ? filters.beds.toString() : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilters(prev => ({ ...prev, beds: val !== '' ? Number(val) : null }));
+                }}
+                className="w-[72px] rounded-lg px-2 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                aria-label="Min bedrooms"
+              >
+                <option value="">Beds</option>
+                <option value="0">Studio</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+              <span className="text-brand-dark/40 text-xs">&ndash;</span>
+              <select
+                value={filters.maxBeds != null ? filters.maxBeds.toString() : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilters(prev => ({ ...prev, maxBeds: val !== '' ? Number(val) : null }));
+                }}
+                className="w-[72px] rounded-lg px-2 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                aria-label="Max bedrooms"
+              >
+                <option value="">Max</option>
+                <option value="0">Studio</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4+</option>
+              </select>
+            </div>
 
-            {/* Baths quick-access */}
-            <select
-              value={filters.baths != null ? filters.baths.toString() : ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setFilters(prev => ({ ...prev, baths: val !== '' ? Number(val) : null }));
-              }}
-              className="hidden sm:block w-20 sm:w-24 rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
-              aria-label="Bathrooms"
-            >
-              <option value="">Baths</option>
-              <option value="1">1+</option>
-              <option value="2">2+</option>
-              <option value="3">3+</option>
-            </select>
+            {/* Baths min/max */}
+            <div className="hidden sm:flex items-center gap-1">
+              <select
+                value={filters.baths != null ? filters.baths.toString() : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilters(prev => ({ ...prev, baths: val !== '' ? Number(val) : null }));
+                }}
+                className="w-[72px] rounded-lg px-2 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                aria-label="Min bathrooms"
+              >
+                <option value="">Baths</option>
+                <option value="1">1</option>
+                <option value="1.5">1.5</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+              <span className="text-brand-dark/40 text-xs">&ndash;</span>
+              <select
+                value={filters.maxBaths != null ? filters.maxBaths.toString() : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilters(prev => ({ ...prev, maxBaths: val !== '' ? Number(val) : null }));
+                }}
+                className="w-[72px] rounded-lg px-2 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 cursor-pointer"
+                aria-label="Max bathrooms"
+              >
+                <option value="">Max</option>
+                <option value="1">1</option>
+                <option value="1.5">1.5</option>
+                <option value="2">2</option>
+                <option value="3">3+</option>
+              </select>
+            </div>
 
             {/* Neighborhood selector */}
             <NeighborhoodSelector

@@ -14,9 +14,11 @@ export interface SearchFilters {
   // Price
   minPrice?: number;
   maxPrice?: number;
-  // Beds/Baths
+  // Beds/Baths (min/max ranges)
   beds?: number | null;
+  maxBeds?: number | null;
   baths?: number | null;
+  maxBaths?: number | null;
   // Size
   minSqft?: number;
   maxSqft?: number;

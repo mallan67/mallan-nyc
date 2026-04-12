@@ -30,6 +30,27 @@ const logTrestleAccess = async (data: Record<string, unknown>) => {
 import { reportApiError } from '@/lib/sentry-report';
 import { lookupNeighborhoodZips } from '@/lib/geo/neighborhood-zips';
 
+// ── Date helpers for OpenHouse filter ──
+function nextDay(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
+
+function getNextWeekend(): { sat: string; mon: string } {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
+  const daysUntilSat = (6 - dayOfWeek + 7) % 7 || 7;
+  const sat = new Date(now);
+  sat.setDate(now.getDate() + (dayOfWeek === 6 ? 0 : daysUntilSat));
+  const mon = new Date(sat);
+  mon.setDate(sat.getDate() + 2);
+  return {
+    sat: sat.toISOString().split('T')[0],
+    mon: mon.toISOString().split('T')[0],
+  };
+}
+
 // Vercel serverless: allow up to 60s for Trestle API calls + media fetch
 export const maxDuration = 60;
 
@@ -127,7 +148,9 @@ export async function GET(request: Request) {
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
     const minBeds = searchParams.get('beds');
+    const maxBeds = searchParams.get('maxBeds');
     const minBaths = searchParams.get('minBaths');
+    const maxBaths = searchParams.get('maxBaths');
     const propertyTypeFilter = searchParams.get('propertyType');
     const statusFilter = searchParams.get('status');
     const statusesParam = searchParams.get('statuses'); // comma-separated: Active,ComingSoon
@@ -145,6 +168,7 @@ export async function GET(request: Request) {
     const furnishedParam = searchParams.get('furnished') === 'true';
     const amenitiesParam = searchParams.get('amenities'); // comma-separated amenity keys
     const openHouseParam = searchParams.get('openHouse') === 'true';
+    const openHouseDateParam = searchParams.get('openHouseDate'); // 'weekend' | ISO date | undefined
     const addressParam = searchParams.get('address'); // free-text street name search
     const keywords = searchParams.get('keywords')?.split(',').filter(Boolean) || [];
 
@@ -237,12 +261,26 @@ export async function GET(request: Request) {
           if (minPrice) dbWhere.list_price = { ...(dbWhere.list_price as object || {}), gte: parseInt(minPrice, 10) };
           if (maxPrice) dbWhere.list_price = { ...(dbWhere.list_price as object || {}), lte: parseInt(maxPrice, 10) };
 
-          // Beds/Baths — Studio (beds=0) needs exact match, not gte
+          // Beds — min/max range
           if (minBeds !== null && minBeds !== undefined) {
             const bedsVal = parseInt(minBeds, 10);
-            dbWhere.bedrooms_total = bedsVal === 0 ? { equals: 0 } : { gte: bedsVal };
+            dbWhere.bedrooms_total = { ...(dbWhere.bedrooms_total as object || {}), gte: bedsVal };
           }
-          if (minBaths) dbWhere.bathrooms_full = { gte: parseInt(minBaths, 10) };
+          if (maxBeds !== null && maxBeds !== undefined) {
+            const bedsMax = parseInt(maxBeds, 10);
+            dbWhere.bedrooms_total = { ...(dbWhere.bedrooms_total as object || {}), lte: bedsMax };
+          }
+
+          // Baths — min/max range (supports half-baths)
+          if (minBaths) {
+            const bathVal = Number(minBaths);
+            dbWhere.bathrooms_full = { ...(dbWhere.bathrooms_full as object || {}), gte: Math.floor(bathVal) };
+            if (bathVal % 1 >= 0.5) dbWhere.bathrooms_half = { gte: 1 };
+          }
+          if (maxBaths) {
+            const bathMax = Number(maxBaths);
+            dbWhere.bathrooms_full = { ...(dbWhere.bathrooms_full as object || {}), lte: Math.floor(bathMax) };
+          }
 
           // Sqft
           if (minSqft) dbWhere.living_area = { ...(dbWhere.living_area as object || {}), gte: parseInt(minSqft, 10) };
@@ -546,6 +584,38 @@ export async function GET(request: Request) {
               });
             }
 
+            // Open House filter on DB path — query Trestle OpenHouse resource
+            if (openHouseParam) {
+              try {
+                const ohToken = await getAccessToken();
+                const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+                const today = new Date().toISOString().split('T')[0];
+
+                let ohDateFilter = `OpenHouseDate ge ${today}`;
+                if (openHouseDateParam && openHouseDateParam !== 'weekend') {
+                  ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
+                } else if (openHouseDateParam === 'weekend') {
+                  const { sat, mon } = getNextWeekend();
+                  ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
+                }
+
+                const ohParams = new URLSearchParams();
+                ohParams.set('$select', 'ListingKey');
+                ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
+                ohParams.set('$top', '500');
+                const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
+                  headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
+                });
+                if (ohRes.ok) {
+                  const ohData = await ohRes.json();
+                  const ohKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
+                  publicListings = publicListings.filter(l => ohKeys.has(l.id));
+                }
+              } catch (ohErr) {
+                console.warn('[/api/listings] DB-path open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
+              }
+            }
+
             // Fill photos for DB listings with empty media — DB may have stale/empty
             // media from broken syncs. Fetch from Trestle per-listing (proven to work).
             const { fetchListingMedia } = await import('@/lib/idx/fetch');
@@ -647,10 +717,19 @@ export async function GET(request: Request) {
         if (minPrice) filterParts.push(`ListPrice ge ${parseInt(minPrice, 10)}`);
         if (maxPrice) filterParts.push(`ListPrice le ${parseInt(maxPrice, 10)}`);
         if (minBeds !== null && minBeds !== undefined) {
-          const bedsVal = parseInt(minBeds, 10);
-          filterParts.push(bedsVal === 0 ? `BedroomsTotal eq 0` : `BedroomsTotal ge ${bedsVal}`);
+          filterParts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
         }
-        if (minBaths) filterParts.push(`BathroomsFull ge ${parseInt(minBaths, 10)}`);
+        if (maxBeds !== null && maxBeds !== undefined) {
+          filterParts.push(`BedroomsTotal le ${parseInt(maxBeds, 10)}`);
+        }
+        if (minBaths) {
+          const bathVal = Number(minBaths);
+          filterParts.push(`BathroomsFull ge ${Math.floor(bathVal)}`);
+          if (bathVal % 1 >= 0.5) filterParts.push(`BathroomsHalf ge 1`);
+        }
+        if (maxBaths) {
+          filterParts.push(`BathroomsFull le ${Math.floor(Number(maxBaths))}`);
+        }
         if (minSqft) filterParts.push(`LivingArea ge ${parseInt(minSqft, 10)}`);
         if (maxSqft) filterParts.push(`LivingArea le ${parseInt(maxSqft, 10)}`);
 
@@ -1020,9 +1099,21 @@ export async function GET(request: Request) {
             const ohToken = await getAccessToken();
             const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
             const today = new Date().toISOString().split('T')[0];
+
+            // Build date filter based on user selection
+            let ohDateFilter = `OpenHouseDate ge ${today}`;
+            if (openHouseDateParam && openHouseDateParam !== 'weekend') {
+              // Specific date: show open houses on that exact day
+              ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
+            } else if (openHouseDateParam === 'weekend') {
+              // This weekend: Saturday + Sunday
+              const { sat, mon } = getNextWeekend();
+              ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
+            }
+
             const ohParams = new URLSearchParams();
             ohParams.set('$select', 'ListingKey');
-            ohParams.set('$filter', `OpenHouseDate ge ${today} and OpenHouseStatus eq 'Active'`);
+            ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
             ohParams.set('$top', '500');
             const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
               headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
@@ -1301,7 +1392,7 @@ async function fetchExclusiveListings(
       if (maxPrice) (where.list_price as Prisma.DecimalFilter).lte = maxPrice;
     }
 
-    if (minBeds) where.bedrooms_total = { gte: minBeds };
+    if (minBeds != null) where.bedrooms_total = minBeds === 0 ? { equals: 0 } : { gte: minBeds };
 
     if (borough) {
       where.borough = { contains: borough, mode: 'insensitive' };

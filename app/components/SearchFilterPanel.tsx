@@ -143,51 +143,72 @@ export default function SearchFilterPanel({
           {tabConfig.showBedsBaths && (
             <>
               <FilterSection title="Bedrooms">
-                <div className="flex gap-1.5">
-                  {[
-                    { label: 'Any', value: null },
-                    { label: 'Studio', value: 0 },
-                    { label: '1', value: 1 },
-                    { label: '2', value: 2 },
-                    { label: '3', value: 3 },
-                    { label: '4+', value: 4 },
-                  ].map(({ label, value }) => (
-                    <button
-                      key={label}
-                      onClick={() => updateStaged({ beds: value })}
-                      className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
-                        staged.beds === value
-                          ? 'bg-brand-dark text-white'
-                          : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
-                      }`}
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-brand-dark/85 mb-1 block">Min</label>
+                    <select
+                      value={staged.beds != null ? staged.beds.toString() : ''}
+                      onChange={(e) => updateStaged({ beds: e.target.value !== '' ? Number(e.target.value) : null })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
                     >
-                      {label}
-                    </button>
-                  ))}
+                      <option value="">Any</option>
+                      <option value="0">Studio</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end pb-2.5 text-brand-dark/40">&ndash;</div>
+                  <div className="flex-1">
+                    <label className="text-xs text-brand-dark/85 mb-1 block">Max</label>
+                    <select
+                      value={staged.maxBeds != null ? staged.maxBeds.toString() : ''}
+                      onChange={(e) => updateStaged({ maxBeds: e.target.value !== '' ? Number(e.target.value) : null })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                    >
+                      <option value="">Any</option>
+                      <option value="0">Studio</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4+</option>
+                    </select>
+                  </div>
                 </div>
               </FilterSection>
 
               <FilterSection title="Bathrooms">
-                <div className="flex gap-1.5">
-                  {[
-                    { label: 'Any', value: null },
-                    { label: '1+', value: 1 },
-                    { label: '1.5+', value: 1.5 },
-                    { label: '2+', value: 2 },
-                    { label: '3+', value: 3 },
-                  ].map(({ label, value }) => (
-                    <button
-                      key={label}
-                      onClick={() => updateStaged({ baths: value })}
-                      className={`flex-1 py-2 text-sm rounded-lg transition-colors ${
-                        staged.baths === value
-                          ? 'bg-brand-dark text-white'
-                          : 'bg-gray-100 text-brand-dark hover:bg-gray-200'
-                      }`}
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-brand-dark/85 mb-1 block">Min</label>
+                    <select
+                      value={staged.baths != null ? staged.baths.toString() : ''}
+                      onChange={(e) => updateStaged({ baths: e.target.value !== '' ? Number(e.target.value) : null })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
                     >
-                      {label}
-                    </button>
-                  ))}
+                      <option value="">Any</option>
+                      <option value="1">1</option>
+                      <option value="1.5">1.5</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end pb-2.5 text-brand-dark/40">&ndash;</div>
+                  <div className="flex-1">
+                    <label className="text-xs text-brand-dark/85 mb-1 block">Max</label>
+                    <select
+                      value={staged.maxBaths != null ? staged.maxBaths.toString() : ''}
+                      onChange={(e) => updateStaged({ maxBaths: e.target.value !== '' ? Number(e.target.value) : null })}
+                      className="w-full rounded-xl px-3 py-2.5 ring-1 ring-black/10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30 bg-white"
+                    >
+                      <option value="">Any</option>
+                      <option value="1">1</option>
+                      <option value="1.5">1.5</option>
+                      <option value="2">2</option>
+                      <option value="3">3+</option>
+                    </select>
+                  </div>
                 </div>
               </FilterSection>
             </>

@@ -176,7 +176,8 @@ function buildODataFilter(params: URLSearchParams): string {
   }
 
   // Bedrooms (ge 0 allows Studio filtering)
-  const minBeds = params.get("minBeds");
+  // Public search sends "beds", CRM sends "minBeds"
+  const minBeds = params.get("minBeds") ?? params.get("beds");
   if (minBeds != null && minBeds !== "" && Number(minBeds) >= 0) {
     parts.push(`BedroomsTotal ge ${Number(minBeds)}`);
   }

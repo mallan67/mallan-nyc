@@ -93,26 +93,35 @@ export function buildChips(
     });
   }
 
-  // Beds
-  if (filters.beds != null) {
-    chips.push({
-      id: `beds-${filters.beds}`,
-      label: filters.beds === 0 ? 'Studio' : `${filters.beds} Bed${filters.beds > 1 ? 's' : ''}`,
-      type: 'beds',
-      filterKey: 'beds',
-      filterValue: filters.beds,
-    });
+  // Beds (range)
+  if (filters.beds != null || filters.maxBeds != null) {
+    const min = filters.beds;
+    const max = filters.maxBeds;
+    const bedLabel = (v: number) => v === 0 ? 'Studio' : String(v);
+    let label: string;
+    if (min != null && max != null) {
+      label = min === max ? `${bedLabel(min)} Bed` : `${bedLabel(min)}–${bedLabel(max)} Beds`;
+    } else if (min != null) {
+      label = `${bedLabel(min)}+ Beds`;
+    } else {
+      label = `≤${bedLabel(max!)} Beds`;
+    }
+    chips.push({ id: `beds-${min}-${max}`, label, type: 'beds', filterKey: 'beds', filterValue: min ?? max ?? undefined });
   }
 
-  // Baths
-  if (filters.baths != null) {
-    chips.push({
-      id: `baths-${filters.baths}`,
-      label: `${filters.baths} Bath${filters.baths > 1 ? 's' : ''}`,
-      type: 'baths',
-      filterKey: 'baths',
-      filterValue: filters.baths,
-    });
+  // Baths (range)
+  if (filters.baths != null || filters.maxBaths != null) {
+    const min = filters.baths;
+    const max = filters.maxBaths;
+    let label: string;
+    if (min != null && max != null) {
+      label = min === max ? `${min} Bath` : `${min}–${max} Baths`;
+    } else if (min != null) {
+      label = `${min}+ Baths`;
+    } else {
+      label = `≤${max} Baths`;
+    }
+    chips.push({ id: `baths-${min}-${max}`, label, type: 'baths', filterKey: 'baths', filterValue: min ?? max ?? undefined });
   }
 
   // Price range
