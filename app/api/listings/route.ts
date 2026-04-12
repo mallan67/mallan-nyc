@@ -205,19 +205,10 @@ export async function GET(request: Request) {
       }
 
       // ── Try DB-first: query synced listings from Postgres ──
-      // Only use DB path if we have synced listings (check count first).
-      // This is ~20-80ms vs 2-8s for live Trestle.
+      // Skips extra count query — just runs the main query directly.
+      // If no synced results come back, falls through to live Trestle.
       try {
-        const syncedCount = await prisma.listing.count({
-          where: {
-            sync_status: 'synced',
-            status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] },
-          },
-        });
-
-        if (syncedCount >= 500) {
-          // Only use DB path when we have enough synced data to serve meaningful results.
-          // Below 500 listings, fall through to live Trestle for full coverage.
+        {
           // Two display paths: RLS listings (must pass 6 distribution gates) OR
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const dbWhere: Prisma.ListingWhereInput = {
@@ -491,16 +482,14 @@ export async function GET(request: Request) {
               }
             }
 
-            // Geocode DB listings — DB stores null lat/lng (Trestle doesn't provide them).
-            // Without this, the map shows "location data not available" for all DB-sourced listings.
-            try {
-              await Promise.race([
-                geocodeListings(publicListings),
-                new Promise<void>((resolve) => setTimeout(resolve, 5000)),
-              ]);
-            } catch {
-              // Non-fatal — listings still display, just without map pins
-            }
+            // Geocode DB listings — use only in-memory + DB cache (fast).
+            // Census API geocoding is too slow for search (~2-5s) — it runs during
+            // the IDX sync cron instead. Listings without cached coords get ZIP centroids.
+            // Fire-and-forget with a tight 1.5s timeout so it never blocks the response.
+            const geocodePromise = Promise.race([
+              geocodeListings(publicListings),
+              new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+            ]).catch(() => { /* non-fatal */ });
 
             // yearBuilt filter
             if (yearBuiltParam === 'pre-war') {
@@ -616,34 +605,12 @@ export async function GET(request: Request) {
               }
             }
 
-            // Fill photos for DB listings with empty media — DB may have stale/empty
-            // media from broken syncs. Fetch from Trestle per-listing (proven to work).
-            const { fetchListingMedia } = await import('@/lib/idx/fetch');
-            const emptyMedia = publicListings.filter(l => !l.media || l.media.length === 0);
-            if (emptyMedia.length > 0) {
-              try {
-                const CONCURRENCY = 5;
-                for (let i = 0; i < emptyMedia.length; i += CONCURRENCY) {
-                  const batch = emptyMedia.slice(i, i + CONCURRENCY);
-                  await Promise.allSettled(batch.map(async (listing) => {
-                    try {
-                      const media = await fetchListingMedia(listing.id);
-                      if (media.length > 0) {
-                        // Wrap raw Trestle URLs in proxy (WAF blocks direct browser access)
-                        const PROXY_HOSTS = ['cotality.com', 'corelogic.com'];
-                        listing.media = media.map(m => ({
-                          ...m,
-                          url: PROXY_HOSTS.some(h => m.url.includes(h))
-                            ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
-                            : m.url,
-                        }));
-                        listing.photosCount = media.filter(m => m.mediaType === 'Photo').length;
-                      }
-                    } catch { /* non-fatal */ }
-                  }));
-                }
-              } catch { /* non-fatal */ }
-            }
+            // Media backfill removed from search path — the /api/cron/media-backfill
+            // cron (every 8min) handles this. Fetching photos per-listing during search
+            // added 3-10s latency. Listings without photos show a placeholder.
+
+            // Wait for geocoding (with tight 1.5s timeout set above)
+            await geocodePromise;
 
             const responseBody = {
               success: true,

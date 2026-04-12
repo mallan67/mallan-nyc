@@ -136,12 +136,12 @@ export async function geocodeListings(
 
   const needsCensus: { listing: typeof listings[0]; key: string }[] = [];
   try {
-    // 3s timeout on DB lookup — Neon cold starts can hang for 10s+
+    // 1s timeout on DB lookup — keep fast for search; Neon cold starts handled by fallback
     const dbResults = await Promise.race([
       prisma.geocodeCache.findMany({
         where: { address_key: { in: keys } },
       }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('DB geocode cache timeout')), 3000)),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('DB geocode cache timeout')), 1000)),
     ]);
     const dbMap = new Map(dbResults.map(r => [r.address_key, [r.latitude, r.longitude] as [number, number]]));
 
