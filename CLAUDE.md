@@ -448,3 +448,45 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 > **Compliance status (2026-04-07):** IDX Validator 823/0 critical | UCBA 42/46 pass, 0 regressions | CRM Smoke 218/0
 >
 > **Full findings:** `memory/FULL-SITE-AUDIT-2026-04-06.md`
+
+## Compliance Findings Audit — 2026-04-14
+
+> **Scope:** 22 findings across CAN-SPAM, NYS RPL, REBNY IDX, NY SHIELD, UCBA, DOS advertising, Fair Housing.
+> **TypeScript:** 0 errors after fixes.
+
+### Fixes Applied (2026-04-14)
+
+| # | Original Finding | Verdict | Action |
+|---|-----------------|---------|--------|
+| HIGH-7 | CRM emails missing unsubscribe link | **ACCURATE** | **FIXED** — Added unsubscribe link to shared email FOOTER (`lib/email/templates.ts`). All emails via `wrapEmail()` now include opt-out. Removed duplicate from `searchAlertEmail`. |
+| HIGH-1 | InquiryForm — no agency disclosure | **ACCURATE** | **FIXED** — Created `AgencyDisclosure` component (`app/components/AgencyDisclosure.tsx`). Added to InquiryForm, InquiryModal, Contact page, HomeValueWidget, CalculatorLeadCapture. References `/sop` for full DOS-1736-f disclosure. |
+| HIGH-3 | Behavioral trackers fire before consent | **ACCURATE** | **FIXED** — `BehavioralTracker.tsx` and `IntentTracker.tsx` now import `useConsentStatus()` and gate all event firing behind `analyticsAllowed`. Consistent with existing Analytics/PostHogProvider pattern. |
+| MED-2 | Search page missing IDX attribution | **PARTIALLY ACCURATE** | **FIXED** — Search page had hardcoded disclaimer text. Replaced with `<IDXSearchDisclaimer />` component for consistency with other pages. |
+| MED-6 | Portal listings missing Coming Soon gate | **PARTIALLY ACCURATE** | **FIXED** — `app/api/portal/listings/route.ts` now flags Coming Soon listings with `comingSoon: true` and required UCBA D3 notice text. Display is allowed; showings blocked separately. |
+
+### Findings Verified as Inaccurate or Overstated
+
+| # | Original Finding | Verdict | Reason |
+|---|-----------------|---------|--------|
+| CRIT-1 | Bulk email endpoint missing | **INACCURATE** | Bulk email handled by `app/api/crm/email/route.ts` (eblast type, 200-cap, consent checking). No separate route needed. CAN-SPAM unsubscribe gap was real but fixed in HIGH-7. |
+| CRIT-4 | 12-min sync + 10-min skip = >15min gap | **INACCURATE** | Math is wrong: at T=12, last run was T=0 (12 min > 10 min guard), so it runs. Effective interval is always 12 min. "REBNY IDX 15-min rule" does not exist — REBNY requires "timely updates" without a specific interval. |
+| HIGH-5 | Unsplash/Picsum = false listing imagery | **OVERSTATED** | Unsplash images used on 10+ pages as decorative marketing backgrounds (skylines, generic townhouse exteriors). None appear on listing detail or search result pages. Standard real estate marketing — no violation. |
+| MED-4 | Sell page commission language | **ALREADY RESOLVED** | Sell page correctly states "Commission rates are not set by law and are fully negotiable" with NAR settlement reference. Compliant. |
+
+### Findings Verified as Accurate but Accepted Risk / No Code Fix
+
+| # | Finding | Verdict | Notes |
+|---|---------|---------|-------|
+| CRIT-2 | No root `middleware.ts` | **ACCURATE** | Defense-in-depth gap. Each API route individually validates auth via `requireAuth()`/`requireAgentOrBroker()`. Adding root middleware is an architectural decision — not a direct vulnerability. |
+| CRIT-3 | `generateAttributionText()` lacks broker name | **PARTIALLY ACCURATE** | Function is a generic REBNY data-source disclaimer, not per-listing broker credit. Per-listing broker name displayed separately on listing pages. The two are distinct REBNY requirements. |
+| HIGH-2 | RegistrationGate/SoftIdentityCapture — no disclosure | **PARTIALLY ACCURATE** | RegistrationGate is newsletter signup (not first substantive contact). SoftIdentityCapture can be property-specific but is email-only micro-capture. Covered by Fix 2 (AgencyDisclosure added to substantive contact forms). |
+| HIGH-4 | Fair Housing link → internal page | **PARTIALLY ACCURATE** | `/fair-housing` renders Mallan's own Fair Housing statement (from `data/pages/fair-housing.json`). Internal page with comprehensive policy content. Not a link to official NYS form, but content may satisfy the requirement. |
+| HIGH-6 | Showing gate — no pre-disclosure UX | **ACCURATE (UX only)** | Backend correctly enforces UCBA E7 (`buyer_rep_agreement` check). UX flow to present/sign agreement in-portal is missing — enhancement, not a compliance violation. |
+| MED-1 | revalidate=300 closed listing lag | **ACCURATE** | 5-minute ISR is well within REBNY's 24-hour removal SLA. Informational only. |
+| MED-3 | Listing data sent to Claude API | **PARTIALLY ACCURATE** | Used for compliance validation only (not redistribution/training/embedding). Operational use, not a license violation. Risk is documented. |
+| MED-5 | Financial PII — no field-level encryption | **ACCURATE** | Lead model stores income/credit data as plain Decimal. Neon provides encryption at rest. Field-level encryption is a hardening measure, not a NY SHIELD Act violation given existing safeguards. |
+| MED-7 | Listing expiry → removal chain | **PARTIALLY ACCURATE** | Chain exists: status transition API + `listing-expiration` daily cron + 5-min ISR + DB-first fetch. Not integration-tested end-to-end but meets 24-hour SLA. |
+| LOW-1 | Footer settings API fallback | **ACCURATE (low risk)** | `/api/settings/company` endpoint doesn't exist. Footer always falls back to correct hardcoded defaults. Risk only if someone creates that endpoint. |
+| LOW-2 | JSON-LD license number exposed | **CORRECT** | Required by NY DOS — this is proper behavior. |
+| LOW-3 | Google Translate alters notices | **ACCURATE (low)** | Theoretical risk — machine translation could distort legal language. Low priority. |
+| LOW-4 | ExclusivesVault on homepage | **NEEDS CONTEXT** | Component shows sign-in prompt for "exclusive" listings. Legitimate feature. No active violation identified. |

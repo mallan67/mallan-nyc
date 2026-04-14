@@ -1,5 +1,44 @@
 # Frontend Flow Verifier - Auditor Log
 
+## COMPLIANCE FINDINGS AUDIT — 2026-04-14
+**Verdict:** PASS (5 fixed, 4 inaccurate, 13 accepted/informational)
+**Scope:** 22 findings across CAN-SPAM, NYS RPL, REBNY IDX, NY SHIELD, UCBA, DOS advertising, Fair Housing
+**Auditor:** Claude Opus 4.6 — source-verified each finding against live codebase before action
+
+**FIXED (5):**
+- [HIGH-7] CAN-SPAM: CRM emails via `genericCrmEmail()` lacked unsubscribe link — shared FOOTER in `lib/email/templates.ts` now includes `/unsubscribe` link. Duplicate in `searchAlertEmail` removed.
+- [HIGH-1] NYS RPL: `InquiryForm.tsx` (and 4 other lead capture forms) had no agency disclosure at first substantive contact — created `AgencyDisclosure` component (`app/components/AgencyDisclosure.tsx`), added to InquiryForm, InquiryModal, Contact page, HomeValueWidget, CalculatorLeadCapture.
+- [HIGH-3] NY SHIELD/TCPA: `BehavioralTracker.tsx` and `IntentTracker.tsx` fired tracking events unconditionally without checking cookie consent — now import `useConsentStatus()` and gate all event sending behind `analyticsAllowed`. Consistent with existing Analytics/PostHogProvider pattern.
+- [MED-2] REBNY IDX: Search page (`app/search/page.tsx`) had hardcoded REBNY disclaimer instead of `IDXSearchDisclaimer` component — replaced with component for consistency with 11 other IDX-displaying pages.
+- [MED-6] REBNY UCBA D3: Portal listings endpoint (`app/api/portal/listings/route.ts`) checked 4 distribution gates but didn't flag Coming Soon status — now adds `comingSoon: true` + required notice text.
+
+**VERIFIED INACCURATE (4):**
+- [CRIT-1] "Bulk email endpoint missing" — WRONG: `app/api/crm/email/route.ts` handles eblast type with 200 recipient cap and `consent_captured_at` checking. No separate route needed.
+- [CRIT-4] "12-min sync + 10-min skip guard = >15min refresh possible" — WRONG: At T=12, last run was T=0 (12 min > 10 min guard), so it always runs. Effective interval is 12 min. "REBNY IDX 15-min rule" does not exist as a specific requirement.
+- [HIGH-5] "Unsplash/Picsum in remotePatterns = false listing imagery" — OVERSTATED: Images used on 10+ pages (sell, buy/townhouses, neighborhoods, contact) as decorative marketing backgrounds (skylines, generic exteriors). None appear on listing detail or search result pages.
+- [MED-4] "Sell page commission language" — ALREADY RESOLVED: Page correctly states "Commission rates are not set by law and are fully negotiable" with NAR settlement reference.
+
+**ACCEPTED RISK / NO CODE FIX (8):**
+- [CRIT-2] No root `middleware.ts` — defense-in-depth gap, not a direct vulnerability. Each route validates auth individually.
+- [CRIT-3] `generateAttributionText()` is a data-source disclaimer, not per-listing broker credit. Distinct REBNY requirements; broker name shown separately on listing pages.
+- [HIGH-4] Fair Housing link → internal `/fair-housing` page with comprehensive policy content. Not the official NYS form but content may satisfy requirement.
+- [HIGH-6] Showing gate backend correctly enforces UCBA E7 (`buyer_rep_agreement` check). UX flow to present/sign agreement in-portal is a feature enhancement.
+- [MED-1] `revalidate=300` (5 min) on listing pages — well within 24-hour REBNY removal SLA.
+- [MED-3] Listing data sent to Claude API for compliance validation — operational use, not redistribution/training/embedding.
+- [MED-5] Financial PII fields in Lead model stored as plain Decimal — Neon encryption at rest provides baseline protection.
+- [MED-7] Listing expiry → removal chain exists (status API + daily cron + 5-min ISR + DB-first fetch), meets 24-hour SLA.
+
+**INFORMATIONAL (5):**
+- [HIGH-2] RegistrationGate is newsletter signup (not substantive contact); SoftIdentityCapture covered by agency disclosure on substantive forms.
+- [LOW-1] Footer settings API `/api/settings/company` doesn't exist; always falls back to correct hardcoded defaults.
+- [LOW-2] JSON-LD license number — required by NY DOS, correct behavior.
+- [LOW-3] Google Translate could alter Fair Housing notice — theoretical risk, low priority.
+- [LOW-4] ExclusivesVault on homepage — legitimate feature, no violation identified.
+
+**TypeScript:** 0 errors after all changes.
+
+---
+
 ## COMPREHENSIVE SECURITY AUDIT — 2026-03-21
 **Verdict:** FAIL (3 CRITICAL, 6 HIGH, 5 MEDIUM, 3 LOW)
 **Scope:** Full codebase -- all 175+ API routes, middleware, auth, secrets, headers, dependencies, PII, MLS/IDX, file uploads

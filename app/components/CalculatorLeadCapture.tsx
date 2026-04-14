@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import AgencyDisclosure from './AgencyDisclosure';
 
 export type CalculatorType = 'affordability' | 'rent-vs-buy' | 'closing-cost' | 'mortgage' | 'investor';
 
@@ -184,6 +185,7 @@ export default function CalculatorLeadCapture({
             I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>. An agent will follow up within 1 business day.
           </span>
         </label>
+        <AgencyDisclosure />
       </form>
     </div>
   );

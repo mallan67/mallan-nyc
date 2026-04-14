@@ -1033,3 +1033,44 @@ npm run rls:validate
 # Run RLS validator tests (42 assertions)
 npm run test:rls
 ```
+
+---
+
+## Compliance Findings Audit — 2026-04-14
+
+22 findings were reviewed and verified against the codebase. 5 were fixed, 4 found inaccurate, 13 documented as accepted risk or informational.
+
+### Fixes Applied
+
+| # | Finding | Regulation | Fix |
+|---|---------|-----------|-----|
+| HIGH-7 | CRM emails missing CAN-SPAM unsubscribe link | CAN-SPAM | Added unsubscribe link to shared email FOOTER in `lib/email/templates.ts`. All emails via `wrapEmail()` now include opt-out. |
+| HIGH-1 | No agency disclosure on lead capture forms | NYS RPL, DOS-1736-f | Created `AgencyDisclosure` component. Added to `InquiryForm`, `InquiryModal`, Contact page, `HomeValueWidget`, `CalculatorLeadCapture`. |
+| HIGH-3 | Behavioral trackers fire before cookie consent | NY SHIELD, TCPA | `BehavioralTracker` and `IntentTracker` now gate all tracking behind `useConsentStatus()` → `analyticsAllowed`. |
+| MED-2 | Search page missing IDX attribution component | REBNY IDX display | Replaced hardcoded disclaimer with `<IDXSearchDisclaimer />` component in `app/search/page.tsx`. |
+| MED-6 | Portal listings endpoint missing Coming Soon gate | REBNY UCBA D3 | Portal listings now flag Coming Soon listings with badge text and `comingSoon: true` in response. |
+
+### Files Changed (2026-04-14)
+
+| File | Change |
+|------|--------|
+| `lib/email/templates.ts` | Unsubscribe link added to shared FOOTER; duplicate removed from `searchAlertEmail` |
+| `app/components/AgencyDisclosure.tsx` | **NEW** — Reusable agency disclosure notice for forms |
+| `app/components/InquiryForm.tsx` | Agency disclosure added |
+| `app/components/InquiryModal.tsx` | Agency disclosure added |
+| `app/contact/page.tsx` | Agency disclosure added |
+| `app/components/HomeValueWidget.tsx` | Agency disclosure added |
+| `app/components/CalculatorLeadCapture.tsx` | Agency disclosure added |
+| `app/components/BehavioralTracker.tsx` | Consent-gated via `useConsentStatus()` |
+| `app/components/IntentTracker.tsx` | Consent-gated via `useConsentStatus()` |
+| `app/search/page.tsx` | Hardcoded disclaimer replaced with `IDXSearchDisclaimer` component |
+| `app/api/portal/listings/route.ts` | Coming Soon gate (Gate 5) with UCBA D3 notice |
+
+### Verified Inaccurate Findings (No Fix Needed)
+
+| # | Finding | Reason |
+|---|---------|--------|
+| CRIT-1 | "Bulk email endpoint missing" | Bulk email handled by `app/api/crm/email/route.ts` (eblast type, 200-cap, consent checking) |
+| CRIT-4 | "12-min sync + 10-min skip = >15min gap" | Math wrong: effective interval is always 12 min. "REBNY 15-min rule" does not exist |
+| HIGH-5 | "Unsplash/Picsum = false listing imagery" | Images used on 10+ pages as decorative marketing backgrounds, not listing photos |
+| MED-4 | "Sell page commission language" | Already compliant: "Commission rates are not set by law and are fully negotiable" |

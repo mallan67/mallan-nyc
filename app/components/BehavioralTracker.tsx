@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
+import { useConsentStatus } from './CookieConsent';
 
 const SESSION_KEY = 'mallan_behavioral_session';
 const LAST_VISIT_KEY = 'mallan_last_listings';
@@ -23,6 +24,7 @@ const ENDPOINT = '/api/analytics/behavioral';
  */
 export default function BehavioralTracker() {
   const pathname = usePathname();
+  const { analyticsAllowed } = useConsentStatus();
   const scrollRef = useRef<number>(0);
   const priceScrollBackCount = useRef<number>(0);
   const dwellStartRef = useRef<number>(0);
@@ -39,13 +41,14 @@ export default function BehavioralTracker() {
     return id;
   }, []);
 
-  // Send event (fire-and-forget)
+  // Send event (fire-and-forget, consent-gated)
   const sendEvent = useCallback((
     eventType: string,
     listingId?: string,
     value?: number,
     metadata?: Record<string, unknown>
   ) => {
+    if (!analyticsAllowed) return;
     const sessionId = getSessionId();
     if (!sessionId) return;
 
@@ -74,7 +77,7 @@ export default function BehavioralTracker() {
         keepalive: true,
       }).catch(() => {});
     }
-  }, [getSessionId, pathname]);
+  }, [analyticsAllowed, getSessionId, pathname]);
 
   // ─── Return Visit Detection ──────────────────────────────
   useEffect(() => {

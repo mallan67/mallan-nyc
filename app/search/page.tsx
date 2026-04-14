@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useListings } from '@/lib/hooks/useListings';
-// IDX disclaimer shown inline in toolbar row 2 (single line for space efficiency)
+import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
 import SearchChips, { buildChips, type FilterChip } from '@/app/components/SearchChips';
 import SaveSearchButton from '@/app/components/SaveSearchButton';
@@ -946,9 +946,7 @@ function SearchClient() {
                   </div>
                 )}
                 {/* REBNY compliance disclaimer — bottom of listings */}
-                <p className="text-[11px] text-brand-dark/50 text-center py-3 leading-relaxed">
-                  Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed. Data is for personal, non-commercial use only. Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State · Equal Housing Opportunity · Commission rates are not set by law and are fully negotiable.
-                </p>
+                <IDXSearchDisclaimer className="text-center py-3" />
               </div>
             </div>
             {/* Map — right 45% */}

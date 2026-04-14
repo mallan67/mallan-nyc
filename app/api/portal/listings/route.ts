@@ -64,7 +64,9 @@ export async function GET(req: NextRequest) {
       // DTO sanitization (address suppression, agent masking, additional checks)
       const sanitized = sanitizeListingForPortal(listing, portalRole);
       if (!sanitized) return null;
-      return { ...sanitized, reactions };
+      // Gate 5: Coming Soon — display allowed but flag for badge (UCBA D3: no showings/open houses)
+      const isComingSoon = listing.status === "ComingSoon";
+      return { ...sanitized, reactions, ...(isComingSoon ? { comingSoon: true, comingSoonNotice: "Coming Soon. No showings or open houses permitted until listed." } : {}) };
     })
     .filter(Boolean);
 

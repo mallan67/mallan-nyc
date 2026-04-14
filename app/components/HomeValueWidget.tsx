@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import { trackInquiry } from '@/lib/posthog';
+import AgencyDisclosure from './AgencyDisclosure';
 
 export default function HomeValueWidget() {
   const ref = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
@@ -141,20 +142,25 @@ export default function HomeValueWidget() {
         )}
 
         {status !== 'success' && (
-          <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.tcpaConsent}
-              onChange={(e) => setFormData((prev) => ({ ...prev, tcpaConsent: e.target.checked }))}
-              className="mt-0.5 accent-brand-gold-deep"
-              required
-            />
-            <span className="text-brand-dark/50 text-[11px] font-light leading-relaxed">
-              I agree to receive communications from Mallan Real Estate Inc.
-              regarding my property valuation. Message and data rates may apply.
-              I can opt out at any time.
-            </span>
-          </label>
+          <>
+            <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.tcpaConsent}
+                onChange={(e) => setFormData((prev) => ({ ...prev, tcpaConsent: e.target.checked }))}
+                className="mt-0.5 accent-brand-gold-deep"
+                required
+              />
+              <span className="text-brand-dark/50 text-[11px] font-light leading-relaxed">
+                I agree to receive communications from Mallan Real Estate Inc.
+                regarding my property valuation. Message and data rates may apply.
+                I can opt out at any time.
+              </span>
+            </label>
+            <div className="mt-3">
+              <AgencyDisclosure />
+            </div>
+          </>
         )}
       </div>
     </div>

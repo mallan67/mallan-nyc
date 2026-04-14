@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { trackInquiry } from '@/lib/posthog';
+import AgencyDisclosure from './AgencyDisclosure';
 
 type InquiryMode = 'showing' | 'question';
 
@@ -380,6 +381,8 @@ export default function InquiryModal({
                   </span>
                 </label>
               </div>
+
+              <AgencyDisclosure />
 
               {error && (
                 <p className="text-red-600 text-sm">{error}</p>

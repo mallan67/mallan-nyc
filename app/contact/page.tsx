@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import AgencyDisclosure from '@/app/components/AgencyDisclosure';
 
 /**
  * Contact Page - TCPA-Safe Implementation
@@ -351,6 +352,8 @@ export default function ContactPage() {
                           </p>
                         )}
                       </div>
+
+                      <AgencyDisclosure />
 
                       {/* Submit Button */}
                       <div>

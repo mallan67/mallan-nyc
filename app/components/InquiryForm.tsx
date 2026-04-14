@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { trackInquiry } from '@/lib/posthog';
+import AgencyDisclosure from './AgencyDisclosure';
 
 interface InquiryFormProps {
   listingId?: string;
@@ -214,6 +215,8 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail }: I
             </span>
           </label>
         </div>
+
+        <AgencyDisclosure />
 
         {error && (
           <p role="alert" className="text-red-600 text-sm">{error}</p>

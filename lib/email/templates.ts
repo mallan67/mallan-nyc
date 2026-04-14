@@ -27,7 +27,8 @@ const FOOTER = `
   </td></tr>
   <tr><td style="padding:0;font-size:11px;font-family:Arial,Helvetica,sans-serif;">
     <a href="${BASE_URL}/fair-housing" style="color:${BRAND_GOLD};text-decoration:underline;">Fair Housing Policy</a> |
-    <a href="${BASE_URL}/privacy" style="color:${BRAND_GOLD};text-decoration:underline;">Privacy Policy</a>
+    <a href="${BASE_URL}/privacy" style="color:${BRAND_GOLD};text-decoration:underline;">Privacy Policy</a> |
+    <a href="${BASE_URL}/unsubscribe" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
   </td></tr>
 </table>`;
 
@@ -150,9 +151,6 @@ export function listingAlertEmail(
     <p style="font-size:11px;color:#9ca3af;margin:16px 0 0;">
       Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
       Data last updated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}.
-    </p>
-    <p style="font-size:11px;color:#9ca3af;margin:8px 0 0;">
-      <a href="${BASE_URL}/unsubscribe" style="color:#9ca3af;text-decoration:underline;">Unsubscribe from listing alerts</a>
     </p>
   `);
 }

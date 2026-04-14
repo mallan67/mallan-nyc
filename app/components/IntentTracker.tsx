@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
+import { useConsentStatus } from './CookieConsent';
 
 const SESSION_KEY = 'mallan_session_id';
 
@@ -59,10 +60,11 @@ function fireIntent(eventType: string, payload?: Record<string, unknown>) {
  */
 export default function IntentTracker() {
   const pathname = usePathname();
+  const { analyticsAllowed } = useConsentStatus();
 
-  // Track page views
+  // Track page views (consent-gated)
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || !analyticsAllowed) return;
 
     // Fire page_view on every navigation
     fireIntent('page_view', { page: pathname });
@@ -78,15 +80,16 @@ export default function IntentTracker() {
       const params = typeof window !== 'undefined' ? window.location.search : '';
       fireIntent('search_query', { query: params });
     }
-  }, [pathname]);
+  }, [pathname, analyticsAllowed]);
 
-  // Listen for custom events from other components
+  // Listen for custom events from other components (consent-gated)
   const handleCustomIntent = useCallback((e: Event) => {
+    if (!analyticsAllowed) return;
     const detail = (e as CustomEvent).detail;
     if (detail?.type) {
       fireIntent(detail.type, detail);
     }
-  }, []);
+  }, [analyticsAllowed]);
 
   useEffect(() => {
     window.addEventListener('mallan:intent', handleCustomIntent);
