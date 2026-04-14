@@ -490,3 +490,47 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 | LOW-2 | JSON-LD license number exposed | **CORRECT** | Required by NY DOS — this is proper behavior. |
 | LOW-3 | Google Translate alters notices | **ACCURATE (low)** | Theoretical risk — machine translation could distort legal language. Low priority. |
 | LOW-4 | ExclusivesVault on homepage | **NEEDS CONTEXT** | Component shows sign-in prompt for "exclusive" listings. Legitimate feature. No active violation identified. |
+
+### Round 2 — Deeper Findings (2026-04-14, same session)
+
+15 additional findings from a second-pass audit were verified against the codebase.
+
+**Fixed (3):**
+
+| # | Finding | Fix |
+|---|---------|-----|
+| N-3 | API Fair Housing scanner: 6 patterns vs 29 in CRM frontend | Expanded `app/api/crm/compliance/audit/route.ts` to 21 categorized patterns across 10 categories (Race, Religion, Familial Status, Sex, Disability, Source of Income NYC, Fair Chance Housing Act NYC, Citizenship, NY DOS Ad Rules). |
+| C-4 | RegistrationGate consent checkbox not transmitted to API | `RegistrationGate.tsx` now sends `consent_captured_at` in POST body. |
+| M-7 | compliance/UPDATES.md Trestle migration still "ACTION REQUIRED" | Updated to "Complete". Added April 2026 section with patch tracking. |
+
+**Verified Inaccurate (5):**
+
+| # | Finding | Reason |
+|---|---------|--------|
+| N-4 | Coming Soon badge missing REBNY text in CRM | `compliance-gates-and-output.js` line 62 correctly uses required REBNY format. |
+| H-7 | dev-login guard bypassable | Two independent guards: `NODE_ENV` + `ALLOW_DEV_LOGIN`. Not bypassable. |
+| M-1 | Search results missing "Listing Courtesy of" | `SearchListingCard.tsx` line 117 displays it. |
+| M-5 | Search-alerts cron sends suppressed addresses | Cron applies `idx_display_yn = true` + `owner_opt_out = false` filters. |
+| H-2 | IDX sync 24-min gap | Same wrong math as CRIT-4. Effective interval is 12 min. |
+
+**Resolved by Investigation (1):**
+
+| # | Finding | Resolution |
+|---|---------|-----------|
+| N-1 | PrivateOutdoorSpace required field missing from trestle-mapper | **NOT A GAP.** Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` = 108, `PrivateOutdoorSpaceUnder60Sqft` = 109). `ExteriorFeatures` is in mapper B20 (line 247) → `exteriorFeatures` in `mapping.ts` (line 360). The standalone `PrivateOutdoorSpaceSize`/`Remarks` fields are LMP/RealPlus submission fields — NOT on Trestle IDX feed. |
+
+**Remaining External Action Required (1):**
+
+| # | Finding | Action |
+|---|---------|--------|
+| N-2 | Trestle Patches #188 + #189 unreviewed | Download patch PDFs from `trestlesupport@cotality.com`. Compare 3 new fields + 30 field changes + 135 lookup values against `trestle-mapper.ts` and `compliance/lookups.json`. Logged in `compliance/UPDATES.md`. |
+
+### REBNY / Trestle External Status (Verified 2026-04-14)
+
+> **Sources accessed:** [rebny.com/rls-updates/](https://www.rebny.com/rls-updates/), [rebny.com/compliance/](https://www.rebny.com/compliance/), [rebny.com/rls-update/2026-ucba-changes/](https://www.rebny.com/rls-update/2026-ucba-changes/), [trestle-documentation.corelogic.com](https://trestle-documentation.corelogic.com/), [trestle-documentation.corelogic.com/webapi.html](https://trestle-documentation.corelogic.com/webapi.html)
+>
+> **REBNY:** No new policy changes since January 2026 UCBA. All 5 UCBA 2026 changes already implemented. POLD gate enforced. Compensation fields removed (Aug 2025).
+>
+> **Trestle:** API stable at `api.cotality.com/trestle`. URL migration complete. Token endpoint: `https://api.cotality.com/trestle/oidc/connect/token`. Rate limits: 7,200/hr, 180/min. Token TTL: 8 hours. Content Patch #189 (Mar 4, 2026) is latest — 3 new fields, 30 changes, 37 lookups.
+>
+> **Private Outdoor Space:** Already captured via `ExteriorFeatures` enum values (not a standalone IDX field).

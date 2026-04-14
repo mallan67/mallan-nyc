@@ -37,6 +37,37 @@
 
 **TypeScript:** 0 errors after all changes.
 
+### ROUND 2 — DEEPER FINDINGS VERIFICATION (2026-04-14, same session)
+**Scope:** 15 additional findings from second-pass audit, verified against current codebase (post-Round 1 fixes)
+
+**FIXED (3):**
+- [N-3] Fair Housing: API compliance audit route (`app/api/crm/compliance/audit/route.ts`) had only 6 patterns vs 29 in CRM frontend scanner (`public/crm/js/compliance/fair-housing.js`). Expanded to 21 categorized patterns across 10 categories: Race, Religion, Familial Status, Sex, Disability, Source of Income (NYC), Fair Chance Housing Act (NYC LL 24/2023), Citizenship, NY DOS Ad Rules. 8 remaining CRM-only patterns are low-severity ad-style rules (high-pressure language, "master bedroom") kept frontend-only.
+- [C-4] TCPA: `RegistrationGate.tsx` consent checkbox was HTML-required but `consent_captured_at` timestamp was never transmitted in POST body to `/api/search-alerts`. Fixed — now sends `consent_captured_at: new Date().toISOString()`.
+- [M-7] Stale log: `compliance/UPDATES.md` line 40 still showed "ACTION REQUIRED" for Trestle URL migration (deadline March 31, 2026 — already passed). Updated to "Complete". Added April 2026 audit section with Trestle patch tracking.
+
+**VERIFIED INACCURATE (5):**
+- [N-4] "Coming Soon badge missing REBNY text in CRM" — WRONG: `compliance-gates-and-output.js` line 62 correctly uses "Coming Soon — No showings or open house permitted until [date] (UCBA Art. I Sec. 5(C))".
+- [H-7] "dev-login guard bypassable" — WRONG: Two independent guards: `NODE_ENV === "production"` returns 404, AND `ALLOW_DEV_LOGIN !== "true"` required. Not bypassable via URL manipulation.
+- [M-1] "Search results missing per-listing Listing Courtesy of" — WRONG: `SearchListingCard.tsx` line 117 displays "RLS · Listing Courtesy of {listing.listOfficeName}".
+- [M-5] "Search-alerts cron sends suppressed addresses" — WRONG: Cron applies `idx_display_yn = true` and `owner_opt_out = false` filters before DB query.
+- [H-2] "IDX sync 24-min gap" — WRONG: Same incorrect math as CRIT-4. Effective sync interval is always 12 min. No "15-min rule" exists.
+
+**RESOLVED BY INVESTIGATION (1):**
+- [N-1] "PrivateOutdoorSpace required field missing from trestle-mapper" — NOT A GAP: Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` value 108, `PrivateOutdoorSpaceUnder60Sqft` value 109) on Trestle. `ExteriorFeatures` IS in mapper B20 (line 247) and mapped to `exteriorFeatures` in `mapping.ts` (line 360). The standalone fields `PrivateOutdoorSpaceSize`/`PrivateOutdoorSpaceRemarks` are LMP/RealPlus submission fields only — NOT on Trestle's IDX feed.
+
+**ACCURATE — NEEDS EXTERNAL ACTION (1):**
+- [N-2] Trestle Content Patches #188 (Jan 27, 2026 — 98 new lookup values) and #189 (Mar 4, 2026 — 3 new fields, 30 field changes, 37 lookup values) not documented or verified against trestle-mapper.ts. Logged in `compliance/UPDATES.md` as ACTION REQUIRED. Contact: `trestlesupport@cotality.com`.
+
+**ACCURATE — ACCEPTED RISK (3):**
+- [H-1] IDXDisclaimer `lastUpdated` prop is intentionally ignored — code comment says "Always show today's date — data is refreshed every 12 minutes via sync cron." By design, not a bug.
+- [H-8] `/api/settings/company` GET is unauthenticated — returns only public company info (name, license, phone, address). Same data visible in footer. POST requires broker auth.
+- [C-4 related] RegistrationGate PostHog `trackMicroCommitment` call — PostHog itself is consent-gated in PostHogProvider; if PostHog didn't initialize, this is a no-op.
+
+**REBNY/TRESTLE EXTERNAL STATUS (verified 2026-04-14):**
+- REBNY: No new policy changes since January 2026 UCBA. Verified rebny.com/rls-updates/ and /compliance/.
+- Trestle: API stable at `api.cotality.com/trestle`. URL migration complete. Rate limits: 7,200/hr, 180/min. Token TTL: 8 hours.
+- Private Outdoor Space: Already captured via ExteriorFeatures enum (not a standalone IDX field).
+
 ---
 
 ## COMPREHENSIVE SECURITY AUDIT — 2026-03-21

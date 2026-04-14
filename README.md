@@ -1074,3 +1074,38 @@ npm run test:rls
 | CRIT-4 | "12-min sync + 10-min skip = >15min gap" | Math wrong: effective interval is always 12 min. "REBNY 15-min rule" does not exist |
 | HIGH-5 | "Unsplash/Picsum = false listing imagery" | Images used on 10+ pages as decorative marketing backgrounds, not listing photos |
 | MED-4 | "Sell page commission language" | Already compliant: "Commission rates are not set by law and are fully negotiable" |
+
+### Round 2 Fixes (2026-04-14)
+
+| # | Finding | Regulation | Fix |
+|---|---------|-----------|-----|
+| N-3 | API Fair Housing scanner only 6 patterns vs 29 in CRM frontend | Fair Housing Act, NYC Title 8 | Expanded `app/api/crm/compliance/audit/route.ts` from 6 to 21 categorized patterns across 10 categories: Race, Religion, Familial Status, Sex, Disability, Source of Income (NYC), Fair Chance Housing Act (NYC LL 24/2023), Citizenship, NY DOS Ad Rules. Aligned with `public/crm/js/compliance/fair-housing.js`. |
+| C-4 | RegistrationGate consent checkbox not transmitted to API | TCPA | `app/components/RegistrationGate.tsx` now sends `consent_captured_at` timestamp in POST body to `/api/search-alerts`. |
+| M-7 | compliance/UPDATES.md Trestle migration still "ACTION REQUIRED" | Compliance log | Updated to "Complete" (code verified using `api.cotality.com`). Added April 2026 audit entries and Trestle patch tracking. |
+
+### Round 2 Verified Findings
+
+| # | Finding | Verdict | Detail |
+|---|---------|---------|--------|
+| N-1 | PrivateOutdoorSpace missing from trestle-mapper | **NOT A GAP** | Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` value 108, `PrivateOutdoorSpaceUnder60Sqft` value 109) on Trestle. `ExteriorFeatures` IS in mapper (B20 line 247) and mapped to `exteriorFeatures` in `mapping.ts`. The standalone fields `PrivateOutdoorSpaceSize`/`PrivateOutdoorSpaceRemarks` exist in REBNY compliance spec but are NOT on Trestle's IDX feed — they're LMP/RealPlus submission fields only. |
+| N-2 | Trestle Patches #188/#189 not verified | **ACCURATE** | Documented in `compliance/UPDATES.md` as ACTION REQUIRED. Need to download patch PDFs from Cotality. |
+| N-3 | Fair Housing scanner pattern count mismatch | **ACCURATE — FIXED** | API had 6 patterns, CRM frontend had 29. Expanded to 21 server-side patterns (8 CRM patterns are low-severity ad-style rules kept frontend-only). |
+| N-4 | Coming Soon badge missing REBNY text in CRM | **INACCURATE** | CRM `compliance-gates-and-output.js` line 62 correctly uses: "Coming Soon — No showings or open house permitted until [date] (UCBA Art. I Sec. 5(C))". |
+| H-7 | dev-login guard bypassable | **INACCURATE** | Two guards: `NODE_ENV === "production"` (returns 404) AND `ALLOW_DEV_LOGIN !== "true"` required. Not bypassable. |
+| H-8 | settings/company GET unauthenticated | **ACCURATE (low risk)** | Returns only public company info (name, license, phone, address) — same data shown in footer. POST requires broker auth. |
+| H-1 | IDXDisclaimer lastUpdated prop ignored | **ACCURATE (by design)** | Code comment: "Always show today's date — data is refreshed every 12 minutes via sync cron." More conservative than stale timestamps. |
+| M-1 | Search results missing "Listing Courtesy of" | **INACCURATE** | `SearchListingCard.tsx` line 117 displays "RLS · Listing Courtesy of {listing.listOfficeName}". |
+| M-5 | Search-alerts cron sends suppressed addresses | **INACCURATE** | Cron applies `idx_display_yn = true` and `owner_opt_out = false` filters before query. |
+
+### REBNY / Trestle External Status (Verified 2026-04-14)
+
+| Item | Status |
+|------|--------|
+| REBNY policy changes since Jan 2026 | **None found** — verified rebny.com/rls-updates/ and /compliance/ |
+| 2026 UCBA changes (all 5) | Already implemented in codebase |
+| Compensation fields removed (Aug 2025) | Already handled |
+| POLD / Participant Only gate | Enforced (Gate 4 in `checkDistributionGates`) |
+| Trestle API URL migration | **Complete** — all code uses `api.cotality.com/trestle` |
+| Trestle Content Patch #189 (Mar 4, 2026) | **Unreviewed** — 3 new fields, 30 field changes, 37 lookup values |
+| Trestle Content Patch #188 (Jan 27, 2026) | **Unreviewed** — 98 new lookup values |
+| Private Outdoor Space required field | **Already captured** via `ExteriorFeatures` enum values (not a standalone IDX field) |
