@@ -52,6 +52,8 @@ export default function SaveSearchButton({ type, filters }: SaveSearchButtonProp
               type,
               ...filters,
             },
+            consentOptIn: true,
+            consentSource: 'save_search',
           }),
         });
 

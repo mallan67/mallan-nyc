@@ -30,9 +30,8 @@ export default function NewsletterSignup() {
           email: email.trim(),
           frequency: 'weekly',
           criteria: { type: 'sale' },
-          consent: true,
-          consentText: 'I consent to receive listing alerts from Mallan Real Estate Inc.',
-          consentAt: new Date().toISOString(),
+          consentOptIn: true,
+          consentSource: 'newsletter_signup',
         }),
       });
 

@@ -105,6 +105,8 @@ export default function ExitIntentPopup() {
           email,
           frequency: 'weekly',
           criteria: { type: 'sale' },
+          consentOptIn: true,
+          consentSource: 'exit_intent',
         }),
       });
 
