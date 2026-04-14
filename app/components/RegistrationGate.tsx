@@ -86,6 +86,7 @@ export default function RegistrationGate() {
           name,
           frequency: 'daily',
           criteria: { type: 'sale' },
+          consent_captured_at: new Date().toISOString(),
         }),
       });
 

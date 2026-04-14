@@ -161,23 +161,48 @@ export async function POST(req: NextRequest) {
     // Fair Housing scan on description
     const description = (raw.PublicRemarks ?? raw.public_remarks ?? "") as string;
     if (description) {
-      const fairHousingPatterns = [
-        /\b(white|black|asian|hispanic|latino|arab|jewish|muslim|christian)\b/i,
-        /\b(no children|adults only|no kids|no families)\b/i,
-        /\b(no wheelchair|no disabled|handicap free)\b/i,
-        /\b(bachelor pad|man cave|perfect for singles)\b/i,
-        /\b(walking distance to church|near synagogue|mosque nearby)\b/i,
-        /\b(exclusive neighborhood|prestigious community)\b/i,
+      // Fair Housing patterns — aligned with public/crm/js/compliance/fair-housing.js (29 patterns, 10 categories)
+      const fairHousingPatterns: { pattern: RegExp; category: string }[] = [
+        // Race / National Origin
+        { pattern: /\b(white|caucasian|black|african[- ]?american|hispanic|latino|latina|asian|oriental|chinese|japanese|korean|indian|arab|jewish|irish|italian|russian)\s*(neighborhood|community|area|tenants?|residents?|buyers?|renters?|preferred|only|welcome)\b/i, category: "Race / National Origin" },
+        { pattern: /\b(no\s+(?:blacks|whites|hispanics|asians|foreigners|immigrants|minorities))\b/i, category: "Race / National Origin" },
+        { pattern: /\b(exclusive\s+(?:neighborhood|community|enclave))\b/i, category: "Race / National Origin" },
+        { pattern: /\b(ethnic)\b/i, category: "Race / National Origin" },
+        // Religion
+        { pattern: /\b(christian|catholic|protestant|muslim|islamic|mosque|synagogue|temple|church)\s*(neighborhood|community|area|district|preferred|only)\b/i, category: "Religion" },
+        { pattern: /\b(near\s+(?:church|mosque|synagogue|temple))\b/i, category: "Religion" },
+        // Familial Status / Age
+        { pattern: /\b(no\s+(?:children|kids|babies|families|pets))\b/i, category: "Familial Status" },
+        { pattern: /\b(adults?\s+only|senior(?:s)?\s+only|no\s+children|child[- ]?free|55\s*\+|over\s+55|empty\s+nesters?\s+only|mature\s+(?:couple|person|individual|tenant)s?\s+(?:only|preferred))\b/i, category: "Familial Status / Age" },
+        { pattern: /\b(perfect\s+for\s+(?:singles?|couples?|young\s+professionals?|retirees?|students?|bachelor))\b/i, category: "Familial Status" },
+        { pattern: /\b(great\s+for\s+(?:families|singles?|couples?|young\s+professionals?|retirees?))\b/i, category: "Familial Status" },
+        { pattern: /\b(bachelor\s+pad|man\s+cave|she[- ]?shed)\b/i, category: "Sex / Familial Status" },
+        // Sex
+        { pattern: /\b(female\s+only|male\s+only|men\s+only|women\s+only|no\s+(?:men|women|males|females))\b/i, category: "Sex" },
+        // Disability
+        { pattern: /\b(no\s+(?:wheelchairs?|disabled|handicapped)|(?:handicapped|crippled|invalid|insane|retarded|crazy))\b/i, category: "Disability" },
+        { pattern: /\b(walking\s+distance)\b/i, category: "Disability" },
+        // Source of Income (NYC Law)
+        { pattern: /\b(no\s+(?:section\s*8|vouchers?|subsidies|public\s+assistance|welfare|DSS|FHEPS|CityFHEPS))\b/i, category: "Source of Income (NYC Law)" },
+        { pattern: /\b(section\s*8\s*(?:not\s+)?accepted)\b/i, category: "Source of Income (NYC Law)" },
+        // Arrest/Conviction Record (NYC Fair Chance Housing Act — LL 24/2023, effective Jan 2025)
+        { pattern: /\b(arrest|conviction|criminal|felon|background\s*check\s*required|criminal\s*record|ex[\s-]?con)\b/i, category: "Arrest/Conviction Record (NYC Title 8)" },
+        // National Origin / Citizenship
+        { pattern: /\b(citizens?\s+only|(?:no|must\s+be)\s+(?:citizen|legal\s+resident|documented|us\s+citizen|american\s+citizen))\b/i, category: "National Origin / Citizenship" },
+        // NY DOS Advertising Rules
+        { pattern: /\b(prestigious|upscale|luxurious)\s*(neighborhood|community|area)\b/i, category: "NY DOS Ad Rules" },
+        { pattern: /\b(integrated|segregated|transitional|changing)\s*(neighborhood|community|area)\b/i, category: "NY DOS Ad Rules" },
+        { pattern: /\b(safe\s+(?:neighborhood|area|community|street))\b/i, category: "NY DOS Ad Rules" },
       ];
-      for (const pattern of fairHousingPatterns) {
-        if (pattern.test(description)) {
+      for (const rule of fairHousingPatterns) {
+        if (rule.pattern.test(description)) {
           findings.push({
             listingId, address, agentId,
             category: "fair_housing",
             severity: "critical",
-            title: "Potential Fair Housing language violation",
-            description: `Description may contain discriminatory language matching: ${pattern.source}`,
-            fix: "Review and revise the listing description to remove potentially discriminatory language",
+            title: `Fair Housing violation: ${rule.category}`,
+            description: `Description contains language matching ${rule.category}: ${rule.pattern.source}`,
+            fix: "Review and revise the listing description to remove discriminatory language",
           });
           break; // One finding per listing for fair housing
         }

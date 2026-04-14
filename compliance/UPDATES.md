@@ -26,6 +26,14 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 
 ## 2026
 
+### April 2026
+
+| Date | Source | Change | Impact | Status |
+|------|--------|--------|--------|--------|
+| 2026-04-14 | Internal | **Compliance Findings Audit** — 22 findings reviewed, 5 fixed (CAN-SPAM unsubscribe, agency disclosure, consent gating, IDX attribution, Coming Soon gate), 4 inaccurate, 13 accepted/informational. Fair Housing scanner expanded from 6 to 21 patterns (aligned with CRM frontend). RegistrationGate consent transmission fixed. | Compliance, Frontend, Email, API | **Complete** |
+| 2026-04-14 | Cotality | **Trestle Content Patch #189** (Mar 4, 2026) — 3 new fields, 30 field changes, 37 new lookup values. **Patch #188** (Jan 27, 2026) — 98 new lookup values. Neither verified against trestle-mapper.ts or lookups. | Field mapping, Picklists | **ACTION REQUIRED** — download patch PDFs from Cotality, compare against trestle-mapper.ts |
+| 2026-04-14 | REBNY | **No new policy changes since Jan 2026 UCBA.** Verified rebny.com/rls-updates/ and rebny.com/compliance/. All 5 UCBA 2026 changes already implemented. POLD (Participant Only) gate already enforced. | No action | Verified |
+
 ### March 2026
 
 | Date | Source | Change | Impact | Status |
@@ -37,7 +45,7 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 
 | Date | Source | Change | Impact | Status |
 |------|--------|--------|--------|--------|
-| 2026-02-23 | Cotality | **Trestle API URL migration deadline: March 31, 2026** — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated → new URL `api.cotality.com/trestle`. Media URLs work through 2026 warranty. Extra quota boost available on new endpoint. RESO DD 2.0 now live. | All API integration, backend | **ACTION REQUIRED** |
+| 2026-02-23 | Cotality | **Trestle API URL migration deadline: March 31, 2026** — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated → new URL `api.cotality.com/trestle`. Media URLs work through 2026 warranty. Extra quota boost available on new endpoint. RESO DD 2.0 now live. | All API integration, backend | **Complete** — all code uses `api.cotality.com/trestle` (verified 2026-04-14). Media proxy allowlists legacy domains through 2026 warranty. |
 | 2026-02-23 | Internal | Master Audit Report v3.3 — 225 findings, 39 passes. Trestle migration enforced at Layer 0 + CI gating + Go-Live gate #21 (Pass 39 — Section AR). Finding totals reconciled. Pre-build lock checklist added. | Documentation | Complete |
 | 2026-02-21 | Internal | Compliance library created (14 docs + 2 JSON) | All development | Complete |
 | 2026-02-21 | REBNY | No post-January 2026 UCBA amendments found | No action needed | Verified |
