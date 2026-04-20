@@ -1,7 +1,10 @@
 // POST /api/unsubscribe
 // CAN-SPAM (15 USC 7704) + RFC 8058 one-click unsubscribe.
-// Sets Lead.email_opt_out=true AND disables all saved-search alerts for the email.
-// The outbound mailer in lib/email consults email_opt_out before every non-transactional send.
+//
+// Current behavior (post-2026-04-20 revert): disables all saved-search alerts
+// for the email AND writes `last_unsubscribe_at` on any matching Lead. Logs an
+// AuditEvent row. Full suppression (Lead.email_opt_out) is pending a Neon
+// schema migration; re-add once it applies — see the TODO in the handler.
 //
 // IDX-VALIDATE-OK: Intentionally unauthenticated. CAN-SPAM §7704(a)(3)(A)(ii) and
 // Gmail/Yahoo 2024 bulk-sender guidance require the unsubscribe mechanism to work
