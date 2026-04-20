@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node public/crm/build.js && npx prisma generate && node scripts/vercel-migrate-deploy.js && npm run build",
+  "buildCommand": "node public/crm/build.js && npx prisma generate && npm run build",
   "installCommand": "npm ci",
   "framework": "nextjs",
   "regions": ["iad1"],

@@ -1,319 +1,298 @@
 # 🗄️ NEON.md — READ THIS BEFORE ANY DB, PRISMA, OR MIGRATION WORK
 
-> **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json`'s build command — stop and read this file first.**
+> **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json` — stop and read this file first. Then read `docs/DEPLOYMENT.md` which is the authoritative architecture doc.**
 
-**Last updated:** 2026-04-20 · **Review:** whenever tier changes, a migration ships, or ops-health surfaces a new warning.
-
----
-
-## Table of Contents
-
-1. [Current tier + caps (the numbers you actually need)](#1-current-tier--caps)
-2. [Known traps (how prior deploys have silently failed)](#2-known-traps)
-3. [Migration discipline (the pattern you MUST follow)](#3-migration-discipline)
-4. [Before you push a migration — the pre-flight checklist](#4-pre-flight-checklist)
-5. [Tools (scripts that already exist)](#5-tools)
-6. [Recovery playbooks](#6-recovery-playbooks)
-7. [Deferred workstreams (Phase 3 + Phase 5)](#7-deferred-workstreams)
-8. [Observability (/api/health + ops:health)](#8-observability)
-9. [Change log](#9-change-log)
+**Last updated:** 2026-04-20 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
 
 ---
 
-## 1. Current tier + caps
+## 1. The single most important rule
 
-| Dimension | Free tier cap | Current usage (as of 2026-04-20) | Source |
+**Vercel builds DO NOT run migrations.** Per `docs/DEPLOYMENT.md` lines 33–42, 53, 101–103:
+
+> *Vercel (Production) — Purpose: Static build for deployment (no database at build time)*
+>
+> *Schema changes: Apply via `prisma db push` or `prisma migrate` in CI or manually, **never during Vercel build**.*
+
+The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `prisma db push`. Builds do `prisma generate` only (that reads the schema file, never the DB). Migrations are applied to prod **manually** by a developer — nothing in the pipeline does it for you.
+
+**Why this matters:** putting migrations in the build pipeline means every Vercel deploy — even changes that don't touch schema — attempts an ALTER/CREATE against Neon. On a free tier with a finite compute-hour budget, that burns quota for no reason. It also creates silent-failure traps: either the build fails on a transient Neon issue, or it swallows the error and ships with schema drift. Both are bad. The architecture sidesteps both by not putting migrations in the build at all.
+
+### If you break this rule
+
+1. Builds start failing on Neon cold starts (original problem that led to `db8ec5c4`)
+2. Someone adds `|| echo` to swallow the error (original "fix")
+3. A real error (quota, bad SQL, auth) gets swallowed identically
+4. Code that depends on the migration deploys anyway → 500s in prod
+5. **This is exactly what happened 2026-04-19.**
+
+---
+
+## 2. Current tier + caps
+
+| Dimension | Free tier cap | Current usage | Source |
 |---|---|---|---|
 | Storage | **500 MB** | ~215–220 MB after Phase 1 cleanup | `scripts/ops-health.js:25`, `scripts/phase1-ROLLBACK.md` |
-| Compute time | **191.9 hours / month** on primary branch | **Quota hit on 2026-04-19 deploy** | `scripts/neon-full-audit.js:336`, `scripts/ops-health.js:28` |
-| PITR retention | 7 days | (Launch tier: 30 days) | `scripts/phase1-cleanup.sql:37` |
-| Compute auto-suspend | After 5 min inactivity | Prevented by `db-keepalive` cron every 3 min | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
+| Compute time | **191.9 hours / month** on primary branch | Recently hit quota on 2026-04-19 (build-time migrations + mass redeploys) | `scripts/neon-full-audit.js:336`, `scripts/ops-health.js:28` |
+| PITR retention | 7 days | — | `scripts/phase1-cleanup.sql:37` |
+| Compute auto-suspend | 5 min idle | Prevented by `db-keepalive` cron every 3 min | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
 
-**Upgrade triggers** (per `scripts/ops-health.js`):
+### The compute budget is the tight one, not storage
+
+- Neon free tier: 191.9 compute-hours/month ≈ 25% of a calendar month (720h)
+- The architecture is designed assuming the DB spends 75% of its time **idle/suspended**
+- The `db-keepalive` cron trades a bit of compute for reliability — it prevents the 24h+ cold-start outages that happened before (commit `93fb0cd9`) — but it does **not** hold compute always-on; it's a lightweight periodic ping
+- Every additional query path (especially synthetic ones like health probes or repeated migrations) cuts into the 191.9h budget
+
+### Upgrade triggers (from `scripts/ops-health.js`)
+
 - Storage ≥ 80% → warning
-- Storage ≥ 85% sustained → upgrade recommended
-- Compute ≥ 160 hrs/month → warning
-- Sync watermark ≥ 2 hrs stale → warning
+- Storage ≥ 85% sustained → **consider upgrade**
+- Compute ≥ 160 hrs/month → warning (at 83% of cap)
+- Sync watermark > 2 hrs stale → warning
 
-**If you are about to add a schema change, run `npm run ops:health` FIRST. Do not push a migration when storage is >80% or compute is >80% of cap — you will hit the quota mid-migration and Neon will reject the SQL.**
+**An upgrade is not the first resort. Reduce compute-burn first.** Every DB query path added or removed matters.
 
 ---
 
-## 2. Known traps
+## 3. Known traps
 
-### Trap #1 — The `|| echo` migration swallow (FIXED 2026-04-20)
+### Trap #1 — Putting migrations in the Vercel build command
 
-**Old behavior (Mar 16 – Apr 20):** `vercel.json` build command wrapped `prisma migrate deploy` in `|| echo 'Migration skipped — DB cold'`. This was added in commit `db8ec5c4` to survive cold-start timeouts. It caught **every** error mode identically — cold start, quota, SQL syntax, auth — all "skipped" the same way.
+History:
+- Before `d3f6f9d2`: buildCommand was `next build` only. Migrations were run manually. This is the documented design.
+- `d3f6f9d2`: added `npx prisma migrate deploy` to buildCommand. Deviation from design.
+- `db8ec5c4` (2026-03-16): added `|| echo 'Migration skipped — DB cold'` to avoid blocking builds when Neon is cold.
+- **2026-04-19:** a compute-quota rejection was swallowed identically to cold-start timeout → schema drift → `/api/unsubscribe` + sendEmail queries would have 500'd if the build had completed (separately blocked by a missing component file).
+- **2026-04-20:** smart-runner attempt that classified errors. Still violated the documented design. Reverted.
+- **2026-04-20:** restored the documented design. `buildCommand` no longer touches migrations.
 
-**What went wrong on 2026-04-19:** a `leads.email_opt_out NOT NULL DEFAULT false` migration hit Neon's compute quota. The build continued without applying the schema. Code that depended on the column would 500 on every call.
-
-**Current fix (2026-04-20):** Build command now uses `scripts/vercel-migrate-deploy.js`. This script **classifies** the error and decides:
-
-| Error class | Build decision | Why |
-|---|---|---|
-| Success | exit 0 + sentinel `applied` | normal path |
-| Cold-start timeout / ECONN* | exit 0 + sentinel `skipped_cold_start` | retries next deploy — preserves original intent |
-| Compute quota exceeded | **exit 1 (blocks build)** | schema would drift silently — unacceptable |
-| SQL / FK error | **exit 1** | migration is broken — fix it |
-| Auth / DNS / env error | **exit 1** | config is wrong |
-| Unknown | **exit 1 (fail closed)** | assume worst case |
-
-The script writes `.next/prisma-migration-state.json`. `/api/health` reads it and surfaces `migration.state` in its checks array.
-
-**DO NOT revert to `|| echo` without also solving the silent-drift problem a different way.**
+**Do not re-add migrations to the buildCommand.** If you find a reason to, add it to this file first and explain why `docs/DEPLOYMENT.md` should change.
 
 ### Trap #2 — `prisma db push` bypasses migration history
 
-The project has used `prisma db push` in some past commits (see `12261631 fix(prisma): baseline reconciliation + db push guard`). That writes schema changes to the DB without creating a migration file. The drift between `prisma/schema.prisma` and `prisma/migrations/*/migration.sql` is a **real gap**.
+Commit `12261631 fix(prisma): baseline reconciliation + db push guard` documents that the project has historically used `prisma db push` for some schema changes. That writes to the DB without creating a migration file. Result: some prod columns (e.g., `Lead.last_unsubscribe_at` from commit `5bffbc7f`) have no corresponding migration file.
 
-Some columns in prod (`Lead.last_unsubscribe_at`, added in commit `5bffbc7f` Two-CRM rollout) have no migration file. They exist in schema + DB because of `db push`. When you write a new migration, check `prisma migrate diff` to see if baselining is needed.
+Before writing a new migration, run `npx prisma migrate diff` to see if the schema is drifted. If yes, baseline first.
 
 ### Trap #3 — Neon free tier auto-suspends after 5 min idle
 
-Before the `db-keepalive` cron existed, the site had a 24-hour outage (Mar 26) because Neon suspended overnight and all DB routes 500'd. The cron at `*/3 * * * *` prevents this but **consumes compute hours** (adds ~720 hrs/month of low-activity compute, counted separately from active query time).
+Before `93fb0cd9` (2026-03-26): a 24-hour outage was caused by Neon suspending overnight, then morning requests timing out on the cold start. The `db-keepalive` cron was added to prevent this.
 
-If you disable or remove `db-keepalive`, expect suspensions within an hour of low traffic.
+**Trade-off explicitly accepted:** we burn a small continuous amount of compute to avoid large intermittent outages. This is part of why the compute budget is tight — it's not "free"; it's "paying for uptime in compute hours."
 
-### Trap #4 — Free-tier PITR retention is only 7 days
+### Trap #4 — Deploying schema-change PRs without running the migration first
 
-Neon storage reclaim (after VACUUM FULL) takes up to 7 days to reflect in billing because of PITR branch retention. Don't panic if the Neon console still shows old size for a week after Phase 1 cleanup.
+My own mistake on 2026-04-19. I wrote a migration file, pushed the code that depended on it, and let Vercel's build-command migration attempt apply it. Vercel's attempt hit compute-quota, silently skipped, and would have shipped broken code.
+
+**The discipline** (from CLAUDE.md + this file §5):
+1. Write migration against a nullable column
+2. Run `DATABASE_URL=prod npx prisma migrate deploy` manually
+3. Confirm the migration applied (`npx prisma migrate status`)
+4. THEN push the code PR that depends on the column
 
 ---
 
-## 3. Migration discipline
+## 4. Migration discipline
 
-**The documented pattern** (from `CLAUDE.md` deferred-workstream block, follow-up review 2026-05-01):
+### Per-PR pattern (from `CLAUDE.md` deferred-workstream block)
 
-> Per-PR pattern: (1) add **nullable** column, (2) dual-write in `lib/idx/sync.ts` (JSON + column), (3) wait one sync cycle for backfill via cron, (4) migrate ONE reader from JSON → column, (5) verify `npm run ops:health`, repeat.
+1. **Add nullable column** — `Boolean?` / `String?` / `DateTime?`. Never `NOT NULL DEFAULT …` even though PG ≥11 makes it metadata-only.
+2. **Dual-write in `lib/idx/sync.ts`** (JSON + column) — ensures new rows populate the column during the transition.
+3. **Wait ≥ one sync cycle** (idx-sync is `*/12 * * * *`).
+4. **Migrate ONE reader** from JSON → column.
+5. **Verify `npm run ops:health`.**
+6. Repeat for the next reader.
 
-### Required for every new column / table
+### One change per PR
 
-- [ ] **Nullable** — `Boolean?` / `String?` / `DateTime?`. Not `NOT NULL DEFAULT …` even though PG ≥11 treats it as metadata-only. Nullable preserves rollback without a data migration.
-- [ ] **One change per PR** — one column, or one table, per commit. Two columns together means two rollback paths.
-- [ ] **Dual-write period** — add the column AND start writing to it from `lib/idx/sync.ts` in the same PR. Do NOT migrate readers in the same PR.
-- [ ] **Wait at least one full sync cycle** (12 min for idx-sync) before moving readers.
-- [ ] **Migrate ONE reader** at a time, verify `/api/health` stays green.
-- [ ] **`npm run ops:health` before and after** — capture the storage + compute delta.
+One column, or one table, per commit. Two changes together = two rollback paths.
 
 ### Forbidden without explicit approval
 
-- `DROP COLUMN` on a column with readers (break users mid-session)
-- `ALTER COLUMN … TYPE` on large tables (rewrite = compute spike = quota risk)
-- `CREATE INDEX` without `CONCURRENTLY` on tables >10K rows
-- Any migration that modifies `listings`, `leads`, or `audit_events` during business hours (3–5 AM ET only)
-- Shipping a migration without running it locally against prod `DATABASE_URL` first
+- `DROP COLUMN` on a column with live readers
+- `ALTER COLUMN … TYPE` on large tables (table rewrite = compute spike = quota risk)
+- `CREATE INDEX` without `CONCURRENTLY` on tables > 10K rows
+- Any migration on `listings`, `leads`, or `audit_events` during business hours (3–5 AM ET only)
+- Pushing a schema-dependent code PR **without** first running the migration against prod
 
-### Required SQL patterns
+### Forbidden SQL patterns
+
+```sql
+-- BAD: NOT NULL on a populated table — blocks if any row has NULL during the window
+ALTER TABLE "leads" ADD COLUMN "email_opt_out" BOOLEAN NOT NULL DEFAULT false;
+
+-- BAD: FK to a large existing table without ON DELETE behavior specified
+ALTER TABLE "leads" ADD CONSTRAINT "fk_x" FOREIGN KEY ("agent_id") REFERENCES "agents"("id");
+
+-- BAD: unique index on a large table without CONCURRENTLY
+CREATE UNIQUE INDEX "leads_external_id_key" ON "leads"("external_id");
+```
+
+### Good SQL patterns
 
 ```sql
 -- GOOD: nullable, reversible
 ALTER TABLE "leads" ADD COLUMN "email_opt_out_at" TIMESTAMP(3);
 
--- BAD: NOT NULL on a populated table — blocks if any row has NULL during the window
-ALTER TABLE "leads" ADD COLUMN "email_opt_out" BOOLEAN NOT NULL DEFAULT false;
+-- GOOD: CONCURRENTLY index on a large table
+CREATE INDEX CONCURRENTLY "leads_external_id_idx" ON "leads"("external_id");
 
--- GOOD: safe on a new empty table
-CREATE TABLE "new_thing" ( ... );
-
--- BAD: FK to an existing large table without ON DELETE behavior
-ALTER TABLE "leads" ADD CONSTRAINT "fk_x" FOREIGN KEY ("agent_id") REFERENCES "agents"("id");
+-- GOOD: new empty table — no contention
+CREATE TABLE "company_settings" (...);
 ```
 
 ---
 
-## 4. Pre-flight checklist
-
-**Before pushing any commit that modifies `prisma/schema.prisma`:**
+## 5. Pre-flight checklist — BEFORE pushing a schema-dependent PR
 
 ```bash
 # 1. Confirm Neon has headroom
 npm run ops:health
 # Read "pct_of_free" for storage (<80%) and compute hours used (<160)
 
-# 2. Run the migration locally against PROD to confirm it actually applies
-#    (copy prod DATABASE_URL into .env.local.prod)
+# 2. Apply the migration to PROD manually, from your machine
+#    (use the prod DATABASE_URL — NOT the local dev one)
 DATABASE_URL="postgres://...@neon..." npx prisma migrate deploy
 
-# 3. Confirm Prisma schema validates
+# 3. Confirm it actually applied
+DATABASE_URL="postgres://...@neon..." npx prisma migrate status
+
+# 4. Run validators
 npx prisma validate
-
-# 4. Confirm TypeScript is clean against the new schema
 npm run type-check
-
-# 5. Confirm compliance + IDX validators still pass
 npm run compliance-check
 npm run ucba:audit
 npm run rls:validate
 
-# 6. Only THEN git commit + push
+# 5. Only THEN git commit + push the code PR
 ```
 
-If step 2 fails with `compute quota exceeded`, **do not push the commit**. Wait for quota reset or upgrade the plan first.
+If step 2 fails with `compute quota exceeded`, **do not push the code PR.** Wait for quota reset or reduce compute burn elsewhere. Do not add the migration to Vercel's build command as a workaround.
 
 ---
 
-## 5. Tools
+## 6. Tools
 
-### `scripts/ops-health.js` — run anytime
+### `scripts/ops-health.js`
 
 ```bash
 npm run ops:health               # human output
-npm run ops:health -- --json     # machine output (for cron / CI)
+npm run ops:health -- --json     # machine output
 ```
 
-Returns exit code 0 / 1 / 2 (healthy / warning / critical). Reports:
-- Storage: DB size, top 5 tables, % of free cap
-- Sync: last run status, watermark age, rows upserted, error rate
-- Retention: archive queue size, compliance gap
-- Upgrade triggers: storage ≥85%, compute ≥160 hrs, sync stale >2h
+Reports storage %, top tables, sync freshness, retention archive queue, upgrade triggers. Exit 0/1/2 (healthy/warning/critical). Run before every migration.
 
-### `scripts/vercel-migrate-deploy.js` — the build-command runner
+### `scripts/neon-full-audit.js`
 
-Not invoked manually in normal work. Wired into `vercel.json:buildCommand`. See Trap #1.
-
-### `scripts/neon-full-audit.js` — deep tier decision
-
-```bash
-node --env-file=.env.local scripts/neon-full-audit.js
-```
-
-Detailed breakdown for Phase 6 upgrade decisions. Measures JSON column fat, index bloat, write volumes, projected growth. Run this before any "upgrade tier or optimize" conversation.
+Deep tier-decision audit. Measures JSON bloat, index bloat, write volumes, growth projection. Run before any "upgrade vs optimize" discussion.
 
 ### `scripts/neon-storage-audit.js` / `scripts/neon-listings-deep.js`
 
-Storage-focused audits. Use when `ops:health` reports storage >80% to identify what to trim.
+Storage-focused audits for when `ops:health` reports storage >80%.
 
-### `scripts/phase1-run.js` — the cleanup playbook pattern
+### `scripts/phase1-run.js` + `scripts/phase1-ROLLBACK.md`
 
-Demonstrates the `--verify-only` / `--dry-run` / `--execute` idempotent pattern every DB-changing script MUST follow. Read `scripts/phase1-ROLLBACK.md` for the full operational playbook.
+The cleanup-playbook pattern every DB-change script must follow: `--verify-only` / `--dry-run` / `--execute`, idempotent, with pre-state capture.
 
-### `lib/prisma-http.ts` — cold-start-free HTTP driver
+### `lib/prisma-http.ts` (Phase 5, adoption deferred)
 
-For public read-heavy routes after Phase 5 adoption. Use instead of `lib/prisma.ts` for public reads. See §7 for the adoption plan.
+HTTP-driver Prisma client for public read routes. Avoids TCP handshake on cold start. 45–56ms vs 1–3s. Adopt one route at a time per CLAUDE.md follow-up.
 
 ---
 
-## 6. Recovery playbooks
+## 7. Recovery playbooks
 
-### Playbook A — "Neon compute quota exceeded, build is blocked"
+### A — "Neon compute quota exceeded"
 
-1. Run `npm run ops:health` — confirm compute hours are maxed
-2. Log into Neon console (console.neon.tech) → Project → Usage
-3. Check reset date (free tier resets on billing anniversary, monthly)
-4. **Options:**
-   - **Upgrade to Launch ($19/mo, 300 compute hrs, 10 GB storage)** — immediate fix, instant restore
-   - **Wait for reset** — if within 24–48 hrs
-   - **Reduce compute burn temporarily** — disable non-critical crons (`idx-sync` frequency, `db-keepalive` cadence) to stretch the last hours
-5. Once unblocked, run any missed migration manually:
-   ```bash
-   DATABASE_URL=prod npx prisma migrate deploy
-   ```
-6. Redeploy Vercel to refresh the migration sentinel
-7. Verify `/api/health` shows all checks green
+1. `npm run ops:health` — confirm compute hours are near/over cap
+2. Neon console → Project → Usage — check the reset date
+3. **Options (in order of preference):**
+   - Reduce compute-burn: audit recent changes for new DB query paths, check uptime-monitor frequency, consider slowing down `db-keepalive` or non-critical crons temporarily
+   - Wait for monthly reset — acceptable if within 24–48 hrs
+   - **Last resort:** upgrade to Launch ($19/mo, 300 compute hrs, 10 GB). Do this only if reducing burn is genuinely not possible
+4. Once unblocked, apply any deferred migration manually: `DATABASE_URL=prod npx prisma migrate deploy`
 
-### Playbook B — "Schema is drifted — prod has columns that don't match prisma/schema.prisma"
+### B — "Schema drift: prod has columns that don't match `prisma/schema.prisma`"
 
-1. Compare: `npx prisma db pull --print` → diff against your `prisma/schema.prisma`
-2. If the drift is due to `db push` (see Trap #2), create a baseline migration:
+1. `npx prisma db pull --print` → diff against your schema file
+2. If drift is from `db push` (Trap #2), baseline:
    ```bash
    npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/<timestamp>_baseline/migration.sql
    npx prisma migrate resolve --applied <timestamp>_baseline
    ```
-3. If the drift is due to a failed migration, `npx prisma migrate status` will show which migration is pending
-4. If a migration is marked failed: `npx prisma migrate resolve --rolled-back <migration_name>` then fix the SQL + retry
+3. If drift is from a failed migration: `npx prisma migrate status` → `resolve --rolled-back <name>` → fix SQL → retry
 
-### Playbook C — "All routes 500ing with connection timeout"
+### C — "All routes 500ing with connection timeout"
 
-1. Check `https://mallan.nyc/api/health` — `db` check should fail
-2. Neon likely auto-suspended or has a connectivity issue
-3. Confirm `db-keepalive` cron is enabled in `vercel.json` (`*/3 * * * *`)
-4. Log into Neon console → restart compute manually
-5. Verify `/api/health` returns 200 within 1 minute
+1. Load `https://mallan.nyc/api/health` — 503 means Next.js runtime itself is down; 200 means runtime is up, DB is likely cold
+2. Confirm `db-keepalive` cron is enabled in `vercel.json` (`*/3 * * * *`)
+3. Neon console → restart compute manually
+4. Hit a DB-dependent route (e.g. `/api/listings?q=manhattan`) — first request takes ~2–5s while compute wakes; subsequent requests should be ~50ms
 
-### Playbook D — "I pushed a migration and prod broke"
+### D — "I pushed a code PR and the migration wasn't applied first"
 
-1. **DO NOT panic-revert the Prisma schema.** If the migration APPLIED, reverting the schema without a down-migration leaves prod ahead of source.
-2. Check `npx prisma migrate status` — did it actually apply?
-3. If YES: write a **forward** migration that reverses the change. Don't delete the migration file.
-4. If NO: delete the migration dir, revert `prisma/schema.prisma` to match prod, push the revert. (This is what the 2026-04-20 revert did.)
-5. See `scripts/phase1-ROLLBACK.md` for the pattern.
+1. **DO NOT panic-revert the Prisma schema.** Check `npx prisma migrate status` first — did the migration apply?
+2. If YES: leave the schema file alone. The code will work now.
+3. If NO:
+   - Option 1: apply the migration manually (`DATABASE_URL=prod npx prisma migrate deploy`). Verify. Done.
+   - Option 2: revert the code PR so prod matches reality. (This was 2026-04-20's path.)
+4. Never edit `prisma/schema.prisma` to "match prod" without also handling the `_prisma_migrations` table.
 
 ---
 
-## 7. Deferred workstreams
+## 8. Deferred workstreams
 
-Documented in `CLAUDE.md` top follow-up block. Review date **2026-05-01** (after ≥2 weeks of stability following the 2026-04-17 Phase 0–5 shipment).
+Documented in `CLAUDE.md` top follow-up block. Review date **2026-05-01**.
 
-### Deferred A — Phase 3: migrate 8 most-read fields out of JSON into columns
+### A — Phase 3: migrate 8 most-read fields out of JSON into columns
 
-**Target columns, in order of priority (ONE PER PR):**
+One column per PR, nullable, dual-write, wait one sync cycle, migrate one reader, verify. Target order:
+1. `primary_photo_url` + `photo_count`
+2. `list_agent_full_name` + `list_office_name`
+3. `public_remarks`
+4. `close_price` + `close_date`
+5. `latitude` + `longitude`
 
-1. `primary_photo_url` + `photo_count` — fast card render without Media join
-2. `list_agent_full_name` + `list_office_name` — REBNY attribution without JSON parse
-3. `public_remarks` — readable description without JSON traversal
-4. `close_price` + `close_date` — past-sales display
-5. `latitude` + `longitude` — geo queries (prep for Phase 6 PostGIS)
+### B — Phase 5 HTTP adapter per-route adoption
 
-**Per-PR pattern** (see §3):
-1. Add nullable column
-2. Dual-write in `lib/idx/sync.ts` (JSON + column)
-3. Wait one sync cycle
-4. Migrate ONE reader
-5. Verify `ops:health`
-6. Repeat
-
-### Deferred B — Phase 5 HTTP adapter per-route adoption
-
-`lib/prisma-http.ts` is built and validated (45–56ms query latency vs 1–3s cold-start TCP). Adoption plan, one route at a time:
-
-1. `app/api/idx/search/route.ts` (967 lines — highest traffic)
+`lib/prisma-http.ts` validated 2026-04-17. Adoption plan:
+1. `app/api/idx/search/route.ts`
 2. `app/api/listings/similar/route.ts`
 3. `app/api/agents/[slug]/listings/route.ts`
 4. `app/api/buildings/route.ts`
 5. `app/api/open-houses/route.ts`
 
-**Per-route pattern:**
-1. Change `import prisma from "@/lib/prisma"` → `import prismaHttp from "@/lib/prisma-http"`
-2. `npm run type-check`
-3. `npm run ops:http-smoke`
-4. Deploy, measure cold-start latency in Vercel logs
-5. Only then do the next route
-
-### Completion criterion
-
-Close the CLAUDE.md follow-up when all 5 columns are migrated AND all 5 routes use `prismaHttp`. Archive this block with a dated note in `memory/NEON-PRODUCTION-HARDENING-2026-04.md`.
+Per-route pattern: swap import, type-check, smoke test, deploy, measure, then next route.
 
 ---
 
-## 8. Observability
+## 9. Observability
 
-### `GET /api/health`
+### `GET /api/health` — intentionally simple
 
-Returns `{ ok: boolean, failures: string[], checks: [...] }`. Each check has a name and detail string. **Bookmark this URL.** Point any free uptime monitor at it (UptimeRobot, Better Uptime, Freshping, Cronitor) — 503 on fail means automatic alert without touching Vercel.
-
-Current checks:
-- `db` — Postgres reachable via `SELECT 1`
-- `migration.state` — reads `.next/prisma-migration-state.json` (written by `scripts/vercel-migrate-deploy.js`)
-- `idx.sync_freshness` — `SyncState.last_run_at` < 2h old
-
-Add new checks when adding new schema-dependent code paths. Remove them when rolling back.
+Returns `{ success: true }` on HTTP 200. **Zero DB operations.** Point uptime monitors here to detect a fully-down site. Do **not** add DB probes — they burn compute for no incremental signal, because the real user-facing routes already hit the DB and return their own 500s when things are broken.
 
 ### `npm run ops:health`
 
-Full operational report. Use before every migration. Use weekly as a scheduled task. Use after any deploy to verify nothing drifted.
+Full operational report. Use before every migration and after every deploy.
 
-### Vercel email notifications
+### Vercel deploy-fail emails
 
-One-time: Vercel dashboard → your profile → Settings → Notifications → enable "Deployment Failed" + "Deployment Error". Maya's account email will receive deploy-fail emails. Zero ongoing work.
+Vercel dashboard → profile → Settings → Notifications → enable "Deployment Failed" + "Deployment Error". One-time config.
+
+### Neon console
+
+https://console.neon.tech → Project → Usage shows compute-hours used this month and reset date.
 
 ---
 
-## 9. Change log
+## 10. Change log
 
 | Date | Event | Commit |
 |---|---|---|
-| 2026-03-16 | Original `\|\| echo 'Migration skipped'` pattern introduced for cold-start survival | `db8ec5c4` |
-| 2026-03-26 | `db-keepalive` cron added after 24h+ auto-suspend outage | `93fb0cd9` |
-| 2026-04-17 | Phase 0–5 production hardening (data-retention deletes, VACUUM FULL, SyncState + Archive, Phase 5 HTTP adapter) | multiple commits |
-| 2026-04-19 | First observed compute-quota silent-drift incident (email_opt_out migration rejected, build succeeded, code would 500) | `94b4808f` through `9032ab61` |
-| 2026-04-20 | Schema-dependent code reverted; `scripts/vercel-migrate-deploy.js` replaces `\|\| echo`; this NEON.md file created | `3e73af9c`, (current PR) |
+| 2026-03-16 | `\|\| echo 'Migration skipped'` pattern introduced in `vercel.json` buildCommand for cold-start survival | `db8ec5c4` |
+| 2026-03-26 | `db-keepalive` cron every 3 min added after 24-hour auto-suspend outage | `93fb0cd9` |
+| 2026-04-17 | Phase 0–5 production hardening — Phase 1 storage cleanup (250→215 MB), SyncState + Archive models, `lib/prisma-http.ts` built (adoption deferred) | multiple |
+| 2026-04-19 | First observed compute-quota silent-drift incident: `email_opt_out` migration rejected, build proceeded | `94b4808f` / `9032ab61` |
+| 2026-04-20 | Schema-dependent code reverted; smart migration runner attempted then reverted; `prisma migrate deploy` removed from buildCommand entirely (aligns with `docs/DEPLOYMENT.md`); `/api/health` returned to zero-DB form; this file created | `3e73af9c`, (current) |
