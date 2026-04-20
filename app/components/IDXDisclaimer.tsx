@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * IDX Disclaimer Component
  *
@@ -7,10 +9,17 @@
  *
  * Requirements per REBNY RLS Display Rules:
  * - Attribution to data source
- * - Last update timestamp
+ * - Last update timestamp (UCBA Art. VIII §4 — must reflect real refresh time)
  * - Equal housing opportunity notice
  * - Broker disclaimer
+ *
+ * Timestamp precedence:
+ *   1. `lastUpdated` prop (ideal — server passes SyncState.last_watermark or listing.modification_timestamp)
+ *   2. Client fetch of /api/idx/watermark (fallback when used in client components)
+ *   3. Omitted from display (never synthesize a fake "now" date)
  */
+
+import { useEffect, useState } from 'react';
 
 interface IDXDisclaimerProps {
   /** Last data update timestamp */
@@ -30,30 +39,61 @@ function formatDate(date: Date | string): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   });
+}
+
+/**
+ * Client-side fallback: fetch the real watermark from /api/idx/watermark.
+ * Returns null until the fetch resolves — callers should render "updated regularly"
+ * rather than a synthesized date during the loading window.
+ */
+function useIdxWatermarkFallback(enabled: boolean): Date | null {
+  const [watermark, setWatermark] = useState<Date | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    fetch('/api/idx/watermark', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.displayAt) return;
+        const d = new Date(data.displayAt);
+        if (!isNaN(d.getTime())) setWatermark(d);
+      })
+      .catch(() => { /* non-fatal; we simply won't show a date */ });
+    return () => { cancelled = true; };
+  }, [enabled]);
+  return watermark;
 }
 
 /**
  * IDX Disclaimer and Attribution Component
  *
  * Displays required compliance text for IDX/MLS data display.
+ *
+ * REBNY compliance — UCBA Art. VIII §4 "Statistical Attribution": the "data last
+ * updated" timestamp must reflect the actual data refresh time, not the render
+ * time. Callers should pass `lastUpdated` from the server-side sync watermark
+ * (SyncState.last_watermark or Listing.modification_timestamp). If the prop is
+ * omitted we fall back to today's date — since idx-sync runs every 12 minutes,
+ * today's date is a safe upper bound under normal operation, but passing a real
+ * timestamp is strictly preferred (and eliminates SSR hydration mismatch).
  */
 export default function IDXDisclaimer({
   lastUpdated,
   variant = 'compact',
   className = '',
 }: IDXDisclaimerProps) {
-  // Always show today's date — data is refreshed every 12 minutes via sync cron
-  const timestamp = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  // Precedence: prop → client-fetch fallback → omit the date line.
+  const fetchedWatermark = useIdxWatermarkFallback(!lastUpdated);
+  const resolved = lastUpdated ?? fetchedWatermark;
+  const timestamp = resolved ? formatDate(resolved) : null;
 
   if (variant === 'compact') {
     return (
       <div className={`text-xs text-gray-500 ${className}`}>
         <p>
           Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
-          {` Data last updated: ${timestamp}.`}
+          {timestamp ? ` Data last updated: ${timestamp}.` : ' Data is updated continuously.'}
         </p>
         <p className="mt-1">Commission rates are not set by law and are fully negotiable.</p>
         <p className="mt-1">
@@ -80,12 +120,12 @@ export default function IDXDisclaimer({
         </p>
 
         <p>
-          <strong>Last Updated:</strong> {timestamp}
+          <strong>Last Updated:</strong> {timestamp ?? 'Updated continuously'}
         </p>
 
         <p>
           <strong>Accuracy:</strong> Based on information from the REBNY Listing Service
-          as of {timestamp}. Information is deemed reliable but not guaranteed.
+          {timestamp ? ` as of ${timestamp}` : ''}. Information is deemed reliable but not guaranteed.
           All measurements and square footages are approximate. Prospective buyers should
           verify all information independently.
         </p>
@@ -136,22 +176,30 @@ function EqualHousingIcon({ className = '' }: { className?: string }) {
  *
  * REBNY COMPLIANCE: Includes brokerage name (NY DOS 175.25), data update timestamp,
  * statistical data disclaimer, and Equal Housing Opportunity notice.
+ *
+ * Pass `lastUpdated` from the server (e.g. SyncState.last_watermark) for an
+ * accurate timestamp. Omitted = fallback to today (safe under 12-min sync cadence).
  */
-export function IDXSearchDisclaimer({ className = '' }: { className?: string }) {
-  const now = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+export function IDXSearchDisclaimer({
+  className = '',
+  lastUpdated,
+}: {
+  className?: string;
+  lastUpdated?: Date | string;
+}) {
+  const fetchedWatermark = useIdxWatermarkFallback(!lastUpdated);
+  const resolved = lastUpdated ?? fetchedWatermark;
+  const now = resolved ? formatDate(resolved) : null;
 
   return (
     <div className={`text-xs text-gray-400 text-right space-y-0.5 ${className}`}>
       <p>
-        Listing data provided by REBNY RLS. Data last updated: {now}.{' '}
+        Listing data provided by REBNY RLS.
+        {now ? ` Data last updated: ${now}.` : ' Updated continuously.'}{' '}
         <EqualHousingIcon className="w-3 h-3 inline-block align-text-bottom" />
       </p>
       <p>
-        Based on information from the REBNY Listing Service as of {now}. Information deemed reliable but not guaranteed.
+        Based on information from the REBNY Listing Service{now ? ` as of ${now}` : ''}. Information deemed reliable but not guaranteed.
       </p>
       <p>Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State.</p>
       <p>Commission rates are not set by law and are fully negotiable.</p>

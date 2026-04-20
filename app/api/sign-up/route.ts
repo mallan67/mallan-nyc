@@ -5,33 +5,18 @@ import { isDisposableDomain } from '@/lib/disposable-domains';
 import { hashPassword } from '@/lib/auth';
 import { randomInt } from 'crypto';
 import { sendEmail } from '@/lib/email/sendgrid';
+import { escapeHtml } from '@/lib/sanitize';
+import { checkRouteRateLimit } from '@/lib/middleware/rate-limiter';
 
 const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
 
-// --- Rate limiter: 3 sign-ups per IP per hour (in-memory) ---
-const rateMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 10;
-const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
-
-// Clean up stale entries every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of rateMap) {
-    if (now > entry.resetAt) rateMap.delete(ip);
-  }
-}, 10 * 60 * 1000);
+// Rate limit: 10 sign-ups per IP per hour.
+// Upstash-backed via `checkRouteRateLimit('signup', ...)` — survives cold starts
+// and is shared across Vercel serverless instances. The previous in-module Map
+// was per-instance only and trivially bypassable by hammering until a fresh
+// instance was spawned.
+const SIGNUP_LIMIT = 10;
+const SIGNUP_WINDOW_S = 60 * 60; // 1 hour
 
 /** Check that the email domain has valid MX records */
 async function verifyEmailDomain(email: string): Promise<boolean> {
@@ -48,7 +33,17 @@ async function verifyEmailDomain(email: string): Promise<boolean> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { firstName, lastName, email, phone, password, roles, website } = body;
+    const { firstName, lastName, email, phone, password, roles, website, tcpaConsent, tcpaConsentTimestamp } = body;
+
+    // TCPA prior express written consent is a server-side gate, not just UI.
+    // A bot or modified client that skips the checkbox must still be rejected here.
+    // 47 CFR 64.1200(f)(8): required for auto-dialed/prerecorded calls & SMS.
+    if (tcpaConsent !== true) {
+      return NextResponse.json(
+        { error: 'Phone consent is required to create an account.' },
+        { status: 400 }
+      );
+    }
 
     // --- Honeypot: bots fill the hidden "website" field, humans don't ---
     if (website) {
@@ -59,11 +54,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Rate limit by IP ---
+    // --- Rate limit by IP (Upstash-backed, shared across instances) ---
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || req.headers.get('x-real-ip')
       || 'unknown';
-    if (!checkRateLimit(ip)) {
+    const allowed = await checkRouteRateLimit(ip, 'signup', SIGNUP_LIMIT, SIGNUP_WINDOW_S);
+    if (!allowed) {
       return NextResponse.json(
         { error: 'Too many sign-up attempts. Please try again in an hour.' },
         { status: 429 }
@@ -155,7 +151,9 @@ export async function POST(req: NextRequest) {
         enabled_workspaces: [portalRole],
         status: 'new',
         source: 'website',
-        consent_captured_at: new Date(),
+        // TCPA: record the client's own consent timestamp when available (proves the
+        // checkbox was ticked at that moment) and fall back to server clock.
+        consent_captured_at: tcpaConsentTimestamp ? new Date(tcpaConsentTimestamp) : new Date(),
         // Optional intake fields captured at sign-up
         notes: message ? `[Sign-up message]: ${message}` : null,
       } as any,
@@ -174,7 +172,7 @@ export async function POST(req: NextRequest) {
       'Verify Your Email — Mallan Real Estate',
       `<div style="font-family:'Inter',system-ui,sans-serif;max-width:460px;margin:0 auto;padding:32px;">
         <h2 style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">Verify Your Email</h2>
-        <p style="font-size:14px;color:#6b7280;margin-bottom:24px;">Hi ${firstName.trim()}, enter this code to verify your email:</p>
+        <p style="font-size:14px;color:#6b7280;margin-bottom:24px;">Hi ${escapeHtml(firstName.trim())}, enter this code to verify your email:</p>
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
           <span style="font-family:'Courier New',monospace;font-size:32px;font-weight:700;letter-spacing:8px;color:#111;">${verifyCode}</span>
         </div>
@@ -183,7 +181,7 @@ export async function POST(req: NextRequest) {
         <p style="font-size:11px;color:#9ca3af;">Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128</p>
       </div>`,
       undefined,
-      { channel: 'company' }
+      { channel: 'company', transactional: true }
     ).catch(() => { /* non-fatal */ });
 
     // Notify ALL brokers of the new unassigned lead

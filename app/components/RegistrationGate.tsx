@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { trackMicroCommitment } from '@/lib/posthog';
+import AgencyDisclosure from './AgencyDisclosure';
 
 const GATE_SHOWN_KEY = 'mallan_reg_gate_shown';
 const GATE_DISMISSED_KEY = 'mallan_reg_gate_dismissed';
@@ -221,21 +222,25 @@ export default function RegistrationGate() {
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-3">
+                <label htmlFor="reg-gate-name" className="sr-only">Full name</label>
                 <input
+                  id="reg-gate-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  aria-label="Full name"
+                  autoComplete="name"
                   className="w-full rounded-2xl px-4 py-3 bg-white ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-brand-gold/40 text-sm placeholder:text-brand-dark/40"
                 />
+                <label htmlFor="reg-gate-email" className="sr-only">Email address</label>
                 <input
+                  id="reg-gate-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="Email address"
-                  aria-label="Email address"
+                  autoComplete="email"
                   className="w-full rounded-2xl px-4 py-3 bg-white ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-brand-gold/40 text-sm placeholder:text-brand-dark/40"
                 />
 
@@ -243,8 +248,9 @@ export default function RegistrationGate() {
                   <p className="text-red-600 text-xs">{error}</p>
                 )}
 
-                <label className="flex items-start gap-2 cursor-pointer">
+                <label htmlFor="reg-gate-consent" className="flex items-start gap-2 cursor-pointer">
                   <input
+                    id="reg-gate-consent"
                     type="checkbox"
                     required
                     className="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-brand-gold focus:ring-brand-gold/30"
@@ -253,6 +259,9 @@ export default function RegistrationGate() {
                     I consent to receive listing alert emails from Mallan Real Estate Inc. I can <a href="/unsubscribe" className="underline">unsubscribe</a> at any time.
                   </span>
                 </label>
+
+                {/* NY RPL §443 Agency Disclosure — first substantive contact */}
+                <AgencyDisclosure />
 
                 <button
                   type="submit"

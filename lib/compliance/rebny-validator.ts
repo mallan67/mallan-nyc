@@ -446,53 +446,62 @@ function validateFairHousing(listing: ListingData): {
   const warnings: string[] = [];
   let enhancedRemarks: string | undefined;
 
-  const publicRemarks = listing.PublicRemarks || listing.description || '';
-  if (typeof publicRemarks !== 'string') {
-    return { valid: true, errors, warnings };
-  }
-
-  const lowerRemarks = publicRemarks.toLowerCase();
-
-  // Check for prohibited terms
-  const foundTerms: string[] = [];
-  for (const term of fairHousingProhibitedTerms) {
-    if (lowerRemarks.includes(term.toLowerCase())) {
-      foundTerms.push(term);
-    }
-  }
-
-  if (foundTerms.length > 0) {
-    errors.push(
-      `[Fair Housing] Prohibited terms found in description: "${foundTerms.join('", "')}". ` +
-        'These terms may violate Fair Housing Act by implying discrimination based on ' +
-        'race, color, religion, national origin, sex, familial status, or disability.'
-    );
-
-    // Generate sanitized version
-    let sanitized = publicRemarks;
-    for (const term of foundTerms) {
-      const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      sanitized = sanitized.replace(regex, '[REMOVED]');
-    }
-    enhancedRemarks = sanitized;
-  }
-
-  // Check for potentially problematic phrases
-  const warningPatterns = [
-    { pattern: /perfect for/i, message: 'Avoid "perfect for [group]" - may imply targeting' },
-    { pattern: /ideal for/i, message: 'Avoid "ideal for [group]" - may imply targeting' },
-    {
-      pattern: /walking distance to (church|temple|mosque|synagogue)/i,
-      message: 'Religious proximity may imply preference',
-    },
-    { pattern: /quiet neighborhood/i, message: 'May imply discrimination against families' },
-    { pattern: /executive/i, message: 'May imply income discrimination' },
-    { pattern: /prestigious/i, message: 'May imply socioeconomic discrimination' },
+  // Scan the same 4 fields as the write-path gate (lib/compliance/rls-enforcement.ts).
+  // Previously only PublicRemarks was scanned, which let a listing pass the reporting
+  // validator with discriminatory text in ShowingInstructions/SyndicationRemarks/PrivateRemarks.
+  type FieldEntry = { name: string; value: string };
+  const rawFields: FieldEntry[] = [
+    { name: 'PublicRemarks', value: String(listing.PublicRemarks || (listing as Record<string, unknown>).description || '') },
+    { name: 'ShowingInstructions', value: String((listing as Record<string, unknown>).ShowingInstructions || '') },
+    { name: 'PrivateRemarks', value: String((listing as Record<string, unknown>).PrivateRemarks || '') },
+    { name: 'SyndicationRemarks', value: String((listing as Record<string, unknown>).SyndicationRemarks || '') },
   ];
+  const fields: FieldEntry[] = rawFields.filter((f) => f.value);
 
-  for (const { pattern, message } of warningPatterns) {
-    if (pattern.test(publicRemarks)) {
-      warnings.push(`[Fair Housing Warning] ${message}`);
+  for (const field of fields) {
+    const lower = field.value.toLowerCase();
+    const foundTerms: string[] = [];
+    for (const term of fairHousingProhibitedTerms) {
+      if (lower.includes(term.toLowerCase())) {
+        foundTerms.push(term);
+      }
+    }
+
+    if (foundTerms.length > 0) {
+      errors.push(
+        `[Fair Housing] Prohibited terms found in ${field.name}: "${foundTerms.join('", "')}". ` +
+          'These terms may violate Fair Housing Act by implying discrimination based on ' +
+          'race, color, religion, national origin, sex, familial status, or disability.'
+      );
+
+      // Generate sanitized version only for PublicRemarks (the displayed field).
+      if (field.name === 'PublicRemarks') {
+        let sanitized = field.value;
+        for (const term of foundTerms) {
+          const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+          sanitized = sanitized.replace(regex, '[REMOVED]');
+        }
+        enhancedRemarks = sanitized;
+      }
+    }
+
+    // Softer patterns run on every field too.
+    const warningPatterns = [
+      { pattern: /perfect for/i, message: 'Avoid "perfect for [group]" - may imply targeting' },
+      { pattern: /ideal for/i, message: 'Avoid "ideal for [group]" - may imply targeting' },
+      {
+        pattern: /walking distance to (church|temple|mosque|synagogue)/i,
+        message: 'Religious proximity may imply preference',
+      },
+      { pattern: /quiet neighborhood/i, message: 'May imply discrimination against families' },
+      { pattern: /executive/i, message: 'May imply income discrimination' },
+      { pattern: /prestigious/i, message: 'May imply socioeconomic discrimination' },
+    ];
+
+    for (const { pattern, message } of warningPatterns) {
+      if (pattern.test(field.value)) {
+        warnings.push(`[Fair Housing Warning] (${field.name}) ${message}`);
+      }
     }
   }
 

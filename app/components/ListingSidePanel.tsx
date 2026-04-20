@@ -296,8 +296,8 @@ export default function ListingSidePanel() {
             </p>
           )}
 
-          {/* IDX Disclaimer — REBNY compliance */}
-          <IDXDisclaimer variant="compact" lastUpdated={new Date()} className="mt-8 text-center" />
+          {/* IDX Disclaimer — REBNY compliance (watermark fetched client-side; UCBA Art. VIII §4) */}
+          <IDXDisclaimer variant="compact" className="mt-8 text-center" />
         </div>
       </div>
 

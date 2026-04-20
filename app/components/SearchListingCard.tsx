@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
+import FareActFeeBadge from '@/app/components/FareActFeeBadge';
 import { type DisplayListing, listingHref } from '@/lib/idx/display-adapter';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 
@@ -113,8 +114,15 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
         {isRental && listing.moveInCosts && (
           <p className="text-sm text-brand-dark/70 mt-1">Move-In: {listing.moveInCosts}</p>
         )}
-        <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+        {isRental && (
+          <FareActFeeBadge
+            moveInCosts={listing.moveInCosts}
+            tenantPaysDescription={listing.tenantPaysDescription}
+            className="mt-1"
+          />
+        )}
+        <p className="text-xs text-brand-dark/70 mt-2">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
       </div>
     </Link>
@@ -194,8 +202,15 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         {isRental && listing.moveInCosts && (
           <p className="text-sm text-brand-dark/70 mt-1">Move-In: {listing.moveInCosts}</p>
         )}
-        <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+        {isRental && (
+          <FareActFeeBadge
+            moveInCosts={listing.moveInCosts}
+            tenantPaysDescription={listing.tenantPaysDescription}
+            className="mt-1"
+          />
+        )}
+        <p className="text-xs text-brand-dark/70 mt-2">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
       </div>
     </Link>
@@ -327,8 +342,8 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         {isRental && listing.moveInCosts && (
           <p className="text-[13px] text-brand-dark/70 mt-0.5">Move-In: {listing.moveInCosts}</p>
         )}
-        <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+        <p className="text-xs text-brand-dark/70 mt-2">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
       </Link>
     </div>

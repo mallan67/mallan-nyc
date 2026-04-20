@@ -19,6 +19,9 @@ interface ListingItem {
   listOfficeName: string;
   status: string;
   onMarketDate?: string;
+  /** UCBA Art. I §16(C) — first-showing date that must appear in Coming Soon display */
+  activationDate?: string | null;
+  comingSoonDate?: string | null;
   media: { url: string; mediaType: string; order: number }[];
   address: {
     streetNumber: string;
@@ -203,12 +206,22 @@ function ListingCard({ listing }: { listing: ListingItem }) {
           </div>
         )}
 
-        {/* Coming Soon badge — REBNY UCBA Art. I, Sec. 16(C) exact wording */}
-        {isComingSoon && (
-          <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded leading-tight max-w-[90%]">
-            Coming Soon. No Showings or Open House Permitted
-          </div>
-        )}
+        {/* Coming Soon badge — REBNY UCBA Art. I, Sec. 16(C) exact wording.
+            When we have an ActivationDate/comingSoonDate from the feed, surface it
+            so consumers see the specific first-showing day, not the generic "Permitted" line. */}
+        {isComingSoon && (() => {
+          const csDate = listing.comingSoonDate || listing.activationDate;
+          const formatted = csDate
+            ? new Date(csDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            : null;
+          return (
+            <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded leading-tight max-w-[90%]">
+              {formatted
+                ? `Coming Soon. No Showings or Open House until ${formatted}`
+                : 'Coming Soon. No Showings or Open House Permitted'}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="p-4">
@@ -226,8 +239,8 @@ function ListingCard({ listing }: { listing: ListingItem }) {
         </p>
 
         {/* REBNY Compliance H1/F6: "Listing Courtesy of [Broker Name]" - REQUIRED */}
-        <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+        <p className="text-xs text-brand-dark/70 mt-2">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
       </div>
     </Link>

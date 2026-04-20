@@ -468,7 +468,9 @@ export default function HeroSearch() {
             </svg>
             <input
               ref={inputRef}
+              id="hero-search-input"
               type="text"
+              aria-label="Search properties by address, ZIP, or neighborhood"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);

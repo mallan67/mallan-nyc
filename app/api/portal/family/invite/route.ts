@@ -102,7 +102,9 @@ export async function POST(req: NextRequest) {
     await sendEmail(
       email,
       `${escapeHtml(inviterName)} invited you to Mallan Real Estate`,
-      html
+      html,
+      undefined,
+      { transactional: true }
     );
   }
 

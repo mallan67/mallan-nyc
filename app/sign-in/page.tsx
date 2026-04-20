@@ -179,25 +179,35 @@ function SignInContent() {
 
             {/* Email Form */}
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <input
-                type="email"
-                id="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
-                placeholder="Email address"
-              />
+              <div>
+                <label htmlFor="signin-email" className="sr-only">Email address</label>
+                <input
+                  type="email"
+                  id="signin-email"
+                  name="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
+                  placeholder="Email address"
+                />
+              </div>
 
-              <input
-                type="password"
-                id="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
-                placeholder="Password"
-              />
+              <div>
+                <label htmlFor="signin-password" className="sr-only">Password</label>
+                <input
+                  type="password"
+                  id="signin-password"
+                  name="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-2xl px-4 py-3 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
+                  placeholder="Password"
+                />
+              </div>
 
               {error && (
                 <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-sm text-center">
@@ -230,9 +240,13 @@ function SignInContent() {
               <div className="mt-2 p-4 bg-gray-50/50 rounded-2xl">
                 <p className="text-sm font-medium mb-3">Reset your password</p>
                 <form onSubmit={handleForgotPassword} className="space-y-3">
+                  <label htmlFor="forgot-email" className="sr-only">Email address for password reset</label>
                   <input
                     type="email"
+                    id="forgot-email"
+                    name="forgotEmail"
                     required
+                    autoComplete="email"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     className="w-full rounded-2xl px-4 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"

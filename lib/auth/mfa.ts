@@ -45,7 +45,7 @@ export async function sendOtpEmail(
     </div>
     `,
     undefined,
-    { channel: 'company' }
+    { channel: 'company', transactional: true }
   );
   return result.success;
 }

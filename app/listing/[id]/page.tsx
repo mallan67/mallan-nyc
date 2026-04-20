@@ -1789,7 +1789,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
           </p>
           <span className="text-brand-dark/20">|</span>
           <p className="text-[13px] text-brand-dark/45">
-            Updated {new Date().toLocaleDateString()}
+            {listing.modificationTimestamp
+              ? `Updated ${new Date(listing.modificationTimestamp).toLocaleDateString()}`
+              : 'Updated continuously'}
           </p>
         </div>
       </section>

@@ -205,8 +205,11 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
   return (
     <div className="prop-card rounded-3xl overflow-hidden bg-white relative">
       {isPinned && (
-        <span className="absolute top-4 left-4 z-30 bg-brand-gold text-white text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">
-          Exclusive
+        <span
+          className="absolute top-4 left-4 z-30 bg-brand-gold text-white text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm"
+          title="Featured listing — listed on REBNY RLS and syndicated to all major platforms"
+        >
+          Featured
         </span>
       )}
       <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer group">
@@ -237,8 +240,8 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
               CC: ${cc.toLocaleString()}/mo
             </p>
           )}
-          <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
-            RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+          <p className="text-xs text-brand-dark/70 mt-2">
+            RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
           </p>
         </Link>
 
@@ -399,7 +402,8 @@ export default function FeaturedListings() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-black/5">
-          <IDXDisclaimer variant="compact" lastUpdated={lastUpdated || new Date()} />
+          {/* If server passes lastUpdated, use it; otherwise the component fetches /api/idx/watermark. Never synthesize render-time date (UCBA Art. VIII §4). */}
+          <IDXDisclaimer variant="compact" lastUpdated={lastUpdated ?? undefined} />
         </div>
       </div>
     </section>

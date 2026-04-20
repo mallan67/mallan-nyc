@@ -6,7 +6,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -302,6 +303,8 @@ model Lead {
   last_sales_email_opened  DateTime? @map("last_sales_email_opened")
   last_rental_email_opened DateTime? @map("last_rental_email_opened")
   last_unsubscribe_at      DateTime? @map("last_unsubscribe_at")
+  email_opt_out            Boolean   @default(false) @map("email_opt_out") // CAN-SPAM: true = do not send any marketing/CRM email. Checked by sendEmail() before every send.
+  email_opt_out_at         DateTime? @map("email_opt_out_at") // when opt-out was recorded (RFC 8058 / CAN-SPAM 10-day honor rule)
   preferred_channel        String?   @map("preferred_channel") // "portal" | "email" | "text" | "phone" — derived from behavior
   preferred_device         String?   @map("preferred_device") // "mobile" | "desktop" — derived from listing views
   nurture_paused           Boolean   @default(false) @map("nurture_paused")
@@ -377,13 +380,13 @@ model Lead {
   fee_structure        String? @map("fee_structure") // "owner_pay" | "tenant_pay" | "no_fee"
 
   // --- Relations for new models ---
-  owned_listings         Listing[]           @relation("ListingOwner")
-  showing_history        ShowingHistory[]
+  owned_listings  Listing[]        @relation("ListingOwner")
+  showing_history ShowingHistory[]
 
   portal_events          PortalEvent[]
   listing_views          ListingView[]
-  landlord_active_leases ActiveLease[]       @relation("LandlordActiveLeases")
-  tenant_active_leases   ActiveLease[]       @relation("TenantActiveLeases")
+  landlord_active_leases ActiveLease[] @relation("LandlordActiveLeases")
+  tenant_active_leases   ActiveLease[] @relation("TenantActiveLeases")
 
   // --- Custom fields (agent-defined, no migration needed) ---
   // Stored as { "Field Name": "value", "Another Field": "value" }
@@ -490,11 +493,9 @@ model Listing {
   @@index([status, listing_type])
   @@index([list_price])
   @@index([borough, neighborhood])
-  @@index([property_type])
   @@index([rls_eligible])
   @@index([bedrooms_total])
   @@index([modification_timestamp])
-  @@index([idx_display_yn, owner_opt_out])
   @@index([agent_id])
   @@index([owner_client_id])
   @@map("listings")
@@ -537,6 +538,86 @@ model MfaSession {
   @@index([token])
   @@index([expires_at])
   @@map("mfa_sessions")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SYNC STATE — Trestle delta-sync watermark (one row per resource)
+// Replaces fragile MAX(last_synced_from_trestle) with an atomic watermark.
+// ═══════════════════════════════════════════════════════════
+model SyncState {
+  resource             String    @id // "Property" | "Media" | "Member" | "Office"
+  last_watermark       DateTime? @map("last_watermark") // last ModificationTimestamp processed
+  last_run_at          DateTime? @map("last_run_at")
+  last_run_status      String?   @map("last_run_status") // "ok" | "error" | "partial"
+  last_run_duration_ms Int?      @map("last_run_duration_ms")
+  rows_upserted        Int?      @map("rows_upserted")
+  rows_skipped_by_gate Int?      @map("rows_skipped_by_gate")
+  rows_with_errors     Int?      @map("rows_with_errors")
+  notes                String?
+
+  @@map("sync_state")
+}
+
+// ═══════════════════════════════════════════════════════════
+// SYNC ERROR — Structured per-record sync failures
+// Replaces unstructured console.error + bulk audit entries.
+// ═══════════════════════════════════════════════════════════
+model SyncError {
+  id          BigInt    @id @default(autoincrement())
+  resource    String // "Property" | "Media" | "Member" | "Office"
+  listing_key String?   @map("listing_key") // Trestle ListingKey if applicable
+  listing_id  String?   @map("listing_id") // Trestle ListingId if applicable
+  error_code  String?   @map("error_code") // short code e.g. "validation", "gate", "upsert"
+  error_msg   String    @map("error_msg") @db.VarChar(2000)
+  attempt_num Int       @default(1) @map("attempt_num")
+  raw_payload Json?     @map("raw_payload") // snippet of the offending record for debug
+  occurred_at DateTime  @default(now()) @map("occurred_at")
+  resolved_at DateTime? @map("resolved_at")
+
+  @@index([resource, occurred_at])
+  @@index([listing_key])
+  @@index([error_code])
+  @@map("sync_errors")
+}
+
+// ═══════════════════════════════════════════════════════════
+// LISTINGS ARCHIVE — Minimal past-sales / historical data
+// Populated by Phase 4 lifecycle cron for terminal listings >180d.
+// Kept for 6 years per NY DOS recordkeeping requirements.
+// ═══════════════════════════════════════════════════════════
+model ListingsArchive {
+  id                   BigInt    @id @default(autoincrement())
+  listing_key          String    @unique @map("listing_key") // Trestle ListingKey
+  listing_id           String?   @map("listing_id") // legacy listing_id for cross-reference
+  mls_id               String?   @map("mls_id")
+  status               String // terminal only: Closed | Sold | Leased | Rented
+  listing_type         String    @map("listing_type")
+  property_type        String?   @map("property_type")
+  property_sub_type    String?   @map("property_sub_type")
+  close_price          Decimal?  @map("close_price") @db.Decimal(14, 2)
+  close_date           DateTime? @map("close_date")
+  list_price           Decimal?  @map("list_price") @db.Decimal(14, 2)
+  original_list_price  Decimal?  @map("original_list_price") @db.Decimal(14, 2)
+  bedrooms_total       Int?      @map("bedrooms_total")
+  bathrooms_full       Int?      @map("bathrooms_full")
+  bathrooms_half       Int?      @map("bathrooms_half")
+  living_area          Decimal?  @map("living_area") @db.Decimal(10, 2)
+  borough              String?
+  neighborhood         String?
+  city                 String?
+  postal_code          String?   @map("postal_code")
+  address_line         String?   @map("address_line") // denormalized for past-sales display
+  list_agent_full_name String?   @map("list_agent_full_name")
+  list_office_name     String?   @map("list_office_name")
+  days_on_market       Int?      @map("days_on_market")
+  original_created_at  DateTime? @map("original_created_at") // when listing was first created
+  archived_at          DateTime  @default(now()) @map("archived_at")
+
+  @@index([close_date])
+  @@index([neighborhood, close_date])
+  @@index([borough, close_date])
+  @@index([list_agent_full_name])
+  @@map("listings_archive")
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -902,6 +983,20 @@ model GeocodeCache {
 }
 
 // ═══════════════════════════════════════════════════════════
+// COMPANY SETTING — Singleton key/value store for footer, hero, legal links, etc.
+// Replaces filesystem persistence (data/company-settings.json) which breaks on Vercel serverless.
+// Single row with key="company" holds the full settings JSON.
+// ═══════════════════════════════════════════════════════════
+model CompanySetting {
+  key        String   @id // "company" (singleton), extensible for per-brand settings later
+  value      Json // { companyName, license, phone, address, heroImage, heroTagline, legalLinks[], quickLinks[], resourceLinks[] }
+  updated_at DateTime @updatedAt @map("updated_at")
+  updated_by BigInt?  @map("updated_by") // Agent.id of broker who last updated
+
+  @@map("company_settings")
+}
+
+// ═══════════════════════════════════════════════════════════
 // SELLER LEAD — Predictive seller readiness scoring
 // Tracks addresses with public-data signals to estimate sell likelihood.
 // Uses ONLY non-MLS public data (ACRIS, DOB, first-party behavior).
@@ -1149,7 +1244,6 @@ model ExperimentArm {
   @@map("experiment_arms")
 }
 
-
 // ═══════════════════════════════════════════════════════════
 // G. DEMAND HEATMAP — Hyperlocal demand signals
 // ═══════════════════════════════════════════════════════════
@@ -1170,7 +1264,6 @@ model DemandSignal {
 
   @@index([neighborhood, signal_type])
   @@index([signal_type])
-  @@index([collected_at])
   @@map("demand_signals")
 }
 
@@ -1854,31 +1947,31 @@ model ActivityLog {
 // CAMPAIGN — Marketing campaigns (sales + rentals CRM)
 // ═══════════════════════════════════════════════════════════
 model Campaign {
-  id              BigInt              @id @default(autoincrement())
-  agent_id        BigInt              @map("agent_id")
-  agent           Agent               @relation(fields: [agent_id], references: [id])
-  crm_type        String              @map("crm_type") // "sales" | "rentals"
+  id              BigInt    @id @default(autoincrement())
+  agent_id        BigInt    @map("agent_id")
+  agent           Agent     @relation(fields: [agent_id], references: [id])
+  crm_type        String    @map("crm_type") // "sales" | "rentals"
   name            String
-  audience_type   String              @map("audience_type") // "buyers" | "sellers" | "investors" | "landlords" | "tenants" | "prospects"
-  campaign_type   String              @map("campaign_type") // "listing_alert" | "market_update" | "showing_summary" | "valuation" | "reactivation" | "renewal"
-  status          String              @default("draft") // "draft" | "scheduled" | "sent" | "recurring"
+  audience_type   String    @map("audience_type") // "buyers" | "sellers" | "investors" | "landlords" | "tenants" | "prospects"
+  campaign_type   String    @map("campaign_type") // "listing_alert" | "market_update" | "showing_summary" | "valuation" | "reactivation" | "renewal"
+  status          String    @default("draft") // "draft" | "scheduled" | "sent" | "recurring"
   frequency       String? // "daily" | "weekly" | "monthly" | "quarterly" | "biannual" | "one_time"
-  recipient_count Int                 @default(0) @map("recipient_count")
-  sent_count      Int                 @default(0) @map("sent_count")
-  open_count      Int                 @default(0) @map("open_count")
-  click_count     Int                 @default(0) @map("click_count")
-  response_count  Int                 @default(0) @map("response_count")
-  last_run_at     DateTime?           @map("last_run_at")
-  next_run_at     DateTime?           @map("next_run_at")
-  template_id     String?             @map("template_id")
+  recipient_count Int       @default(0) @map("recipient_count")
+  sent_count      Int       @default(0) @map("sent_count")
+  open_count      Int       @default(0) @map("open_count")
+  click_count     Int       @default(0) @map("click_count")
+  response_count  Int       @default(0) @map("response_count")
+  last_run_at     DateTime? @map("last_run_at")
+  next_run_at     DateTime? @map("next_run_at")
+  template_id     String?   @map("template_id")
   filters         Json? // audience filter criteria
-  created_at      DateTime            @default(now()) @map("created_at")
-  updated_at      DateTime            @updatedAt @map("updated_at")
+  created_at      DateTime  @default(now()) @map("created_at")
+  updated_at      DateTime  @updatedAt @map("updated_at")
+
   @@index([agent_id])
   @@index([crm_type, status])
   @@map("campaigns")
 }
-
 
 // ═══════════════════════════════════════════════════════════
 // SHOWING HISTORY — Per-lead showing records for viewed/did-not-rent
@@ -1935,91 +2028,92 @@ model PortalEvent {
 // BUILDING — Permanent building database (populated from Trestle)
 // ═══════════════════════════════════════════════════════════
 model Building {
-  id              BigInt   @id @default(autoincrement())
-  building_key    Int      @unique @map("building_key")
-  name            String?  @map("name")
-  street_number   String?  @map("street_number")
-  street_name     String?  @map("street_name")
-  street_dir      String?  @map("street_dir")
-  street_suffix   String?  @map("street_suffix")
-  neighborhood    String?  @map("neighborhood")
-  borough         String?  @map("borough")
-  zip             String?  @map("zip")
-  city            String?  @map("city")
-  latitude        Decimal? @map("latitude") @db.Decimal(10, 7)
-  longitude       Decimal? @map("longitude") @db.Decimal(10, 7)
-  ownership_type  String?  @map("ownership_type")
-  structure_type  String?  @map("structure_type")
-  new_construction    Boolean? @map("new_construction")
-  building_condition  String?  @map("building_condition")
-  development_status  String?  @map("development_status")
-  construction_materials String? @map("construction_materials")
-  year_built      Int?     @map("year_built")
-  stories_total   Int?     @map("stories_total")
-  total_units     Int?     @map("total_units")
-  units_leased    Int?     @map("units_leased")
-  units_vacant    Int?     @map("units_vacant")
-  units_mo_to_mo  Int?     @map("units_mo_to_mo")
-  building_features   String[] @default([]) @map("building_features")
-  attendance_type     String[] @default([]) @map("attendance_type")
-  security_features   String[] @default([]) @map("security_features")
-  community_features      String[] @default([]) @map("community_features")
-  association_amenities   String[] @default([]) @map("association_amenities")
-  accessibility_features  String[] @default([]) @map("accessibility_features")
-  exterior_features       String[] @default([]) @map("exterior_features")
-  patio_porch_features    String[] @default([]) @map("patio_porch_features")
-  pool_features           String[] @default([]) @map("pool_features")
-  spa_features            String[] @default([]) @map("spa_features")
-  laundry_features        String[] @default([]) @map("laundry_features")
-  parking_features        String[] @default([]) @map("parking_features")
-  heating                 String[] @default([]) @map("heating")
-  cooling                 String[] @default([]) @map("cooling")
-  flooring                String[] @default([]) @map("flooring")
-  interior_features       String[] @default([]) @map("interior_features")
-  appliances              String[] @default([]) @map("appliances")
-  door_features           String[] @default([]) @map("door_features")
-  window_features         String[] @default([]) @map("window_features")
-  roof                    String[] @default([]) @map("roof")
-  electric                String[] @default([]) @map("electric")
-  water_source            String[] @default([]) @map("water_source")
-  sewer                   String[] @default([]) @map("sewer")
-  utilities               String[] @default([]) @map("utilities")
-  pets_allowed            String[] @default([]) @map("pets_allowed")
-  view                    String[] @default([]) @map("view")
-  waterfront_features     String[] @default([]) @map("waterfront_features")
-  green_features          String[] @default([]) @map("green_features")
-  garage_spaces   Int?     @map("garage_spaces")
-  parking_total   Int?     @map("parking_total")
-  carport_spaces  Int?     @map("carport_spaces")
-  open_parking    Int?     @map("open_parking")
-  garage_yn       Boolean? @map("garage_yn")
-  maintenance_fee Decimal? @map("maintenance_fee") @db.Decimal(10, 2)
-  maintenance_fee_frequency String? @map("maintenance_fee_frequency")
-  maintenance_includes  String[] @default([]) @map("maintenance_includes")
-  tax_annual      Decimal? @map("tax_annual") @db.Decimal(12, 2)
-  mgmt_expense    Decimal? @map("mgmt_expense") @db.Decimal(10, 2)
-  board_name      String?  @map("board_name")
-  board_phone     String?  @map("board_phone")
-  board_name_2    String?  @map("board_name_2")
-  board_phone_2   String?  @map("board_phone_2")
-  walk_score      Int?     @map("walk_score")
-  management_company  String?  @map("management_company")
-  management_phone    String?  @map("management_phone")
-  management_email    String?  @map("management_email")
-  super_name          String?  @map("super_name")
-  super_phone         String?  @map("super_phone")
-  super_live_in       Boolean? @map("super_live_in")
-  porter_name         String?  @map("porter_name")
-  porter_phone        String?  @map("porter_phone")
-  board_approval_required Boolean? @map("board_approval_required")
-  board_notes         String?  @db.Text @map("board_notes")
-  agent_notes         String?  @db.Text @map("agent_notes")
-  custom_tags         String[] @default([]) @map("custom_tags")
-  first_seen_at       DateTime @default(now()) @map("first_seen_at")
-  last_synced_at      DateTime @default(now()) @map("last_synced_at")
-  active_listing_count Int    @default(0) @map("active_listing_count")
-  total_listing_count  Int    @default(0) @map("total_listing_count")
-  units BuildingUnit[]
+  id                        BigInt         @id @default(autoincrement())
+  building_key              Int            @unique @map("building_key")
+  name                      String?        @map("name")
+  street_number             String?        @map("street_number")
+  street_name               String?        @map("street_name")
+  street_dir                String?        @map("street_dir")
+  street_suffix             String?        @map("street_suffix")
+  neighborhood              String?        @map("neighborhood")
+  borough                   String?        @map("borough")
+  zip                       String?        @map("zip")
+  city                      String?        @map("city")
+  latitude                  Decimal?       @map("latitude") @db.Decimal(10, 7)
+  longitude                 Decimal?       @map("longitude") @db.Decimal(10, 7)
+  ownership_type            String?        @map("ownership_type")
+  structure_type            String?        @map("structure_type")
+  new_construction          Boolean?       @map("new_construction")
+  building_condition        String?        @map("building_condition")
+  development_status        String?        @map("development_status")
+  construction_materials    String?        @map("construction_materials")
+  year_built                Int?           @map("year_built")
+  stories_total             Int?           @map("stories_total")
+  total_units               Int?           @map("total_units")
+  units_leased              Int?           @map("units_leased")
+  units_vacant              Int?           @map("units_vacant")
+  units_mo_to_mo            Int?           @map("units_mo_to_mo")
+  building_features         String[]       @default([]) @map("building_features")
+  attendance_type           String[]       @default([]) @map("attendance_type")
+  security_features         String[]       @default([]) @map("security_features")
+  community_features        String[]       @default([]) @map("community_features")
+  association_amenities     String[]       @default([]) @map("association_amenities")
+  accessibility_features    String[]       @default([]) @map("accessibility_features")
+  exterior_features         String[]       @default([]) @map("exterior_features")
+  patio_porch_features      String[]       @default([]) @map("patio_porch_features")
+  pool_features             String[]       @default([]) @map("pool_features")
+  spa_features              String[]       @default([]) @map("spa_features")
+  laundry_features          String[]       @default([]) @map("laundry_features")
+  parking_features          String[]       @default([]) @map("parking_features")
+  heating                   String[]       @default([]) @map("heating")
+  cooling                   String[]       @default([]) @map("cooling")
+  flooring                  String[]       @default([]) @map("flooring")
+  interior_features         String[]       @default([]) @map("interior_features")
+  appliances                String[]       @default([]) @map("appliances")
+  door_features             String[]       @default([]) @map("door_features")
+  window_features           String[]       @default([]) @map("window_features")
+  roof                      String[]       @default([]) @map("roof")
+  electric                  String[]       @default([]) @map("electric")
+  water_source              String[]       @default([]) @map("water_source")
+  sewer                     String[]       @default([]) @map("sewer")
+  utilities                 String[]       @default([]) @map("utilities")
+  pets_allowed              String[]       @default([]) @map("pets_allowed")
+  view                      String[]       @default([]) @map("view")
+  waterfront_features       String[]       @default([]) @map("waterfront_features")
+  green_features            String[]       @default([]) @map("green_features")
+  garage_spaces             Int?           @map("garage_spaces")
+  parking_total             Int?           @map("parking_total")
+  carport_spaces            Int?           @map("carport_spaces")
+  open_parking              Int?           @map("open_parking")
+  garage_yn                 Boolean?       @map("garage_yn")
+  maintenance_fee           Decimal?       @map("maintenance_fee") @db.Decimal(10, 2)
+  maintenance_fee_frequency String?        @map("maintenance_fee_frequency")
+  maintenance_includes      String[]       @default([]) @map("maintenance_includes")
+  tax_annual                Decimal?       @map("tax_annual") @db.Decimal(12, 2)
+  mgmt_expense              Decimal?       @map("mgmt_expense") @db.Decimal(10, 2)
+  board_name                String?        @map("board_name")
+  board_phone               String?        @map("board_phone")
+  board_name_2              String?        @map("board_name_2")
+  board_phone_2             String?        @map("board_phone_2")
+  walk_score                Int?           @map("walk_score")
+  management_company        String?        @map("management_company")
+  management_phone          String?        @map("management_phone")
+  management_email          String?        @map("management_email")
+  super_name                String?        @map("super_name")
+  super_phone               String?        @map("super_phone")
+  super_live_in             Boolean?       @map("super_live_in")
+  porter_name               String?        @map("porter_name")
+  porter_phone              String?        @map("porter_phone")
+  board_approval_required   Boolean?       @map("board_approval_required")
+  board_notes               String?        @map("board_notes") @db.Text
+  agent_notes               String?        @map("agent_notes") @db.Text
+  custom_tags               String[]       @default([]) @map("custom_tags")
+  first_seen_at             DateTime       @default(now()) @map("first_seen_at")
+  last_synced_at            DateTime       @default(now()) @map("last_synced_at")
+  active_listing_count      Int            @default(0) @map("active_listing_count")
+  total_listing_count       Int            @default(0) @map("total_listing_count")
+  units                     BuildingUnit[]
+
   @@index([borough])
   @@index([neighborhood])
   @@index([zip])
@@ -2029,22 +2123,23 @@ model Building {
 }
 
 model BuildingUnit {
-  id             BigInt   @id @default(autoincrement())
-  building_id    BigInt   @map("building_id")
-  unit_number    String   @map("unit_number")
-  listing_id     String?  @map("listing_id")
+  id             BigInt    @id @default(autoincrement())
+  building_id    BigInt    @map("building_id")
+  unit_number    String    @map("unit_number")
+  listing_id     String?   @map("listing_id")
   bedrooms       Int?
-  bathrooms_full Int?     @map("bathrooms_full")
-  bathrooms_half Int?     @map("bathrooms_half")
-  living_area    Int?     @map("living_area")
-  floor_number   Int?     @map("floor_number")
-  floor_plan_url String?  @map("floor_plan_url")
+  bathrooms_full Int?      @map("bathrooms_full")
+  bathrooms_half Int?      @map("bathrooms_half")
+  living_area    Int?      @map("living_area")
+  floor_number   Int?      @map("floor_number")
+  floor_plan_url String?   @map("floor_plan_url")
   status         String?
-  list_price     Decimal? @map("list_price") @db.Decimal(14, 2)
-  close_price    Decimal? @map("close_price") @db.Decimal(14, 2)
+  list_price     Decimal?  @map("list_price") @db.Decimal(14, 2)
+  close_price    Decimal?  @map("close_price") @db.Decimal(14, 2)
   close_date     DateTime? @map("close_date")
-  last_synced_at DateTime @default(now()) @map("last_synced_at")
-  building Building @relation(fields: [building_id], references: [id], onDelete: Cascade)
+  last_synced_at DateTime  @default(now()) @map("last_synced_at")
+  building       Building  @relation(fields: [building_id], references: [id], onDelete: Cascade)
+
   @@unique([building_id, unit_number])
   @@index([building_id])
   @@index([listing_id])

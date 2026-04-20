@@ -26,6 +26,7 @@
  */
 
 import { REBNY_FIELD_TABLES } from './rebny-field-tables';
+import prohibitedTermsJson from '../../data/compliance/prohibited-terms.json';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -81,19 +82,23 @@ const DEFAULTABLE_FIELDS = new Set<string>([
 
 // ─── Content Scanning Patterns (from authority table) ─────────────────────
 
-const FAIR_HOUSING_HARD_BLOCKS: Array<{ pattern: RegExp; law: string }> = [
-  // Federal FHA (7 protected classes: race, color, religion, sex, national origin, disability, familial status)
+// Fair Housing scanner — hard-coded "obvious" patterns kept as a safety net,
+// MERGED with data/compliance/prohibited-terms.json (~80 terms in 8 categories).
+// The JSON file is the canonical source maintained by compliance. Loading it at
+// module init means a rules update requires no code change.
+const HARDCODED_FH_PATTERNS: Array<{ pattern: RegExp; law: string }> = [
+  // Federal FHA (7 protected classes)
   { pattern: /\b(whites?\s+only|no\s+(blacks?|hispanics?|asians?|mexicans?|africans?))\b/i, law: "Federal FHA (Race)" },
   { pattern: /\b(christian\s+(home|family|neighborhood)|no\s+(muslims?|jews?|hindus?|buddhists?))\b/i, law: "Federal FHA (Religion)" },
   { pattern: /\bno\s+(children|kids|families\s+with\s+children)\b/i, law: "Federal FHA (Familial Status)" },
   { pattern: /\b(no\s+(wheelchairs?|disabled|handicapped)|able[- ]bodied\s+only)\b/i, law: "Federal FHA (Disability)" },
   { pattern: /\b(males?\s+only|females?\s+only|no\s+(men|women)|men\s+only|women\s+only)\b/i, law: "Federal FHA (Sex)" },
-  // NY State Human Rights Law (adds: age, marital status, sexual orientation, military status)
+  // NY State HRL
   { pattern: /\b(no\s+(seniors?|elderly|retirees?|young\s+people)|seniors?\s+only|under\s+\d+\s+only|over\s+\d+\s+only)\b/i, law: "NY HRL (Age)" },
   { pattern: /\b(no\s+(married|single|divorced)|married\s+(couples?\s+)?only|singles?\s+only)\b/i, law: "NY HRL (Marital Status)" },
   { pattern: /\b(no\s+(gay|lesbian|homosexual|lgbtq?)|straight\s+(couples?\s+)?only|heterosexual\s+only)\b/i, law: "NY HRL (Sexual Orientation)" },
   { pattern: /\b(no\s+(veterans?|military|service\s*members?)|civilians?\s+only)\b/i, law: "NY HRL (Military/Veteran Status)" },
-  // NYC HRL Title 8 (adds: source of income, immigration/citizenship, criminal history, gender identity, lawful occupation, partnership status, caregiver status)
+  // NYC HRL Title 8
   { pattern: /\b(no\s+(section\s*8|vouchers?|housing\s+choice))\b/i, law: "NYC HRL Title 8 (Source of Income)" },
   { pattern: /\b(citizens?\s+only|no\s+immigrants?|legal\s+residents?\s+only)\b/i, law: "NYC HRL Title 8 (Citizenship/Immigration)" },
   { pattern: /\b(no\s+criminal|background\s+check\s+required|felons?\s+need\s+not)\b/i, law: "NYC Fair Chance Housing Act" },
@@ -101,6 +106,39 @@ const FAIR_HOUSING_HARD_BLOCKS: Array<{ pattern: RegExp; law: string }> = [
   { pattern: /\b(no\s+(students?|freelancers?|self[- ]employed|gig\s+workers?))\b/i, law: "NYC HRL Title 8 (Lawful Occupation)" },
   { pattern: /\b(no\s+(domestic\s+partners?|unmarried\s+couples?))\b/i, law: "NYC HRL Title 8 (Partnership Status)" },
   { pattern: /\b(no\s+(caregivers?|parents?\s+with))\b/i, law: "NYC HRL Title 8 (Caregiver Status)" },
+];
+
+// Compile terms from the JSON authority into regex form. We escape regex
+// metacharacters but wrap with word boundaries where the term is alphanumeric,
+// so "family-friendly" matches inside a sentence but not inside "joined-family-friendly-neighborhood".
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+type ProhibitedCategory = { severity: string; reason: string; terms: string[] };
+type ProhibitedTermsFile = { categories: Record<string, ProhibitedCategory> };
+
+const jsonCategories = (prohibitedTermsJson as unknown as ProhibitedTermsFile).categories ?? {};
+const JSON_FH_PATTERNS: Array<{ pattern: RegExp; law: string }> = [];
+for (const [categoryName, cat] of Object.entries(jsonCategories)) {
+  // Only "critical" and "high" severities become HARD BLOCKS. Anything at
+  // "warning" severity would go to the warnings array; the JSON file has none
+  // of those today, so we treat every term as a blocker.
+  for (const term of cat.terms) {
+    const escaped = escapeRegExp(term);
+    // \b at both ends when term starts/ends with a letter/digit; otherwise use (?:^|\W) sentinels.
+    const startBoundary = /^\w/.test(term) ? '\\b' : '';
+    const endBoundary = /\w$/.test(term) ? '\\b' : '';
+    JSON_FH_PATTERNS.push({
+      pattern: new RegExp(`${startBoundary}${escaped}${endBoundary}`, 'i'),
+      law: `${cat.reason} [${categoryName}]`,
+    });
+  }
+}
+
+const FAIR_HOUSING_HARD_BLOCKS: Array<{ pattern: RegExp; law: string }> = [
+  ...HARDCODED_FH_PATTERNS,
+  ...JSON_FH_PATTERNS,
 ];
 
 const AGENT_INFO_PATTERNS = [

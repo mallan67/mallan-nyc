@@ -794,20 +794,17 @@ export async function GET(req: NextRequest) {
       expandMedia: useInlineMedia,
     });
 
-    // Apply distribution gates — CRM context: agents see Participant Only + IDX opted-out
-    // But still filter: Owner Opt-Out (Gate 1), Closed >24h (Gate 5), IDX participation off (Gate 6)
+    // Distribution gates — ALL 6 apply.
+    // PREVIOUSLY this route re-added Participant-Only + InternetEntireListingDisplayYN=false
+    // records under the claim "CRM agent context — agents can see these in RLS." That
+    // claim is invalid for mallan.nyc: we hold IDX Plus only (no RLS/LMP license).
+    // Trestle's IDX Plus feed already pre-filters Participant-Only records, so the
+    // bypass would only fire if Trestle leaked one — which is exactly the case
+    // where we must NOT show it. All 6 gates are now enforced uniformly.
     const displayable: Record<string, unknown>[] = [];
     for (const record of result.records) {
       const gate = checkDistributionGates(record);
       if (gate.displayable) {
-        displayable.push(record);
-      }
-      // For CRM agent context, also include Participant Only and IDX opted-out listings
-      // (Gates 2 & 3 are for public IDX only, agents can see these in RLS)
-      else if (
-        gate.reason === "Participant-only listing" ||
-        gate.reason === "Internet display disabled"
-      ) {
         displayable.push(record);
       }
     }

@@ -32,15 +32,17 @@ export async function GET(req: NextRequest) {
 
   const isSellerRole = lead?.portal_role === "seller" || lead?.portal_role === "landlord";
 
-  // Sellers: find all showings on listings owned by their agent
-  // Buyers: find showings where they are the lead (original behavior)
+  // Sellers/landlords: showings on THEIR OWN listings (owner_client_id = lead.id).
+  // Scoping by agent_id (previous behavior) leaked showings across clients sharing an
+  // agent — REBNY Art. III §2 confidentiality breach. Fail-closed on no owner link.
+  // Buyers/renters: showings where they are the lead.
   let showingWhere;
-  if (isSellerRole && lead?.agent_id) {
-    const agentListings = await prisma.listing.findMany({
-      where: { agent_id: lead.agent_id },
+  if (isSellerRole) {
+    const ownedListings = await prisma.listing.findMany({
+      where: { owner_client_id: auth.userId },
       select: { id: true },
     });
-    const listingIds = agentListings.map((l) => l.id);
+    const listingIds = ownedListings.map((l) => l.id);
     showingWhere = {
       listing_id: { in: listingIds },
       OR: [

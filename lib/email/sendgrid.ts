@@ -83,12 +83,28 @@ export async function sendEmail(
     from?: { email: string; name: string };
     channel?: SendChannel;
     replyTo?: string;
+    /** Set true to bypass CAN-SPAM opt-out suppression (transactional only: password reset, portal invite, MFA). Never true for marketing/CRM/listing-share sends. */
+    transactional?: boolean;
   }
-): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean; _suppressed?: boolean }> {
   if (!isConfigured) {
     console.error(`[Email:DEV] SMTP not configured — email DROPPED. To: ${to} | Subject: ${subject}`);
     await logEmailAudit("send_dev", to, subject, user);
     return { success: false, error: "SMTP not configured", _devMode: true };
+  }
+
+  // CAN-SPAM suppression: if recipient's Lead has email_opt_out=true, block all non-transactional sends.
+  // The 10-day rule (15 USC 7704(a)(4)(A)) requires honoring opt-outs within 10 business days;
+  // enforce here so no code path can accidentally email an opted-out recipient.
+  if (!opts?.transactional) {
+    const lead = await prisma.lead.findUnique({
+      where: { email: to.toLowerCase().trim() },
+      select: { email_opt_out: true },
+    }).catch(() => null);
+    if (lead?.email_opt_out) {
+      await logEmailAudit("send_suppressed", to, subject, user, { reason: "email_opt_out" });
+      return { success: false, error: "Recipient has opted out (CAN-SPAM)", _suppressed: true };
+    }
   }
 
   // Resolve sender identity based on channel
@@ -111,11 +127,26 @@ export async function sendEmail(
   }
 
   try {
+    // RFC 8058 / CAN-SPAM: one-click unsubscribe.
+    // Gmail/Yahoo 2024 sender guidelines require both List-Unsubscribe URL and mailto,
+    // plus List-Unsubscribe-Post for one-click. Skip for transactional sends.
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
+    const unsubscribeUrl = `${baseUrl}/unsubscribe?email=${encodeURIComponent(to)}`;
+    const unsubscribeMailto = `mailto:unsubscribe@mallan.nyc?subject=unsubscribe`;
+
     const mailOptions: nodemailer.SendMailOptions = {
       from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       html,
+      ...(opts?.transactional
+        ? {}
+        : {
+            headers: {
+              "List-Unsubscribe": `<${unsubscribeUrl}>, <${unsubscribeMailto}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+          }),
     };
 
     // Reply-to: so client replies reach the agent, not the system mailbox

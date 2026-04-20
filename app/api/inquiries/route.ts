@@ -125,12 +125,15 @@ export async function POST(request: NextRequest) {
     // Send auto-response to the client (non-fatal)
     try {
       const autoResponseHtml = inquiryAutoResponseEmail(firstName, listingAddress || undefined);
+      // Transactional: direct response to a user's explicit inquiry submission
       await sendEmail(
         email.toLowerCase().trim(),
         listingAddress
           ? `We Received Your Inquiry About ${listingAddress}`
           : 'Thank You for Your Inquiry — Mallan Real Estate',
-        autoResponseHtml
+        autoResponseHtml,
+        undefined,
+        { transactional: true }
       );
     } catch (autoErr) {
       console.error('[/api/inquiries] Auto-response error (non-fatal):', autoErr);

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import AgencyDisclosure from '@/app/components/AgencyDisclosure';
 
 const roles = [
   { id: 'buyer', label: 'Buyer', description: 'I want to buy a property', color: 'blue' },
@@ -27,6 +28,7 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [tcpaConsent, setTcpaConsent] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -60,6 +62,13 @@ export default function SignUpPage() {
       setError('Password must be at least 8 characters');
       return;
     }
+    // TCPA: phone-based contact requires affirmative consent. CTIA mobile-carrier rules
+    // and 47 CFR 64.1200(f)(8) treat any auto-dialed/pre-recorded call or SMS as
+    // requiring prior express written consent for marketing. Block submission until checked.
+    if (!tcpaConsent) {
+      setError('Please confirm you agree to be contacted by phone and email.');
+      return;
+    }
     setError('');
     setStep('role');
   }
@@ -87,6 +96,8 @@ export default function SignUpPage() {
           password,
           roles: selectedRoles,
           authMethod,
+          tcpaConsent,
+          tcpaConsentTimestamp: new Date().toISOString(),
           website: (document.getElementById('website') as HTMLInputElement)?.value || '',
         }),
       });
@@ -269,61 +280,111 @@ export default function SignUpPage() {
 
                 <form className="space-y-3" onSubmit={goToRoleStep}>
                   <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label htmlFor="signup-first-name" className="sr-only">First name</label>
+                      <input
+                        id="signup-first-name"
+                        name="firstName"
+                        type="text"
+                        required
+                        autoFocus
+                        autoComplete="given-name"
+                        value={firstName}
+                        onChange={e => setFirstName(e.target.value)}
+                        className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
+                        placeholder="First name"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="signup-last-name" className="sr-only">Last name</label>
+                      <input
+                        id="signup-last-name"
+                        name="lastName"
+                        type="text"
+                        required
+                        autoComplete="family-name"
+                        value={lastName}
+                        onChange={e => setLastName(e.target.value)}
+                        className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
+                        placeholder="Last name"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="signup-email" className="sr-only">Email address</label>
                     <input
-                      type="text"
+                      id="signup-email"
+                      name="email"
+                      type="email"
                       required
-                      autoFocus
-                      value={firstName}
-                      onChange={e => setFirstName(e.target.value)}
+                      autoComplete="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
                       className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
-                      placeholder="First name"
-                    />
-                    <input
-                      type="text"
-                      required
-                      value={lastName}
-                      onChange={e => setLastName(e.target.value)}
-                      className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
-                      placeholder="Last name"
+                      placeholder="Email address"
                     />
                   </div>
 
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
-                    placeholder="Email address"
-                  />
-
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
-                    placeholder="Phone number"
-                  />
+                  <div>
+                    <label htmlFor="signup-phone" className="sr-only">Phone number</label>
+                    <input
+                      id="signup-phone"
+                      name="phone"
+                      type="tel"
+                      required
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
+                      placeholder="Phone number"
+                    />
+                  </div>
 
                   {authMethod === 'email' && (
                     <div>
+                      <label htmlFor="signup-password" className="sr-only">Create a password</label>
                       <input
+                        id="signup-password"
+                        name="password"
                         type="password"
                         required
                         minLength={8}
+                        autoComplete="new-password"
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         className="w-full rounded-xl px-3.5 py-2.5 bg-white/60 ring-1 ring-black/8 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 text-sm"
                         placeholder="Create a password"
+                        aria-describedby="signup-password-help"
                       />
-                      <p className={`text-[11px] mt-1 ${password && password.length < 8 ? 'text-red-500' : 'text-brand-dark/70'}`}>
+                      <p id="signup-password-help" className={`text-[11px] mt-1 ${password && password.length < 8 ? 'text-red-500' : 'text-brand-dark/70'}`}>
                         {password && password.length < 8
                           ? `${8 - password.length} more character${8 - password.length === 1 ? '' : 's'} needed`
                           : 'Minimum 8 characters'}
                       </p>
                     </div>
                   )}
+
+                  {/* TCPA "prior express written consent" (47 CFR 64.1200(f)(8)) */}
+                  <label htmlFor="signup-tcpa-consent" className="flex items-start gap-2 cursor-pointer pt-1">
+                    <input
+                      id="signup-tcpa-consent"
+                      name="tcpaConsent"
+                      type="checkbox"
+                      required
+                      checked={tcpaConsent}
+                      onChange={e => setTcpaConsent(e.target.checked)}
+                      className="mt-0.5 accent-brand-gold-deep"
+                    />
+                    <span className="text-[11px] text-brand-dark/70 leading-snug">
+                      I agree to be contacted by Mallan Real Estate Inc. by phone
+                      (including calls and SMS, which may be auto-dialed) and email at
+                      the contact info above, about properties and services. Consent is
+                      not a condition of purchase. Message &amp; data rates may apply.
+                      Reply STOP to opt out of SMS. I can unsubscribe from email at any
+                      time via the link in every message.
+                    </span>
+                  </label>
 
                   {/* Honeypot */}
                   <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
@@ -336,6 +397,9 @@ export default function SignUpPage() {
                       {error}
                     </div>
                   )}
+
+                  {/* NY RPL §443 Agency Disclosure — first substantive contact */}
+                  <AgencyDisclosure />
 
                   <button
                     type="submit"

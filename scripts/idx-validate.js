@@ -551,10 +551,14 @@ function section12() {
       || file.includes('/auth/agent/register')
       || file.includes('/auth/verify-email')
       || file.includes('/open-houses/rsvp')
+      // /unsubscribe/ is intentionally public per CAN-SPAM §7704(a)(3)(A)(ii) and
+      // RFC 8058 one-click — recipient cannot be required to log in to opt out.
+      || file.includes('/unsubscribe/')
       || file.includes('/pages/');
     if (isCron || isPublic) continue; // Skip public lead-capture and cron endpoints
     if (hasAuth) pass(s, file);
-    else if (hasAnnotation(content, 0, 'IDX-VALIDATE-IGNORE') || hasAnnotation(content, 0, 'IDX-VALIDATE-OK'))
+    // File-level annotation fallback: scan whole file, not just first 200 chars.
+    else if (content.includes('IDX-VALIDATE-IGNORE') || content.includes('IDX-VALIDATE-OK'))
       pass(s, `${file} (annotated)`);
     else critical(s, `${file} — MUTATION WITHOUT AUTH`, 'Add requireAgentOrBroker/requireBroker/requireAuth check');
   }

@@ -36,14 +36,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (!lead.agent_id) {
-    return NextResponse.json({ offers: [] });
-  }
-
-  // Find listings managed by this client's agent (exclude all restricted listings)
-  const agentListings = await prisma.listing.findMany({
+  // Scope to THIS client's own listings only.
+  // Listing.owner_client_id is the seller/landlord FK. Scoping by agent_id (previous
+  // behavior) leaked offers across clients who share the same agent — REBNY confidentiality
+  // breach (Art. III §2). Fail-closed: if no owner_client link, return empty.
+  const ownedListings = await prisma.listing.findMany({
     where: {
-      agent_id: lead.agent_id,
+      owner_client_id: auth.userId,
       owner_opt_out: false,
       participant_only: false,
       internet_entire_listing_display_yn: true,
@@ -57,11 +56,11 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  if (agentListings.length === 0) {
+  if (ownedListings.length === 0) {
     return NextResponse.json({ offers: [] });
   }
 
-  const listingIds = agentListings.map((l) => l.id);
+  const listingIds = ownedListings.map((l) => l.id);
 
   // Find "offer" actions on those listings
   const offerActions = await prisma.clientListingAction.findMany({
@@ -84,7 +83,7 @@ export async function GET(req: NextRequest) {
   });
 
   const listingMap = new Map(
-    agentListings.map((l) => [l.id.toString(), l])
+    ownedListings.map((l) => [l.id.toString(), l])
   );
 
   const offers = offerActions.map((a) => {

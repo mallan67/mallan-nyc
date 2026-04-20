@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { trackMicroCommitment } from '@/lib/posthog';
+import AgencyDisclosure from './AgencyDisclosure';
 
 interface OpenHouseRSVPProps {
   openHouseId: string;
@@ -273,8 +274,10 @@ export default function OpenHouseRSVP({
                         className="mt-0.5"
                       />
                       <span className="text-xs text-brand-dark/70 leading-relaxed">
-                        By registering, I consent to be contacted by Mallan Real Estate regarding this open house.
-                        I agree to the{' '}
+                        By registering, I consent to be contacted by Mallan Real Estate Inc.
+                        regarding this open house, by phone (including calls and SMS, which
+                        may be auto-dialed) and email. Consent is not a condition of purchase.
+                        Message &amp; data rates may apply. Reply STOP to opt out of SMS. I agree to the{' '}
                         <a href="/terms" className="text-brand-gold hover:underline" target="_blank" rel="noopener noreferrer">
                           Terms of Service
                         </a>{' '}
@@ -286,6 +289,9 @@ export default function OpenHouseRSVP({
                       </span>
                     </label>
                   </div>
+
+                  {/* NY RPL §443 Agency Disclosure — required at first substantive contact */}
+                  <AgencyDisclosure />
 
                   {error && (
                     <p className="text-red-600 text-sm">{error}</p>

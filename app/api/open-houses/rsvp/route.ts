@@ -140,10 +140,13 @@ export async function POST(request: NextRequest) {
         openHouseTime,
         validPartySize
       );
+      // Transactional: direct RSVP confirmation to a user who just registered
       await sendEmail(
         email.toLowerCase().trim(),
         `You're Registered: Open House at ${listingAddress}`,
-        autoResponseHtml
+        autoResponseHtml,
+        undefined,
+        { transactional: true }
       );
     } catch (autoErr) {
       console.error('[/api/open-houses/rsvp] Auto-response error (non-fatal):', autoErr);

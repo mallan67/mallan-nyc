@@ -66,11 +66,24 @@ export default function Footer() {
   }, []);
 
   const currentYear = new Date().getFullYear();
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+
+  // UCBA Art. VIII §4: footer "Updated" timestamp must reflect the real IDX refresh
+  // time, not the user's render clock. Pull from /api/idx/watermark (cached 3 min).
+  const [idxWatermark, setIdxWatermark] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/idx/watermark', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.displayAt) return;
+        const d = new Date(data.displayAt);
+        if (!isNaN(d.getTime())) {
+          setIdxWatermark(d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+        }
+      })
+      .catch(() => { /* non-fatal; footer line simply omits the date */ });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <footer role="contentinfo" aria-label="Site footer" className="px-6 md:px-12 lg:px-20 pt-6 md:pt-8 pb-3 md:pb-4 border-t border-brand-gold-deep/10">
@@ -159,10 +172,38 @@ export default function Footer() {
             <Link href="/fair-housing" className="text-[11px] text-brand-gold-deep hover:underline font-light">
               Fair Housing Policy
             </Link>
+            <span className="text-brand-dark/20">|</span>
+            {/* External authoritative fair-housing references — defense-in-depth for NY DOS §175.28 + NYC §8-107 */}
+            <a
+              href="https://www.hud.gov/program_offices/fair_housing_equal_opp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-brand-gold-deep hover:underline font-light"
+            >
+              HUD Fair Housing
+            </a>
+            <span className="text-brand-dark/20">|</span>
+            <a
+              href="https://dhr.ny.gov/housing-discrimination"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-brand-gold-deep hover:underline font-light"
+            >
+              NY State Division of Human Rights
+            </a>
+            <span className="text-brand-dark/20">|</span>
+            <a
+              href="https://www.nyc.gov/site/cchr/law/fair-housing.page"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-brand-gold-deep hover:underline font-light"
+            >
+              NYC Human Rights
+            </a>
           </div>
 
           <p className="text-[10px] text-brand-dark/60 font-light max-w-4xl mx-auto leading-relaxed text-center">
-            <strong className="font-medium">REBNY RLS:</strong> Listings may be provided by REBNY RLS. Data deemed reliable but not guaranteed. Updated: {currentDate}.
+            <strong className="font-medium">REBNY RLS:</strong> Listings may be provided by REBNY RLS. Data deemed reliable but not guaranteed.{idxWatermark ? ` Updated: ${idxWatermark}.` : ' Updated continuously.'}
             {' '}<strong className="font-medium">IDX:</strong> For consumers&apos; personal, non-commercial use only.
             {' '}<strong className="font-medium">Fair Housing:</strong> All listings comply with federal, NY State, and NYC fair housing laws.
           </p>

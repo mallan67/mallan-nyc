@@ -13,7 +13,7 @@ export default function UnsubscribePage() {
 
     setStatus('loading');
     try {
-      const res = await fetch('/api/search-alerts/unsubscribe', {
+      const res = await fetch('/api/unsubscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -36,10 +36,12 @@ export default function UnsubscribePage() {
     <main className="min-h-screen bg-white pt-24 pb-16">
         <div className="max-w-md mx-auto px-4">
           <h1 className="text-2xl font-display font-semibold text-brand-dark mb-2">
-            Unsubscribe from Listing Alerts
+            Unsubscribe from Mallan Real Estate
           </h1>
           <p className="text-sm text-brand-dark/60 mb-8">
-            Enter your email to unsubscribe from all saved search alerts.
+            Enter your email to unsubscribe from all marketing emails, listing alerts,
+            and CRM communications. Transactional emails (password reset, portal invites)
+            are not affected.
           </p>
 
           {status === 'success' ? (

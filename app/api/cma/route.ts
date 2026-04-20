@@ -124,10 +124,13 @@ export async function POST(request: NextRequest) {
     // Send auto-response to the requester (non-fatal)
     try {
       const autoResponseHtml = cmaAutoResponseEmail(firstName, address);
+      // Transactional: direct response to a user's explicit CMA request
       await sendEmail(
         email.toLowerCase().trim(),
         `Your Property Valuation Request — ${address}`,
-        autoResponseHtml
+        autoResponseHtml,
+        undefined,
+        { transactional: true }
       );
     } catch (autoErr) {
       console.error('[/api/cma] Auto-response error (non-fatal):', autoErr);

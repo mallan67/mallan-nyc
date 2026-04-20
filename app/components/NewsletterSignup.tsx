@@ -70,14 +70,17 @@ export default function NewsletterSignup() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="max-w-lg mx-auto">
+            <label htmlFor="newsletter-email" className="sr-only">Email address</label>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <input
+                id="newsletter-email"
+                name="email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
-                aria-label="Email address"
+                autoComplete="email"
                 className="flex-1 px-5 py-3.5 rounded-full border border-brand-gold-deep/15 bg-white text-sm text-brand-dark placeholder:text-brand-dark/35 focus:outline-none focus:ring-2 focus:ring-brand-gold-deep/30 focus:border-brand-gold-deep transition-all"
               />
               <button

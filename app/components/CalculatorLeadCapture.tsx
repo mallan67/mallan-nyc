@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AgencyDisclosure from './AgencyDisclosure';
+import AntiDiscriminationNotice from './AntiDiscriminationNotice';
 
 export type CalculatorType = 'affordability' | 'rent-vs-buy' | 'closing-cost' | 'mortgage' | 'investor';
 
@@ -147,16 +148,24 @@ export default function CalculatorLeadCapture({
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <label htmlFor="calc-lead-name" className="sr-only">Name (optional)</label>
         <input
+          id="calc-lead-name"
+          name="name"
           type="text"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Name (optional)"
           className="w-full rounded-xl px-3 py-2 text-sm bg-white/80 ring-1 ring-black/[0.06] focus:outline-none focus:ring-2 focus:ring-brand-gold/30 placeholder:text-brand-dark/40"
         />
         <div className="flex gap-2">
+          <label htmlFor="calc-lead-email" className="sr-only">Email address</label>
           <input
+            id="calc-lead-email"
+            name="email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
@@ -186,6 +195,7 @@ export default function CalculatorLeadCapture({
           </span>
         </label>
         <AgencyDisclosure />
+        <AntiDiscriminationNotice />
       </form>
     </div>
   );

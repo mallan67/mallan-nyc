@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
       lead.email,
       "You're Invited to Your Client Portal — Mallan Real Estate",
       emailHtml,
-      auth
+      auth,
+      { transactional: true }
     );
 
     // Security: never return raw token or hash in JSON response

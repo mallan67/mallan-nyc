@@ -876,6 +876,19 @@ function SearchClient() {
         </div>
       )}
 
+      {/* FARE Act notice — NYC LL 119/2024 requires broker-fee disclosure wherever
+          rental fees are advertised, not only on detail pages. */}
+      {isRental && (
+        <div className="flex-shrink-0 bg-amber-50/60 border-b border-amber-200/50 px-4 md:px-6 py-1.5">
+          <p className="max-w-[1920px] mx-auto text-[11px] text-amber-900/90 leading-tight">
+            <strong>FARE Act (NYC LL 119/2024):</strong> Under New York City law, broker fees
+            may only be charged to the party who hires the broker. Per-listing fee
+            responsibility (tenant pays / no-fee / landlord pays) is displayed on each
+            listing card and detail page.
+          </p>
+        </div>
+      )}
+
       {/* ── Main Area ── */}
       <div className={`flex-1 min-h-0 ${isFullViewport ? 'overflow-hidden isolate' : 'overflow-y-auto'}`}>
         {/* Error */}

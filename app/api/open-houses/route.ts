@@ -76,7 +76,10 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
-    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListAgentOfficePhone,ListOfficeName,PublicRemarks,PhotosCount,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,Permission,ParticipantOnlyYN)');
+    // Do NOT select agent direct-contact fields. This is a public endpoint; agent
+    // phone/email must never be serialized to the public response. `ListAgentFullName`
+    // and `ListOfficeName` are displayable per REBNY attribution rules.
+    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,PhotosCount,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,Permission,ParticipantOnlyYN)');
 
     const res = await fetch(`${base}/odata/OpenHouse?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -118,7 +121,11 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         sqft: (prop.LivingArea as number) || 0,
         type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
         openHouseType: (r.OpenHouseType as string) || 'Public',
-        agentName: (prop.ListOfficeName as string) || 'Mallan Real Estate Inc.',
+        // Attribution fallback — NEVER default to our brokerage for listings
+        // we don't own. Per REBNY UCBA Art. III §2(C), "Listing Courtesy of
+        // [Exclusive Broker]" must identify the actual listing broker. If we
+        // don't have the office name, show a neutral placeholder.
+        agentName: (prop.ListOfficeName as string) || 'Listing broker (REBNY RLS)',
         agentPhone: '',
         description: (prop.PublicRemarks as string) || '',
         image: '', // Will be filled by media proxy if needed
@@ -162,7 +169,7 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
       const filterParts = listingKeys.map(k => `ListingKey eq '${k}'`);
       const propParams = new URLSearchParams();
       propParams.set('$filter', `(${filterParts.join(' or ')})`);
-      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListAgentDirectPhone,ListOfficeName,PublicRemarks,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN');
+      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN');
       propParams.set('$top', String(listingKeys.length));
 
       const propRes = await fetch(`${base}/odata/Property?${propParams}`, {
@@ -204,7 +211,11 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
         sqft: (prop.LivingArea as number) || 0,
         type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
         openHouseType: (r.OpenHouseType as string) || 'Public',
-        agentName: (prop.ListOfficeName as string) || 'Mallan Real Estate Inc.',
+        // Attribution fallback — NEVER default to our brokerage for listings
+        // we don't own. Per REBNY UCBA Art. III §2(C), "Listing Courtesy of
+        // [Exclusive Broker]" must identify the actual listing broker. If we
+        // don't have the office name, show a neutral placeholder.
+        agentName: (prop.ListOfficeName as string) || 'Listing broker (REBNY RLS)',
         agentPhone: '',
         description: (prop.PublicRemarks as string) || '',
         image: '',
@@ -288,8 +299,13 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         sqft: l.living_area ? Number(l.living_area) : 0,
         type: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || 'Residential'),
         openHouseType: 'Public',
-        agentName: s.agent?.full_name || '',
-        agentPhone: s.agent?.phone || '',
+        // REBNY IDX/VOW Compliance Checklist (Dec 2021): agent direct contact
+        // info (full name, phone, email) must NOT leak on public endpoints.
+        // Show office attribution only.
+        agentName: (s.listing as { agent_info?: Record<string, string> } | null)?.agent_info?.ListOfficeName
+          || (s.listing as { agent_info?: Record<string, string> } | null)?.agent_info?.company
+          || 'Mallan Real Estate Inc.',
+        agentPhone: '',
         description: '',
         image: firstPhoto,
         featured: false,
