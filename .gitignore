@@ -78,6 +78,10 @@ env.txt
 
 # Next.js build output
 .next
+
+# NEON guard sentinel — written by `npm run ops:health`, consumed by
+# scripts/neon-precommit-guard.js. Per-developer, must not be committed.
+.ops-health-last
 out
 
 # Nuxt.js build / generate output

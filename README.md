@@ -16,6 +16,25 @@ This repository is the **single source of truth** for the Mallan NYC brokerage p
 
 ---
 
+## 🗄️ DB / Neon / Prisma Work — READ `NEON.md` FIRST
+
+**Before any commit that touches `prisma/schema.prisma`, `prisma/migrations/`, `vercel.json`, `lib/prisma*`, or `lib/idx/sync.ts`:**
+
+Read [`NEON.md`](./NEON.md) at the repo root. It documents:
+
+- Tier caps (Free: 500 MB storage, 191.9 compute-hours/month)
+- The required migration pattern (nullable only, one-per-PR, dual-write)
+- Why the `buildCommand` does NOT run `prisma migrate deploy`
+- The pre-flight checklist (run `npm run ops:health`, apply migration manually, validate)
+
+A `pre-commit` + `commit-msg` git hook blocks commits touching these files unless:
+1. The commit message contains `[neon-preflight: OK]`
+2. `npm run ops:health` was run within the last 60 minutes
+
+Install the hooks once: `npm run hooks:install`
+
+---
+
 ## 🚨 Compliance & Legal Requirements (READ FIRST)
 
 > **This repository handles licensed MLS / IDX data.**  

@@ -1,4 +1,16 @@
 // prisma/schema.prisma
+//
+// ⚠  READ `NEON.md` AT THE REPO ROOT BEFORE EDITING THIS FILE.
+// It documents tier caps, the required migration pattern (nullable columns
+// only, one-per-PR, dual-write), and why Vercel's buildCommand does NOT run
+// migrations. Skipping that file is how the 2026-04-19 silent-drift happened.
+//
+// Pre-flight before any schema edit:
+//   1. npm run ops:health                        (compute + storage headroom)
+//   2. DATABASE_URL=prod npx prisma migrate deploy   (apply manually FIRST)
+//   3. npm run type-check && npm run compliance-check
+//   4. Commit with `[neon-preflight: OK]` in the message (enforced by hook).
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")

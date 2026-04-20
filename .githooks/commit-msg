@@ -1,0 +1,11 @@
+#!/bin/sh
+# .githooks/commit-msg — second-pass NEON guard.
+#
+# pre-commit runs before the editor opens, so it can't always see the final
+# message. commit-msg runs AFTER the message is written — this is where we
+# actually enforce the acknowledgment token for Neon-sensitive commits.
+#
+# $1 is the path to the COMMIT_EDITMSG file.
+
+export GIT_COMMIT_MSG_FILE="$1"
+node scripts/neon-precommit-guard.js

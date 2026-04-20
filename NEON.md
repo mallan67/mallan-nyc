@@ -146,7 +146,20 @@ CREATE TABLE "company_settings" (...);
 
 ## 5. Pre-flight checklist — BEFORE pushing a schema-dependent PR
 
+> This checklist is **enforced by a git pre-commit + commit-msg hook**
+> (`.githooks/pre-commit` + `.githooks/commit-msg`, installed via
+> `npm run hooks:install`). Commits touching `prisma/schema.prisma`,
+> `prisma/migrations/`, `vercel.json`, `lib/prisma*`, or `lib/idx/sync.ts`
+> are **blocked** unless:
+> 1. The commit message contains the acknowledgment token `[neon-preflight: OK]`
+> 2. `npm run ops:health` was run within the last 60 minutes (`.ops-health-last` sentinel)
+>
+> Emergency bypass: `NEON_GUARD_BYPASS=1 git commit …` (document why in message).
+
 ```bash
+# 0. Install the guard hooks once per clone
+npm run hooks:install
+
 # 1. Confirm Neon has headroom
 npm run ops:health
 # Read "pct_of_free" for storage (<80%) and compute hours used (<160)

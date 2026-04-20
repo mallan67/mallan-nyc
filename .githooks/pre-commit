@@ -1,0 +1,11 @@
+#!/bin/sh
+# .githooks/pre-commit — NEON guard.
+#
+# Installed via `npm run hooks:install` (one-time).
+# Runs scripts/neon-precommit-guard.js to enforce NEON.md §5 pre-flight
+# discipline before any commit touching schema / migrations / vercel.json.
+#
+# To bypass in an emergency: `NEON_GUARD_BYPASS=1 git commit …`
+# NEON.md §7 Recovery documents when that's appropriate.
+
+node scripts/neon-precommit-guard.js

@@ -1,5 +1,134 @@
 # Frontend Flow Verifier - Auditor Log
 
+> 🛑 **BEFORE acting on any entry in this log that touches Prisma, `schema.prisma`,
+> a migration, `vercel.json`, `lib/prisma*`, or `lib/idx/sync.ts`:**
+>
+> **READ `NEON.md` AT THE REPO ROOT FIRST.** It documents the tier caps, the
+> required pre-flight, and the specific traps that caused the 2026-04-19
+> silent-drift incident. Skipping it is how that incident happened.
+
+
+## ROUND 4 — WAVE 1 COMPLIANCE RELEASE — 2026-04-19
+**Verdict:** PASS — 13 items shipped; gates clean (type-check 0 errors, ci-compliance-check 58/58 PASS, UCBA 42/46 PASS 0 regressions, RLS validator 0 errors).
+
+**Context:** After 4 specialist agents produced ~92 findings, live-Trestle verification (`scripts/trestle-live-metadata.xml` snapshot + 20-listing sample) corrected several over-claims. This round executed the verified-safe subset.
+
+**13 items shipped (file-batched):**
+
+**Security (Security-agent CRITICALs 1–3, HIGH 1–2):**
+- `vercel.json` — reverted the CSP + HSTS + X-XSS-Protection additions from Round 3 (caused split-brain with `lib/middleware/security-headers.ts`). Single source of truth restored. Kept baseline edge defaults (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy) for static asset routes not covered by the proxy matcher.
+- `app/api/auth/reset-password/route.ts` — (a) broker role now routed through MFA (email OTP) before `createSession()`, mirroring `login/route.ts:64-93`. (b) Pre-session invalidation: `session.deleteMany` + `mfaSession.deleteMany` on the user's existing sessions.
+- `app/api/auth/change-password/route.ts` — `session.deleteMany` on user's sessions before successful response; user must re-login.
+- `lib/middleware/rate-limiter.ts` — added `signUpRl` (10/hr) + `marketRl` (30/min) Upstash-backed limiters + `checkRouteRateLimit()` helper.
+- `app/api/sign-up/route.ts` — replaced in-module Map with `checkRouteRateLimit(ip, 'signup', ...)`.
+- `app/api/market/route.ts` — same migration + borough allowlist (5 NYC values) + `sanitizeOData()` on neighborhood param (Security HIGH-1 OData injection).
+
+**Trestle field compliance (empirically verified against live `$metadata`):**
+- 6 sites: replaced `MlsStatus eq 'X'` with `StandardStatus eq 'X'` in `$filter` — REBNY blocks MlsStatus at the provider level (HTTP 400).
+  - `app/api/listings/similar/route.ts:183, 212`
+  - `app/api/listings/building/route.ts:186, 196`
+  - `app/api/market/route.ts:158, 177`
+- `app/api/market/route.ts:156` + `app/api/listings/building/route.ts:189, 199` — removed dead fields from `$select` (`IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `OwnerOptOut` — verified don't exist on Property). Added `Permission` + `InternetEntireListingDisplayYN` + `InternetAddressDisplayYN` (verified exist).
+- `lib/idx/trestle-mapper.ts:620-640` + `:741-793` — rewrote distribution-gate logic. Deleted 3 dead-field branches. Gate 2 (Participant Only) now checks `Permission === 'Private'` per `compliance/IDX-VOW-DISPLAY-RULES.md:41`. Inline documentation cites the authoritative source.
+- `app/api/open-houses/route.ts:121, 207` — attribution fallback no longer defaults to "Mallan Real Estate Inc." for Trestle listings (misattributed third-party listings as ours under UCBA Art. III §2(C)). Now uses neutral "Listing broker (REBNY RLS)".
+- `app/api/open-houses/route.ts:291-292` — local DB path no longer exposes `s.agent.full_name` + `s.agent.phone` in the public response (REBNY IDX/VOW checklist Dec 2021 prohibits direct agent contact info). Shows office attribution only.
+
+**Fair Housing (Agent CRITICALs 1, 2, 3, 6, HIGH 8):**
+- Neighborhood JSON text purge across 4 files:
+  - "good schools" / "strong schools" / "top-rated schools" → "local public schools" (Fair Housing Act §3604(c) familial status)
+  - "most prestigious residential enclave" / "most prestigious residential neighborhoods" → "established..." (NY Exec. Law age steering)
+  - "diverse, creative community" → "arts and cultural community" (HUD coded-language steering)
+  - "performing arts professionals and young urbanites" → "Manhattan's theater and cultural districts" (NYC §8-107(2) income-source)
+  - "young creatives, students, and professionals" → "the arts, academia, and cultural life" (age)
+- `app/sell/townhouses/upper-west-side/page.tsx:142` — removed "excellent schools" + "Still within prime school districts" + "young families" appeal.
+
+**Anti-discrimination notice (Agent CRITICAL 5 — NY DOS §175.28):**
+- New: `app/components/AntiDiscriminationNotice.tsx` — shared component with link to DOS-1736 form.
+- Added `<AntiDiscriminationNotice />` to 5 substantive lead-capture forms: `InquiryForm.tsx`, `InquiryModal.tsx`, `HomeValueWidget.tsx`, `CalculatorLeadCapture.tsx`, `app/contact/page.tsx`.
+
+**Exclusives branding (Agent HIGH 7 — UCBA Art. I §5(D) pocket-listing risk):**
+- `FeaturedListings.tsx:207-211` — badge text "Exclusive" → "Featured".
+- `ExclusivesVault.tsx:47-53` — added explicit REBNY RLS syndication disclosure: "All Mallan Real Estate listings are submitted to REBNY RLS and syndicated to participating platforms per UCBA 2026."
+
+**Attribution font + REBNY-RLS-false-fallback (Agent REBNY H1 + Search M5/M6):**
+- 6 components: `SearchListingCard.tsx` (3 sites), `FeaturedListings.tsx`, `OpenHousesList.tsx`, `SimilarListings.tsx`, `LiveListingsWidget.tsx`, `BuildingUnits.tsx`, `app/building/page.tsx` (2 sites) — `text-[11px] text-brand-dark/45 font-light` → `text-xs text-brand-dark/70`. WCAG 2.1 AA + UCBA Art. III §2(C) median-prominence satisfied.
+- All 6 sites' `|| 'REBNY RLS'` attribution fallback → `|| 'listing broker'` (REBNY is not a broker — the old fallback was false attribution per audit findings).
+
+**Validator updates (`scripts/ci-compliance-check.js`):**
+- Check §11 rewritten — CSP/HSTS now checked in `lib/middleware/security-headers.ts` (not vercel.json). Added regression guard for vercel.json duplication.
+- Check §17 — no MlsStatus in Trestle `$filter` strings.
+- Check §18 — checkDistributionGates uses live Trestle field names + Gate 2 via `Permission === 'Private'`.
+- Check §19 — Anti-discrimination notice on 5 lead-capture forms.
+- Check §20 — Open-houses attribution + PII guards.
+- Check §21 — Fair Housing scan on neighborhood JSON data files.
+- Total: 58 checks passing, 0 failing.
+
+**Final gate results:**
+- `npm run type-check` → 0 errors
+- `node scripts/ci-compliance-check.js` → **58/58 PASS, 0 FAIL**
+- `npm run ucba:audit` → 42/46 PASS, 0 regressions (1 pre-existing known: C15 auction listings low-severity)
+- `npm run rls:validate` → 0 errors, 1 pre-existing warning
+
+**Errors acknowledged in this session (6):**
+1. CSP split-brain — added CSP/HSTS to vercel.json in Round 3 without reading existing `security-headers.ts`. Reverted in this round.
+2. M-4 initial dismissal — didn't read `lib/lifecycle/engine.ts` before classifying; corrected same-session.
+3. "232 field drift" — miscounted IDX Plus subset (527) vs full metadata (745); actual drift is ~3 new CustomProperty fields.
+4. Gate-bug severity CRITICAL claim — asserted from static analysis without live-data check.
+5. Gate-bug downgrade to LOW — amplified empirical observation (Trestle pre-filters) without reading `compliance/IDX-VOW-DISPLAY-RULES.md` which requires independent enforcement. User pushed back and told me to read the RLS files.
+6. REBNY/Trestle agent C3 JSON-LD "leak" — amplified without verifying; actually wrong (code at lines 367, 387-397 does check `internet_address_display_yn`).
+
+**Pattern:** All errors had same root cause — asserting from static/single-source analysis without cross-checking against (a) repo's own authoritative docs and (b) live runtime behavior. Corrected process now: before claiming any REBNY/Trestle finding, read both `compliance/IDX-VOW-DISPLAY-RULES.md` AND run a live Trestle query.
+
+**Dependencies for next audit prep cycle:** none — all 13 items verified end-to-end against live system + repo RLS docs before implementation. No Cotality-side blockers remaining.
+
+---
+
+## ROUND 3 — SCANNER FALSE POSITIVES + REAL GAPS — 2026-04-19
+**Verdict:** PASS (4 real fixes, 4 scanner-logic updates, 3 HTML-injection fixes found during validator expansion)
+**Trigger:** External scanner reported "1/9 passing" against 2026-04-14 findings. Re-verified each.
+**Auditor:** Claude Opus 4.7 — source-verified each finding against current codebase
+
+**REAL FIXES (4):**
+- [M-5] REBNY §2.05: `app/api/cron/search-alerts/route.ts` filtered `idx_display_yn` + `owner_opt_out` but NOT `internet_address_display_yn`. Could email precise street address of listings with address suppression (address display ≠ entire display cascade under REBNY gate 4). Fixed — now selects `internet_address_display_yn` and suppresses address → "[Neighborhood], New York (Address Available on Request)" when false.
+- [H-1] IDXDisclaimer: changed from unconditionally using `new Date()` to respecting the `lastUpdated` prop when provided. Eliminates SSR hydration mismatch + makes timestamp honest if sync fails. Fallback to today preserved for backward compat (12-min sync cadence makes today's date a safe upper bound). Same fix applied to `IDXSearchDisclaimer` helper.
+- [H-5] NY SHIELD Act §899-aa: added `Content-Security-Policy` and `Strict-Transport-Security` headers to `vercel.json`. CSP: `default-src 'self'` with explicit allowlists for PostHog (us.i.posthog.com), GTM, Vercel scripts, Google Fonts; `frame-ancestors 'none'`; `object-src 'none'`; `upgrade-insecure-requests`. HSTS: 2-year max-age + includeSubDomains + preload.
+- [H-3] Fair Housing: added external authoritative links in `Footer.tsx` — HUD Fair Housing, NY State Division of Human Rights, NYC Commission on Human Rights. Defense-in-depth for NY DOS §175.28 + NYC §8-107 (not legally required but prevents scanner false positive and improves transparency).
+
+**HTML-INJECTION FIXES found during validator expansion (3):**
+- `app/api/auth/verify-email/route.ts`: `${name}` from `lead.first_name` interpolated into email HTML without escaping → now wrapped in `escapeHtml()`.
+- `app/api/sign-up/route.ts`: `${firstName.trim()}` from POST body interpolated into email HTML without escaping → now wrapped in `escapeHtml()`.
+- `app/api/cron/prospect-triggers/route.ts`: partial inline `.replace(/</g,'&lt;')` covered `<>` but missed `&`, `"`, `'` → replaced with canonical `escapeHtml(body)`.
+
+**SCANNER-LOGIC UPDATES (3 false positives corrected in `scripts/ci-compliance-check.js`):**
+- [C-2] "Agency disclosure missing in InquiryForm.tsx" — FALSE POSITIVE. `InquiryForm.tsx:5` imports `AgencyDisclosure`, `:219` renders `<AgencyDisclosure />`, which contains the DOS-1736-f text. Scanner was looking for literal string in the form file. Added validator check §9 that accepts either literal text OR a rendered `AgencyDisclosure` import.
+- [H-2] "IDX sync */12 violates some 15-min rule" — FALSE POSITIVE. */12 satisfies REBNY UCBA Art. I §6 (24-hour freshness). No "15-minute rule" exists in REBNY. Added validator check §12 that flags only cadences exceeding 24h.
+- [H-6] "genericCrmEmail missing unsubscribe" — FALSE POSITIVE. Function calls `wrapEmail()` which inlines shared `FOOTER` containing `/unsubscribe` link (templates.ts:13-33). Every email produced by any template inherits the footer. Added validator check §13 that inspects the shared FOOTER constant.
+
+**M-4 RE-INVESTIGATED ON 2026-04-19 — SCANNER WAS RIGHT, MY EARLIER DISMISSAL WAS WRONG:**
+- Initial Round 3 assessment said M-4 was a name-mismatch false positive ("equivalent covered by prospect-triggers"). That was incorrect — `prospect-triggers` only handles cadence outreach + stale follow-ups + building activity, NOT the lifecycle trigger engine.
+- **Actual state found on 2026-04-19:** `lib/lifecycle/engine.ts` (533 lines) fully built with 8 trigger types (conviction_threshold, ghost_detected, momentum_drop, inquiry_stale, lease_expiring_{180d,90d,30d}, quarterly_nurture). `LifecycleTrigger` + `TriggerExecution` DB tables exist. `DEFAULT_TRIGGERS` array defines 9 pre-configured triggers. BUT: grep shows **zero callers** of `evaluateAllTriggers()`. `lifecycle_triggers` table has 0 rows. `trigger_executions` table has 0 rows. The entire engine was unreachable — dead code.
+- **Business impact of the gap:** high-conviction buyers never flagged to agents → lost deals; ghost buyers never re-engaged → lead leakage; 48h inquiry-follow-up SLA never flagged; listings with momentum drops missed price-adjustment signals; tenant-to-buyer conversion windows (180d/90d/30d) missed; quarterly nurture never fired.
+- **Fix applied (2026-04-19):**
+  - Created `app/api/cron/lifecycle-triggers/route.ts` — calls `evaluateAllTriggers()`, auto-seeds `DEFAULT_TRIGGERS` on first run if table is empty (idempotent), logs `cron_lifecycle_triggers` audit events.
+  - Added to `vercel.json` crons at `0 17 * * *` (17:00 UTC = 1 PM ET) — runs AFTER lead-scoring (13:00), conviction-scores (14:00), and listing-momentum (15:00) so the engine operates on fresh scoring data.
+  - Added validator checks §16 for route presence + `evaluateAllTriggers()` invocation + vercel.json wiring.
+- **Compliance posture preserved:** engine already has TCPA gating (quarterly_nurture requires `consent_captured_at: { not: null }`) and Fair Housing safety (engine.ts header: "no demographic-based triggers"). Activation does not introduce new compliance surface area.
+
+**NEW VALIDATOR CHECKS ADDED (`scripts/ci-compliance-check.js`, checks §9-§15):**
+- §9 Agency disclosure on all 5 substantive lead-capture forms (regex OR component-import)
+- §10 REBNY §2.05 address-display gate in search-alerts cron
+- §11 CSP + HSTS headers in vercel.json
+- §12 idx-sync cadence satisfies 24h REBNY freshness rule
+- §13 CAN-SPAM unsubscribe in shared email FOOTER constant
+- §14 REBNY DOM tracker present
+- §15 Data-retention cron actively purges audit events + flips idx_display_yn on terminals
+
+**Current state:** `node scripts/ci-compliance-check.js` → 44/44 PASS, 0 FAIL. `npm run ucba:audit` → 42/46 PASS (1 known FAIL: C15 auction listing, pre-existing low-severity). `npm run rls:validate` → 0 errors, 1 pre-existing warning. `npm run type-check` → 0 errors.
+
+**Net outcome:** All 8 "OPEN" items from the external 1/9 scan report either FIXED (7) or CLARIFIED (1 false expectation). Validator now produces accurate results without the previous false positives.
+
+---
+
 ## COMPLIANCE FINDINGS AUDIT — 2026-04-14
 **Verdict:** PASS (5 fixed, 4 inaccurate, 13 accepted/informational)
 **Scope:** 22 findings across CAN-SPAM, NYS RPL, REBNY IDX, NY SHIELD, UCBA, DOS advertising, Fair Housing
@@ -366,7 +495,7 @@
 **Docs Updated:**
 - CLAUDE.md: verified counts (6 crons, 61 models, 235 routes) + CI validation section
 - tests/00-README.md: rewritten for current 11 files
-- compliance/FULL-AUDIT-2026-03-13.md: 5 FAILs marked FIXED
+- compliance/archive/FULL-AUDIT-2026-03-13.md: 5 FAILs marked FIXED
 - 22 stale memory files removed
 
 ## AUTH SECURITY AUDIT — 2026-03-25 (OPEN)
