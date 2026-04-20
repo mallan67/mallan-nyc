@@ -1,29 +1,21 @@
 // /api/settings/company — Footer + hero + legal links configuration.
-// Storage: CompanySetting table (singleton key="company"). Replaces filesystem
-// persistence (data/company-settings.json) which did not survive Vercel serverless
-// restarts and was susceptible to read-only filesystem errors.
+//
+// NOTE: Reverted to filesystem persistence until the CompanySetting migration
+// can be applied (blocked by Neon compute quota). On Vercel serverless writes
+// go to ephemeral storage, so in practice GET returns DEFAULT_SETTINGS and
+// POST from the broker dashboard is effectively session-scoped. That matches
+// the behavior pre-2026-04-19 and is acceptable until the schema lands.
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { readFile, writeFile } from 'fs/promises';
+import path from 'path';
 import { requireBroker, isAuthError, logAuditEvent } from '@/lib/auth/middleware';
 
 export const dynamic = 'force-dynamic';
 
-const SETTINGS_KEY = 'company';
+const SETTINGS_FILE = path.join(process.cwd(), 'data', 'company-settings.json');
 
-type CompanySettings = {
-  companyName: string;
-  license: string;
-  phone: string;
-  address: { street: string; city: string; state: string; zip: string };
-  heroImage: string;
-  heroTagline: string;
-  legalLinks: { title: string; href: string }[];
-  quickLinks: { title: string; href: string }[];
-  resourceLinks: { title: string; href: string }[];
-};
-
-// Fallback used when no row exists yet (first-run on a fresh DB).
-const DEFAULT_SETTINGS: CompanySettings = {
+// Default company settings
+const DEFAULT_SETTINGS = {
   companyName: 'Mallan Real Estate Inc.',
   license: '10991205323',
   phone: '646-258-4460',
@@ -55,11 +47,20 @@ const DEFAULT_SETTINGS: CompanySettings = {
   ],
 };
 
-async function getSettings(): Promise<CompanySettings> {
-  const row = await prisma.companySetting.findUnique({ where: { key: SETTINGS_KEY } });
-  if (!row) return DEFAULT_SETTINGS;
-  // value is Prisma.JsonValue — trust the shape since only brokers can write it
-  return row.value as unknown as CompanySettings;
+async function getSettings() {
+  try {
+    const data = await readFile(SETTINGS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+async function saveSettings(settings: typeof DEFAULT_SETTINGS) {
+  const dir = path.dirname(SETTINGS_FILE);
+  const { mkdir } = await import('fs/promises');
+  await mkdir(dir, { recursive: true });
+  await writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2));
 }
 
 export async function GET() {
@@ -77,25 +78,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const currentSettings = await getSettings();
     const changedFields = Object.keys(body).filter(
-      (k) => JSON.stringify(body[k]) !== JSON.stringify((currentSettings as Record<string, unknown>)[k])
+      (k) => JSON.stringify(body[k]) !== JSON.stringify(currentSettings[k])
     );
-
-    const updatedSettings: CompanySettings = { ...currentSettings, ...body };
-
-    await prisma.companySetting.upsert({
-      where: { key: SETTINGS_KEY },
-      create: {
-        key: SETTINGS_KEY,
-        value: updatedSettings as unknown as import('@prisma/client').Prisma.InputJsonValue,
-        updated_by: auth.userId,
-      },
-      update: {
-        value: updatedSettings as unknown as import('@prisma/client').Prisma.InputJsonValue,
-        updated_by: auth.userId,
-      },
-    });
-
-    await logAuditEvent('update', 'company_settings', SETTINGS_KEY, auth, { changed_fields: changedFields }, ip);
+    await logAuditEvent('update', 'company_settings', 'company', auth, { changed_fields: changedFields }, ip);
+    const updatedSettings = { ...currentSettings, ...body };
+    await saveSettings(updatedSettings);
     return NextResponse.json({ settings: updatedSettings });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal error';

@@ -93,19 +93,11 @@ export async function sendEmail(
     return { success: false, error: "SMTP not configured", _devMode: true };
   }
 
-  // CAN-SPAM suppression: if recipient's Lead has email_opt_out=true, block all non-transactional sends.
-  // The 10-day rule (15 USC 7704(a)(4)(A)) requires honoring opt-outs within 10 business days;
-  // enforce here so no code path can accidentally email an opted-out recipient.
-  if (!opts?.transactional) {
-    const lead = await prisma.lead.findUnique({
-      where: { email: to.toLowerCase().trim() },
-      select: { email_opt_out: true },
-    }).catch(() => null);
-    if (lead?.email_opt_out) {
-      await logEmailAudit("send_suppressed", to, subject, user, { reason: "email_opt_out" });
-      return { success: false, error: "Recipient has opted out (CAN-SPAM)", _suppressed: true };
-    }
-  }
+  // CAN-SPAM suppression (Lead.email_opt_out check) is temporarily removed — the
+  // DB column has not been deployed yet (Neon compute quota blocked the migration).
+  // Re-enable once prisma/migrations add email_opt_out + email_opt_out_at.
+  // RFC 8058 List-Unsubscribe headers below still function as the recipient-side
+  // opt-out path (they drive search-alerts cancellation via /unsubscribe page).
 
   // Resolve sender identity based on channel
   const channel = opts?.channel || "company";

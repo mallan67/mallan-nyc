@@ -16,13 +16,16 @@ export const dynamic = "force-dynamic";
 async function unsubscribe(email: string, source: "form" | "one-click" | "mailto") {
   const sanitized = email.toLowerCase().trim();
 
-  // Suppress marketing/CRM email to this recipient forever (until explicit re-opt-in).
+  // NOTE: Lead.email_opt_out / email_opt_out_at writes are disabled until the
+  // corresponding migration lands (blocked by Neon compute quota). For now the
+  // only durable effect is disabling the recipient's saved-search alerts + an
+  // AuditEvent row — same behavior as the prior /api/search-alerts/unsubscribe.
+  // Restore the Lead update + opt-out timestamp once the schema is deployed.
   await prisma.lead.updateMany({
     where: { email: sanitized },
-    data: { email_opt_out: true, email_opt_out_at: new Date(), last_unsubscribe_at: new Date() },
+    data: { last_unsubscribe_at: new Date() },
   });
 
-  // Also disable saved-search alerts (kept for backwards compat with existing /unsubscribe page).
   await prisma.savedSearch.updateMany({
     where: { alert_email: sanitized },
     data: { alert_enabled: false },

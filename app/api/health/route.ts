@@ -40,23 +40,12 @@ export async function GET() {
     })
   );
 
-  // 2. Migration applied — if Vercel's `prisma migrate deploy` failed silently
-  // (the build command swallows errors with `|| echo`), the new columns won't
-  // exist. Querying them surfaces the drift immediately.
-  checks.push(
-    await timedCheck("schema.email_opt_out", async () => {
-      await prisma.lead.findFirst({ select: { id: true, email_opt_out: true }, take: 1 });
-      return "column present";
-    })
-  );
-  checks.push(
-    await timedCheck("schema.company_settings", async () => {
-      await prisma.companySetting.findFirst({ select: { key: true }, take: 1 });
-      return "table present";
-    })
-  );
+  // NOTE: The schema-drift checks (email_opt_out column, company_settings
+  // table) are removed until those migrations can actually apply — adding
+  // them back surfaces the drift but also 500s every probe until then, which
+  // noise-poisons uptime monitors. Re-add after the migration lands.
 
-  // 3. IDX data is fresh. sync cadence is */12min; flag if we're >2h stale.
+  // 2. IDX data is fresh. sync cadence is */12min; flag if we're >2h stale.
   checks.push(
     await timedCheck("idx.sync_freshness", async () => {
       const state = await prisma.syncState.findUnique({

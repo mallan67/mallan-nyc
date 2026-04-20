@@ -303,8 +303,6 @@ model Lead {
   last_sales_email_opened  DateTime? @map("last_sales_email_opened")
   last_rental_email_opened DateTime? @map("last_rental_email_opened")
   last_unsubscribe_at      DateTime? @map("last_unsubscribe_at")
-  email_opt_out            Boolean   @default(false) @map("email_opt_out") // CAN-SPAM: true = do not send any marketing/CRM email. Checked by sendEmail() before every send.
-  email_opt_out_at         DateTime? @map("email_opt_out_at") // when opt-out was recorded (RFC 8058 / CAN-SPAM 10-day honor rule)
   preferred_channel        String?   @map("preferred_channel") // "portal" | "email" | "text" | "phone" — derived from behavior
   preferred_device         String?   @map("preferred_device") // "mobile" | "desktop" — derived from listing views
   nurture_paused           Boolean   @default(false) @map("nurture_paused")
@@ -980,20 +978,6 @@ model GeocodeCache {
 
   @@index([address_key])
   @@map("geocode_cache")
-}
-
-// ═══════════════════════════════════════════════════════════
-// COMPANY SETTING — Singleton key/value store for footer, hero, legal links, etc.
-// Replaces filesystem persistence (data/company-settings.json) which breaks on Vercel serverless.
-// Single row with key="company" holds the full settings JSON.
-// ═══════════════════════════════════════════════════════════
-model CompanySetting {
-  key        String   @id // "company" (singleton), extensible for per-brand settings later
-  value      Json // { companyName, license, phone, address, heroImage, heroTagline, legalLinks[], quickLinks[], resourceLinks[] }
-  updated_at DateTime @updatedAt @map("updated_at")
-  updated_by BigInt?  @map("updated_by") // Agent.id of broker who last updated
-
-  @@map("company_settings")
 }
 
 // ═══════════════════════════════════════════════════════════
