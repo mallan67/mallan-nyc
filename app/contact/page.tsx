@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import AgencyDisclosure from '@/app/components/AgencyDisclosure';
+import AntiDiscriminationNotice from '@/app/components/AntiDiscriminationNotice';
 
 /**
  * Contact Page - TCPA-Safe Implementation
@@ -341,9 +342,12 @@ export default function ContactPage() {
                             <span className="font-medium text-brand-dark/95">
                               I consent to be contacted
                             </span>{' '}
-                            by Mallan Real Estate Inc. regarding my inquiry via email.
-                            I understand that I am not required to provide consent as a
-                            condition of purchasing any property or services.
+                            by Mallan Real Estate Inc. regarding my inquiry by email and,
+                            if I provided a phone number, by phone (including calls and
+                            SMS, which may be auto-dialed). Message &amp; data rates may
+                            apply. Reply STOP to opt out of SMS. I understand that I am
+                            not required to provide consent as a condition of purchasing
+                            any property or services.
                           </label>
                         </div>
                         {errors.consent && (
@@ -354,6 +358,7 @@ export default function ContactPage() {
                       </div>
 
                       <AgencyDisclosure />
+                      <AntiDiscriminationNotice />
 
                       {/* Submit Button */}
                       <div>

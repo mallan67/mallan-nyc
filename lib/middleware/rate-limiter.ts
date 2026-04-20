@@ -39,6 +39,88 @@ const idxSyncRl = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(1, "300 s"), prefix: "rl:idx-sync", ephemeralCache: new Map() })
   : null;
 
+// Per-route strict limiters for public write/expensive endpoints.
+// In-memory fallback (via rateLimitCheck) has a higher per-instance cap but the
+// Upstash limit is the enforced cross-instance value on serverless.
+//
+// Lead-capture defaults (CAN-SPAM §7704 abuse prevention + DB row flood protection):
+//   - signup:      10/hr  — account creation
+//   - market:      30/min — read-heavy, scrape-risky
+//   - contact:     20/hr  — free-form contact form
+//   - cma:         10/hr  — CMA request (more intensive — sends two emails)
+//   - inquiry:     30/hr  — property inquiries
+//   - rsvp:        20/hr  — open-house RSVP
+//   - guide:       15/hr  — buyer/seller guide download
+//   - alert:       10/hr  — search-alert subscribe
+//   - unsubscribe: 20/hr  — generous but not unbounded (bots could spam)
+const limiterSpecs = {
+  signup:       { count: 10, window: "3600 s" },
+  market:       { count: 30, window: "60 s"   },
+  contact:      { count: 20, window: "3600 s" },
+  cma:          { count: 10, window: "3600 s" },
+  inquiry:      { count: 30, window: "3600 s" },
+  rsvp:         { count: 20, window: "3600 s" },
+  guide:        { count: 15, window: "3600 s" },
+  alert:        { count: 10, window: "3600 s" },
+  unsubscribe:  { count: 20, window: "3600 s" },
+} as const satisfies Record<string, { count: number; window: `${number} s` }>;
+
+export type RouteLimiterName = keyof typeof limiterSpecs;
+
+const routeLimiters: Partial<Record<RouteLimiterName, Ratelimit>> = {};
+if (redis) {
+  for (const [name, spec] of Object.entries(limiterSpecs)) {
+    routeLimiters[name as RouteLimiterName] = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(spec.count, spec.window),
+      prefix: `rl:${name}`,
+      ephemeralCache: new Map(),
+    });
+  }
+}
+
+/**
+ * Per-route rate limit check for use from within API route handlers.
+ *
+ * Usage:
+ *   const allowed = await checkRouteRateLimit(ip, 'contact', 20, 3600);
+ *   if (!allowed) return 429;
+ *
+ * Redis-backed when env is configured; falls back to per-instance in-memory.
+ * The fallback path still meaningfully slows attackers because Vercel typically
+ * pins a single IP to the same warm instance for consecutive requests.
+ */
+export async function checkRouteRateLimit(
+  ip: string,
+  route: RouteLimiterName,
+  memFallbackLimit: number,
+  memFallbackWindowSeconds: number
+): Promise<boolean> {
+  const rl = routeLimiters[route];
+  if (rl) {
+    try {
+      const { success } = await rl.limit(ip);
+      return success;
+    } catch {
+      // Redis down — fall through to in-memory
+    }
+  }
+  return memCheckRateLimit(
+    `${route}:${ip}`,
+    Math.max(1, Math.floor((memFallbackLimit * (RATE_WINDOW_MS / 1000)) / memFallbackWindowSeconds))
+  );
+}
+
+/** Extract client IP from standard proxy headers with a safe fallback. */
+export function extractClientIp(headers: Headers): string {
+  const xff = headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return headers.get("x-real-ip") || "unknown";
+}
+
 // ── In-memory fallback (used when Redis is unavailable) ──
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const scrapingMap = new Map<string, { count: number; windowStart: number }>();

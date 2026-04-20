@@ -6,9 +6,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { checkRouteRateLimit, extractClientIp } from "@/lib/middleware/rate-limiter";
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 10/hr/IP. Search-alert subscribes write both a Lead and a
+    // SavedSearch row; strict cap because each signup enters a recurring email
+    // cadence (cron/search-alerts fires daily).
+    const ip = extractClientIp(request.headers);
+    if (!(await checkRouteRateLimit(ip, 'alert', 10, 3600))) {
+      return NextResponse.json(
+        { error: 'Too many alert subscriptions. Please try again in an hour.' },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      );
+    }
+
     const body = await request.json();
     const { email, name, frequency, criteria, consentOptIn, consentSource } = body;
 

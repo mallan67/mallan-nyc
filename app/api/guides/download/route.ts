@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { escapeHtml } from '@/lib/sanitize';
+import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 
 /**
  * POST /api/guides/download
@@ -12,6 +13,16 @@ import { escapeHtml } from '@/lib/sanitize';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 15/hr/IP. Guide downloads are one-off per user, so this
+    // cap is generous but stops email-farm scraping of the broker notification.
+    const ip = extractClientIp(request.headers);
+    if (!(await checkRouteRateLimit(ip, 'guide', 15, 3600))) {
+      return NextResponse.json(
+        { error: 'Too many guide requests. Please try again in an hour.' },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      );
+    }
+
     const body = await request.json();
     const { name, email, guideType, agreeToTerms } = body;
 

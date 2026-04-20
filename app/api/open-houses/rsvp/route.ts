@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { openHouseRsvpEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
+import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 
 /**
  * POST /api/open-houses/rsvp
@@ -13,6 +14,16 @@ import { escapeHtml } from '@/lib/sanitize';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 20/hr/IP. Open-house RSVPs are rare per-user but a bot
+    // could flood this to manipulate attendance counts.
+    const ip = extractClientIp(request.headers);
+    if (!(await checkRouteRateLimit(ip, 'rsvp', 20, 3600))) {
+      return NextResponse.json(
+        { error: 'Too many RSVPs. Please try again in an hour.' },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      );
+    }
+
     const body = await request.json();
 
     const { name, email, phone, openHouseId, listingAddress, openHouseDate, openHouseTime, partySize, message, agreeToTerms } = body;

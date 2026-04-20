@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { cmaAutoResponseEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
+import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 
 /**
  * POST /api/cma
@@ -14,6 +15,16 @@ import { escapeHtml } from '@/lib/sanitize';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 10/hr/IP. CMA submission sends two emails (broker + auto-response);
+    // keeping the cap tight prevents bots from draining the outbound mail quota.
+    const ip = extractClientIp(request.headers);
+    if (!(await checkRouteRateLimit(ip, 'cma', 10, 3600))) {
+      return NextResponse.json(
+        { error: 'Too many valuation requests. Please try again in an hour.' },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      );
+    }
+
     const body = await request.json();
 
     const {

@@ -3,6 +3,7 @@ import { sendEmail } from '@/lib/email/sendgrid';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { escapeHtml } from '@/lib/sanitize';
+import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 
 /**
  * Contact Form API - TCPA-Safe Implementation
@@ -30,6 +31,17 @@ function sanitizeString(str: string, maxLength: number): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 20 submissions/hr/IP. Contact forms are the #1 vector for
+    // DB row flood + broker-inbox spam; this keeps the route usable for humans
+    // but stops bots from bulk-filling the Lead table.
+    const ip = extractClientIp(request.headers);
+    if (!(await checkRouteRateLimit(ip, 'contact', 20, 3600))) {
+      return NextResponse.json(
+        { error: 'Too many contact form submissions. Please try again in an hour.' },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      );
+    }
+
     const body = await request.json();
 
     // Validate required fields

@@ -9,6 +9,7 @@
 // specifically requires a single POST with no challenge.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkRouteRateLimit, extractClientIp } from "@/lib/middleware/rate-limiter";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,17 @@ async function unsubscribe(email: string, source: "form" | "one-click" | "mailto
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 20/hr/IP. Unsubscribe is idempotent and user-initiated, so
+    // legitimate traffic is well below this. Bounded to stop attackers from
+    // bulk-unsubscribing leads (which would disable their marketing touchpoints).
+    const ip = extractClientIp(request.headers);
+    if (!(await checkRouteRateLimit(ip, 'unsubscribe', 20, 3600))) {
+      return NextResponse.json(
+        { error: 'Rate limited. Please try again shortly.' },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      );
+    }
+
     const body = await request.json();
     const email = typeof body?.email === "string" ? body.email : "";
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -57,6 +69,13 @@ export async function POST(request: NextRequest) {
 // RFC 8058 requires One-Click to be a POST, but many legacy clients send GET.
 // Accept both so Gmail/Yahoo one-click compliance works regardless of client behavior.
 export async function GET(request: NextRequest) {
+  const ip = extractClientIp(request.headers);
+  if (!(await checkRouteRateLimit(ip, 'unsubscribe', 20, 3600))) {
+    return NextResponse.json(
+      { error: 'Rate limited. Please try again shortly.' },
+      { status: 429, headers: { 'Retry-After': '3600' } }
+    );
+  }
   const email = request.nextUrl.searchParams.get("email") || "";
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });

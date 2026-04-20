@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { inquiryAutoResponseEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
+import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 
 /**
  * POST /api/inquiries
@@ -14,6 +15,17 @@ import { escapeHtml } from '@/lib/sanitize';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 30/hr/IP. Inquiries are the highest-volume legitimate
+    // lead-capture, so this is generous — but bounded enough that a bot
+    // can't flood the broker inbox or fill the Lead table.
+    const ip = extractClientIp(request.headers);
+    if (!(await checkRouteRateLimit(ip, 'inquiry', 30, 3600))) {
+      return NextResponse.json(
+        { error: 'Too many inquiries. Please try again in an hour.' },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      );
+    }
+
     const body = await request.json();
 
     const { name, email, phone, message, preferredDate, listingId, listingAddress, agreeToTerms, optInUpdates, source } = body;
