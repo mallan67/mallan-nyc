@@ -12,11 +12,18 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
 
-  const body = await req.json();
-  const showingId = body.showing_id;
-  const rating = body.rating;
-  const interestLevel = body.interest_level || "neutral";
-  const comments = body.comments || null;
+  // Parse body defensively — returns 400 on malformed JSON rather than a 500.
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const showingId = body.showing_id as string | number | undefined;
+  const rating = body.rating as number | undefined;
+  const interestLevel = (body.interest_level as string) || "neutral";
+  const comments = (body.comments as string | null) || null;
 
   if (!showingId) {
     return NextResponse.json(

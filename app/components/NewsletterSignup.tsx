@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
+import { trackMicroCommitment } from '@/lib/posthog';
 
 export default function NewsletterSignup() {
   const ref = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
@@ -41,6 +42,9 @@ export default function NewsletterSignup() {
       }
 
       setStatus('success');
+      // PostHog canonical category: alert_subscribe (matches the enum in
+      // lib/posthog.ts:142 alongside "favorite", "save_search", "schedule_open_house").
+      trackMicroCommitment('alert_subscribe');
       setEmail('');
     } catch (err) {
       setStatus('error');

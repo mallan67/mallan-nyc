@@ -412,7 +412,7 @@ var Workspace = (function () {
       MallanAPI.showings.list({ limit: 20 }).catch(function () { return { showings: [] }; }),
       Documents.list('client', _clientId),
       Events.loadForEntity('client', _clientId),
-      MallanAPI._fetch('/api/crm/conviction/' + _clientId).catch(function () { return null; }),
+      MallanAPI._fetch(`/api/crm/conviction/${_clientId}`).catch(function () { return null; }),
     ]).then(function (r) {
       _clientData.tasks = r[0].tasks || [];
       _clientData.showings = (r[1].showings || []).filter(function (s) { return s.client_id === _clientId || s.clientId === _clientId; });
@@ -2113,7 +2113,7 @@ var Workspace = (function () {
 
     // ── Load conviction score async (for renter conversion engine) ──
     if (document.getElementById('wsConvictionScore')) {
-      MallanAPI._fetch('/api/crm/conviction/' + _clientId).then(function (data) {
+      MallanAPI._fetch(`/api/crm/conviction/${_clientId}`).then(function (data) {
         var conviction = data || {};
         _clientData.conviction = conviction;
         var prob = conviction.score || 0;

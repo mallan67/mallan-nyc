@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AgencyDisclosure from './AgencyDisclosure';
 import AntiDiscriminationNotice from './AntiDiscriminationNotice';
+import { trackInquiry } from '@/lib/posthog';
 
 export type CalculatorType = 'affordability' | 'rent-vs-buy' | 'closing-cost' | 'mortgage' | 'investor';
 
@@ -120,6 +121,10 @@ export default function CalculatorLeadCapture({
       }
 
       setIsSubmitted(true);
+      // Tag with the calculator type so the funnel can separate affordability
+      // leads from rent-vs-buy etc. The backend inquiry record already keys off
+      // source:'calculator', but PostHog needs its own breadcrumb.
+      trackInquiry(null, `calculator_${calculatorType}`);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {

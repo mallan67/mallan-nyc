@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trackMicroCommitment } from '@/lib/posthog';
 
 export default function UnsubscribePage() {
   const [email, setEmail] = useState('');
@@ -22,6 +23,9 @@ export default function UnsubscribePage() {
       if (res.ok) {
         setStatus('success');
         setMessage(data.message || 'You have been unsubscribed.');
+        // Churn signal — pairs with the alert_subscribe event so retention
+        // funnels can measure the full lifecycle from opt-in to opt-out.
+        trackMicroCommitment('unsubscribe');
       } else {
         setStatus('error');
         setMessage(data.error || 'Something went wrong.');

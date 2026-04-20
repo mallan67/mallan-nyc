@@ -12,7 +12,16 @@ export async function POST(req: NextRequest) {
   const session = await requireAuth(req);
   if (isAuthError(session)) return session;
 
-  const body = await req.json();
+  // Parse body defensively — an unprotected JSON parse crashes the handler on
+  // any malformed payload (client bug, proxy rewrite, preflight mismatch) and
+  // returns an ugly 500 instead of a clean 400 with a clear error string.
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
   const openHouseId = (body.open_house_id || body.event_id) as string;
   const listingId = body.listing_id as string | undefined;
 

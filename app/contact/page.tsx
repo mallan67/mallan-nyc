@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import AgencyDisclosure from '@/app/components/AgencyDisclosure';
 import AntiDiscriminationNotice from '@/app/components/AntiDiscriminationNotice';
+import { trackInquiry } from '@/lib/posthog';
 
 /**
  * Contact Page - TCPA-Safe Implementation
@@ -104,6 +105,10 @@ export default function ContactPage() {
 
       if (response.ok) {
         setSubmitStatus('success');
+        // Match the tracking pattern used by InquiryForm / InquiryModal /
+        // HomeValueWidget — contact form conversions were previously invisible
+        // in PostHog because this was the only lead-capture without the event.
+        trackInquiry(null, 'contact');
         setFormData({ name: '', email: '', phone: '', message: '', consent: false });
       } else {
         setSubmitStatus('error');
