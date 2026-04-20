@@ -1,5 +1,66 @@
 # CLAUDE.md - Project Instructions for Claude Code
 
+---
+
+## 🛑 STOP — READ `NEON.md` BEFORE ANY OF THE FOLLOWING
+
+The file `NEON.md` at the repo root is the **single source of truth** for Neon / Prisma / DB / migration behavior on this project. It lists tier caps, known traps, required migration discipline, pre-flight checklist, and recovery playbooks.
+
+**You MUST read `NEON.md` before:**
+- Editing `prisma/schema.prisma`
+- Writing a migration under `prisma/migrations/`
+- Running `prisma migrate deploy` / `prisma db push`
+- Modifying `vercel.json`'s `buildCommand` or crons touching DB
+- Touching `scripts/vercel-migrate-deploy.js`, `lib/prisma.ts`, or `lib/prisma-http.ts`
+- Removing or changing the `db-keepalive` cron
+- Any code that adds a column, FK, index, or table
+- Discussions about upgrading the Neon plan
+
+Failing to read `NEON.md` first is how the 2026-04-19 silent-drift incident happened. Don't repeat it.
+
+---
+
+## 🔔 ACTIVE FOLLOW-UP — FIRST AGENDA ITEM EVERY SESSION
+
+**Status:** OPEN · **Created:** 2026-04-17 · **Review on:** 2026-05-01
+
+Neon/Trestle production hardening shipped 2026-04-17 across 5 PRs (Phase 0–5 infrastructure). **Two deferred workstreams must be evaluated on/after 2026-05-01** once those PRs are stable in production:
+
+### Action at next session (if date ≥ 2026-05-01 OR user asks):
+1. Run `npm run ops:health` — confirm verdict is `healthy`. If `critical` or `warning`, investigate before proceeding.
+2. If healthy AND ≥2 weeks have passed since 2026-04-17, offer to produce **PR #6: Phase 3 first-column migration** (template): adds `primary_photo_url` + `photo_count` as nullable columns on `Listing`, dual-writes in `lib/idx/sync.ts`, and a one-shot backfill script `scripts/phase3-col1-backfill.js`.
+3. After PR #6 ships and is stable ~2 weeks, propose the next column (`list_agent_full_name`), one-per-PR cadence.
+
+### Deferred workstream A — Phase 3 schema normalization
+Goal: migrate the 8 most-read fields out of `listings.raw_data` / `listings.compliance` / `listings.agent_info` JSON into dedicated columns.
+
+**Target columns** (in order of priority, one PR each):
+1. `primary_photo_url` + `photo_count` — fast card render without Media join
+2. `list_agent_full_name` + `list_office_name` — REBNY attribution without JSON parse
+3. `public_remarks` — readable description without JSON traversal
+4. `close_price` + `close_date` — past-sales display
+5. `latitude` + `longitude` — geo queries (prep for Phase 6 PostGIS)
+
+**Per-PR pattern:** (1) add nullable column, (2) dual-write in sync (JSON + column), (3) wait one sync cycle for backfill via cron, (4) migrate ONE reader from JSON → column, (5) verify `npm run ops:health`, repeat.
+
+### Deferred workstream B — Phase 5 HTTP adapter per-route adoption
+Infrastructure is ready in `lib/prisma-http.ts` (validated 2026-04-17, 45–56ms query latency vs 1–3s cold-start TCP). Adoption target: swap `import prisma from "@/lib/prisma"` → `import prismaHttp from "@/lib/prisma-http"` in these read-heavy public routes, one at a time:
+1. `app/api/idx/search/route.ts` (967 lines — highest traffic)
+2. `app/api/listings/similar/route.ts`
+3. `app/api/agents/[slug]/listings/route.ts`
+4. `app/api/buildings/route.ts`
+5. `app/api/open-houses/route.ts`
+
+**Per-route pattern:** swap import, verify `npm run type-check` + `npm run ops:http-smoke`, deploy, measure cold-start latency in Vercel logs before swapping the next one.
+
+### Completion criteria
+Close this follow-up when: all 5 Phase-3 columns have dedicated columns with readers migrated, AND all 5 target routes use `prismaHttp`. Replace this block with a dated archival note pointing to `memory/NEON-PRODUCTION-HARDENING-2026-04.md`.
+
+### Remote trigger backup
+A remote Claude Code cron trigger was intended for 2026-05-01 13:00 UTC but the claude.ai Code API returned 401 at setup time. To create manually: https://claude.ai/code/scheduled — use prompt from this block's Action section. Not required; this CLAUDE.md block is the primary reminder.
+
+---
+
 ## Project: mallan-nyc
 
 > **Compliance-First · Fast · Scalable**
@@ -198,11 +259,11 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `MASTER-PROJECT-TREE-v3.3.md` | **Master Project Tree** — file roles, portals, progress, phases 0-6, 24 Go-Live gates, enforcement, System Doctrine |
 | `MALLAN-NYC-CRM-PROJECT.md` | Master project document |
 | `CRM-ENHANCEMENT-SPEC.md` | Detailed enhancement specifications |
-| `compliance/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes, 47 BLOCKERs) |
+| `compliance/archive/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes, 47 BLOCKERs) — archived |
 | `prisma/schema.prisma` | Database schema — 60 Prisma models (Listing, Agent, Lead, Deal, CommissionPayment, AuditEvent, etc.) |
 | `lib/compliance/` | Server-side compliance: RLS enforcement gate, DOM tracker, portal DTO sanitizer |
 | `lib/compliance/` | CI-gateable REBNY RLS validator (10 sections, 4-layer resolution) |
-| `compliance/FULL-AUDIT-2026-03-13.md` | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY |
+| `compliance/archive/FULL-AUDIT-2026-03-13.md` | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY — archived |
 | `compliance/rules/ucba-audit-checklist.json` | Machine-readable audit checklist — used by `scripts/ucba-compliance-audit.js` for regression detection |
 | `scripts/ucba-compliance-audit.js` | UCBA compliance validator — `npm run ucba:audit` — detects regressions if passing rules break |
 | `data/rebny-rls-property-fields.csv` | **902 REBNY IDX Plus fields** across 7 resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Replaced 2026-03-19 from REBNY official "IDX PLUS 3.15.26" document. 100% match against Trestle live feed. |
@@ -392,145 +453,9 @@ All deployments and CI/CD workflows must maintain compliance with the above stan
 
 ---
 
-## Comprehensive Site Audit — 2026-04-06
+## Audit History
 
-> **Scope:** Full-stack deep audit — build, TypeScript, IDX validator, all 253 API routes, all frontend pages, CRM dashboard, 4 client portals, 60 Prisma models, compliance gates, IDX field mapping pipeline, public pages.
->
-> **Build:** PASS | **TypeScript:** 0 errors | **IDX Validator:** 822 pass, 0 critical, 3 warning
->
-> **CRITICAL fixes applied:**
-> 1. `CompareProperties` fetched wrong listings (`limit=1&type=` instead of by ID) — **FIXED**
-> 2. Midtown Manhattan hardcoded fallback coordinates (Trestle has NO lat/lng) — **REMOVED**
-> 3. `/client-access` demo AI chat exposed in production — **DELETED**
-> 4. `/api/crm/activity` was a stub returning empty — **IMPLEMENTED** (real AuditEvent query)
-> 5. "Weekly Report" button missing required `subject`/`body` fields — **FIXED**
-> 6. `TenantPays` dropped from IDX mapping pipeline (FARE Act) — **FIXED** (types + mapping + DTO)
-> 7. Missing `loading.tsx`/`error.tsx` on building and market pages — **ADDED**
->
-> **Round 2 fixes (2026-04-06):**
-> 8. DB-to-public DTO field parity — added 20+ missing fields (prices, DOM, virtualTour, rental, amenities)
-> 9. Rental CRM: Add Lease form injected `landlord_lead_id`, 4 modal stubs wired to real APIs
-> 10. CRM auth guard re-enabled (was disabled with `&& false`)
-> 11. FARE Act fields added to CRM search `$select`
-> 12. Email dev-mode changed to `console.warn` + `_devMode` flag
->
-> **Round 3 fixes (2026-04-06):**
-> 13. Contact form GET BigInt crash — **FIXED** (serialized `id`)
-> 14. Open houses: agent PII stripped (office name only), `OwnerOptOut`→`Permission`, fail-open→fail-closed
-> 15. `_submitShowing` field names aligned with API, `_submitUpload` `doc_type` match, DB DTO falsy zero drops
->
-> **Quality improvements (2026-04-07):**
-> 16. 10 dead components + 7 unused npm deps removed (reduced bundle)
-> 17. About + Agents pages server-rendered (SEO: agent names/bios now in initial HTML)
-> 18. ECB violations integrated into building profiles (`app/components/BuildingViolations.tsx` + `/api/dob/ecb-violations`)
-> 19. Tenant portal: "My Lease" tab (dates, rent, days remaining, renewal status)
-> 20. Outreach cadence auto-scheduler in prospect-triggers cron (sends ready email steps)
-> 21. Email verification for self-signup clients (OTP, invited clients pre-verified)
-> 22. `ClosePrice`/`CloseDate`/`ListingContractDate` removed from `PRIVATE_FIELDS` (IDX-authorized per REBNY)
-> 23. Rental pitch packet with auto-CMA on address + editable financials
-> 24. Honeypot field renamed (`website`→`fax_line`), lightbox keyboard accessibility (WCAG 2.1 AA)
-> 25. Count regenerator script fixed (recursive component counting)
->
-> **Remaining known gaps:**
-> - `/style-preview` dev page still in production (blocked by route guards)
-> - Offer status email lookup has no rate limiting
-> - Public "Save Search" (localStorage) doesn't trigger email alerts (cron queries DB)
-> - StructureType, LivingAreaUnits, LotSizeUnits in FIELD_MAP but not in IDX pipeline
-> - 5 orphaned Prisma models removed (2026-04-07): FinancialLedger, MicroCommitment, CampaignRecipient, ExperimentListing, EngagementEvent
-> - No runtime/integration tests — all validation is static code analysis
-> - Neighborhood market stats are static JSON (stale until manually updated)
->
-> **Trestle does NOT provide Latitude/Longitude.** Geocoding responsibility:
-> 1. `geocodeListings()` in `lib/geo/geocode.ts` — address-based
-> 2. ZIP centroid fallback from `ZIP_CENTROIDS` table
-> 3. If both fail → lat/lng stay null → map/transit/schools sections hide gracefully
->
-> **Compliance status (2026-04-07):** IDX Validator 823/0 critical | UCBA 42/46 pass, 0 regressions | CRM Smoke 218/0
->
-> **Full findings:** `memory/FULL-SITE-AUDIT-2026-04-06.md`
-
-## Compliance Findings Audit — 2026-04-14
-
-> **Scope:** 22 findings across CAN-SPAM, NYS RPL, REBNY IDX, NY SHIELD, UCBA, DOS advertising, Fair Housing.
-> **TypeScript:** 0 errors after fixes.
-
-### Fixes Applied (2026-04-14)
-
-| # | Original Finding | Verdict | Action |
-|---|-----------------|---------|--------|
-| HIGH-7 | CRM emails missing unsubscribe link | **ACCURATE** | **FIXED** — Added unsubscribe link to shared email FOOTER (`lib/email/templates.ts`). All emails via `wrapEmail()` now include opt-out. Removed duplicate from `searchAlertEmail`. |
-| HIGH-1 | InquiryForm — no agency disclosure | **ACCURATE** | **FIXED** — Created `AgencyDisclosure` component (`app/components/AgencyDisclosure.tsx`). Added to InquiryForm, InquiryModal, Contact page, HomeValueWidget, CalculatorLeadCapture. References `/sop` for full DOS-1736-f disclosure. |
-| HIGH-3 | Behavioral trackers fire before consent | **ACCURATE** | **FIXED** — `BehavioralTracker.tsx` and `IntentTracker.tsx` now import `useConsentStatus()` and gate all event firing behind `analyticsAllowed`. Consistent with existing Analytics/PostHogProvider pattern. |
-| MED-2 | Search page missing IDX attribution | **PARTIALLY ACCURATE** | **FIXED** — Search page had hardcoded disclaimer text. Replaced with `<IDXSearchDisclaimer />` component for consistency with other pages. |
-| MED-6 | Portal listings missing Coming Soon gate | **PARTIALLY ACCURATE** | **FIXED** — `app/api/portal/listings/route.ts` now flags Coming Soon listings with `comingSoon: true` and required UCBA D3 notice text. Display is allowed; showings blocked separately. |
-
-### Findings Verified as Inaccurate or Overstated
-
-| # | Original Finding | Verdict | Reason |
-|---|-----------------|---------|--------|
-| CRIT-1 | Bulk email endpoint missing | **INACCURATE** | Bulk email handled by `app/api/crm/email/route.ts` (eblast type, 200-cap, consent checking). No separate route needed. CAN-SPAM unsubscribe gap was real but fixed in HIGH-7. |
-| CRIT-4 | 12-min sync + 10-min skip = >15min gap | **INACCURATE** | Math is wrong: at T=12, last run was T=0 (12 min > 10 min guard), so it runs. Effective interval is always 12 min. "REBNY IDX 15-min rule" does not exist — REBNY requires "timely updates" without a specific interval. |
-| HIGH-5 | Unsplash/Picsum = false listing imagery | **OVERSTATED** | Unsplash images used on 10+ pages as decorative marketing backgrounds (skylines, generic townhouse exteriors). None appear on listing detail or search result pages. Standard real estate marketing — no violation. |
-| MED-4 | Sell page commission language | **ALREADY RESOLVED** | Sell page correctly states "Commission rates are not set by law and are fully negotiable" with NAR settlement reference. Compliant. |
-
-### Findings Verified as Accurate but Accepted Risk / No Code Fix
-
-| # | Finding | Verdict | Notes |
-|---|---------|---------|-------|
-| CRIT-2 | No root `middleware.ts` | **ACCURATE** | Defense-in-depth gap. Each API route individually validates auth via `requireAuth()`/`requireAgentOrBroker()`. Adding root middleware is an architectural decision — not a direct vulnerability. |
-| CRIT-3 | `generateAttributionText()` lacks broker name | **PARTIALLY ACCURATE** | Function is a generic REBNY data-source disclaimer, not per-listing broker credit. Per-listing broker name displayed separately on listing pages. The two are distinct REBNY requirements. |
-| HIGH-2 | RegistrationGate/SoftIdentityCapture — no disclosure | **PARTIALLY ACCURATE** | RegistrationGate is newsletter signup (not first substantive contact). SoftIdentityCapture can be property-specific but is email-only micro-capture. Covered by Fix 2 (AgencyDisclosure added to substantive contact forms). |
-| HIGH-4 | Fair Housing link → internal page | **PARTIALLY ACCURATE** | `/fair-housing` renders Mallan's own Fair Housing statement (from `data/pages/fair-housing.json`). Internal page with comprehensive policy content. Not a link to official NYS form, but content may satisfy the requirement. |
-| HIGH-6 | Showing gate — no pre-disclosure UX | **ACCURATE (UX only)** | Backend correctly enforces UCBA E7 (`buyer_rep_agreement` check). UX flow to present/sign agreement in-portal is missing — enhancement, not a compliance violation. |
-| MED-1 | revalidate=300 closed listing lag | **ACCURATE** | 5-minute ISR is well within REBNY's 24-hour removal SLA. Informational only. |
-| MED-3 | Listing data sent to Claude API | **PARTIALLY ACCURATE** | Used for compliance validation only (not redistribution/training/embedding). Operational use, not a license violation. Risk is documented. |
-| MED-5 | Financial PII — no field-level encryption | **ACCURATE** | Lead model stores income/credit data as plain Decimal. Neon provides encryption at rest. Field-level encryption is a hardening measure, not a NY SHIELD Act violation given existing safeguards. |
-| MED-7 | Listing expiry → removal chain | **PARTIALLY ACCURATE** | Chain exists: status transition API + `listing-expiration` daily cron + 5-min ISR + DB-first fetch. Not integration-tested end-to-end but meets 24-hour SLA. |
-| LOW-1 | Footer settings API fallback | **ACCURATE (low risk)** | `/api/settings/company` endpoint doesn't exist. Footer always falls back to correct hardcoded defaults. Risk only if someone creates that endpoint. |
-| LOW-2 | JSON-LD license number exposed | **CORRECT** | Required by NY DOS — this is proper behavior. |
-| LOW-3 | Google Translate alters notices | **ACCURATE (low)** | Theoretical risk — machine translation could distort legal language. Low priority. |
-| LOW-4 | ExclusivesVault on homepage | **NEEDS CONTEXT** | Component shows sign-in prompt for "exclusive" listings. Legitimate feature. No active violation identified. |
-
-### Round 2 — Deeper Findings (2026-04-14, same session)
-
-15 additional findings from a second-pass audit were verified against the codebase.
-
-**Fixed (3):**
-
-| # | Finding | Fix |
-|---|---------|-----|
-| N-3 | API Fair Housing scanner: 6 patterns vs 29 in CRM frontend | Expanded `app/api/crm/compliance/audit/route.ts` to 21 categorized patterns across 10 categories (Race, Religion, Familial Status, Sex, Disability, Source of Income NYC, Fair Chance Housing Act NYC, Citizenship, NY DOS Ad Rules). |
-| C-4 | RegistrationGate consent checkbox not transmitted to API | `RegistrationGate.tsx` now sends `consent_captured_at` in POST body. |
-| M-7 | compliance/UPDATES.md Trestle migration still "ACTION REQUIRED" | Updated to "Complete". Added April 2026 section with patch tracking. |
-
-**Verified Inaccurate (5):**
-
-| # | Finding | Reason |
-|---|---------|--------|
-| N-4 | Coming Soon badge missing REBNY text in CRM | `compliance-gates-and-output.js` line 62 correctly uses required REBNY format. |
-| H-7 | dev-login guard bypassable | Two independent guards: `NODE_ENV` + `ALLOW_DEV_LOGIN`. Not bypassable. |
-| M-1 | Search results missing "Listing Courtesy of" | `SearchListingCard.tsx` line 117 displays it. |
-| M-5 | Search-alerts cron sends suppressed addresses | Cron applies `idx_display_yn = true` + `owner_opt_out = false` filters. |
-| H-2 | IDX sync 24-min gap | Same wrong math as CRIT-4. Effective interval is 12 min. |
-
-**Resolved by Investigation (1):**
-
-| # | Finding | Resolution |
-|---|---------|-----------|
-| N-1 | PrivateOutdoorSpace required field missing from trestle-mapper | **NOT A GAP.** Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` = 108, `PrivateOutdoorSpaceUnder60Sqft` = 109). `ExteriorFeatures` is in mapper B20 (line 247) → `exteriorFeatures` in `mapping.ts` (line 360). The standalone `PrivateOutdoorSpaceSize`/`Remarks` fields are LMP/RealPlus submission fields — NOT on Trestle IDX feed. |
-
-**Remaining External Action Required (1):**
-
-| # | Finding | Action |
-|---|---------|--------|
-| N-2 | Trestle Patches #188 + #189 unreviewed | Download patch PDFs from `trestlesupport@cotality.com`. Compare 3 new fields + 30 field changes + 135 lookup values against `trestle-mapper.ts` and `compliance/lookups.json`. Logged in `compliance/UPDATES.md`. |
-
-### REBNY / Trestle External Status (Verified 2026-04-14)
-
-> **Sources accessed:** [rebny.com/rls-updates/](https://www.rebny.com/rls-updates/), [rebny.com/compliance/](https://www.rebny.com/compliance/), [rebny.com/rls-update/2026-ucba-changes/](https://www.rebny.com/rls-update/2026-ucba-changes/), [trestle-documentation.corelogic.com](https://trestle-documentation.corelogic.com/), [trestle-documentation.corelogic.com/webapi.html](https://trestle-documentation.corelogic.com/webapi.html)
->
-> **REBNY:** No new policy changes since January 2026 UCBA. All 5 UCBA 2026 changes already implemented. POLD gate enforced. Compensation fields removed (Aug 2025).
->
-> **Trestle:** API stable at `api.cotality.com/trestle`. URL migration complete. Token endpoint: `https://api.cotality.com/trestle/oidc/connect/token`. Rate limits: 7,200/hr, 180/min. Token TTL: 8 hours. Content Patch #189 (Mar 4, 2026) is latest — 3 new fields, 30 changes, 37 lookups.
->
-> **Private Outdoor Space:** Already captured via `ExteriorFeatures` enum values (not a standalone IDX field).
+- **2026-04-06 full-site audit + 2026-04-14 compliance findings:** moved to `memory/FULL-SITE-AUDIT-2026-04-06.md` (25 critical/quality fixes, 22 compliance findings with verdicts, REBNY/Trestle external status).
+- **Current status (2026-04-07):** Build PASS · TypeScript 0 errors · IDX Validator 823/0 critical · UCBA 42/46 pass, 0 regressions · CRM Smoke 218/0.
+- **Trestle does NOT provide Latitude/Longitude** — geocoding order: `geocodeListings()` (address) → ZIP centroid → null (graceful hide).
+- Older audits: `compliance/archive/FULL-AUDIT-2026-03-13.md`, `compliance/archive/MASTER-AUDIT-REPORT-v3.md`.

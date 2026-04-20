@@ -11,8 +11,21 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { promises as fs } from "fs";
+import path from "path";
 
 export const dynamic = "force-dynamic";
+
+const MIGRATION_SENTINEL = path.join(process.cwd(), ".next", "prisma-migration-state.json");
+
+async function readMigrationSentinel(): Promise<{ status: string; diagnostic?: string; at?: string } | null> {
+  try {
+    const raw = await fs.readFile(MIGRATION_SENTINEL, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 type CheckResult = { name: string; ok: boolean; detail?: string };
 
@@ -40,12 +53,20 @@ export async function GET() {
     })
   );
 
-  // NOTE: The schema-drift checks (email_opt_out column, company_settings
-  // table) are removed until those migrations can actually apply — adding
-  // them back surfaces the drift but also 500s every probe until then, which
-  // noise-poisons uptime monitors. Re-add after the migration lands.
+  // 2. Migration state — the Vercel build writes a sentinel after running
+  // scripts/vercel-migrate-deploy.js. "applied" = healthy; "skipped_cold_start"
+  // = warn the operator to check next deploy; anything "blocked_*" means the
+  // build should not have succeeded (but the operator deployed anyway).
+  checks.push(
+    await timedCheck("migration.state", async () => {
+      const sentinel = await readMigrationSentinel();
+      if (!sentinel) return "no sentinel (local dev or legacy deploy)";
+      if (sentinel.status === "applied") return `applied @ ${sentinel.at ?? "unknown time"}`;
+      throw new Error(`${sentinel.status}: ${sentinel.diagnostic ?? "no detail"}`);
+    })
+  );
 
-  // 2. IDX data is fresh. sync cadence is */12min; flag if we're >2h stale.
+  // 3. IDX data is fresh. sync cadence is */12min; flag if we're >2h stale.
   checks.push(
     await timedCheck("idx.sync_freshness", async () => {
       const state = await prisma.syncState.findUnique({
