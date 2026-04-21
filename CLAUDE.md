@@ -45,6 +45,57 @@ A remote Claude Code cron trigger was intended for 2026-05-01 13:00 UTC but the 
 
 ---
 
+## 🧪 COMPLIANCE AUDIT — RUN WHEN CHANGES LAND
+
+**This is the test an external auditor runs against this codebase.** Keep this reference stable; the runner + checklist below are the source of truth for all 145 UCBA 2026 rules.
+
+| Piece | Path |
+|---|---|
+| Machine-readable checklist (all 145 UCBA 2026 rules with file paths + regex patterns) | `compliance/rules/ucba-audit-checklist.json` |
+| Runner (reads the checklist, greps the codebase, emits a verdict per rule) | `scripts/ucba-compliance-audit.js` |
+| Primary command | `npm run ucba:audit` |
+| Machine-readable output (for CI / dashboards) | `npm run ucba:audit:json` |
+| Only show failures | `npm run ucba:audit:fails` |
+
+### Reading the result
+
+Every rule resolves to one of four verdicts. Expected verdicts are encoded in the checklist — the runner compares actual vs expected:
+
+| Verdict | Meaning |
+|---|---|
+| `PASS` | Pattern(s) found in the expected file(s). |
+| `FAIL` | Pattern not found. May be a regression OR a known unimplemented rule (checklist tells the runner which). |
+| `EVALUATE_CLOSELY` | Pattern exists but regex alone can't verify the semantic — human must eyeball the call sites whenever the file changes. |
+| `REGRESSIONS` | A rule whose expected verdict was `PASS` is now `FAIL`. **This is the only number that must stay 0.** Exit code is non-zero if >0. |
+
+**Exit 0 = auditor-green.** The runner tolerates expected FAILs (they're annotated `[low]`/`[med]`/`[high]` in the checklist). It exits non-zero only on regressions.
+
+### When to run
+
+- **Always before committing** changes to: `lib/compliance/**`, `lib/idx/**`, `app/api/crm/**`, `app/api/portal/**`, `app/api/listings/**`, any public listing display component, or any form that captures free-text from an agent or client.
+- Before pushing to `main`.
+- After reviewing any external compliance finding (the checklist is how you verify the claims).
+- It already runs on every PR via `.github/workflows/pr-check.yml` — if CI fails there, pull the artifact and fix the regression before merging.
+
+### Sibling checks (same CI chain, `npm run ci`)
+
+```bash
+npm run type-check              # 0 TS errors required
+npm run rls:validate            # 10-section RLS validator (fields, renames, gates, masking, coverage)
+npm run compliance-check        # scripts/ci-compliance-check.js — pre-commit sanity gate
+npm run ucba:audit              # this test — the 145-rule checklist
+npm run ops:health              # Neon tier headroom + sync freshness (see NEON.md)
+npm run ci                      # lint → type-check → compliance-check → idx:validate → build
+```
+
+### Last known-good run
+
+- **2026-04-20 · commit `cc8a50af`:** 46 rules checked · 42 PASS · 1 expected FAIL (C15 auction — tracked as workstream C3 in `memory/FOLLOWUP-2026-05-01.md`) · 3 expected EVALUATE_CLOSELY (A2 DOM-start, A5 no-circumvention, C2 simultaneous-distribution) · **0 regressions** · exit 0.
+
+**If a future run shows `REGRESSIONS: N` where N > 0, fix the regression — do not edit the checklist to silence it.** The checklist is the auditor's source; editing it to mask a broken rule is how compliance drift compounds.
+
+---
+
 ## Project: mallan-nyc
 
 > **Compliance-First · Fast · Scalable**
