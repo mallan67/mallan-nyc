@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -232,7 +233,17 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.phone !== undefined) update.phone = String(body.phone);
   if (body.status !== undefined) update.status = String(body.status);
   if (body.portal_role !== undefined) update.portal_role = body.portal_role as string | null;
-  if (body.notes !== undefined) update.notes = body.notes ? String(body.notes) : null;
+  if (body.notes !== undefined) {
+    const noteText = body.notes ? String(body.notes) : null;
+    const fhViolations = scanTextForFairHousing(noteText, "notes");
+    if (fhViolations.length > 0) {
+      return NextResponse.json(
+        { error: "Fair Housing violation in notes", violations: fhViolations },
+        { status: 422 }
+      );
+    }
+    update.notes = noteText;
+  }
   if (body.source !== undefined) update.source = String(body.source);
   if (body.pipeline_stage !== undefined) {
     const validStages = ["new", "contacted", "nurturing", "active", "showing", "offer", "deal", "closed", "past"];

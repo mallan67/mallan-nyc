@@ -10,6 +10,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
+import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 
 /** Validate saved search criteria shape. Returns error message or null. */
 function validateCriteria(criteria: Record<string, unknown>): string | null {
@@ -93,6 +94,14 @@ export async function POST(req: NextRequest) {
     const validationError = validateCriteria(criteria);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const fhViolations = scanTextForFairHousing(name, "name");
+    if (fhViolations.length > 0) {
+      return NextResponse.json(
+        { error: "Fair Housing violation in saved-search name", violations: fhViolations },
+        { status: 422 }
+      );
     }
 
     if (alert_frequency !== undefined && alert_frequency !== null && !["daily", "weekly"].includes(alert_frequency)) {

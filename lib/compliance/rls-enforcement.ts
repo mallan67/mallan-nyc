@@ -141,6 +141,53 @@ const FAIR_HOUSING_HARD_BLOCKS: Array<{ pattern: RegExp; law: string }> = [
   ...JSON_FH_PATTERNS,
 ];
 
+/**
+ * Scan a free-text string for Fair Housing violations.
+ *
+ * Use this on any agent- or user-entered text that is NOT a listing field —
+ * e.g. client `notes`, saved-search `name`, internal comments, templates.
+ * Listing fields (PublicRemarks, ShowingInstructions, etc.) are already
+ * scanned by `assertRlsCompliantPayload`.
+ *
+ * Returns an array of violation objects. Empty array = clean. Treat any
+ * violation as a hard block (HTTP 422) — Federal FHA, NY HRL, NYC HRL, and
+ * Fair Chance Housing Act all apply to internal records, not just public ads.
+ */
+export function scanTextForFairHousing(
+  text: string | null | undefined,
+  fieldLabel = "text"
+): EnforcementIssue[] {
+  if (!text || typeof text !== "string") return [];
+  const issues: EnforcementIssue[] = [];
+  for (const { pattern, law } of FAIR_HOUSING_HARD_BLOCKS) {
+    const match = text.match(pattern);
+    if (match) {
+      issues.push({
+        code: "FH-001",
+        severity: "BLOCKER",
+        field: fieldLabel,
+        message: `Fair Housing violation in ${fieldLabel}: "${match[0]}" — violates ${law}.`,
+        ucbaRef: "UCBA Sec. M (Fair Housing: $250 first, $500 + termination second)",
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * Scan a record of free-text fields at once (convenience wrapper).
+ * Returns a flat list of violations across all fields.
+ */
+export function scanRecordForFairHousing(
+  record: Record<string, string | null | undefined>
+): EnforcementIssue[] {
+  const out: EnforcementIssue[] = [];
+  for (const [field, value] of Object.entries(record)) {
+    out.push(...scanTextForFairHousing(value, field));
+  }
+  return out;
+}
+
 const AGENT_INFO_PATTERNS = [
   /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/,
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,

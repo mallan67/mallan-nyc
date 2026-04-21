@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
+import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -75,6 +76,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "first_name, last_name, email required" }, { status: 400 });
   }
 
+  const fhViolations = scanTextForFairHousing(notes, "notes");
+  if (fhViolations.length > 0) {
+    return NextResponse.json(
+      { error: "Fair Housing violation in notes", violations: fhViolations },
+      { status: 422 }
+    );
+  }
+
   const buyer = await prisma.lead.create({
     data: {
       first_name,
@@ -142,6 +151,16 @@ export async function PATCH(req: NextRequest) {
   const data: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in updates) data[key] = updates[key];
+  }
+
+  if (typeof data.notes === "string") {
+    const fhViolations = scanTextForFairHousing(data.notes, "notes");
+    if (fhViolations.length > 0) {
+      return NextResponse.json(
+        { error: "Fair Housing violation in notes", violations: fhViolations },
+        { status: 422 }
+      );
+    }
   }
 
   const updated = await prisma.lead.update({

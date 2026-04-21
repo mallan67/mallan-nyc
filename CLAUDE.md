@@ -22,42 +22,26 @@ Failing to read `NEON.md` first is how the 2026-04-19 silent-drift incident happ
 
 ## 🔔 ACTIVE FOLLOW-UP — FIRST AGENDA ITEM EVERY SESSION
 
-**Status:** OPEN · **Created:** 2026-04-17 · **Review on:** 2026-05-01
+**Status:** OPEN · **Created:** 2026-04-17 · **Review on:** 2026-05-01 (Workstreams A+B) · **2026-05-05** (Workstream C, compliance)
 
-Neon/Trestle production hardening shipped 2026-04-17 across 5 PRs (Phase 0–5 infrastructure). **Two deferred workstreams must be evaluated on/after 2026-05-01** once those PRs are stable in production:
+**Full details:** [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — do not duplicate content here. Update that file, not this block.
 
 ### Action at next session (if date ≥ 2026-05-01 OR user asks):
-1. Run `npm run ops:health` — confirm verdict is `healthy`. If `critical` or `warning`, investigate before proceeding.
-2. If healthy AND ≥2 weeks have passed since 2026-04-17, offer to produce **PR #6: Phase 3 first-column migration** (template): adds `primary_photo_url` + `photo_count` as nullable columns on `Listing`, dual-writes in `lib/idx/sync.ts`, and a one-shot backfill script `scripts/phase3-col1-backfill.js`.
-3. After PR #6 ships and is stable ~2 weeks, propose the next column (`list_agent_full_name`), one-per-PR cadence.
+1. Open `memory/FOLLOWUP-2026-05-01.md` and run its pre-flight checklist (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test`).
+2. If all pass AND ≥2 weeks have passed since 2026-04-17, offer to produce **PR #6: Phase 3 first-column migration** (workstream A, column 1: `primary_photo_url` + `photo_count`).
+3. If date ≥ 2026-05-05 AND the above is still green, also offer the **Workstream C compliance PRs** (C1 Inquiry model → C2 Offer tracking → C3 Auction fields → C4 Ethics training gate), one per PR.
+4. After any PR ships, wait ~2 weeks of stability before proposing the next one from the same workstream.
 
-### Deferred workstream A — Phase 3 schema normalization
-Goal: migrate the 8 most-read fields out of `listings.raw_data` / `listings.compliance` / `listings.agent_info` JSON into dedicated columns.
-
-**Target columns** (in order of priority, one PR each):
-1. `primary_photo_url` + `photo_count` — fast card render without Media join
-2. `list_agent_full_name` + `list_office_name` — REBNY attribution without JSON parse
-3. `public_remarks` — readable description without JSON traversal
-4. `close_price` + `close_date` — past-sales display
-5. `latitude` + `longitude` — geo queries (prep for Phase 6 PostGIS)
-
-**Per-PR pattern:** (1) add nullable column, (2) dual-write in sync (JSON + column), (3) wait one sync cycle for backfill via cron, (4) migrate ONE reader from JSON → column, (5) verify `npm run ops:health`, repeat.
-
-### Deferred workstream B — Phase 5 HTTP adapter per-route adoption
-Infrastructure is ready in `lib/prisma-http.ts` (validated 2026-04-17, 45–56ms query latency vs 1–3s cold-start TCP). Adoption target: swap `import prisma from "@/lib/prisma"` → `import prismaHttp from "@/lib/prisma-http"` in these read-heavy public routes, one at a time:
-1. `app/api/idx/search/route.ts` (967 lines — highest traffic)
-2. `app/api/listings/similar/route.ts`
-3. `app/api/agents/[slug]/listings/route.ts`
-4. `app/api/buildings/route.ts`
-5. `app/api/open-houses/route.ts`
-
-**Per-route pattern:** swap import, verify `npm run type-check` + `npm run ops:http-smoke`, deploy, measure cold-start latency in Vercel logs before swapping the next one.
+### Summary of deferred workstreams
+- **A — Phase 3 schema normalization** (5 PRs): migrate 8 most-read fields from JSON into dedicated columns.
+- **B — Phase 5 HTTP adapter adoption** (5 PRs): swap `prisma` → `prismaHttp` on 5 read-heavy public routes.
+- **C — REBNY/UCBA compliance gaps** (4 PRs, added 2026-04-20 after external audit): C1 `Inquiry` model, C2 offer-transmission fields, C3 auction fields, C4 ethics-training gate.
 
 ### Completion criteria
-Close this follow-up when: all 5 Phase-3 columns have dedicated columns with readers migrated, AND all 5 target routes use `prismaHttp`. Replace this block with a dated archival note pointing to `memory/NEON-PRODUCTION-HARDENING-2026-04.md`.
+Close this follow-up when all three workstreams complete per the checklist in `memory/FOLLOWUP-2026-05-01.md`. Replace this block with a dated archival note pointing to that file.
 
 ### Remote trigger backup
-A remote Claude Code cron trigger was intended for 2026-05-01 13:00 UTC but the claude.ai Code API returned 401 at setup time. To create manually: https://claude.ai/code/scheduled — use prompt from this block's Action section. Not required; this CLAUDE.md block is the primary reminder.
+A remote Claude Code cron trigger was intended for 2026-05-01 13:00 UTC but the claude.ai Code API returned 401 at setup time. To create manually: https://claude.ai/code/scheduled — use the Action section above. Not required; this block + the memory file are the primary reminders.
 
 ---
 

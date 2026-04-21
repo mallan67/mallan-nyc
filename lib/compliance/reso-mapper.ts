@@ -106,9 +106,9 @@ export interface RESOListing {
   ListOfficeMlsId: string;
   ListOfficeName: string;
 
-  // Commission
-  BuyerAgentCommission: string;
-  BuyerAgentCommissionType: 'Percentage' | 'Fixed';
+  // Commission fields REMOVED per NAR Settlement (Aug 2025). Do NOT re-add.
+  // Any compensation data must stay out of RLS/IDX payloads. See
+  // lib/compliance/rls-enforcement.ts REMOVED_FIELDS.
 
   // Description
   PublicRemarks: string;
@@ -270,10 +270,6 @@ export function mapListingToRESO(listing: Listing): RESOListing {
     ListOfficeKey: listing.agent.listAgentId.split('-')[0] || 'mallan',
     ListOfficeMlsId: 'MALLAN',
     ListOfficeName: listing.agent.listOfficeName,
-
-    // Commission
-    BuyerAgentCommission: listing.buyer.buyerAgentCompensation,
-    BuyerAgentCommissionType: listing.buyer.buyerAgentCompensationType,
 
     // Description
     PublicRemarks: listing.description,

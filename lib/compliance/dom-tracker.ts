@@ -133,3 +133,34 @@ export function computeDomTransition(
     cumulative_days_on_market: currentDom,
   };
 }
+
+/**
+ * Read-path DOM for display (dashboards, cards, public pages).
+ *
+ * Returns the current UCBA-compliant days-on-market value without writing
+ * anything. Honors:
+ *   - Stored `days_on_market` as the accumulated base
+ *   - Adds elapsed time since `status_changed_at` ONLY if currently accruing
+ *   - Suppresses accrual during ComingSoon / Withdrawn / Cancelled / Expired
+ *   - Suppresses accrual when permissions are "Participant Only Network" / "Private"
+ *   - Freezes at stored value once Sold / Rented / Closed
+ *
+ * Use this instead of naive (now - created_at) math. That math:
+ *   (a) never resets after 30 days Withdrawn/Cancelled (UCBA Art. I §11 violation)
+ *   (b) continues accruing during ComingSoon (UCBA D1/D2 violation)
+ *   (c) continues accruing on Participant Only Network listings (UCBA 2026 carve-out)
+ */
+export function getCurrentDom(listing: ListingDomFields): number {
+  const stored = listing.days_on_market || 0;
+
+  // Not accruing → return stored snapshot
+  if (!DOM_ACCRUING_STATUSES.has(listing.status)) return stored;
+  if (isDomSuppressedByPermissions(listing.permissions)) return stored;
+  if (!listing.status_changed_at) return stored;
+
+  // Accruing → add elapsed since last transition
+  const elapsed = Math.floor(
+    (Date.now() - listing.status_changed_at.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  return Math.max(0, stored + elapsed);
+}

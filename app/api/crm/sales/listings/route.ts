@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
+import { getCurrentDom } from "@/lib/compliance/dom-tracker";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -40,14 +41,23 @@ export async function GET(req: NextRequest) {
     sellerLeads.map((s) => [s.active_sale_listing_id!, `${s.first_name} ${s.last_name}`.trim()])
   );
 
-  const now = new Date();
   const enriched = listings.map((l) => {
     const addr = typeof l.address === "object" && l.address !== null
       ? (l.address as Record<string, string>).UnparsedAddress || (l.address as Record<string, string>).full || ""
       : String(l.address || "");
 
-    const createdDate = l.created_at ? new Date(l.created_at) : now;
-    const dom = Math.max(0, Math.floor((now.getTime() - createdDate.getTime()) / (24 * 3600 * 1000)));
+    // UCBA Art. I §11 DOM: honors stored days_on_market + 30-day reset rule +
+    // ComingSoon / Participant-Only suppression. Do NOT replace with (now - created_at).
+    const permissions = typeof l.compliance === "object" && l.compliance !== null
+      ? (l.compliance as Record<string, unknown>).Permissions as string | null | undefined
+      : null;
+    const dom = getCurrentDom({
+      status: l.status || "Active",
+      permissions: permissions ?? null,
+      status_changed_at: l.status_changed_at,
+      first_active_date: l.first_active_date,
+      days_on_market: l.days_on_market || 0,
+    });
 
     return {
       ...l,
