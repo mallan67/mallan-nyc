@@ -212,12 +212,12 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
           Featured
         </span>
       )}
-      <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer group">
+      <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`} className="block cursor-pointer group">
         <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
       </Link>
 
       <div className="p-5 md:p-6">
-        <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer">
+        <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`} className="block cursor-pointer">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <h3 className="font-display font-semibold text-base md:text-[17px] truncate text-brand-dark">

@@ -293,17 +293,27 @@ export async function GET(request: NextRequest) {
       return new Date(b.closeDate).getTime() - new Date(a.closeDate).getTime();
     });
 
-    return NextResponse.json({
-      success: true,
-      activeUnits,
-      saleHistory,
-      _compliance: {
-        source: 'idx+acris',
-        attribution: 'REBNY RLS',
-        acrisBBL: bbl || null,
-        acrisRecords: acrisSales.length,
+    return NextResponse.json(
+      {
+        success: true,
+        activeUnits,
+        saleHistory,
+        _compliance: {
+          source: 'idx+acris',
+          attribution: 'REBNY RLS',
+          acrisBBL: bbl || null,
+          acrisRecords: acrisSales.length,
+        },
       },
-    });
+      {
+        // Building pages change slowly — same units listed, same ACRIS history.
+        // 10-min s-maxage + 60-min stale-while-revalidate keeps every building
+        // page responsive without re-hitting Neon on each visitor.
+        headers: {
+          'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600',
+        },
+      }
+    );
   } catch (err) {
     console.error('[/api/listings/building] Error:', err);
     return NextResponse.json({ success: true, activeUnits: [], saleHistory: [] });

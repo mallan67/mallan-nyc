@@ -161,10 +161,20 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      return NextResponse.json({
-        listings,
-        _compliance: { source: 'idx', attribution: 'REBNY RLS' },
-      });
+      return NextResponse.json(
+        {
+          listings,
+          _compliance: { source: 'idx', attribution: 'REBNY RLS' },
+        },
+        {
+          // Similar listings only change when the IDX sync runs (every 30 min).
+          // A 5-min shared cache + 30-min stale-while-revalidate means the edge
+          // serves ~99% of repeat visits without touching Neon.
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800',
+          },
+        }
+      );
     }
 
     // ── Trestle fallback if DB has fewer than 3 results ──
@@ -289,10 +299,17 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({
-      listings,
-      _compliance: { source: 'idx', attribution: 'REBNY RLS' },
-    });
+    return NextResponse.json(
+      {
+        listings,
+        _compliance: { source: 'idx', attribution: 'REBNY RLS' },
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800',
+        },
+      }
+    );
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
     if (isTimeout) {

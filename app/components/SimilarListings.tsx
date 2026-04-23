@@ -40,7 +40,7 @@ function formatPrice(price: number, isRental: boolean): string {
 function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boolean }) {
   return (
     <Link
-      href={`/listing/${item.slug || item.mlsId}?key=${encodeURIComponent(item.mlsId || item.id)}`}
+      href={`/listing/${item.slug || `listing-${item.id}`}?key=${encodeURIComponent(item.id)}`}
       className="flex-shrink-0 w-[260px] sm:w-[280px] bg-white rounded-2xl border border-black/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)] transition-all duration-300 group flex flex-col"
     >
       {/* Photo — fixed 4:3 aspect */}

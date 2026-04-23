@@ -145,9 +145,15 @@ export async function fetchFromTrestle(
 }
 
 /**
- * Fetch a single listing by ListingId from Trestle.
- * Uses $filter (not OData key syntax) since ListingId != entity key.
- * Media is fetched separately via fetchListingMedia().
+ * Fetch a single listing by ListingId or ListingKey from Trestle.
+ *
+ * REBNY's Trestle feed exposes two distinct identifiers per record:
+ *   - ListingId  = human "RLS20059088" (Edm.String, MaxLength 255)
+ *   - ListingKey = numeric-as-string "1146011469" (Edm.String, MaxLength 20,
+ *                  the primary key; this is what joins to Media.ResourceRecordKey)
+ * Callers and URLs in the wild use both forms. Filter on whichever one looks
+ * like it could match — cheap to OR both — so the resolver stops 404'ing when
+ * the DB (which normally resolves either form via `listing_id`) is unreachable.
  */
 export async function fetchSingleListing(
   listingId: string
@@ -161,10 +167,18 @@ export async function fetchSingleListing(
   }
   const selectFields = IDX_PLUS_SELECT_FIELDS.join(",");
   const escapedId = listingId.replace(/'/g, "''");
+  const isNumericKey = /^\d+$/.test(listingId);
 
   function buildUrl(): string {
     const params = new URLSearchParams();
-    params.set("$filter", `ListingId eq '${escapedId}'`);
+    // If the caller handed us a numeric-looking string, it's almost certainly
+    // ListingKey (REBNY ListingKey is always numeric). Otherwise try ListingId
+    // first but also OR ListingKey for safety (listings imported from other
+    // pipelines may have swapped fields).
+    const filter = isNumericKey
+      ? `ListingKey eq '${escapedId}' or ListingId eq '${escapedId}'`
+      : `ListingId eq '${escapedId}' or ListingKey eq '${escapedId}'`;
+    params.set("$filter", filter);
     params.set("$select", selectFields);
     // Skip $expand=Media — fetch photos separately via fetchListingMedia() to avoid
     // the extra 400→retry round trip that Trestle consistently rejects.
@@ -202,9 +216,10 @@ export async function fetchSingleListing(
 
 /**
  * Fetch a single listing by address components from Trestle.
- * Used for address-based slug resolution.
- * Searches by StreetNumber + StreetName (contains) + City + PostalCode.
- * Returns the first active match or null.
+ * Used for address-based slug resolution (no-?key= URLs, sitemap, share links).
+ * Filters on StreetNumber + PostalCode + Active-ish status; narrows by composed
+ * street name and unit number in JS (see comment in the filter builder below).
+ * Returns the freshest active match or null.
  */
 export async function fetchListingByAddress(address: {
   streetNumber: string;
@@ -232,17 +247,23 @@ export async function fetchListingByAddress(address: {
   }
 
   // Build OData filter from address components.
-  // Use tolower() for case-insensitive matching — slug parser lowercases all values,
-  // but Trestle stores mixed case (e.g., "PH", "Broadway").
+  //
+  // We deliberately do NOT filter on StreetName via contains() any more.
+  // REBNY's Trestle feed splits the street name into four fields:
+  //   StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix
+  // (e.g. "W" + "57th" + "Street" + "") which we compose into "W 57th Street"
+  // in the DTO and in the URL slug. A contains(tolower(StreetName), 'w 57th street')
+  // filter on the bare StreetName field ("57th") will never match the composed
+  // slug, so the old filter dropped every address-slug lookup with a directional
+  // or a suffix. StreetNumber + PostalCode is unique enough for NYC — even at
+  // the same ZIP, the same StreetNumber on two different streets is vanishingly
+  // rare, and when it does happen we narrow with the JS composed-name check
+  // and unit match below.
   const filterParts: string[] = [];
 
   if (address.streetNumber) {
     const safe = sanitizeOData(address.streetNumber, 10);
     if (safe) filterParts.push(`StreetNumber eq '${safe}'`);
-  }
-  if (address.streetName) {
-    const safe = sanitizeOData(address.streetName, 100).toLowerCase();
-    if (safe) filterParts.push(`contains(tolower(StreetName), '${safe}')`);
   }
   if (address.postalCode) {
     const safe = sanitizeOData(address.postalCode, 10);
@@ -258,8 +279,11 @@ export async function fetchListingByAddress(address: {
   const params = new URLSearchParams();
   params.set("$filter", filterParts.join(" and "));
   params.set("$select", selectFields);
-  // Fetch up to 10 results when unit number needs JS matching, 1 otherwise
-  params.set("$top", address.unitNumber ? "10" : "1");
+  // Fetch up to 25 results so we can narrow by composed street name + unit in
+  // JS. 25 covers every ZIP × street-number bucket REBNY has in practice (a
+  // single luxury tower at e.g. 217 W 57th maxes out around 10 unique units
+  // listed concurrently).
+  params.set("$top", "25");
   params.set("$orderby", "ModificationTimestamp desc");
   const url = `${getPropertyEndpoint()}?${params.toString()}`;
 
@@ -280,19 +304,39 @@ export async function fetchListingByAddress(address: {
   const records: Record<string, unknown>[] = data.value || [];
   if (records.length === 0) return null;
 
-  // If no unit number filter, return best match
-  if (!address.unitNumber) return records[0];
+  // Normalize helpers — match the slug generator's behaviour. The slugifier
+  // collapses every non-alphanumeric run to a hyphen and then the unit token
+  // is re-joined without separators, so a DB unit "127/128" becomes slug-token
+  // "127128" and a DB unit "17/C" becomes slug-token "17c". The old regex
+  // preserved "/" and therefore never matched slash-bearing units.
+  const normalize = (u: string) => u.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Compose the full street name the same way mapRESOToInternal / the slug
+  // generator do, so we can narrow multi-record results (same street number
+  // in the same ZIP on two different streets, or multi-unit buildings).
+  const composeStreetName = (r: Record<string, unknown>): string =>
+    [r.StreetDirPrefix, r.StreetName, r.StreetSuffix, r.StreetDirSuffix]
+      .filter(Boolean).map(String).join(' ').toLowerCase();
 
-  // Match unit number in JavaScript — normalize by stripping hyphens, spaces, dots
-  const normalize = (u: string) => u.toLowerCase().replace(/[-\s.]/g, '');
+  // Narrow to street-name match when the parsed slug gave us one. This handles
+  // the rare cross-street collision at the same ZIP and StreetNumber without
+  // requiring Trestle to do a contains() on a composed field it does not have.
+  let filtered = records;
+  if (address.streetName) {
+    const targetName = address.streetName.toLowerCase();
+    const nameMatches = records.filter(r => composeStreetName(r).includes(targetName));
+    if (nameMatches.length > 0) filtered = nameMatches;
+  }
+
+  // If no unit number requested, return the freshest match.
+  if (!address.unitNumber) return filtered[0];
+
+  // Unit number JS match — exact normalized equality wins, fallback to first.
   const targetUnit = normalize(address.unitNumber);
-  const match = records.find(r => {
+  const unitMatch = filtered.find(r => {
     const unit = r.UnitNumber ? normalize(String(r.UnitNumber)) : '';
     return unit === targetUnit;
   });
-
-  // Return exact unit match, or first result as fallback (same address, different unit)
-  return match || records[0];
+  return unitMatch || filtered[0];
 }
 
 /**

@@ -265,11 +265,18 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       });
     }
 
-    // Strategy 2: Address slug → query by address components
+    // Strategy 2: Address slug → query by address components.
+    //
+    // REBNY splits the street name across four JSON fields — StreetDirPrefix,
+    // StreetName, StreetSuffix, StreetDirSuffix — which the slug generator
+    // composes into "W 57th Street". Narrowing on bare StreetName alone never
+    // matches a composed slug, and picking findFirst for a busy ZIP returns a
+    // random unit. Fetch by postal+StreetNumber, then let JS narrow by the
+    // composed street name and by unit.
     if (!dbListing && !isMlsIdSlug(slug)) {
       const parsed = parseAddressSlug(slug);
       if (parsed && parsed.streetNumber && parsed.postalCode) {
-        dbListing = await prisma.listing.findFirst({
+        const candidates = await prisma.listing.findMany({
           where: {
             postal_code: parsed.postalCode,
             address: {
@@ -277,22 +284,42 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
               equals: parsed.streetNumber,
             },
           },
+          take: 25,
         });
-        // Narrow by street name if multiple matches
-        if (!dbListing && parsed.streetName) {
-          const candidates = await prisma.listing.findMany({
-            where: { postal_code: parsed.postalCode },
-            take: 50,
-          });
-          dbListing = candidates.find(c => {
+        // Match the slug generator's unit handling. The slugifier collapses
+        // every non-alphanumeric run to a hyphen and then the unit token is
+        // re-joined without separators, so a DB unit "127/128" becomes slug
+        // "127128" and a DB unit "17/C" becomes slug "17c". Stripping only
+        // hyphens/spaces/dots (earlier attempt) missed slash-bearing units
+        // and silently returned a neighbouring unit from the same building.
+        const normalize = (u: string) => u.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const composeName = (addr: Record<string, string>) =>
+          [addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix, addr.StreetDirSuffix]
+            .filter(Boolean).join(' ').toLowerCase();
+
+        // First narrow by composed street name (handles same-number-different-street).
+        let narrowed = candidates;
+        if (parsed.streetName) {
+          const targetName = parsed.streetName.toLowerCase();
+          const nameMatches = candidates.filter(c => {
             const addr = c.address as Record<string, string> | null;
-            if (!addr) return false;
-            const sn = (addr.StreetNumber || '').toLowerCase();
-            const st = (addr.StreetName || '').toLowerCase();
-            return sn === parsed.streetNumber.toLowerCase() &&
-                   st.includes(parsed.streetName.toLowerCase());
-          }) || null;
+            return !!addr && composeName(addr).includes(targetName);
+          });
+          if (nameMatches.length > 0) narrowed = nameMatches;
         }
+
+        // Then narrow by unit number (handles multi-unit buildings).
+        if (parsed.unitNumber && narrowed.length > 1) {
+          const targetUnit = normalize(parsed.unitNumber);
+          const unitMatch = narrowed.find(c => {
+            const addr = c.address as Record<string, string> | null;
+            const unit = addr?.UnitNumber ? normalize(String(addr.UnitNumber)) : '';
+            return unit === targetUnit;
+          });
+          if (unitMatch) narrowed = [unitMatch];
+        }
+
+        dbListing = narrowed[0] || null;
       }
     }
 

@@ -187,7 +187,7 @@ function ListingCard({ listing }: { listing: ListingItem }) {
 
   return (
     <Link
-      href={`/listing/${listing.slug || listing.mlsId}?key=${encodeURIComponent(listing.mlsId || listing.id)}`}
+      href={`/listing/${listing.slug || `listing-${listing.id}`}?key=${encodeURIComponent(listing.id)}`}
       className="glass-card rounded-3xl overflow-hidden hover:shadow-md transition-shadow block"
     >
       {/* Image */}
