@@ -30,3 +30,36 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export default prisma;
+
+// ────────────────────────────────────────────────────────────────────────
+// Quota-exhaustion helper — NEON.md §7A
+//
+// Neon free tier returns a specific Postgres error when the monthly compute
+// budget is exceeded: "Your account or project has exceeded the compute
+// time quota." Every DB path throws this uniformly.
+//
+// Routes wrap their prisma call with `isQuotaExhausted(err)`; when true,
+// they return HTTP 503 with `Retry-After` instead of a raw 500. Public IDX
+// pages additionally fall through to their existing Trestle direct-fetch
+// path (in app/listing/[id]/page.tsx and the search API) so the public
+// site stays partially live even while the CRM is down.
+// ────────────────────────────────────────────────────────────────────────
+
+export function isQuotaExhausted(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const msg = (err as { message?: string }).message ?? String(err);
+  return /compute time quota|compute quota exceeded/i.test(msg);
+}
+
+/**
+ * Seconds until the Neon free-tier monthly reset, capped at 24h so CDN
+ * caches of a Retry-After header don't suppress retries for a full week.
+ * Reset is calendar-monthly (1st of next month UTC).
+ */
+export function quotaResetRetryAfterSeconds(now: Date = new Date()): number {
+  const nextMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0),
+  );
+  const secs = Math.floor((nextMonth.getTime() - now.getTime()) / 1000);
+  return Math.min(secs, 86400);
+}
