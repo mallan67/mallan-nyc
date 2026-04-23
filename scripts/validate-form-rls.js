@@ -295,30 +295,25 @@ function extractCollectFormDataRefs(html, funcName) {
         elementIds.add(m[1]);
     }
 
-    // Also extract data.xxx references on RHS (data.salePrice, data.rentalMonthlyRent, etc.)
-    // These are element IDs collected by the generic querySelectorAll loop
+    // Also extract `data.xxx` references on the RHS of assignments — those are
+    // element IDs that came from the generic querySelectorAll loop earlier in
+    // the function body (e.g. `parseFloat(data.saleOriginalPrice || '0')`).
+    //
+    // The regex captures every `data.X` occurrence; we filter afterwards.
+    //
+    // Skip rules (in order):
+    //   1. `dataKeys` — names that appear as LHS assignments (`data.X = ...`).
+    //      These are output RLS field names being written, not element IDs.
+    //      Using the dynamic `dataKeys` set (built above) is self-healing: any
+    //      new RLS output field added to collectFormData() is automatically
+    //      recognized without updating a hardcoded list.
+    //   2. Native JS members (push/length/forEach) captured on arrays.
+    const NATIVE_MEMBERS = new Set(['push', 'length', 'forEach', 'map', 'filter', 'find', 'some', 'every', 'includes', 'indexOf', 'slice', 'splice', 'concat', 'join', 'split', 'trim', 'toLowerCase', 'toUpperCase']);
     const dataRefRegex = /data\.(\w+)/g;
     while ((m = dataRefRegex.exec(funcBody)) !== null) {
-        // Skip the LHS assignments and known non-element keys
         const key = m[1];
-        if (['listing_type', 'PropertyType', 'PropertySubType', 'CommonInterest',
-             'MlsStatus', 'ListPrice', 'NetMonthlyRent', 'BedroomsTotal',
-             'BathroomsFull', 'BathroomsHalf', 'BathroomsTotal', 'LivingArea',
-             'StreetNumber', 'StreetName', 'StreetSuffix', 'UnitNumber',
-             'City', 'CityRegion', 'SubdivisionName', 'StateOrProvince',
-             'PostalCode', 'UnParsedAddress', 'PublicRemarks', 'PrivateRemarks',
-             'ShowingInstructions', 'YearBuilt', 'NewDevelopmentYN',
-             'ListingAgreement', 'CoBrokeAgreement',
-             'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN',
-             'InternetAddressDisplayYN', 'SyndicateYN', 'Permissions',
-             'ListAgentMlsId', 'ListAgentFullName', 'ListAgentEmail',
-             'ListAgentDirectPhone', 'ListOfficeName', 'ListOfficeKey',
-             'BuildingName', 'StructureType', 'StoriesTotal',
-             'NumberOfUnitsTotal', 'CrossStreet', 'TaxBlock', 'BuildingTaxLot',
-             'AssociationName', 'PetsAllowed', 'BuildingPetsAllowed',
-             'BuildingFeatures', 'OwnerPays',
-             'push', 'length', 'forEach'
-            ].includes(key)) continue;
+        if (dataKeys.has(key)) continue;        // Rule 1 — LHS output key, not an element ID
+        if (NATIVE_MEMBERS.has(key)) continue;  // Rule 2 — array/string member access
         elementIds.add(key);
     }
 

@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import { trackInquiry } from '@/lib/posthog';
 import AgencyDisclosure from './AgencyDisclosure';
+import AntiDiscriminationNotice from './AntiDiscriminationNotice';
 
 export default function HomeValueWidget() {
   const ref = useGsapReveal<HTMLDivElement>({ y: 40, duration: 1 });
@@ -159,6 +160,7 @@ export default function HomeValueWidget() {
             </label>
             <div className="mt-3">
               <AgencyDisclosure />
+              <AntiDiscriminationNotice />
             </div>
           </>
         )}

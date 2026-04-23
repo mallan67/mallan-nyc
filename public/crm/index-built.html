@@ -3556,9 +3556,9 @@ function toggleSection(header) {
                                 </div>
                                 <!-- Custom price inputs (shown when "Custom" selected) -->
                                 <div id="searchCustomPriceRow" class="hidden flex gap-1 items-center">
-                                    <input type="number" id="searchMinPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Min" min="0" step="1">
+                                    <input type="number" id="searchMinPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Min" min="0" step="1" data-rls-ignore="true">
                                     <span class="text-gray-400 text-xs flex-shrink-0">—</span>
-                                    <input type="number" id="searchMaxPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Max" min="0" step="1">
+                                    <input type="number" id="searchMaxPriceCustom" class="flex-1 min-w-0 border rounded px-1 py-1 text-xs" placeholder="$ Max" min="0" step="1" data-rls-ignore="true">
                                 </div>
                                 <div class="flex gap-1">
                                     <select class="flex-1 min-w-0 border rounded px-1 py-1 text-xs truncate" id="searchMinBeds">
@@ -3759,7 +3759,7 @@ function toggleSection(header) {
                             <div class="mb-2">
                                 <div class="flex gap-1.5 items-center">
                                     <div class="relative flex-1">
-                                        <input type="text" id="searchNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'searchNeighborhoodDropdown', 'searchNeighborhoodTags')" autocomplete="off">
+                                        <input type="text" id="searchNeighborhoodInput" placeholder="Neighborhood (e.g. Lenox Hill, SoHo)..." class="w-full border rounded px-2 py-1.5 text-xs pr-7" oninput="neighborhoodAutocomplete(this.value, 'searchNeighborhoodDropdown', 'searchNeighborhoodTags')" autocomplete="off" data-rls-ignore="true">
                                         <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]"></i>
                                         <div id="searchNeighborhoodDropdown" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
                                     </div>
@@ -4219,7 +4219,7 @@ function toggleSection(header) {
                         <!-- Keyword Search -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Keyword Search</p>
-                            <input type="text" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs" id="searchKeyword">
+                            <input type="text" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs" id="searchKeyword" data-rls-ignore="true">
                         </div>
 
                         <!-- Management Companies -->
@@ -4248,11 +4248,11 @@ function toggleSection(header) {
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">RLS ID / Web ID / Listing #</label>
                                     <input id="adv-rls-id" type="text" placeholder="e.g. RLS-12345, WEB-67890 (comma-separated)"
                                            class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-mono"
-                                           oninput="detectIDType(this)">
+                                           oninput="detectIDType(this)" data-rls-ignore="true">
                                 </div>
                                 <div>
                                     <label class="text-xs font-medium text-gray-600 mb-1 block">Zip Code</label>
-                                    <input id="adv-zip" type="text" inputmode="numeric" pattern="[0-9]{5}" placeholder="10001" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" maxlength="5">
+                                    <input id="adv-zip" type="text" inputmode="numeric" pattern="[0-9]{5}" placeholder="10001" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" maxlength="5" data-rls-ignore="true">
                                 </div>
                             </div>
                             <!-- Row 2: Neighborhood autocomplete + Map + Transit -->
@@ -4352,7 +4352,7 @@ function toggleSection(header) {
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">North (From)</label>
-                                        <select id="adv-grid-north" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-north" class="border rounded-lg px-3 py-2 text-sm w-full" data-rls-ignore="true">
                                             <option value="">Select Street</option>
                                             <option>244th Street</option>
                                             <option>243rd Street</option>
@@ -4531,7 +4531,7 @@ function toggleSection(header) {
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">South (To)</label>
-                                        <select id="adv-grid-south" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-south" class="border rounded-lg px-3 py-2 text-sm w-full" data-rls-ignore="true">
                                             <option value="">Select Street</option>
                                             <option>14th Street</option>
                                             <option>15th Street</option>
@@ -4717,7 +4717,7 @@ function toggleSection(header) {
                                 <div class="grid grid-cols-2 gap-2 mt-2">
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">West (From)</label>
-                                        <select id="adv-grid-west" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-west" class="border rounded-lg px-3 py-2 text-sm w-full" data-rls-ignore="true">
                                             <option value="">Select Avenue</option>
                                             <option>First Avenue</option>
                                             <option>Second Avenue</option>
@@ -4771,7 +4771,7 @@ function toggleSection(header) {
                                     </div>
                                     <div>
                                         <label class="text-xs text-gray-500 mb-1 block">East (To)</label>
-                                        <select id="adv-grid-east" class="border rounded-lg px-3 py-2 text-sm w-full">
+                                        <select id="adv-grid-east" class="border rounded-lg px-3 py-2 text-sm w-full" data-rls-ignore="true">
                                             <option value="">Select Avenue</option>
                                             <option>First Avenue</option>
                                             <option>Second Avenue</option>
@@ -5105,7 +5105,7 @@ function toggleSection(header) {
                         </div>
                         <div class="section-content">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                <input id="adv-keyword" type="text" placeholder="Keyword Search" class="border rounded-lg px-3 py-2 text-sm">
+                                <input id="adv-keyword" type="text" placeholder="Keyword Search" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                             </div>
 
                             <!-- Price & Financials Card -->
@@ -5119,7 +5119,7 @@ function toggleSection(header) {
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;" id="priceLabel">Price</p>
                                         <div id="salePriceFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="advSaleMinPrice" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advSaleMinPrice" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Min Price</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="100000">$100K</option>
@@ -5153,7 +5153,7 @@ function toggleSection(header) {
                                                 <option value="50000000">$50M</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="advSaleMaxPrice" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advSaleMaxPrice" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Max Price</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
@@ -5185,16 +5185,16 @@ function toggleSection(header) {
                                         </div>
                                         <!-- Advanced sale custom price inputs -->
                                         <div id="advSaleCustomPriceRow" class="hidden" style="display:none;align-items:center;gap:6px;flex:1;min-width:0;margin-top:6px;">
-                                            <input type="number" id="advSaleMinPriceCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Min" min="0" step="1">
+                                            <input type="number" id="advSaleMinPriceCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Min" min="0" step="1" data-rls-ignore="true">
                                             <span class="text-gray-400 text-xs" style="flex-shrink:0;">—</span>
-                                            <input type="number" id="advSaleMaxPriceCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Max" min="0" step="1">
+                                            <input type="number" id="advSaleMaxPriceCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Max" min="0" step="1" data-rls-ignore="true">
                                         </div>
                                         </div>
                                         <!-- Expenses -->
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;" id="monthlyLabel">Expenses</p>
                                         <div id="monthlyExpensesFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="adv-min-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">$500</option>
@@ -5210,7 +5210,7 @@ function toggleSection(header) {
                                                 <option value="15000">$15,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="adv-max-expenses" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -5234,7 +5234,7 @@ function toggleSection(header) {
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;">Rent</p>
                                         <div id="rentPriceFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="advRentalMinRent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advRentalMinRent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Min Rent</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -5263,7 +5263,7 @@ function toggleSection(header) {
                                                 <option value="50000">$50,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="advRentalMaxRent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="advRentalMaxRent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Max Rent</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1500">$1,500</option>
@@ -5295,16 +5295,16 @@ function toggleSection(header) {
                                         </div>
                                         <!-- Advanced rental custom price inputs -->
                                         <div id="advRentalCustomPriceRow" class="hidden" style="display:none;align-items:center;gap:6px;flex:1;min-width:0;margin-top:6px;">
-                                            <input type="number" id="advRentalMinRentCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Min" min="0" step="1">
+                                            <input type="number" id="advRentalMinRentCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Min" min="0" step="1" data-rls-ignore="true">
                                             <span class="text-gray-400 text-xs" style="flex-shrink:0;">—</span>
-                                            <input type="number" id="advRentalMaxRentCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Max" min="0" step="1">
+                                            <input type="number" id="advRentalMaxRentCustom" class="border border-gray-300 rounded px-1 py-1 text-xs" style="flex:1;min-width:0;" placeholder="$ Max" min="0" step="1" data-rls-ignore="true">
                                         </div>
                                         </div>
                                         <!-- Net Rent -->
                                         <div style="display:flex;align-items:center;gap:8px;">
                                         <p class="font-semibold text-gray-700" style="white-space:nowrap;flex-shrink:0;min-width:60px;">Net Rent</p>
                                         <div id="netMonthlyRentFields" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;">
-                                            <select id="adv-min-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="adv-min-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">$500</option>
@@ -5315,7 +5315,7 @@ function toggleSection(header) {
                                                 <option value="5000">$5,000</option>
                                             </select>
                                             <span class="text-gray-400" style="flex-shrink:0;">—</span>
-                                            <select id="adv-max-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;">
+                                            <select id="adv-max-net-rent" class="border border-gray-300 rounded px-1 py-1.5 text-xs" style="flex:1;min-width:0;max-width:100%;" data-rls-ignore="true">
                                                 <option value="">Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1000">$1,000</option>
@@ -5394,7 +5394,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-min-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="0">Studio</option>
@@ -5410,7 +5410,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-max-beds" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="0">Studio</option>
@@ -5432,7 +5432,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-min-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -5449,7 +5449,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-max-baths" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -5472,7 +5472,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-min-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -5490,7 +5490,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-max-rooms" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="1">1</option>
@@ -5514,7 +5514,7 @@ function toggleSection(header) {
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label class="text-gray-500">Min</label>
-                                                <select id="adv-min-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-min-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="300">300</option>
@@ -5539,7 +5539,7 @@ function toggleSection(header) {
                                             </div>
                                             <div>
                                                 <label class="text-gray-500">Max</label>
-                                                <select id="adv-max-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm">
+                                                <select id="adv-max-sqft" class="w-full border border-gray-300 rounded px-2 py-1.5 mt-1 text-sm" data-rls-ignore="true">
                                                     <option value="">Any</option>
                                                     <option value="custom">Custom</option>
                                                     <option value="500">500</option>
@@ -6040,27 +6040,27 @@ function toggleSection(header) {
                             <div class="mb-4" id="leaseAvailabilitySection" style="display: none;">
                                 <p class="text-xs font-semibold text-gray-600 mb-2">Lease/Availability</p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
-                                    <select id="leaseMinTerms" data-field="LeaseTermOptions" class="border rounded-lg px-3 py-2 text-sm">
+                                    <select id="leaseMinTerms" data-field="LeaseTermOptions" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                         <option value="">Any Min Lease Terms</option>
                                         <option value="ShortTermLease">Short Term</option>
                                         <option value="SixMonths">6 Months</option>
                                         <option value="TwelveMonths">1 Year</option>
                                         <option value="TwentyFourMonths">2 Years+</option>
                                     </select>
-                                    <select id="leaseMaxTerms" data-field="LeaseTermOptions" class="border rounded-lg px-3 py-2 text-sm">
+                                    <select id="leaseMaxTerms" data-field="LeaseTermOptions" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                         <option value="">Any Max Lease Terms</option>
                                         <option value="TwelveMonths">1 Year</option>
                                         <option value="TwentyFourMonths">2 Years</option>
                                         <option value="LongTerm">Long Term</option>
                                     </select>
                                 </div>
-                                <input id="leaseAvailabilityDate" type="date" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Available from">
+                                <input id="leaseAvailabilityDate" type="date" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Available from" data-rls-ignore="true">
                             </div>
 
                             <!-- Management Companies (Rental) -->
                             <div class="mb-4" id="managementCompaniesSection" style="display: none;">
                                 <p class="text-xs font-semibold text-gray-600 mb-2">Management Companies</p>
-                                <input id="adv-management" type="text" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                <input id="adv-management" type="text" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                             </div>
 
                         </div>
@@ -6615,11 +6615,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-listed-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-listed-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-listed-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-listed-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6629,11 +6629,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-updated-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-updated-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-updated-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-updated-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6643,11 +6643,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-contract-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-contract-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-contract-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-contract-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6657,11 +6657,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-lease-signed-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-lease-signed-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-lease-signed-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-lease-signed-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6671,11 +6671,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-sold-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-sold-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-sold-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-sold-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6685,11 +6685,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-rented-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-rented-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-rented-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-rented-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6699,11 +6699,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-expired-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-expired-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-expired-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-expired-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6713,11 +6713,11 @@ function toggleSection(header) {
                                         <div class="space-y-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">From:</span>
-                                                <input id="adv-hold-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-hold-from" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                             <div class="flex items-center gap-2">
                                                 <span class="text-gray-500 w-10">To:</span>
-                                                <input id="adv-hold-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                                                <input id="adv-hold-to" type="date" class="flex-1 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                             </div>
                                         </div>
                                     </div>
@@ -6728,9 +6728,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Days on Market (DOM)</p>
                                     <div class="flex items-center gap-2 mb-2">
-                                        <input id="adv-dom-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
+                                        <input id="adv-dom-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0" data-rls-ignore="true">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-dom-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
+                                        <input id="adv-dom-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                     </div>
                                     <div class="space-y-1 text-xs">
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> New (≤7 days)</label>
@@ -6741,9 +6741,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Cumulative DOM (CDOM)</p>
                                     <div class="flex items-center gap-2 mb-1">
-                                        <input id="adv-cdom-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0">
+                                        <input id="adv-cdom-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="0" data-rls-ignore="true">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-cdom-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
+                                        <input id="adv-cdom-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                     </div>
                                     <span class="text-xs text-gray-500">Includes relists</span>
                                 </div>
@@ -6809,7 +6809,7 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Monthly Tax (Condos)</p>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <select id="adv-tax-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select id="adv-tax-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm" data-rls-ignore="true">
                                             <option value="">Min</option>
                                             <option value="custom">Custom</option>
                                             <option value="0">$0</option>
@@ -6822,7 +6822,7 @@ function toggleSection(header) {
                                             <option value="5000">$5,000</option>
                                         </select>
                                         <span class="text-gray-400">—</span>
-                                        <select id="adv-tax-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select id="adv-tax-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm" data-rls-ignore="true">
                                             <option value="">Max</option>
                                             <option value="custom">Custom</option>
                                             <option value="500">$500</option>
@@ -6839,7 +6839,7 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Total Monthly (Maint + Tax)</p>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <select id="adv-monthly-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select id="adv-monthly-min" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm" data-rls-ignore="true">
                                             <option value="">Min</option>
                                             <option value="custom">Custom</option>
                                             <option value="0">$0</option>
@@ -6852,7 +6852,7 @@ function toggleSection(header) {
                                             <option value="10000">$10,000</option>
                                         </select>
                                         <span class="text-gray-400">—</span>
-                                        <select id="adv-monthly-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm">
+                                        <select id="adv-monthly-max" class="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm" data-rls-ignore="true">
                                             <option value="">Max</option>
                                             <option value="custom">Custom</option>
                                             <option value="1000">$1,000</option>
@@ -6868,7 +6868,7 @@ function toggleSection(header) {
                                 <!-- Financing -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Financing Allowed (Co-ops)</p>
-                                    <select id="adv-financing" class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm mb-2">
+                                    <select id="adv-financing" class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm mb-2" data-rls-ignore="true">
                                         <option value="">Any</option>
                                         <option value="custom">Custom</option>
                                         <option value="90">90%</option>
@@ -6955,9 +6955,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Ceiling Height</p>
                                     <div class="flex items-center gap-2 mb-2">
-                                        <input id="adv-ceiling-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="7" step="0.5">
+                                        <input id="adv-ceiling-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="7" step="0.5" data-rls-ignore="true">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-ceiling-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" step="0.5">
+                                        <input id="adv-ceiling-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" step="0.5" data-rls-ignore="true">
                                         <span class="text-xs text-gray-500">ft</span>
                                     </div>
                                     <div class="space-y-1 text-xs">
@@ -7069,9 +7069,9 @@ function toggleSection(header) {
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Floor Number</p>
                                     <div class="flex flex-wrap items-center gap-4">
                                         <div class="flex items-center gap-2">
-                                            <input id="adv-floor-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input id="adv-floor-min" type="number" placeholder="Min" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" min="1" data-rls-ignore="true">
                                             <span class="text-gray-400">—</span>
-                                            <input id="adv-floor-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input id="adv-floor-max" type="number" placeholder="Max" class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                         </div>
                                         <div class="flex flex-wrap gap-3 text-sm">
                                             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> High Floor (10+)</label>
@@ -7166,9 +7166,9 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Year Built</p>
                                     <div class="flex items-center gap-2">
-                                        <input id="adv-year-built-from" type="number" placeholder="From" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
+                                        <input id="adv-year-built-from" type="number" placeholder="From" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030" data-rls-ignore="true">
                                         <span class="text-gray-400">—</span>
-                                        <input id="adv-year-built-to" type="number" placeholder="To" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030">
+                                        <input id="adv-year-built-to" type="number" placeholder="To" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" min="1800" max="2030" data-rls-ignore="true">
                                     </div>
                                 </div>
                                 <!-- Year Renovated -->
@@ -7183,15 +7183,15 @@ function toggleSection(header) {
                                     <div class="space-y-2">
                                         <div class="flex items-center gap-2 text-xs">
                                             <span class="w-12 text-gray-500">Floors:</span>
-                                            <input id="adv-floors-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input id="adv-floors-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1" data-rls-ignore="true">
                                             <span class="text-gray-400">—</span>
-                                            <input id="adv-floors-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input id="adv-floors-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                         </div>
                                         <div class="flex items-center gap-2 text-xs">
                                             <span class="w-12 text-gray-500">Units:</span>
-                                            <input id="adv-bldg-units-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1">
+                                            <input id="adv-bldg-units-min" type="number" placeholder="Min" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" min="1" data-rls-ignore="true">
                                             <span class="text-gray-400">—</span>
-                                            <input id="adv-bldg-units-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm">
+                                            <input id="adv-bldg-units-max" type="number" placeholder="Max" class="w-14 border border-gray-300 rounded px-2 py-1 text-sm" data-rls-ignore="true">
                                         </div>
                                     </div>
                                 </div>
@@ -7219,7 +7219,7 @@ function toggleSection(header) {
                                 <!-- Building Name Search -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Name</p>
-                                    <input id="adv-building-name" type="text" placeholder="Search by name..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    <input id="adv-building-name" type="text" placeholder="Search by name..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                 </div>
                             </div>
                         </div>
@@ -7797,7 +7797,7 @@ function toggleSection(header) {
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
                                 <input type="text" id="compPropertyAddress" placeholder="Enter Address or Building Name"
-                                       class="w-full border rounded-lg px-4 py-2 text-sm">
+                                       class="w-full border rounded-lg px-4 py-2 text-sm" data-rls-ignore="true">
                                 <p class="text-xs text-gray-500 mt-1">* Required for Apartments</p>
                             </div>
                             <div class="flex gap-2">
@@ -7849,7 +7849,7 @@ function toggleSection(header) {
                                 <h3 class="font-semibold text-gray-900 mb-4">Subject Buildings</h3>
                                 <div class="relative">
                                     <input type="text" id="compBuildingAddress" placeholder="Enter Address or Building Name"
-                                           class="w-full border rounded-lg px-4 py-2 pr-10 text-sm">
+                                           class="w-full border rounded-lg px-4 py-2 pr-10 text-sm" data-rls-ignore="true">
                                     <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
                                 </div>
                             </div>
@@ -7862,7 +7862,7 @@ function toggleSection(header) {
                                     <div>
                                         <label id="compBuildingPriceLabel" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select id="compBuildingMinPrice" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinPrice" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="100000">$100K</option>
@@ -7895,7 +7895,7 @@ function toggleSection(header) {
                                                 <option value="40000000">$40M</option>
                                                 <option value="50000000">$50M</option>
                                             </select>
-                                            <select id="compBuildingMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxPrice" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
@@ -7931,7 +7931,7 @@ function toggleSection(header) {
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select id="compBuildingMinBeds" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinBeds" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="0">Studio</option>
@@ -7944,7 +7944,7 @@ function toggleSection(header) {
                                                 <option value="7">7 BR</option>
                                                 <option value="8">8+ BR</option>
                                             </select>
-                                            <select id="compBuildingMaxBeds" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxBeds" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="0">Studio</option>
@@ -7964,7 +7964,7 @@ function toggleSection(header) {
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select id="compBuildingMinBaths" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinBaths" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1">1 BA</option>
@@ -7978,7 +7978,7 @@ function toggleSection(header) {
                                                 <option value="5">5 BA</option>
                                                 <option value="6">6+ BA</option>
                                             </select>
-                                            <select id="compBuildingMaxBaths" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxBaths" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1">1 BA</option>
@@ -7999,7 +7999,7 @@ function toggleSection(header) {
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Square Footage</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select id="compBuildingMinSqft" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMinSqft" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="300">300 SF</option>
@@ -8021,7 +8021,7 @@ function toggleSection(header) {
                                                 <option value="7500">7,500 SF</option>
                                                 <option value="10000">10,000 SF</option>
                                             </select>
-                                            <select id="compBuildingMaxSqft" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compBuildingMaxSqft" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">500 SF</option>
@@ -8271,7 +8271,7 @@ function toggleSection(header) {
                                     <div>
                                         <label id="compGeneralPriceLabel" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select id="compGeneralMinPrice" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinPrice" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="100000">$100K</option>
@@ -8304,7 +8304,7 @@ function toggleSection(header) {
                                                 <option value="40000000">$40M</option>
                                                 <option value="50000000">$50M</option>
                                             </select>
-                                            <select id="compGeneralMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMaxPrice" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
@@ -8359,7 +8359,7 @@ function toggleSection(header) {
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
-                                            <select id="compGeneralMinBeds" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinBeds" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="0">Studio</option>
@@ -8375,7 +8375,7 @@ function toggleSection(header) {
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
-                                            <select id="compGeneralMinBaths" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinBaths" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="1">1 BA</option>
@@ -8396,7 +8396,7 @@ function toggleSection(header) {
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Square Footage</label>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <select id="compGeneralMinSqft" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMinSqft" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Min</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="300">300 SF</option>
@@ -8418,7 +8418,7 @@ function toggleSection(header) {
                                                 <option value="7500">7,500 SF</option>
                                                 <option value="10000">10,000 SF</option>
                                             </select>
-                                            <select id="compGeneralMaxSqft" class="border rounded-lg px-3 py-2 text-sm">
+                                            <select id="compGeneralMaxSqft" class="border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                                                 <option>Any Max</option>
                                                 <option value="custom">Custom</option>
                                                 <option value="500">500 SF</option>
@@ -10779,14 +10779,14 @@ function toggleSection(header) {
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Client</label>
-                <select id="savedSearchClientId" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <select id="savedSearchClientId" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                     <option value="">-- No client (agent only) --</option>
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Matching listings will appear in the client's portal</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email Alerts</label>
-                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm" data-rls-ignore="true">
                     <option value="">Off</option>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>

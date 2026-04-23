@@ -5621,7 +5621,9 @@ window.alert = function(msg) { showToast(String(msg)); };
  */
 function collectRentalFormData() {
     var data = { listing_type: 'rent' };
-    var container = document.getElementById('add-rental-listing') || document.querySelector('.flex-1');
+    // `add-rental-listing` was the legacy shell container — doesn't exist in
+    // the redesigned form. `.flex-1` is the real container used in the shell.
+    var container = document.querySelector('.flex-1');
     if (!container) return data;
 
     container.querySelectorAll('input, select, textarea').forEach(function(field) {
@@ -5778,11 +5780,19 @@ function collectRentalFormData() {
 
     // Date fields
     data.OffMarketDate = data.rentalOffMarketDate || '';
-    data.WithdrawnDate = data.rentalWithdrawnDate || '';
+    // WithdrawnDate is derived server-side from MlsStatus transitions;
+    // the rental UI does not capture it directly. Literal default —
+    // the previous element reference was to an ID that never existed
+    // in the redesigned form.
+    data.WithdrawnDate = '';
 
     // Financial fields
-    data.AssociationFee = parseFloat(data.rentalMaintCC || '0') || 0;
-    data.AssociationFeeFrequency = data.rentalMaintCCFreq || '';
+    // Rentals do not capture HOA/common-charge fees in this UI — those apply to
+    // sale (ownership) listings only. Literal defaults — original references
+    // (`rentalMaintCC`, `rentalMaintCCFreq`) pointed at elements that were
+    // removed during the redesign.
+    data.AssociationFee = 0;
+    data.AssociationFeeFrequency = '';
     data.SecurityDeposit = parseFloat(data.rentalSecurityDeposit || '0') || 0;
     data.LeaseAmount = parseFloat(data.rentalMonthlyRent || '0') || 0;
 
@@ -5793,8 +5803,11 @@ function collectRentalFormData() {
     data.ListTeamName = data.rentalListTeamName || '';
     data.ListTeamMlsId = data.rentalListTeamMlsId || '';
 
-    // Townhouse / building detail fields
-    data.EntryLevel = data.rentalFloorInBuilding || '';
+    // Townhouse / building detail fields.
+    // Rental UI captures floor-in-building via `rentalFloor` (line ~1799).
+    // Original reference `rentalFloorInBuilding` pointed at a legacy ID that
+    // doesn't exist in the redesign.
+    data.EntryLevel = data.rentalFloor || '';
     data.Stories = parseInt(data.rentalTHStories || '0') || null;
     data.BuildingAreaTotal = parseFloat(data.rentalTHBuildingArea || '0') || 0;
     data.Levels = data.rentalTHLevels || '';
@@ -5814,8 +5827,11 @@ function collectRentalFormData() {
     // Media fields
     data.VirtualTourURLUnbranded = data.rentalVirtualTourUnbranded || '';
 
-    // Living area source
-    data.LivingAreaSource = data.rentalLivingAreaSource || '';
+    // Living area source is not captured in the rental UI (sale form has
+    // saleLivingAreaSource; rentals defer to the landlord-supplied area).
+    // Literal default — original reference pointed at an element that was
+    // never added to the redesign.
+    data.LivingAreaSource = '';
 
     // FARE Act (NYC LL 119/2024) field mappings
     data.TenantPays = data.rentalTenantPays || '';

@@ -24,7 +24,11 @@ jobs:
           --health-retries=20
 
     env:
+      # Pooled + direct URLs point at the same scratch Postgres service above.
+      # CI doesn't use pgbouncer; both are the same connection string. Prisma
+      # requires directUrl to be set because schema.prisma declares it.
       DATABASE_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
 
     steps:
       - name: Checkout

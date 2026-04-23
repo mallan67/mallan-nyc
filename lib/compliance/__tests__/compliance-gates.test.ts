@@ -136,17 +136,27 @@ function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('checkDistributionGates', () => {
-  it('blocks IDX display disabled (IDXEntireListingDisplayYN = false)', () => {
+  // NOTE: Dead-field tests removed to match Trestle reality —
+  //   `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `IDXParticipationYN`
+  // do NOT exist on the Trestle $metadata schema (verified live 2026-04-19).
+  // They were transcribed from the REBNY English-language checklist, not the
+  // OData schema. The live schema uses:
+  //   - `Permission` enum (values: OwnerOptOut, Private, ...) — see Gates 1 & 2
+  //   - `InternetEntireListingDisplayYN` boolean — see Gate 3
+  // See `lib/idx/trestle-mapper.ts:745-810` (checkDistributionGates) and
+  // `compliance/IDX-VOW-DISPLAY-RULES.md:31,41` for authoritative mapping.
+
+  it('blocks owner opt-out listings (Permission = "OwnerOptOut")', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ IDXEntireListingDisplayYN: false })
+      buildRawTrestle({ Permission: 'OwnerOptOut' })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('IDX display disabled');
+    expect(result.reason).toContain('Owner opted out');
   });
 
-  it('blocks participant-only listings (ParticipantOnlyYN = true)', () => {
+  it('blocks participant-only listings (Permission = "Private")', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ ParticipantOnlyYN: true })
+      buildRawTrestle({ Permission: 'Private' })
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Participant-only');
@@ -158,14 +168,6 @@ describe('checkDistributionGates', () => {
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Internet display disabled');
-  });
-
-  it('blocks when IDX participation is disabled (IDXParticipationYN = false)', () => {
-    const result = checkDistributionGates(
-      buildRawTrestle({ IDXParticipationYN: false })
-    );
-    expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('IDX participation disabled');
   });
 
   it('passes active listing with all gates open', () => {
