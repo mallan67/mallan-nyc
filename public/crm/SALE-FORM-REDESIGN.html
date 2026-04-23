@@ -6392,7 +6392,9 @@ function toggleSaleRequiredFields() {
  */
 function collectSaleFormData() {
     var data = { listing_type: 'sale' };
-    var container = document.getElementById('add-sales-listing') || document.querySelector('.flex-1');
+    // `add-sales-listing` was the legacy shell container — doesn't exist in
+    // the redesigned form. `.flex-1` is the real container used in the shell.
+    var container = document.querySelector('.flex-1');
     if (!container) return data;
 
     // Collect all inputs, selects, textareas
