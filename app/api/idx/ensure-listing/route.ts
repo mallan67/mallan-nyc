@@ -13,6 +13,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
+import { affirmPermission } from "@/lib/compliance/gates";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -109,8 +110,10 @@ export async function POST(req: NextRequest) {
         property_sub_type: (body.property_sub_type as string) || null,
         rls_eligible: false, // External IDX listing, not our exclusive
         idx_display_yn: true,
-        internet_entire_listing_display_yn: body.internet_display_yn !== false,
-        internet_address_display_yn: body.address_display_yn !== false,
+        // Fail-CLOSED coercion — body is untrusted POST input. Was `!== false`
+        // which let missing/null fields become displayable.
+        internet_entire_listing_display_yn: affirmPermission(body.internet_display_yn),
+        internet_address_display_yn: affirmPermission(body.address_display_yn),
         agent_info: agentInfoJson as Prisma.InputJsonValue,
         media: (body.images as Prisma.InputJsonValue) ?? ([] as Prisma.InputJsonValue),
         features: {} as Prisma.InputJsonValue,

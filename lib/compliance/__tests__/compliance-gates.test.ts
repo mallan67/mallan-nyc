@@ -177,8 +177,10 @@ describe('checkDistributionGates', () => {
   });
 
   it('passes Coming Soon listings (flagged, not blocked)', () => {
+    // Trestle sends StandardStatus as 'ComingSoon' (canonical, no space).
+    // normalizeStatus accepts the spaced form too for defensive parsing.
     const result = checkDistributionGates(
-      buildRawTrestle({ StandardStatus: 'Coming Soon' })
+      buildRawTrestle({ StandardStatus: 'ComingSoon' })
     );
     expect(result.displayable).toBe(true);
   });
@@ -279,7 +281,10 @@ describe('toPublicDTO', () => {
   });
 
   it('sets comingSoon flag in _displayCompliance for Coming Soon listings', () => {
-    const listing = buildMockListing({ standardStatus: 'Coming Soon' });
+    // Canonical value — the DB stores 'ComingSoon' (no space) per RESO.
+    // This was previously 'Coming Soon' which never fired the badge branch
+    // because public-dto compared against the wrong format.
+    const listing = buildMockListing({ standardStatus: 'ComingSoon' });
     const dto = toPublicDTO(listing);
 
     expect(dto._displayCompliance.comingSoon).toBe(true);

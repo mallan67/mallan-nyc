@@ -14,6 +14,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { serializeBigInts } from "@/lib/api/serialize";
 import { calculateQualification } from "@/lib/finance/nyc-qualification";
+import { ACTIVE_DISPLAY_VALUES } from "@/lib/compliance/status";
 
 // ── Urgency helpers ───────────────────────────────────────────────────────────
 
@@ -458,7 +459,10 @@ export async function GET(req: NextRequest) {
   const listings = await prisma.listing.findMany({
     where: {
       owner_client_id: { in: landlordIds },
-      status: { in: ["Active", "Coming Soon"] },
+      // Canonical values — was `["Active", "Coming Soon"]` which never matched
+      // the `ComingSoon` DB value. Now includes ActiveUnderContract too
+      // (consistent with lib/compliance/status.ts ACTIVE_DISPLAY_VALUES).
+      status: { in: [...ACTIVE_DISPLAY_VALUES] },
     },
     select: {
       id: true,

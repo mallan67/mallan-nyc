@@ -5,6 +5,7 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { upsertBuildingFromRecords } from '@/lib/buildings/upsert';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
+import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -390,10 +391,10 @@ export async function GET(request: NextRequest) {
       console.warn('[/api/buildings] DB query failed, continuing with Trestle only:', dbErr);
     }
 
-    const activeStatuses = new Set(['Active', 'ActiveUnderContract', 'Coming Soon']);
-    const closedStatuses = new Set(['Closed']);
-    const activeListings = dbListings.filter((l) => activeStatuses.has(l.status));
-    const closedListings = dbListings.filter((l) => closedStatuses.has(l.status));
+    // Canonical status helpers — was `new Set(['Active', 'ActiveUnderContract', 'Coming Soon'])`
+    // which included a space-formatted 'Coming Soon' that never matched DB values.
+    const activeListings = dbListings.filter((l) => isActiveDisplayStatus(l.status));
+    const closedListings = dbListings.filter((l) => l.status === Status.CLOSED);
 
     // ── 2. Fetch from Trestle — ALL records at this address ──
     // Single broad query: no status filter, get everything, then separate
@@ -508,14 +509,16 @@ export async function GET(request: NextRequest) {
       (r) => checkDistributionGates(r as Record<string, unknown>).displayable
     );
 
-    // Separate records by status
-    const trestleActive = allTrestleRecords.filter((r) => {
-      const status = String(r.MlsStatus || r.StandardStatus || '');
-      return status === 'Active' || status === 'ActiveUnderContract' || status === 'Coming Soon';
-    });
+    // Separate records by status — Trestle returns either canonical or
+    // legacy space-formatted values. isActiveDisplayStatus accepts both.
+    // For closed: only Closed/Sold (buildings history UI shows
+    // completed transactions, not withdrawn/expired listings).
+    const trestleActive = allTrestleRecords.filter((r) =>
+      isActiveDisplayStatus(r.MlsStatus || r.StandardStatus || '')
+    );
     const trestleClosed = allTrestleRecords.filter((r) => {
       const status = String(r.MlsStatus || r.StandardStatus || '');
-      return status === 'Closed';
+      return status === Status.CLOSED || status === Status.SOLD;
     });
 
     // ── 3. Merge active units (Trestle + DB) ──

@@ -41,8 +41,25 @@ export interface IDXListing {
   listingKeyNumeric?: number;
   mlsId: string;
 
-  // Status
-  standardStatus: 'Active' | 'Pending' | 'Sold' | 'Withdrawn' | 'Expired' | 'Canceled' | 'Coming Soon' | 'Active Under Contract';
+  // Status — canonical RESO values (no spaces).
+  // Previously this union used spaced forms like 'Coming Soon' and
+  // 'Active Under Contract', which DISAGREED with the actual runtime values
+  // (DB stores 'ComingSoon', 'ActiveUnderContract'). Comparisons like
+  // `=== 'Coming Soon'` type-checked but silently never fired at runtime.
+  // See lib/compliance/status.ts for normalization + display-label helpers.
+  standardStatus:
+    | 'Active'
+    | 'ActiveUnderContract'
+    | 'Cancelled'
+    | 'Closed'
+    | 'ComingSoon'
+    | 'Expired'
+    | 'Hold'
+    | 'Leased'
+    | 'Pending'
+    | 'Rented'
+    | 'Sold'
+    | 'Withdrawn';
   listingType: 'sale' | 'rent';
 
   // Address (RESO-aligned)

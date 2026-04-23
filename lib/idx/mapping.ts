@@ -10,6 +10,7 @@
 
 import type { IDXListing } from './types';
 import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
+import { affirmPermission } from '@/lib/compliance/gates';
 
 /**
  * RESO Data Dictionary field names — complete set.
@@ -340,10 +341,15 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     }) : [],
     // Remarks — public only (private remarks NEVER mapped to IDXListing)
     publicRemarks: normalized.PublicRemarks ? String(normalized.PublicRemarks) : undefined,
-    // Distribution gate flags (for address suppression + downstream checks)
-    idxEntireListingDisplayYN: normalized.IDXEntireListingDisplayYN !== false,
-    internetEntireListingDisplayYN: normalized.InternetEntireListingDisplayYN !== false,
-    internetAddressDisplayYN: normalized.InternetAddressDisplayYN !== false,
+    // Distribution gate flags — fail-CLOSED coercion via affirmPermission.
+    // Previous `!== false` pattern mis-classified missing flags as displayable.
+    // Note: IDXEntireListingDisplayYN and ParticipantOnlyYN are legacy /
+    // non-existent fields per the 2026-04-19 live-metadata audit. Kept
+    // here for historical compatibility with callers; new code should use
+    // evaluateDisplayGate() from lib/compliance/gates.ts instead.
+    idxEntireListingDisplayYN: affirmPermission(normalized.IDXEntireListingDisplayYN),
+    internetEntireListingDisplayYN: affirmPermission(normalized.InternetEntireListingDisplayYN),
+    internetAddressDisplayYN: affirmPermission(normalized.InternetAddressDisplayYN),
     participantOnlyYN: normalized.ParticipantOnlyYN === true,
     // Building & property details
     buildingName: normalized.BuildingName ? String(normalized.BuildingName) : undefined,

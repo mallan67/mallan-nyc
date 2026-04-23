@@ -16,6 +16,7 @@ import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { checkDistributionGates } from "@/lib/idx/trestle-mapper";
 import { generateAttributionText } from "@/lib/idx/mapping";
+import { affirmPermission } from "@/lib/compliance/gates";
 import { logFetchAttempt } from "@/lib/idx/logger";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
@@ -559,8 +560,9 @@ function mapTrestleToCRM(
   const monthlyTax = taxAnnual / 12;
   const maintCC = Number(raw.AssociationFee) || 0;
 
-  // Address suppression (REBNY compliance)
-  const addressDisplayYN = raw.InternetAddressDisplayYN !== false;
+  // Address suppression (REBNY compliance) — fail-CLOSED via canonical helper.
+  // Was `!== false` which let null/undefined render addresses publicly.
+  const addressDisplayYN = affirmPermission(raw.InternetAddressDisplayYN);
   const displayAddress = addressDisplayYN
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
@@ -683,7 +685,7 @@ function mapTrestleToCRM(
         ? String(raw.VirtualTourURLBranded)
         : null,
     idxDisplayYN: true, // Pre-filtered by Trestle on IDX Plus feed
-    internetDisplayYN: raw.InternetEntireListingDisplayYN !== false,
+    internetDisplayYN: affirmPermission(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
     // Date fields for client-side filtering (Gate 6 + contract date filter)
@@ -697,7 +699,7 @@ function mapTrestleToCRM(
       ownerOptOut: false, // Pre-filtered by Trestle on IDX Plus feed
       participantOnly: false, // Pre-filtered by Trestle on IDX Plus feed
       idxDisplay: true, // Pre-filtered by Trestle on IDX Plus feed
-      internetDisplay: raw.InternetEntireListingDisplayYN !== false,
+      internetDisplay: affirmPermission(raw.InternetEntireListingDisplayYN),
       syndication: true,
     },
     // ── Searchable checkbox fields (pass-through for local filterListings) ──

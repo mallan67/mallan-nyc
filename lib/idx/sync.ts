@@ -354,6 +354,54 @@ export async function syncListings(
     console.error("[IDX Sync] Failed to log audit event:", err);
   }
 
+  // ── Watermark ownership (fix for homepage "last updated" staleness) ──
+  // The UI at /api/idx/watermark and lib/idx/watermark.ts reads
+  // SyncState.last_watermark + last_run_at. If sync never writes this row,
+  // the UI shows a frozen date (observed 2026-04-23: homepage "Data last
+  // updated: February 11, 2026" while idx-sync ran every 15 min).
+  //
+  // Every successful sync run now upserts SyncState. Watermark = the
+  // highest ModificationTimestamp we actually saw in this batch; falls
+  // back to now() if the batch was empty.
+  try {
+    const now = new Date();
+    let batchWatermark = now;
+    for (const r of fetchResult.records) {
+      const mt = r.ModificationTimestamp ? new Date(String(r.ModificationTimestamp)) : null;
+      if (mt && !Number.isNaN(mt.getTime()) && mt > batchWatermark) batchWatermark = mt;
+    }
+    // On empty batches, advance last_run_at but leave last_watermark alone —
+    // the UI surfaces last_watermark as the "data updated" date. Preserving
+    // it on empty runs avoids jumping forward when nothing actually changed.
+    const advanceWatermark = fetchResult.records.length > 0;
+    await prisma.syncState.upsert({
+      where: { resource: "Property" },
+      create: {
+        resource: "Property",
+        last_watermark: batchWatermark,
+        last_run_at: now,
+        last_run_status: errors > 0 ? "error" : "ok",
+        last_run_duration_ms: durationMs,
+        rows_upserted: upserted,
+        rows_skipped_by_gate: skippedGates,
+        rows_with_errors: errors,
+      },
+      update: {
+        ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
+        last_run_at: now,
+        last_run_status: errors > 0 ? "error" : "ok",
+        last_run_duration_ms: durationMs,
+        rows_upserted: upserted,
+        rows_skipped_by_gate: skippedGates,
+        rows_with_errors: errors,
+      },
+    });
+  } catch (err) {
+    console.error("[IDX Sync] Failed to update SyncState watermark:", err);
+    // Non-fatal — sync already succeeded; watermark-write failure degrades
+    // UI freshness display only.
+  }
+
   const result: SyncResult = {
     total_fetched: fetchResult.totalFetched,
     upserted,
