@@ -137,7 +137,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring more space, good schools, and a neighborhood community feel with easy access to parks and playgrounds.",
+          "description": "Properties featuring more space, local public schools, and a neighborhood community feel with easy access to parks and playgrounds.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "2-3 bedroom condo or multi-family"
         }
@@ -309,7 +309,7 @@
           "answer": "LIC's waterfront is among the city's finest, featuring Gantry Plaza State Park, Hunters Point South Park, and a continuous esplanade with direct Manhattan skyline views. The waterfront has become the neighborhood's defining amenity."
         },
         {
-          "question": "Are there good schools in Long Island City?",
+          "question": "Are there local public schools in Long Island City?",
           "answer": "Yes, LIC has several well-regarded schools including PS/IS 78Q and the growing Hunters Point campus. The neighborhood has invested heavily in school infrastructure to keep pace with residential growth."
         },
         {
@@ -667,7 +667,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring generous pre-war layouts, shared garden spaces, and a culturally rich community with good schools.",
+          "description": "Properties featuring generous pre-war layouts, shared garden spaces, and a culturally rich community with local public schools.",
           "budgetRange": "$350K - $600K",
           "propertyType": "2-3 bedroom co-op"
         },
@@ -844,8 +844,8 @@
           "answer": "Flushing's dining scene is legendary, with hundreds of restaurants serving authentic Chinese, Korean, Japanese, Malaysian, and Taiwanese cuisine. The New World Mall food court and the restaurants along Prince Street and 40th Road are particularly renowned. It rivals Manhattan's Chinatown in scale and variety."
         },
         {
-          "question": "Are there good schools in Flushing?",
-          "answer": "Yes, Flushing has strong schools including PS 20 John Bowne and PS 214. Townsend Harris High School, a public magnet school consistently ranked among NYC's best, is located on the Queens College campus nearby."
+          "question": "Are there local public schools in Flushing?",
+          "answer": "Yes, Flushing has local public schools including PS 20 John Bowne and PS 214. Townsend Harris High School, a public magnet school consistently ranked among NYC's best, is located on the Queens College campus nearby."
         },
         {
           "question": "How much is rent in Flushing?",
@@ -937,7 +937,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Proximity to good schools, parks, and a vibrant commercial center with access to cultural amenities.",
+          "description": "Proximity to local public schools, parks, and a vibrant commercial center with access to cultural amenities.",
           "budgetRange": "$600K - $1.2M",
           "propertyType": "2-3 bedroom condo or single-family"
         },
@@ -1072,7 +1072,7 @@
       "tagline": "Tudor Charm and Tree-Lined Living",
       "heroImage": "https://images.unsplash.com/photo-1681704389121-e25e7e826d25?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1681704389121-e25e7e826d25?w=1200&q=80",
-      "summary": "Forest Hills is one of Queens' most prestigious residential neighborhoods, anchored by the landmark Forest Hills Gardens and miles of tree-lined streets. Known for its Tudor architecture, strong schools, and bustling Austin Street commercial corridor, it offers a suburban feel with full urban transit access. Average price per square foot is approximately $550.",
+      "summary": "Forest Hills is one of Queens' most established residential neighborhoods, anchored by the landmark Forest Hills Gardens and miles of tree-lined streets. Known for its Tudor architecture, local public schools, and bustling Austin Street commercial corridor, it offers a suburban feel with full urban transit access. Average price per square foot is approximately $550.",
       "avgPricePerSqft": 550,
       "dominantPropertyType": "Co-op",
       "walkScore": 88,
@@ -1456,7 +1456,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Spacious pre-war apartments or Sunnyside Gardens homes with community green spaces and good schools.",
+          "description": "Spacious pre-war apartments or Sunnyside Gardens homes with community green spaces and local public schools.",
           "budgetRange": "$400K - $800K",
           "propertyType": "2-bedroom co-op or Sunnyside Gardens home"
         },

@@ -134,7 +134,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Spacious Victorian homes with character, good schools, and easy access to parks and cultural amenities.",
+          "description": "Spacious Victorian homes with character, local public schools, and easy access to parks and cultural amenities.",
           "budgetRange": "$500K - $750K",
           "propertyType": "Single-family Victorian"
         }
@@ -291,7 +291,7 @@
           "answer": "Todt Hill is car-dependent. Most residents drive to the nearby SIR stations (Grant City or Old Town) or use express bus routes (SIM1, SIM4) to Manhattan. The drive to the St. George Ferry Terminal is about 15 minutes. The Staten Island Expressway provides access to the Verrazzano-Narrows Bridge."
         },
         {
-          "question": "Are there good schools in Todt Hill?",
+          "question": "Are there local public schools in Todt Hill?",
           "answer": "Yes, Todt Hill is served by well-regarded public schools including PS 36 J.C. Drumgoole. The area also has proximity to several private schools. The Staten Island Academy, one of the borough's top private schools, is located nearby."
         },
         {
@@ -633,7 +633,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring detached homes with yards, strong schools, beach access, and active community programs.",
+          "description": "Properties featuring detached homes with yards, local public schools, beach access, and active community programs.",
           "budgetRange": "$550K - $850K",
           "propertyType": "3-4 bedroom single family"
         },
@@ -908,7 +908,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring spacious homes with architectural character, good schools, and access to parks and cultural centers.",
+          "description": "Properties featuring spacious homes with architectural character, local public schools, and access to parks and cultural centers.",
           "budgetRange": "$500K - $800K",
           "propertyType": "3-4 bedroom Victorian"
         }

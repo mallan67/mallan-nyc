@@ -819,7 +819,7 @@
       "tagline": "Brooklyn's Premier Brownstone Neighborhood",
       "heroImage": "https://images.unsplash.com/photo-1684803873503-f335c07eb95c?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1684803873503-f335c07eb95c?w=1200&q=80",
-      "summary": "Park Slope is one of Brooklyn's most desirable residential neighborhoods, renowned for its pristine brownstones, top-rated schools, and direct access to Prospect Park. Average price per square foot is approximately $1,100. The neighborhood consistently ranks among New York City's best for families, food, and quality of life.",
+      "summary": "Park Slope is one of Brooklyn's most desirable residential neighborhoods, renowned for its pristine brownstones, local public schools, and direct access to Prospect Park. Average price per square foot is approximately $1,100. The neighborhood consistently ranks among New York City's best for families, food, and quality of life.",
       "avgPricePerSqft": 1100,
       "dominantPropertyType": "Townhouse",
       "walkScore": 97,
@@ -1655,7 +1655,7 @@
         },
         {
           "question": "What parks and schools are near Fort Greene?",
-          "answer": "Fort Greene is well-suited for residents who value parks and schools with strong schools, Fort Greene Park's playgrounds and open space, and a diverse, engaged community. Brooklyn Technical High School, one of NYC's elite specialized high schools, is located in the neighborhood."
+          "answer": "Fort Greene is well-suited for residents who value parks and schools with local public schools, Fort Greene Park's playgrounds and open space, and a diverse, engaged community. Brooklyn Technical High School, one of NYC's elite specialized high schools, is located in the neighborhood."
         },
         {
           "question": "What subway lines serve Fort Greene?",
@@ -1753,7 +1753,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering Fort Greene Park, strong schools, and the diverse community in one of Brooklyn's most architecturally distinguished neighborhoods.",
+          "description": "Properties offering Fort Greene Park, local public schools, and the diverse community in one of Brooklyn's most architecturally distinguished neighborhoods.",
           "budgetRange": "$1.5M - $3.5M",
           "propertyType": "3-bedroom brownstone or condo"
         },

@@ -620,20 +620,29 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   const neighborhood = raw.SubdivisionName ? String(raw.SubdivisionName) :
     (raw.CityRegion && raw.CityRegion !== borough ? String(raw.CityRegion) : null);
 
-  // Distribution gates
-  const idxDisplayYn = raw.IDXEntireListingDisplayYN !== false;
+  // Distribution gates — canonical fields per compliance/IDX-VOW-DISPLAY-RULES.md
+  // IDXEntireListingDisplayYN does NOT exist on Trestle (verified 2026-04-19 against
+  // live $metadata; docs explicitly state "no separate IDXEntireListingDisplayYN
+  // field exists"). Use InternetEntireListingDisplayYN instead.
   const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
   const internetAddress = raw.InternetAddressDisplayYN !== false;
-  const participantOnly = raw.ParticipantOnlyYN === true;
-  // Owner opt-out: derived from Permission field (Trestle uses singular "Permission", not "Permissions").
-  // IDXEntireListingDisplayYN = false means IDX display disabled (separate gate).
-  // Permission = "OwnerOptOut" / "Owner Opt-Out" / "Private" means owner opted out entirely.
+  // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
+  // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
+  // (The legacy field name ParticipantOnlyYN was never a Trestle field — it was
+  // transcribed from UCBA's English-language Definition (W) describing
+  // "Participant Only," not from a real Trestle schema field.)
+  // Trestle IDX Plus feed appears to pre-filter 'Private' listings, but we enforce
+  // the gate independently for defense-in-depth and REBNY audit compliance.
   const permissions = typeof raw.Permission === 'string' ? raw.Permission : (typeof raw.Permissions === 'string' ? raw.Permissions : '');
+  const participantOnly = permissions === 'Private';
+  // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
   const ownerOptOut =
     permissions === 'OwnerOptOut' ||
     permissions === 'Owner Opt-Out' ||
-    permissions === 'Private' ||
     String(raw.MlsStatus || '') === 'OwnerOptOut';
+  // Legacy local flag kept for backward compat with DB schema's idx_display_yn column.
+  // Evaluates true iff all the above gates pass AND internet display is enabled.
+  const idxDisplayYn = internetEntireListing && !participantOnly && !ownerOptOut;
 
   // JSONB columns — pick fields by category
   const address = pick(raw, B1_ADDRESS);
@@ -743,37 +752,46 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
   reason?: string;
 } {
   const normalized = normalizeRenames(raw);
-
-  // Gate 1a: Owner Opt-Out (via Permission field — Trestle uses singular)
   const permissions = typeof normalized.Permission === 'string' ? String(normalized.Permission) : (typeof normalized.Permissions === 'string' ? String(normalized.Permissions) : '');
+
+  // ─────────────────────────────────────────────────────────────
+  // REBNY RLS Distribution Gates — see compliance/IDX-VOW-DISPLAY-RULES.md
+  // Field names verified against live Trestle $metadata on 2026-04-19.
+  // Dead-field references previously in this function (ParticipantOnlyYN,
+  // IDXParticipationYN, IDXEntireListingDisplayYN) were transcribed from the
+  // REBNY English-language checklist, not the Trestle OData schema — removed.
+  // ─────────────────────────────────────────────────────────────
+
+  // Gate 1 — Owner Opt-Out (Permissions = 'OwnerOptOut'). UCBA Art. I §5(A).
+  // Owner has signed Exhibit B opt-out. NO public dissemination whatsoever.
   if (
     permissions === 'OwnerOptOut' ||
     permissions === 'Owner Opt-Out' ||
-    permissions === 'Private' ||
     String(normalized.MlsStatus || '') === 'OwnerOptOut'
   ) {
     return { displayable: false, reason: "Owner opted out" };
   }
 
-  // Gate 1b: IDX Entire Listing Display disabled
-  if (normalized.IDXEntireListingDisplayYN === false) {
-    return { displayable: false, reason: "IDX display disabled by listing" };
+  // Gate 2 — Participant Only (Permissions = 'Private'). UCBA Definition (W).
+  // Listing shared on RLS for authorized Participant view only — no public IDX,
+  // VOW, syndication, or website display. Per compliance/IDX-VOW-DISPLAY-RULES.md:41.
+  if (permissions === 'Private') {
+    return { displayable: false, reason: "Participant-only listing (Permissions=Private)" };
   }
 
-  // Gate 2: Participant Only
-  if (normalized.ParticipantOnlyYN === true) {
-    return { displayable: false, reason: "Participant-only listing" };
-  }
-
-  // Gate 3: Internet Entire Listing Display
+  // Gate 3 — IDX Display (InternetEntireListingDisplayYN). UCBA Art. III §2(C).
+  // When False, listing is excluded from all IDX broker websites.
+  // Trestle also exposes an office-level `IDXOfficeParticipationYN` on the Office
+  // resource; we do not join to that here because the Trestle IDX Plus feed
+  // already pre-filters offices. Can be added via $expand=ListOffice if needed.
   if (normalized.InternetEntireListingDisplayYN === false) {
     return { displayable: false, reason: "Internet display disabled" };
   }
 
-  // Gate 4: Coming Soon — allowed but requires badge
-  // (not blocked, but flagged)
+  // Gate 4 — Coming Soon status (not blocking — display with required badge).
+  // Handled downstream; see lib/idx/display-adapter.ts + SearchListingCard.tsx.
 
-  // Gate 5: Closed > 24h — should be removed
+  // Gate 5 — Closed > 24h must be removed. UCBA Art. I §6.
   const status = String(normalized.StandardStatus || normalized.MlsStatus || "");
   if (status === "Closed" || status === "Expired") {
     const closeDate = normalized.CloseDate ? new Date(String(normalized.CloseDate)) : null;
@@ -785,10 +803,9 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
     }
   }
 
-  // Gate 6: Owner Opt-Out via IDX participation
-  if (normalized.IDXParticipationYN === false) {
-    return { displayable: false, reason: "IDX participation disabled" };
-  }
+  // Gate 6 — Syndication opt-out (SyndicateOptOut). Not a display block for IDX
+  // surfaces — only prevents forwarding to third-party portals. Handled at the
+  // syndication pipeline level, not here.
 
   return { displayable: true };
 }

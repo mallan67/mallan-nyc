@@ -8,7 +8,7 @@
       "tagline": "Suburban Serenity Within City Limits",
       "heroImage": "https://images.unsplash.com/photo-1518218392262-1beb4730fb09?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1518218392262-1beb4730fb09?w=1200&q=85",
-      "summary": "Riverdale is the Bronx's most prestigious residential enclave, offering tree-lined streets, Hudson River views, and a distinctly suburban feel just 30 minutes from Midtown Manhattan. With stately homes, quality co-ops, and top-rated schools, it draws buyers seeking space and value. Average price per square foot is approximately $375.",
+      "summary": "Riverdale is the Bronx's established residential enclave, offering tree-lined streets, Hudson River views, and a distinctly suburban feel just 30 minutes from Midtown Manhattan. With stately homes, quality co-ops, and local public schools, it draws buyers seeking space and value. Average price per square foot is approximately $375.",
       "avgPricePerSqft": 375,
       "dominantPropertyType": "Co-op",
       "walkScore": 65,
@@ -794,7 +794,7 @@
         },
         {
           "question": "What parks and schools are near Pelham Bay?",
-          "answer": "Pelham Bay is well-suited for residents who value parks and schools with good schools, low-density residential streets, and unmatched access to Pelham Bay Park and Orchard Beach. The area has a strong sense of community with local sports leagues, seasonal events, and longtime residents."
+          "answer": "Pelham Bay is well-suited for residents who value parks and schools with local public schools, low-density residential streets, and unmatched access to Pelham Bay Park and Orchard Beach. The area has a strong sense of community with local sports leagues, seasonal events, and longtime residents."
         },
         {
           "question": "What is Pelham Bay Park?",
@@ -886,7 +886,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring detached homes with yards, good schools, and immediate access to NYC's largest park for outdoor recreation.",
+          "description": "Properties featuring detached homes with yards, local public schools, and immediate access to NYC's largest park for outdoor recreation.",
           "budgetRange": "$450K - $750K",
           "propertyType": "Single-family home"
         },

@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
             bedrooms_total: true,
             bathrooms_full: true,
             address: true,
+            internet_address_display_yn: true, // REBNY gate 4 — suppress street addr if false
           },
         });
 
@@ -101,12 +102,23 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Format listings for email
+        // Format listings for email — REBNY gate 4 (InternetAddressDisplayYN):
+        // when false, the precise street address MUST be suppressed even in
+        // private client emails (not just public IDX display). We still show
+        // neighborhood/city so the alert is useful.
         const formattedListings = newListings.map((l) => {
           const addr = l.address as Record<string, string> | null;
-          const address = addr
-            ? `${addr.full || `${addr.streetNumber || ""} ${addr.streetName || ""}`.trim()}, ${addr.city || "New York"}`
-            : "Address Available on Request";
+          const suppressAddress = l.internet_address_display_yn === false;
+          let address: string;
+          if (suppressAddress || !addr) {
+            const neighborhood = addr?.neighborhood || addr?.Neighborhood || "";
+            const city = addr?.city || addr?.City || "New York";
+            address = neighborhood
+              ? `${neighborhood}, ${city} (Address Available on Request)`
+              : "Address Available on Request";
+          } else {
+            address = `${addr.full || `${addr.streetNumber || ""} ${addr.streetName || ""}`.trim()}, ${addr.city || "New York"}`;
+          }
           return {
             address,
             price: `$${Number(l.list_price).toLocaleString()}`,
