@@ -48,6 +48,15 @@ const prisma = new PrismaClient();
 // mass-transition a legitimate fetch error.
 const GHOST_ABORT_CAP = 2000;
 
+// Safety cap for orphans (listings in Trestle we've never synced). Higher
+// than ghost cap because a one-shot catch-up after feature deployment may
+// legitimately process hundreds; steady state should be single digits.
+const ORPHAN_ABORT_CAP = 500;
+
+// How many ListingIds to include in a single OData OR-filter when fetching
+// orphans. Keeps URLs under 8KB and Trestle-request-size limits.
+const ORPHAN_FETCH_BATCH = 20;
+
 // Terminal statuses we don't need to update (defense in depth)
 const TERMINAL_STATUSES = new Set([
   "Closed", "Sold", "Leased", "Rented",
@@ -158,21 +167,41 @@ async function run() {
   });
   console.log(`  Our DB Active (RLS-sourced): ${ourActive.length} listings`);
 
-  // 3. Diff
+  // 3. Diff — bidirectional
   const ghosts = ourActive.filter((r) => !trestleIds.has(r.listing_id));
   console.log(`  Ghosts (in our DB, not in Trestle): ${ghosts.length}`);
 
+  // ALSO find orphans — Trestle has ListingId we don't have at all.
+  // These are listings the incremental sync missed (pagination boundary,
+  // transient Trestle 5xx during fetch, or timing across run windows).
+  const ourAllRls = await prisma.listing.findMany({
+    where: { listing_id: { startsWith: "RLS" } },
+    select: { listing_id: true },
+  });
+  const ourAllIds = new Set(ourAllRls.map((r) => r.listing_id));
+  const orphans = [...trestleIds].filter((id) => !ourAllIds.has(id));
+  console.log(`  Orphans (in Trestle Active, not in our DB at all): ${orphans.length}`);
+
   const { byBucket, toTransition } = await summarize(ghosts);
-  console.log("\n── By bucket ──");
+  console.log("\n── Ghosts by bucket ──");
   console.table([byBucket]);
   console.log(`  → Will transition to Withdrawn: ${toTransition.length}`);
+  console.log(`  → Will fetch + create for orphans: ${orphans.length}`);
 
-  // 4. Safety cap — abort if too many
+  // 4. Safety caps — abort if either direction exceeds its cap
   if (toTransition.length > GHOST_ABORT_CAP) {
     console.error(
-      `\n❌ ABORT: ghost count ${toTransition.length} exceeds safety cap ${GHOST_ABORT_CAP}. ` +
-      `This magnitude suggests a Trestle API fetch failure (partial result) rather ` +
-      `than real removals. Investigate before re-running.`,
+      `\n❌ ABORT: ghost count ${toTransition.length} exceeds cap ${GHOST_ABORT_CAP}. ` +
+      `Likely Trestle fetch failure (partial result), not real removals.`,
+    );
+    await prisma.$disconnect();
+    process.exit(2);
+  }
+  if (orphans.length > ORPHAN_ABORT_CAP) {
+    console.error(
+      `\n❌ ABORT: orphan count ${orphans.length} exceeds cap ${ORPHAN_ABORT_CAP}. ` +
+      `Likely a Trestle feed reset or a bug in incremental sync — investigate ` +
+      `before mass-fetching.`,
     );
     await prisma.$disconnect();
     process.exit(2);
@@ -192,8 +221,21 @@ async function run() {
     process.exit(1);
   }
 
-  // 6. Execute transitions — one transaction per ghost so partial failures
-  //    don't block the rest. Audit event co-written with each update.
+  // NOTE: Orphan fetch/create is handled by the cron route
+  // (app/api/cron/feed-reconcile/route.ts) where Next.js runtime imports
+  // the TypeScript sync mapper directly. This one-shot .js runner can't
+  // import .ts without a compile step, so we surface the orphan count
+  // here and defer orphan creation to the next `30 3 * * *` cron cycle
+  // (or any manual hit to /api/cron/feed-reconcile from a CRON_SECRET-holder).
+  if (orphans.length > 0) {
+    console.log(
+      `\n  ℹ Orphans (${orphans.length}) will be fetched + created by the next ` +
+      `/api/cron/feed-reconcile run. Cron schedule: 30 3 * * *.`,
+    );
+  }
+
+  // 6. Execute ghost transitions — one transaction per ghost so partial
+  //    failures don't block the rest. Audit event co-written with each update.
   console.log(`\n━━━ EXECUTING — transitioning ${toTransition.length} ghosts ━━━`);
   const now = new Date();
   let updated = 0;
