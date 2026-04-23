@@ -6,7 +6,22 @@ import prisma from "@/lib/prisma";
 import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter } from "./fetch";
 import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
 import { logIDXAccess, createAuditEntry } from "./logger";
+import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import type { Prisma } from "@prisma/client";
+
+// Set of statuses treated as "actively listed" for first_active_date seeding.
+// Must match DOM_ACCRUING_STATUSES in dom-tracker.ts.
+const ACTIVE_SEED_STATUSES = new Set(["Active", "ActiveUnderContract", "Pending"]);
+
+/**
+ * Trestle raw record exposes Permission (singular) or legacy Permissions.
+ * Read whichever is present; null if neither.
+ */
+function readTrestlePermissions(raw: Record<string, unknown>): string | null {
+  if (typeof raw.Permission === "string") return raw.Permission;
+  if (typeof raw.Permissions === "string") return raw.Permissions;
+  return null;
+}
 
 export interface SyncOptions {
   /** Listing type to sync ("sale" | "rent" | undefined for both) */
@@ -94,7 +109,59 @@ export async function syncListings(
         skippedGates++;
       }
 
-      // 3. Upsert to local DB
+      // 3. Compute status-transition fields for retention + UCBA DOM tracking.
+      //
+      // WHY: The data-retention cron (T+24h IDX-off, T+30d media-null, T+180d
+      // archive) filters on `status_changed_at`. If this field is NULL, the
+      // listing is invisible to shedding and bloats the table forever. Prior
+      // sync code never wrote this field, so every historical row has NULL
+      // and every new status transition failed to record its timestamp.
+      //
+      // UCBA 2026 Art. I §11 also requires DOM accounting to respect the
+      // 30-day reset, DOM-suppression for ComingSoon/Participant Only/Private
+      // Permissions, and freezing on Sold/Rented. `computeDomTransition` in
+      // lib/compliance/dom-tracker.ts encodes all of that; we delegate to it
+      // whenever status changes so history is correct.
+      const existing = await prisma.listing.findUnique({
+        where: { listing_id: mapped.listing_id },
+        select: {
+          status: true,
+          status_changed_at: true,
+          first_active_date: true,
+          days_on_market: true,
+        },
+      });
+
+      const newPermissions = readTrestlePermissions(raw);
+      let statusTransition: {
+        status_changed_at?: Date;
+        first_active_date?: Date | null;
+        days_on_market?: number;
+        cumulative_days_on_market?: number;
+      } = {};
+
+      if (existing && existing.status !== mapped.status) {
+        // Status actually changed → compute DOM-aware transition.
+        statusTransition = computeDomTransition(
+          {
+            status: existing.status,
+            status_changed_at: existing.status_changed_at,
+            first_active_date: existing.first_active_date,
+            days_on_market: existing.days_on_market,
+            permissions: null, // historical permissions not persisted; conservative
+          },
+          mapped.status,
+          newPermissions,
+        );
+      } else if (existing && existing.status_changed_at === null) {
+        // Same status but NULL timestamp (pre-Phase-1 legacy row). Don't
+        // fabricate a transition date — leave it for the Phase 1 backfill
+        // script (which uses modification_timestamp / last_synced_from_trestle
+        // as the source of truth). If the backfill hasn't run yet, this row
+        // stays stuck and will be picked up next sync after backfill.
+      }
+
+      // 4. Upsert to local DB
       await prisma.listing.upsert({
         where: { listing_id: mapped.listing_id },
         create: {
@@ -107,6 +174,13 @@ export async function syncListings(
           compliance: mapped.compliance as Prisma.InputJsonValue,
           agent_info: mapped.agent_info as Prisma.InputJsonValue,
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
+          // Seed status_changed_at on create so new listings are immediately
+          // eligible for retention-cron age checks. first_active_date seeds
+          // only when the initial status is one that would accrue DOM.
+          status_changed_at: new Date(),
+          first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status)
+            ? new Date()
+            : null,
         },
         update: {
           mls_id: mapped.mls_id,
@@ -138,6 +212,9 @@ export async function syncListings(
           listing_contract_date: mapped.listing_contract_date,
           last_synced_from_trestle: mapped.last_synced_from_trestle,
           sync_status: mapped.sync_status,
+          // Status-transition fields (only populated when status actually
+          // changed; empty object is a no-op for Prisma).
+          ...statusTransition,
         },
       });
 
