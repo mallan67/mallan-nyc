@@ -229,10 +229,11 @@ async function batchFetchPhotos(listings: IDXListing[]) {
       const escaped = key.replace(/'/g, "''");
       filterParts.push(l.mlsId ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
     }
-    const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3`;
+    // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+    const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3 and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set('$filter', mediaFilter);
-    mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN');
+    mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus');
     mediaParams.set('$orderby', 'Order asc');
     mediaParams.set('$top', String(needsPhotos.length * 4));
 

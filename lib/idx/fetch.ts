@@ -62,7 +62,9 @@ export async function fetchFromTrestle(
     if (options.expandMedia !== false) {
       // $expand=Media for photos + CustomProperty for DPA fields (Trestle 6.17)
       // Trestle guidance (2026-04-07): include ModificationTimestamp for change tracking
-      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey;$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
+      // MediaStatus filter: exclude tombstoned photos (Trestle retains 'Deleted' rows in the Media resource
+      // as historical records; unfiltered, we'd import dead URLs and overwrite good media with stale entries).
+      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
     } else {
       // Even without media, still expand CustomProperty for DPA fields
       params.set("$expand", "CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
@@ -424,8 +426,9 @@ export async function fetchListingMedia(
   let records: Record<string, unknown>[] = [];
   for (const keyFilter of keyFieldsToTry) {
     const params = new URLSearchParams();
-    params.set("$filter", keyFilter);
-    params.set("$select", "MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN");
+    // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+    params.set("$filter", `${keyFilter} and MediaStatus ne 'Deleted'`);
+    params.set("$select", "MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN,MediaStatus");
     params.set("$orderby", "Order asc");
     params.set("$top", "50");
 

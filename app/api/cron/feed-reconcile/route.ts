@@ -182,7 +182,9 @@ export async function GET(req: NextRequest) {
       const filter = batchIds
         .map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`)
         .join(" or ");
-      const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$expand=Media&$top=${ORPHAN_FETCH_BATCH}`;
+      // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+      const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;
+      const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;
       try {
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) {
