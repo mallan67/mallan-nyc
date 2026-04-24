@@ -3,6 +3,8 @@
 // Maps ALL 29 RLS categories. Handles 23 RESO-to-RLS renames.
 // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
 
+import { affirmPermission } from "@/lib/compliance/gates";
+
 // ═══════════════════════════════════════════════════════════
 // RESO-to-RLS RENAMES (23 fields)
 // Trestle sends the RLS name; we normalize to our canonical name.
@@ -624,8 +626,14 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // IDXEntireListingDisplayYN does NOT exist on Trestle (verified 2026-04-19 against
   // live $metadata; docs explicitly state "no separate IDXEntireListingDisplayYN
   // field exists"). Use InternetEntireListingDisplayYN instead.
-  const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
-  const internetAddress = raw.InternetAddressDisplayYN !== false;
+  //
+  // Fail-CLOSED boolean coercion — `affirmPermission` from lib/compliance/gates.ts
+  // is the single source of truth for how permission flags are interpreted.
+  // Previous `!== false` pattern failed OPEN (null/undefined → displayable),
+  // which violated the fail-closed doctrine documented in
+  // MASTER-PROJECT-TREE-v3.3.md Rule 5.
+  const internetEntireListing = affirmPermission(raw.InternetEntireListingDisplayYN);
+  const internetAddress = affirmPermission(raw.InternetAddressDisplayYN);
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
   // (The legacy field name ParticipantOnlyYN was never a Trestle field — it was

@@ -23,6 +23,7 @@ import type { IDXListing, IDXFetchResult, IDXConfig } from './types';
 import { logFetchAttempt, createAuditEntry, logIDXAccess } from './logger';
 import { generateAttributionText } from './mapping';
 import prisma from '@/lib/prisma';
+import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
 // Ensure server-side only
 if (typeof window !== 'undefined') {
@@ -218,7 +219,11 @@ export async function fetchListings(params?: {
     const where: Record<string, unknown> = {
       idx_display_yn: true,
       owner_opt_out: false,
-      status: { in: ['Active', 'Coming Soon', 'Active Under Contract'] },
+      // Canonical values — was `['Active', 'Coming Soon', 'Active Under Contract']`
+      // with space-formatted names that never matched DB values (which
+      // are canonical RESO `ComingSoon`/`ActiveUnderContract` no-space).
+      // Result: this filter was effectively `status: 'Active'` only.
+      status: { in: [...ACTIVE_DISPLAY_VALUES] },
     };
 
     if (params?.type) where.listing_type = params.type === 'sale' ? 'sale' : 'rent';

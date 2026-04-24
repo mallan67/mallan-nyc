@@ -13,6 +13,7 @@
 
 import type { IDXListing } from './types';
 import { generateListingSlug } from '@/lib/listing-slug';
+import { isComingSoonStatus } from '@/lib/compliance/status';
 
 /** Map Trestle property fields to user-friendly property type */
 export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
@@ -200,7 +201,13 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
         longitude: listing.address.longitude,
       };
 
-  const isComingSoon = listing.standardStatus === 'Coming Soon';
+  // Use canonical helper — `listing.standardStatus` may arrive as the RESO
+  // no-space canonical ('ComingSoon') or as the legacy display form
+  // ('Coming Soon'); the helper accepts both. The old comparison here was
+  // `=== 'Coming Soon'` and silently never fired because DB values are
+  // always canonical (no space) — suppressing the REBNY §16(C) badge on
+  // every Coming Soon listing.
+  const isComingSoon = isComingSoonStatus(listing.standardStatus);
 
   // Generate address-based slug — respects InternetAddressDisplayYN gate
   const slug = generateListingSlug({

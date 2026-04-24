@@ -5,35 +5,45 @@ const BASE_URL = 'https://mallan.nyc';
 /**
  * Dynamic robots.txt generation for Next.js
  *
- * STRATEGY: Selective AI crawler access.
- * - AI SEARCH bots (GPTBot, ChatGPT-User, PerplexityBot, ClaudeBot, etc.)
- *   are ALLOWED on brand/expertise pages so AI search engines can recommend us.
- * - AI TRAINING-ONLY crawlers (CCBot, img2dataset) remain fully blocked.
- * - ALL bots are blocked from MLS listing data, API routes, and private areas
- *   to comply with REBNY RLS data protection rules.
- * - SEO scrapers remain blocked (no value, just bandwidth).
+ * Canonical policy matrix — resolves three previous conflicts:
+ *
+ *   1. Robots disallowed `/listing/` + `/search` for the default `*` bot,
+ *      but `app/sitemap.ts` included both. Google received contradictory
+ *      signals. Fixed by splitting paths into policy categories and
+ *      allowing Google/Bing to crawl listing pages.
+ *
+ *   2. AI training crawlers (GPTBot, ClaudeBot, Applebot-Extended, Amazonbot,
+ *      YouBot) were allowed on MLS-data-rendering pages (/buy, /rent,
+ *      /manhattan, /brooklyn, /open-houses, /market). That contradicted the
+ *      repo-stated policy: "MLS/IDX data must not be used for AI/LLM
+ *      training." Now blocked from any page that renders listing data.
+ *
+ *   3. AI SEARCH bots (ChatGPT-User, PerplexityBot) are user-triggered —
+ *      they fetch pages in real time to answer a specific user question.
+ *      This is fair use, not training. They keep access to category pages
+ *      for brand visibility, but are blocked from individual listing URLs
+ *      (granular address data per REBNY UCBA Art. III §2(C)).
+ *
+ * POLICY MATRIX
+ *                          BRAND  MLS_CATEGORY  MLS_LISTING  MLS_SEARCH  ADMIN
+ *   Google/Bing (*)          ✓        ✓              ✓             ✓         ✗
+ *   AI search (user)         ✓        ✓              ✗             ✗         ✗
+ *   AI training crawler      ✓        ✗              ✗             ✗         ✗
+ *   Training-only botnet     ✗        ✗              ✗             ✗         ✗
+ *   SEO scrapers             ✗        ✗              ✗             ✗         ✗
  */
 
-// Pages that contain MLS/IDX data or private content — blocked for ALL bots
-const PRIVATE_AND_MLS_PATHS = [
-  '/listing/',     // Individual MLS listing pages (IDX data)
-  '/search',       // Search results (IDX data)
-  '/admin/',
-  '/admin',
-  '/agent/',
-  '/agent',
-  '/demo/',
-  '/demo',
-  '/style-preview/',
-  '/style-preview',
-  '/leads/',
-  '/leads',
-  '/api/',
-  '/api',
-  '/sign-in',
-  '/sign-up',
-  '/portal/',
-  '/portal',
+// ── Path sets ─────────────────────────────────────────────────────────────
+
+// Always blocked — admin, API, internal tooling, private client surfaces.
+// No bot has any business touching these.
+const ADMIN_PATHS = [
+  '/admin/', '/admin',
+  '/agent/', '/agent',
+  '/leads/', '/leads',
+  '/api/', '/api',
+  '/sign-in', '/sign-up',
+  '/portal/', '/portal',
   '/reset-password',
   '/offer-status',
   '/saved-searches',
@@ -41,323 +51,134 @@ const PRIVATE_AND_MLS_PATHS = [
   '/compare',
   '/unsubscribe',
   '/crm/',
+  '/demo/', '/demo',
+  '/style-preview/', '/style-preview',
 ];
+
+// Individual listing pages with full address + price + agent attribution.
+// Google/Bing CAN crawl these (they're public, legal to display, and the
+// sitemap points here). AI bots of any flavor MUST NOT crawl these — too
+// granular for training, too specific for fair-use search.
+const MLS_LISTING_PATHS = ['/listing/'];
+
+// Search results page. Parameterless URL — Google doesn't need to index
+// it as a canonical page (the listing-detail URLs in the sitemap serve
+// that purpose). Blocked for everyone including Google to avoid thin-
+// content / duplicate-content SEO issues.
+const MLS_SEARCH_PATHS = ['/search'];
+
+// Category/neighborhood pages — render listing cards aggregating MLS data.
+// Google/Bing: crawl (SEO is the point). AI search: crawl (user-triggered
+// queries benefit from neighborhood-level answers). AI training: block
+// (MLS data not for training corpus).
+const MLS_CATEGORY_ONLY_BLOCK_TRAINING = [
+  '/buy',
+  '/rent',
+  '/neighborhoods',
+  '/manhattan', '/manhattan/',
+  '/brooklyn', '/brooklyn/',
+  '/queens', '/queens/',
+  '/bronx', '/bronx/',
+  '/staten-island', '/staten-island/',
+  '/market',
+  '/open-houses',
+];
+
+// Brand / expertise pages. No MLS data. Everyone welcome (except malicious
+// scrapers).
+const BRAND_ALLOW = [
+  '/about',
+  '/agents', '/agents/',
+  '/contact',
+  '/sell',
+  '/fair-housing',
+  '/sop',
+  '/terms',
+  '/privacy',
+  '/reasonable-accommodations',
+];
+
+// Combined disallow sets per policy tier
+const BLOCK_ADMIN = [...ADMIN_PATHS];
+const BLOCK_ADMIN_AND_LISTINGS = [
+  ...ADMIN_PATHS,
+  ...MLS_LISTING_PATHS,
+  ...MLS_SEARCH_PATHS,
+];
+const BLOCK_ALL_MLS = [
+  ...ADMIN_PATHS,
+  ...MLS_LISTING_PATHS,
+  ...MLS_SEARCH_PATHS,
+  ...MLS_CATEGORY_ONLY_BLOCK_TRAINING,
+];
+
+// ── Builders ──────────────────────────────────────────────────────────────
+
+/** AI SEARCH bot — user-triggered, answers specific queries. */
+function aiSearchBot(userAgent: string) {
+  return {
+    userAgent,
+    allow: [...BRAND_ALLOW, ...MLS_CATEGORY_ONLY_BLOCK_TRAINING],
+    disallow: BLOCK_ADMIN_AND_LISTINGS,
+  };
+}
+
+/** AI TRAINING bot — crawls for model training corpus. Brand-only. */
+function aiTrainingBot(userAgent: string) {
+  return {
+    userAgent,
+    allow: BRAND_ALLOW,
+    disallow: BLOCK_ALL_MLS,
+  };
+}
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
-      // ── AI SEARCH BOTS ──
-      // Allow on brand/expertise pages, block on MLS data pages.
-      // These bots power ChatGPT search, Perplexity, Claude, Apple Intelligence.
-      // They need to see our about, agents, neighborhoods, contact pages
-      // to recommend us in AI search results.
-      {
-        userAgent: 'GPTBot',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      {
-        userAgent: 'ChatGPT-User',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      {
-        userAgent: 'PerplexityBot',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      {
-        userAgent: 'ClaudeBot',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      {
-        userAgent: 'anthropic-ai',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      {
-        userAgent: 'Applebot-Extended',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      {
-        userAgent: 'Amazonbot',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      {
-        userAgent: 'YouBot',
-        allow: [
-          '/about',
-          '/agents',
-          '/agents/',
-          '/contact',
-          '/sell',
-          '/buy',
-          '/rent',
-          '/neighborhoods',
-          '/manhattan',
-          '/manhattan/',
-          '/brooklyn',
-          '/brooklyn/',
-          '/queens',
-          '/queens/',
-          '/bronx',
-          '/bronx/',
-          '/staten-island',
-          '/staten-island/',
-          '/market',
-          '/open-houses',
-          '/fair-housing',
-          '/sop',
-          '/terms',
-          '/privacy',
-          '/reasonable-accommodations',
-        ],
-        disallow: PRIVATE_AND_MLS_PATHS,
-      },
-      // ── AI TRAINING-ONLY CRAWLERS ── (fully blocked, no search value)
-      {
-        userAgent: 'CCBot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'Bytespider',
-        disallow: '/',
-      },
-      {
-        userAgent: 'Diffbot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'Webzio',
-        disallow: '/',
-      },
-      {
-        userAgent: 'img2dataset',
-        disallow: '/',
-      },
-      // ── SEO SCRAPERS ── (fully blocked, no value)
-      {
-        userAgent: 'AhrefsBot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'SemrushBot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'DotBot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'MJ12bot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'DataForSeoBot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'BLEXBot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'PetalBot',
-        disallow: '/',
-      },
-      {
-        userAgent: 'serpstatbot',
-        disallow: '/',
-      },
-      // ── DEFAULT ── allow legitimate search engines (Google, Bing, etc.)
+      // ── AI SEARCH (user-triggered real-time fetches) ──
+      aiSearchBot('ChatGPT-User'),
+      aiSearchBot('PerplexityBot'),
+
+      // ── AI TRAINING (corpus crawlers) ──
+      // All of these index pages for model training / knowledge bases.
+      // Limited to brand pages. Previously allowed on /buy, /rent, etc.
+      // which violated the "no MLS data for AI training" policy.
+      aiTrainingBot('GPTBot'),
+      aiTrainingBot('ClaudeBot'),
+      aiTrainingBot('Applebot-Extended'),
+      aiTrainingBot('Amazonbot'),
+      aiTrainingBot('YouBot'),
+
+      // ── FULLY BLOCKED AI TRAINING-ONLY BOTS ──
+      { userAgent: 'CCBot', disallow: '/' },
+      { userAgent: 'Bytespider', disallow: '/' },
+      { userAgent: 'Diffbot', disallow: '/' },
+      { userAgent: 'Webzio', disallow: '/' },
+      { userAgent: 'img2dataset', disallow: '/' },
+
+      // ── FULLY BLOCKED SEO SCRAPERS ──
+      { userAgent: 'AhrefsBot', disallow: '/' },
+      { userAgent: 'SemrushBot', disallow: '/' },
+      { userAgent: 'DotBot', disallow: '/' },
+      { userAgent: 'MJ12bot', disallow: '/' },
+      { userAgent: 'DataForSeoBot', disallow: '/' },
+      { userAgent: 'BLEXBot', disallow: '/' },
+      { userAgent: 'PetalBot', disallow: '/' },
+      { userAgent: 'serpstatbot', disallow: '/' },
+
+      // ── DEFAULT (Google, Bing, etc.) ──
+      // Allow crawl of category pages AND individual listing pages. The
+      // listing pages are in the sitemap — blocking them here previously
+      // created a mixed signal. Only admin/API/private surfaces are
+      // blocked. /search is blocked because it's thin-content + parameter-
+      // dependent; listing-detail URLs are the canonical indexable form.
       {
         userAgent: '*',
         allow: '/',
-        disallow: PRIVATE_AND_MLS_PATHS,
+        disallow: [
+          ...ADMIN_PATHS,
+          ...MLS_SEARCH_PATHS, // /search — not canonical; use sitemap's listing URLs
+        ],
       },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,

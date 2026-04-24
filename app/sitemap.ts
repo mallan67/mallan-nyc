@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
 import { generateListingSlug } from '@/lib/listing-slug';
+import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -27,7 +28,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/agents`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${BASE_URL}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE_URL}/open-houses`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
-    { url: `${BASE_URL}/search`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    // /search is NOT in the sitemap — it's a parameterless thin-content page.
+    // The canonical indexable listing URLs are /listing/{slug} (included below).
+    // robots.ts blocks /search for all bots; listing these here would create
+    // a mixed signal that previously confused Google crawling.
     { url: `${BASE_URL}/contact`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE_URL}/neighborhoods`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${BASE_URL}/market`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
@@ -57,8 +61,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         internet_entire_listing_display_yn: true,
         owner_opt_out: false,
         participant_only: false,
-        // Only active listings (closed removed per 24h rule)
-        status: { in: ['Active', 'Coming Soon'] },
+        // Only active listings (closed removed per 24h rule).
+        // Canonical values from lib/compliance/status.ts — was
+        // `['Active', 'Coming Soon']` which never matched because DB
+        // stores `ComingSoon` (no space). Sitemap excluded every Coming
+        // Soon listing as a result. Fixed here.
+        status: { in: [...ACTIVE_DISPLAY_VALUES] },
       },
       select: {
         listing_id: true,

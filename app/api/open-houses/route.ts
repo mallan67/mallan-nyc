@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
-import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import prisma from '@/lib/prisma';
+import { evaluateDisplayGate } from '@/lib/compliance/gates';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,7 +79,14 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     // Do NOT select agent direct-contact fields. This is a public endpoint; agent
     // phone/email must never be serialized to the public response. `ListAgentFullName`
     // and `ListOfficeName` are displayable per REBNY attribution rules.
-    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,PhotosCount,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,Permission,ParticipantOnlyYN)');
+    //
+    // Permission-gate fields — match the main IDX pipeline's canonical set:
+    //   Permission, InternetEntireListingDisplayYN, InternetAddressDisplayYN
+    //   StandardStatus + MlsStatus + CloseDate (for Closed-past-24h gate)
+    // Removed dead fields previously in this list:
+    //   IDXEntireListingDisplayYN (no such field on Trestle schema)
+    //   ParticipantOnlyYN (never existed — superseded by Permission='Private')
+    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,PhotosCount,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate)');
 
     const res = await fetch(`${base}/odata/OpenHouse?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -91,16 +98,28 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     }
 
     const data = await res.json();
-    const records = (data.value || []).filter((r: Record<string, unknown>) => {
-      const prop = (r.Property || {}) as Record<string, unknown>;
-      return checkDistributionGates(prop).displayable;
-    });
+    // Canonical gate — same evaluateDisplayGate used by /api/listings,
+    // public-dto, and sitemap. Fail-closed on missing permissions.
+    // Previous path used `checkDistributionGates()` from trestle-mapper which
+    // was functional but a parallel implementation; now unified.
+    const records = (data.value || [])
+      .map((r: Record<string, unknown>) => {
+        const prop = (r.Property || {}) as Record<string, unknown>;
+        return { r, prop, gate: evaluateDisplayGate(prop) };
+      })
+      .filter((x: { gate: { displayable: boolean } }) => x.gate.displayable);
 
-    return records.map((r: Record<string, unknown>) => {
-      const prop = (r.Property || {}) as Record<string, unknown>;
-      const street = [prop.StreetNumber, prop.StreetDirPrefix, prop.StreetName, prop.StreetSuffix, prop.StreetDirSuffix]
+    return records.map((x: { r: Record<string, unknown>; prop: Record<string, unknown>; gate: { addressDisplayable: boolean } }) => {
+      const { r, prop, gate } = x;
+      // Address suppression — if the gate says the address isn't displayable,
+      // show a neighborhood-only placeholder. Previous version always built
+      // the full street into the DTO.
+      const fullStreet = [prop.StreetNumber, prop.StreetDirPrefix, prop.StreetName, prop.StreetSuffix, prop.StreetDirSuffix]
         .filter(Boolean).join(' ');
       const unit = prop.UnitNumber ? `, ${prop.UnitNumber}` : '';
+      const addressLine = gate.addressDisplayable
+        ? `${fullStreet}${unit}`
+        : `${((prop.City as string) || 'New York').replace('New York City', 'New York')} (Address Available on Request)`;
       const totalBaths = ((prop.BathroomsFull as number) || 0) + ((prop.BathroomsHalf as number) || 0) * 0.5;
 
       // Format times
@@ -110,11 +129,11 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
         listingId: (r.ListingId as string) || (r.ListingKey as string) || '',
-        address: `${street}${unit}`,
+        address: addressLine,
         neighborhood: ((prop.City as string) || 'New York').replace('New York City', 'New York'),
         date: (r.OpenHouseDate as string || '').split('T')[0],
-        startTime,
-        endTime,
+        startTime: formatTrestleTime(r.OpenHouseStartTime as string),
+        endTime: formatTrestleTime(r.OpenHouseEndTime as string),
         price: (prop.ListPrice as number) || 0,
         beds: (prop.BedroomsTotal as number) || 0,
         baths: totalBaths,
@@ -169,7 +188,12 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
       const filterParts = listingKeys.map(k => `ListingKey eq '${k}'`);
       const propParams = new URLSearchParams();
       propParams.set('$filter', `(${filterParts.join(' or ')})`);
-      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN');
+      // Canonical permission-gate fields — same set used by the $expand path
+      // and by the main IDX pipeline. Removed dead fields (IDXEntireListingDisplayYN,
+      // OwnerOptOut boolean, ParticipantOnlyYN — none exist on Trestle schema).
+      // Added Permission (source of opt-out + private), InternetAddressDisplayYN
+      // (address suppression), StandardStatus/MlsStatus/CloseDate (terminal-status gate).
+      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate');
       propParams.set('$top', String(listingKeys.length));
 
       const propRes = await fetch(`${base}/odata/Property?${propParams}`, {
@@ -183,24 +207,30 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
       }
     }
 
-    // Filter out non-displayable listings
-    const displayableOH = ohRecords.filter((r: Record<string, unknown>) => {
-      const prop = propMap.get(r.ListingKey as string);
-      if (!prop) return false; // No property data — fail closed (cannot verify distribution gates)
-      return checkDistributionGates(prop as Record<string, unknown>).displayable;
-    });
+    // Canonical gate — same evaluateDisplayGate used by the $expand path.
+    // If no property data came back, fail closed (cannot verify gates).
+    const displayableOH = ohRecords
+      .map((r: Record<string, unknown>) => {
+        const prop = propMap.get(r.ListingKey as string) || null;
+        const gate = prop ? evaluateDisplayGate(prop as Record<string, unknown>) : { displayable: false, addressDisplayable: false };
+        return { r, prop, gate };
+      })
+      .filter((x: { prop: Record<string, unknown> | null; gate: { displayable: boolean } }) => x.prop !== null && x.gate.displayable);
 
-    return displayableOH.map((r: Record<string, unknown>) => {
-      const prop = propMap.get(r.ListingKey as string) || {};
-      const street = [prop.StreetNumber, prop.StreetDirPrefix, prop.StreetName, prop.StreetSuffix, prop.StreetDirSuffix]
+    return displayableOH.map((x: { r: Record<string, unknown>; prop: Record<string, unknown>; gate: { addressDisplayable: boolean } }) => {
+      const { r, prop, gate } = x;
+      const fullStreet = [prop.StreetNumber, prop.StreetDirPrefix, prop.StreetName, prop.StreetSuffix, prop.StreetDirSuffix]
         .filter(Boolean).join(' ');
       const unit = prop.UnitNumber ? `, ${prop.UnitNumber}` : '';
+      const addressLine = gate.addressDisplayable
+        ? `${fullStreet}${unit}`
+        : `${((prop.City as string) || 'New York').replace('New York City', 'New York')} (Address Available on Request)`;
       const totalBaths = ((prop.BathroomsFull as number) || 0) + ((prop.BathroomsHalf as number) || 0) * 0.5;
 
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
         listingId: (r.ListingId as string) || (r.ListingKey as string) || '',
-        address: `${street}${unit}`,
+        address: addressLine,
         neighborhood: ((prop.City as string) || 'New York').replace('New York City', 'New York'),
         date: (r.OpenHouseDate as string || '').split('T')[0],
         startTime: formatTrestleTime(r.OpenHouseStartTime as string),
