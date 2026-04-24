@@ -425,10 +425,28 @@ export async function syncListings(
 export async function backfillEmptyMedia(options?: { limit?: number }): Promise<{ checked: number; updated: number; errors: number }> {
   const limit = options?.limit ?? 200;
 
-  // Find listings with empty or null media — include mls_id (= ListingKey = Media.ResourceRecordKey)
+  // Find listings needing media backfill.
+  //
+  // Matches:
+  //   - NULL media
+  //   - empty array `[]`
+  //   - empty object `{}`
+  //   - ANY object-shaped media (legacy malformed rows where the mapper
+  //     wrote a summary `{PhotosCount: N, ...}` instead of a photo array —
+  //     see trestle-mapper.ts line 690 comments for the root-cause story)
+  //   - empty-string edge case
+  //
+  // The `jsonb_typeof(media) != 'array'` clause catches the object-shaped
+  // malformed data. Without it, 8,082+ production rows with
+  // `media: {PhotosCount: ...}` would never trigger backfill and would
+  // keep rendering as "No Photo" on the site.
   const listings = await prisma.$queryRaw<{ listing_id: string; mls_id: string | null }[]>`
     SELECT listing_id, mls_id FROM "listings"
-    WHERE (media IS NULL OR media::text = '[]' OR media::text = '{}')
+    WHERE (
+        media IS NULL
+        OR jsonb_typeof(media) != 'array'
+        OR jsonb_array_length(media) = 0
+      )
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
       AND sync_status IS DISTINCT FROM 'gated:participant_only'
     ORDER BY modification_timestamp DESC NULLS LAST
