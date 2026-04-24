@@ -68,24 +68,25 @@ async function fetchMediaForBatch(
   }
   const data = (await res.json()) as { value?: Record<string, unknown>[] };
 
-  const byKey = new Map<string, MediaEntry[]>();
+  // Group by whichever key lets us look up a listing_id — Trestle responses
+  // include BOTH ResourceRecordKey AND ResourceRecordID for every media row.
+  // We populated keyToId with the specific field we filtered by (Key when
+  // mls_id present, ID when mls_id NULL), so we must try BOTH on lookup or
+  // we'd miss rows whose matching key is the "other" field.
+  const byListingId = new Map<string, MediaEntry[]>();
   for (const m of data.value || []) {
-    const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || '');
-    if (!mkey || !m.MediaURL) continue;
+    const k = String(m.ResourceRecordKey || '');
+    const rrid = String(m.ResourceRecordID || '');
+    const listingId = keyToId.get(k) || keyToId.get(rrid);
+    if (!listingId || !m.MediaURL) continue;
     const cat = String(m.MediaCategory || '');
     const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-    if (!byKey.has(mkey)) byKey.set(mkey, []);
-    byKey.get(mkey)!.push({
+    if (!byListingId.has(listingId)) byListingId.set(listingId, []);
+    byListingId.get(listingId)!.push({
       url: String(m.MediaURL),
       mediaType: classify(cat),
       order: isPreferred ? -1 : Number(m.Order ?? 0),
     });
-  }
-
-  const byListingId = new Map<string, MediaEntry[]>();
-  for (const [key, media] of byKey) {
-    const listingId = keyToId.get(key) || key;
-    byListingId.set(listingId, media);
   }
   return { byListingId, batchError: false };
 }
