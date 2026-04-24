@@ -19,6 +19,8 @@
  * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
  */
 
+import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";
+
 // ─── Fields that MUST NEVER appear in portal or public responses ──────────
 
 /** Internal CRM fields — never exposed outside CRM endpoints */
@@ -161,12 +163,15 @@ export function sanitizeForPublic(listing: Record<string, unknown>): Record<stri
     result.buyer = buyer;
   }
 
-  // Address suppression: InternetAddressDisplayYN
-  // Check both PascalCase (Trestle raw) and snake_case (Prisma DB) variants
-  const addressDisplayYN =
-    result.internet_address_display_yn ??
-    result.InternetAddressDisplayYN;
-  if (addressDisplayYN === false) {
+  // Address suppression: InternetAddressDisplayYN — FAIL-CLOSED.
+  // Was `=== false` which only suppressed when explicitly false; null /
+  // undefined / missing passed through as displayable. Now uses canonical
+  // `affirmPermission` from lib/compliance/gates.ts which treats ANY
+  // non-true value (including null, undefined, missing) as non-displayable.
+  const addressDisplayable = affirmPermission(
+    result.internet_address_display_yn ?? result.InternetAddressDisplayYN,
+  );
+  if (!addressDisplayable) {
     result.address = { street: "Address Undisclosed" };
     // Strip both PascalCase (Trestle) and camelCase/snake_case (DB) variants
     delete result.StreetNumber;
@@ -295,14 +300,29 @@ export function sanitizeListingForPortal(
   listing: PortalListingInput,
   portalRole: string
 ): Record<string, unknown> | null {
-  // Owner opt-out: listing must not be shown at all (UCBA Art. I, Sec. 4(A))
-  if (listing.owner_opt_out) return null;
+  // Canonical fail-closed gate evaluation — treats any missing permission
+  // flag as non-displayable. Previous pattern used direct boolean checks
+  // which fail OPEN: owner_opt_out=null → passed as "not opted out,"
+  // internet_entire_listing_display_yn=null → passed as "displayable."
+  // UCBA Art. I §4(A) / §5 and RLS Gate 3 require fail-closed treatment.
 
-  // Participant Only: visible to RLS participants only, not portal/public (UCBA Gate 2)
-  if (listing.participant_only) return null;
+  // Gate 1 — Owner Opt-Out (UCBA Art. I §4(A) / §5(A))
+  if (isOwnerOptOut({
+    owner_opt_out: listing.owner_opt_out,
+    permission: (listing as unknown as { permission?: unknown }).permission,
+    permissions: (listing as unknown as { permissions?: unknown }).permissions,
+  })) return null;
 
-  // Internet display opt-out: listing cannot appear on any website/portal (RLS Gate 3)
-  if (listing.internet_entire_listing_display_yn === false) return null;
+  // Gate 2 — Participant-Only (UCBA Def. (W))
+  if (isParticipantOnly({
+    participant_only: listing.participant_only,
+    permission: (listing as unknown as { permission?: unknown }).permission,
+    permissions: (listing as unknown as { permissions?: unknown }).permissions,
+  })) return null;
+
+  // Gate 3 — Internet display (fail-CLOSED). Was `=== false`; null/undefined
+  // now also blocks display.
+  if (!affirmPermission(listing.internet_entire_listing_display_yn)) return null;
 
   const flat: Record<string, unknown> = {
     id: listing.id.toString(),
