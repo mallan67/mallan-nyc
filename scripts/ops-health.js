@@ -107,14 +107,16 @@ async function run() {
       report.issues.push({ level: 'warning', category: 'sync', msg: `${errs24h} sync errors in last 24h (warn >=${THRESHOLDS.sync_error_warn_24h})` });
     }
 
+    // Prisma 6 disallows `_count: { _all: 'desc' }` in orderBy — `_all` only
+    // belongs inside the select's `_count`. Order by a grouped column instead.
     const recentErrors = await prisma.syncError.groupBy({
       by: ['error_code'],
       where: { occurred_at: { gt: new Date(Date.now() - 86400000) } },
-      _count: { _all: true },
-      orderBy: { _count: { _all: 'desc' } },
+      _count: { error_code: true },
+      orderBy: { _count: { error_code: 'desc' } },
       take: 5,
     });
-    report.sync.top_error_codes_24h = recentErrors.map((r) => ({ code: r.error_code, count: r._count._all }));
+    report.sync.top_error_codes_24h = recentErrors.map((r) => ({ code: r.error_code, count: r._count.error_code }));
   } catch (e) {
     if (e.message?.includes('does not exist')) {
       report.sync.state = 'pre_migration';

@@ -254,7 +254,12 @@ export async function syncListings(
         const { getAccessToken } = await import("./auth");
         const token = await getAccessToken();
         const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        const BATCH_SIZE = 50;
+        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
+        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+        // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
+        // the media-backfill cron was returning 0 updates despite the cron
+        // firing successfully — every batch silently 400'd.
+        const BATCH_SIZE = 15;
 
         for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
@@ -470,7 +475,10 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   }
 
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-  const BATCH_SIZE = 50;
+  // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
+  // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+  // Bad Request (verified 2026-04-24 against live feed).
+  const BATCH_SIZE = 15;
   let updated = 0;
   let errors = 0;
 
@@ -848,7 +856,12 @@ export async function syncAgentHistory(
         const { getAccessToken } = await import("./auth");
         const token = await getAccessToken();
         const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        const BATCH_SIZE = 50;
+        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
+        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+        // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
+        // the media-backfill cron was returning 0 updates despite the cron
+        // firing successfully — every batch silently 400'd.
+        const BATCH_SIZE = 15;
 
         for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
