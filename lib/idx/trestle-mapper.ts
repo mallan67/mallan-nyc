@@ -687,25 +687,45 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     ...pick(raw, B10_BUYER_AGENT),
     ...pick(raw, B11_COBUYER_AGENT),
   };
-  // Normalize media to {url, mediaType, order} format — same as what batch-fetch produces.
-  // Without this, $expand=Media stores raw Trestle format {MediaURL, MediaCategory, Order}
-  // while batch-fetch stores mapped format, causing dual formats in the DB.
+  // Normalize media to [{url, mediaType, order}] format — same shape as
+  // what batch-media-fetch produces.
+  //
+  // CRITICAL: the `media` DB field MUST be an array, not a summary object.
+  // Frontend cards, public DTO, and search all iterate this as an array.
+  // Previous fallback `pick(raw, B26_MEDIA)` created an object shape
+  // `{ PhotosCount, VideosCount, DocumentsCount, VirtualTourURLUnbranded, ... }`
+  // whenever Trestle returned the record without `$expand=Media` (i.e. on
+  // every sync with maxRecords > 200). That summary object then silently
+  // OVERWROTE whatever the batch-media backfill had previously written.
+  //
+  // Result (production snapshot 2026-04-24): 8,082 of 9,368 sale-active
+  // listings (86%) had `media: { PhotosCount: N, ... }` instead of a photo
+  // array. Frontends iterated zero elements → rendered "No Photo."
+  //
+  // Fix: always produce an array. Empty when Trestle didn't expand Media;
+  // the subsequent batch-media fetch in sync.ts populates it. Summary
+  // counts like PhotosCount remain available on top-level Trestle fields
+  // for callers that need them — they are NOT the media array.
   const rawMediaArr = Array.isArray(raw.Media) ? raw.Media : [];
-  const media = rawMediaArr.length > 0
-    ? rawMediaArr.map((m: Record<string, unknown>) => {
-        const cat = String(m.MediaCategory || '').toLowerCase();
-        let mediaType = 'Photo';
-        if (cat.includes('floor plan')) mediaType = 'FloorPlan';
-        else if (cat.includes('video')) mediaType = 'Video';
-        else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
-        const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-        return {
-          url: String(m.MediaURL || ''),
-          mediaType,
-          order: isPreferred ? -1 : Number(m.Order ?? 0),
-        };
-      }).filter((m: { url: string }) => m.url)
-    : pick(raw, B26_MEDIA);
+  const media: Array<{ url: string; mediaType: string; order: number }> =
+    rawMediaArr.length > 0
+      ? rawMediaArr
+          .map((m: Record<string, unknown>) => {
+            const cat = String(m.MediaCategory || '').toLowerCase();
+            let mediaType = 'Photo';
+            if (cat.includes('floor plan')) mediaType = 'FloorPlan';
+            else if (cat.includes('video')) mediaType = 'Video';
+            else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
+            const isPreferred =
+              m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
+            return {
+              url: String(m.MediaURL || ''),
+              mediaType,
+              order: isPreferred ? -1 : Number(m.Order ?? 0),
+            };
+          })
+          .filter((m: { url: string }) => m.url)
+      : [];
 
   // Timestamps
   const modTimestamp = raw.ModificationTimestamp
