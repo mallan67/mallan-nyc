@@ -69,10 +69,14 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     const token = await getAccessToken();
     const base = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
-    // Fetch upcoming open houses from the OpenHouse entity
+    // Fetch upcoming open houses from the OpenHouse entity.
+    // Filter to public open houses only — Broker-only and Private events
+    // are not for consumer display per REBNY UCBA Art. I §16 (open-house
+    // disclosure applies to public-facing events). Without this filter,
+    // consumers would see agent-only preview times.
     const today = new Date().toISOString().split('T')[0];
     const params = new URLSearchParams();
-    params.set('$filter', `OpenHouseDate ge ${today}`);
+    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public'`);
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
@@ -166,7 +170,9 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
     const today = new Date().toISOString().split('T')[0];
 
     const params = new URLSearchParams();
-    params.set('$filter', `OpenHouseDate ge ${today}`);
+    // Public-only — Broker-only and Private events excluded (see rationale
+    // in fetchTrestleOpenHouses above).
+    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public'`);
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
@@ -273,6 +279,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         listing: {
           select: {
             listing_id: true,
+            status: true,
             address: true,
             city: true,
             neighborhood: true,
@@ -285,6 +292,16 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             property_sub_type: true,
             features: true,
             media: true,
+            agent_info: true,
+            // Canonical gate fields — previously omitted, so local open
+            // houses could leak Owner Opt-Out / Participant Only /
+            // Internet-off listings and show full addresses regardless
+            // of InternetAddressDisplayYN. Now all gate inputs are
+            // selected and passed to evaluateDisplayGate() below.
+            owner_opt_out: true,
+            participant_only: true,
+            internet_entire_listing_display_yn: true,
+            internet_address_display_yn: true,
           },
         },
         agent: {
@@ -297,14 +314,34 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       orderBy: { date: 'asc' },
     });
 
-    return showings.map((s) => {
-      const l = s.listing;
+    return showings
+      .map((s) => {
+        const l = s.listing;
+        // Canonical gate — same evaluator the main listing pipeline uses.
+        // If any gate fails (opt-out, participant-only, internet display,
+        // terminal status, closed >24h), the open house is dropped.
+        const gate = evaluateDisplayGate({
+          status: l.status,
+          owner_opt_out: l.owner_opt_out,
+          participant_only: l.participant_only,
+          internet_entire_listing_display_yn: l.internet_entire_listing_display_yn,
+          internet_address_display_yn: l.internet_address_display_yn,
+        });
+        return { s, l, gate };
+      })
+      .filter(({ gate }) => gate.displayable)
+      .map(({ s, l, gate }) => {
       // Address is stored as JSON: { streetNumber, streetName, unitNumber, ... }
       const addrObj = (l.address || {}) as Record<string, string>;
-      const street = [addrObj.streetNumber, addrObj.streetDirPrefix, addrObj.streetName, addrObj.streetSuffix]
+      const fullStreet = [addrObj.streetNumber, addrObj.streetDirPrefix, addrObj.streetName, addrObj.streetSuffix]
         .filter(Boolean).join(' ');
       const unit = addrObj.unitNumber ? `, ${addrObj.unitNumber}` : '';
-      const addr = `${street}${unit}`;
+      // Address suppression — match the gate decision. Previously always
+      // built the full street from stored JSON regardless of the
+      // InternetAddressDisplayYN flag.
+      const addr = gate.addressDisplayable
+        ? `${fullStreet}${unit}`
+        : `${l.neighborhood || l.city || 'New York'} (Address Available on Request)`;
 
       const totalBaths = (l.bathrooms_full || 0) + (l.bathrooms_half || 0) * 0.5;
 

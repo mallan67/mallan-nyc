@@ -5,6 +5,25 @@ import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
 const BASE_URL = 'https://mallan.nyc';
 
+// ──────────────────────────────────────────────────────────────────────────
+// Runtime generation, not build-time.
+//
+// Vercel's build runtime intentionally does not expose `DATABASE_URL` per the
+// documented architecture (see NEON.md §1 and docs/DEPLOYMENT.md). Previously
+// this sitemap ran at build time, hit `Environment variable not found:
+// DATABASE_URL`, caught the error, and served an empty listing-URL section.
+// Result: the deployed sitemap.xml on production never contained any
+// `/listing/{slug}` URLs — Google could not discover listing pages from it.
+//
+// `force-dynamic` defers generation to runtime on the first request, where
+// DATABASE_URL is set via Vercel env vars. `revalidate = 300` caches the
+// result at the edge for 5 minutes so we don't hit Neon on every crawler
+// request. Tradeoff: ~1 extra DB query every 5 min (negligible; a few
+// CU-seconds/month).
+// ──────────────────────────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic';
+export const revalidate = 300;
+
 /**
  * Dynamic sitemap generation for Next.js 13+
  * Only includes safe-to-index public routes.
