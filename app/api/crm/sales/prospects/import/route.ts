@@ -4,14 +4,20 @@
  * Bulk import seller prospects from CSV or XLSX files.
  * Supports preview mode (?preview=true) and full import.
  * Cap: 10,000 rows per import.
+ *
+ * Parser: ExcelJS (maintained, MIT). Replaced unmaintained `xlsx`
+ * package on 2026-04-25 per PR 13b of master refactor plan
+ * (memory/REFACTOR-2026-04-25.md) — `xlsx` had unfixable Prototype
+ * Pollution + ReDoS advisories (GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9).
  */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import * as XLSX from "xlsx";
+import { parseWorkbookBuffer } from "./parse";
 
 const MAX_ROWS = 10_000;
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB hard cap — defense-in-depth above MAX_ROWS
 
 // ── Column auto-detection (case-insensitive) ─────────────────────────────────
 const COLUMN_MAP: Record<string, string[]> = {
@@ -68,13 +74,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
   }
 
+  // Defense-in-depth: hard cap on raw bytes BEFORE parsing.
+  // Prevents memory exhaustion attacks via giant uploaded files.
+  if (file.size > MAX_FILE_BYTES) {
+    return NextResponse.json(
+      { error: `File too large. Maximum size is ${Math.round(MAX_FILE_BYTES / 1024 / 1024)} MB.` },
+      { status: 413 }
+    );
+  }
+
   // ── Read and parse file ─────────────────────────────────────────────────
   let rows: Record<string, string>[];
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: "" });
+    rows = await parseWorkbookBuffer(buffer, file.name);
   } catch {
     return NextResponse.json({ error: "Could not parse file. Ensure it is a valid CSV or XLSX." }, { status: 400 });
   }
