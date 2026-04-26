@@ -45,6 +45,18 @@ Close this follow-up when both the master-plan completion criteria (in `memory/R
 ### Recently landed (since 2026-04-25)
 - PR #38 (`fix(trestle-media): MediaStatus='Deleted' filter`) — merged 2026-04-26T01:46:50Z
 - PR #39 (`fix(trestle-media): BATCH_SIZE 50→15`) — merged 2026-04-26T01:41Z (`bf8f5ee5`)
+- PR #41 (`refactor: compliance fail-closed gates`) + PR #42 (`chore: parameterized comp tool`) + PR #43 (`infra: R2 setup runbook + ops:r2-health`) + PR #44 (`chore: npm audit triage`) + PR #45 / #46 (`chore: migrate xlsx → exceljs + 50MB cap`)
+- PR #47 (`feat(c1): Inquiry model + 3 lead-capture endpoints wired`)
+- PR #48 (`feat(media-schema): ListingMedia + MediaSyncState + 4 Listing cols — Master PR 2`)
+- PR #49 (`feat(c2): Offer model + UCBA Art. II transmission endpoint`)
+- PR #50 (`feat(c3): Listing.auction_yn + 4 auction cols — UCBA Art. I exception`)
+- PR #51 (`feat(c4): Agent ethics_training_completed_at + ethics_training_expires_at — schema only`)
+- PR #55 (`feat(c1b): wire 5 remaining lead-capture endpoints to Inquiry`, replaces auto-closed #52)
+- PR #56 (`fix(deps): pin lightningcss linux binaries via top-level optionalDependencies`) — unblocked Vercel cross-platform builds
+- PR #57 (`feat(c3b): auction listing enforcement validator + 9 tests`, replaces auto-closed #53) — UCBA Art. I codes AU-001..AU-005
+- PR #58 (`feat(c4b): ethics training auth gate`, replaces auto-closed #54) — merged `276fe3ae` 2026-04-26T10:17:47Z. Pre-merge backfill executed via `scripts/c4-ethics-backfill.ts` (3 active agents → 30-day grace, `would_lock_out=0`).
+
+**Workstream C: 4 of 4 complete (C1, C2, C3a/b, C4a/b).** Deferred: C3c (auction form/UI), C4c (broker admin panel + dev-login catch + commit backfill script to repo).
 
 ---
 
