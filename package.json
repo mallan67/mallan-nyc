@@ -116,5 +116,9 @@
         "ts-jest": "^29.4.6",
         "typescript": "^5.4.0",
         "zod": "^4.3.6"
+    },
+    "optionalDependencies": {
+        "lightningcss-linux-x64-gnu": "1.30.2",
+        "lightningcss-linux-arm64-gnu": "1.30.2"
     }
 }
