@@ -46,11 +46,11 @@ jobs:
       - name: Read Node engine from package.json
         id: node-engine
         run: |
-          node_version=$(node -p "require('./package.json').engines?.node || '20'")
-          # If the engines field is "20.x" or similar, strip suffix
-          version_num=$(echo "$node_version" | sed -E 's/[^0-9.].*$//')
-          echo "version=${version_num:-20}" >> "$GITHUB_OUTPUT"
-          echo "Detected Node engine: $version_num (raw: $node_version)"
+          # Extract the leading integer from engines.node (handles "20", "20.x",
+          # "20.11.0", ">=20", "20 || 22", etc.). Falls back to 20 if unset.
+          version_num=$(node -p "((require('./package.json').engines||{}).node||'20').match(/\d+/)?.[0] || '20'")
+          echo "version=${version_num}" >> "$GITHUB_OUTPUT"
+          echo "Detected Node engine major: $version_num"
 
       - name: Setup Node ${{ steps.node-engine.outputs.version }}
         uses: actions/setup-node@v4
