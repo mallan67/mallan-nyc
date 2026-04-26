@@ -14,6 +14,77 @@ const SESSION_TTL_MS = {
 // Refresh threshold: 1 hour before expiry (or 10% of TTL, whichever is smaller)
 const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// UCBA Art. III §6 ethics training gate (Workstream C4b).
+// Schema fields land in PR #51. This block enforces them at the moment a
+// session token is issued for an agent. Brokers (role=BROKER) are also
+// agents under the hood so the check fires for them too.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Where agents are sent to complete or renew their REBNY ethics training. */
+const ETHICS_RETRAINING_URL =
+  process.env.REBNY_ETHICS_TRAINING_URL ||
+  "https://www.rebny.com/content/rebny/en/Education/courses.html";
+
+/**
+ * Thrown by `createSession` (and `assertAgentEthicsTrainingValid`) when an
+ * agent has no recorded ethics training, or when their training is past
+ * `ethics_training_expires_at`. Login/MFA-verify route handlers catch this
+ * specifically and return a 403 with the retraining URL.
+ */
+export class EthicsTrainingExpiredError extends Error {
+  readonly code = "ETHICS_TRAINING_EXPIRED" as const;
+  readonly retrainingUrl: string;
+  /** Why the training is invalid: "missing" (never recorded) | "expired". */
+  readonly reason: "missing" | "expired";
+  /** Date the training expired, when reason="expired". */
+  readonly expiredAt: Date | null;
+
+  constructor(reason: "missing" | "expired", expiredAt: Date | null) {
+    const message =
+      reason === "missing"
+        ? "Ethics training has not been recorded for this agent. Complete training to access RLS."
+        : `Ethics training expired on ${expiredAt?.toISOString().slice(0, 10)}. Re-train to restore RLS access.`;
+    super(message);
+    this.name = "EthicsTrainingExpiredError";
+    this.reason = reason;
+    this.expiredAt = expiredAt;
+    this.retrainingUrl = ETHICS_RETRAINING_URL;
+  }
+}
+
+/**
+ * Verify the agent's ethics training is valid. Throws
+ * `EthicsTrainingExpiredError` if missing or expired.
+ *
+ * Call this directly at any agent token issuance point that does not flow
+ * through `createSession()` (e.g. impersonation, force-login admin paths).
+ * For normal login + MFA verify, `createSession()` already calls this when
+ * `userType === "agent"`.
+ */
+export async function assertAgentEthicsTrainingValid(agentId: bigint): Promise<void> {
+  const agent = await prisma.agent.findUnique({
+    where: { id: agentId },
+    select: {
+      ethics_training_completed_at: true,
+      ethics_training_expires_at: true,
+    },
+  });
+
+  // No row found is a separate problem; let the caller catch the FK violation.
+  if (!agent) return;
+
+  // NULL expires_at means: training has never been recorded for this agent.
+  // The C4 doctrine is fail-closed — treat NULL as "never trained → expired".
+  if (agent.ethics_training_expires_at === null) {
+    throw new EthicsTrainingExpiredError("missing", null);
+  }
+
+  if (agent.ethics_training_expires_at.getTime() < Date.now()) {
+    throw new EthicsTrainingExpiredError("expired", agent.ethics_training_expires_at);
+  }
+}
+
 /** Resolve the correct TTL for a user type + role combination */
 function getSessionDurationMs(userType: string, role: string): number {
   if (role === "BROKER" || role === "broker") return SESSION_TTL_MS.broker;
@@ -41,6 +112,13 @@ export async function createSession(
   ipAddress?: string,
   userAgent?: string
 ): Promise<string> {
+  // UCBA Art. III §6 — gate agent token issuance on ethics training.
+  // Lead (client) sessions are unaffected. Throws EthicsTrainingExpiredError
+  // if the agent has no recorded training or it has expired.
+  if (userType === "agent") {
+    await assertAgentEthicsTrainingValid(userId);
+  }
+
   const token = randomUUID();
   const durationMs = getSessionDurationMs(userType, role);
   const expiresAt = new Date(Date.now() + durationMs);
