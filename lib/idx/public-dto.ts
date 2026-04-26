@@ -14,6 +14,7 @@
 import type { IDXListing } from './types';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { isComingSoonStatus } from '@/lib/compliance/status';
+import { isAddressDisplayable } from '@/lib/compliance/gates';
 
 /** Map Trestle property fields to user-friendly property type */
 export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
@@ -174,7 +175,9 @@ export interface PublicListingDTO {
  * Suppresses: address + lat/lng when internetAddressDisplayYN is false.
  */
 export function toPublicDTO(listing: IDXListing): PublicListingDTO {
-  const suppressAddress = listing.internetAddressDisplayYN === false;
+  // Address display cascades through the internet-entire-listing gate;
+  // null/undefined on either flag suppresses (fail-closed).
+  const suppressAddress = !isAddressDisplayable(listing);
 
   const address = suppressAddress
     ? {

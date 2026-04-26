@@ -18,6 +18,7 @@
 import type { PublicListingDTO } from './public-dto';
 import { mapPropertyTypeToDisplay } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
+import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
@@ -142,12 +143,14 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
   return listings.filter((l) => {
     // Gate 1: Must be an active/displayable status
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
-    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates
+    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
+    // `rls_eligible` is a real internal boolean, not a Trestle permission flag,
+    // so the literal `=== false` check is intentional here.
     if (l.rls_eligible === false) return true;
-    // Gate 2: IDX display must be enabled
-    if (l.idx_display_yn === false) return false;
-    // Gate 3: Internet display must be enabled
-    if (l.internet_entire_listing_display_yn === false) return false;
+    // Gate 2: IDX display must be enabled (fail-closed: null/undefined → deny)
+    if (!affirmPermission(l.idx_display_yn)) return false;
+    // Gate 3: Internet display must be enabled (fail-closed)
+    if (!affirmPermission(l.internet_entire_listing_display_yn)) return false;
     // Gate 4: Owner must not have opted out
     if (l.owner_opt_out) return false;
     // Gate 5: Must not be participant-only
@@ -182,7 +185,9 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   // Neighborhood: SubdivisionName (Trestle) > Neighborhood (legacy) > DB column
   const neighborhood = addr.SubdivisionName || addr.Neighborhood || listing.neighborhood || undefined;
 
-  const suppressAddress = listing.internet_address_display_yn === false;
+  // Address display cascades through internet-entire-listing gate;
+  // any null/undefined permission = suppress (fail-closed).
+  const suppressAddress = !isAddressDisplayable(listing);
   const isComingSoon = listing.status === 'ComingSoon';
   const rawData = (listing.raw_data || {}) as Record<string, unknown>;
   const comingSoonDate = isComingSoon
