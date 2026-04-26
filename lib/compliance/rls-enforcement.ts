@@ -663,6 +663,85 @@ export function assertRlsCompliantPayload(
     }
   }
 
+  // ── 9. Auction listing requirements (UCBA Art. I exception path — C3b) ─
+  // Closes C15 [low] in compliance/rules/ucba-audit-checklist.json:
+  //   "Auction Listing Requirements — Must include: minimum bid, date/time/
+  //    location, registration, inspection, buyer's premium"
+  // We enforce the structural minimum: when auction_yn=true on a listing,
+  // both auction_type and auction_end_date are mandatory. The detailed
+  // disclosure fields (minimum bid, registration, inspection, buyer's
+  // premium) are captured via the auction_terms_url document — operators
+  // post a public terms doc rather than encoding every detail as a column.
+  // The schema for these fields lives in PR #50 (master refactor C3a).
+  const auctionYn = payload.auction_yn ?? payload.AuctionYN;
+  if (auctionYn === true || auctionYn === "true" || auctionYn === "True") {
+    const auctionType = payload.auction_type ?? payload.AuctionType;
+    const auctionEndDate = payload.auction_end_date ?? payload.AuctionEndDate;
+    const auctionTermsUrl = payload.auction_terms_url ?? payload.AuctionTermsUrl;
+
+    if (!auctionType || (typeof auctionType === "string" && auctionType.trim() === "")) {
+      blockers.push({
+        code: "AU-001",
+        severity: "BLOCKER",
+        field: "auction_type",
+        message:
+          'Auction listings (auction_yn=true) must specify auction_type. ' +
+          'Allowed: "Absolute" | "WithReserve" | "Minimum".',
+        ucbaRef: "UCBA Art. I — auction exception",
+      });
+    } else if (
+      typeof auctionType === "string" &&
+      !["Absolute", "WithReserve", "Minimum"].includes(auctionType)
+    ) {
+      blockers.push({
+        code: "AU-002",
+        severity: "BLOCKER",
+        field: "auction_type",
+        message:
+          `auction_type "${auctionType}" is invalid. ` +
+          'Allowed: "Absolute" | "WithReserve" | "Minimum".',
+        ucbaRef: "UCBA Art. I — auction exception",
+      });
+    }
+
+    if (!auctionEndDate) {
+      blockers.push({
+        code: "AU-003",
+        severity: "BLOCKER",
+        field: "auction_end_date",
+        message:
+          "Auction listings (auction_yn=true) must specify auction_end_date " +
+          "(the bidding-ends timestamp). UCBA Art. I requires a substantive end date.",
+        ucbaRef: "UCBA Art. I — auction exception",
+      });
+    }
+
+    // Auction terms URL is a strong recommendation (warn, don't block) —
+    // the document captures the minimum-bid / registration / inspection /
+    // buyer's-premium details that UCBA expects to be disclosed.
+    if (!auctionTermsUrl) {
+      warnings.push({
+        code: "AU-004W",
+        severity: "WARNING",
+        field: "auction_terms_url",
+        message:
+          "Auction listings should include auction_terms_url pointing to the " +
+          "public terms document (minimum bid, registration, inspection, " +
+          "buyer's premium). Recommended by UCBA Art. I auction-exception path.",
+        ucbaRef: "UCBA Art. I — auction exception",
+      });
+    }
+  } else if (auctionYn !== undefined && auctionYn !== null && auctionYn !== false && auctionYn !== "false" && auctionYn !== "False") {
+    // Defensive: non-boolean garbage value provided. Block.
+    blockers.push({
+      code: "AU-005",
+      severity: "BLOCKER",
+      field: "auction_yn",
+      message: `auction_yn must be a boolean (true|false), got: ${JSON.stringify(auctionYn)}.`,
+      ucbaRef: "UCBA Art. I — auction exception",
+    });
+  }
+
   return {
     passed: blockers.length === 0,
     blockers,
