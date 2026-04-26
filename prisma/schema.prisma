@@ -480,6 +480,7 @@ model Listing {
   showings             Showing[]
   comments             Comment[]
   inquiries            Inquiry[]
+  offers               Offer[]
   price_history        PriceHistory[]
   marketing_activities MarketingActivity[]
   listing_media        ListingMedia[]
@@ -2294,4 +2295,74 @@ model MediaSyncState {
   updated_at          DateTime  @updatedAt @map("updated_at")
 
   @@map("media_sync_state")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Offer — UCBA Art. II transmission tracking.
+// Workstream C2 of master refactor (memory/REFACTOR-2026-04-25.md +
+// memory/FOLLOWUP-2026-05-01.md). UCBA Art. II requires brokers to disclose
+// every received offer to the seller and tracks the transmit-to-seller event.
+// Multiple-bid disclosure (telling one buyer about competing offers) is
+// only allowed when the seller has explicitly authorized it.
+//
+// Buyer/agent identifiers are stored as plain BigInt fields without FK
+// constraints to avoid back-reference churn on the heavily-relationed Lead
+// and Agent models. FK enforcement can be added in a follow-up migration
+// if the audit usage pattern requires it.
+// ─────────────────────────────────────────────────────────────────────────────
+model Offer {
+  id                              BigInt    @id @default(autoincrement())
+  // Listing the offer is on. FK + ON DELETE SET NULL preserves the offer
+  // record for the audit trail even if the listing is later removed.
+  listing_id                      String?   @map("listing_id")
+  listing                         Listing?  @relation(fields: [listing_id], references: [listing_id], onDelete: SetNull, onUpdate: Cascade)
+
+  // Buyer (the lead making the offer) — BigInt only, no FK. Indexed below.
+  buyer_lead_id                   BigInt?   @map("buyer_lead_id")
+  // Buyer's agent (the broker submitting on behalf of buyer) — BigInt only.
+  buyer_agent_id                  BigInt?   @map("buyer_agent_id")
+  // Listing agent (us, when we're representing the seller) — BigInt only.
+  list_agent_id                   BigInt?   @map("list_agent_id")
+
+  // ── Offer details ─────────────────────────────────────────────────────
+  offer_amount                    Decimal?  @map("offer_amount") @db.Decimal(14, 2)
+  offer_terms                     String?   @db.Text
+  // Contingencies as a structured payload. Free-form JSON kept small —
+  // typical shape: { financing: bool, inspection: bool, sale: bool,
+  //                  appraisal: bool, custom: string[] }.
+  contingencies                   Json?
+  expiration_at                   DateTime? @map("expiration_at")
+
+  // ── UCBA Art. II three-state transmission lifecycle ──────────────────
+  // 1. Agent received the offer from buyer/buyer's broker.
+  received_at                     DateTime? @map("received_at")
+  // 2. Agent transmitted the offer to the seller (UCBA REQUIRED).
+  //    POST /api/crm/offers/[id]/transmit stamps this + writes AuditEvent.
+  transmitted_to_seller_at        DateTime? @map("transmitted_to_seller_at")
+  // 3. Seller acknowledged review of the offer.
+  seller_acknowledged_at          DateTime? @map("seller_acknowledged_at")
+
+  // ── UCBA Art. II multiple-bid disclosure ─────────────────────────────
+  // Whether competing offers have been disclosed to this buyer.
+  competing_offers_disclosed      Boolean   @default(false) @map("competing_offers_disclosed")
+  // Required precondition: seller must explicitly authorize disclosure.
+  // Defaults to false — a broker disclosing competing bids without this
+  // flag set true is a UCBA Art. II violation.
+  disclosure_authorized_by_seller Boolean   @default(false) @map("disclosure_authorized_by_seller")
+
+  // ── Status ────────────────────────────────────────────────────────────
+  // received | transmitted | accepted | rejected | countered | withdrawn | expired
+  status                          String    @default("received")
+
+  created_at                      DateTime  @default(now()) @map("created_at")
+  updated_at                      DateTime  @updatedAt @map("updated_at")
+
+  @@index([listing_id])
+  @@index([buyer_lead_id])
+  @@index([buyer_agent_id])
+  @@index([list_agent_id])
+  @@index([status])
+  @@index([transmitted_to_seller_at])
+  @@index([received_at])
+  @@map("offers")
 }
