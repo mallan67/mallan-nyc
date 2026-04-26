@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email/sendgrid';
 import { openHouseRsvpEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
+import { createInquiry } from '@/lib/inquiries/create';
 
 /**
  * POST /api/open-houses/rsvp
@@ -108,6 +109,26 @@ export async function POST(request: NextRequest) {
           source: 'open_house_rsvp',
           submitted_at: new Date().toISOString(),
         },
+      },
+    });
+
+    // Real Inquiry row (Workstream C1 of master refactor). Never throws.
+    await createInquiry({
+      source: 'open_house_rsvp',
+      leadId: lead.id,
+      message: message ?? null,
+      email: lead.email,
+      phone: lead.phone,
+      firstName,
+      lastName,
+      userAgent: request.headers.get('user-agent'),
+      rawClientIp: ip,
+      metadata: {
+        open_house_id: openHouseId ?? undefined,
+        listing_address: listingAddress,
+        open_house_date: openHouseDate,
+        open_house_time: openHouseTime,
+        party_size: validPartySize,
       },
     });
 

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
+import { createInquiry } from '@/lib/inquiries/create';
 
 /**
  * POST /api/guides/download
@@ -97,6 +98,21 @@ export async function POST(request: NextRequest) {
           source: 'guide_download',
           submitted_at: new Date().toISOString(),
         },
+      },
+    });
+
+    // Real Inquiry row (Workstream C1 of master refactor). Never throws —
+    // a missing table or other failure does not break guide download.
+    await createInquiry({
+      source: 'guide_download',
+      leadId: lead.id,
+      email: lead.email,
+      firstName,
+      lastName,
+      userAgent: request.headers.get('user-agent'),
+      rawClientIp: ip,
+      metadata: {
+        guide_type: guideType,
       },
     });
 
