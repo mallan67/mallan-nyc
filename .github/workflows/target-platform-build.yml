@@ -1,0 +1,113 @@
+name: Target Platform Build
+
+# Phase 4 of the validator-truth framework. Catches platform-specific
+# install/build failures (the #56 lightningcss-linux-x64-gnu deploy break
+# class) BEFORE merge by running the full install + build cycle on the
+# same OS class as Vercel production (Linux, Node 20).
+#
+# Triggers on changes to dependency / build pipeline files only. PRs that
+# don't touch these never run this job — keeps CI fast for docs-only and
+# logic-only changes.
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'prisma/schema.prisma'
+      - 'next.config.js'
+      - 'next.config.mjs'
+      - 'next.config.ts'
+      - 'tailwind.config.js'
+      - 'postcss.config.js'
+      - 'postcss.config.mjs'
+      - 'tsconfig.json'
+      - '.github/workflows/target-platform-build.yml'
+
+jobs:
+  target-platform-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Stub creds — the build doesn't connect to a real DB but Prisma needs
+      # a valid URL shape to generate the client.
+      DATABASE_URL: postgresql://stub:stub@localhost:5432/stub?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://stub:stub@localhost:5432/stub?schema=public
+      SESSION_SECRET: ci-stub-session-secret-not-real
+      # Skip Sentry source-map upload during CI builds
+      SENTRY_AUTH_TOKEN: ''
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Node engine from package.json
+        id: node-engine
+        run: |
+          node_version=$(node -p "require('./package.json').engines?.node || '20'")
+          # If the engines field is "20.x" or similar, strip suffix
+          version_num=$(echo "$node_version" | sed -E 's/[^0-9.].*$//')
+          echo "version=${version_num:-20}" >> "$GITHUB_OUTPUT"
+          echo "Detected Node engine: $version_num (raw: $node_version)"
+
+      - name: Setup Node ${{ steps.node-engine.outputs.version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node-engine.outputs.version }}
+          cache: npm
+
+      - name: Verify runtime matches engines policy
+        run: |
+          declared=$(node -p "require('./package.json').engines?.node || ''")
+          actual_major=$(node -p "process.versions.node.split('.')[0]")
+          echo "Declared engines.node: $declared"
+          echo "Actual Node major:     $actual_major"
+          if [ -n "$declared" ]; then
+            # Soft check: warn if mismatch, don't fail
+            case "$declared" in
+              *"$actual_major"*) echo "✓ Runtime matches engines policy" ;;
+              *) echo "⚠ Warning: actual Node major ($actual_major) does not match engines.node ($declared)" ;;
+            esac
+          fi
+
+      - name: npm ci (install with frozen lockfile)
+        run: npm ci
+
+      - name: Verify lightningcss binary present (the #56 class)
+        run: |
+          # The lightningcss-linux-x64-gnu native binary is a known cross-platform
+          # gotcha — Tailwind v4 / PostCSS pulls it as an optional dep, and if
+          # the lockfile doesn't pin it, Linux deploy fails at build time.
+          if [ -d node_modules/lightningcss-linux-x64-gnu ]; then
+            echo "✓ lightningcss-linux-x64-gnu installed"
+          elif [ -d node_modules/lightningcss/node ]; then
+            echo "✓ lightningcss has bundled binary"
+          else
+            echo "⚠ Warning: lightningcss linux binary not found in node_modules"
+            echo "  This may be the #56-class issue — check optionalDependencies in package.json"
+          fi
+
+      - name: Prisma client generate
+        run: npx prisma generate
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Next.js production build
+        run: npm run build
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "## Target Platform Build Result" >> $GITHUB_STEP_SUMMARY
+          echo "- OS:       $(lsb_release -ds 2>/dev/null || uname -s)" >> $GITHUB_STEP_SUMMARY
+          echo "- Node:     $(node --version)" >> $GITHUB_STEP_SUMMARY
+          echo "- npm:      $(npm --version)" >> $GITHUB_STEP_SUMMARY
+          if [ -d .next ]; then
+            echo "- Build:    ✓ produced .next/ directory" >> $GITHUB_STEP_SUMMARY
+            echo "- .next size: $(du -sh .next | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Build:    ✗ no .next/ directory produced" >> $GITHUB_STEP_SUMMARY
+          fi
