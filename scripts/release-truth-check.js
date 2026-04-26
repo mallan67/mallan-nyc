@@ -229,47 +229,162 @@ function aggregate(layers) {
   return { verdict: 'CODE_VALID', reasons };
 }
 
-// PR claim verifier — extracts claim phrases and compares against UCBA layer
+// PR claim verifier — extracts claim phrases AND maps each specific claim to
+// specific evidence. A claim "closes C15" requires C15's UCBA validator to
+// be PASS or expected_aggregate match — anything else is overstatement.
 function verifyPrClaim(prNum) {
   const out = gh(`pr view ${prNum} --json title,body`);
   if (!out) return { verdict: 'CLAIM_UNVERIFIED', reasons: ['gh pr view failed'] };
   let pr;
   try { pr = JSON.parse(out); } catch { return { verdict: 'CLAIM_UNVERIFIED', reasons: ['could not parse PR JSON'] }; }
 
-  const text = `${pr.title || ''}\n${pr.body || ''}`.toLowerCase();
-  const closurePhrases = [
-    /\bcloses?\s+(?:#?\d+|c\d+|ws-c\d+)\b/i,
-    /\bfully\s+(?:done|complete|implement(?:ed)?)\b/i,
-    /\b(?:all|every)\s+(?:endpoints?|surfaces?|requirements?)\b/i,
-    /\bship[ps]?\s+(?:final|complete)\b/i,
-  ];
-  const claimsClosure = closurePhrases.some((re) => re.test(text));
+  const title = (pr.title || '').toString();
+  const body = (pr.body || '').toString();
+  const text = `${title}\n${body}`;
 
-  // Extract referenced UCBA / WS rule IDs
-  const ruleRefs = [...text.matchAll(/\b(c\d+|ws-c\d+)\b/gi)].map((m) => m[1].toUpperCase());
-  const uniqueRules = [...new Set(ruleRefs)];
+  // Patterns and their semantic meaning
+  const claims = [];
 
-  if (!claimsClosure && uniqueRules.length === 0) {
-    return { verdict: 'CLAIM_CONFIRMED', reasons: ['PR makes no closure claims requiring verification'] };
+  // 1. "closes C15" / "closes WS-C2" / "closes #47" — explicit rule/PR closure
+  const closureMatches = [...text.matchAll(/\bcloses?\s+((?:#?\d+|C\d+|WS-C\d+))\b/gi)];
+  for (const m of closureMatches) {
+    const ref = m[1].toUpperCase().replace(/^#/, '');
+    claims.push({ type: 'closes', target: ref, raw: m[0] });
   }
 
-  // Cross-check: are any of the referenced rules actually PARTIAL/FAIL/UNVERIFIED?
-  const ucbaJson = layers.ucba?.summary;
-  const wfJson = layers.workflows?.summary;
-  // We only have summary counts here, not per-rule status — flag as needs-review
-  // when claims are made and there are any partial/fail/regression in either layer
-  const flags = [];
-  if (claimsClosure && ((layers.ucba?.summary?.partial || 0) > 0 || (layers.ucba?.summary?.fail || 0) > 0)) {
-    flags.push(`PR claims closure but UCBA layer reports ${layers.ucba.summary.partial} partial, ${layers.ucba.summary.fail} fail`);
-  }
-  if (claimsClosure && (layers.workflows?.summary?.partial || 0) > 0) {
-    flags.push(`PR claims closure but ${layers.workflows.summary.partial} workflow(s) are PARTIAL`);
+  // 2. "closes C15 auction compliance" — common pattern that overstates
+  const closesNamed = [...text.matchAll(/\bcloses?\s+([CW][SC0-9-]+)\s+\w+\s+(?:compliance|rule|requirement)/gi)];
+  for (const m of closesNamed) {
+    const ref = m[1].toUpperCase();
+    claims.push({ type: 'closes_compliance', target: ref, raw: m[0] });
   }
 
-  if (flags.length > 0) {
-    return { verdict: 'CLAIM_OVERSTATED', reasons: flags, referenced_rules: uniqueRules };
+  // 3. "fully complete" / "fully done" / "fully implemented" — global closure claim
+  const fullyMatches = [...text.matchAll(/\bfully\s+(?:done|complete|implement(?:ed)?|shipped)\b/gi)];
+  for (const m of fullyMatches) {
+    claims.push({ type: 'fully_complete', target: 'PR_AS_A_WHOLE', raw: m[0] });
   }
-  return { verdict: 'CLAIM_CONFIRMED', reasons: [`closure claim with referenced rules: ${uniqueRules.join(', ') || 'none'}`], referenced_rules: uniqueRules };
+
+  // 4. "all N endpoints" / "all surfaces" / "every endpoint"
+  const allMatches = [...text.matchAll(/\b(?:all|every)\s+(?:\d+\s+)?(endpoints?|surfaces?|routes?|requirements?)\b/gi)];
+  for (const m of allMatches) {
+    claims.push({ type: 'all_of', target: m[1].toLowerCase(), raw: m[0] });
+  }
+
+  // 5. "ships [final|complete] X"
+  const shipsMatches = [...text.matchAll(/\bship[ps]?\s+(?:final|complete)\s+(\w+)/gi)];
+  for (const m of shipsMatches) {
+    claims.push({ type: 'ships_final', target: m[1], raw: m[0] });
+  }
+
+  if (claims.length === 0) {
+    return { verdict: 'CLAIM_CONFIRMED', reasons: ['PR makes no closure claims requiring verification'], claims: [] };
+  }
+
+  // Map each claim to evidence:
+  const claimResults = [];
+  for (const c of claims) {
+    let evidenceVerdict = 'CLAIM_UNVERIFIED';
+    let evidenceReason = '';
+
+    if (c.type === 'closes' || c.type === 'closes_compliance') {
+      // For C-prefixed (UCBA rule) targets: check if UCBA layer reports PASS for it
+      // For WS-C-prefixed: check workflow-completeness layer
+      // For #N (PR ref): not a self-closure claim, ignore
+      if (c.target.startsWith('#') || /^\d+$/.test(c.target.replace('#', ''))) {
+        evidenceVerdict = 'CLAIM_CONFIRMED';
+        evidenceReason = `references PR ${c.target} — not a self-closure claim`;
+      } else if (c.target.startsWith('WS-C')) {
+        // Workstream code — check workflow-map
+        const wfPartial = layers.workflows?.summary?.partial || 0;
+        const wfFail = layers.workflows?.summary?.fail || 0;
+        if (wfFail > 0 || wfPartial > 0) {
+          evidenceVerdict = 'CLAIM_OVERSTATED';
+          evidenceReason = `claims to close ${c.target} but workflow layer reports ${wfPartial} partial, ${wfFail} fail`;
+        } else {
+          evidenceVerdict = 'CLAIM_CONFIRMED';
+          evidenceReason = `${c.target} workflow layer clean`;
+        }
+      } else if (c.target.startsWith('C')) {
+        // UCBA rule — defer to UCBA layer
+        const ucbaPartial = layers.ucba?.summary?.partial || 0;
+        const ucbaFail = layers.ucba?.summary?.fail || 0;
+        const ucbaOverstated = layers.ucba?.summary?.claim_overstated || 0;
+        if (ucbaOverstated > 0 || ucbaFail > 0) {
+          evidenceVerdict = 'CLAIM_OVERSTATED';
+          evidenceReason = `claims to close ${c.target} but UCBA reports ${ucbaPartial} partial, ${ucbaFail} fail, ${ucbaOverstated} claim_overstated. Run \`npm run ucba:audit\` to see which.`;
+        } else if (ucbaPartial > 0) {
+          // PARTIAL is only OK if expected_aggregate=PARTIAL — otherwise overstatement.
+          // We don't have per-rule resolution here, so flag for manual review.
+          evidenceVerdict = 'CLAIM_OVERSTATED';
+          evidenceReason = `claims to close ${c.target} but UCBA reports ${ucbaPartial} PARTIAL rule(s). Confirm ${c.target} is not one of them.`;
+        } else {
+          evidenceVerdict = 'CLAIM_CONFIRMED';
+          evidenceReason = `${c.target} UCBA layer clean`;
+        }
+      }
+    } else if (c.type === 'fully_complete') {
+      // Any partial in any layer overstates a "fully complete" claim
+      const totalPartial = (layers.ucba?.summary?.partial || 0) + (layers.workflows?.summary?.partial || 0);
+      const totalFail = (layers.ucba?.summary?.fail || 0) + (layers.workflows?.summary?.fail || 0);
+      if (totalPartial > 0 || totalFail > 0) {
+        evidenceVerdict = 'CLAIM_OVERSTATED';
+        evidenceReason = `"fully complete" claim contradicts: ${totalPartial} partial + ${totalFail} fail across layers`;
+      } else {
+        evidenceVerdict = 'CLAIM_CONFIRMED';
+        evidenceReason = 'no partials or fails in UCBA or workflow layers';
+      }
+    } else if (c.type === 'all_of') {
+      // "all endpoints / surfaces" — needs runtime test coverage AND workflow completeness
+      const wfPartial = layers.workflows?.summary?.partial || 0;
+      if (wfPartial > 0) {
+        evidenceVerdict = 'CLAIM_OVERSTATED';
+        evidenceReason = `"all ${c.target}" claim contradicts: ${wfPartial} workflow(s) PARTIAL`;
+      } else {
+        evidenceVerdict = 'CLAIM_CONFIRMED';
+        evidenceReason = 'workflows complete';
+      }
+    } else if (c.type === 'ships_final') {
+      // "ships final X" needs deploy proof AND no partials
+      if (layers.deploy?.verdict === 'DEPLOY_FAIL') {
+        evidenceVerdict = 'CLAIM_OVERSTATED';
+        evidenceReason = `"ships final" but deploy FAIL`;
+      } else if (layers.deploy?.verdict === 'DEPLOY_PASS' && (layers.workflows?.summary?.partial || 0) === 0) {
+        evidenceVerdict = 'CLAIM_CONFIRMED';
+        evidenceReason = `deploy PASS + workflows complete`;
+      } else {
+        evidenceVerdict = 'CLAIM_UNVERIFIED';
+        evidenceReason = `deploy verdict ${layers.deploy?.verdict || 'unknown'}, workflows partial ${layers.workflows?.summary?.partial || 0}`;
+      }
+    }
+
+    claimResults.push({ ...c, verdict: evidenceVerdict, reason: evidenceReason });
+  }
+
+  // Aggregate: if ANY claim is CLAIM_OVERSTATED, PR overall is overstated
+  const overstated = claimResults.filter((r) => r.verdict === 'CLAIM_OVERSTATED');
+  const confirmed = claimResults.filter((r) => r.verdict === 'CLAIM_CONFIRMED');
+  const unverified = claimResults.filter((r) => r.verdict === 'CLAIM_UNVERIFIED');
+
+  if (overstated.length > 0) {
+    return {
+      verdict: 'CLAIM_OVERSTATED',
+      reasons: overstated.map((r) => r.reason),
+      claims: claimResults,
+    };
+  }
+  if (unverified.length > 0 && confirmed.length === 0) {
+    return {
+      verdict: 'CLAIM_UNVERIFIED',
+      reasons: unverified.map((r) => r.reason),
+      claims: claimResults,
+    };
+  }
+  return {
+    verdict: 'CLAIM_CONFIRMED',
+    reasons: [`${confirmed.length} claim(s) confirmed against evidence`],
+    claims: claimResults,
+  };
 }
 
 // ─── Per-merge mode ──────────────────────────────────────────────────────

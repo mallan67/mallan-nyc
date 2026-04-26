@@ -129,8 +129,9 @@ Delivers the *truth* part of the framework. Subsequent phases plug into it.
 |---|---|---|
 | 1 | Foundation — schema + UCBA truth | **OPEN — PR #63** |
 | 2 | Schema & Deploy Truth + aggregator | **OPEN — PR #64** (stacked on #63) |
-| 3 | Runtime Effect Tests | **OPEN — PR #65** (stacked on #64) |
+| 3 | Runtime Effect Tests (infrastructure + 12) | **OPEN — PR #65** (stacked on #64) |
 | 4 | Live Truth + CI Hardening | **OPEN — PR #66** (stacked on #65) |
+| 5 | Completeness pass — §15/§16 upgrades + 13 more runtime tests + claim mapping | **OPEN — PR #67** (stacked on #66) |
 
 All four phases delivered as stacked PRs. Merge in order #63 → #64 → #65 → #66 and the framework is live end-to-end.
 
