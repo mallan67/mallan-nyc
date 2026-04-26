@@ -17,21 +17,29 @@ import { escapeHtml } from "@/lib/sanitize";
  * mailbox. Resolver priority:
  *
  *   1. Per-agent override (Agent.auth_delivery_email) — set per row, scales
- *      to any number of agents without env var fiddling.
- *   2. Domain-scoped env var (RESET_EMAIL_OVERRIDE) — legacy fallback,
- *      kicks in only when the recipient is on the M365 sender domain.
- *   3. Primary email (the original recipient) — unchanged behavior for
- *      clients/leads on external domains.
- *
- * The env var fallback is intentionally scoped to same-domain so a leaked
- * RESET_EMAIL_OVERRIDE cannot hijack a client's reset email — it only
- * applies to internal accounts where direct delivery is broken anyway.
+ *      to any number of agents without env var fiddling. Only relevant
+ *      for agents (leads have no such column).
+ *   2. Domain-scoped env var (RESET_EMAIL_OVERRIDE) — legacy fallback for
+ *      AGENTS only. Lead reset emails NEVER use this path because lead
+ *      sign-up does not gate @mallan.nyc addresses, and routing a lead's
+ *      reset email to the override holder would let the override holder
+ *      hijack any lead account whose email happened to be on our domain.
+ *   3. Primary email (the original recipient) — default for everyone:
+ *      external agents, all leads, agents with neither override set.
  */
 function resolveResetRecipient(
   originalRecipient: string,
+  userType: "agent" | "lead",
   perAgentOverride: string | null = null
 ): string {
+  // 1. Per-agent column (agents only — leads pass null here)
   if (perAgentOverride) return perAgentOverride.trim().toLowerCase();
+
+  // 2. Env var fallback is gated to AGENTS ONLY. Leads always go to
+  //    primary email. This prevents a malicious lead sign-up using a
+  //    same-domain address from having its reset link routed to the
+  //    override holder.
+  if (userType !== "agent") return originalRecipient;
 
   const envOverride = process.env.RESET_EMAIL_OVERRIDE;
   if (!envOverride) return originalRecipient;
@@ -72,7 +80,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (agent) {
-      const sendTo = resolveResetRecipient(email, agent.auth_delivery_email);
+      const sendTo = resolveResetRecipient(email, "agent", agent.auth_delivery_email);
       const token = generateResetToken(agent.id, "agent", agent.password_hash);
       const html = passwordResetEmail(token, escapeHtml(agent.first_name));
       await sendEmail(sendTo, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
@@ -85,10 +93,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (lead?.password_hash) {
-      // Leads don't have a per-agent override field — only the env-var
-      // fallback applies (and only when on the M365 sender domain, which
-      // leads typically aren't).
-      const sendTo = resolveResetRecipient(email);
+      // Leads ALWAYS go to their primary email — no override path.
+      // Lead sign-up does not gate @mallan.nyc addresses, so allowing the
+      // env-var override to apply to leads would let a malicious lead
+      // sign-up using a same-domain address hijack reset emails through
+      // the override holder.
+      const sendTo = resolveResetRecipient(email, "lead");
       const token = generateResetToken(lead.id, "lead", lead.password_hash);
       const html = passwordResetEmail(token, escapeHtml(lead.first_name));
       await sendEmail(sendTo, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
