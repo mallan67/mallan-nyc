@@ -5,6 +5,8 @@ export {
   validateSession,
   destroySession,
   cleanExpiredSessions,
+  assertAgentEthicsTrainingValid,
+  EthicsTrainingExpiredError,
   type SessionUser,
 } from "./session";
 export {
