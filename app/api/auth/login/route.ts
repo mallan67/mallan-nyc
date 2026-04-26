@@ -3,7 +3,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
-import { verifyPassword, hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
+import {
+  verifyPassword,
+  hashPassword,
+  createSession,
+  SESSION_COOKIE,
+  EthicsTrainingExpiredError,
+} from "@/lib/auth";
 import { MFA_SESSION_TTL_MS, generateOtpCode, sendOtpEmail, sendOtpSms } from "@/lib/auth/mfa";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
@@ -165,6 +171,20 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
   } catch (err) {
+    // UCBA Art. III §6 ethics training gate (Workstream C4b).
+    // Surfaced as a discrete 403 with the retraining link so the UI can
+    // route the agent to renew, rather than a generic "internal error".
+    if (err instanceof EthicsTrainingExpiredError) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          code: err.code,
+          reason: err.reason,
+          retraining_url: err.retrainingUrl,
+        },
+        { status: 403 }
+      );
+    }
     console.error("Login error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
