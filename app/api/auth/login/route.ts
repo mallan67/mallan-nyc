@@ -82,8 +82,14 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // Send code via email (MFA_EMAIL overrides agent email to avoid M365 same-mailbox issue)
-          const mfaEmail = process.env.MFA_EMAIL || agent.email;
+          // Send code via email. Resolution order:
+          //   1. agent.auth_delivery_email (per-agent override — scales to N agents)
+          //   2. MFA_EMAIL env var (legacy global override)
+          //   3. agent.email (primary)
+          // M365 anti-loop drops mail when sender + recipient share the same
+          // tenant mailbox, so internal @mallan.nyc agents need an off-tenant
+          // delivery address for auth-channel email to arrive.
+          const mfaEmail = agent.auth_delivery_email || process.env.MFA_EMAIL || agent.email;
           const agentName = agent.first_name || 'there';
           await sendOtpEmail(mfaEmail, code, agentName);
 

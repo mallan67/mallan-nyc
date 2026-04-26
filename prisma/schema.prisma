@@ -93,6 +93,16 @@ model Agent {
   ethics_training_completed_at DateTime? @map("ethics_training_completed_at")
   ethics_training_expires_at   DateTime? @map("ethics_training_expires_at")
 
+  // --- Auth email delivery override ---
+  // Per-agent address that receives password reset + MFA emails when the
+  // primary `email` is unreachable from our SMTP transport (e.g. M365
+  // anti-loop drops mail when the recipient is a tenant alias of the
+  // sender mailbox). When set, all auth-channel email goes here. When
+  // null, falls back to RESET_EMAIL_OVERRIDE env var (domain-scoped) and
+  // finally to `email`.
+  // Nullable per NEON.md §4 — most agents don't need this set.
+  auth_delivery_email String? @map("auth_delivery_email")
+
   created_at DateTime @default(now()) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
 

@@ -13,30 +13,35 @@ import { escapeHtml } from "@/lib/sanitize";
  * Resolve the recipient address for a reset email.
  *
  * M365 anti-loop drops mail when an M365 tenant mailbox sends to itself —
- * so reset links for agents on @mallan.nyc never arrive. The MFA flow
- * already works around this via MFA_EMAIL; this is the same workaround
- * scoped to forgot-password.
+ * so reset links for agents on @mallan.nyc never arrive at the primary
+ * mailbox. Resolver priority:
  *
- * Behavior:
- *   - Recipient on the M365 sender domain + RESET_EMAIL_OVERRIDE set
- *       → send to the override (e.g. broker's external Gmail).
- *   - Recipient anywhere else (clients, leads on external domains)
- *       → send to the original recipient unchanged.
+ *   1. Per-agent override (Agent.auth_delivery_email) — set per row, scales
+ *      to any number of agents without env var fiddling.
+ *   2. Domain-scoped env var (RESET_EMAIL_OVERRIDE) — legacy fallback,
+ *      kicks in only when the recipient is on the M365 sender domain.
+ *   3. Primary email (the original recipient) — unchanged behavior for
+ *      clients/leads on external domains.
  *
- * The override is intentionally scoped to the same-domain case so that
- * client-side resets (Gmail/Yahoo/etc.) cannot be hijacked by leaking
- * the override env var.
+ * The env var fallback is intentionally scoped to same-domain so a leaked
+ * RESET_EMAIL_OVERRIDE cannot hijack a client's reset email — it only
+ * applies to internal accounts where direct delivery is broken anyway.
  */
-function resolveResetRecipient(originalRecipient: string): string {
-  const override = process.env.RESET_EMAIL_OVERRIDE;
-  if (!override) return originalRecipient;
+function resolveResetRecipient(
+  originalRecipient: string,
+  perAgentOverride: string | null = null
+): string {
+  if (perAgentOverride) return perAgentOverride.trim().toLowerCase();
+
+  const envOverride = process.env.RESET_EMAIL_OVERRIDE;
+  if (!envOverride) return originalRecipient;
 
   const smtpUser = process.env.SMTP_USER || process.env.SMTP_FROM;
   const senderDomain = smtpUser?.split("@")[1]?.toLowerCase();
   if (!senderDomain) return originalRecipient;
 
   const recipientDomain = originalRecipient.split("@")[1]?.toLowerCase();
-  return recipientDomain === senderDomain ? override : originalRecipient;
+  return recipientDomain === senderDomain ? envOverride : originalRecipient;
 }
 
 export async function POST(req: NextRequest) {
@@ -60,15 +65,14 @@ export async function POST(req: NextRequest) {
       message: "If an account exists with that email, a reset link has been sent.",
     });
 
-    const sendTo = resolveResetRecipient(email);
-
     // Check agents first, then leads
     const agent = await prisma.agent.findUnique({
       where: { email },
-      select: { id: true, first_name: true, password_hash: true },
+      select: { id: true, first_name: true, password_hash: true, auth_delivery_email: true },
     });
 
     if (agent) {
+      const sendTo = resolveResetRecipient(email, agent.auth_delivery_email);
       const token = generateResetToken(agent.id, "agent", agent.password_hash);
       const html = passwordResetEmail(token, escapeHtml(agent.first_name));
       await sendEmail(sendTo, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
@@ -81,6 +85,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (lead?.password_hash) {
+      // Leads don't have a per-agent override field — only the env-var
+      // fallback applies (and only when on the M365 sender domain, which
+      // leads typically aren't).
+      const sendTo = resolveResetRecipient(email);
       const token = generateResetToken(lead.id, "lead", lead.password_hash);
       const html = passwordResetEmail(token, escapeHtml(lead.first_name));
       await sendEmail(sendTo, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
