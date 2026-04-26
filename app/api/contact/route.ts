@@ -4,6 +4,7 @@ import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
+import { createInquiry } from '@/lib/inquiries/create';
 
 /**
  * Contact Form API - TCPA-Safe Implementation
@@ -116,6 +117,24 @@ export async function POST(request: NextRequest) {
           consent_timestamp: body.consentTimestamp,
           source: 'contact_form',
         },
+      },
+    });
+
+    // Real Inquiry row (Workstream C1 of master refactor). Never throws —
+    // a missing table or other failure does not break the contact form.
+    await createInquiry({
+      source: 'contact_form',
+      leadId: lead.id,
+      message,
+      email,
+      phone: phone || null,
+      firstName,
+      lastName,
+      consentCapturedAt: consentDate,
+      userAgent: request.headers.get('user-agent'),
+      rawClientIp: ip,
+      metadata: {
+        received_at: receivedAt,
       },
     });
 

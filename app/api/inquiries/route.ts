@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email/sendgrid';
 import { inquiryAutoResponseEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
+import { createInquiry } from '@/lib/inquiries/create';
 
 /**
  * POST /api/inquiries
@@ -111,6 +112,28 @@ export async function POST(request: NextRequest) {
           source: 'website_inquiry_form',
           submitted_at: new Date().toISOString(),
         },
+      },
+    });
+
+    // Real Inquiry row (Workstream C1 of master refactor). Never throws —
+    // a missing table or other failure does not break lead capture.
+    await createInquiry({
+      source: 'inquiry',
+      listingId: listingId ?? null,
+      leadId: lead.id,
+      message: message ?? null,
+      email: lead.email,
+      phone: lead.phone,
+      firstName: lead.first_name,
+      lastName: lead.last_name,
+      consentCapturedAt: consentNow,
+      userAgent: request.headers.get('user-agent'),
+      rawClientIp: ip,
+      metadata: {
+        listing_address: listingAddress ?? undefined,
+        preferred_date: preferredDate ?? undefined,
+        opt_in_updates: optInUpdates ?? false,
+        is_calculator_lead: isCalculatorLead,
       },
     });
 

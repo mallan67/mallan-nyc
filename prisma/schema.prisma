@@ -216,6 +216,7 @@ model Lead {
   showings                Showing[]
   saved_searches          SavedSearch[]
   comments                Comment[]
+  inquiries               Inquiry[]
   family_members          FamilyMember[]
   family_of               FamilyMember[]        @relation("FamilyOf")
   intent_events           IntentEvent[]
@@ -468,6 +469,7 @@ model Listing {
   actions              ClientListingAction[]
   showings             Showing[]
   comments             Comment[]
+  inquiries            Inquiry[]
   price_history        PriceHistory[]
   marketing_activities MarketingActivity[]
 
@@ -2140,4 +2142,58 @@ model BuildingUnit {
   @@index([building_id])
   @@index([listing_id])
   @@map("building_units")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inquiry — captured from public lead-capture endpoints + bridges Lead↔Listing.
+// Added in Workstream C1 of master refactor (memory/REFACTOR-2026-04-25.md).
+// Replaces the AuditEvent-based workaround in /api/crm/inquiries.
+// UCBA Art. III §4 (data accuracy + reporting): provides a real source for
+// per-listing inquiry counts that were previously TODO'd as 0.
+// ─────────────────────────────────────────────────────────────────────────────
+model Inquiry {
+  id                  BigInt    @id @default(autoincrement())
+  // FK to Listing (nullable — some inquiries are not listing-specific:
+  // CMA requests, generic contact, sign-up, guide downloads).
+  // References Listing.listing_id (the unique string key — Trestle ListingId
+  // or SL-/RL- internal prefix) rather than Listing.id (BigInt PK), since
+  // every public lead-capture endpoint already works with the string key.
+  listing_id          String?   @map("listing_id")
+  listing             Listing?  @relation(fields: [listing_id], references: [listing_id])
+  // FK to Lead (nullable — the inquiry can arrive before a Lead row is
+  // created if the lead-capture endpoint dedupes by email after the fact).
+  lead_id             BigInt?   @map("lead_id")
+  lead                Lead?     @relation(fields: [lead_id], references: [id])
+  // Source of the inquiry — drives reporting + routing logic.
+  // Values: contact_form | inquiry | cma_request | open_house_rsvp |
+  //         guide_download | favorite | search_alert | sign_up
+  source              String
+  // Free-text inquiry message if the source captured one (contact form,
+  // inquiry form). Scanned for Fair Housing on display in CRM.
+  message             String?   @db.Text
+  // Mirror of consent at the moment of inquiry — TCPA/CAN-SPAM trail.
+  // Stamped on every Inquiry independently of Lead.consent_captured_at so
+  // the source-of-truth survives Lead row mutations.
+  consent_captured_at DateTime? @map("consent_captured_at")
+  // Direct contact fields (captured before Lead row exists, or for
+  // anonymous inquiries that never become Leads).
+  email               String?
+  phone               String?
+  first_name          String?   @map("first_name")
+  last_name           String?   @map("last_name")
+  // Optional anti-bot + audit context.
+  user_agent          String?   @map("user_agent") @db.Text
+  // SHIELD Act: hash, never raw IP.
+  ip_hash             String?   @map("ip_hash")
+  // Route-specific extras (e.g., guide slug, search alert id, listing id
+  // from a portal action). Free-form Json kept small and exception-only.
+  metadata            Json?
+  created_at          DateTime  @default(now()) @map("created_at")
+
+  @@index([listing_id])
+  @@index([lead_id])
+  @@index([source])
+  @@index([created_at])
+  @@index([email])
+  @@map("inquiries")
 }

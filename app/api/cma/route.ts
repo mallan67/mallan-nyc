@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email/sendgrid';
 import { cmaAutoResponseEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
+import { createInquiry } from '@/lib/inquiries/create';
 
 /**
  * POST /api/cma
@@ -103,6 +104,29 @@ export async function POST(request: NextRequest) {
           source: 'website_cma_form',
           submitted_at: new Date().toISOString(),
         },
+      },
+    });
+
+    // Real Inquiry row (Workstream C1 of master refactor). Never throws —
+    // a missing table or other failure does not break the CMA request.
+    await createInquiry({
+      source: 'cma_request',
+      leadId: lead.id,
+      message: notes ?? null,
+      email: lead.email,
+      phone: lead.phone,
+      firstName,
+      lastName,
+      userAgent: request.headers.get('user-agent'),
+      rawClientIp: ip,
+      metadata: {
+        address,
+        unit: unit ?? undefined,
+        borough: borough ?? undefined,
+        property_type: propertyType ?? undefined,
+        bedrooms: bedrooms ?? undefined,
+        bathrooms: bathrooms ?? undefined,
+        sqft: sqft ?? undefined,
       },
     });
 
