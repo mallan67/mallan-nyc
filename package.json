@@ -45,6 +45,8 @@
         "release:truth": "node scripts/release-truth-check.js",
         "release:truth:json": "node scripts/release-truth-check.js --json",
         "test:runtime": "jest --config tests/runtime/jest.config.js",
+        "validator:live-site": "node scripts/validate-live-site.js",
+        "validator:toolchain": "node scripts/validate-toolchain.js",
         "hooks:install": "git config core.hooksPath .githooks && echo '✓ Git hooks installed from .githooks/. NEON pre-commit guard is active.'",
         "ops:health": "node --env-file=.env.local scripts/ops-health.js",
         "ops:health:json": "node --env-file=.env.local scripts/ops-health.js --json",

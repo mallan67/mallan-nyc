@@ -153,6 +153,17 @@ if (!shouldSkip('deploy') && (prNum || sha)) {
   };
 }
 
+// Layer 7 — Live site smoke (Phase 4)
+if (!shouldSkip('live-site') && has('--live-site')) {
+  const liveArgs = [];
+  if (argFlag('--base-url')) liveArgs.push('--base-url', argFlag('--base-url'));
+  const r = runJson(path.join(ROOT, 'scripts', 'validate-live-site.js'), liveArgs);
+  layers.live_site = {
+    exit_code: r.code,
+    summary: r.json?.summary || null,
+  };
+}
+
 // Layer 8 — PR claim verification
 if (!shouldSkip('claim') && prNum) {
   layers.claim = verifyPrClaim(prNum);
@@ -195,9 +206,16 @@ function aggregate(layers) {
     return { verdict: 'PARTIAL', reasons };
   }
 
+  // Live-site failures block PROD_PROVEN even when deploy passed
+  if ((layers.live_site?.summary?.fail || 0) > 0) {
+    return { verdict: 'PARTIAL', reasons: [`live-site failures: ${layers.live_site.summary.fail}`] };
+  }
+
   // PROD_PROVEN — deploy passed AND code is valid
   if (layers.deploy?.verdict === 'DEPLOY_PASS') {
-    return { verdict: 'PROD_PROVEN', reasons: ['code valid + deploy passed'] };
+    const reasons = ['code valid + deploy passed'];
+    if (layers.live_site?.summary?.pass > 0) reasons.push(`live-site: ${layers.live_site.summary.pass} pass`);
+    return { verdict: 'PROD_PROVEN', reasons };
   }
 
   // CODE_VALID — no failures, but deploy proof missing or unverified
