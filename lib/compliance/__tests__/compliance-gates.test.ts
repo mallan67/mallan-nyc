@@ -522,6 +522,108 @@ describe('assertRlsCompliantPayload', () => {
     expect(result.passed).toBe(true);
     expect(result.blockers).toHaveLength(0);
   });
+
+  // ── Auction enforcement (Workstream C3b) ─────────────────────────────
+  describe('auction listing enforcement (UCBA Art. I exception)', () => {
+    it('blocks auction_yn=true without auction_type', () => {
+      const payload = buildValidPayload({
+        auction_yn: true,
+        auction_end_date: '2026-06-15T18:00:00Z',
+      });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(false);
+      expect(result.blockers.some(b => b.code === 'AU-001')).toBe(true);
+    });
+
+    it('blocks auction_yn=true with invalid auction_type', () => {
+      const payload = buildValidPayload({
+        auction_yn: true,
+        auction_type: 'OnlineOnly',
+        auction_end_date: '2026-06-15T18:00:00Z',
+      });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(false);
+      expect(result.blockers.some(b => b.code === 'AU-002')).toBe(true);
+    });
+
+    it('blocks auction_yn=true without auction_end_date', () => {
+      const payload = buildValidPayload({
+        auction_yn: true,
+        auction_type: 'Absolute',
+      });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(false);
+      expect(result.blockers.some(b => b.code === 'AU-003')).toBe(true);
+    });
+
+    it('warns when auction_terms_url is missing (does not block)', () => {
+      const payload = buildValidPayload({
+        auction_yn: true,
+        auction_type: 'Absolute',
+        auction_end_date: '2026-06-15T18:00:00Z',
+      });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some(w => w.code === 'AU-004W')).toBe(true);
+    });
+
+    it('passes when auction_yn=true with all required fields', () => {
+      const payload = buildValidPayload({
+        auction_yn: true,
+        auction_type: 'WithReserve',
+        auction_end_date: '2026-06-15T18:00:00Z',
+        auction_terms_url: 'https://mallan.nyc/auctions/123/terms.pdf',
+      });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(true);
+      expect(result.blockers).toHaveLength(0);
+      expect(result.warnings.some(w => w.code === 'AU-004W')).toBe(false);
+    });
+
+    it('does not require auction fields when auction_yn=false', () => {
+      const payload = buildValidPayload({ auction_yn: false });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(true);
+      expect(result.blockers.some(b => b.code?.startsWith('AU-'))).toBe(false);
+    });
+
+    it('does not require auction fields when auction_yn is omitted entirely', () => {
+      const payload = buildValidPayload();
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(true);
+      expect(result.blockers.some(b => b.code?.startsWith('AU-'))).toBe(false);
+    });
+
+    it('blocks non-boolean garbage in auction_yn', () => {
+      const payload = buildValidPayload({
+        auction_yn: 'maybe' as unknown as boolean,
+      });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(false);
+      expect(result.blockers.some(b => b.code === 'AU-005')).toBe(true);
+    });
+
+    it('accepts string "true" coercion (legacy form data)', () => {
+      const payload = buildValidPayload({
+        auction_yn: 'true' as unknown as boolean,
+        auction_type: 'Minimum',
+        auction_end_date: '2026-06-15T18:00:00Z',
+        auction_terms_url: 'https://mallan.nyc/auctions/456/terms.pdf',
+      });
+      const result = assertRlsCompliantPayload(payload, saleCtx);
+
+      expect(result.passed).toBe(true);
+      expect(result.blockers).toHaveLength(0);
+    });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
