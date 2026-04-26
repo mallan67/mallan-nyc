@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { requirePortalRole, requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { createInquiry } from "@/lib/inquiries/create";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -103,6 +104,25 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     { listing_id: id, action, toggled: "on" },
     req.headers.get("x-forwarded-for") ?? undefined
   );
+
+  // Real Inquiry row (Workstream C1 of master refactor) — only for the
+  // 'liked' (favorite) action. Other actions (disliked, discuss, schedule)
+  // aren't in the Inquiry source enum; they remain as ClientListingAction
+  // rows only. Never throws — a missing table or other failure does not
+  // break the react endpoint.
+  if (action === "liked") {
+    await createInquiry({
+      source: "favorite",
+      listingId: listing.listing_id,
+      leadId: auth.userId,
+      message: comment,
+      userAgent: req.headers.get("user-agent"),
+      rawClientIp: req.headers.get("x-forwarded-for") ?? null,
+      metadata: {
+        listing_db_id: listingId.toString(),
+      },
+    });
+  }
 
   // Update engagement timestamps on Lead
   await prisma.lead.update({
