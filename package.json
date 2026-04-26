@@ -44,6 +44,7 @@
         "ops:phase1": "node --env-file=.env.local scripts/phase1-run.js --execute",
         "ops:phase1:verify": "node --env-file=.env.local scripts/phase1-run.js --verify-only",
         "ops:http-smoke": "node --env-file=.env.local scripts/phase5-adapter-smoke.js",
+        "ops:r2-health": "npx tsx scripts/ops-r2-health.ts",
         "validate:form-rls": "node scripts/validate-form-rls.js",
         "rls:v2": "npx tsx lib/rls-validator/src/cli.ts",
         "rls:v2:test": "npx jest --config lib/rls-validator/jest.config.js",
