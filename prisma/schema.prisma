@@ -83,6 +83,16 @@ model Agent {
 
   active_leases ActiveLease[]
 
+  // --- UCBA 2026 ethics training (Workstream C4) ---
+  // UCBA Art. III §6 (new in 2026): ethics training is mandatory for RLS
+  // access. Brokers verify each agent's completion + 2-year expiry. Once
+  // C4b lands, lib/auth/session.ts will block issuing agent-role tokens
+  // when ethics_training_expires_at < now() — returning a 403 with a
+  // link to the re-training resource.
+  // Both nullable per NEON.md §4 — existing agent rows pre-date the rule.
+  ethics_training_completed_at DateTime? @map("ethics_training_completed_at")
+  ethics_training_expires_at   DateTime? @map("ethics_training_expires_at")
+
   created_at DateTime @default(now()) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
 
