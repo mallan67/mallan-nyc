@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
       _count: {
         select: {
           showings: true,
+          // Inquiry model added in master refactor PR C1; available once
+          // the migration `20260426030000_add_inquiry_model` runs against
+          // Neon prod. Until then `_count.inquiries` returns 0 cleanly.
+          inquiries: true,
         },
       },
     },
@@ -67,7 +71,7 @@ export async function GET(req: NextRequest) {
       address: addr,
       dom,
       showings_count: l._count?.showings || 0,
-      inquiries_count: 0, // TODO: wire when Inquiry model exists
+      inquiries_count: l._count?.inquiries || 0,
       seller_name: sellerMap.get(l.listing_id) || "",
     };
   });
