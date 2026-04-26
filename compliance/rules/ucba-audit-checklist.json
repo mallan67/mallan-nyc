@@ -1,10 +1,18 @@
 {
   "_meta": {
-    "version": "1.0.0",
-    "date": "2026-03-13",
+    "version": "2.0.0",
+    "date": "2026-04-26",
     "source": "UCBA Master Copy (January 2026 Redline Revision)",
-    "description": "Machine-readable UCBA 2026 audit checklist — 145 verifiable rules. Used by compliance validators, CI checks, and audit agents.",
-    "verdicts": ["PASS", "FAIL", "EVALUATE_CLOSELY"],
+    "description": "Machine-readable UCBA 2026 audit checklist. Each rule carries a legacy v1 (single-pattern) format AND optionally a richer v2 (validation_v2) block with required_surfaces + per-surface evidence. The runner uses v2 when present, else falls back to v1.",
+    "v1_verdicts": ["PASS", "FAIL", "EVALUATE_CLOSELY"],
+    "v2_verdicts": ["PASS", "PARTIAL", "FAIL", "REGRESSION", "UNVERIFIED", "CLAIM_OVERSTATED"],
+    "v2_validation_modes": ["pattern", "structural", "workflow", "runtime", "manual"],
+    "v2_required_surfaces": [
+      "schema", "migration", "helper", "backend_route", "mapper", "gate", "dto",
+      "ui_form", "frontend_display", "cron", "audit_log", "production_check",
+      "runtime_test", "validation_logic", "rollout_action"
+    ],
+    "v2_ci_policies": ["must_pass", "must_verify_before_release", "advisory"],
     "priority": ["immediate", "high", "medium", "low", "procedural"]
   },
   "sections": {
@@ -163,7 +171,38 @@
           "priority": "low",
           "verifyFiles": ["public/crm/SALE-FORM-REDESIGN.html"],
           "verifyPattern": "auction|minimum.bid|buyer.*premium",
-          "verifyDescription": "Check for auction-specific fields in sale form. If zero matches, FAIL."
+          "verifyDescription": "Check for auction-specific fields in sale form. If zero matches, FAIL.",
+
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": false,
+            "manual_review_required": false,
+            "required_surfaces": [
+              "schema",
+              "migration",
+              "ui_form",
+              "backend_route",
+              "validation_logic"
+            ],
+            "evidence": {
+              "schema":            ["prisma/schema.prisma"],
+              "migration":         ["prisma/migrations/20260426060000_add_auction_fields/migration.sql"],
+              "ui_form":           ["public/crm/SALE-FORM-REDESIGN.html"],
+              "backend_route":     ["app/api/crm/sales/listings/route.ts"],
+              "validation_logic":  ["lib/compliance/rls-enforcement.ts"]
+            },
+            "surface_patterns": {
+              "schema":            "auction_yn|auction_type|auction_end_date|auction_start_date|auction_terms_url",
+              "migration":         "auction_yn|auction_type|auction_end_date",
+              "ui_form":           "auction|minimum.bid|buyer.*premium|registration.*deadline|inspection.*period",
+              "backend_route":     "auction_yn|auction_type",
+              "validation_logic":  "AU-001|AU-002|AU-003|auction_yn|auction_type"
+            },
+            "workflow_id": "auction_listing",
+            "expected_aggregate": "PARTIAL",
+            "notes": "Schema (PR #50) + migration (#50) + backend validator (PR #57) all shipped. UI sale-form sub-section (workstream C3c) still NOT_STARTED. Honest aggregate verdict: PARTIAL. The legacy 'verdict: FAIL' field stays for back-compat with the v1 runner; v2 evaluation supersedes it once enabled."
+          }
         },
         {
           "id": "C16", "name": "Commission Negotiability", "ucbaRef": "Art. I, Sec. 17",

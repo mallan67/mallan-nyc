@@ -38,6 +38,8 @@
         "ucba:audit": "node scripts/ucba-compliance-audit.js",
         "ucba:audit:json": "node scripts/ucba-compliance-audit.js --json",
         "ucba:audit:fails": "node scripts/ucba-compliance-audit.js --fails",
+        "validator:workflows": "node scripts/validate-workflow-completeness.js",
+        "validator:workflows:json": "node scripts/validate-workflow-completeness.js --json",
         "hooks:install": "git config core.hooksPath .githooks && echo '✓ Git hooks installed from .githooks/. NEON pre-commit guard is active.'",
         "ops:health": "node --env-file=.env.local scripts/ops-health.js",
         "ops:health:json": "node --env-file=.env.local scripts/ops-health.js --json",

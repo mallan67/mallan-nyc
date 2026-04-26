@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "date": "2026-04-26",
+    "purpose": "Registry of merges that require an operational action (script run, env var set, manual rollout step) AND a verifiable postcondition before they can be considered safely landed. Intended to prevent the 'script exists but was never run' class of mistake.",
+    "consumed_by": [
+      "scripts/release-truth-check.js (Phase 2)",
+      "scripts/ucba-compliance-audit.js (when an operational_action_id is referenced from a UCBA rule)"
+    ],
+    "shared_status_vocabulary": ["PASS", "FAIL", "UNVERIFIED"],
+    "ci_policies": {
+      "must_pass":                  "Validator must run AND postcondition must succeed before release",
+      "must_verify_before_release": "Validator must run; postcondition can be UNVERIFIED if no DB access (e.g. CI without prod creds)",
+      "advisory":                   "Run for reporting; never blocks"
+    }
+  },
+
+  "actions": [
+    {
+      "id": "ethics_backfill_before_gate",
+      "name": "Ethics-training backfill before auth gate ships",
+      "rules": ["C4"],
+      "workflow": "ethics_training_gate",
+      "required_artifacts": ["scripts/c4-ethics-backfill.ts"],
+      "required_command": "npx tsx scripts/c4-ethics-backfill.ts",
+      "postcondition_sql": "SELECT COUNT(*) FROM agents WHERE status='active' AND (ethics_training_expires_at IS NULL OR ethics_training_expires_at < NOW())",
+      "postcondition_expected": "= 0",
+      "postcondition_description": "Active agents with NULL or already-expired ethics_training_expires_at MUST be 0 — otherwise the auth gate will lock them out",
+      "ci_policy": "must_verify_before_release",
+      "evidence_of_execution": [
+        "scripts/c4-ethics-backfill.ts will report 'would_lock_out: 0' on success",
+        "Or: query the postcondition SQL directly against prod"
+      ]
+    },
+
+    {
+      "id": "schema_migrations_applied_to_prod",
+      "name": "Prisma migrations applied to prod before code merge",
+      "rules": [],
+      "workflow": "any_schema_change",
+      "required_artifacts": ["prisma/migrations/*"],
+      "required_command": "DATABASE_URL=<prod> npx prisma migrate deploy",
+      "postcondition_sql": null,
+      "postcondition_command": "DATABASE_URL=<prod> npx prisma migrate status",
+      "postcondition_expected": "Database schema is up to date",
+      "postcondition_description": "Vercel build does NOT run migrations (per NEON.md). Migration must be applied manually to prod BEFORE the code that reads new columns merges, otherwise prod will fail with 'column does not exist'.",
+      "ci_policy": "must_verify_before_release"
+    },
+
+    {
+      "id": "r2_provisioned_before_media_sync",
+      "name": "R2 bucket + credentials present before media sync rewrite",
+      "rules": [],
+      "workflow": "media_sync_service",
+      "required_artifacts": ["scripts/ops-r2-health.ts", "docs/r2-setup.md"],
+      "required_command": "npm run ops:r2-health",
+      "postcondition_command": "npm run ops:r2-health",
+      "postcondition_expected": "state=ok",
+      "postcondition_description": "R2 bucket reachable, credentials valid, smoke upload-head-delete cycle succeeds. Required before PR 3 (R2-backed media sync) of the master refactor plan.",
+      "ci_policy": "advisory",
+      "notes": "Currently running against prod from local. CI version (with R2_* env injected from secrets) deferred to Phase 2 of the validator framework."
+    },
+
+    {
+      "id": "twilio_configured_for_sms_reset",
+      "name": "Twilio SMS configured before SMS-based password reset ships (PR #62)",
+      "rules": [],
+      "workflow": "sms_password_reset",
+      "required_artifacts": [],
+      "required_env_vars": ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"],
+      "postcondition_description": "Without Twilio env vars set in Vercel Production, the new SMS reset flow silently no-ops. PR #62 must NOT merge until Twilio is confirmed live in production.",
+      "ci_policy": "must_verify_before_release",
+      "verification_method": "Check Vercel env via CLI or dashboard; or hit /api/auth/forgot-password in a preview deploy and confirm a real SMS arrives."
+    }
+  ]
+}
