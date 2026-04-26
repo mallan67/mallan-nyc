@@ -7,6 +7,7 @@ import { randomInt } from 'crypto';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit } from '@/lib/middleware/rate-limiter';
+import { createInquiry } from '@/lib/inquiries/create';
 
 const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
 
@@ -157,6 +158,29 @@ export async function POST(req: NextRequest) {
         // Optional intake fields captured at sign-up
         notes: message ? `[Sign-up message]: ${message}` : null,
       } as any,
+    });
+
+    // Real Inquiry row (Workstream C1 of master refactor). Never throws —
+    // a missing table or other failure does not break sign-up.
+    await createInquiry({
+      source: 'sign_up',
+      leadId: lead.id,
+      message: message ?? null,
+      email: lead.email,
+      phone: lead.phone,
+      firstName: lead.first_name,
+      lastName: lead.last_name,
+      consentCapturedAt: tcpaConsentTimestamp ? new Date(tcpaConsentTimestamp) : new Date(),
+      userAgent: req.headers.get('user-agent'),
+      rawClientIp: ip,
+      metadata: {
+        portal_role: portalRole,
+        roles: validRoles,
+        budget: budget ?? undefined,
+        neighborhood: neighborhood ?? undefined,
+        borough: borough ?? undefined,
+        move_in_date: moveInDate ?? undefined,
+      },
     });
 
     // ── Send email verification code (self-signup only) ──

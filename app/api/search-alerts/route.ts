@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { checkRouteRateLimit, extractClientIp } from "@/lib/middleware/rate-limiter";
+import { createInquiry } from "@/lib/inquiries/create";
 
 export async function POST(request: NextRequest) {
   try {
@@ -139,6 +140,22 @@ export async function POST(request: NextRequest) {
           consent_method: "checkbox",
           consent_captured_at: new Date().toISOString(),
         } as Prisma.InputJsonValue,
+      },
+    });
+
+    // Real Inquiry row (Workstream C1 of master refactor). Never throws.
+    await createInquiry({
+      source: "search_alert",
+      leadId: lead.id,
+      email: lead.email,
+      firstName,
+      lastName,
+      userAgent: request.headers.get("user-agent"),
+      rawClientIp: ip,
+      metadata: {
+        saved_search_id: savedSearch.id.toString(),
+        alert_frequency: alertFrequency,
+        criteria: normalizedCriteria,
       },
     });
 
