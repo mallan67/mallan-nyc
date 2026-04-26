@@ -22,26 +22,29 @@ Failing to read `NEON.md` first is how the 2026-04-19 silent-drift incident happ
 
 ## 🔔 ACTIVE FOLLOW-UP — FIRST AGENDA ITEM EVERY SESSION
 
-**Status:** OPEN · **Created:** 2026-04-17 · **Review on:** 2026-05-01 (Workstreams A+B) · **2026-05-05** (Workstream C, compliance)
+**Status:** OPEN · **Updated:** 2026-04-25 · **Master plan in flight: 10-PR backend rebuild**
 
-**Full details:** [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — do not duplicate content here. Update that file, not this block.
+**PRIMARY plan (read first):** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — full 10-PR backend rebuild plan with self-contained resume instructions. Status table inside that file is the source of truth for which PR is next.
 
-### Action at next session (if date ≥ 2026-05-01 OR user asks):
-1. Open `memory/FOLLOWUP-2026-05-01.md` and run its pre-flight checklist (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test`).
-2. If all pass AND ≥2 weeks have passed since 2026-04-17, offer to produce **PR #6: Phase 3 first-column migration** (workstream A, column 1: `primary_photo_url` + `photo_count`).
-3. If date ≥ 2026-05-05 AND the above is still green, also offer the **Workstream C compliance PRs** (C1 Inquiry model → C2 Offer tracking → C3 Auction fields → C4 Ethics training gate), one per PR.
-4. After any PR ships, wait ~2 weeks of stability before proposing the next one from the same workstream.
+**SECONDARY (parallel track):** [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — Workstream C (UCBA compliance gaps: Inquiry, Offers, Auction, Ethics) runs in parallel after PR 1 of the master plan lands. Workstream A (Phase 3 schema) is **superseded** by master-plan PR 5. Workstream B (HTTP adapter) is **dropped** per user decision 2026-04-25.
 
-### Summary of deferred workstreams
-- **A — Phase 3 schema normalization** (5 PRs): migrate 8 most-read fields from JSON into dedicated columns.
-- **B — Phase 5 HTTP adapter adoption** (5 PRs): swap `prisma` → `prismaHttp` on 5 read-heavy public routes.
-- **C — REBNY/UCBA compliance gaps** (4 PRs, added 2026-04-20 after external audit): C1 `Inquiry` model, C2 offer-transmission fields, C3 auction fields, C4 ethics-training gate.
+### Action at next session (regardless of date):
+1. Open `memory/REFACTOR-2026-04-25.md`. Read the "Current state" snapshot, then the "PR sequence overview" status table.
+2. Run the pre-flight checklist at the top of that file (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`).
+3. If all pass, identify the lowest-numbered PR with status `NOT_STARTED` and execute it per the per-PR instructions in that file.
+4. Workstream C (C1–C4 in `FOLLOWUP-2026-05-01.md`) can be picked up in parallel as soon as master-plan PR 1 has merged.
+5. After any PR merges, update its status field in `memory/REFACTOR-2026-04-25.md` to `MERGED — <commit-sha> · <date>`.
+
+### Summary of in-flight workstreams
+- **Master plan (10 PRs)** — backend rebuild: PR 1 compliance fail-closed → PR 2 media schema → PR 3 R2-backed media sync → PR 4 rewrite media batch → PR 5 search projection → PR 6/7 search-core → PR 8 collections+sends → PR 9 lease lifecycle → PR 10 Neon shedding.
+- **Workstream C (4 sub-PRs)** — parallel UCBA compliance: C1 Inquiry, C2 Offer transmission, C3 Auction fields, C4 Ethics training gate.
 
 ### Completion criteria
-Close this follow-up when all three workstreams complete per the checklist in `memory/FOLLOWUP-2026-05-01.md`. Replace this block with a dated archival note pointing to that file.
+Close this follow-up when both the master-plan completion criteria (in `memory/REFACTOR-2026-04-25.md`) and Workstream C completion criteria (in `memory/FOLLOWUP-2026-05-01.md`) are met. Replace this block with a dated archival note pointing to both files.
 
-### Remote trigger backup
-A remote Claude Code cron trigger was intended for 2026-05-01 13:00 UTC but the claude.ai Code API returned 401 at setup time. To create manually: https://claude.ai/code/scheduled — use the Action section above. Not required; this block + the memory file are the primary reminders.
+### Recently landed (since 2026-04-25)
+- PR #38 (`fix(trestle-media): MediaStatus='Deleted' filter`) — merged 2026-04-26T01:46:50Z
+- PR #39 (`fix(trestle-media): BATCH_SIZE 50→15`) — merged 2026-04-26T01:41Z (`bf8f5ee5`)
 
 ---
 
