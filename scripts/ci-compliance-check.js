@@ -13,20 +13,54 @@
 
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 let failures = 0;
 let passes = 0;
+let warnings = 0;
+let unverified = 0;
+
+// CLI args
+const cliArgs = process.argv.slice(2);
+const argFlag = (n) => { const i = cliArgs.indexOf(n); return i >= 0 ? cliArgs[i + 1] : null; };
+const cliHas = (n) => cliArgs.includes(n);
+const STRICT = cliHas('--strict');
+const PR_NUM = argFlag('--pr');
+
+// Severity classes (per validator-truth framework spec):
+//   BLOCKER  release-blocking, fails CI exit code
+//   HIGH     fails CI in --strict mode; otherwise WARN
+//   MEDIUM   warning
+//   LOW      informational
+//   INFO     reported only
+const SEV = { BLOCKER: 'BLOCKER', HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW', INFO: 'INFO' };
 
 function pass(name) {
   console.log(`  PASS: ${name}`);
   passes++;
 }
 
-function fail(name, detail) {
-  console.error(`  FAIL: ${name}`);
+function fail(name, detail, severity = SEV.BLOCKER) {
+  console.error(`  FAIL [${severity}]: ${name}`);
   if (detail) console.error(`        ${detail}`);
-  failures++;
+  if (severity === SEV.BLOCKER || (severity === SEV.HIGH && STRICT)) {
+    failures++;
+  } else {
+    warnings++;
+  }
+}
+
+function warn(name, detail) {
+  console.warn(`  WARN: ${name}`);
+  if (detail) console.warn(`        ${detail}`);
+  warnings++;
+}
+
+function unverify(name, detail) {
+  console.log(`  UNVERIFIED: ${name}`);
+  if (detail) console.log(`              ${detail}`);
+  unverified++;
 }
 
 /**
@@ -544,5 +578,111 @@ for (const rel of FARE_SURFACES) {
   }
 }
 
-console.log(`\n=== Result: ${passes} passed, ${failures} failed ===`);
-process.exit(failures > 0 ? 1 : 0);
+// ─── v2 CHECKS (validator-truth framework section §15) ──────────────────
+// These run on every CI invocation. They cross-reference the workflow map
+// and migration discipline so structural completeness joins hygiene.
+console.log('\n--- v2 Compliance Checks (release-truth framework) ---\n');
+
+// ── 25. Schema change requires migration evidence ──
+function git(cmd) {
+  try {
+    return execSync(`git ${cmd}`, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+  } catch {
+    return '';
+  }
+}
+
+(function checkSchemaMigrationCoupling() {
+  // Compare HEAD to origin/main (or main if no remote tracking)
+  const base = git('rev-parse origin/main 2>/dev/null').trim() ? 'origin/main' : 'main';
+  const diffFiles = git(`diff --name-only ${base}..HEAD`).split('\n').map((s) => s.trim()).filter(Boolean);
+  if (diffFiles.length === 0) {
+    pass('schema/migration coupling — no diff vs base');
+    return;
+  }
+  const schemaChanged = diffFiles.includes('prisma/schema.prisma');
+  const migrationsAdded = diffFiles.some((f) => f.startsWith('prisma/migrations/') && f.endsWith('migration.sql'));
+  if (schemaChanged && !migrationsAdded) {
+    fail('schema/migration coupling: prisma/schema.prisma changed but no new migration.sql in diff (NEON.md §1)', null, SEV.BLOCKER);
+  } else if (schemaChanged && migrationsAdded) {
+    pass('schema/migration coupling — schema change paired with migration');
+  } else if (!schemaChanged && migrationsAdded) {
+    warn('migration files added without schema change — orphan migration?');
+  } else {
+    pass('schema/migration coupling — no schema change in diff');
+  }
+})();
+
+// ── 26. Workflow completeness hook (defers to validate-workflow-completeness.js) ──
+(function checkWorkflowCompleteness() {
+  const wfMap = path.join(ROOT, 'compliance', 'rules', 'workflow-map.json');
+  if (!fs.existsSync(wfMap)) {
+    unverify('workflow completeness — workflow-map.json not present (Phase 1 of validator framework not yet merged)');
+    return;
+  }
+  try {
+    const result = execSync(`node ${path.join(ROOT, 'scripts', 'validate-workflow-completeness.js')} --json`, {
+      cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString();
+    const parsed = JSON.parse(result);
+    const blocking = parsed.summary?.blocking_failures || 0;
+    const partial = parsed.summary?.partial || 0;
+    if (blocking > 0) {
+      fail(`workflow completeness — ${blocking} release-blocking workflow(s) FAIL or PARTIAL`, null, SEV.HIGH);
+    } else if (partial > 0) {
+      warn(`workflow completeness — ${partial} workflow(s) PARTIAL (advisory; not release-blocking)`);
+    } else {
+      pass(`workflow completeness — ${parsed.summary.pass}/${parsed.summary.total} workflows PASS`);
+    }
+  } catch (e) {
+    unverify('workflow completeness — validator failed', e.message?.slice(0, 200));
+  }
+})();
+
+// ── 27. Side-effect helper coverage policy ──
+// If a route imports createInquiry / similar side-effect helpers, there
+// should be a corresponding runtime test under tests/runtime/.
+(function checkSideEffectCoverage() {
+  const SIDE_EFFECT_HELPERS = [
+    { import: '@/lib/inquiries/create', testFile: 'tests/runtime/inquiry-effect.test.ts' },
+  ];
+  for (const helper of SIDE_EFFECT_HELPERS) {
+    const apiFiles = findFiles(path.join(ROOT, 'app', 'api'), '.ts');
+    const callers = apiFiles.filter((f) => fileContains(f, new RegExp(helper.import.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))));
+    if (callers.length === 0) continue;
+    const testExists = fs.existsSync(path.join(ROOT, helper.testFile));
+    if (!testExists) {
+      fail(`side-effect coverage: ${callers.length} route(s) import ${helper.import} but ${helper.testFile} is missing — silent-failure risk`, null, SEV.HIGH);
+    } else {
+      pass(`side-effect coverage — ${helper.import} has runtime test (${helper.testFile})`);
+    }
+  }
+})();
+
+// ── 28. PR-claim mismatch check (only when invoked with --pr) ──
+(function checkPrClaim() {
+  if (!PR_NUM) return; // not applicable in normal CI
+  let body = '';
+  try {
+    body = execSync(`gh pr view ${PR_NUM} --json body`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+    body = JSON.parse(body).body || '';
+  } catch {
+    unverify(`PR claim verification — could not fetch PR ${PR_NUM} body`);
+    return;
+  }
+  const claimsClosure = /\bcloses?\s+(?:#?\d+|c\d+|ws-c\d+)\b/i.test(body) ||
+                       /\bfully\s+(?:done|complete|implement)/i.test(body) ||
+                       /\b(?:all|every)\s+(?:endpoints?|surfaces?|requirements?)\b/i.test(body);
+  if (!claimsClosure) {
+    pass(`PR claim verification — PR #${PR_NUM} makes no closure claims requiring evidence`);
+    return;
+  }
+  // Defer the actual mapping to release-truth-check.js; here we just flag that
+  // a claim was made and the hook is wired
+  unverify(`PR claim verification — PR #${PR_NUM} makes closure claims; defer to release-truth-check.js for full evidence mapping`);
+})();
+
+// ─── Final result with severity-aware exit code ─────────────────────────
+const totalFailures = failures;
+console.log(`\n=== Result: ${passes} passed, ${failures} failed (${SEV.BLOCKER}+${STRICT ? SEV.HIGH : 'STRICT only'}), ${warnings} warn, ${unverified} unverified ===`);
+process.exit(totalFailures > 0 ? 1 : 0);

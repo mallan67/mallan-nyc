@@ -80,10 +80,16 @@ const failsOnly = args.includes('--fails');
 const sectionFilter = args.includes('--section') ? parseInt(args[args.indexOf('--section') + 1]) : null;
 const severityFilter = args.includes('--severity') ? args[args.indexOf('--severity') + 1].toUpperCase() : null;
 
-// ── Severity levels ───────────────────────────────────────────────────────
-const SEVERITY = { CRITICAL: 0, WARNING: 1, INFO: 2 };
+// v2 release-truth flags (validator framework section §16):
+//   --strict   promotes all WARNING items to CRITICAL count for exit-code purposes
+//   --runtime  also runs validate-live-site smoke check on prod
+const STRICT_PROMOTION = args.includes('--strict');
+const INCLUDE_RUNTIME = args.includes('--runtime');
 
-let totalCritical = 0, totalWarning = 0, totalInfo = 0, totalPass = 0;
+// ── Severity levels ───────────────────────────────────────────────────────
+const SEVERITY = { CRITICAL: 0, WARNING: 1, INFO: 2, UNVERIFIED: 3 };
+
+let totalCritical = 0, totalWarning = 0, totalInfo = 0, totalUnverified = 0, totalPass = 0;
 const sections = [];
 
 function startSection(num, title, category) {
@@ -95,12 +101,14 @@ function addResult(section, status, severity, name, detail) {
   if (status === 'PASS') { totalPass++; }
   else if (severity === 'CRITICAL') { totalCritical++; }
   else if (severity === 'WARNING') { totalWarning++; }
+  else if (severity === 'UNVERIFIED') { totalUnverified++; }
   else { totalInfo++; }
   section.items.push({ status, severity, name, detail });
 }
 function critical(s, name, detail) { addResult(s, 'FAIL', 'CRITICAL', name, detail); }
 function warning(s, name, detail) { addResult(s, 'FAIL', 'WARNING', name, detail); }
 function info(s, name, detail) { addResult(s, 'FAIL', 'INFO', name, detail); }
+function unverified(s, name, detail) { addResult(s, 'UNVERIFIED', 'UNVERIFIED', name, detail); }
 function pass(s, name) { addResult(s, 'PASS', null, name); }
 
 // ── File helpers ──────────────────────────────────────────────────────────
@@ -2105,4 +2113,81 @@ try {
   }
 } catch (e) { /* ignore */ }
 
-process.exit(totalCritical > 0 ? 1 : 0);
+// ─── v2 RELEASE-TRUTH HOOKS (validator framework §16) ──────────────────
+// Strict promotion + workflow linkage + optional runtime evidence.
+{
+  const { execSync } = require('child_process');
+
+  // 1. Workflow linkage: ensure listing-display surfaces are in workflow-map
+  //    when one exists. Currently there's no listing_display workflow declared,
+  //    but if one is added later, this hook activates.
+  const wfMapPath = path.join(ROOT, 'compliance', 'rules', 'workflow-map.json');
+  const v2Section = startSection(99, 'V2 — Release-truth Linkage', 'workflow');
+  if (fs.existsSync(wfMapPath)) {
+    try {
+      const wfMap = JSON.parse(fs.readFileSync(wfMapPath, 'utf-8'));
+      const listingDisplayWf = (wfMap.workflows || []).find(
+        (w) => w.name === 'listing_display' || w.name === 'idx_display'
+      );
+      if (listingDisplayWf) {
+        // Run the workflow validator and read its result for this workflow
+        try {
+          const wfJson = execSync(
+            `node ${path.join(ROOT, 'scripts', 'validate-workflow-completeness.js')} --workflow ${listingDisplayWf.name} --json`,
+            { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] },
+          ).toString();
+          const parsed = JSON.parse(wfJson);
+          const wf = (parsed.workflows || [])[0];
+          if (!wf) {
+            unverified(v2Section, `workflow_completeness — workflow ${listingDisplayWf.name} not found in validator output`);
+          } else if (wf.aggregate === 'PASS') {
+            pass(v2Section, `workflow_completeness — listing display workflow PASS`);
+          } else if (wf.aggregate === 'FAIL') {
+            critical(v2Section, `workflow_completeness — listing display workflow FAIL`, `${wf.counts.fail} of ${wf.counts.total} surfaces failing`);
+          } else {
+            warning(v2Section, `workflow_completeness — listing display workflow ${wf.aggregate}`);
+          }
+        } catch (e) {
+          unverified(v2Section, 'workflow_completeness — could not run workflow validator', e.message?.slice(0, 200));
+        }
+      } else {
+        info(v2Section, 'workflow_completeness — no listing_display workflow declared in workflow-map.json (informational)');
+      }
+    } catch (e) {
+      unverified(v2Section, 'workflow_completeness — could not parse workflow-map.json', e.message?.slice(0, 200));
+    }
+  } else {
+    unverified(v2Section, 'workflow_completeness — workflow-map.json not present');
+  }
+
+  // 2. Runtime / live-site module: only when --runtime flag is passed
+  if (INCLUDE_RUNTIME) {
+    try {
+      const liveJson = execSync(
+        `node ${path.join(ROOT, 'scripts', 'validate-live-site.js')} --json`,
+        { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] },
+      ).toString();
+      const live = JSON.parse(liveJson);
+      const failCount = live.summary?.fail || 0;
+      const passCount = live.summary?.pass || 0;
+      const blockedCount = live.summary?.blocked || 0;
+      if (failCount > 0) {
+        critical(v2Section, `live_site — ${failCount} smoke check(s) FAIL`, JSON.stringify(live.checks?.filter((c) => c.verdict === 'FAIL').map((c) => c.check)));
+      } else if (blockedCount > 0) {
+        warning(v2Section, `live_site — ${blockedCount} check(s) BLOCKED by edge protection`);
+      } else {
+        pass(v2Section, `live_site — ${passCount} smoke check(s) PASS`);
+      }
+    } catch (e) {
+      unverified(v2Section, 'live_site — validator threw', e.message?.slice(0, 200));
+    }
+  } else {
+    info(v2Section, 'live_site — skipped (pass --runtime to include)');
+  }
+}
+
+// Final summary line including the v2 counts
+console.log(`\nFinal: ${totalPass} pass · ${totalCritical} critical · ${totalWarning} warning · ${totalInfo} info · ${totalUnverified} unverified${STRICT_PROMOTION ? ' [strict mode: warnings → critical]' : ''}`);
+
+const effectiveCritical = STRICT_PROMOTION ? (totalCritical + totalWarning) : totalCritical;
+process.exit(effectiveCritical > 0 ? 1 : 0);
