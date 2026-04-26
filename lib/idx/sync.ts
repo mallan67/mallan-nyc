@@ -254,7 +254,12 @@ export async function syncListings(
         const { getAccessToken } = await import("./auth");
         const token = await getAccessToken();
         const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        const BATCH_SIZE = 50;
+        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
+        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+        // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
+        // the media-backfill cron was returning 0 updates despite the cron
+        // firing successfully — every batch silently 400'd.
+        const BATCH_SIZE = 15;
 
         for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
@@ -470,7 +475,10 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   }
 
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-  const BATCH_SIZE = 50;
+  // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
+  // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+  // Bad Request (verified 2026-04-24 against live feed).
+  const BATCH_SIZE = 15;
   let updated = 0;
   let errors = 0;
 
@@ -509,28 +517,37 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       }
       const data = await res.json();
 
-      const mediaByKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
+      // Group by listing_id directly by trying BOTH ResourceRecordKey and
+      // ResourceRecordID on every response row. Previously this code preferred
+      // ResourceRecordKey and then ran `keyToId.get(key) || key` — which
+      // silently failed when mls_id was null (we'd query by ResourceRecordID
+      // but Trestle's response had ResourceRecordKey as the preferred first
+      // key, so lookup returned undefined and we'd default to the numeric
+      // ResourceRecordKey as listing_id — never matching any DB row).
+      // Confirmed 2026-04-24: thousands of listings with mls_id=null were
+      // being re-written with `[]` on every cron pass.
+      const mediaByListingId = new Map<string, { url: string; mediaType: string; order: number }[]>();
       for (const m of data.value || []) {
-        // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
-        const lid = String(m.ResourceRecordKey || m.ResourceRecordID || "");
-        if (!lid || !m.MediaURL) continue;
-        if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
+        const byRRK = String(m.ResourceRecordKey || "");
+        const byRRID = String(m.ResourceRecordID || "");
+        const listingId = keyToId.get(byRRK) || keyToId.get(byRRID);
+        if (!listingId || !m.MediaURL) continue;
+        if (!mediaByListingId.has(listingId)) mediaByListingId.set(listingId, []);
         const cat = String(m.MediaCategory || "").toLowerCase();
         let mediaType: string = "Photo";
         if (cat.includes("floor plan")) mediaType = "FloorPlan";
         else if (cat.includes("video")) mediaType = "Video";
         else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
         const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-        mediaByKey.get(lid)!.push({
+        mediaByListingId.get(listingId)!.push({
           url: String(m.MediaURL),
           mediaType,
           order: isPreferred ? -1 : Number(m.Order ?? 0),
         });
       }
 
-      for (const [key, media] of mediaByKey) {
+      for (const [listingId, media] of mediaByListingId) {
         try {
-          const listingId = keyToId.get(key) || key;
           await prisma.listing.updateMany({
             where: { listing_id: listingId },
             data: { media: media as unknown as Prisma.InputJsonValue },
@@ -848,7 +865,12 @@ export async function syncAgentHistory(
         const { getAccessToken } = await import("./auth");
         const token = await getAccessToken();
         const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        const BATCH_SIZE = 50;
+        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
+        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+        // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
+        // the media-backfill cron was returning 0 updates despite the cron
+        // firing successfully — every batch silently 400'd.
+        const BATCH_SIZE = 15;
 
         for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
