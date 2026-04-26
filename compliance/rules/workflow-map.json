@@ -1,0 +1,152 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "date": "2026-04-26",
+    "purpose": "Feature-to-surface map. Each workflow declares the surfaces required for the feature to be considered complete (schema, migration, helper, route, UI, etc.). Validators evaluate each surface independently and aggregate to PASS / PARTIAL / FAIL / UNVERIFIED.",
+    "consumed_by": [
+      "scripts/validate-workflow-completeness.js",
+      "scripts/release-truth-check.js (Phase 2)"
+    ],
+    "shared_status_vocabulary": ["PASS", "PARTIAL", "FAIL", "REGRESSION", "UNVERIFIED", "CLAIM_OVERSTATED", "WARN", "INFO"],
+    "rule_id_namespaces": {
+      "C##": "UCBA Master Copy 2026 rule (e.g. C15 = Auction Listing Requirements)",
+      "WS-C#": "Workstream-C feature track from memory/FOLLOWUP-2026-05-01.md (WS-C1=Inquiry, WS-C2=Offer, WS-C3=Auction, WS-C4=Ethics)",
+      "F-*": "Feature compliance gate (e.g. F-FAIR-HOUSING)"
+    },
+    "surface_keys": {
+      "schema": "Prisma model definition exists in prisma/schema.prisma",
+      "migration": "SQL migration file exists in prisma/migrations/",
+      "helper": "Server-side helper module (lib/...) exists and exports the expected entry points",
+      "backend_route": "Next.js API route file exists at the declared path",
+      "mapper": "Trestle/REBNY field mapper exists and references the field",
+      "gate": "Compliance gate (rls-enforcement, dto, content-restrictions) enforces the rule",
+      "dto": "Public/portal DTO sanitizer applies the rule",
+      "ui_form": "CRM form (HTML or React) collects the field from the user",
+      "frontend_display": "Public-facing display (search, listing detail, portal) renders the field",
+      "cron": "Scheduled cron job runs the workflow",
+      "audit_log": "AuditEvent row is written when the action runs",
+      "production_check": "Live production endpoint or page reflects the workflow",
+      "runtime_test": "Automated test (jest/integration) proves the side effect",
+      "rollout_action": "Operational action (script run, env set, etc.) — see operational-actions.json"
+    }
+  },
+
+  "workflows": [
+    {
+      "name": "auction_listing",
+      "title": "Auction Listing — UCBA Art. I §15",
+      "rules": ["C15", "WS-C3"],
+      "required_surfaces": ["schema", "migration", "ui_form", "backend_route", "validation_logic"],
+      "evidence": {
+        "schema": ["prisma/schema.prisma"],
+        "migration": ["prisma/migrations/20260426060000_add_auction_fields/migration.sql"],
+        "ui_form": ["public/crm/SALE-FORM-REDESIGN.html"],
+        "backend_route": ["app/api/crm/sales/listings/route.ts"],
+        "validation_logic": ["lib/compliance/rls-enforcement.ts"]
+      },
+      "surface_patterns": {
+        "schema": "auction_yn|auction_type|auction_end_date|auction_start_date|auction_terms_url",
+        "migration": "auction_yn|auction_type|auction_end_date",
+        "ui_form": "auction|minimum.bid|buyer.*premium|registration.*deadline|inspection.*period",
+        "backend_route": "auction_yn|auction_type",
+        "validation_logic": "AU-001|AU-002|AU-003|auction_yn|auction_type"
+      },
+      "release_blocking": false,
+      "ci_policy": "must_verify_before_release",
+      "notes": "Schema (C3a #50) and backend enforcement (C3b #57) shipped. UI form sub-section (C3c) deferred. Workflow status: PARTIAL until ui_form surface lands."
+    },
+
+    {
+      "name": "inquiry_capture",
+      "title": "Inquiry Capture — UCBA C1 (lead recording)",
+      "rules": ["WS-C1"],
+      "required_surfaces": ["schema", "migration", "helper", "lead_capture_routes", "crm_reader_routes"],
+      "evidence": {
+        "schema": ["prisma/schema.prisma"],
+        "migration": ["prisma/migrations/20260426030000_add_inquiry_model/migration.sql"],
+        "helper": ["lib/inquiries/create.ts"],
+        "lead_capture_routes": [
+          "app/api/inquiries/route.ts",
+          "app/api/contact/route.ts",
+          "app/api/cma/route.ts",
+          "app/api/sign-up/route.ts",
+          "app/api/guides/download/route.ts",
+          "app/api/search-alerts/route.ts",
+          "app/api/open-houses/rsvp/route.ts",
+          "app/api/portal/listings/[id]/react/route.ts"
+        ],
+        "crm_reader_routes": [
+          "app/api/crm/inquiries/route.ts",
+          "app/api/crm/sales/listings/route.ts"
+        ]
+      },
+      "surface_patterns": {
+        "schema": "model Inquiry\\b",
+        "migration": "CREATE TABLE.*inquiries|inquiries\\(",
+        "helper": "export.*createInquiry|async function createInquiry",
+        "lead_capture_routes": "createInquiry\\(",
+        "crm_reader_routes": "prisma\\.inquiry\\.|inquiries\\b"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "runtime_test_routes_required": true,
+      "runtime_test_target": "tests/runtime/inquiry-effect.test.ts (Phase 3)",
+      "notes": "All 8 lead-capture endpoints wire createInquiry. Runtime side-effect proof (Phase 3) will confirm rows actually land in DB; until then the workflow is PASS at the static layer and UNVERIFIED at the runtime layer."
+    },
+
+    {
+      "name": "offer_transmission",
+      "title": "Offer Transmission — UCBA Art. II §18",
+      "rules": ["WS-C2"],
+      "required_surfaces": ["schema", "migration", "backend_route", "audit_log", "ucba_precondition"],
+      "evidence": {
+        "schema": ["prisma/schema.prisma"],
+        "migration": ["prisma/migrations/20260426050000_add_offer_model/migration.sql"],
+        "backend_route": ["app/api/crm/offers/[id]/transmit/route.ts"],
+        "audit_log": ["app/api/crm/offers/[id]/transmit/route.ts"],
+        "ucba_precondition": ["app/api/crm/offers/[id]/transmit/route.ts"]
+      },
+      "surface_patterns": {
+        "schema": "model Offer\\b",
+        "migration": "CREATE TABLE.*offers",
+        "backend_route": "transmitted_to_seller_at",
+        "audit_log": "logAuditEvent|AuditEvent",
+        "ucba_precondition": "competing_offers_disclosed|disclosure_authorized_by_seller|UCBA_II_DISCLOSURE_NOT_AUTHORIZED"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "runtime_test_routes_required": true,
+      "runtime_test_target": "tests/runtime/offer-transmit.test.ts (Phase 3)",
+      "notes": "Idempotent re-submit + precondition check both implemented. Runtime test must verify transmitted_to_seller_at is actually written."
+    },
+
+    {
+      "name": "ethics_training_gate",
+      "title": "Ethics Training Auth Gate — UCBA Art. III §6",
+      "rules": ["WS-C4"],
+      "required_surfaces": ["schema", "migration", "auth_gate_logic", "login_route", "mfa_verify_route", "rollout_action"],
+      "evidence": {
+        "schema": ["prisma/schema.prisma"],
+        "migration": ["prisma/migrations/20260426070000_add_ethics_training_fields/migration.sql"],
+        "auth_gate_logic": ["lib/auth/session.ts"],
+        "login_route": ["app/api/auth/login/route.ts"],
+        "mfa_verify_route": ["app/api/auth/mfa/verify/route.ts"],
+        "rollout_action": ["scripts/c4-ethics-backfill.ts"]
+      },
+      "surface_patterns": {
+        "schema": "ethics_training_completed_at|ethics_training_expires_at",
+        "migration": "ethics_training_completed_at|ethics_training_expires_at",
+        "auth_gate_logic": "EthicsTrainingExpiredError|assertAgentEthicsTrainingValid",
+        "login_route": "EthicsTrainingExpiredError|ETHICS_TRAINING_EXPIRED",
+        "mfa_verify_route": "EthicsTrainingExpiredError|ETHICS_TRAINING_EXPIRED",
+        "rollout_action": "ethics_training_expires_at"
+      },
+      "operational_action_id": "ethics_backfill_before_gate",
+      "release_blocking": true,
+      "ci_policy": "must_verify_before_release",
+      "runtime_test_routes_required": true,
+      "runtime_test_target": "tests/runtime/auth-ethics-gate.test.ts (Phase 3)",
+      "notes": "All static surfaces in place. Operational action (backfill execution) declared in operational-actions.json — release validator must check postcondition."
+    }
+  ]
+}
