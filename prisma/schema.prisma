@@ -465,6 +465,16 @@ model Listing {
   agent_info Json  @default("{}") @map("agent_info")
   raw_data   Json? @map("raw_data")
 
+  // --- Media normalization (master refactor PR 2 — memory/REFACTOR-2026-04-25.md) ---
+  // Promoted from `media` JSON for fast card render without JSON traversal.
+  // ALL nullable per NEON.md §4: never `NOT NULL DEFAULT ...` on a populated
+  // table. Populated incrementally by lib/idx/media-sync.ts (PR 3).
+  // Readers continue to use the `media` JSON column until PR 4 swaps them.
+  primary_photo_url       String?   @map("primary_photo_url")
+  primary_photo_r2_key    String?   @map("primary_photo_r2_key")
+  photos_change_timestamp DateTime? @map("photos_change_timestamp")
+  photo_count             Int?      @map("photo_count")
+
   // --- Relations ---
   actions              ClientListingAction[]
   showings             Showing[]
@@ -472,6 +482,7 @@ model Listing {
   inquiries            Inquiry[]
   price_history        PriceHistory[]
   marketing_activities MarketingActivity[]
+  listing_media        ListingMedia[]
 
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at         DateTime? @map("status_changed_at")
@@ -2196,4 +2207,91 @@ model Inquiry {
   @@index([created_at])
   @@index([email])
   @@map("inquiries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ListingMedia — per-photo records keyed by Trestle Media.ResourceRecordKey.
+// Master refactor PR 2 (memory/REFACTOR-2026-04-25.md).
+//
+// Replaces the heavy `media` JSON column on Listing during the migration:
+//   PR 2 (this) — add table + Listing nullable cols
+//   PR 3 — populate via media-sync cron driven by PhotosChangeTimestamp
+//   PR 4 — readers swap from Listing.media JSON to listing_media table
+//   PR 10 — drop Listing.media JSON
+//
+// Trestle key discipline (per 2026-04-07 vendor guidance — see CLAUDE.md):
+//   media_key            = Media.MediaKey          — unique PK in Trestle
+//   resource_record_key  = Property.ListingKey     — UNIQUE across MLOs (use this)
+//   resource_record_id   = Property.ListingID      — may DUPLICATE across MLOs
+// Always join via resource_record_key. resource_record_id is kept for legacy.
+// ─────────────────────────────────────────────────────────────────────────────
+model ListingMedia {
+  id                        BigInt    @id @default(autoincrement())
+  listing_id                String    @map("listing_id")
+  listing                   Listing   @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
+  media_key                 String?   @unique @map("media_key")
+  resource_record_key       String?   @map("resource_record_key")
+  resource_record_id        String?   @map("resource_record_id")
+  // Public URLs — original is the Trestle source; cached is the R2 mirror.
+  media_url_original        String?   @map("media_url_original") @db.Text
+  media_url_cached          String?   @map("media_url_cached") @db.Text
+  // Trestle MediaType (Photo/FloorPlan/Video/Virtual3D/...) + MediaCategory.
+  media_type                String    @map("media_type")
+  media_category            String?   @map("media_category")
+  media_classification      String?   @map("media_classification")
+  // Display ordering + preferred flag (Trestle PreferredPhotoYN).
+  order                     Int       @default(0)
+  preferred_photo_yn        Boolean   @default(false) @map("preferred_photo_yn")
+  // Trestle change-detection timestamps.
+  // - media_modification_ts ← Media.MediaModificationTimestamp (newest source-of-truth)
+  // - modification_ts       ← Media.ModificationTimestamp       (alternate, some feeds)
+  // - photos_change_ts_snapshot ← Property.PhotosChangeTimestamp at the moment
+  //   we ingested this row, so we can reason about which Property-level event
+  //   produced this Media-level change.
+  media_modification_ts     DateTime? @map("media_modification_ts")
+  modification_ts           DateTime? @map("modification_ts")
+  photos_change_ts_snapshot DateTime? @map("photos_change_ts_snapshot")
+  // R2 cache info — populated when the photo is mirrored to R2 (PR 3).
+  r2_key                    String?   @map("r2_key")
+  width                     Int?
+  height                    Int?
+  // Status: 'active' | 'deleted' (soft-delete for audit) | 'replaced'.
+  // We never hard-delete a media row so the audit trail stays intact.
+  status                    String    @default("active")
+  created_at                DateTime  @default(now()) @map("created_at")
+  updated_at                DateTime  @updatedAt @map("updated_at")
+
+  @@index([listing_id])
+  @@index([resource_record_key])
+  @@index([media_modification_ts])
+  @@index([modification_ts])
+  @@index([status])
+  @@map("listing_media")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MediaSyncState — per-resource cursor for the incremental media sync cron.
+// Populated by app/api/cron/media-sync/route.ts (introduced in PR 3).
+//
+// Two-tier watermark strategy per Trestle vendor guidance:
+//   1. last_photos_change   ← max(Property.PhotosChangeTimestamp) — high-level
+//      trigger to identify which listings have any media change.
+//   2. last_media_modified  ← max(Media.ModificationTimestamp /
+//      Media.MediaModificationTimestamp) — per-row change detection within
+//      the listings flagged by step 1.
+// ─────────────────────────────────────────────────────────────────────────────
+model MediaSyncState {
+  id                  BigInt    @id @default(autoincrement())
+  resource            String    @unique
+  last_photos_change  DateTime? @map("last_photos_change")
+  last_media_modified DateTime? @map("last_media_modified")
+  last_run_at         DateTime? @map("last_run_at")
+  last_run_status     String?   @map("last_run_status")
+  rows_checked        Int       @default(0) @map("rows_checked")
+  rows_updated        Int       @default(0) @map("rows_updated")
+  rows_failed         Int       @default(0) @map("rows_failed")
+  created_at          DateTime  @default(now()) @map("created_at")
+  updated_at          DateTime  @updatedAt @map("updated_at")
+
+  @@map("media_sync_state")
 }
