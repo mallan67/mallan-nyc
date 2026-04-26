@@ -1,10 +1,13 @@
 // POST /api/auth/reset-password
-// Validates token and sets new password. Creates session on success.
+// Validates SMS code + reset_session token, sets new password, signs user in.
+//
+// Body: { reset_session: string, code: string, password: string }
+//
+// Rate limit: 5 attempts per session, 5-minute TTL.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
-import { validateResetToken } from "@/lib/auth/reset-token";
-import { logAuditEvent } from "@/lib/auth";
+import { hashPassword, verifyPassword, createSession, SESSION_COOKIE, logAuditEvent } from "@/lib/auth";
+import { MFA_MAX_ATTEMPTS } from "@/lib/auth/mfa";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
@@ -14,118 +17,139 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { token, password } = body;
+    const { reset_session, code, password } = body;
 
-    if (!token || !password) {
+    if (!reset_session || !code || !password) {
       return NextResponse.json(
-        { error: "Token and password are required" },
+        { error: "reset_session, code, and password are required" },
         { status: 400 }
       );
     }
 
-    if (password.length < 8) {
+    if (typeof password !== "string" || password.length < 8) {
       return NextResponse.json(
         { error: "Password must be at least 8 characters" },
         { status: 400 }
       );
     }
 
-    // We need to decode the token to get the userId + userType, then fetch the
-    // current password hash to fully validate (hash prefix check).
-    // Decode without full validation first to get userId/userType.
-    let decoded: string;
-    try {
-      decoded = Buffer.from(token, "base64url").toString("utf-8");
-    } catch {
-      return NextResponse.json({ error: "Invalid or expired reset link" }, { status: 400 });
+    if (typeof code !== "string" || !/^\d{6}$/.test(code)) {
+      return NextResponse.json(
+        { error: "Code must be 6 digits" },
+        { status: 400 }
+      );
     }
 
-    const parts = decoded.split(":");
-    if (parts.length !== 5) {
-      return NextResponse.json({ error: "Invalid or expired reset link" }, { status: 400 });
+    // Look up the reset session
+    const session = await prisma.passwordResetSession.findUnique({
+      where: { token: reset_session },
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Invalid or expired reset session" },
+        { status: 400 }
+      );
     }
 
-    const [userIdStr, userType] = parts;
-    if (userType !== "agent" && userType !== "lead") {
-      return NextResponse.json({ error: "Invalid or expired reset link" }, { status: 400 });
+    if (session.user_type !== "agent" && session.user_type !== "lead") {
+      return NextResponse.json(
+        { error: "Invalid reset session" },
+        { status: 400 }
+      );
+    }
+    const userType: "agent" | "lead" = session.user_type;
+
+    if (session.verified_at) {
+      return NextResponse.json(
+        { error: "This reset session has already been used" },
+        { status: 400 }
+      );
     }
 
-    const userId = BigInt(userIdStr);
+    if (session.expires_at < new Date()) {
+      return NextResponse.json(
+        { error: "Reset code has expired. Request a new one." },
+        { status: 400 }
+      );
+    }
 
-    // Fetch current password hash for full validation
-    let currentHash: string | null = null;
-    let userName: string | null = null;
-    let userEmail: string | null = null;
-    let role: string = "buyer";
+    if (session.attempts >= MFA_MAX_ATTEMPTS) {
+      return NextResponse.json(
+        { error: "Too many failed attempts. Request a new code." },
+        { status: 429 }
+      );
+    }
 
-    if (userType === "agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { id: userId },
-        select: { password_hash: true, full_name: true, first_name: true, last_name: true, email: true, role: true },
+    // Verify the code (bcrypt timing-safe). Always increment attempts first
+    // so a failed attempt is recorded regardless of code validity.
+    const valid = await verifyPassword(code, session.code_hash);
+
+    if (!valid) {
+      await prisma.passwordResetSession.update({
+        where: { id: session.id },
+        data: { attempts: { increment: 1 } },
       });
-      if (!agent) {
-        return NextResponse.json({ error: "Invalid or expired reset link" }, { status: 400 });
-      }
-      currentHash = agent.password_hash;
-      userName = agent.full_name || `${agent.first_name} ${agent.last_name}`;
-      userEmail = agent.email;
-      role = agent.role;
-    } else {
-      const lead = await prisma.lead.findUnique({
-        where: { id: userId },
-        select: { password_hash: true, first_name: true, last_name: true, email: true, portal_role: true },
-      });
-      if (!lead?.password_hash) {
-        return NextResponse.json({ error: "Invalid or expired reset link" }, { status: 400 });
-      }
-      currentHash = lead.password_hash;
-      userName = `${lead.first_name} ${lead.last_name}`;
-      userEmail = lead.email;
-      role = lead.portal_role || "buyer";
+      return NextResponse.json(
+        { error: "Incorrect code", attempts_remaining: MFA_MAX_ATTEMPTS - session.attempts - 1 },
+        { status: 400 }
+      );
     }
 
-    // Full validation with current hash
-    const validated = validateResetToken(token, currentHash);
-    if (!validated) {
-      return NextResponse.json({ error: "Invalid or expired reset link" }, { status: 400 });
-    }
-
-    // Set new password
+    // Code valid — set new password atomically.
     const newHash = await hashPassword(password);
 
+    let role = "buyer";
+    let userName: string | null = null;
+    let userEmail: string | null = null;
+
     if (userType === "agent") {
-      await prisma.agent.update({
-        where: { id: userId },
+      const agent = await prisma.agent.update({
+        where: { id: session.user_id },
         data: { password_hash: newHash },
+        select: { full_name: true, first_name: true, last_name: true, email: true, role: true },
       });
+      role = agent.role;
+      userName = agent.full_name || `${agent.first_name} ${agent.last_name}`;
+      userEmail = agent.email;
     } else {
-      await prisma.lead.update({
-        where: { id: userId },
+      const lead = await prisma.lead.update({
+        where: { id: session.user_id },
         data: { password_hash: newHash },
+        select: { first_name: true, last_name: true, email: true, portal_role: true },
       });
+      role = lead.portal_role || "buyer";
+      userName = `${lead.first_name} ${lead.last_name}`;
+      userEmail = lead.email;
     }
+
+    // Mark session as used so the same code can't replay
+    await prisma.passwordResetSession.update({
+      where: { id: session.id },
+      data: { verified_at: new Date() },
+    });
 
     await logAuditEvent(
       "update",
       userType,
-      userId.toString(),
-      { userId, userType, role } as Parameters<typeof logAuditEvent>[3],
-      { field: "password_hash", method: "reset_token" }
+      session.user_id.toString(),
+      { userId: session.user_id, userType: userType, role } as Parameters<typeof logAuditEvent>[3],
+      { field: "password_hash", method: "sms_reset" }
     );
 
-    // Create session so user is logged in immediately
+    // Create session — user is signed in
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const ua = req.headers.get("user-agent") ?? undefined;
-    const sessionToken = await createSession(userType, userId, role, ip, ua);
+    const sessionToken = await createSession(userType, session.user_id, role, ip, ua);
 
     const res = NextResponse.json({
       success: true,
       user: {
-        id: userId.toString(),
+        id: session.user_id.toString(),
         name: userName,
         email: userEmail,
         role,
-        userType,
+        userType: userType,
       },
     });
 

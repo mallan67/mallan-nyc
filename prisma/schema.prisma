@@ -588,6 +588,30 @@ model MfaSession {
 }
 
 // ═══════════════════════════════════════════════════════════
+// PASSWORD RESET SESSION — short-lived SMS-code challenge for
+// password reset. Mirrors MfaSession but covers Agent + Lead and
+// is created BEFORE the user has authenticated (vs. MFA which
+// runs AFTER password verify).
+// ═══════════════════════════════════════════════════════════
+model PasswordResetSession {
+  id          String    @id @default(cuid())
+  token       String    @unique // public token returned to client, used to scope code submission
+  user_id     BigInt    @map("user_id")
+  user_type   String    @map("user_type") // "agent" | "lead"
+  code_hash   String    @map("code_hash") // bcrypt hash of 6-digit code
+  attempts    Int       @default(0) // rate limit: max 5
+  verified_at DateTime? @map("verified_at")
+  expires_at  DateTime  @map("expires_at")
+  created_at  DateTime  @default(now()) @map("created_at")
+  ip_address  String?   @map("ip_address")
+  user_agent  String?   @map("user_agent") @db.Text
+
+  @@index([token])
+  @@index([expires_at])
+  @@map("password_reset_sessions")
+}
+
+// ═══════════════════════════════════════════════════════════
 // SYNC STATE — Trestle delta-sync watermark (one row per resource)
 // Replaces fragile MAX(last_synced_from_trestle) with an atomic watermark.
 // ═══════════════════════════════════════════════════════════
