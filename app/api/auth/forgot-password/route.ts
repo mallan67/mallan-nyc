@@ -9,6 +9,36 @@ import { passwordResetEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { escapeHtml } from "@/lib/sanitize";
 
+/**
+ * Resolve the recipient address for a reset email.
+ *
+ * M365 anti-loop drops mail when an M365 tenant mailbox sends to itself —
+ * so reset links for agents on @mallan.nyc never arrive. The MFA flow
+ * already works around this via MFA_EMAIL; this is the same workaround
+ * scoped to forgot-password.
+ *
+ * Behavior:
+ *   - Recipient on the M365 sender domain + RESET_EMAIL_OVERRIDE set
+ *       → send to the override (e.g. broker's external Gmail).
+ *   - Recipient anywhere else (clients, leads on external domains)
+ *       → send to the original recipient unchanged.
+ *
+ * The override is intentionally scoped to the same-domain case so that
+ * client-side resets (Gmail/Yahoo/etc.) cannot be hijacked by leaking
+ * the override env var.
+ */
+function resolveResetRecipient(originalRecipient: string): string {
+  const override = process.env.RESET_EMAIL_OVERRIDE;
+  if (!override) return originalRecipient;
+
+  const smtpUser = process.env.SMTP_USER || process.env.SMTP_FROM;
+  const senderDomain = smtpUser?.split("@")[1]?.toLowerCase();
+  if (!senderDomain) return originalRecipient;
+
+  const recipientDomain = originalRecipient.split("@")[1]?.toLowerCase();
+  return recipientDomain === senderDomain ? override : originalRecipient;
+}
+
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
@@ -30,6 +60,8 @@ export async function POST(req: NextRequest) {
       message: "If an account exists with that email, a reset link has been sent.",
     });
 
+    const sendTo = resolveResetRecipient(email);
+
     // Check agents first, then leads
     const agent = await prisma.agent.findUnique({
       where: { email },
@@ -39,7 +71,7 @@ export async function POST(req: NextRequest) {
     if (agent) {
       const token = generateResetToken(agent.id, "agent", agent.password_hash);
       const html = passwordResetEmail(token, escapeHtml(agent.first_name));
-      await sendEmail(email, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
+      await sendEmail(sendTo, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
       return successResponse;
     }
 
@@ -51,7 +83,7 @@ export async function POST(req: NextRequest) {
     if (lead?.password_hash) {
       const token = generateResetToken(lead.id, "lead", lead.password_hash);
       const html = passwordResetEmail(token, escapeHtml(lead.first_name));
-      await sendEmail(email, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
+      await sendEmail(sendTo, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
     }
 
     return successResponse;
