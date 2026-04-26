@@ -1,10 +1,15 @@
 // POST /api/auth/forgot-password
 // Sends a password reset email. Works for both agents and clients.
 // Rate limited: always returns success (prevents email enumeration).
+//
+// Recipient is ALWAYS the signed-in email — never redirected to an
+// override mailbox. Delivery uses the auth-mailer transport (Resend with
+// M365 fallback) so reset emails reach the primary inbox even when the
+// recipient is a tenant alias of our M365 sender.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateResetToken } from "@/lib/auth/reset-token";
-import { sendEmail } from "@/lib/email/sendgrid";
+import { sendAuthEmail } from "@/lib/email/auth-mailer";
 import { passwordResetEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { escapeHtml } from "@/lib/sanitize";
@@ -39,7 +44,7 @@ export async function POST(req: NextRequest) {
     if (agent) {
       const token = generateResetToken(agent.id, "agent", agent.password_hash);
       const html = passwordResetEmail(token, escapeHtml(agent.first_name));
-      await sendEmail(email, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
+      await sendAuthEmail(email, "Reset Your Password — Mallan Real Estate", html);
       return successResponse;
     }
 
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
     if (lead?.password_hash) {
       const token = generateResetToken(lead.id, "lead", lead.password_hash);
       const html = passwordResetEmail(token, escapeHtml(lead.first_name));
-      await sendEmail(email, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });
+      await sendAuthEmail(email, "Reset Your Password — Mallan Real Estate", html);
     }
 
     return successResponse;

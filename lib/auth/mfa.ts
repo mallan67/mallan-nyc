@@ -6,7 +6,7 @@
  * No enrollment needed — automatic for all brokers.
  */
 import { randomInt } from 'crypto';
-import { sendEmail } from '@/lib/email/sendgrid';
+import { sendAuthEmail } from '@/lib/email/auth-mailer';
 
 export const MFA_SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export const MFA_MAX_ATTEMPTS = 5;
@@ -26,7 +26,7 @@ export async function sendOtpEmail(
   code: string,
   name: string
 ): Promise<boolean> {
-  const result = await sendEmail(
+  const result = await sendAuthEmail(
     email,
     'Your Mallan CRM Login Code',
     `
@@ -43,9 +43,7 @@ export async function sendOtpEmail(
       <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
       <p style="font-size:11px;color:#9ca3af;">Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128</p>
     </div>
-    `,
-    undefined,
-    { channel: 'company', transactional: true }
+    `
   );
   return result.success;
 }
