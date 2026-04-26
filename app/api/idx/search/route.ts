@@ -855,10 +855,11 @@ export async function GET(req: NextRequest) {
             const escaped = key.replace(/'/g, "''");
             filterParts.push(l.wid ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
           }
-          const mediaFilter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
+          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+          const mediaFilter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
+          mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus");
           mediaParams.set("$orderby", "Order asc");
           mediaParams.set("$top", String(filterParts.length * 2));
 

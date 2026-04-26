@@ -107,11 +107,12 @@ export async function GET(req: NextRequest) {
           const escaped = key.replace(/'/g, "''");
           return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
         });
-        // Fetch ALL media for detail view — photos, floorplans, videos, virtual tours, 3D
-        const filter = `(${filterParts.join(" or ")})`;
+        // Fetch ALL media for detail view — photos, floorplans, videos, virtual tours, 3D.
+        // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+        const filter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
         const params = new URLSearchParams();
         params.set("$filter", filter);
-        params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription");
+        params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription,MediaStatus");
         params.set("$orderby", "MediaCategory asc,Order asc");
         params.set("$top", String(uncached.length * 40)); // Up to 40 media items per listing
 
@@ -181,10 +182,11 @@ export async function GET(req: NextRequest) {
         const escaped = key.replace(/'/g, "''");
         return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
       });
-      const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null)`;
+      // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+      const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
       const params = new URLSearchParams();
       params.set("$filter", filter);
-      params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN");
+      params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus");
       params.set("$orderby", "Order asc");
       params.set("$top", String(uncached.length * 2));
 

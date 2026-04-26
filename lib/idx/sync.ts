@@ -266,10 +266,11 @@ export async function syncListings(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          const mediaFilter = `(${idFilter})`;
+          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
           mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           mediaParams.set("$top", String(batch.length * 30));
 
@@ -499,10 +500,11 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     }
     if (filterParts.length === 0) continue;
 
-    const mediaFilter = `(${filterParts.join(" or ")})`;
+    // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+    const mediaFilter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set("$filter", mediaFilter);
-    mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+    mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
     mediaParams.set("$orderby", "Order asc");
     mediaParams.set("$top", String(filterParts.length * 30));
 
@@ -877,10 +879,11 @@ export async function syncAgentHistory(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          const mediaFilter = `(${idFilter})`;
+          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
           mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           mediaParams.set("$top", String(batch.length * 30));
 
