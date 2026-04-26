@@ -10,8 +10,10 @@
  * @module lib/compliance/__tests__/compliance-gates.test
  */
 
-import { checkDistributionGates, validateRequiredFields } from '@/lib/idx/trestle-mapper';
+import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';
 import { toPublicDTO } from '@/lib/idx/public-dto';
+import { filterDisplayableDbListings } from '@/lib/idx/db-to-public-dto';
+import type { DbListing } from '@/lib/idx/db-to-public-dto';
 import { assertRlsCompliantPayload } from '@/lib/compliance/rls-enforcement';
 import { escapeHtml } from '@/lib/sanitize';
 import type { IDXListing } from '@/lib/idx/types';
@@ -561,5 +563,239 @@ describe('escapeHtml', () => {
 
   it('returns safe string unchanged', () => {
     expect(escapeHtml('Hello World 123')).toBe('Hello World 123');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 6. FAIL-CLOSED PERMISSION HELPERS
+//    Added by PR 1 of master refactor (memory/REFACTOR-2026-04-25.md).
+//    Locks in fail-closed behavior at every public-display call site so a
+//    null/undefined permission flag from Trestle or our DB never produces a
+//    displayable result. UCBA Art. III §2(C) requires this direction.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('filterDisplayableDbListings — fail-closed on null permission flags', () => {
+  function buildDbListing(overrides: Partial<DbListing> = {}): DbListing {
+    return {
+      id: 'db-test-1',
+      listing_id: 'TEST-DB-1',
+      status: 'Active',
+      listing_type: 'sale',
+      property_type: 'Residential',
+      property_sub_type: null,
+      list_price: '1000000',
+      bedrooms_total: 1,
+      bathrooms_full: 1,
+      bathrooms_half: 0,
+      living_area: '800',
+      borough: 'Manhattan',
+      neighborhood: 'Chelsea',
+      address: {},
+      features: {},
+      media: [],
+      agent_info: {},
+      rls_eligible: true,
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      internet_address_display_yn: true,
+      owner_opt_out: false,
+      participant_only: false,
+      listing_contract_date: '2026-01-01',
+      modification_timestamp: '2026-03-01T00:00:00Z',
+      created_at: '2026-01-01',
+      updated_at: '2026-03-01',
+      ...overrides,
+    };
+  }
+
+  it('excludes when idx_display_yn is null (was passing before fix)', () => {
+    const result = filterDisplayableDbListings([
+      buildDbListing({ idx_display_yn: null as unknown as boolean }),
+    ]);
+    expect(result).toHaveLength(0);
+  });
+
+  it('excludes when idx_display_yn is undefined', () => {
+    const listing = buildDbListing();
+    delete (listing as Record<string, unknown>).idx_display_yn;
+    const result = filterDisplayableDbListings([listing as DbListing]);
+    expect(result).toHaveLength(0);
+  });
+
+  it('excludes when internet_entire_listing_display_yn is null', () => {
+    const result = filterDisplayableDbListings([
+      buildDbListing({
+        internet_entire_listing_display_yn: null as unknown as boolean,
+      }),
+    ]);
+    expect(result).toHaveLength(0);
+  });
+
+  it('excludes when internet_entire_listing_display_yn is undefined', () => {
+    const listing = buildDbListing();
+    delete (listing as Record<string, unknown>).internet_entire_listing_display_yn;
+    const result = filterDisplayableDbListings([listing as DbListing]);
+    expect(result).toHaveLength(0);
+  });
+
+  it('includes valid Active listing with all permissions=true', () => {
+    const result = filterDisplayableDbListings([buildDbListing()]);
+    expect(result).toHaveLength(1);
+  });
+
+  it('still includes website-only commercial (rls_eligible=false) regardless of permissions', () => {
+    const result = filterDisplayableDbListings([
+      buildDbListing({
+        rls_eligible: false,
+        idx_display_yn: null as unknown as boolean,
+        internet_entire_listing_display_yn: null as unknown as boolean,
+      }),
+    ]);
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe('mapTrestleToPrisma — fail-closed on missing AVM/consumer-comment flags', () => {
+  function buildMinimalRaw(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      ListingKey: 'TEST-MAP-1',
+      ListingId: 'TEST-MAP-1',
+      ListPrice: 1000000,
+      StandardStatus: 'Active',
+      MlsStatus: 'Active',
+      PropertyType: 'Residential',
+      ListingContractDate: '2026-01-01',
+      ModificationTimestamp: '2026-03-01T00:00:00Z',
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: true,
+      ...overrides,
+    };
+  }
+
+  it('sets internet_automated_valuation_display_yn=false when flag is null (was fail-OPEN before fix)', () => {
+    const result = mapTrestleToPrisma(buildMinimalRaw({
+      InternetAutomatedValuationDisplayYN: null,
+    }));
+    expect(result.internet_automated_valuation_display_yn).toBe(false);
+  });
+
+  it('sets internet_automated_valuation_display_yn=false when flag is missing entirely', () => {
+    const result = mapTrestleToPrisma(buildMinimalRaw());
+    expect(result.internet_automated_valuation_display_yn).toBe(false);
+  });
+
+  it('sets internet_consumer_comment_yn=false when flag is null (was fail-OPEN before fix)', () => {
+    const result = mapTrestleToPrisma(buildMinimalRaw({
+      InternetConsumerCommentYN: null,
+    }));
+    expect(result.internet_consumer_comment_yn).toBe(false);
+  });
+
+  it('sets internet_consumer_comment_yn=false when flag is missing entirely', () => {
+    const result = mapTrestleToPrisma(buildMinimalRaw());
+    expect(result.internet_consumer_comment_yn).toBe(false);
+  });
+
+  it('preserves true when AVM and consumer-comment flags are explicitly true', () => {
+    const result = mapTrestleToPrisma(buildMinimalRaw({
+      InternetAutomatedValuationDisplayYN: true,
+      InternetConsumerCommentYN: true,
+    }));
+    expect(result.internet_automated_valuation_display_yn).toBe(true);
+    expect(result.internet_consumer_comment_yn).toBe(true);
+  });
+
+  it('treats string "true" as true (defensive against Trestle string-bool quirk)', () => {
+    const result = mapTrestleToPrisma(buildMinimalRaw({
+      InternetAutomatedValuationDisplayYN: 'true',
+      InternetConsumerCommentYN: 'TRUE',
+    }));
+    expect(result.internet_automated_valuation_display_yn).toBe(true);
+    expect(result.internet_consumer_comment_yn).toBe(true);
+  });
+});
+
+describe('toPublicDTO suppressAddress — fail-closed on null permission', () => {
+  function buildMinimalIdx(overrides: Partial<IDXListing> = {}): IDXListing {
+    return {
+      listingId: 'IDX-TEST-1',
+      mlsId: 'MLS-IDX-1',
+      standardStatus: 'Active',
+      listingType: 'sale',
+      listPrice: 1000000,
+      originalListPrice: 1000000,
+      closePrice: null,
+      bedroomsTotal: 1,
+      bathroomsFull: 1,
+      bathroomsHalf: 0,
+      livingArea: 800,
+      lotSizeArea: null,
+      yearBuilt: 2020,
+      propertyType: 'Residential',
+      propertySubType: null,
+      commonInterest: 'Condominium',
+      listOfficeName: 'Test',
+      listOfficeMlsId: 'OFF-1',
+      listAgentFullName: 'A',
+      listAgentMlsId: 'AGT-1',
+      listAgentEmail: 'a@b.com',
+      media: [],
+      photosCount: 0,
+      publicRemarks: '',
+      privateRemarks: '',
+      listingContractDate: '2026-01-01',
+      modificationTimestamp: '2026-03-01T00:00:00Z',
+      onMarketDate: '2026-01-01',
+      closeDate: undefined,
+      address: {
+        streetNumber: '100',
+        streetName: 'Main',
+        unitNumber: '5',
+        city: 'NYC',
+        stateOrProvince: 'NY',
+        postalCode: '10001',
+        county: 'New York',
+        latitude: 40.7,
+        longitude: -74.0,
+      },
+      internetAddressDisplayYN: true,
+      idxEntireListingDisplayYN: true,
+      internetEntireListingDisplayYN: true,
+      participantOnlyYN: false,
+      _source: 'idx',
+      _lastFetched: '2026-03-01T00:00:00Z',
+      _displayCompliance: {
+        requiresAttribution: true,
+        attributionText: 'x',
+        disclaimerRequired: true,
+      },
+      ...overrides,
+    };
+  }
+
+  it('suppresses address when internetAddressDisplayYN is null (was leaking before fix)', () => {
+    const dto = toPublicDTO(buildMinimalIdx({
+      internetAddressDisplayYN: null as unknown as boolean,
+    }));
+    expect(dto.address.streetName).toBe('Address Undisclosed');
+    expect(dto.address.streetNumber).toBe('');
+    expect(dto.address.latitude).toBeUndefined();
+  });
+
+  it('suppresses address when internetEntireListingDisplayYN is null (cascade)', () => {
+    const dto = toPublicDTO(buildMinimalIdx({
+      internetEntireListingDisplayYN: null as unknown as boolean,
+    }));
+    expect(dto.address.streetName).toBe('Address Undisclosed');
+    expect(dto.address.latitude).toBeUndefined();
+  });
+
+  it('shows address only when BOTH flags are explicitly true', () => {
+    const dto = toPublicDTO(buildMinimalIdx({
+      internetAddressDisplayYN: true,
+      internetEntireListingDisplayYN: true,
+    }));
+    expect(dto.address.streetName).toBe('Main');
+    expect(dto.address.latitude).toBe(40.7);
   });
 });
