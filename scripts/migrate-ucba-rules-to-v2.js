@@ -185,6 +185,407 @@ const V2_BATCH = {
     expected_aggregate: 'PASS',
     notes: 'Hard block. Penalty: $250 first offense, $500 + RLS termination second.',
   },
+
+  // ─── Batch 2 — 6 Distribution Gates (REBNY core compliance) ───────────
+  'GATE-1': {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['mapper', 'dto', 'route'],
+    evidence: {
+      mapper: ['lib/idx/trestle-mapper.ts'],
+      dto: ['lib/compliance/dto.ts'],
+      route: ['app/api/listings/route.ts'],
+    },
+    surface_patterns: {
+      mapper: 'OwnerOptOut|owner_opt_out',
+      dto: 'OwnerOptOut|opt.out',
+      route: 'checkDistributionGates|OwnerOptOut',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Gate 1: Owner Opt-Out — listing hidden from ALL public surfaces.',
+  },
+  'GATE-2': {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['mapper', 'dto', 'route'],
+    evidence: {
+      mapper: ['lib/idx/trestle-mapper.ts'],
+      dto: ['lib/compliance/dto.ts'],
+      route: ['app/api/listings/route.ts'],
+    },
+    surface_patterns: {
+      mapper: 'ParticipantOnly|participant_only',
+      dto: 'ParticipantOnly|participant_only',
+      route: 'checkDistributionGates|ParticipantOnly',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Gate 2: Participant Only — RLS participants only, never public.',
+  },
+  'GATE-3': {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['mapper', 'route', 'dto'],
+    evidence: {
+      mapper: ['lib/idx/trestle-mapper.ts'],
+      route: ['app/api/listings/route.ts'],
+      dto: ['lib/idx/db-to-public-dto.ts'],
+    },
+    surface_patterns: {
+      mapper: 'InternetEntireListingDisplayYN|idx_display_yn',
+      route: 'idx_display_yn|InternetEntireListingDisplay',
+      dto: 'InternetEntireListingDisplayYN|isAddressDisplayable',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Gate 3: IDX display master toggle. Cascades to address + AVM + comments.',
+  },
+  'GATE-4': {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['gate'],
+    evidence: {
+      gate: ['lib/compliance/rls-enforcement.ts'],
+    },
+    surface_patterns: {
+      gate: 'SyndicateTo|syndicate',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Gate 4: Syndication opt-in is per-portal (not boolean). Validate SyndicateTo array.',
+  },
+  'GATE-5': {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['gate', 'route', 'frontend_display'],
+    evidence: {
+      gate: ['lib/compliance/rls-enforcement.ts'],
+      route: ['app/api/portal/showings/route.ts'],
+      frontend_display: ['app/components/SearchListingCard.tsx'],
+    },
+    surface_patterns: {
+      gate: 'ComingSoon|coming.soon',
+      route: 'ComingSoon|coming.soon|StandardStatus',
+      frontend_display: 'Coming\\s+Soon|comingSoon',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Gate 5: Coming Soon = badge + no showings + no open houses.',
+  },
+  'GATE-6': {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['cron', 'mapper'],
+    evidence: {
+      cron: ['app/api/cron/data-retention/route.ts'],
+      mapper: ['lib/idx/trestle-mapper.ts'],
+    },
+    surface_patterns: {
+      cron: 'idx_display_yn.*false|Closed.*24',
+      mapper: 'CloseDate|isClosedPast24Hours',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Gate 6: Closed >24h must be removed. Cron + mapper both enforce.',
+  },
+
+  // ─── Batch 3 — H-series public display rules ───────────────────────────
+  H1: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['frontend_display'],
+    evidence: {
+      frontend_display: [
+        'app/listing/[id]/page.tsx',
+        'app/components/SearchListingCard.tsx',
+        'app/components/PropertySearch.tsx',
+      ],
+    },
+    surface_patterns: {
+      frontend_display: 'Listing\\s+Courtesy\\s+of|REBNY|listing_courtesy',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Attribution on every listing display. UCBA Art. III §2(C).',
+  },
+  H3: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['mapper', 'dto', 'route'],
+    evidence: {
+      mapper: ['lib/idx/trestle-mapper.ts'],
+      dto: ['lib/compliance/dto.ts'],
+      route: ['app/api/listings/route.ts'],
+    },
+    surface_patterns: {
+      mapper: 'OwnerOptOut|owner_opt_out',
+      dto: 'OwnerOptOut|opt.out',
+      route: 'OwnerOptOut|owner_opt_out',
+    },
+    expected_aggregate: 'PASS',
+  },
+  H4: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['mapper', 'dto', 'route'],
+    evidence: {
+      mapper: ['lib/idx/trestle-mapper.ts'],
+      dto: ['lib/compliance/dto.ts'],
+      route: ['app/api/listings/route.ts'],
+    },
+    surface_patterns: {
+      mapper: 'ParticipantOnly|participant_only',
+      dto: 'ParticipantOnly|participant_only',
+      route: 'ParticipantOnly|participant_only',
+    },
+    expected_aggregate: 'PASS',
+  },
+  H7: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['frontend_display'],
+    evidence: {
+      frontend_display: [
+        'app/components/SearchListingCard.tsx',
+        'app/listing/[id]/page.tsx',
+        'app/components/neighborhoods/LiveListingsWidget.tsx',
+      ],
+    },
+    surface_patterns: {
+      frontend_display: 'Coming\\s+Soon|comingSoon',
+    },
+    expected_aggregate: 'PASS',
+  },
+  H10: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['dto'],
+    evidence: {
+      dto: ['lib/compliance/dto.ts', 'lib/idx/trestle-mapper.ts'],
+    },
+    surface_patterns: {
+      dto: 'PrivateRemarks|ShowingInstructions|stripPrivateFields',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'PrivateRemarks, ShowingInstructions, agent direct contact must NEVER reach public/portal DTOs.',
+  },
+  H11: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['dto'],
+    evidence: {
+      dto: ['lib/compliance/dto.ts'],
+    },
+    surface_patterns: {
+      dto: 'BuyerAgencyCompensation|SubAgencyCompensation|stripCompensation',
+    },
+    expected_aggregate: 'PASS',
+  },
+  F6: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['frontend_display'],
+    evidence: {
+      frontend_display: [
+        'app/listing/[id]/page.tsx',
+        'app/components/SearchListingCard.tsx',
+      ],
+    },
+    surface_patterns: {
+      frontend_display: 'Listing\\s+Courtesy\\s+of|REBNY|listing_courtesy',
+    },
+    expected_aggregate: 'PASS',
+  },
+
+  // ─── Batch 4 — D-series Coming Soon rules ──────────────────────────────
+  D1: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['gate'],
+    evidence: {
+      gate: ['lib/compliance/rls-enforcement.ts'],
+    },
+    surface_patterns: {
+      gate: 'PropertyType.*[Ss]ale|sale.*only|coming.*soon.*sale',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Coming Soon is sales-only — rentals never use it (UCBA Art. I §16).',
+  },
+  D7: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['frontend_display'],
+    evidence: {
+      frontend_display: [
+        'app/components/SearchListingCard.tsx',
+        'app/listing/[id]/page.tsx',
+      ],
+    },
+    surface_patterns: {
+      frontend_display: 'Coming\\s+Soon|comingSoon',
+    },
+    expected_aggregate: 'PASS',
+  },
+  D9: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['route'],
+    evidence: {
+      route: ['app/api/crm/listings/route.ts', 'app/api/crm/listings/[id]/status/route.ts'],
+    },
+    surface_patterns: {
+      route: 'ComingSoon|coming.soon',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Coming Soon is one-time-use per address (60-day reset window).',
+  },
+
+  // ─── Batch 5 — Protected period series ────────────────────────────────
+  A6: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['schema', 'route', 'ui'],
+    evidence: {
+      schema: ['prisma/schema.prisma'],
+      route: ['app/api/crm/protected-periods/route.ts'],
+      ui: ['public/crm/js/crm/protected-periods.js'],
+    },
+    surface_patterns: {
+      schema: 'model ProtectedPeriod|protected_period',
+      route: 'ProtectedPeriod|protected_period',
+      ui: 'protected.*period|ProtectedPeriod',
+    },
+    expected_aggregate: 'PASS',
+  },
+  A7: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['schema', 'route'],
+    evidence: {
+      schema: ['prisma/schema.prisma'],
+      route: ['app/api/crm/protected-periods/[id]/convert/route.ts'],
+    },
+    surface_patterns: {
+      schema: 'model ProtectedPeriod|protected_period',
+      route: 'protected.*period|90.*day',
+    },
+    expected_aggregate: 'PASS',
+  },
+  A8: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['route', 'ui'],
+    evidence: {
+      route: ['app/api/crm/protected-periods/[id]/route.ts'],
+      ui: ['public/crm/js/crm/protected-periods.js'],
+    },
+    surface_patterns: {
+      route: 'ProtectedPeriod|protected_period',
+      ui: 'protected.*period|notify',
+    },
+    expected_aggregate: 'PASS',
+  },
+
+  // ─── Batch 6 — Other high-value PASS rules ─────────────────────────────
+  C1: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['gate', 'data'],
+    evidence: {
+      gate: ['lib/compliance/rls-enforcement.ts'],
+      data: ['lib/compliance/rebny-field-tables.ts'],
+    },
+    surface_patterns: {
+      gate: 'ListingAgreement|exclusive',
+      data: 'ListingAgreement|enumValues',
+    },
+    expected_aggregate: 'PASS',
+  },
+  C12: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['route'],
+    evidence: {
+      route: ['app/api/crm/listings/[id]/status/route.ts'],
+    },
+    surface_patterns: {
+      route: 'ClosePrice|close.price.*24',
+    },
+    expected_aggregate: 'PASS',
+  },
+  G1: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['dto', 'gate'],
+    evidence: {
+      dto: ['lib/compliance/dto.ts'],
+      gate: ['lib/compliance/rls-enforcement.ts'],
+    },
+    surface_patterns: {
+      dto: 'BuyerAgencyCompensation|SubAgencyCompensation',
+      gate: 'compensation|COMPENSATION',
+    },
+    expected_aggregate: 'PASS',
+  },
+  G3: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['frontend_display'],
+    evidence: {
+      frontend_display: ['app/components/IDXDisclaimer.tsx'],
+    },
+    surface_patterns: {
+      frontend_display: 'negotiable|fully.negotiable|not.set.by.law',
+    },
+    expected_aggregate: 'PASS',
+  },
+  F1: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['middleware', 'robots'],
+    evidence: {
+      middleware: ['middleware.ts'],
+      robots: ['app/robots.ts'],
+    },
+    surface_patterns: {
+      middleware: 'middleware|allowlist|disallow',
+      robots: 'noindex|disallow|robots',
+    },
+    expected_aggregate: 'PASS',
+  },
+  F12: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['gate', 'data'],
+    evidence: {
+      gate: ['lib/compliance/rls-enforcement.ts'],
+      data: ['lib/compliance/rebny-field-tables.ts'],
+    },
+    surface_patterns: {
+      gate: 'validate|REQUIRED_RLS_FIELDS',
+      data: 'REBNY_FIELD_TABLES|enumValues',
+    },
+    expected_aggregate: 'PASS',
+  },
 };
 
 const checklist = JSON.parse(fs.readFileSync(PATH_CHECKLIST, 'utf-8'));
