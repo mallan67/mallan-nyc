@@ -1,0 +1,144 @@
+name: Release Truth
+
+# Runs the unified release-truth aggregator (validator framework §17) on
+# every push to main. Cross-references UCBA + workflow + migration + deploy
+# layers and posts the final verdict (PROD_PROVEN / CODE_VALID / PARTIAL /
+# DEPLOY_INVALID / UNVERIFIED / CLAIM_OVERSTATED / REGRESSION) as a commit
+# status, so the next reviewer can see at a glance whether the merged
+# state is actually proven.
+#
+# Also runs on PR review-ready as a non-blocking advisory (the PR's existing
+# checks remain authoritative for merge gating). Manual dispatch supported
+# for retrospective audits.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [ready_for_review]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA to audit (defaults to current HEAD)'
+        required: false
+        type: string
+      pr:
+        description: 'PR number to audit (alternative to sha)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  statuses: write
+  pull-requests: write
+
+jobs:
+  release-truth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DATABASE_URL: postgresql://stub:stub@localhost:5432/stub?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://stub:stub@localhost:5432/stub?schema=public
+      SESSION_SECRET: ci-stub-session-secret-not-real
+      NEXT_TELEMETRY_DISABLED: '1'
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Resolve target
+        id: target
+        run: |
+          if [ -n "${{ inputs.pr }}" ]; then
+            echo "args=--pr ${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
+            echo "label=PR #${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ inputs.sha }}" ]; then
+            echo "args=--sha ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
+            echo "label=SHA ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=--sha ${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "label=SHA ${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run release-truth aggregator
+        id: aggregator
+        run: |
+          set +e
+          # Capture verdict + full JSON for the status post + summary
+          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} --json > release-truth.json 2>/dev/null
+          rc=$?
+          verdict=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).verdict")
+          reasons=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).reasons.join(' | ')")
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+          echo "reasons=$reasons" >> "$GITHUB_OUTPUT"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          # Print human-readable to log
+          node scripts/release-truth-check.js ${{ steps.target.outputs.args }}
+          exit 0  # Don't fail the workflow itself; the commit status carries the verdict
+
+      - name: Post commit status
+        if: github.event_name == 'push'
+        run: |
+          state="success"
+          case "${{ steps.aggregator.outputs.verdict }}" in
+            PROD_PROVEN|CODE_VALID) state="success" ;;
+            PARTIAL|UNVERIFIED) state="pending" ;;
+            DEPLOY_INVALID|REGRESSION|CLAIM_OVERSTATED) state="failure" ;;
+          esac
+          gh api -X POST "repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -f state="$state" \
+            -f context="release-truth" \
+            -f description="${{ steps.aggregator.outputs.verdict }}: $(echo '${{ steps.aggregator.outputs.reasons }}' | head -c 130)" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          cat > /tmp/comment.md <<EOF
+          ## Release Truth Audit — ${{ steps.target.outputs.label }}
+
+          **Verdict:** \`${{ steps.aggregator.outputs.verdict }}\`
+
+          **Reasons:**
+          ${{ steps.aggregator.outputs.reasons }}
+
+          <details>
+          <summary>Layer-by-layer JSON</summary>
+
+          \`\`\`json
+          $(cat release-truth.json | jq '.layers')
+          \`\`\`
+
+          </details>
+
+          *This is an advisory check — the PR's existing required checks remain authoritative for merge gating.*
+          EOF
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/comment.md
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Release Truth — ${{ steps.target.outputs.label }}"
+            echo ""
+            echo "**Verdict:** \`${{ steps.aggregator.outputs.verdict }}\`"
+            echo ""
+            echo "**Reasons:** ${{ steps.aggregator.outputs.reasons }}"
+            echo ""
+            echo '```json'
+            cat release-truth.json | jq '.layers' || echo '{}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
