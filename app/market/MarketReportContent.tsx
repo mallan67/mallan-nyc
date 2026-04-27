@@ -370,23 +370,28 @@ export default function MarketReportContent() {
         </div>
       )}
 
-      {/* ── REBNY Disclaimer (REQUIRED) ── */}
+      {/* ── REBNY Disclaimer (REQUIRED) ──
+          UCBA Art. III §2(C) + Art. VIII §4: font not smaller than median.
+          Body text on this page is text-base (16px); disclaimer at text-sm (14px)
+          satisfies "not smaller than median" both for the live-data and the
+          fallback path. Brokerage line at text-sm preserves NY DOS 175.25
+          identification at the same size. */}
       <footer className="border-t border-gray-200 pt-6 mt-10 sm:mt-12">
         {data && data._compliance ? (
           <>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <p className="text-sm text-gray-500 leading-relaxed">
               {data._compliance.disclaimer}
             </p>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-sm text-gray-500 mt-2">
               {data._compliance.attribution}
             </p>
           </>
         ) : (
-          <p className="text-xs text-gray-400 leading-relaxed">
+          <p className="text-sm text-gray-500 leading-relaxed">
             Based on information from the REBNY Listing Service for the period currently available. The data relating to real estate on this web site comes in part from the REBNY RLS. Data deemed reliable but not guaranteed.
           </p>
         )}
-        <p className="text-xs text-gray-300 mt-2">
+        <p className="text-sm text-gray-500 mt-2">
           Mallan Real Estate Inc. | Licensed Real Estate Broker | #10991205323
         </p>
       </footer>

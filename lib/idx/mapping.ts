@@ -352,14 +352,27 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     publicRemarks: normalized.PublicRemarks ? String(normalized.PublicRemarks) : undefined,
     // Distribution gate flags — fail-CLOSED coercion via affirmPermission.
     // Previous `!== false` pattern mis-classified missing flags as displayable.
-    // Note: IDXEntireListingDisplayYN and ParticipantOnlyYN are legacy /
-    // non-existent fields per the 2026-04-19 live-metadata audit. Kept
-    // here for historical compatibility with callers; new code should use
-    // evaluateDisplayGate() from lib/compliance/gates.ts instead.
-    idxEntireListingDisplayYN: affirmPermission(normalized.IDXEntireListingDisplayYN),
+    //
+    // Legacy DTO field migration (2026-04-27):
+    //   - idxEntireListingDisplayYN: the source field IDXEntireListingDisplayYN
+    //     does NOT exist on live Trestle (verified 2026-04-19). Without a
+    //     fallback, this DTO field would always be false for every listing,
+    //     silently breaking any consumer still gating on it. Mirror the
+    //     canonical InternetEntireListingDisplayYN value so legacy consumers
+    //     see correct, accurate display permission.
+    //   - participantOnlyYN: ParticipantOnlyYN was replaced by Permission='Private'
+    //     on the live $metadata. Mirror that mapping so legacy consumers
+    //     reading dto.participantOnlyYN see the right value.
+    //
+    // New code should use evaluateDisplayGate() from lib/compliance/gates.ts.
+    idxEntireListingDisplayYN: affirmPermission(
+      normalized.IDXEntireListingDisplayYN ?? normalized.InternetEntireListingDisplayYN
+    ),
     internetEntireListingDisplayYN: affirmPermission(normalized.InternetEntireListingDisplayYN),
     internetAddressDisplayYN: affirmPermission(normalized.InternetAddressDisplayYN),
-    participantOnlyYN: normalized.ParticipantOnlyYN === true,
+    participantOnlyYN:
+      normalized.ParticipantOnlyYN === true ||
+      normalized.Permission === 'Private',
     // Building & property details
     buildingName: normalized.BuildingName ? String(normalized.BuildingName) : undefined,
     storiesTotal: normalized.StoriesTotal != null ? Number(normalized.StoriesTotal) : undefined,

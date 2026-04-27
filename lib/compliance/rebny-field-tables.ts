@@ -280,11 +280,21 @@ export const REBNY_FIELD_TABLES = {
     permission: 'Permissions',
     listingPrivacy: 'Permissions',
     addressDisplayYN: 'InternetAddressDisplayYN',
-    // idxDisplayYN was previously aliased to IDXEntireListingDisplayYN, which
-    // does NOT exist on live Trestle (verified 2026-04-19). Redirect to the
-    // canonical Internet-prefixed gate so legacy form payloads still normalize.
+    // idxDisplayYN / idxEntireListingDisplayYN / IDXEntireListingDisplayYN
+    // were previously aliased to IDXEntireListingDisplayYN, which does NOT
+    // exist on live Trestle (verified 2026-04-19). Redirect ALL three forms
+    // (short, camelCase, PascalCase) to the canonical Internet-prefixed gate
+    // so any legacy form payload still normalizes correctly.
     idxDisplayYN: 'InternetEntireListingDisplayYN',
+    idxEntireListingDisplayYN: 'InternetEntireListingDisplayYN',
+    IDXEntireListingDisplayYN: 'InternetEntireListingDisplayYN',
     internetDisplayYN: 'InternetEntireListingDisplayYN',
+    // participantOnlyYN no longer exists on live Trestle — it's encoded via
+    // Permission='Private'. Form payloads still ship participantOnlyYN as a
+    // boolean from legacy checkboxes; the alias keeps the routing intact, but
+    // downstream gate code reads `Permission` directly.
+    participantOnlyYN: 'Permission',
+    ParticipantOnlyYN: 'Permission',
 
     // ── Content aliases ──
     description: 'PublicRemarks',

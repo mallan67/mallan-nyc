@@ -15,10 +15,29 @@ interface ActiveUnit {
   unit: string;
   propertyType: string;
   office: string;
-  /** UCBA Art. I §16(C) — used to show Coming Soon status + first-showing date. */
+  /** Listing status as returned by /api/listings/building. Defaults to "Active"
+      since the endpoint only returns active units, but this lets us label
+      ComingSoon / ActiveUnderContract / Pending correctly when present. */
   status?: string | null;
   comingSoonDate?: string | null;
   activationDate?: string | null;
+}
+
+const STATUS_LABEL_MAP: Record<string, { label: string; color: string }> = {
+  Active: { label: 'Active', color: 'text-blue-600' },
+  ActiveUnderContract: { label: 'In Contract', color: 'text-amber-600' },
+  Pending: { label: 'Pending', color: 'text-amber-600' },
+  Closed: { label: 'Closed', color: 'text-gray-500' },
+  Withdrawn: { label: 'Withdrawn', color: 'text-gray-500' },
+  Canceled: { label: 'Cancelled', color: 'text-gray-500' },
+  Cancelled: { label: 'Cancelled', color: 'text-gray-500' },
+  Expired: { label: 'Expired', color: 'text-gray-500' },
+  Hold: { label: 'On Hold', color: 'text-gray-500' },
+};
+
+function labelForStatus(raw: string | null | undefined): { label: string; color: string } {
+  const status = String(raw || 'Active').replace(/\s+/g, '');
+  return STATUS_LABEL_MAP[status] || { label: status, color: 'text-gray-600' };
 }
 
 interface SaleRecord {
@@ -265,12 +284,16 @@ export default function BuildingUnits({
                           <span className="text-[13px] text-brand-dark">{formatPrice(unit.listPrice)}</span>
                           <span className="text-[13px] text-brand-dark/70">{unit.beds}</span>
                           <span className="text-[13px] text-brand-dark/70">{unit.baths}{unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''}</span>
-                          {/* REBNY UCBA Art. I \u00a716(C): Coming Soon must be labeled with badge text */}
+                          {/* Status cell \u2014 UCBA Art. I \u00a716(C) Coming Soon takes precedence
+                              (full required wording renders below the table). For all other
+                              statuses, surface the actual status label so the cell never
+                              mislabels Pending / Closed / Withdrawn as "Active". */}
                           {isCS ? (
                             <span className="text-[13px] text-blue-700 font-semibold">Coming Soon</span>
-                          ) : (
-                            <span className="text-[13px] text-blue-600">Active</span>
-                          )}
+                          ) : (() => {
+                            const { label, color } = labelForStatus(unit.status);
+                            return <span className={`text-[13px] ${color}`}>{label}</span>;
+                          })()}
                         </Link>
                       );
                     })}
