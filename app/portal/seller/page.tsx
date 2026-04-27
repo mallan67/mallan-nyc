@@ -167,6 +167,14 @@ export default function SellerPortalPage() {
   const [enabledWorkspaces, setEnabledWorkspaces] = useState<string[]>([]);
 
   // Data state
+  // Async-fetched data — kept as useState (not useReducer) because TypeScript's
+  // empty-array literal inference inside useReducer's initial-state slot
+  // collapses to `never[]`, which breaks `.find()` / `.filter()` callers.
+  // The React Compiler set-state-in-effect warnings on the data-fetch
+  // useEffects below (line 388 + 397) are accepted: the canonical
+  // "fetch on mount + setState" pattern is not a bug, and the documented
+  // React 19 alternative (Suspense + use()) is an architectural rewrite
+  // out of scope for this page.
   const [listings, setListings] = useState<PortalListing[]>([]);
   const [showings, setShowings] = useState<PortalShowing[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -179,7 +187,8 @@ export default function SellerPortalPage() {
   const [familyLoading, setFamilyLoading] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(false);
 
-  // Seller dashboard state
+  // Seller dashboard state — see note above explaining why this stays as
+  // useState despite the React Compiler set-state-in-effect warnings.
   const [sellerFomo, setSellerFomo] = useState<SellerFomo | null>(null);
   const [sellerDemand, setSellerDemand] = useState<SellerDemand | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);

@@ -320,7 +320,7 @@ export default function TenantPortalPage() {
       setLoading(false);
     };
     load();
-  }, [ready, tab, loadListings, loadShowings, loadPreferences, loadFamily]);
+  }, [ready, tab, loadListings, loadLease, loadShowings, loadPreferences, loadFamily]);
 
   /* ── Reaction handler ──────────────────────────────────────────── */
   const handleReaction = useCallback(async (listingId: string, action: string) => {
@@ -817,10 +817,12 @@ function ListingCard({
       {/* Expanded section: photos, comments */}
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-4 space-y-4">
-          {/* Photos */}
+          {/* Photos — plain <img> (Trestle proxy URLs aren't whitelisted for
+              next/image and tenant portal is gated behind portal auth). */}
           {listing.photos && listing.photos.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
               {listing.photos.slice(0, 6).map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={i}
                   src={url}
