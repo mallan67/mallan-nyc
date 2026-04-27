@@ -147,6 +147,151 @@
       "runtime_test_routes_required": true,
       "runtime_test_target": "tests/runtime/auth-ethics-gate.test.ts (Phase 3)",
       "notes": "All static surfaces in place. Operational action (backfill execution) declared in operational-actions.json — release validator must check postcondition."
+    },
+
+    {
+      "name": "listing_display",
+      "title": "Public IDX Listing Display — REBNY UCBA Art. III §2 (attribution + gates)",
+      "rules": ["F-IDX-DISPLAY"],
+      "required_surfaces": ["mapper", "gate", "dto", "frontend_display", "backend_route"],
+      "evidence": {
+        "mapper": ["lib/idx/trestle-mapper.ts"],
+        "gate": ["lib/compliance/rls-enforcement.ts", "lib/idx/trestle-mapper.ts"],
+        "dto": ["lib/compliance/dto.ts", "lib/idx/db-to-public-dto.ts"],
+        "frontend_display": ["app/listing/[id]/page.tsx", "app/components/SearchListingCard.tsx"],
+        "backend_route": ["app/api/listings/route.ts", "app/api/listings/[id]/route.ts"]
+      },
+      "surface_patterns": {
+        "mapper": "checkDistributionGates|InternetEntireListingDisplayYN",
+        "gate": "checkDistributionGates|InternetAddressDisplay|OwnerOptOut",
+        "dto": "toPublicDTO|sanitizeForVOW|stripPrivateFields",
+        "frontend_display": "Listing\\s+Courtesy\\s+of|REBNY\\s+RLS|Mallan\\s+Real\\s+Estate",
+        "backend_route": "checkDistributionGates|toPublicDTO"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "notes": "Core REBNY IDX display path. All 6 distribution gates must be enforced before public render."
+    },
+
+    {
+      "name": "search_query",
+      "title": "Public Search — IDX-eligible inventory only",
+      "rules": ["F-SEARCH"],
+      "required_surfaces": ["backend_route", "frontend_display", "gate"],
+      "evidence": {
+        "backend_route": ["app/api/idx/search/route.ts", "app/api/listings/route.ts"],
+        "frontend_display": ["app/search/page.tsx", "app/components/SearchListingCard.tsx"],
+        "gate": ["lib/compliance/dto.ts", "lib/compliance/rls-enforcement.ts"]
+      },
+      "surface_patterns": {
+        "backend_route": "checkDistributionGates|toPublicDTO|InternetEntireListingDisplay",
+        "frontend_display": "FareActFeeBadge|SearchListingCard",
+        "gate": "OwnerOptOut|ParticipantOnly"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "notes": "Public search must respect all 6 distribution gates and never expose Owner Opt-Out or Participant Only listings."
+    },
+
+    {
+      "name": "mfa_broker_login",
+      "title": "Broker MFA — UCBA Art. III §6 + NY SHIELD Act session security",
+      "rules": ["F-MFA"],
+      "required_surfaces": ["schema", "helper", "backend_route", "mfa_verify_route"],
+      "evidence": {
+        "schema": ["prisma/schema.prisma"],
+        "helper": ["lib/auth/mfa.ts"],
+        "backend_route": ["app/api/auth/login/route.ts"],
+        "mfa_verify_route": ["app/api/auth/mfa/verify/route.ts"]
+      },
+      "surface_patterns": {
+        "schema": "model MfaSession",
+        "helper": "generateOtpCode|sendOtpEmail|sendOtpSms",
+        "backend_route": "isBroker|mfa_required|MfaSession",
+        "mfa_verify_route": "code_hash|attempts|MFA_MAX_ATTEMPTS"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "runtime_test_target": "tests/runtime/auth-login-flow.test.ts",
+      "notes": "Broker login is always MFA-gated. SMS via Twilio is optional; email OTP is mandatory."
+    },
+
+    {
+      "name": "client_portal_access",
+      "title": "Client Portal Access — buyer/seller/landlord/tenant role-based",
+      "rules": ["F-PORTAL"],
+      "required_surfaces": ["schema", "backend_route", "dto", "auth_gate"],
+      "evidence": {
+        "schema": ["prisma/schema.prisma"],
+        "backend_route": ["app/api/portal/listings/[id]/react/route.ts", "app/api/auth/login/route.ts"],
+        "dto": ["lib/compliance/dto.ts"],
+        "auth_gate": ["lib/auth/middleware.ts"]
+      },
+      "surface_patterns": {
+        "schema": "portal_role|model Lead",
+        "backend_route": "portal_role|userType.*lead",
+        "dto": "sanitizeForPortal|maskAgentPii",
+        "auth_gate": "requirePortalRole|portal_role"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "notes": "Each client portal is role-gated; agent PII must be masked from buyer/tenant view."
+    },
+
+    {
+      "name": "idx_sync",
+      "title": "IDX Trestle Delta Sync (cron, every 12 min)",
+      "rules": ["F-IDX-SYNC"],
+      "required_surfaces": ["cron", "helper", "schema"],
+      "evidence": {
+        "cron": ["app/api/cron/idx-sync/route.ts"],
+        "helper": ["lib/idx/sync.ts", "lib/idx/fetch.ts", "lib/idx/trestle-mapper.ts"],
+        "schema": ["prisma/schema.prisma"]
+      },
+      "surface_patterns": {
+        "cron": "syncListings|idx-sync",
+        "helper": "syncListings|fetchListings|mapTrestleToPrisma|stripPrivateFields",
+        "schema": "model SyncState|model Listing"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "notes": "Trestle is the source of truth. Sync runs every 12 minutes via vercel.json cron. Watermark in SyncState model prevents duplicate processing."
+    },
+
+    {
+      "name": "data_retention",
+      "title": "Data Retention — REBNY §2.05 (closed listings >24h removed) + NY SHIELD Act",
+      "rules": ["F-RETENTION"],
+      "required_surfaces": ["cron", "schema"],
+      "evidence": {
+        "cron": ["app/api/cron/data-retention/route.ts"],
+        "schema": ["prisma/schema.prisma"]
+      },
+      "surface_patterns": {
+        "cron": "idx_display_yn.*false|Closed.*24|status_changed_at",
+        "schema": "status_changed_at"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "notes": "Daily 3am cron flips idx_display_yn=false for terminal listings older than 24h. UCBA-mandated within-24hr removal."
+    },
+
+    {
+      "name": "fair_housing_scan",
+      "title": "Fair Housing — Federal FHA + NY HRL + NYC Title 8 hard-block enforcement",
+      "rules": ["C18", "F-FAIR-HOUSING"],
+      "required_surfaces": ["gate", "data"],
+      "evidence": {
+        "gate": ["lib/compliance/rls-enforcement.ts"],
+        "data": ["data/compliance/prohibited-terms.json"]
+      },
+      "surface_patterns": {
+        "gate": "FAIR_HOUSING_HARD_BLOCKS|prohibited.*terms",
+        "data": "demographics|familial_status|religion|disability"
+      },
+      "release_blocking": true,
+      "ci_policy": "must_pass",
+      "notes": "Hard-block scanner runs on every listing description + remarks. Penalty = $250+ fine and RLS termination on second offense."
     }
   ]
 }

@@ -1,0 +1,113 @@
+name: Live Site Smoke (cron)
+
+# Hourly cron that runs validate-live-site.js against production. Catches:
+#   - Stale watermark / sync freshness drift
+#   - Search page stuck loading shell
+#   - REBNY attribution dropping between deploys
+#   - Sitemap or homepage HTTP errors
+#   - Edge-protection (Cloudflare) misconfiguration
+#
+# When a check FAILs, the workflow opens an issue (creating one per
+# distinct failure pattern, deduping when an issue is already open).
+# Manual dispatch supported for ad-hoc smoke runs.
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # every hour at :00 UTC
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Override base URL (default https://mallan.nyc)'
+        required: false
+        default: 'https://mallan.nyc'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  live-site-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run live-site validator
+        id: validator
+        run: |
+          set +e
+          base="${{ inputs.base_url || 'https://mallan.nyc' }}"
+          node scripts/validate-live-site.js --base-url "$base" --json > live-site.json 2>&1
+          rc=$?
+          fails=$(node -p "JSON.parse(require('fs').readFileSync('live-site.json','utf-8')).summary.fail")
+          blocked=$(node -p "JSON.parse(require('fs').readFileSync('live-site.json','utf-8')).summary.blocked || 0")
+          unverified=$(node -p "JSON.parse(require('fs').readFileSync('live-site.json','utf-8')).summary.unverified || 0")
+          echo "fails=$fails" >> "$GITHUB_OUTPUT"
+          echo "blocked=$blocked" >> "$GITHUB_OUTPUT"
+          echo "unverified=$unverified" >> "$GITHUB_OUTPUT"
+          # Human-readable echo
+          node scripts/validate-live-site.js --base-url "$base"
+          exit 0
+
+      - name: Open or update issue on FAIL
+        if: steps.validator.outputs.fails != '0'
+        run: |
+          # Build a compact failure summary
+          summary=$(node -e "
+            const r = JSON.parse(require('fs').readFileSync('live-site.json','utf-8'));
+            const fails = r.checks.filter(c => c.verdict === 'FAIL');
+            console.log(fails.map(f => '- **' + f.check + '**: ' + f.reason).join('\n'));
+          ")
+          title="Live Site Smoke FAIL ($(date -u +%Y-%m-%dT%HZ))"
+          body=$(cat <<EOF
+          The hourly live-site smoke check detected **${{ steps.validator.outputs.fails }} FAIL** check(s) on production.
+
+          ### Failures
+          $summary
+
+          ### Run
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### Auto-recovery
+          This issue will auto-close on the next clean run. If it persists across multiple runs, investigate manually.
+          EOF
+          )
+          # Find any open issue from this workflow
+          existing=$(gh issue list --label live-site-smoke --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh label create live-site-smoke --color B60205 --description "Auto-opened by live-site cron" 2>/dev/null || true
+            gh issue create --title "$title" --body "$body" --label live-site-smoke
+          fi
+
+      - name: Auto-close on clean run
+        if: steps.validator.outputs.fails == '0'
+        run: |
+          # Close any open auto-issues since we're back to clean
+          for n in $(gh issue list --label live-site-smoke --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Live-site smoke is clean again. Closing automatically. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          done
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Live Site Smoke"
+            echo ""
+            echo "Target: \`${{ inputs.base_url || 'https://mallan.nyc' }}\`"
+            echo ""
+            echo "- FAIL: ${{ steps.validator.outputs.fails }}"
+            echo "- BLOCKED: ${{ steps.validator.outputs.blocked }}"
+            echo "- UNVERIFIED: ${{ steps.validator.outputs.unverified }}"
+          } >> "$GITHUB_STEP_SUMMARY"
