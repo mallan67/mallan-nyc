@@ -183,10 +183,17 @@ export async function GET(request: NextRequest) {
     }`;
 
     // 1. Active listings in the building (other units for sale/rent)
+    // $select fields verified against live Trestle $metadata (2026-04-19):
+    //   - IDXEntireListingDisplayYN, OwnerOptOut, ParticipantOnlyYN do NOT exist;
+    //     Owner Opt-Out / Participant Only are encoded via the `Permission` enum
+    //     and read by checkDistributionGates(). InternetEntireListingDisplayYN
+    //     is the canonical master display gate.
+    const distributionFields =
+      'Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
     const activeFilter = `${addressFilter} and MlsStatus eq 'Active'`;
     const activeParams = new URLSearchParams({
       $filter: activeFilter,
-      $select: 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN',
+      $select: `ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName,${distributionFields}`,
       $orderby: 'ListPrice desc',
       $top: '20',
     });
@@ -196,7 +203,7 @@ export async function GET(request: NextRequest) {
     const closedFilter = `${addressFilter} and (MlsStatus eq 'Closed' or StandardStatus eq 'Closed')`;
     const closedParams = new URLSearchParams({
       $filter: closedFilter,
-      $select: 'ListingId,ListingKey,SourceSystemKey,ClosePrice,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,UnitNumber,CloseDate,PropertySubType,PropertyType,ListOfficeName,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN',
+      $select: `ListingId,ListingKey,SourceSystemKey,ClosePrice,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,UnitNumber,CloseDate,PropertySubType,PropertyType,ListOfficeName,${distributionFields}`,
       $orderby: 'CloseDate desc',
       $top: '20',
     });

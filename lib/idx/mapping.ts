@@ -137,6 +137,10 @@ export const RESO_FIELDS = {
   PrivateRemarks: 'PrivateRemarks',
 
   // Display flags
+  // IDXEntireListingDisplayYN and ParticipantOnlyYN are legacy / non-existent
+  // on live Trestle (verified 2026-04-19); kept here as legacy guard for
+  // historical compatibility with DTO callers. New code should use
+  // InternetEntireListingDisplayYN + Permission enum.
   IDXEntireListingDisplayYN: 'IDXEntireListingDisplayYN',
   InternetEntireListingDisplayYN: 'InternetEntireListingDisplayYN',
   InternetAddressDisplayYN: 'InternetAddressDisplayYN',
@@ -225,6 +229,11 @@ export const FIELD_MAP: Record<string, string> = {
   [RESO_FIELDS.VirtualTourURLBranded]: 'virtualTourURLBranded',
   [RESO_FIELDS.VirtualTourURLUnbranded]: 'virtualTourURLUnbranded',
   [RESO_FIELDS.PublicRemarks]: 'publicRemarks',
+  // idxEntireListingDisplayYN and participantOnlyYN are legacy DTO field names
+  // — IDXEntireListingDisplayYN and ParticipantOnlyYN do NOT exist on live
+  // Trestle (verified 2026-04-19). Kept here as legacy guard so existing
+  // consumers reading dto.idxEntireListingDisplayYN don't break; new code
+  // should consult dto.internetEntireListingDisplayYN + Permission instead.
   [RESO_FIELDS.IDXEntireListingDisplayYN]: 'idxEntireListingDisplayYN',
   [RESO_FIELDS.InternetEntireListingDisplayYN]: 'internetEntireListingDisplayYN',
   [RESO_FIELDS.InternetAddressDisplayYN]: 'internetAddressDisplayYN',

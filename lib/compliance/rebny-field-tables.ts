@@ -80,13 +80,14 @@ export const REBNY_FIELD_TABLES = {
       'BedroomsTotal',
       'RoomsTotal',
 
-      // Distribution gates
+      // Distribution gates — IDXEntireListingDisplayYN and SyndicateYN do NOT
+      // exist on live Trestle (verified 2026-04-19). Use Internet-prefixed gates
+      // and SyndicateTo (multi-select).
       'InternetEntireListingDisplayYN',
       'InternetAddressDisplayYN',
       'InternetAutomatedValuationDisplayYN',
       'InternetConsumerCommentYN',
-      'IDXEntireListingDisplayYN',
-      'SyndicateYN',
+      'SyndicateTo',
 
       // Content / Dates
       'PublicRemarks',
@@ -117,8 +118,9 @@ export const REBNY_FIELD_TABLES = {
       ListingContractDate: { maxYearsInFuture: 1 },
       StateOrProvince: { mustEqual: 'NY' },
       City: { mustEqual: 'NewYorkCity' },
-      IDXEntireListingDisplayYN: { defaultTo: true, note: 'LMPs required to default True' },
-      SyndicateYN: { defaultTo: true, note: 'LMPs required to default True' },
+      InternetEntireListingDisplayYN: { defaultTo: true, note: 'LMPs required to default True' },
+      // SyndicateYN was removed (does not exist on live Trestle 2026-04-19); use SyndicateTo (multi-select).
+      SyndicateTo: { defaultTo: 'AllOptedIn', note: 'LMPs default to opt-in to all approved vendors' },
       NewDevelopmentYN: { rejectWhen: { MlsStatus: 'ComingSoon', value: true }, note: 'Cannot be true on Coming Soon' },
       CityRegion: {
         mustMatchCounty: {
@@ -278,7 +280,10 @@ export const REBNY_FIELD_TABLES = {
     permission: 'Permissions',
     listingPrivacy: 'Permissions',
     addressDisplayYN: 'InternetAddressDisplayYN',
-    idxDisplayYN: 'IDXEntireListingDisplayYN',
+    // idxDisplayYN was previously aliased to IDXEntireListingDisplayYN, which
+    // does NOT exist on live Trestle (verified 2026-04-19). Redirect to the
+    // canonical Internet-prefixed gate so legacy form payloads still normalize.
+    idxDisplayYN: 'InternetEntireListingDisplayYN',
     internetDisplayYN: 'InternetEntireListingDisplayYN',
 
     // ── Content aliases ──
@@ -846,12 +851,10 @@ export const REBNY_FIELD_TABLES = {
     },
 
     // ── MoveInCosts follow-up ──
-    {
-      code: 'MOVEIN-001',
-      description: 'MoveInCostsAmountTotal required if any MoveInCosts value is filled',
-      appliesWhen: { MoveInCosts: { exists: true } },
-      requireFields: ['MoveInCostsAmountTotal'],
-    },
+    // MOVEIN-001 was removed: MoveInCostsAmountTotal does NOT exist on live Trestle
+    // (verified 2026-04-19; CLAUDE.md notes "MoveInCosts is a picklist only"). The
+    // FARE Act fee transparency surface is captured via CustomProperty.AdditionalFee*
+    // fields and the MoveInCosts picklist itself.
 
     // ── Open parking ──
     {
@@ -995,12 +998,14 @@ export const REBNY_FIELD_TABLES = {
     },
 
     // ── Distribution gates → top-level boolean columns ──
-    IDXEntireListingDisplayYN: { db: 'idx_display_yn', raw: true },
+    // IDXEntireListingDisplayYN and SyndicateYN do NOT exist on live Trestle
+    // (verified 2026-04-19). The legacy `idx_display_yn` DB column is left in
+    // place for backwards compat but is no longer populated by submissions.
     InternetEntireListingDisplayYN: { db: 'internet_entire_listing_display_yn', raw: true },
     InternetAddressDisplayYN: { db: 'internet_address_display_yn', raw: true },
     InternetAutomatedValuationDisplayYN: { raw: true },
     InternetConsumerCommentYN: { raw: true },
-    SyndicateYN: { raw: true },
+    SyndicateTo: { raw: true },
 
     // ── Dates → top-level columns + raw ──
     OriginalEntryTimestamp: { raw: true },
@@ -1123,9 +1128,11 @@ export const REBNY_FIELD_TABLES = {
     hideWhenMlsStatus: ['Closed', 'Expired'] as const,
     suppressFromPublicSearch: ['Hold', 'Incomplete', 'Withdrawn', 'Canceled'] as const,
 
-    // IDX display gates — ALL must be true for listing to appear on IDX
+    // IDX display gates — must be true for listing to appear on IDX. Live Trestle
+    // (verified 2026-04-19) consolidates the master display flag into
+    // InternetEntireListingDisplayYN. The legacy IDXEntireListingDisplayYN does
+    // not exist on Trestle and was removed from this list.
     idxDisplayGates: [
-      'IDXEntireListingDisplayYN',
       'InternetEntireListingDisplayYN',
       // 'ListOfficeIDXParticipationYN' — system-generated from REBNY membership, not in form payload
     ] as const,

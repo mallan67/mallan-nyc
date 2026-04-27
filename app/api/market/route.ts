@@ -151,7 +151,11 @@ export async function GET(request: Request) {
         const isRental = type === 'rent';
         const propertyClass = isRental ? "PropertyType eq 'Residential Lease'" : "PropertyType eq 'Residential'";
         const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
-        const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode,ModificationTimestamp,OnMarketTimestamp,IDXEntireListingDisplayYN,InternetEntireListingDisplayYN,OwnerOptOut,ParticipantOnlyYN';
+        // $select fields verified against live Trestle $metadata (2026-04-19):
+        // IDXEntireListingDisplayYN / OwnerOptOut / ParticipantOnlyYN do NOT
+        // exist on live Trestle — Owner Opt-Out / Participant Only are encoded
+        // via the `Permission` enum and read by checkDistributionGates().
+        const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode,ModificationTimestamp,OnMarketTimestamp,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
 
         // Active listings from Trestle
         const activeParams = new URLSearchParams({
