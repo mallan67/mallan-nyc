@@ -342,79 +342,6 @@ GET /api/idx/search?type=sale&minPrice=1000000
 
 ---
 
-## Immediate Cleanup & MVP Lock (Required)
-
-This repository is being consolidated into **one coherent system**.  
-**We are not restarting the project. We are removing ambiguity.**
-
----
-
-### 1) Repository Cleanup (Clean Slate Without Restarting)
-
-To eliminate breakage, routing conflicts, and accidental imports, the following rules are mandatory.
-
-#### Delete or Quarantine
-- Move `frontend/` → `archive/frontend-legacy/` (or delete if unused)
-- Delete all:
-  - `backup_*` directories
-  - `*.bak` files
-- Remove any duplicate or legacy application roots
-- Ensure **no legacy `pages/` router** is active in the build path
-
-#### Active Next.js Build Path (Strict)
-
----
-
-## Compliance Requirements
-
-*(See internal compliance documentation for full details.)*
-
----
-
-## Listings: Types, Visibility, Distribution
-
-*(Listing type definitions, visibility rules, and syndication controls to be documented here.)*
-
----
-
-## Development Setup
-
-### Prerequisites
-- Node.js 20.x
-- PostgreSQL 15+
-- npm (comes with Node.js)
-
-### Local Development (Fresh Start)
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/mallan67/mallan-nyc.git
-cd mallan-nyc
-
-# 2. Install dependencies (runs prisma generate automatically)
-npm ci
-
-# 3. Configure environment
-cp .env.example .env.local
-# Edit .env.local with your database credentials
-
-# 4. Start PostgreSQL (if using Docker)
-docker run -d --name mallan-postgres \
-  -e POSTGRES_USER=dev_user \
-  -e POSTGRES_PASSWORD=dev_password \
-  -e POSTGRES_DB=mallan \
-  -p 5432:5432 \
-  postgres:15
-
-# 5. Push schema to database
-npx prisma db push
-
-# 6. Start development server
-npm run dev
-```
-
----
-
 ## Architecture
 
 ### Topology (Current)
@@ -784,212 +711,16 @@ All 6 REBNY distribution gates checked before any listing renders. Address suppr
 
 ---
 
-## Last Work Completed
+## Recent Work
 
-- **2026-03-20:** CRM Search Page full audit — 172/172 smoke test PASS, UCBA audit 42/46 PASS (0 regressions). Fixed: `closeAddClientModal()` undefined function, 2 empty route directories removed, smoke test element IDs corrected to match actual form IDs, protected-periods UCBA A6/A7/A8 API routes built (3 files), `logAuditEvent` call signature fixed. Permanent smoke test at `scripts/smoke-test-crm.js` (7 test sections, 172 checks).
-- **2026-03-10:** CRM Analytics & Tools (Systems D-Q) — 14 systems built: Seller Outreach, Pricing Experiments, Pipeline, Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor. 11 new Prisma models, 32+ API routes, 10 cron jobs, 11 CRM JS modules, all wired into CRM sidebar. TypeScript: 0 errors.
-- **2026-03-07:** Amenity pipeline + listing detail restructure — `BuildingFeatures`, `PoolFeatures`, `SpaFeatures` added to IDX pipeline (types → mapping → public-dto → page). Listing detail page restructured into 5 clean sections: Unit Features, Appliances, Building Amenities, Parking, Pet Policy. Pets removed from building amenities. Storage/BikeRoom excluded. Garage separate. ACRIS fallback for last sale price via borough/block/lot.
-- **2026-03-07:** Media pipeline fix — VirtualTour items no longer leak into photo carousel, videos render as `<video>` tag for direct files (iframe for YouTube/Vimeo), virtual tour fallback from Media resource when `VirtualTourURLUnbranded` is empty.
-- **2026-03-06:** CRM mock data cleanup — removed ALL fake names, stats, prices, addresses from rendered HTML. See [CRM Mock Data Cleanup](#crm-mock-data-cleanup-2026-03-06) below. Commit `5638ef05` (-1,068 lines net).
-- **2026-03-06:** CRM navigation fixes — showTab null guard, agent blocked tab redirect, auth redirect preserves hash, sessionStorage tab persistence, portal tab restore. Restored 3 tab UIs (exclusives, in-contract, sold).
-- **2026-03-06:** CSP fix — added `api.cotality.com`, `api-trestle.corelogic.com`, `api-prod.corelogic.com` to `img-src` and `connect-src` in both global and CRM CSP headers (`vercel.json`). Prevents image/fetch blocks after Trestle/Cotality API migration (deadline March 31, 2026). Legacy domains removable after deadline.
-- **2026-03-05:** Upgraded Next.js 14 → 16.1.6. Created server-side media proxy for Trestle photos (Bearer auth). Added agent photo upload pipeline (Sharp → R2). Security audit: removed env exposure from `/api/health` and `/api/ai/env-check`, removed hardcoded seed passwords, removed vulnerable `xlsx` package. npm audit: 0 vulnerabilities.
-- **Sprint 10 (2026-03-02):** Security hardening — Bearer auth fully removed (cookie-only), RLS enforcement on all write paths, DOM tracking (UCBA 2026), portal DTO centralized.
-- **Sprint 10 (2026-03-01):** Moved CRM files to `public/crm/` for same-origin serving on Vercel. Redesigned login page. Fixed `DATABASE_URL` env var. Removed exposed Google Maps API key from source. Added `/crm/*` CSP headers and noindex directives.
-
----
-
-## CRM Mock Data Cleanup (2026-03-06)
-
-> **Commit:** `5638ef05` | **Net change:** -1,068 lines (1,054 insertions, 2,122 deletions)
-> **File:** `public/crm/dashboard.html` (formerly `MALLAN-NYC-CRM-FINAL2.html`)
-> **Principle:** Remove fake DATA values only. Preserve ALL UI structure (divs, tables, buttons, headers, icons, CSS). Add IDs for future API population.
-
-### What Was Cleaned (4 sessions, ~60 sections)
-
-#### Session 1 — Core tabs (agent dashboard, client profile, comms, revenue)
-| Section | What was cleaned |
-|---------|-----------------|
-| agent-dashboard | Today's Schedule, Sent Emails, Recent Activity → empty states |
-| client-profile header | cpName, cpType, cpStage, cpEmail, cpPhone → "--" with IDs |
-| client-profile stats | cpSent, cpToured, cpOffers, cpLiked, cpDays, cpInteractions → "–" |
-| cp-overview | Contact Details, Financial Profile, Recent Activity → "--" with IDs |
-| cp-search-criteria | 9 fake criteria values → "--" with IDs |
-| cp-sent-listings | 5 fake rows → empty state `id="cpSentListingsBody"` |
-| cp-activity-log | 5 fake entries → empty state `id="cpActivityLog"` |
-| cp-documents | 3 fake docs → empty state `id="cpDocumentsList"` |
-| cp-notes | 2 fake notes → empty state `id="cpNotesList"` |
-| communications | 2 fake entries + weekly stats → empty states with IDs |
-| matches | Fake "John & Sarah Miller" 95% match → empty state `id="matchesContainer"` |
-| revenue | Stats ($287K/$124K/$24K/$411K) + chart + breakdown → "–" with IDs |
-| commissions | Stats + payment requests + recent → empty states with IDs |
-| sent-properties | Fake row → empty state `id="sentPropertiesBody"` |
-| broker-portal | 6 fake listing cards → empty state + template comment |
-| agent-management | Stats, listings, commission tables, disclosure tables → empty states with IDs |
-| portal indicator | "John & Sarah Miller" → empty string |
-
-#### Session 2 — Compliance, calendar, payouts (background agents)
-| Section | What was cleaned |
-|---------|-----------------|
-| compliance deadlines | 3 fake entries → empty state `id="compliance-deadlines-list"` |
-| data quality monitor | Fake 47/1/2.1% stats → "–" with IDs |
-| fair housing scanner | Fake scan result → empty state `id="fh-scan-result"` |
-| distribution gate matrix | 6 fake listing rows → empty state `id="distribution-gate-tbody"` |
-| compliance events | 6 fake audit entries → empty state `id="compliance-events-list"` |
-| pending submissions | Fake "2 awaiting" → 0 with IDs |
-| upload approvals | Fake "3 Pending" → 0 with IDs |
-| compliance checklist | 12× "Last checked: Today" → "Last checked: --" |
-| document counts | Fake 12/15 → "–" with IDs |
-| trophy listings | "4 Trophy Properties/$340M" → 0/-- with IDs |
-| ultra-luxury, NDA, UHNW | Fake counts → 0 with IDs |
-| saved searches | 2 fake entries → empty state `id="savedSearchesList"` |
-| customer searches | 2 fake entries → empty state `id="customerSearchesList"` |
-| last search | Fake "Manhattan Condos" → empty state `id="lastSearchPanel"` |
-| master analytics KPIs | $4.2M/42/97.2%/4.9 → $0/--/--/-- with IDs |
-| customer analytics | 87/34/2.4h/18.4% + funnel + distribution → 0 with IDs |
-| deal analytics | KPIs, revenue by quarter, pipeline conversion, type breakdown → empty states |
-| recent closed deals | 5 fake rows → empty state `id="recentClosedDealsBody"` |
-| agent leaderboard | 3 fake rows → empty state `id="agentLeaderboardBody"` |
-| payout summary | 4 cards with fake amounts → $0 with IDs |
-| payout history | Fake row → empty state `id="payoutHistoryBody"` |
-| rental/vendor invoices | Fake rows → empty states with IDs |
-| agent/vendor W-9s | Fake rows → empty states with IDs |
-
-#### Session 3 — Remaining fake names (landlord portal, referrals, dropdowns)
-| Section | What was cleaned |
-|---------|-----------------|
-| landlord portal | Applications (Sarah Johnson, Emily Watson, Demo Agent F) → "--" |
-| landlord portal | Lease docs, e-sign status, showing log, send lease → "--" / generic |
-| analytics 1099 table | Jane Doe row + $912K → empty state `id="analytics1099Body"` |
-| lead assignment dropdown | 4 fake agents → roster comment `id="leadAssignAgent"` |
-| referral agent dropdown | 4 fake agents → roster comment (refOurAgent) |
-| referrals received | Compass/Sarah Johnson row + $205K → empty state `id="refReceivedBody"` |
-| referrals given | BHS/David Lee row → empty state `id="refGivenBody"` |
-| agent-management filters | Sarah Chen/David Park → roster comment |
-| activity timeline names | Sarah Chen, David Park, Jennifer Rodriguez, Mark Thompson → "--" |
-| knowledge base | Sarah Chen kc-agent → "--" |
-| audit log names | Sarah Chen + Lisa Park → "--" |
-| mockListings JS | Demo Brokerage A/B/C → "--" |
-
-#### Session 4 — All-listings table, kanban pipeline, activity timeline
-| Section | What was cleaned |
-|---------|-----------------|
-| all-listings: 8 stat cards | 284/142/28/16/64/12/22/3 → "–" with IDs `allListStat*` |
-| all-listings: listing count | "284 listings" → "– listings" `id="allListingsCount"` |
-| all-listings: 8 table rows | 8 fake rows (Unsplash + addresses) → empty state `id="allListingsTableBody"` |
-| all-listings: pagination | Fake page buttons → empty `id="allListingsPagination"` |
-| activity timeline | 13 fake entries (3 day groups) → empty state `id="activityTimelineEntries"` |
-| kanban: 6 columns | Draft(2), Coming Soon(1), Active(5), Offer(1), In Contract(2), Closed(1) → all empty with IDs |
-
-### What Was NOT Cleaned (intentionally preserved)
-
-| Category | Reason |
-|----------|--------|
-| **Client portals** (buyer, tenant, seller, landlord) | 59 Unsplash images + fake listing cards — requires portal UI redesign |
-| **JS `_BUYER_CARD_DATA` / `_TENANT_CARD_DATA`** | Portal card rendering arrays — functional, not displayed without portal |
-| **JS `CLIENT_DATA`** | Gated behind `_isCrmDevMock` (localhost + `?mock=true` only) |
-| **JS external brokerage lookup** | Mock agent data for referral form auto-fill — functional |
-| **JS building data** | Building lookup table — functional |
-| **Audit log tab** | Fake entries with addresses — PLACEHOLDER tab (Coming Soon) |
-| **Building permits tab** | Fake building entries — PLACEHOLDER tab |
-| **Marketing hub tab** | Fake campaign content — PLACEHOLDER tab |
-| **Input placeholders** | Example text in search fields — not data |
-| **2 HTML comments** | `<!-- Jane Doe -->` — not rendered |
-
-### CRM Tab Classification
-
-#### WIRED (9 tabs — connected to API, load real data)
-| Tab | API Source |
-|-----|-----------|
-| my-listings | `MallanAPI.listings.*` — full CRUD |
-| pipeline | `MallanAPI.deals.*` — deal pipeline board |
-| exclusives | `_lmListings` (from my-listings API) — filtered |
-| in-contract | `_lmListings` filtered to Pending/ActiveUnderContract |
-| sold | `/api/crm/past-deals` |
-| matches | `MallanAPI.matches.*` |
-| deal-pipeline | `MallanAPI.deals.*` |
-| all-deals | `MallanAPI.deals.*` (broker only) |
-| lead-distribution | `MallanAPI.leads.*` |
-
-#### STATIC UI — Ready for API wiring (cleaned, IDs added)
-| Tab | Status |
-|-----|--------|
-| agent-dashboard | Empty states with IDs — needs schedule/emails/activity API |
-| client-profile | All fields have IDs — `openClientProfile()` partially wired |
-| clients | Table wired to `loadClientsFromAPI()` |
-| communications | Empty states with IDs — needs comm logging API |
-| sent-properties | Empty state with ID — needs sent-properties API |
-| revenue | Empty states with IDs — needs revenue analytics API |
-| commissions | Form functional, tables empty — needs commission data API |
-| broker-portal | Stats have IDs, listing grid empty — needs broker dashboard API |
-| agent-management | Stats/tables have IDs — needs agent roster API enrichment |
-
-#### PLACEHOLDER (Coming Soon / not built — ~35 tabs)
-buyer-deal-flow, renter-checklist, knowledge-base, market-activity, feedback,
-all-listings, activity-timeline, listing-pipeline, compliance, document-center,
-trophy-listings, ultra-luxury, off-market, pocket-listings, nda-required,
-uhnw-clients, my-searches, customer-searches, last-search, customers,
-analytics-master, analytics-customer, analytics-deals, calendar, settings,
-audit-log, agent-1099, referrals, building-permits, market-indices,
-rebny-rules, marketing-hub, payouts, agent-commission-splits, mkt-campaigns
-
-#### CLIENT PORTALS (demo UI — Unsplash images remain)
-client-portal, tenant-portal, seller-portal, landlord-portal
-
-### Known Issues (Still Present)
-1. **~44 alert() stubs** — placeholder handlers not wired to API
-2. **~35 "Coming Soon" placeholders** — sections with placeholder content
-3. **Flash on portal refresh** — broker-portal briefly visible before switchPortal fires (~200ms)
-4. **71 Unsplash placeholder images** — mostly in client portals (59) and JS portal card data
-5. **Fake addresses in placeholder tabs** — audit log, building permits, marketing hub (Coming Soon tabs)
-
----
-
-## Sprint Progress
-
-### Sprint 11 — CRM Analytics & Tools (2026-03-10)
-
-**Completed:**
-- 14 CRM tool systems (D through Q) — full stack: Prisma models, library engines, API routes, cron jobs, CRM JS modules, sidebar wiring
-- 11 new Prisma models (CmaReport, ShowingFeedback, Notification, NotificationPreference, Document, DocumentSignature, MarketSnapshot, LeadScore, LeadAssignmentRule, CommissionPayment, ListingAudit)
-- 32+ new API routes across 8 system groups
-- 16 cron jobs in vercel.json (data retention, DOM reset, IDX sync, listing expiration, search alerts, seller scoring, experiment metrics, demand signals, intent profiles, agent metrics, lead scoring, conviction scores, listing momentum, social proof, lifecycle triggers, market snapshots)
-- 11 CRM JS frontend modules with sidebar buttons, content divs, and compliance banners
-- TypeScript: 0 errors
-
-### Sprint 9 — Wire CRM to Live Backend (2026-03-01)
-
-**Completed:**
-- Cookie-only auth on all API routes (Bearer removed in Sprint 10)
-- `login.html` created: email/password, auto-redirect if already logged in
-- Auth gates on CRM, both viewers, and search (redirect to login if unauthenticated)
-- Mock data removed from production paths
-- RLS validator: 0 UNKNOWN, 10/10 sections pass
-- TypeScript: 0 errors
-
-### Sprint 8 — Viewer Conversion + Quick Wins (2026-03-01)
-- Both WITH-TOOLS files converted to true read-only viewers (VIEWER_MODE=true)
-- 5 missing REBNY fields added, Gates 4+5 in search
-- 101 alert() calls converted to showToast()
-
-### Sprint 7 — Integration, Email & IDX (2026-03-01)
-- SendGrid email integration (5 templates)
-- Saved Searches CRUD + Execute
-- Complete IDX/Trestle pipeline (902-field mapper, OAuth2, sync orchestrator)
-
-### Sprint 6 — Client Management & Portal Wiring (2026-03-01)
-- 6 client CRUD endpoints, 6 portal endpoints, agent roster write API
-- Showing management, CRM wired to all endpoints
-- PII cleanup: 112→0 hardcoded occurrences across all files
-
-### Sprint 5 — Write Operations (2026-03-01)
-- 8 write endpoints (listings, deals)
-- Form submissions wired to API with localStorage fallback
-
-### Sprint 4 — Authentication & Session Foundation (2026-03-01)
-- Prisma schema, auth library, 7 auth endpoints
-- Session cookie auth, middleware protection
-- Seed script, api-client.js bridge module
+- **2026-04-27:** Validator truth framework complete — 100% UCBA v2 coverage (46/46 rules), 11 declared workflows, 25 runtime side-effect tests, release-truth aggregator gating every push to main, hourly live-site smoke cron, target-platform Linux build job. Trestle/media debug-script clutter removed (~22 MB recovered). See `compliance/VALIDATOR-FRAMEWORK.md` and `memory/VALIDATOR-FRAMEWORK-2026-04-26.md`.
+- **2026-04-26:** Workstream C compliance shipped — Inquiry model + 8 lead-capture endpoints wired, Offer transmission with UCBA Art. II precondition gate, Auction listing fields + validator (UCBA Art. I), Ethics training auth gate (UCBA Art. III §6) with mandatory backfill before deploy.
+- **2026-04-25:** Master refactor PR 1 (compliance fail-closed gates) + R2 infrastructure provisioned + parameterized CMA tool + xlsx → exceljs security migration + npm audit triage.
+- **2026-04-19 → 04-20:** Neon free-tier compute-hour quota recovery — restored documented design (no migrations in Vercel build), `db-keepalive` cron preserved, `NEON.md` is now the single source of truth for DB/migration discipline.
+- **2026-03-20:** CRM Search Page full audit — 172/172 smoke test PASS, UCBA audit 42/46 PASS (0 regressions). Permanent smoke test at `scripts/smoke-test-crm.js`.
+- **2026-03-10:** CRM Analytics & Tools (Systems D-Q) — 14 systems built: Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor, Seller Outreach, Pricing Experiments, Pipeline.
+- **2026-03-07:** Amenity pipeline + listing detail restructure (5 sections: Unit Features, Appliances, Building Amenities, Parking, Pet Policy). Media pipeline fix (VirtualTour separation, video tag handling).
+- **2026-03-05:** Next.js 14 → 16. Server-side Trestle media proxy (Bearer auth), agent photo upload pipeline (Sharp → R2), security hardening, vulnerable `xlsx` removed.
 
 ---
 
@@ -1043,88 +774,39 @@ npm run dev
 | `OPENAI_MODEL` | No | OpenAI model for AI features (default `gpt-4o`) |
 | `ANTHROPIC_API_KEY` | No | Anthropic API key for compliance AI validation |
 
-### Compliance Validation
+### Compliance Validation (validator-truth framework)
+
+The repo has an end-to-end release-truth validator framework. Full details in `compliance/VALIDATOR-FRAMEWORK.md` and `memory/VALIDATOR-FRAMEWORK-2026-04-26.md`.
 
 ```bash
-# Run RLS compliance validator against CRM production files
-npm run rls:validate
+# Layer 1 — UCBA rule truth (46 rules, 100% v2 rich-format coverage)
+npm run ucba:audit
 
-# Run RLS validator tests (42 assertions)
-npm run test:rls
+# Layer 2 — workflow completeness (11 declared feature workflows)
+npm run validator:workflows
+
+# Layer 3 — schema migration discipline (NEON.md §1)
+npm run validator:migration
+
+# Layer 4 — deploy status for a PR or commit
+npm run validator:deploy -- --pr <N>
+
+# Layer 5 — live site smoke (homepage, search, attribution, freshness)
+npm run validator:live-site
+
+# Layer 6 — toolchain policy (Node engines.node, npm, prisma client)
+npm run validator:toolchain
+
+# Layer 7 — runtime side-effect tests (25 tests, 6 suites)
+npm run test:runtime
+
+# Aggregator — single verdict combining all layers
+npm run release:truth                     # current main
+npm run release:truth -- --pr <N>         # specific PR
+npm run release:truth -- --per-merge --from-sha A --to-sha B
 ```
 
----
+**Verdicts:** `PROD_PROVEN` / `CODE_VALID` / `PARTIAL` / `DEPLOY_INVALID` / `UNVERIFIED` / `CLAIM_OVERSTATED` / `REGRESSION`.
 
-## Compliance Findings Audit — 2026-04-14
+CI auto-runs `pr-check.yml` (jest --ci with 13 projects + type-check + ucba + ci-compliance + idx-validate + build), `target-platform-build.yml` (Linux/Vercel-class install/build on dependency PRs), `release-truth.yml` (verdict commit-status on push to main + advisory PR comment), and `live-site-cron.yml` (hourly smoke on prod, auto-issues on FAIL).
 
-22 findings were reviewed and verified against the codebase. 5 were fixed, 4 found inaccurate, 13 documented as accepted risk or informational.
-
-### Fixes Applied
-
-| # | Finding | Regulation | Fix |
-|---|---------|-----------|-----|
-| HIGH-7 | CRM emails missing CAN-SPAM unsubscribe link | CAN-SPAM | Added unsubscribe link to shared email FOOTER in `lib/email/templates.ts`. All emails via `wrapEmail()` now include opt-out. |
-| HIGH-1 | No agency disclosure on lead capture forms | NYS RPL, DOS-1736-f | Created `AgencyDisclosure` component. Added to `InquiryForm`, `InquiryModal`, Contact page, `HomeValueWidget`, `CalculatorLeadCapture`. |
-| HIGH-3 | Behavioral trackers fire before cookie consent | NY SHIELD, TCPA | `BehavioralTracker` and `IntentTracker` now gate all tracking behind `useConsentStatus()` → `analyticsAllowed`. |
-| MED-2 | Search page missing IDX attribution component | REBNY IDX display | Replaced hardcoded disclaimer with `<IDXSearchDisclaimer />` component in `app/search/page.tsx`. |
-| MED-6 | Portal listings endpoint missing Coming Soon gate | REBNY UCBA D3 | Portal listings now flag Coming Soon listings with badge text and `comingSoon: true` in response. |
-
-### Files Changed (2026-04-14)
-
-| File | Change |
-|------|--------|
-| `lib/email/templates.ts` | Unsubscribe link added to shared FOOTER; duplicate removed from `searchAlertEmail` |
-| `app/components/AgencyDisclosure.tsx` | **NEW** — Reusable agency disclosure notice for forms |
-| `app/components/InquiryForm.tsx` | Agency disclosure added |
-| `app/components/InquiryModal.tsx` | Agency disclosure added |
-| `app/contact/page.tsx` | Agency disclosure added |
-| `app/components/HomeValueWidget.tsx` | Agency disclosure added |
-| `app/components/CalculatorLeadCapture.tsx` | Agency disclosure added |
-| `app/components/BehavioralTracker.tsx` | Consent-gated via `useConsentStatus()` |
-| `app/components/IntentTracker.tsx` | Consent-gated via `useConsentStatus()` |
-| `app/search/page.tsx` | Hardcoded disclaimer replaced with `IDXSearchDisclaimer` component |
-| `app/api/portal/listings/route.ts` | Coming Soon gate (Gate 5) with UCBA D3 notice |
-
-### Verified Inaccurate Findings (No Fix Needed)
-
-| # | Finding | Reason |
-|---|---------|--------|
-| CRIT-1 | "Bulk email endpoint missing" | Bulk email handled by `app/api/crm/email/route.ts` (eblast type, 200-cap, consent checking) |
-| CRIT-4 | "12-min sync + 10-min skip = >15min gap" | Math wrong: effective interval is always 12 min. "REBNY 15-min rule" does not exist |
-| HIGH-5 | "Unsplash/Picsum = false listing imagery" | Images used on 10+ pages as decorative marketing backgrounds, not listing photos |
-| MED-4 | "Sell page commission language" | Already compliant: "Commission rates are not set by law and are fully negotiable" |
-
-### Round 2 Fixes (2026-04-14)
-
-| # | Finding | Regulation | Fix |
-|---|---------|-----------|-----|
-| N-3 | API Fair Housing scanner only 6 patterns vs 29 in CRM frontend | Fair Housing Act, NYC Title 8 | Expanded `app/api/crm/compliance/audit/route.ts` from 6 to 21 categorized patterns across 10 categories: Race, Religion, Familial Status, Sex, Disability, Source of Income (NYC), Fair Chance Housing Act (NYC LL 24/2023), Citizenship, NY DOS Ad Rules. Aligned with `public/crm/js/compliance/fair-housing.js`. |
-| C-4 | RegistrationGate consent checkbox not transmitted to API | TCPA | `app/components/RegistrationGate.tsx` now sends `consent_captured_at` timestamp in POST body to `/api/search-alerts`. |
-| M-7 | compliance/UPDATES.md Trestle migration still "ACTION REQUIRED" | Compliance log | Updated to "Complete" (code verified using `api.cotality.com`). Added April 2026 audit entries and Trestle patch tracking. |
-
-### Round 2 Verified Findings
-
-| # | Finding | Verdict | Detail |
-|---|---------|---------|--------|
-| N-1 | PrivateOutdoorSpace missing from trestle-mapper | **NOT A GAP** | Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` value 108, `PrivateOutdoorSpaceUnder60Sqft` value 109) on Trestle. `ExteriorFeatures` IS in mapper (B20 line 247) and mapped to `exteriorFeatures` in `mapping.ts`. The standalone fields `PrivateOutdoorSpaceSize`/`PrivateOutdoorSpaceRemarks` exist in REBNY compliance spec but are NOT on Trestle's IDX feed — they're LMP/RealPlus submission fields only. |
-| N-2 | Trestle Patches #188/#189 not verified | **ACCURATE** | Documented in `compliance/UPDATES.md` as ACTION REQUIRED. Need to download patch PDFs from Cotality. |
-| N-3 | Fair Housing scanner pattern count mismatch | **ACCURATE — FIXED** | API had 6 patterns, CRM frontend had 29. Expanded to 21 server-side patterns (8 CRM patterns are low-severity ad-style rules kept frontend-only). |
-| N-4 | Coming Soon badge missing REBNY text in CRM | **INACCURATE** | CRM `compliance-gates-and-output.js` line 62 correctly uses: "Coming Soon — No showings or open house permitted until [date] (UCBA Art. I Sec. 5(C))". |
-| H-7 | dev-login guard bypassable | **INACCURATE** | Two guards: `NODE_ENV === "production"` (returns 404) AND `ALLOW_DEV_LOGIN !== "true"` required. Not bypassable. |
-| H-8 | settings/company GET unauthenticated | **ACCURATE (low risk)** | Returns only public company info (name, license, phone, address) — same data shown in footer. POST requires broker auth. |
-| H-1 | IDXDisclaimer lastUpdated prop ignored | **ACCURATE (by design)** | Code comment: "Always show today's date — data is refreshed every 12 minutes via sync cron." More conservative than stale timestamps. |
-| M-1 | Search results missing "Listing Courtesy of" | **INACCURATE** | `SearchListingCard.tsx` line 117 displays "RLS · Listing Courtesy of {listing.listOfficeName}". |
-| M-5 | Search-alerts cron sends suppressed addresses | **INACCURATE** | Cron applies `idx_display_yn = true` and `owner_opt_out = false` filters before query. |
-
-### REBNY / Trestle External Status (Verified 2026-04-14)
-
-| Item | Status |
-|------|--------|
-| REBNY policy changes since Jan 2026 | **None found** — verified rebny.com/rls-updates/ and /compliance/ |
-| 2026 UCBA changes (all 5) | Already implemented in codebase |
-| Compensation fields removed (Aug 2025) | Already handled |
-| POLD / Participant Only gate | Enforced (Gate 4 in `checkDistributionGates`) |
-| Trestle API URL migration | **Complete** — all code uses `api.cotality.com/trestle` |
-| Trestle Content Patch #189 (Mar 4, 2026) | **Unreviewed** — 3 new fields, 30 field changes, 37 lookup values |
-| Trestle Content Patch #188 (Jan 27, 2026) | **Unreviewed** — 98 new lookup values |
-| Private Outdoor Space required field | **Already captured** via `ExteriorFeatures` enum values (not a standalone IDX field) |
