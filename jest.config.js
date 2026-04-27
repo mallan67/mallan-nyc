@@ -12,6 +12,10 @@ module.exports = {
     '<rootDir>/lib/search/jest.config.js',
     // lib/rls-validator tests (ts-jest) — commented out: config missing
     // '<rootDir>/lib/rls-validator/jest.config.js',
+    // tests/runtime — release-truth side-effect proof for high-risk routes
+    // (validator framework Phase 3). Wired here so `npx jest --ci` picks
+    // them up as a release gate, not just `npm run test:runtime`.
+    '<rootDir>/tests/runtime/jest.config.js',
     // scripts tests (plain JS, node runner)
     {
       displayName: 'scripts',
