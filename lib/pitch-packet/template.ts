@@ -27,7 +27,7 @@
  * 20. Legal / Fair Housing
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 function esc(s: string | null | undefined): string {
   if (!s) return "";

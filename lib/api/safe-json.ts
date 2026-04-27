@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
  *   const [body, err] = await safeJson(req);
  *   if (err) return err;
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export async function safeJson<T = any>(
   req: NextRequest
 ): Promise<[T, null] | [null, NextResponse]> {

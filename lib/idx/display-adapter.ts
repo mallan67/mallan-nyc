@@ -142,7 +142,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
  * Detects whether the listing is a PublicListingDTO (flat) or
  * a Listing (deeply nested, from local fallback) and maps accordingly.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export function toDisplayListing(raw: any): DisplayListing {
   // PublicListingDTO has listPrice at top level; Listing has price.listPrice
   if (typeof raw.listPrice === 'number') {

@@ -339,7 +339,7 @@ export default function FeaturedListings() {
 
         if (cancelled || !data.listings || data.listings.length === 0) return;
 
-        let all: FeaturedListing[] = data.listings;
+        const all: FeaturedListing[] = data.listings;
 
         // Separate pinned (exclusives) from rest — pinned always first
         const pinned = all.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));

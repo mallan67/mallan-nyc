@@ -399,7 +399,7 @@ export async function GET(request: NextRequest) {
     // ── 2. Fetch from Trestle — ALL records at this address ──
     // Single broad query: no status filter, get everything, then separate
     let allTrestleRecords: TrestleRecord[] = [];
-    let gatedRecordsCount = 0; // Records that exist but are gated (VOW prompt)
+    const gatedRecordsCount = 0; // Records that exist but are gated (VOW prompt)
 
     try {
       const token = await getAccessToken();

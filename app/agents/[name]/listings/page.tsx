@@ -84,7 +84,7 @@ async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
   };
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 interface AgentListingsData {
   activeSales: any[];
   activeRentals: any[];
