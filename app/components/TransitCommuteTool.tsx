@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import NearestStations from './NearestStations';
 import CommuteCalculator from './CommuteCalculator';
 import type { NearbyStation } from '@/lib/transit/types';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 function TransitScoreBar({ score }: { score: number }) {
   let color = 'bg-red-500';
@@ -57,41 +58,46 @@ export default function TransitCommuteTool({
   longitude,
 }: TransitCommuteToolProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  // Lazy fetch — runs only when the user expands the panel. The effect
-  // below depends on `isExpanded`/`fetchStations` and is bounded by user
-  // interaction. Canonical fetch-on-mount + setState pattern; React
-  // Compiler set-state-in-effect warning accepted (no library wrapping).
-  const [stations, setStations] = useState<NearbyStation[]>([]);
-  const [transitScore, setTransitScore] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
   const [expandedStationId, setExpandedStationId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
 
-  const fetchStations = useCallback(() => {
-    if (!latitude || !longitude) return;
-    setLoading(true);
-    setError(false);
+  // Lazy fetch — keyed off `isExpanded` so the request is only kicked
+  // off after the user opens the panel. `null` key keeps the resource
+  // idle.
+  const fetchKey =
+    isExpanded && latitude && longitude ? `${latitude},${longitude}` : null;
 
-    fetch(`/api/transit/nearby?lat=${latitude}&lng=${longitude}&limit=8&radius=800`)
-      .then((res) => res.json())
-      .then((data) => {
-        setStations(data.stations || []);
-        setTransitScore(data.transitScore || 0);
-        setExpanded(data.expanded || false);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError(true);
-        setLoading(false);
-      });
-  }, [latitude, longitude]);
+  type StationsResponse = { stations: NearbyStation[]; transitScore: number; expanded: boolean };
 
-  useEffect(() => {
-    if (isExpanded && stations.length === 0 && !loading) {
-      fetchStations();
-    }
-  }, [isExpanded, stations.length, loading, fetchStations]);
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<StationsResponse> => {
+      const [lat, lng] = String(key).split(',');
+      const res = await fetch(
+        `/api/transit/nearby?lat=${lat}&lng=${lng}&limit=8&radius=800`,
+        { signal },
+      );
+      const data = await res.json();
+      return {
+        stations: (data.stations as NearbyStation[]) || [],
+        transitScore: data.transitScore || 0,
+        expanded: !!data.expanded,
+      };
+    },
+    [],
+  );
+
+  const { data, loading, error, status } = useAsyncResource(fetchKey, fetcher);
+  const stations = data?.stations ?? [];
+  const transitScore = data?.transitScore ?? 0;
+  const expanded = data?.expanded ?? false;
+  const refetch = useCallback(() => {
+    // Force a refetch by toggling the panel closed/open. Any approach
+    // that changes the key works here.
+    setIsExpanded(false);
+    setTimeout(() => setIsExpanded(true), 0);
+  }, []);
+  // Loading should only be true once the panel is expanded; pre-expand
+  // status === 'idle' should not show the spinner.
+  const showLoading = isExpanded && (loading || status === 'idle');
 
   if (!latitude || !longitude) return null;
 
@@ -128,7 +134,7 @@ export default function TransitCommuteTool({
       {/* Expanded Content */}
       {isExpanded && (
         <div className="px-6 pb-6 border-t">
-          {loading && (
+          {showLoading && (
             <div className="py-8 text-center">
               <div className="inline-block w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
               <p className="text-sm text-gray-500 mt-2">Finding nearby stations...</p>
@@ -140,7 +146,7 @@ export default function TransitCommuteTool({
               <p className="text-sm text-gray-500">Unable to load transit data.</p>
               <button
                 type="button"
-                onClick={fetchStations}
+                onClick={refetch}
                 className="mt-2 text-sm text-blue-600 hover:underline"
               >
                 Try again
@@ -148,7 +154,7 @@ export default function TransitCommuteTool({
             </div>
           )}
 
-          {!loading && !error && (
+          {!showLoading && !error && (
             <>
               {/* Transit Score */}
               <div className="py-4">

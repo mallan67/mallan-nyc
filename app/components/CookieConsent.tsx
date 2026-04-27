@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useClientOnly } from '@/lib/hooks/useClientOnly';
 
 const CONSENT_KEY = 'mallan_cookie_consent';
 const CONSENT_VERSION = '1'; // Increment when policy changes
@@ -14,41 +15,59 @@ type ConsentState = {
   timestamp: string;
 };
 
+const DEFAULT_CONSENT: ConsentState = {
+  essential: true,
+  analytics: false,
+  marketing: false,
+  version: CONSENT_VERSION,
+  timestamp: '',
+};
+
+/** What was last persisted in localStorage. `null` = nothing stored. */
+type Hydration = { stored: ConsentState | null };
+
+function readHydration(): Hydration {
+  const raw = localStorage.getItem(CONSENT_KEY);
+  if (!raw) return { stored: null };
+  try {
+    const parsed = JSON.parse(raw) as ConsentState;
+    return { stored: parsed };
+  } catch {
+    return { stored: null };
+  }
+}
+
 export default function CookieConsent() {
-  // `visible` and `consent` are initialized on the server as defaults to
-  // avoid SSR hydration mismatches (localStorage is unavailable on server).
-  // The mount effect below reads the actual stored value and adjusts state.
-  // This is the React-docs-recommended pattern for "client-only state read
-  // from a browser API" — see https://react.dev/reference/react/useEffect.
-  // The React Compiler set-state-in-effect warning is accepted: the effect
-  // has no dependencies, so it runs exactly once on mount.
-  const [visible, setVisible] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-  const [consent, setConsent] = useState<ConsentState>({
-    essential: true,
-    analytics: false,
-    marketing: false,
-    version: CONSENT_VERSION,
-    timestamp: '',
+  // Mount-only hydration via state-machine reducer (no setState-in-effect
+  // warning). After hydration we know whether to show the banner and
+  // which preferences to seed the form with.
+  const { value: hydration, hydrated } = useClientOnly<Hydration>({
+    read: readHydration,
+    serverFallback: { stored: null },
   });
 
-  useEffect(() => {
-    const stored = localStorage.getItem(CONSENT_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as ConsentState;
-        if (parsed.version !== CONSENT_VERSION) {
-          setVisible(true);
-        } else {
-          setConsent(parsed);
-        }
-      } catch {
-        setVisible(true);
-      }
-    } else {
-      setVisible(true);
+  // Form state for in-progress edits to the preferences. Seeded from
+  // stored consent (when present) once hydration finishes; the
+  // set-state-during-render `prevHydrated` guard re-syncs without an
+  // effect.
+  const [consent, setConsent] = useState<ConsentState>(DEFAULT_CONSENT);
+  const [prevHydrated, setPrevHydrated] = useState(false);
+  if (hydrated && !prevHydrated) {
+    setPrevHydrated(true);
+    if (hydration.stored && hydration.stored.version === CONSENT_VERSION) {
+      setConsent(hydration.stored);
     }
-  }, []);
+  }
+
+  // Banner is visible if there's no stored consent OR the stored version
+  // is stale. After the user saves we hide it locally via `dismissed`.
+  const [dismissed, setDismissed] = useState(false);
+  const visible =
+    hydrated &&
+    !dismissed &&
+    (!hydration.stored || hydration.stored.version !== CONSENT_VERSION);
+
+  const [showDetails, setShowDetails] = useState(false);
 
   const saveConsent = (newConsent: ConsentState) => {
     const withTimestamp = {
@@ -57,7 +76,7 @@ export default function CookieConsent() {
     };
     localStorage.setItem(CONSENT_KEY, JSON.stringify(withTimestamp));
     setConsent(withTimestamp);
-    setVisible(false);
+    setDismissed(true);
   };
 
   const acceptAll = () => {
@@ -227,20 +246,19 @@ export default function CookieConsent() {
  * Hook to check consent status - use this before loading any optional scripts
  */
 export function useConsentStatus() {
-  // SSR-safe: server renders with `null` (no consent known), then a one-shot
-  // mount effect reads localStorage. Same rationale as CookieConsent component.
-  const [consent, setConsent] = useState<ConsentState | null>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(CONSENT_KEY);
-    if (stored) {
+  // Mount-only hydration via the same state-machine reducer pattern.
+  const { value: consent } = useClientOnly<ConsentState | null>({
+    read: () => {
+      const stored = localStorage.getItem(CONSENT_KEY);
+      if (!stored) return null;
       try {
-        setConsent(JSON.parse(stored));
+        return JSON.parse(stored) as ConsentState;
       } catch {
-        setConsent(null);
+        return null;
       }
-    }
-  }, []);
+    },
+    serverFallback: null,
+  });
 
   return {
     hasConsent: consent !== null,

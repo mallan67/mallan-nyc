@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import { type FavoriteEntry } from '@/lib/hooks/useFavorites';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 interface ListingDetail {
   id: string;
@@ -101,36 +102,30 @@ function CompareRow({
 }
 
 export default function CompareProperties({ entries, onRemove }: ComparePropertiesProps) {
-  // Canonical "fetch on mount + setState in effect" pattern. The React
-  // Compiler's set-state-in-effect rule flags this, but it's the
-  // React-docs-recommended approach when not using a fetching library
-  // (SWR/React Query). The effect's dependency is the `entries` prop,
-  // so re-runs are bounded by parent re-renders — no loop risk.
-  // https://react.dev/learn/synchronizing-with-effects#fetching-data
-  const [details, setDetails] = useState<(ListingDetail | null)[]>([]);
-  const [loading, setLoading] = useState(true);
+  // `key` is the comma-joined entry IDs — stable string identity, so the
+  // fetch only re-runs when the entries set actually changes.
+  const idsKey = entries.length > 0 ? entries.map((e) => e.id).join(',') : null;
 
-  // Fetch full details for each listing
-  useEffect(() => {
-    if (entries.length === 0) return;
-    setLoading(true);
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<(ListingDetail | null)[]> => {
+      const ids = String(key).split(',');
+      return Promise.all(
+        ids.map(async (id) => {
+          try {
+            const res = await fetch(`/api/listings/${encodeURIComponent(id)}`, { signal });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return (data?.listing || data || null) as ListingDetail | null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+    },
+    [],
+  );
 
-    Promise.all(
-      entries.map(async (entry) => {
-        try {
-          const res = await fetch(`/api/listings/${encodeURIComponent(entry.id)}`);
-          if (!res.ok) return null;
-          const data = await res.json();
-          return data?.listing || data || null;
-        } catch {
-          return null;
-        }
-      })
-    ).then((results) => {
-      setDetails(results);
-      setLoading(false);
-    });
-  }, [entries]);
+  const { data: details, loading } = useAsyncResource(idsKey, fetcher);
 
   const isRental = entries[0]?.listingType === 'rent';
 
@@ -148,7 +143,7 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
   // Use entry data (always available) supplemented by detail data (when loaded)
   const listings = entries.map((entry, i) => ({
     entry,
-    detail: details[i] || null,
+    detail: details?.[i] || null,
   }));
 
   const beds = listings.map(l => l.entry.beds);

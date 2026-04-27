@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 interface POIItem {
   id: number;
@@ -103,34 +104,22 @@ export default function NeighborhoodExplorer({
   borough,
 }: NeighborhoodExplorerProps) {
   const [activeTab, setActiveTab] = useState<'poi' | 'community'>('poi');
-  // Canonical fetch-on-mount + setState pattern (effect below depends on
-  // lat/lng so re-runs are bounded by parent re-renders). The React
-  // Compiler's set-state-in-effect warning is the documented limitation
-  // for this pattern when not using a fetching library.
-  // https://react.dev/learn/synchronizing-with-effects#fetching-data
-  const [categories, setCategories] = useState<CategoryData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/nearby-poi?lat=${latitude}&lng=${longitude}&radius=800`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setCategories(data.categories || []);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [latitude, longitude]);
+  const fetchKey = `${latitude},${longitude}`;
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<CategoryData[]> => {
+      const [lat, lng] = String(key).split(',');
+      const res = await fetch(`/api/nearby-poi?lat=${lat}&lng=${lng}&radius=800`, { signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return (data.categories as CategoryData[]) || [];
+    },
+    [],
+  );
+
+  const { data: categoriesData, loading } = useAsyncResource(fetchKey, fetcher);
+  const categories = categoriesData ?? [];
 
   const selectedItems = selectedCategory
     ? categories.find((c) => c.category === selectedCategory)?.items || []

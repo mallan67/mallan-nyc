@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
+import { useClientOnly } from '@/lib/hooks/useClientOnly';
 
 interface Section {
   title: string;
@@ -280,50 +282,35 @@ function EmailGateForm({
 
 /* ---- Main Component ---- */
 export default function ResourceContent({ slug }: { slug: string }) {
-  const [data, setData] = useState<ResourceData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  // SSR-safe: server renders locked. The mount effect below checks
-  // localStorage for a previous unlock OR auto-unlocks for non-gated
-  // slugs. Canonical "client-only state from a browser API" pattern.
-  const [unlocked, setUnlocked] = useState(false);
-
   const isGated = GATED_SLUGS.includes(slug);
 
-  // Check localStorage for previous unlock
-  useEffect(() => {
-    if (isGated) {
-      try {
-        const key = `guide_unlocked_${slug}`;
-        if (localStorage.getItem(key) === 'true') {
-          setUnlocked(true);
-        }
-      } catch {
-        // localStorage unavailable
-      }
-    } else {
-      setUnlocked(true);
-    }
-  }, [slug, isGated]);
+  // Resource fetch via state-machine hook. `loading` and `error` are
+  // derived from status; no setState-in-effect.
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<ResourceData> => {
+      const res = await fetch(`/api/resources/${key}`, { signal });
+      if (!res.ok) throw new Error('Not found');
+      return res.json();
+    },
+    [],
+  );
+  const { data, loading, error: fetchError, status } = useAsyncResource(slug, fetcher);
+  const error = status === 'error' && !!fetchError;
 
-  useEffect(() => {
-    fetch(`/api/resources/${slug}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Not found');
-        return res.json();
-      })
-      .then(d => {
-        setData(d);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError(true);
-        setLoading(false);
-      });
-  }, [slug]);
+  // Mount-only localStorage hydration for the unlock flag. Non-gated
+  // slugs short-circuit to unlocked (no read needed).
+  const { value: unlockedFromStorage } = useClientOnly<boolean>({
+    read: () => localStorage.getItem(`guide_unlocked_${slug}`) === 'true',
+    serverFallback: false,
+  });
+  // Local unlock state lets the form trigger an immediate unlock without
+  // re-running the mount-only hydration. The hydration value seeds it on
+  // first read; subsequent updates come from `handleUnlock` below.
+  const [localUnlocked, setLocalUnlocked] = useState(false);
+  const unlocked = !isGated || unlockedFromStorage || localUnlocked;
 
   function handleUnlock() {
-    setUnlocked(true);
+    setLocalUnlocked(true);
     try {
       localStorage.setItem(`guide_unlocked_${slug}`, 'true');
     } catch {

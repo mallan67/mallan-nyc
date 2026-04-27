@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 /* ───────────── Interfaces ───────────── */
 
@@ -166,39 +167,142 @@ export default function SellerPortalPage() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [enabledWorkspaces, setEnabledWorkspaces] = useState<string[]>([]);
 
-  // Data state
-  // Async-fetched data — kept as useState (not useReducer) because TypeScript's
-  // empty-array literal inference inside useReducer's initial-state slot
-  // collapses to `never[]`, which breaks `.find()` / `.filter()` callers.
-  // The React Compiler set-state-in-effect warnings on the data-fetch
-  // useEffects below (line 388 + 397) are accepted: the canonical
-  // "fetch on mount + setState" pattern is not a bug, and the documented
-  // React 19 alternative (Suspense + use()) is an architectural rewrite
-  // out of scope for this page.
-  const [listings, setListings] = useState<PortalListing[]>([]);
-  const [showings, setShowings] = useState<PortalShowing[]>([]);
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [family, setFamily] = useState<FamilyMember[]>([]);
-  const [documents, setDocuments] = useState<PortalDocument[]>([]);
+  // Each portal data slice is owned by useAsyncResource (typed
+  // useReducer state machine — same precedent as AuthProvider). The
+  // `userId` key gates the fetch on auth; `null` keeps it idle until
+  // the user is loaded. `refetch()` is exposed for handlers that need
+  // to force a refresh after a mutation.
+  const userId = user?.id ?? null;
 
-  const [listingsLoading, setListingsLoading] = useState(false);
-  const [showingsLoading, setShowingsLoading] = useState(false);
-  const [offersLoading, setOffersLoading] = useState(false);
-  const [familyLoading, setFamilyLoading] = useState(false);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const fetchListingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<PortalListing[]> => {
+    const res = await fetch('/api/portal/listings', { signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.listings || [];
+  }, []);
+  const listingsRes = useAsyncResource(userId, fetchListingsResource);
+  const listings: PortalListing[] = listingsRes.data ?? [];
+  const listingsLoading = listingsRes.loading;
 
-  // Seller dashboard state — see note above explaining why this stays as
-  // useState despite the React Compiler set-state-in-effect warnings.
-  const [sellerFomo, setSellerFomo] = useState<SellerFomo | null>(null);
-  const [sellerDemand, setSellerDemand] = useState<SellerDemand | null>(null);
-  const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [comparables, setComparables] = useState<any>(null);
-  const [priceHistory, setPriceHistory] = useState<any>(null);
-  const [marketing, setMarketing] = useState<any[]>([]);
-  const [attorney, setAttorney] = useState<any>(null);
+  const fetchShowingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<PortalShowing[]> => {
+    const res = await fetch('/api/portal/showings', { signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.showings || [];
+  }, []);
+  const showingsRes = useAsyncResource(userId, fetchShowingsResource);
+  const showings: PortalShowing[] = showingsRes.data ?? [];
+  const showingsLoading = showingsRes.loading;
+
+  const fetchOffersResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Offer[]> => {
+    const res = await fetch('/api/portal/offers', { signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.offers || [];
+  }, []);
+  const offersRes = useAsyncResource(userId, fetchOffersResource);
+  const offers: Offer[] = offersRes.data ?? [];
+  const offersLoading = offersRes.loading;
+
+  const fetchDocumentsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<PortalDocument[]> => {
+    const res = await fetch('/api/portal/documents', { signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.documents || [];
+  }, []);
+  const documentsRes = useAsyncResource(userId, fetchDocumentsResource);
+  const documents: PortalDocument[] = documentsRes.data ?? [];
+  const documentsLoading = documentsRes.loading;
+
+  const fetchFamilyResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<FamilyMember[]> => {
+    const res = await fetch('/api/portal/family', { signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.family || [];
+  }, []);
+  const familyRes = useAsyncResource(userId, fetchFamilyResource);
+  const family: FamilyMember[] = familyRes.data ?? [];
+  const familyLoading = familyRes.loading;
+  const refetchFamily = familyRes.refetch;
+
+  // Dashboard data is fetched per selected listing. Defaults to the
+  // first listing once they load; user can switch via the dropdown.
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const dashboardListingId =
+    selectedListingId ?? listings[0]?.listing_id ?? null;
+  const fetchDashboardResource = useCallback(
+    async (key: string | number, signal: AbortSignal) => {
+      const listingId = String(key);
+      const [fomoRes, demandRes, compsRes, priceRes, mktRes, attRes] = await Promise.allSettled([
+        fetch(`/api/portal/seller/fomo?listingId=${listingId}`, { signal }),
+        fetch(`/api/portal/seller/demand?listingId=${listingId}`, { signal }),
+        fetch(`/api/portal/comparables?listingId=${listingId}`, { signal }),
+        fetch(`/api/portal/price-history?listingId=${listingId}`, { signal }),
+        fetch(`/api/portal/marketing?listingId=${listingId}`, { signal }),
+        fetch('/api/portal/attorney', { signal }),
+      ]);
+      const out: {
+        fomo: SellerFomo | null;
+        demand: SellerDemand | null;
+        comparables: any;
+        priceHistory: any;
+        marketing: any[];
+        attorney: any;
+      } = {
+        fomo: null,
+        demand: null,
+        comparables: null,
+        priceHistory: null,
+        marketing: [],
+        attorney: null,
+      };
+      if (fomoRes.status === 'fulfilled' && fomoRes.value.ok) out.fomo = await fomoRes.value.json();
+      if (demandRes.status === 'fulfilled' && demandRes.value.ok) {
+        const d = await demandRes.value.json();
+        out.demand = d.demand || d;
+      }
+      if (compsRes.status === 'fulfilled' && compsRes.value.ok) out.comparables = await compsRes.value.json();
+      if (priceRes.status === 'fulfilled' && priceRes.value.ok) out.priceHistory = await priceRes.value.json();
+      if (mktRes.status === 'fulfilled' && mktRes.value.ok) {
+        const d = await mktRes.value.json();
+        out.marketing = d.activities || [];
+      }
+      if (attRes.status === 'fulfilled' && attRes.value.ok) {
+        const d = await attRes.value.json();
+        out.attorney = d.attorney || null;
+      }
+      return out;
+    },
+    [],
+  );
+  const dashboardRes = useAsyncResource(dashboardListingId, fetchDashboardResource);
+  const sellerFomo: SellerFomo | null = dashboardRes.data?.fomo ?? null;
+  const sellerDemand: SellerDemand | null = dashboardRes.data?.demand ?? null;
+  const comparables = dashboardRes.data?.comparables ?? null;
+  const priceHistory = dashboardRes.data?.priceHistory ?? null;
+  const marketing: any[] = dashboardRes.data?.marketing ?? [];
+  const attorney = dashboardRes.data?.attorney ?? null;
+  const dashboardLoading = dashboardRes.loading;
+
+  // Attorney form mirrors the loaded attorney record. Sync via
+  // set-state-during-render with a previous-value guard (React docs
+  // canonical pattern, no useEffect needed).
   const [attorneyEditing, setAttorneyEditing] = useState(false);
   const [attorneyForm, setAttorneyForm] = useState({ name: '', email: '', phone: '', firm: '' });
   const [attorneySaving, setAttorneySaving] = useState(false);
+  const [prevAttorneyKey, setPrevAttorneyKey] = useState<string | null>(null);
+  const attorneyKey = attorney ? JSON.stringify(attorney) : null;
+  if (attorneyKey !== prevAttorneyKey) {
+    setPrevAttorneyKey(attorneyKey);
+    if (attorney) {
+      setAttorneyForm({
+        name: attorney.name || '',
+        email: attorney.email || '',
+        phone: attorney.phone || '',
+        firm: attorney.firm || '',
+      });
+    }
+  }
 
   // Comments state
   const [expandedListing, setExpandedListing] = useState<string | null>(null);
@@ -233,114 +337,13 @@ export default function SellerPortalPage() {
   // What-if calculator local state
   const [whatIfPercent, setWhatIfPercent] = useState(5);
 
-  /* ───────────── Fetch functions ───────────── */
-
-  const fetchListings = useCallback(async () => {
-    setListingsLoading(true);
-    try {
-      const res = await fetch('/api/portal/listings');
-      if (res.ok) {
-        const data = await res.json();
-        setListings(data.listings || []);
-      }
-    } catch { /* ignore */ }
-    setListingsLoading(false);
-  }, []);
-
-  const fetchShowings = useCallback(async () => {
-    setShowingsLoading(true);
-    try {
-      const res = await fetch('/api/portal/showings');
-      if (res.ok) {
-        const data = await res.json();
-        setShowings(data.showings || []);
-      }
-    } catch { /* ignore */ }
-    setShowingsLoading(false);
-  }, []);
-
-  const fetchOffers = useCallback(async () => {
-    setOffersLoading(true);
-    try {
-      const res = await fetch('/api/portal/offers');
-      if (res.ok) {
-        const data = await res.json();
-        setOffers(data.offers || []);
-      }
-    } catch { /* ignore */ }
-    setOffersLoading(false);
-  }, []);
-
-  const fetchDocuments = useCallback(async () => {
-    setDocumentsLoading(true);
-    try {
-      const res = await fetch('/api/portal/documents');
-      if (res.ok) {
-        const data = await res.json();
-        setDocuments(data.documents || []);
-      }
-    } catch { /* ignore */ }
-    setDocumentsLoading(false);
-  }, []);
-
-  const fetchFamily = useCallback(async () => {
-    setFamilyLoading(true);
-    try {
-      const res = await fetch('/api/portal/family');
-      if (res.ok) {
-        const data = await res.json();
-        setFamily(data.family || []);
-      }
-    } catch { /* ignore */ }
-    setFamilyLoading(false);
-  }, []);
-
-  const fetchDashboardData = useCallback(async (listingId: string) => {
-    setDashboardLoading(true);
-    try {
-      const [fomoRes, demandRes, compsRes, priceRes, mktRes, attRes] = await Promise.allSettled([
-        fetch(`/api/portal/seller/fomo?listingId=${listingId}`),
-        fetch(`/api/portal/seller/demand?listingId=${listingId}`),
-        fetch(`/api/portal/comparables?listingId=${listingId}`),
-        fetch(`/api/portal/price-history?listingId=${listingId}`),
-        fetch(`/api/portal/marketing?listingId=${listingId}`),
-        fetch('/api/portal/attorney'),
-      ]);
-      if (fomoRes.status === 'fulfilled' && fomoRes.value.ok) {
-        const d = await fomoRes.value.json();
-        setSellerFomo(d);
-      }
-      if (demandRes.status === 'fulfilled' && demandRes.value.ok) {
-        const d = await demandRes.value.json();
-        setSellerDemand(d.demand || d);
-      }
-      if (compsRes.status === 'fulfilled' && compsRes.value.ok) {
-        const d = await compsRes.value.json();
-        setComparables(d);
-      }
-      if (priceRes.status === 'fulfilled' && priceRes.value.ok) {
-        const d = await priceRes.value.json();
-        setPriceHistory(d);
-      }
-      if (mktRes.status === 'fulfilled' && mktRes.value.ok) {
-        const d = await mktRes.value.json();
-        setMarketing(d.activities || []);
-      }
-      if (attRes.status === 'fulfilled' && attRes.value.ok) {
-        const d = await attRes.value.json();
-        setAttorney(d.attorney || null);
-        if (d.attorney) {
-          setAttorneyForm({
-            name: d.attorney.name || '',
-            email: d.attorney.email || '',
-            phone: d.attorney.phone || '',
-            firm: d.attorney.firm || '',
-          });
-        }
-      }
-    } catch { /* ignore */ }
-    setDashboardLoading(false);
-  }, []);
+  /* ───────────── Fetch functions ─────────────
+     Mount-time fetches (listings/showings/offers/documents/family) and
+     the dashboard fetch are owned by useAsyncResource above. The only
+     fetch function still living here is `fetchComments`, which is
+     parameterised by listing ID and triggered from event handlers
+     (not from a useEffect), so it doesn't trigger the React Compiler's
+     set-state-in-effect rule. */
 
   const fetchComments = useCallback(async (listingDbId: string) => {
     setCommentsLoading(true);
@@ -385,27 +388,10 @@ export default function SellerPortalPage() {
       .catch(() => router.replace('/sign-in'));
   }, [router]);
 
-  /* ───────────── Load data on mount ───────────── */
-
-  useEffect(() => {
-    if (!user) return;
-    fetchListings();
-    fetchShowings();
-    fetchOffers();
-    fetchDocuments();
-    fetchFamily();
-  }, [user, fetchListings, fetchShowings, fetchOffers, fetchDocuments, fetchFamily]);
-
-  /* ───────────── Load dashboard data when listings load ───────────── */
-
-  useEffect(() => {
-    if (listings.length > 0) {
-      const primary = listings[0];
-      fetchDashboardData(primary.listing_id);
-    }
-  }, [listings, fetchDashboardData]);
-
-  /* ───────────── Handlers ───────────── */
+  /* ───────────── Handlers ─────────────
+     Listings/showings/offers/documents/family/dashboard data are all
+     loaded automatically via useAsyncResource hooks above, keyed off
+     `userId` (post-auth) and `dashboardListingId`. No useEffect here. */
 
   const handleLogout = () => {
     fetch('/api/auth/logout', { method: 'POST' }).finally(() => router.replace('/sign-in'));
@@ -490,7 +476,7 @@ export default function SellerPortalPage() {
           setInvite2First(''); setInvite2Last(''); setInvite2Email('');
         }
 
-        fetchFamily();
+        refetchFamily();
         setTimeout(() => { setShowInviteForm(false); setInviteMessage(''); }, 2000);
       } else {
         setInviteMessage(data.error || 'Failed to send invite.');
@@ -510,7 +496,11 @@ export default function SellerPortalPage() {
         body: JSON.stringify(attorneyForm),
       });
       if (res.ok) {
-        setAttorney({ ...attorneyForm });
+        // Persist + refetch — server is the source of truth for the
+        // attorney record. The form already holds the new values, but
+        // the dashboard resource needs to be re-loaded so the rest of
+        // the page sees the update.
+        dashboardRes.refetch();
         setAttorneyEditing(false);
       }
     } catch { /* ignore */ }
@@ -624,7 +614,7 @@ export default function SellerPortalPage() {
                       value={primaryListing.listing_id}
                       onChange={e => {
                         const l = listings.find(x => x.listing_id === e.target.value);
-                        if (l) fetchDashboardData(l.listing_id);
+                        if (l) setSelectedListingId(l.listing_id);
                       }}
                     >
                       {listings.map(l => (

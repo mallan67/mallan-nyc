@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 interface ListingItem {
   id: string;
@@ -53,45 +54,34 @@ export default function LiveListingsWidget({
   bounds,
 }: LiveListingsWidgetProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
-  // Canonical fetch-on-mount + setState pattern. Effect depends on
-  // name/activeTab/zipCodes/bounds so re-runs are bounded by parent
-  // re-renders. React Compiler set-state-in-effect warning accepted —
-  // see https://react.dev/learn/synchronizing-with-effects#fetching-data
-  const [listings, setListings] = useState<ListingItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    setLoading(true);
-    const tab = TABS.find(t => t.key === activeTab) || TABS[0];
-    const params = new URLSearchParams({
-      limit: '6',
-      sort: 'price-desc',
-    });
-    // Primary: filter by neighborhood name (matches Trestle CityRegion + DB neighborhood field)
-    // Fallback: ZIP codes narrow the Trestle query; bounds post-filter for precision.
+  // Build the query string up front so it's the stable cache key driving
+  // useAsyncResource — neighborhood name, tab, zip codes, and bounds all
+  // contribute. Encoding in the key means tab/filter changes refetch
+  // automatically; identical params reuse the same in-flight request.
+  const queryString = (() => {
+    const tab = TABS.find((t) => t.key === activeTab) || TABS[0];
+    const params = new URLSearchParams({ limit: '6', sort: 'price-desc' });
     params.set('neighborhood', name);
-    if (zipCodes && zipCodes.length > 0) {
-      params.set('zipCodes', zipCodes.join(','));
-    }
-    if (bounds) {
-      params.set('bounds', `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`);
-    }
+    if (zipCodes && zipCodes.length > 0) params.set('zipCodes', zipCodes.join(','));
+    if (bounds) params.set('bounds', `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`);
     if (tab.type) params.set('type', tab.type);
     if (tab.propertyType) params.set('propertyType', tab.propertyType);
+    return params.toString();
+  })();
 
-    fetch(`/api/listings?${params}`)
-      .then(r => r.json())
-      .then(data => {
-        setListings(data.listings || []);
-        setTotal(data.total || 0);
-        setLoading(false);
-      })
-      .catch(() => {
-        setListings([]);
-        setLoading(false);
-      });
-  }, [name, activeTab, zipCodes, bounds]);
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<{ listings: ListingItem[]; total: number }> => {
+      const res = await fetch(`/api/listings?${key}`, { signal });
+      const data = await res.json();
+      return { listings: (data.listings as ListingItem[]) || [], total: data.total || 0 };
+    },
+    [],
+  );
+
+  const { data, loading } = useAsyncResource(queryString, fetcher);
+  const listings = data?.listings ?? [];
+  const total = data?.total ?? 0;
 
   return (
     <section aria-label={`${name} Listings`} className="py-10 sm:py-14">

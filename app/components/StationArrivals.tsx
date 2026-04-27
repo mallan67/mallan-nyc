@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import type { StationArrivalsData } from '@/lib/transit/types';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 interface StationArrivalsProps {
   stationId: string;
@@ -17,46 +18,38 @@ export default function StationArrivals({
   lines,
   type,
 }: StationArrivalsProps) {
-  // Canonical fetch-on-mount + 30-second polling. The effect depends on
-  // stationId/lines/type so re-runs are bounded by parent re-renders.
-  // setInterval is cleaned up in the effect's return. The React Compiler
-  // set-state-in-effect warning is the documented limitation when not
-  // using a fetching library.
-  const [data, setData] = useState<StationArrivalsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  // Polling tick — increments every 30s and is folded into the
+  // useAsyncResource cache key so each tick triggers a fresh fetch.
+  // setState inside setInterval is a callback (not synchronous in the
+  // effect body), so the React Compiler's set-state-in-effect rule
+  // doesn't flag it.
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    // Only fetch for subway and PATH (ferry doesn't have real-time feeds)
-    if (type !== 'subway' && type !== 'path') {
-      setLoading(false);
-      return;
-    }
+    if (type !== 'subway' && type !== 'path') return;
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [type]);
 
-    const fetchArrivals = () => {
-      fetch(`/api/transit/arrivals?stationId=${stationId}&lines=${lines.join(',')}`)
-        .then((res) => res.json())
-        .then((json) => {
-          setData(json);
-          setLoading(false);
-          setError(false);
-        })
-        .catch(() => {
-          setError(true);
-          setLoading(false);
-        });
-    };
+  const supportsRealtime = type === 'subway' || type === 'path';
+  const linesKey = lines.join(',');
+  const fetchKey = supportsRealtime ? `${stationId}|${linesKey}|${tick}` : null;
 
-    fetchArrivals();
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<StationArrivalsData> => {
+      const [sId, lns] = String(key).split('|');
+      const res = await fetch(
+        `/api/transit/arrivals?stationId=${encodeURIComponent(sId)}&lines=${encodeURIComponent(lns)}`,
+        { signal },
+      );
+      return res.json();
+    },
+    [],
+  );
 
-    // Poll every 30 seconds
-    intervalRef.current = setInterval(fetchArrivals, 30_000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [stationId, lines, type]);
+  const { data, loading: fetchLoading, error: fetchError } = useAsyncResource(fetchKey, fetcher);
+  // Ferry/SIR don't have a realtime feed → never loading, never error.
+  const loading = supportsRealtime && fetchLoading && !data;
+  const error = !!fetchError;
 
   // Ferry/SIR schedule-only display
   if (type === 'ferry' || type === 'sir') {

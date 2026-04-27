@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import type { NearbyStation } from '@/lib/transit/types';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 function TransitScoreBadge({ score }: { score: number }) {
   let color = 'bg-red-100 text-red-700';
@@ -48,26 +49,23 @@ export default function TransitSidebarSummary({
   neighborhoodTransit,
   transitScore: propScore,
 }: TransitSidebarSummaryProps) {
-  // Canonical fetch-on-mount + setState pattern. Effect depends on
-  // lat/lng so re-runs are bounded by parent re-renders.
-  type Data = { stations: NearbyStation[]; transitScore: number } | null;
-  const [data, setData] = useState<Data>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!latitude || !longitude) {
-      setLoading(false);
-      return;
-    }
-
-    fetch(`/api/transit/nearby?lat=${latitude}&lng=${longitude}&limit=3&radius=800`)
-      .then((res) => res.json())
-      .then((json) => {
-        setData(json);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [latitude, longitude]);
+  type TransitData = { stations: NearbyStation[]; transitScore: number };
+  const fetchKey = latitude && longitude ? `${latitude},${longitude}` : null;
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<TransitData> => {
+      const [lat, lng] = String(key).split(',');
+      const res = await fetch(
+        `/api/transit/nearby?lat=${lat}&lng=${lng}&limit=3&radius=800`,
+        { signal },
+      );
+      return res.json();
+    },
+    [],
+  );
+  const { data, loading: fetchLoading } = useAsyncResource(fetchKey, fetcher);
+  // Without coordinates the resource is idle (loading=false) and the
+  // fallback branch below renders the neighborhood summary.
+  const loading = !!fetchKey && fetchLoading;
 
   // Fall back to neighborhood data if no coordinates
   if (!latitude || !longitude) {
