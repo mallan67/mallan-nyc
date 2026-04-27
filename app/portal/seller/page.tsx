@@ -798,6 +798,10 @@ export default function SellerPortalPage() {
                         <div className="text-xs text-gray-500">Closed Sales</div>
                       </div>
                     </div>
+                    {/* REBNY UCBA Art. VIII §4 — required statistical disclaimer */}
+                    <p className="text-[11px] text-gray-500 mt-4 leading-snug">
+                      Based on information from the REBNY Listing Service for the period currently available. Data deemed reliable but not guaranteed.
+                    </p>
                   </div>
                 )}
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 
 interface ListingDTO {
   id: string;
@@ -19,6 +20,13 @@ interface ListingDTO {
     city: string;
   };
   media: { url: string }[] | null;
+  // REBNY attribution — UCBA Art. III §2(C). Falls back to Mallan when the
+  // agent's listings do not carry an explicit ListOfficeName.
+  listOfficeName?: string | null;
+  // UCBA Art. I §16(C) — Coming Soon badge requires status + date.
+  status?: string | null;
+  comingSoonDate?: string | null;
+  activationDate?: string | null;
 }
 
 function formatPrice(price: number, isRental: boolean): string {
@@ -48,9 +56,23 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
           className="object-cover group-hover:scale-105 transition-transform duration-300"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
-        <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-green-600 text-white text-[10px] font-bold rounded uppercase tracking-wide">
-          Active
-        </span>
+        {/* REBNY UCBA Art. I §16(C) — Coming Soon badge takes precedence over Active */}
+        {(() => {
+          const csBadge = (
+            <ComingSoonBadge
+              status={listing.status}
+              comingSoonDate={listing.comingSoonDate}
+              activationDate={listing.activationDate}
+              className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[11px] font-semibold px-2 py-0.5 rounded leading-tight max-w-[80%]"
+            />
+          );
+          return csBadge;
+        })()}
+        {listing.status !== 'ComingSoon' && listing.status !== 'Coming Soon' && (
+          <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-green-600 text-white text-[10px] font-bold rounded uppercase tracking-wide">
+            Active
+          </span>
+        )}
       </div>
       <div className="p-3.5">
         <p className="font-display font-bold text-lg text-brand-dark leading-tight">
@@ -75,6 +97,10 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
         </div>
         <p className="text-sm text-brand-dark/90 mt-1.5 truncate">{addr}</p>
         <p className="text-[11px] text-brand-dark/75">{neighborhood}</p>
+        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
+        <p className="text-sm text-brand-dark/80 mt-2 truncate">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'Mallan Real Estate Inc.'}
+        </p>
       </div>
     </Link>
   );

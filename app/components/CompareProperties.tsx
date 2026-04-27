@@ -298,8 +298,8 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
         </tbody>
       </table>
 
-      {/* RLS Attribution */}
-      <p className="text-[10px] text-brand-dark/60 mt-4 text-center">
+      {/* RLS Attribution — UCBA Art. III §2(C) + Art. VIII §4 (font not smaller than median page text) */}
+      <p className="text-sm text-brand-dark/70 mt-4 text-center">
         Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed.
       </p>
     </div>

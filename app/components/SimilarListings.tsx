@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from './IDXImage';
+import { ComingSoonBadge } from './ComingSoonBadge';
 
 interface SimilarListing {
   id: string;
@@ -20,6 +21,10 @@ interface SimilarListing {
   photosCount?: number;
   propertyType: string;
   office: string;
+  /** UCBA Art. I §16(C) — Coming Soon badge requires status + date. */
+  status?: string | null;
+  comingSoonDate?: string | null;
+  activationDate?: string | null;
 }
 
 interface SimilarListingsProps {
@@ -66,6 +71,13 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
             {item.photosCount}
           </span>
         )}
+        {/* REBNY UCBA Art. I §16(C) — Coming Soon badge */}
+        <ComingSoonBadge
+          status={item.status}
+          comingSoonDate={item.comingSoonDate}
+          activationDate={item.activationDate}
+          className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[11px] font-semibold px-2 py-0.5 rounded leading-tight max-w-[80%] z-10"
+        />
       </div>
       {/* Card body */}
       <div className="p-3.5 flex flex-col flex-1">
@@ -88,7 +100,8 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
           {item.propertyType}{item.neighborhood ? ` · ${item.neighborhood}` : ''}
         </p>
         <div className="flex-1 min-h-[8px]" />
-        <p className="text-[11px] text-brand-dark/45 pt-1.5 mt-1.5 font-light truncate">
+        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median (median = ~12-13px in this card) */}
+        <p className="text-[13px] text-brand-dark/75 pt-1.5 mt-1.5 truncate">
           RLS · Listing Courtesy of {item.office || 'REBNY RLS'}
         </p>
       </div>

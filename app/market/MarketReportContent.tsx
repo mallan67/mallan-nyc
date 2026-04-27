@@ -383,7 +383,7 @@ export default function MarketReportContent() {
           </>
         ) : (
           <p className="text-xs text-gray-400 leading-relaxed">
-            Based on information from the REBNY Listing Service. The data relating to real estate on this web site comes in part from the REBNY RLS. Data deemed reliable but not guaranteed.
+            Based on information from the REBNY Listing Service for the period currently available. The data relating to real estate on this web site comes in part from the REBNY RLS. Data deemed reliable but not guaranteed.
           </p>
         )}
         <p className="text-xs text-gray-300 mt-2">

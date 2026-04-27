@@ -850,6 +850,12 @@ export default function LandlordPortalPage() {
                     )}
                   </div>
                 </div>
+                {/* REBNY UCBA Art. VIII §4 — required statistical disclaimer for the Market card */}
+                {fomo?.market && (
+                  <p className="text-[11px] text-gray-500 leading-snug">
+                    Based on information from the REBNY Listing Service for the period currently available. Data deemed reliable but not guaranteed.
+                  </p>
+                )}
 
                 {/* Demand & What-If row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

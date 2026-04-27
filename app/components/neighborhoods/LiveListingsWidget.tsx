@@ -238,8 +238,8 @@ function ListingCard({ listing }: { listing: ListingItem }) {
           {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sq ft` : ''}
         </p>
 
-        {/* REBNY Compliance H1/F6: "Listing Courtesy of [Broker Name]" - REQUIRED */}
-        <p className="text-xs text-brand-dark/70 mt-2">
+        {/* REBNY Compliance H1/F6: "Listing Courtesy of [Broker Name]" — UCBA Art. III §2(C): font not smaller than median */}
+        <p className="text-sm text-brand-dark/80 mt-2">
           RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
       </div>

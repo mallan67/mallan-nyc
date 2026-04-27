@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { isComingSoonStatus } from './ComingSoonBadge';
 
 interface ActiveUnit {
   id: string;
@@ -14,6 +15,10 @@ interface ActiveUnit {
   unit: string;
   propertyType: string;
   office: string;
+  /** UCBA Art. I §16(C) — used to show Coming Soon status + first-showing date. */
+  status?: string | null;
+  comingSoonDate?: string | null;
+  activationDate?: string | null;
 }
 
 interface SaleRecord {
@@ -246,22 +251,46 @@ export default function BuildingUnits({
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Status</span>
                     </div>
 
-                    {activeUnits.map((unit) => (
-                      <Link
-                        key={unit.id}
-                        href={`/listing/${unit.mlsId}`}
-                        className="grid grid-cols-[50px_90px_40px_40px_70px] gap-x-3 py-3 border-b border-black/5 items-center hover:bg-black/[0.02] transition-colors"
-                      >
-                        <span className="text-[13px] font-medium text-brand-gold-deep">{unit.unit || '\u2014'}</span>
-                        <span className="text-[13px] text-brand-dark">{formatPrice(unit.listPrice)}</span>
-                        <span className="text-[13px] text-brand-dark/70">{unit.beds}</span>
-                        <span className="text-[13px] text-brand-dark/70">{unit.baths}{unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''}</span>
-                        <span className="text-[13px] text-blue-600">Active</span>
-                      </Link>
-                    ))}
+                    {activeUnits.map((unit) => {
+                      const isCS = isComingSoonStatus(unit.status);
+                      const csDate = unit.comingSoonDate || unit.activationDate;
+                      return (
+                        <Link
+                          key={unit.id}
+                          href={`/listing/${unit.mlsId}`}
+                          className="grid grid-cols-[50px_90px_40px_40px_70px] gap-x-3 py-3 border-b border-black/5 items-center hover:bg-black/[0.02] transition-colors"
+                          title={isCS && csDate ? `Coming Soon. No Showings or Open House until ${new Date(csDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` : undefined}
+                        >
+                          <span className="text-[13px] font-medium text-brand-gold-deep">{unit.unit || '\u2014'}</span>
+                          <span className="text-[13px] text-brand-dark">{formatPrice(unit.listPrice)}</span>
+                          <span className="text-[13px] text-brand-dark/70">{unit.beds}</span>
+                          <span className="text-[13px] text-brand-dark/70">{unit.baths}{unit.bathsHalf > 0 ? `.${unit.bathsHalf}` : ''}</span>
+                          {/* REBNY UCBA Art. I \u00a716(C): Coming Soon must be labeled with badge text */}
+                          {isCS ? (
+                            <span className="text-[13px] text-blue-700 font-semibold">Coming Soon</span>
+                          ) : (
+                            <span className="text-[13px] text-blue-600">Active</span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                    {/* Per-row Coming Soon badge text (for any CS unit, render full UCBA wording below table) */}
+                    {activeUnits.some((u) => isComingSoonStatus(u.status)) && (
+                      <p className="text-sm text-blue-700 mt-2 font-medium" data-rebny-coming-soon>
+                        {activeUnits
+                          .filter((u) => isComingSoonStatus(u.status))
+                          .map((u) => {
+                            const d = u.comingSoonDate || u.activationDate;
+                            const f = d ? new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+                            return `Unit ${u.unit || u.mlsId}: Coming Soon. No Showings or Open House${f ? ` until ${f}` : ' Permitted'}`;
+                          })
+                          .join(' \u00b7 ')}
+                      </p>
+                    )}
 
-                    <p className="text-[11px] text-brand-dark/45 mt-2 font-light">
-                      {activeUnits.map((u) => `RLS · Courtesy of ${u.office || 'REBNY RLS'}`).filter((v, i, a) => a.indexOf(v) === i).join(' | ')}
+                    {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median (table body=13px) */}
+                    <p className="text-[13px] text-brand-dark/75 mt-2">
+                      {activeUnits.map((u) => `RLS · Listing Courtesy of ${u.office || 'REBNY RLS'}`).filter((v, i, a) => a.indexOf(v) === i).join(' | ')}
                     </p>
                   </>
                 ) : null}

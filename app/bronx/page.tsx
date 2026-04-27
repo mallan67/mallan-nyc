@@ -33,7 +33,7 @@ const hubFaqSchema = {
       name: 'What are the best neighborhoods to buy in the Bronx?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'The Bronx offers diverse options. Riverdale is known for spacious homes, top schools, and a suburban feel. City Island provides a unique waterfront village atmosphere. Mott Haven features new developments and strong investment potential. Pelham Bay offers affordable homes near the city\u2019s largest park.',
+        text: 'The Bronx offers a wide range of options. Riverdale is known for spacious detached homes, low-density blocks, and a suburban-style residential character. City Island provides a unique waterfront village atmosphere. Mott Haven features new developments and significant investment activity. Pelham Bay offers more accessible price points near the city\u2019s largest park.',
       },
     },
     {

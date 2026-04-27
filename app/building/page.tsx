@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import BackButton from '@/app/components/BackButton';
+import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 
 // ISR — revalidate every 10 minutes
 export const revalidate = 600;
@@ -31,6 +32,9 @@ interface ActiveUnit {
   status: string;
   listingType: string;
   photoUrl: string | null;
+  // UCBA Art. I §16(C) — first-showing date for Coming Soon badge.
+  comingSoonDate?: string | null;
+  activationDate?: string | null;
 }
 
 interface SaleRecord {
@@ -406,6 +410,13 @@ export default async function BuildingPage({ searchParams }: Props) {
                           </svg>
                         </div>
                       )}
+                      {/* REBNY UCBA Art. I §16(C) — Coming Soon badge */}
+                      <ComingSoonBadge
+                        status={unit.status}
+                        comingSoonDate={unit.comingSoonDate}
+                        activationDate={unit.activationDate}
+                        className="absolute top-2 left-2 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[80%]"
+                      />
                     </div>
 
                     <div className="p-4">

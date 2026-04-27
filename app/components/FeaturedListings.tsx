@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
+import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 
@@ -33,6 +34,9 @@ interface FeaturedListing {
   photosCount?: number;
   monthlyCommonCharges?: number;
   monthlyMaintenance?: number;
+  /** UCBA Art. I §16(C) — first-showing date used in the Coming Soon badge. */
+  comingSoonDate?: string | null;
+  activationDate?: string | null;
   _attribution?: string;
   _lastUpdated?: string;
 }
@@ -212,6 +216,13 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
           Featured
         </span>
       )}
+      {/* REBNY UCBA Art. I §16(C) — Coming Soon listings must show this exact badge */}
+      <ComingSoonBadge
+        status={listing.status}
+        comingSoonDate={listing.comingSoonDate}
+        activationDate={listing.activationDate}
+        className="absolute top-4 right-4 z-30 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[60%]"
+      />
       <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer group">
         <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
       </Link>
@@ -240,7 +251,8 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
               CC: ${cc.toLocaleString()}/mo
             </p>
           )}
-          <p className="text-xs text-brand-dark/70 mt-2">
+          {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
+          <p className="text-base text-brand-dark/80 mt-2">
             RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
           </p>
         </Link>
