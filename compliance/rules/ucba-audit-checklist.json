@@ -103,7 +103,26 @@
             "lib/compliance/dom-tracker.ts"
           ],
           "verifyPattern": "first_active_date",
-          "verifyDescription": "Check DOM start uses status transition timestamp (approximates RLS transmission) and NOT listing_contract_date"
+          "verifyDescription": "Check DOM start uses status transition timestamp (approximates RLS transmission) and NOT listing_contract_date",
+          "validation_v2": {
+            "validation_mode": "manual",
+            "ci_policy": "advisory",
+            "release_blocking": false,
+            "manual_review_required": true,
+            "required_surfaces": [
+              "helper"
+            ],
+            "evidence": {
+              "helper": [
+                "lib/compliance/dom-tracker.ts"
+              ]
+            },
+            "surface_patterns": {
+              "helper": "first_active_date|status_changed_at"
+            },
+            "expected_aggregate": "UNVERIFIED",
+            "notes": "Semantic rule: DOM must START at RLS transmission, not listing contract date. Runner can confirm the helper exists; can NOT confirm the timestamp semantically equals \"RLS transmission moment\". Manual review required."
+          }
         },
         {
           "id": "A3",
@@ -115,7 +134,24 @@
             "lib/compliance/dom-tracker.ts"
           ],
           "verifyPattern": "Sold|Rented",
-          "verifyDescription": "Check Sold/Rented transitions freeze DOM at final value"
+          "verifyDescription": "Check Sold/Rented transitions freeze DOM at final value",
+          "validation_v2": {
+            "validation_mode": "pattern",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "helper"
+            ],
+            "evidence": {
+              "helper": [
+                "lib/compliance/dom-tracker.ts"
+              ]
+            },
+            "surface_patterns": {
+              "helper": "Sold|Rented|onClose|terminal"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "A4",
@@ -161,7 +197,26 @@
             "lib/compliance/dom-tracker.ts"
           ],
           "verifyPattern": "cumulative_days_on_market",
-          "verifyDescription": "Check cumulative DOM preserves history. Verify if re-listing detection by address exists."
+          "verifyDescription": "Check cumulative DOM preserves history. Verify if re-listing detection by address exists.",
+          "validation_v2": {
+            "validation_mode": "manual",
+            "ci_policy": "advisory",
+            "release_blocking": false,
+            "manual_review_required": true,
+            "required_surfaces": [
+              "helper"
+            ],
+            "evidence": {
+              "helper": [
+                "lib/compliance/dom-tracker.ts"
+              ]
+            },
+            "surface_patterns": {
+              "helper": "circumvent|reset|same.address"
+            },
+            "expected_aggregate": "UNVERIFIED",
+            "notes": "Semantic rule: cannot circumvent DOM by re-naming or re-listing same address. Detection requires same-address windowed query — needs human review of edge cases."
+          }
         },
         {
           "id": "A6",
@@ -327,7 +382,26 @@
             "app/api/crm/listings/route.ts"
           ],
           "verifyPattern": "STATUS_INITIAL|Draft",
-          "verifyDescription": "Check if listings auto-submit to RLS on publish or require manual transition from Draft"
+          "verifyDescription": "Check if listings auto-submit to RLS on publish or require manual transition from Draft",
+          "validation_v2": {
+            "validation_mode": "manual",
+            "ci_policy": "advisory",
+            "release_blocking": false,
+            "manual_review_required": true,
+            "required_surfaces": [
+              "route"
+            ],
+            "evidence": {
+              "route": [
+                "app/api/crm/listings/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "route": "STATUS_INITIAL|simultaneous|publish"
+            },
+            "expected_aggregate": "UNVERIFIED",
+            "notes": "Semantic rule: listing must be submitted to RLS simultaneously with ANY public dissemination. Runner can confirm initial status defaults to Draft; can NOT confirm runtime simultaneity. Manual review of every public-publish path required."
+          }
         },
         {
           "id": "C3",
@@ -763,7 +837,25 @@
             "lib/compliance/rls-enforcement.ts"
           ],
           "verifyPattern": "diffDays.*14|14.*days|CS-003",
-          "verifyDescription": "Check 14-day max enforcement as BLOCKER"
+          "verifyDescription": "Check 14-day max enforcement as BLOCKER",
+          "validation_v2": {
+            "validation_mode": "pattern",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "gate"
+            ],
+            "evidence": {
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ]
+            },
+            "surface_patterns": {
+              "gate": "COMING_SOON_MAX_DAYS|14"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Coming Soon max 14 calendar days (UCBA Art. I §16(B))."
+          }
         },
         {
           "id": "D3",
@@ -775,7 +867,25 @@
             "app/api/portal/showings/route.ts"
           ],
           "verifyPattern": "ComingSoon.*422|ComingSoon.*block|Showings.*not permitted",
-          "verifyDescription": "Check showing POST returns 422 for ComingSoon listings"
+          "verifyDescription": "Check showing POST returns 422 for ComingSoon listings",
+          "validation_v2": {
+            "validation_mode": "pattern",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "route"
+            ],
+            "evidence": {
+              "route": [
+                "app/api/portal/showings/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "route": "ComingSoon|coming.soon|StandardStatus"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "No showings allowed while listing is in Coming Soon status."
+          }
         },
         {
           "id": "D7",
@@ -853,7 +963,30 @@
             "app/api/crm/listings/[id]/"
           ],
           "verifyPattern": "activationDateImmutable|ActivationDate.*immutable|ActivationDate.*change",
-          "verifyDescription": "Check if update path blocks changes to ActivationDate when previously set"
+          "verifyDescription": "Check if update path blocks changes to ActivationDate when previously set",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "gate",
+              "route"
+            ],
+            "evidence": {
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ],
+              "route": [
+                "app/api/crm/listings/[id]/status/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "gate": "ActivationDate|first_active_date|immutable",
+              "route": "ActivationDate|first_active_date|status"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Coming Soon → Active activation date is immutable once set."
+          }
         }
       ]
     },
@@ -871,7 +1004,25 @@
             "app/api/portal/showings/route.ts"
           ],
           "verifyPattern": "buyer_rep|buyerRep|representation.*agreement",
-          "verifyDescription": "Check if showing POST verifies buyer rep agreement exists before allowing creation"
+          "verifyDescription": "Check if showing POST verifies buyer rep agreement exists before allowing creation",
+          "validation_v2": {
+            "validation_mode": "pattern",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "route"
+            ],
+            "evidence": {
+              "route": [
+                "app/api/portal/showings/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "route": "BuyerRep|buyer.rep|agreement"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Showing requires executed Buyer Rep agreement (UCBA Art. II §16)."
+          }
         }
       ]
     },
@@ -1522,7 +1673,25 @@
             "public/crm/SALE-FORM-REDESIGN.html"
           ],
           "verifyPattern": "NumberOfShares|saleUnitShares",
-          "verifyDescription": "Check field exists WITHOUT data-rls-ignore AND is mapped in payload builder to NumberOfShares"
+          "verifyDescription": "Check field exists WITHOUT data-rls-ignore AND is mapped in payload builder to NumberOfShares",
+          "validation_v2": {
+            "validation_mode": "pattern",
+            "ci_policy": "must_pass",
+            "release_blocking": false,
+            "required_surfaces": [
+              "ui_form"
+            ],
+            "evidence": {
+              "ui_form": [
+                "public/crm/SALE-FORM-REDESIGN.html"
+              ]
+            },
+            "surface_patterns": {
+              "ui_form": "NumberOfShares|number.of.shares|saleNumberOfShares"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Co-op listings must collect NumberOfShares."
+          }
         },
         {
           "id": "EXHA-52",
@@ -1535,7 +1704,25 @@
             "public/crm/SALE-FORM-REDESIGN.html"
           ],
           "verifyPattern": "TaxMonthlyAmount",
-          "verifyDescription": "Check field exists in sale form. TaxAnnualAmount is NOT the same field."
+          "verifyDescription": "Check field exists in sale form. TaxAnnualAmount is NOT the same field.",
+          "validation_v2": {
+            "validation_mode": "pattern",
+            "ci_policy": "must_pass",
+            "release_blocking": false,
+            "required_surfaces": [
+              "ui_form"
+            ],
+            "evidence": {
+              "ui_form": [
+                "public/crm/SALE-FORM-REDESIGN.html"
+              ]
+            },
+            "surface_patterns": {
+              "ui_form": "TaxMonthlyAmount|saleTaxMonthly"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Condo listings must collect TaxMonthlyAmount (auto-calculated from annual)."
+          }
         }
       ]
     }

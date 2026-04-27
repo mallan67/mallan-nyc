@@ -586,6 +586,122 @@ const V2_BATCH = {
     },
     expected_aggregate: 'PASS',
   },
+
+  // ─── Batch 7 — Mechanical single-surface migrations ────────────────────
+  A3: {
+    validation_mode: 'pattern',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['helper'],
+    evidence: { helper: ['lib/compliance/dom-tracker.ts'] },
+    surface_patterns: { helper: 'Sold|Rented|onClose|terminal' },
+    expected_aggregate: 'PASS',
+  },
+  D2: {
+    validation_mode: 'pattern',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['gate'],
+    evidence: { gate: ['lib/compliance/rls-enforcement.ts'] },
+    surface_patterns: { gate: 'COMING_SOON_MAX_DAYS|14' },
+    expected_aggregate: 'PASS',
+    notes: 'Coming Soon max 14 calendar days (UCBA Art. I §16(B)).',
+  },
+  D3: {
+    validation_mode: 'pattern',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['route'],
+    evidence: { route: ['app/api/portal/showings/route.ts'] },
+    surface_patterns: { route: 'ComingSoon|coming.soon|StandardStatus' },
+    expected_aggregate: 'PASS',
+    notes: 'No showings allowed while listing is in Coming Soon status.',
+  },
+  D12: {
+    validation_mode: 'workflow',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['gate', 'route'],
+    evidence: {
+      gate: ['lib/compliance/rls-enforcement.ts'],
+      route: ['app/api/crm/listings/[id]/status/route.ts'],
+    },
+    surface_patterns: {
+      gate: 'ActivationDate|first_active_date|immutable',
+      route: 'ActivationDate|first_active_date|status',
+    },
+    expected_aggregate: 'PASS',
+    notes: 'Coming Soon → Active activation date is immutable once set.',
+  },
+  E7: {
+    validation_mode: 'pattern',
+    ci_policy: 'must_pass',
+    release_blocking: true,
+    required_surfaces: ['route'],
+    evidence: { route: ['app/api/portal/showings/route.ts'] },
+    surface_patterns: { route: 'BuyerRep|buyer.rep|agreement' },
+    expected_aggregate: 'PASS',
+    notes: 'Showing requires executed Buyer Rep agreement (UCBA Art. II §16).',
+  },
+  'EXHA-49': {
+    validation_mode: 'pattern',
+    ci_policy: 'must_pass',
+    release_blocking: false,
+    required_surfaces: ['ui_form'],
+    evidence: { ui_form: ['public/crm/SALE-FORM-REDESIGN.html'] },
+    surface_patterns: { ui_form: 'NumberOfShares|number.of.shares|saleNumberOfShares' },
+    expected_aggregate: 'PASS',
+    notes: 'Co-op listings must collect NumberOfShares.',
+  },
+  'EXHA-52': {
+    validation_mode: 'pattern',
+    ci_policy: 'must_pass',
+    release_blocking: false,
+    required_surfaces: ['ui_form'],
+    evidence: { ui_form: ['public/crm/SALE-FORM-REDESIGN.html'] },
+    surface_patterns: { ui_form: 'TaxMonthlyAmount|saleTaxMonthly' },
+    expected_aggregate: 'PASS',
+    notes: 'Condo listings must collect TaxMonthlyAmount (auto-calculated from annual).',
+  },
+
+  // ─── Batch 8 — Semantic rules (manual mode, expect UNVERIFIED) ─────────
+  // These rules can't be reduced to a binary surface check. Marking them
+  // v2 with validation_mode='manual' makes the runner report UNVERIFIED
+  // (truthful) rather than the misleading PASS/EVALUATE_CLOSELY they
+  // had under v1.
+  A2: {
+    validation_mode: 'manual',
+    ci_policy: 'advisory',
+    release_blocking: false,
+    manual_review_required: true,
+    required_surfaces: ['helper'],
+    evidence: { helper: ['lib/compliance/dom-tracker.ts'] },
+    surface_patterns: { helper: 'first_active_date|status_changed_at' },
+    expected_aggregate: 'UNVERIFIED',
+    notes: 'Semantic rule: DOM must START at RLS transmission, not listing contract date. Runner can confirm the helper exists; can NOT confirm the timestamp semantically equals "RLS transmission moment". Manual review required.',
+  },
+  A5: {
+    validation_mode: 'manual',
+    ci_policy: 'advisory',
+    release_blocking: false,
+    manual_review_required: true,
+    required_surfaces: ['helper'],
+    evidence: { helper: ['lib/compliance/dom-tracker.ts'] },
+    surface_patterns: { helper: 'circumvent|reset|same.address' },
+    expected_aggregate: 'UNVERIFIED',
+    notes: 'Semantic rule: cannot circumvent DOM by re-naming or re-listing same address. Detection requires same-address windowed query — needs human review of edge cases.',
+  },
+  C2: {
+    validation_mode: 'manual',
+    ci_policy: 'advisory',
+    release_blocking: false,
+    manual_review_required: true,
+    required_surfaces: ['route'],
+    evidence: { route: ['app/api/crm/listings/route.ts'] },
+    surface_patterns: { route: 'STATUS_INITIAL|simultaneous|publish' },
+    expected_aggregate: 'UNVERIFIED',
+    notes: 'Semantic rule: listing must be submitted to RLS simultaneously with ANY public dissemination. Runner can confirm initial status defaults to Draft; can NOT confirm runtime simultaneity. Manual review of every public-publish path required.',
+  },
 };
 
 const checklist = JSON.parse(fs.readFileSync(PATH_CHECKLIST, 'utf-8'));
