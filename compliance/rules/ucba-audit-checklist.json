@@ -176,7 +176,34 @@
             "public/crm/js/crm/protected-periods.js"
           ],
           "verifyPattern": "ProtectedPeriod|ProtectedBuyer|protected_periods|names_deadline",
-          "verifyDescription": "ProtectedPeriod + ProtectedBuyer models, 5 API routes, CRM UI tab, cron notifications at 30d/7d/expiration, 7 biz day deadline enforcement."
+          "verifyDescription": "ProtectedPeriod + ProtectedBuyer models, 5 API routes, CRM UI tab, cron notifications at 30d/7d/expiration, 7 biz day deadline enforcement.",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "schema",
+              "route",
+              "ui"
+            ],
+            "evidence": {
+              "schema": [
+                "prisma/schema.prisma"
+              ],
+              "route": [
+                "app/api/crm/protected-periods/route.ts"
+              ],
+              "ui": [
+                "public/crm/js/dashboard/workspace.js"
+              ]
+            },
+            "surface_patterns": {
+              "schema": "model ProtectedPeriod|protected_period",
+              "route": "ProtectedPeriod|protected_period",
+              "ui": "protected.period|ProtectedPeriod"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "A7",
@@ -190,7 +217,29 @@
             "app/api/crm/protected-periods/[id]/convert/route.ts"
           ],
           "verifyPattern": "protection_ends_at|deal_executed|converted",
-          "verifyDescription": "90-day window tracked via protection_ends_at. Convert endpoint marks deal_executed + period status=converted. Cron expires active periods after 90 days."
+          "verifyDescription": "90-day window tracked via protection_ends_at. Convert endpoint marks deal_executed + period status=converted. Cron expires active periods after 90 days.",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "schema",
+              "route"
+            ],
+            "evidence": {
+              "schema": [
+                "prisma/schema.prisma"
+              ],
+              "route": [
+                "app/api/crm/protected-periods/[id]/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "schema": "model ProtectedPeriod|protected_period",
+              "route": "ProtectedPeriod|protected_period"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "A8",
@@ -204,7 +253,29 @@
             "public/crm/js/crm/protected-periods.js"
           ],
           "verifyPattern": "listing_expiration|protected_period|notify.*broker|Notify Broker",
-          "verifyDescription": "Broker notified via listing_expiration notifications on expiration + missed deadline. CRM detail modal shows period info. Internal audit document — notice not sent to RLS."
+          "verifyDescription": "Broker notified via listing_expiration notifications on expiration + missed deadline. CRM detail modal shows period info. Internal audit document — notice not sent to RLS.",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "route",
+              "ui"
+            ],
+            "evidence": {
+              "route": [
+                "app/api/crm/protected-periods/[id]/route.ts"
+              ],
+              "ui": [
+                "public/crm/js/dashboard/workspace.js"
+              ]
+            },
+            "surface_patterns": {
+              "route": "ProtectedPeriod|protected_period|notify",
+              "ui": "protected.period|ProtectedPeriod"
+            },
+            "expected_aggregate": "PASS"
+          }
         }
       ]
     },
@@ -222,7 +293,29 @@
             "lib/compliance/rebny-field-tables.ts"
           ],
           "verifyPattern": "ListingAgreement|ExclusiveRightToSell|ExclusiveAgency",
-          "verifyDescription": "Check ListingAgreement enum whitelist contains only exclusive types AND enforcement gate rejects others"
+          "verifyDescription": "Check ListingAgreement enum whitelist contains only exclusive types AND enforcement gate rejects others",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "gate",
+              "data"
+            ],
+            "evidence": {
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ],
+              "data": [
+                "lib/compliance/rebny-field-tables.ts"
+              ]
+            },
+            "surface_patterns": {
+              "gate": "ListingAgreement|exclusive",
+              "data": "ListingAgreement|enumValues"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "C2",
@@ -440,7 +533,24 @@
             "app/api/crm/listings/[id]/status/route.ts"
           ],
           "verifyPattern": "ClosePrice|close_price",
-          "verifyDescription": "Check if ClosePrice is REQUIRED when transitioning to Sold/Rented status"
+          "verifyDescription": "Check if ClosePrice is REQUIRED when transitioning to Sold/Rented status",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "route"
+            ],
+            "evidence": {
+              "route": [
+                "app/api/crm/listings/[id]/status/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "route": "ClosePrice|close.price.*24"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "C13",
@@ -623,7 +733,25 @@
             "lib/compliance/rls-enforcement.ts"
           ],
           "verifyPattern": "CS-001|CS-002|rental.*ComingSoon|ComingSoon.*rental",
-          "verifyDescription": "Check enforcement gate blocks Coming Soon for rent and new development"
+          "verifyDescription": "Check enforcement gate blocks Coming Soon for rent and new development",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "gate"
+            ],
+            "evidence": {
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ]
+            },
+            "surface_patterns": {
+              "gate": "PropertyType.*[Ss]ale|sale.*only|coming.*soon.*sale"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Coming Soon is sales-only — rentals never use it (UCBA Art. I §16)."
+          }
         },
         {
           "id": "D2",
@@ -660,7 +788,25 @@
             "app/listing/[id]/page.tsx"
           ],
           "verifyPattern": "Coming Soon.*No Showings.*Open House",
-          "verifyDescription": "Check badge text matches REBNY requirement exactly on search cards AND detail page"
+          "verifyDescription": "Check badge text matches REBNY requirement exactly on search cards AND detail page",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "frontend_display"
+            ],
+            "evidence": {
+              "frontend_display": [
+                "app/components/SearchListingCard.tsx",
+                "app/listing/[id]/page.tsx"
+              ]
+            },
+            "surface_patterns": {
+              "frontend_display": "Coming\\s+Soon|comingSoon"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "D9",
@@ -674,7 +820,26 @@
             "app/api/crm/listings/[id]/status/route.ts"
           ],
           "verifyPattern": "_wasComingSoon|Coming Soon.*already been used|UCBA D9",
-          "verifyDescription": "Check for DB query that looks up previous Coming Soon listings by address via _wasComingSoon flag"
+          "verifyDescription": "Check for DB query that looks up previous Coming Soon listings by address via _wasComingSoon flag",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "route"
+            ],
+            "evidence": {
+              "route": [
+                "app/api/crm/listings/route.ts",
+                "app/api/crm/listings/[id]/status/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "route": "ComingSoon|coming.soon"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Coming Soon is one-time-use per address (60-day reset window)."
+          }
         },
         {
           "id": "D12",
@@ -724,7 +889,30 @@
             "app/robots.ts"
           ],
           "verifyPattern": "BLOCKED_BOTS|rate.*limit|GPTBot|ClaudeBot",
-          "verifyDescription": "Check bot blocking, rate limiting, auth on data endpoints"
+          "verifyDescription": "Check bot blocking, rate limiting, auth on data endpoints",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "middleware",
+              "robots"
+            ],
+            "evidence": {
+              "middleware": [
+                "lib/middleware/bot-blocker.ts",
+                "lib/middleware/csrf.ts"
+              ],
+              "robots": [
+                "app/robots.ts"
+              ]
+            },
+            "surface_patterns": {
+              "middleware": "bot|csrf|allowlist|disallow",
+              "robots": "noindex|disallow|robots"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "F6",
@@ -737,7 +925,25 @@
             "app/components/SearchListingCard.tsx"
           ],
           "verifyPattern": "Listing [Cc]ourtesy|listOfficeName|RLS.*listOfficeName",
-          "verifyDescription": "Check attribution text appears on listing detail page AND search cards"
+          "verifyDescription": "Check attribution text appears on listing detail page AND search cards",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "frontend_display"
+            ],
+            "evidence": {
+              "frontend_display": [
+                "app/listing/[id]/page.tsx",
+                "app/components/SearchListingCard.tsx"
+              ]
+            },
+            "surface_patterns": {
+              "frontend_display": "Listing\\s+Courtesy\\s+of|REBNY|listing_courtesy"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "F12",
@@ -750,7 +956,29 @@
             "lib/compliance/rebny-field-tables.ts"
           ],
           "verifyPattern": "MANDATORY_FIELDS|agentSubmitted|mandatoryCount",
-          "verifyDescription": "Check enforcement gate validates all 48 mandatory + 51 conditional fields"
+          "verifyDescription": "Check enforcement gate validates all 48 mandatory + 51 conditional fields",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "gate",
+              "data"
+            ],
+            "evidence": {
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ],
+              "data": [
+                "lib/compliance/rebny-field-tables.ts"
+              ]
+            },
+            "surface_patterns": {
+              "gate": "validate|REQUIRED_RLS_FIELDS",
+              "data": "REBNY_FIELD_TABLES|enumValues"
+            },
+            "expected_aggregate": "PASS"
+          }
         }
       ]
     },
@@ -768,7 +996,29 @@
             "lib/compliance/rls-enforcement.ts"
           ],
           "verifyPattern": "REMOVED_FIELDS|BuyerAgencyCompensation|SubAgencyCompensation",
-          "verifyDescription": "Check compensation fields stripped at all DTO tiers AND rejected on write path"
+          "verifyDescription": "Check compensation fields stripped at all DTO tiers AND rejected on write path",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "dto",
+              "gate"
+            ],
+            "evidence": {
+              "dto": [
+                "lib/compliance/dto.ts"
+              ],
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ]
+            },
+            "surface_patterns": {
+              "dto": "BuyerAgencyCompensation|SubAgencyCompensation",
+              "gate": "compensation|COMPENSATION"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "G3",
@@ -780,7 +1030,24 @@
             "app/components/IDXDisclaimer.tsx"
           ],
           "verifyPattern": "fully negotiable|not set by law",
-          "verifyDescription": "Check disclosure text appears on listing pages, search results, and calculator"
+          "verifyDescription": "Check disclosure text appears on listing pages, search results, and calculator",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "frontend_display"
+            ],
+            "evidence": {
+              "frontend_display": [
+                "app/components/IDXDisclaimer.tsx"
+              ]
+            },
+            "surface_patterns": {
+              "frontend_display": "negotiable|fully.negotiable|not.set.by.law"
+            },
+            "expected_aggregate": "PASS"
+          }
         }
       ]
     },
@@ -799,7 +1066,27 @@
             "app/components/PropertySearch.tsx"
           ],
           "verifyPattern": "courtesy|listOfficeName",
-          "verifyDescription": "Check attribution on detail page, search cards, and all listing display surfaces"
+          "verifyDescription": "Check attribution on detail page, search cards, and all listing display surfaces",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "frontend_display"
+            ],
+            "evidence": {
+              "frontend_display": [
+                "app/listing/[id]/page.tsx",
+                "app/components/SearchListingCard.tsx",
+                "app/components/PropertySearch.tsx"
+              ]
+            },
+            "surface_patterns": {
+              "frontend_display": "Listing\\s+Courtesy\\s+of|REBNY|listing_courtesy"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Attribution on every listing display. UCBA Art. III §2(C)."
+          }
         },
         {
           "id": "H3",
@@ -814,7 +1101,34 @@
             "lib/idx/db-to-public-dto.ts"
           ],
           "verifyPattern": "owner_opt_out.*false|ownerOptOut|Owner.*opted.*out",
-          "verifyDescription": "Check owner opt-out filtering at ALL layers: Trestle gate, DB query, portal DTO, detail page"
+          "verifyDescription": "Check owner opt-out filtering at ALL layers: Trestle gate, DB query, portal DTO, detail page",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "mapper",
+              "dto",
+              "route"
+            ],
+            "evidence": {
+              "mapper": [
+                "lib/idx/trestle-mapper.ts"
+              ],
+              "dto": [
+                "lib/compliance/dto.ts"
+              ],
+              "route": [
+                "app/api/listings/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "mapper": "OwnerOptOut|owner_opt_out",
+              "dto": "OwnerOptOut|opt.out",
+              "route": "OwnerOptOut|owner_opt_out"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "H4",
@@ -828,7 +1142,34 @@
             "app/api/listings/route.ts"
           ],
           "verifyPattern": "participant_only.*false|ParticipantOnlyYN",
-          "verifyDescription": "Check participant-only filtering at Trestle gate, DB query, and portal DTO"
+          "verifyDescription": "Check participant-only filtering at Trestle gate, DB query, and portal DTO",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "mapper",
+              "dto",
+              "route"
+            ],
+            "evidence": {
+              "mapper": [
+                "lib/idx/trestle-mapper.ts"
+              ],
+              "dto": [
+                "lib/compliance/dto.ts"
+              ],
+              "route": [
+                "app/api/listings/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "mapper": "ParticipantOnly|participant_only",
+              "dto": "ParticipantOnly|participant_only",
+              "route": "ParticipantOnly|participant_only"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "H7",
@@ -842,7 +1183,26 @@
             "app/components/neighborhoods/LiveListingsWidget.tsx"
           ],
           "verifyPattern": "Coming Soon.*No Showings",
-          "verifyDescription": "Check ALL listing display surfaces show full required text including LiveListingsWidget"
+          "verifyDescription": "Check ALL listing display surfaces show full required text including LiveListingsWidget",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "frontend_display"
+            ],
+            "evidence": {
+              "frontend_display": [
+                "app/components/SearchListingCard.tsx",
+                "app/listing/[id]/page.tsx",
+                "app/components/neighborhoods/LiveListingsWidget.tsx"
+              ]
+            },
+            "surface_patterns": {
+              "frontend_display": "Coming\\s+Soon|comingSoon"
+            },
+            "expected_aggregate": "PASS"
+          }
         },
         {
           "id": "H10",
@@ -854,7 +1214,26 @@
             "lib/compliance/dto.ts"
           ],
           "verifyPattern": "InternetAddressDisplayYN|Address Undisclosed|ExpirationDate",
-          "verifyDescription": "Check address suppression replaces with 'Address Undisclosed' and ExpirationDate stripped"
+          "verifyDescription": "Check address suppression replaces with 'Address Undisclosed' and ExpirationDate stripped",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "dto"
+            ],
+            "evidence": {
+              "dto": [
+                "lib/compliance/dto.ts",
+                "lib/idx/trestle-mapper.ts"
+              ]
+            },
+            "surface_patterns": {
+              "dto": "PrivateRemarks|ShowingInstructions|stripPrivateFields"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "PrivateRemarks, ShowingInstructions, agent direct contact must NEVER reach public/portal DTOs."
+          }
         },
         {
           "id": "H11",
@@ -866,7 +1245,24 @@
             "lib/compliance/dto.ts"
           ],
           "verifyPattern": "REMOVED_FIELDS|BuyerAgencyCompensation",
-          "verifyDescription": "Check all compensation fields in REMOVED_FIELDS and no amounts in frontend components"
+          "verifyDescription": "Check all compensation fields in REMOVED_FIELDS and no amounts in frontend components",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "dto"
+            ],
+            "evidence": {
+              "dto": [
+                "lib/compliance/dto.ts"
+              ]
+            },
+            "surface_patterns": {
+              "dto": "BuyerAgencyCompensation|SubAgencyCompensation|stripCompensation"
+            },
+            "expected_aggregate": "PASS"
+          }
         }
       ]
     },
@@ -888,7 +1284,35 @@
             "app/api/portal/showings/route.ts"
           ],
           "verifyPattern": "owner_opt_out",
-          "verifyDescription": "Check owner_opt_out filtering at ALL 9 enforcement points"
+          "verifyDescription": "Check owner_opt_out filtering at ALL 9 enforcement points",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "mapper",
+              "dto",
+              "route"
+            ],
+            "evidence": {
+              "mapper": [
+                "lib/idx/trestle-mapper.ts"
+              ],
+              "dto": [
+                "lib/compliance/dto.ts"
+              ],
+              "route": [
+                "app/api/listings/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "mapper": "OwnerOptOut|owner_opt_out",
+              "dto": "OwnerOptOut|opt.out",
+              "route": "checkDistributionGates|OwnerOptOut"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Gate 1: Owner Opt-Out — listing hidden from ALL public surfaces."
+          }
         },
         {
           "id": "GATE-2",
@@ -902,7 +1326,35 @@
             "app/api/listings/route.ts"
           ],
           "verifyPattern": "participant_only",
-          "verifyDescription": "Check participant_only filtering at all entry points"
+          "verifyDescription": "Check participant_only filtering at all entry points",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "mapper",
+              "dto",
+              "route"
+            ],
+            "evidence": {
+              "mapper": [
+                "lib/idx/trestle-mapper.ts"
+              ],
+              "dto": [
+                "lib/compliance/dto.ts"
+              ],
+              "route": [
+                "app/api/listings/route.ts"
+              ]
+            },
+            "surface_patterns": {
+              "mapper": "ParticipantOnly|participant_only",
+              "dto": "ParticipantOnly|participant_only",
+              "route": "checkDistributionGates|ParticipantOnly"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Gate 2: Participant Only — RLS participants only, never public."
+          }
         },
         {
           "id": "GATE-3",
@@ -916,7 +1368,35 @@
             "lib/idx/db-to-public-dto.ts"
           ],
           "verifyPattern": "idx_display_yn|IDXEntireListingDisplayYN|InternetEntireListingDisplayYN",
-          "verifyDescription": "Check idx_display_yn filtering at Trestle gate, DB queries, and DTO. Internal code uses IDXEntireListingDisplayYN; Trestle field is InternetEntireListingDisplayYN."
+          "verifyDescription": "Check idx_display_yn filtering at Trestle gate, DB queries, and DTO. Internal code uses IDXEntireListingDisplayYN; Trestle field is InternetEntireListingDisplayYN.",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "mapper",
+              "route",
+              "dto"
+            ],
+            "evidence": {
+              "mapper": [
+                "lib/idx/trestle-mapper.ts"
+              ],
+              "route": [
+                "app/api/listings/route.ts"
+              ],
+              "dto": [
+                "lib/idx/db-to-public-dto.ts"
+              ]
+            },
+            "surface_patterns": {
+              "mapper": "InternetEntireListingDisplayYN|idx_display_yn",
+              "route": "idx_display_yn|InternetEntireListingDisplay",
+              "dto": "InternetEntireListingDisplayYN|isAddressDisplayable"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Gate 3: IDX display master toggle. Cascades to address + AVM + comments."
+          }
         },
         {
           "id": "GATE-4",
@@ -928,7 +1408,25 @@
             "lib/compliance/rls-enforcement.ts"
           ],
           "verifyPattern": "SyndicateYN|SyndicateTo",
-          "verifyDescription": "Check syndication enforcement on write path. Internal code uses SyndicateYN; Trestle field is SyndicateTo."
+          "verifyDescription": "Check syndication enforcement on write path. Internal code uses SyndicateYN; Trestle field is SyndicateTo.",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "gate"
+            ],
+            "evidence": {
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ]
+            },
+            "surface_patterns": {
+              "gate": "SyndicateTo|syndicate"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Gate 4: Syndication opt-in is per-portal (not boolean). Validate SyndicateTo array."
+          }
         },
         {
           "id": "GATE-5",
@@ -942,7 +1440,35 @@
             "app/components/SearchListingCard.tsx"
           ],
           "verifyPattern": "ComingSoon|Coming Soon",
-          "verifyDescription": "Check Coming Soon badge display + showing block + 14-day enforcement"
+          "verifyDescription": "Check Coming Soon badge display + showing block + 14-day enforcement",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "gate",
+              "route",
+              "frontend_display"
+            ],
+            "evidence": {
+              "gate": [
+                "lib/compliance/rls-enforcement.ts"
+              ],
+              "route": [
+                "app/api/portal/showings/route.ts"
+              ],
+              "frontend_display": [
+                "app/components/SearchListingCard.tsx"
+              ]
+            },
+            "surface_patterns": {
+              "gate": "ComingSoon|coming.soon",
+              "route": "ComingSoon|coming.soon|StandardStatus",
+              "frontend_display": "Coming\\s+Soon|comingSoon"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Gate 5: Coming Soon = badge + no showings + no open houses."
+          }
         },
         {
           "id": "GATE-6",
@@ -955,7 +1481,30 @@
             "lib/idx/trestle-mapper.ts"
           ],
           "verifyPattern": "Closed.*24|idx_display_yn.*false",
-          "verifyDescription": "Check cron + Trestle gate enforce 24hr removal"
+          "verifyDescription": "Check cron + Trestle gate enforce 24hr removal",
+          "validation_v2": {
+            "validation_mode": "workflow",
+            "ci_policy": "must_pass",
+            "release_blocking": true,
+            "required_surfaces": [
+              "cron",
+              "mapper"
+            ],
+            "evidence": {
+              "cron": [
+                "app/api/cron/data-retention/route.ts"
+              ],
+              "mapper": [
+                "lib/idx/trestle-mapper.ts"
+              ]
+            },
+            "surface_patterns": {
+              "cron": "idx_display_yn.*false|Closed.*24",
+              "mapper": "CloseDate|isClosedPast24Hours"
+            },
+            "expected_aggregate": "PASS",
+            "notes": "Gate 6: Closed >24h must be removed. Cron + mapper both enforce."
+          }
         }
       ]
     },
