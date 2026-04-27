@@ -408,23 +408,12 @@ Every UI change should work seamlessly across all screen sizes and device types.
 | `app/api/idx/search/route.ts` | Search result photo backfill (uses `wid` = SourceSystemKey) |
 | `scripts/import-closed-from-trestle.ts` | Closed listing import with idToKeyMap |
 
-**Utility scripts (3 files):**
+**Utility scripts (1 file):**
 | File | What it does |
 |------|-------------|
 | `scripts/rebuild-past-deals.js` | Past deals rebuild — idToKeyMap from ListingKey |
-| `scripts/fetch-real-photos.js` | Past deals photo fix — combined ResourceRecordKey OR ResourceRecordID filter |
-| `scripts/trestle-audit.js` | Trestle health audit — ResourceRecordKey for non-numeric keys |
 
-**Test/diagnostic scripts (7 files):**
-| File | What it does |
-|------|-------------|
-| `scripts/test-media-coverage.js` | Media coverage diagnostic |
-| `scripts/test-media-fix.js` | Media fix verification |
-| `scripts/test-photos.js` | Photo fetch test |
-| `scripts/test-media-types.js` | Media type diagnostic |
-| `scripts/time-pipeline.js` | Pipeline performance benchmark |
-| `scripts/test-media-public.js` | Public media test |
-| `scripts/test-media-cats.js` | Media category diagnostic |
+*Past one-off Trestle/media debug scripts (test-media-*, check-trestle-*, fetch-real-photos, trestle-audit, etc.) were removed during the 2026-04-27 repo cleanup. The Trestle media rules they verified are now enforced by production code in `lib/idx/sync.ts` + `lib/idx/fetch.ts` and gated by the runtime test suite at `tests/runtime/`. Re-create on demand as needed.*
 
 ---
 
