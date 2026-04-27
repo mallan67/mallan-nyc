@@ -351,7 +351,7 @@ body { font-family: Manrope, sans-serif; }
             <input type="hidden" id="saleStreetDirPrefix" value="" data-rls-field="StreetDirPrefix">
             <input type="hidden" id="saleStreetName" value="" data-rls-field="StreetName">
             <input type="hidden" id="saleStreetSuffix" value="" data-rls-field="StreetSuffix">
-            <input type="hidden" id="saleUnparsedAddress" value="" data-rls-field="UnParsedAddress">
+            <input type="hidden" id="saleUnparsedAddress" value="" data-rls-field="UnparsedAddress">
         </div>
 
         <!-- Agent & Dates -->
@@ -523,7 +523,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-handshake"></i> Agreements & Disclosures</div>
             <div class="mb-4">
                 <label class="field-label text-blue-600 mb-1">CoBroke Agreement Type <span class="text-red-500 sale-req-star hidden">*</span></label>
-                <select id="saleCoBrokeAgreementType" class="field-input max-w-md" required data-rls-field="CoBrokeAgreement">
+                <select id="saleCoBrokeAgreementType" class="field-input max-w-md" required data-rls-ignore="true" data-removed-field="CoBrokeAgreement">
                     <option value="">-- Select CoBroke Agreement Type --</option>
                     <option value="Ucba">REBNY Universal Co-broke (UCBA)</option>
                     <option value="Rundba">RUNDBA</option>
@@ -983,13 +983,13 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Available for Occupancy</label>
-                    <div class="relative"><input type="date" id="saleAvailableOccupancy" class="field-input" data-rls-field="PossessionDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                    <div class="relative"><input type="date" id="saleAvailableOccupancy" class="field-input" data-rls-ignore="true" data-removed-field="PossessionDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="field-label">First Showing Date</label>
-                    <div class="relative"><input type="datetime-local" id="saleFirstShowingDate" class="field-input" data-rls-field="FirstShowingDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                    <div class="relative"><input type="datetime-local" id="saleFirstShowingDate" class="field-input" data-rls-field="ActivationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
                     <p class="text-[10px] text-gray-400">RLS: FirstShowingDate — Date/time of first allowed showing.</p>
                 </div>
                 <div>
@@ -1024,7 +1024,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="field-label">Unit Shares <span class="text-red-500 sale-req-star hidden">*</span></label>
-                    <input type="number" id="saleUnitShares" placeholder="0" class="field-input" required data-rls-field="NumberOfShares">
+                    <input type="number" id="saleUnitShares" placeholder="0" class="field-input" required data-rls-ignore="true" data-removed-field="NumberOfShares">
                 </div>
                 <div>
                     <label class="field-label">Unit Sq Ft</label>
@@ -1200,7 +1200,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-1">Subletting</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleSubletting" value="Yes" class="w-4 h-4" data-rls-field="RentingAllowedYN"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleSubletting" value="Yes" class="w-4 h-4" data-rls-ignore="true" data-removed-field="RentingAllowedYN"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleSubletting" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
@@ -1489,7 +1489,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <!-- RLS/RESO/IDX: ListTeamMlsId (Optional — PUB distribution) -->
                     <label class="field-label">Listing Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: ListTeamMlsId)</span></label>
-                    <input type="text" id="saleListTeamMlsId" placeholder="Team MLS ID" class="field-input" data-rls-field="ListTeamMlsId">
+                    <input type="text" id="saleListTeamMlsId" placeholder="Team MLS ID" class="field-input" data-rls-field="ListTeamKey">
                 </div>
             </div>
             <p class="text-xs text-gray-500 mt-3"><i class="fas fa-info-circle mr-1"></i> Optional. Register teams with REBNY: email RLSsupport@rebny.com with team name, members, broker of record, and office info.</p>
@@ -1738,7 +1738,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Total Bathrooms <span class="text-red-500">*</span></label>
-                    <input type="number" id="saleBathroomsTotal" placeholder="0" class="field-input" required readonly tabindex="-1" style="background:#f3f4f6;cursor:default;" data-rls-field="BathroomsTotal">
+                    <input type="number" id="saleBathroomsTotal" placeholder="0" class="field-input" required readonly tabindex="-1" style="background:#f3f4f6;cursor:default;" data-rls-field="BathroomsTotalInteger">
                 </div>
                 <div>
                     <label class="field-label">Staff Bedrooms</label>
@@ -2278,7 +2278,7 @@ body { font-family: Manrope, sans-serif; }
             <label class="field-label">Washer/Dryer Allowed <span class="text-red-500">*</span></label>
             <div class="flex items-center gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleWasherDryerAllowed" value="Yes" class="w-4 h-4" data-rls-field="BuildingLaundryFeatures"> Yes
+                    <input type="radio" name="saleWasherDryerAllowed" value="Yes" class="w-4 h-4" data-rls-field="LaundryFeatures"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleWasherDryerAllowed" value="No" class="w-4 h-4" checked> No
@@ -2520,11 +2520,11 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label"># Professional Units</label>
-                    <input type="number" id="saleTHProfUnits" placeholder="0" class="field-input" data-rls-field="NumberOfProfessionalUnitsTotal">
+                    <input type="number" id="saleTHProfUnits" placeholder="0" class="field-input" data-rls-ignore="true" data-removed-field="NumberOfProfessionalUnitsTotal">
                 </div>
                 <div>
                     <label class="field-label"># Retail Units</label>
-                    <input type="number" id="saleTHRetailUnits" placeholder="0" class="field-input" data-rls-field="NumberOfRetailUnits">
+                    <input type="number" id="saleTHRetailUnits" placeholder="0" class="field-input" data-rls-ignore="true" data-removed-field="NumberOfRetailUnits">
                 </div>
                 <div>
                     <label class="field-label"># Buildings</label>
@@ -2727,11 +2727,11 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Area Over FAR (sq ft)</label>
-                    <input type="number" id="saleTHOverFAR" placeholder="0" class="field-input" data-rls-field="AreaOverFAR">
+                    <input type="number" id="saleTHOverFAR" placeholder="0" class="field-input" data-rls-ignore="true" data-removed-field="AreaOverFAR">
                 </div>
                 <div>
                     <label class="field-label">Area Under FAR (sq ft)</label>
-                    <input type="number" id="saleTHUnderFAR" placeholder="0" class="field-input" data-rls-field="AreaUnderFAR">
+                    <input type="number" id="saleTHUnderFAR" placeholder="0" class="field-input" data-rls-ignore="true" data-removed-field="AreaUnderFAR">
                 </div>
             </div>
         </div>
@@ -3151,7 +3151,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="border rounded-lg p-4">
                 <div class="flex items-center justify-between mb-2">
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="saleSyndicateYN" id="saleSyndicateYN" class="w-4 h-4" checked data-rls-field="SyndicateYN">
+                        <input type="checkbox" name="saleSyndicateYN" id="saleSyndicateYN" class="w-4 h-4" checked data-rls-field="SyndicateTo">
                         <span class="text-sm font-semibold text-gray-700">Syndicate to Third-Party Portals</span>
                     </label>
                     <span class="group relative">
@@ -3178,19 +3178,19 @@ body { font-family: Manrope, sans-serif; }
     <div class="form-card">
         <div class="form-card-header"><i class="fas fa-paper-plane"></i> Send Listing To</div>
         <label class="flex items-center gap-2 cursor-pointer mb-4">
-            <input type="checkbox" class="w-4 h-4" id="saleSendToAll" data-rls-field="SyndicateYN">
+            <input type="checkbox" class="w-4 h-4" id="saleSendToAll" data-rls-field="SyndicateTo">
             <span class="text-sm font-medium">Send This Listing to All Available Sites</span>
         </label>
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
             <!-- REBNY I29: IDXEntireListingDisplayYN -->
-            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_IDX" class="w-4 h-4" checked data-rls-field="IDXEntireListingDisplayYN"> IDX</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_IDX" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN"> IDX</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_VOW" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN"> VOW</label>
-            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Listhub" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Listhub</label>
-            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_NYMLS" class="w-4 h-4" checked data-rls-field="SyndicateYN"> NY MLS</label>
-            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Realtor" class="w-4 h-4" checked data-rls-field="SyndicateYN"> Realtor</label>
-            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_RPX" class="w-4 h-4" data-rls-field="SyndicateYN"> RPeXchange (RPX)</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Listhub" class="w-4 h-4" checked data-rls-field="SyndicateTo"> Listhub</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_NYMLS" class="w-4 h-4" checked data-rls-field="SyndicateTo"> NY MLS</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_Realtor" class="w-4 h-4" checked data-rls-field="SyndicateTo"> Realtor</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_RPX" class="w-4 h-4" data-rls-field="SyndicateTo"> RPeXchange (RPX)</label>
             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_WWW" class="w-4 h-4" data-rls-field="InternetEntireListingDisplayYN"> Web (WWW)</label>
-            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_RLS" class="w-4 h-4" data-rls-field="SyndicateYN"> RLS Participants</label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleDist_RLS" class="w-4 h-4" data-rls-field="SyndicateTo"> RLS Participants</label>
         </div>
     </div>
 
@@ -3865,7 +3865,7 @@ body { font-family: Manrope, sans-serif; }
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Video URL</label>
-                        <input type="url" id="saleVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-rls-field="VideoURL">
+                        <input type="url" id="saleVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-rls-field="VirtualTourURLBranded">
                         <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VideoURL</p>
                     </div>
                     <div>
@@ -4169,7 +4169,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Year Renovated</label>
-                                <input type="number" id="saleBldgYearRenovated" placeholder="2020" class="field-input" data-rls-field="YearRenovated">
+                                <input type="number" id="saleBldgYearRenovated" placeholder="2020" class="field-input" data-rls-ignore="true" data-removed-field="YearRenovated">
                             </div>
                             <div>
                                 <label class="field-label">Total Floors <span class="text-red-500">*</span></label>
@@ -4210,7 +4210,7 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="checkbox" id="saleBldgNewConstruction" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Construction
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgNewDevelopment" class="w-4 h-4" data-rls-field="NewDevelopmentYN"> New Development
+                                <input type="checkbox" id="saleBldgNewDevelopment" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Development
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-rls-field="BuildingFeatures"> Conversion
@@ -4290,7 +4290,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-2">RLS: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)" data-rls-field="BuildingLaundryFeatures"> In Unit</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)" data-rls-ignore="true"> In Unit</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> W/D Install Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="WasherHookup" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Washer Hookup</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="ElectricDryerHookup" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Electric Dryer Hookup</label>
@@ -4338,7 +4338,7 @@ body { font-family: Manrope, sans-serif; }
                             <label class="field-label mb-2">Building Heating <!-- RLS/RESO/IDX: BuildingHeating --></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
                                 <!-- Building-Prefixed Primary (7) -->
-                                <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgHeating" value="BuildingSteam" class="w-3 h-3" data-rls-field="BuildingHeating"> Bldg Steam</label>
+                                <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgHeating" value="BuildingSteam" class="w-3 h-3" data-rls-ignore="true"> Bldg Steam</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgHeating" value="HotWater" class="w-3 h-3"> Hot Water</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgHeating" value="BuildingElectric" class="w-3 h-3"> Bldg Electric</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgHeating" value="BuildingNaturalGas" class="w-3 h-3"> Bldg Natural Gas</label>
@@ -4384,7 +4384,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="mb-4">
                             <label class="field-label mb-2">Building Cooling <!-- RLS/RESO/IDX: BuildingCooling --></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
-                                <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgCooling" value="CentralAir" class="w-3 h-3" data-rls-field="BuildingCooling"> Central Air</label>
+                                <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgCooling" value="CentralAir" class="w-3 h-3" data-rls-ignore="true"> Central Air</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgCooling" value="WallUnits" class="w-3 h-3"> Wall Units</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgCooling" value="WindowUnits" class="w-3 h-3"> Window Units</label>
@@ -4553,7 +4553,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-3">RLS Field: BuildingPetsAllowed — Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="saleBuildingPetsAllowedGroup">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)" data-rls-field="BuildingPetsAllowed"> Yes (All Pets)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)" data-rls-ignore="true"> Yes (All Pets)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingCatsOK" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)"> Cats OK</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingDogsOK" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)"> Dogs OK</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingBreedRestrictions" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)"> Breed Restrictions</label>
@@ -4576,7 +4576,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-clipboard-list"></i> General Policies</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-rls-field="BuildingLaundryFeatures"> Washer/Dryer Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-rls-field="LaundryFeatures"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgPiedATerre" class="w-4 h-4" data-rls-ignore="true"> Pied-a-Terre Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgParentsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Parents Buying Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Co-Buyers Allowed</label>
@@ -4597,7 +4597,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Subletting Allowed</label>
-                                <select id="saleBldgSublettingAllowed" class="field-input" data-rls-field="RentingAllowedYN">
+                                <select id="saleBldgSublettingAllowed" class="field-input" data-rls-ignore="true" data-removed-field="RentingAllowedYN">
                                     <option value="">Select</option>
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
