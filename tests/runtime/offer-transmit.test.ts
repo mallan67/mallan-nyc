@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Offer transmit route runtime test (UCBA Art. II §18).
  *
@@ -39,13 +40,33 @@ jest.mock('@/lib/auth/readonly-guard', () => ({
   assertWriteAllowed: () => null,
 }));
 
-const baseOffer = {
+interface BaseOffer {
+  id: bigint;
+  listing_id: string | null;
+  buyer_lead_id: bigint | null;
+  buyer_agent_id: bigint | null;
+  list_agent_id: bigint | null;
+  offer_amount: { toString(): string } | null;
+  offer_terms: string | null;
+  contingencies: unknown;
+  expiration_at: Date | null;
+  received_at: Date | null;
+  transmitted_to_seller_at: Date | null;
+  seller_acknowledged_at: Date | null;
+  competing_offers_disclosed: boolean;
+  disclosure_authorized_by_seller: boolean;
+  status: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+const baseOffer: BaseOffer = {
   id: 42n,
   listing_id: 'L-100',
   buyer_lead_id: 999n,
   buyer_agent_id: 7n,
   list_agent_id: 1n,
-  offer_amount: { toString: () => '500000.00' } as { toString(): string },
+  offer_amount: { toString: () => '500000.00' },
   offer_terms: 'Cash, 30-day close',
   contingencies: null,
   expiration_at: null,

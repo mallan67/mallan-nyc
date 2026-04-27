@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Full auth login flow runtime test.
  *
@@ -152,7 +153,7 @@ describe('auth login full flow', () => {
     expect(body.user.role).toBe('buyer');
     // ip + ua may be undefined in the test environment — assert positional args 1-3
     expect(createSessionMock).toHaveBeenCalledTimes(1);
-    const callArgs = createSessionMock.mock.calls[0];
+    const callArgs = createSessionMock.mock.calls[0] as unknown as [string, bigint, string, ...unknown[]];
     expect(callArgs[0]).toBe('lead');
     expect(callArgs[1]).toBe(99n);
     expect(callArgs[2]).toBe('buyer');

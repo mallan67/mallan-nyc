@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 // Test helpers for runtime side-effect tests.
 //
 // These tests verify that high-risk routes actually produce the side
@@ -7,6 +8,12 @@
 // Strategy: import each route's POST/GET handler directly, invoke with a
 // mock NextRequest, assert response shape AND assert that mocked Prisma
 // methods were called with expected args.
+//
+// File-scoped jest type reference: Next.js's build-time TypeScript check
+// scans this file regardless of tsconfig `exclude` patterns. The triple-
+// slash directive at line 1 tells tsc to include @types/jest typings just
+// for this file, keeping jest globals resolved without polluting the
+// project-wide types whitelist (`compilerOptions.types`).
 
 import type { NextRequest } from 'next/server';
 

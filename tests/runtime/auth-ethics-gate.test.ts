@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Auth ethics-gate runtime test (UCBA Art. III §6, workstream C4).
  *

@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Inquiry route effect test — verifies the silent-failure blind spot
  * the user spec called out specifically.

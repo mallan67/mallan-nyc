@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Prospect-import ROUTE-level test (runtime side-effect proof).
  *
@@ -105,11 +106,13 @@ describe('prospect-import route effect', () => {
     expect(body.errors).toBe(0);
     expect(sellerLeadCreate).toHaveBeenCalledTimes(2);
 
-    const firstCall = sellerLeadCreate.mock.calls[0][0];
-    expect(firstCall.data.owner_name).toBe('Alice');
-    expect(firstCall.data.owner_email).toBe('a@test.com');
-    expect(firstCall.data.address).toBe('100 W 90th St');
-    expect(firstCall.data.assigned_agent_id).toBe(1n);
+    const calls = sellerLeadCreate.mock.calls as unknown as Array<[{ data: Record<string, unknown> }]>;
+    const firstCall = calls[0]?.[0];
+    expect(firstCall).toBeDefined();
+    expect(firstCall?.data.owner_name).toBe('Alice');
+    expect(firstCall?.data.owner_email).toBe('a@test.com');
+    expect(firstCall?.data.address).toBe('100 W 90th St');
+    expect(firstCall?.data.assigned_agent_id).toBe(1n);
   });
 
   it('case 3: duplicate (Prisma P2002) → skipped, not error', async () => {

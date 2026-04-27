@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Parser fixture test for app/api/crm/sales/prospects/import/parse.ts
  *
