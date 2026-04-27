@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -283,6 +283,9 @@ export default function ResourceContent({ slug }: { slug: string }) {
   const [data, setData] = useState<ResourceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // SSR-safe: server renders locked. The mount effect below checks
+  // localStorage for a previous unlock OR auto-unlocks for non-gated
+  // slugs. Canonical "client-only state from a browser API" pattern.
   const [unlocked, setUnlocked] = useState(false);
 
   const isGated = GATED_SLUGS.includes(slug);

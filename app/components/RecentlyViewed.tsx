@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getRecentlyViewed } from './RecentlyViewedTracker';
+
+type RecentItems = ReturnType<typeof getRecentlyViewed>;
 
 function formatPrice(price: number, type: 'sale' | 'rent'): string {
   if (type === 'rent') return `$${price.toLocaleString()}/mo`;
@@ -16,7 +18,12 @@ function formatPrice(price: number, type: 'sale' | 'rent'): string {
  * Renders from localStorage — no API calls.
  */
 export default function RecentlyViewed() {
-  const [items, setItems] = useState<ReturnType<typeof getRecentlyViewed>>([]);
+  // SSR-safe: server renders empty + not-dismissed (no localStorage on
+  // server). The mount effect below reads the actual stored values. This
+  // is the canonical "client-only state from a browser API" pattern.
+  // `getRecentlyViewed()` throws on the server because it touches
+  // localStorage, so a lazy useState initializer isn't viable.
+  const [items, setItems] = useState<RecentItems>([] as RecentItems);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -79,6 +86,9 @@ export default function RecentlyViewed() {
             >
               {item.photo ? (
                 <div className="w-14 h-14 rounded-l-lg overflow-hidden flex-shrink-0">
+                  {/* Plain <img> — Trestle proxy URLs aren't whitelisted for
+                      next/image and the recently-viewed strip is below the fold. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.photo}
                     alt={item.address}

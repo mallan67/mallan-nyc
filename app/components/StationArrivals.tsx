@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import type { StationArrivalsData } from '@/lib/transit/types';
 
@@ -17,6 +17,11 @@ export default function StationArrivals({
   lines,
   type,
 }: StationArrivalsProps) {
+  // Canonical fetch-on-mount + 30-second polling. The effect depends on
+  // stationId/lines/type so re-runs are bounded by parent re-renders.
+  // setInterval is cleaned up in the effect's return. The React Compiler
+  // set-state-in-effect warning is the documented limitation when not
+  // using a fetching library.
   const [data, setData] = useState<StationArrivalsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

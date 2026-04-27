@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 
@@ -47,12 +47,16 @@ interface LiveListingsWidgetProps {
 }
 
 export default function LiveListingsWidget({
-  neighborhoodSlug,
+  neighborhoodSlug: _neighborhoodSlug,
   name,
   zipCodes,
   bounds,
 }: LiveListingsWidgetProps) {
   const [activeTab, setActiveTab] = useState<string>('all');
+  // Canonical fetch-on-mount + setState pattern. Effect depends on
+  // name/activeTab/zipCodes/bounds so re-runs are bounded by parent
+  // re-renders. React Compiler set-state-in-effect warning accepted —
+  // see https://react.dev/learn/synchronizing-with-effects#fetching-data
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);

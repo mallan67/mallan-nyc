@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface POIItem {
   id: number;
@@ -103,17 +103,18 @@ export default function NeighborhoodExplorer({
   borough,
 }: NeighborhoodExplorerProps) {
   const [activeTab, setActiveTab] = useState<'poi' | 'community'>('poi');
+  // Canonical fetch-on-mount + setState pattern (effect below depends on
+  // lat/lng so re-runs are bounded by parent re-renders). The React
+  // Compiler's set-state-in-effect warning is the documented limitation
+  // for this pattern when not using a fetching library.
+  // https://react.dev/learn/synchronizing-with-effects#fetching-data
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
-
-  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setFetchError(false);
     fetch(`/api/nearby-poi?lat=${latitude}&lng=${longitude}&radius=800`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -126,10 +127,7 @@ export default function NeighborhoodExplorer({
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setFetchError(true);
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
   }, [latitude, longitude]);
@@ -153,8 +151,8 @@ export default function NeighborhoodExplorer({
     (categories.find((c) => c.category === 'Cafes')?.count || 0);
   const shoppingCount = (categories.find((c) => c.category === 'Shopping')?.count || 0) +
     (categories.find((c) => c.category === 'Groceries')?.count || 0);
-  const schoolCount = (categories.find((c) => c.category === 'Schools')?.count || 0) +
-    (categories.find((c) => c.category === 'Daycares')?.count || 0);
+  // Note: per Fair Housing guidance we deliberately do NOT surface a
+  // "schoolCount" score in this UI — schools are not a steering criterion.
 
   // Simple walkability heuristic (0-10 based on POI density within 800m)
   const walkScore = Math.min(10, Math.round((totalPOIs / 15) * 10) / 10);

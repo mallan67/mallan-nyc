@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import NearestStations from './NearestStations';
 import CommuteCalculator from './CommuteCalculator';
 import type { NearbyStation } from '@/lib/transit/types';
@@ -57,8 +57,12 @@ export default function TransitCommuteTool({
   longitude,
 }: TransitCommuteToolProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  // Lazy fetch — runs only when the user expands the panel. The effect
+  // below depends on `isExpanded`/`fetchStations` and is bounded by user
+  // interaction. Canonical fetch-on-mount + setState pattern; React
+  // Compiler set-state-in-effect warning accepted (no library wrapping).
   const [stations, setStations] = useState<NearbyStation[]>([]);
-  const [transitScore, setTransitScore] = useState<number>(0);
+  const [transitScore, setTransitScore] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [expandedStationId, setExpandedStationId] = useState<string | null>(null);

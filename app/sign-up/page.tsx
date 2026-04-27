@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import AgencyDisclosure from '@/app/components/AgencyDisclosure';
 
 const roles = [
@@ -29,17 +29,20 @@ export default function SignUpPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [tcpaConsent, setTcpaConsent] = useState(false);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  // Hydrate selectedRoles from URL on mount via lazy useState initializer —
+  // satisfies React Compiler (no setState-in-effect cascade) and removes the
+  // entire post-mount effect that previously caused a redundant re-render.
+  // The function only runs once on mount; window is available because this is
+  // a 'use client' component.
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('role');
+    return role && roles.some(r => r.id === role) ? [role] : [];
+  });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const role = params.get('role');
-    if (role && roles.some(r => r.id === role)) {
-      setSelectedRoles([role]);
-    }
-  }, []);
 
   function selectMethod(method: 'email') {
     setAuthMethod(method);

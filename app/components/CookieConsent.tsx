@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const CONSENT_KEY = 'mallan_cookie_consent';
@@ -15,6 +15,13 @@ type ConsentState = {
 };
 
 export default function CookieConsent() {
+  // `visible` and `consent` are initialized on the server as defaults to
+  // avoid SSR hydration mismatches (localStorage is unavailable on server).
+  // The mount effect below reads the actual stored value and adjusts state.
+  // This is the React-docs-recommended pattern for "client-only state read
+  // from a browser API" — see https://react.dev/reference/react/useEffect.
+  // The React Compiler set-state-in-effect warning is accepted: the effect
+  // has no dependencies, so it runs exactly once on mount.
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [consent, setConsent] = useState<ConsentState>({
@@ -26,12 +33,10 @@ export default function CookieConsent() {
   });
 
   useEffect(() => {
-    // Check for existing consent
     const stored = localStorage.getItem(CONSENT_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as ConsentState;
-        // Show banner again if consent version changed
         if (parsed.version !== CONSENT_VERSION) {
           setVisible(true);
         } else {
@@ -222,6 +227,8 @@ export default function CookieConsent() {
  * Hook to check consent status - use this before loading any optional scripts
  */
 export function useConsentStatus() {
+  // SSR-safe: server renders with `null` (no consent known), then a one-shot
+  // mount effect reads localStorage. Same rationale as CookieConsent component.
   const [consent, setConsent] = useState<ConsentState | null>(null);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import { type FavoriteEntry } from '@/lib/hooks/useFavorites';
@@ -101,6 +101,12 @@ function CompareRow({
 }
 
 export default function CompareProperties({ entries, onRemove }: ComparePropertiesProps) {
+  // Canonical "fetch on mount + setState in effect" pattern. The React
+  // Compiler's set-state-in-effect rule flags this, but it's the
+  // React-docs-recommended approach when not using a fetching library
+  // (SWR/React Query). The effect's dependency is the `entries` prop,
+  // so re-runs are bounded by parent re-renders — no loop risk.
+  // https://react.dev/learn/synchronizing-with-effects#fetching-data
   const [details, setDetails] = useState<(ListingDetail | null)[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -145,7 +151,6 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
     detail: details[i] || null,
   }));
 
-  const prices = listings.map(l => l.entry.price);
   const beds = listings.map(l => l.entry.beds);
   const baths = listings.map(l => l.entry.baths);
   const sqfts = listings.map(l => l.detail?.livingArea ?? null);
@@ -156,7 +161,8 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
     return sqft && sqft > 0 ? Math.round(l.entry.price / sqft) : null;
   });
 
-  const bestPrice = highlightBest(prices, 'low');
+  // (bestPrice + prices array previously computed here were never read —
+  // the price column doesn't surface a "best price" highlight today.)
   const bestBeds = highlightBest(beds, 'high');
   const bestBaths = highlightBest(baths, 'high');
   const bestSqft = highlightBest(sqfts, 'high');
@@ -170,7 +176,7 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
         <thead>
           <tr className="border-b border-black/[0.06]">
             <th className="w-32 lg:w-40" />
-            {listings.map(({ entry }, i) => (
+            {listings.map(({ entry }) => (
               <th key={entry.id} className="px-3 pb-4 align-top">
                 <div className="relative">
                   {onRemove && (

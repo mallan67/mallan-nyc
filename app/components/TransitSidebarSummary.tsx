@@ -48,10 +48,10 @@ export default function TransitSidebarSummary({
   neighborhoodTransit,
   transitScore: propScore,
 }: TransitSidebarSummaryProps) {
-  const [data, setData] = useState<{
-    stations: NearbyStation[];
-    transitScore: number;
-  } | null>(null);
+  // Canonical fetch-on-mount + setState pattern. Effect depends on
+  // lat/lng so re-runs are bounded by parent re-renders.
+  type Data = { stations: NearbyStation[]; transitScore: number } | null;
+  const [data, setData] = useState<Data>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

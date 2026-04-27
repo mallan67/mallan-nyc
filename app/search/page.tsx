@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useListings } from '@/lib/hooks/useListings';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
@@ -181,11 +182,16 @@ function SearchClient() {
   const [activeTab, setActiveTab] = useState<SearchTab>(resolveTab(typeParam));
   const [searchQuery, setSearchQuery] = useState(queryParam || neighborhoodParam);
   const viewParam = searchParams?.get('view') as ViewMode | null;
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    viewParam && ['split', 'all-listings', 'all-map', 'grid', 'list'].includes(viewParam)
-      ? viewParam
-      : 'split'
-  );
+  // Initial view: respect URL param when valid, otherwise default to
+  // 'all-listings' on mobile (<1024px) and 'split' on desktop. Lazy initializer
+  // avoids the post-mount setState that previously caused the React Compiler
+  // set-state-in-effect warning on the matching useEffect below.
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const allowed: ViewMode[] = ['split', 'all-listings', 'all-map', 'grid', 'list'];
+    if (viewParam && allowed.includes(viewParam)) return viewParam;
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) return 'all-listings';
+    return 'split';
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(() => {
     const nParam = searchParams?.get('neighborhoods');
@@ -418,15 +424,6 @@ function SearchClient() {
     };
   }, [loading]); // Re-attach after listings finish loading
 
-  // ── Default to all-listings on mobile (run once at mount, only if no URL preference) ──
-  const initialViewSet = useRef(false);
-  useEffect(() => {
-    if (!initialViewSet.current && window.innerWidth < 1024 && !viewParam) {
-      setViewMode('all-listings');
-      initialViewSet.current = true;
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Tab change ──
   const handleTabChange = useCallback((tab: SearchTab) => {
     setActiveTab(tab);
@@ -557,7 +554,7 @@ function SearchClient() {
     }
     if (filters.amenities?.length) pills.push({ label: `${filters.amenities.length} amenities`, key: 'amenities' });
     return pills;
-  }, [filters, neighborhoodParam, zipParam, selectedNeighborhoods]);
+  }, [filters, neighborhoodParam, zipParam, selectedNeighborhoods, boroughParam]);
 
   const filterCount = activeFilterPills.length;
 
@@ -1109,9 +1106,9 @@ function SearchClient() {
             <p className="text-brand-dark/85 mb-8">
               Our agents can help you find exactly what you&apos;re looking for across all available listings.
             </p>
-            <a href="/agents" className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors">
+            <Link href="/agents" className="inline-block px-8 py-3 bg-brand-dark text-white font-medium rounded-2xl hover:bg-brand-dark/90 transition-colors">
               Contact an Agent
-            </a>
+            </Link>
           </div>
         </section>
       )}
