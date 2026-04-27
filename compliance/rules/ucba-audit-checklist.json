@@ -851,7 +851,7 @@
               ]
             },
             "surface_patterns": {
-              "gate": "COMING_SOON_MAX_DAYS|14"
+              "gate": "COMING_SOON_MAX_DAYS|14-day\\s+maximum|14\\s*day(?:s)?\\s*max"
             },
             "expected_aggregate": "PASS",
             "notes": "Coming Soon max 14 calendar days (UCBA Art. I §16(B))."
@@ -981,11 +981,11 @@
               ]
             },
             "surface_patterns": {
-              "gate": "ActivationDate|first_active_date|immutable",
-              "route": "ActivationDate|first_active_date|status"
+              "gate": "ActivationDate|first_active_date|immutab",
+              "route": "existingActivationDate|D12\\s*immutability|ActivationDate.*[Ii]mmutab|first_active_date"
             },
             "expected_aggregate": "PASS",
-            "notes": "Coming Soon → Active activation date is immutable once set."
+            "notes": "Coming Soon → Active activation date is immutable once set. Tightened patterns per Codex review (PR #70): bare 'status' would match anything in a *status* route file; bare '14' would match any unrelated number 14 in the gate file."
           }
         }
       ]
