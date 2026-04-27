@@ -129,5 +129,12 @@ jobs:
       - name: CI compliance check
         run: node scripts/ci-compliance-check.js
 
+      # Display-compliance gates — block merge on any UCBA / Fair Housing /
+      # PII regression. These six audits do NOT require Trestle credentials
+      # (they parse local files only), so they are safe to run in PR CI.
+      # The Trestle-credential audits run on a schedule via trestle-live-audit.yml.
+      - name: REBNY display compliance audit
+        run: npm run audit:display-compliance
+
       - name: Build
         run: npm run build
