@@ -219,7 +219,6 @@ export function estimateValue(comps: CompResult[]): {
     0
   ) / totalWeight;
 
-  const prices = comps.map(c => c.adjusted_price).sort((a, b) => a - b);
   const margin = 0.05; // ±5%
 
   return {

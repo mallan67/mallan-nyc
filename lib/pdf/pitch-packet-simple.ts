@@ -39,7 +39,6 @@ interface PitchData {
 const GOLD = rgb(184 / 255, 134 / 255, 11 / 255);
 const DARK = rgb(17 / 255, 24 / 255, 39 / 255);
 const GRAY = rgb(107 / 255, 114 / 255, 128 / 255);
-const WHITE = rgb(1, 1, 1);
 
 function fmt(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return "—";

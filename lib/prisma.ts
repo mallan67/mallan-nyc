@@ -10,7 +10,6 @@ import fs from "node:fs";
 try {
   const envPath = path.resolve(process.cwd(), ".env.local");
   if (fs.existsSync(envPath)) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const dotenv = require("dotenv");
     dotenv.config({ path: envPath, override: true });
   }

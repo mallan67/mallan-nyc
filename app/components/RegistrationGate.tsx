@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { trackMicroCommitment } from '@/lib/posthog';
 import AgencyDisclosure from './AgencyDisclosure';
 
-const GATE_SHOWN_KEY = 'mallan_reg_gate_shown';
+// GATE_SHOWN_KEY removed — superseded by GATE_DISMISSED_KEY which doubles as
+// "user has interacted with the gate at least once" tracking.
 const GATE_DISMISSED_KEY = 'mallan_reg_gate_dismissed';
 const EMAIL_CAPTURED_KEY = 'mallan_fav_email_captured';
 const REG_CAPTURED_KEY = 'mallan_reg_email_captured';

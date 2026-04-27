@@ -3,7 +3,7 @@
 // Creates the family member as a new Lead (if needed) and links them.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isAuthError, hashPassword, logAuditEvent } from "@/lib/auth";
+import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { generatePortalToken } from "@/lib/auth/portal-token";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { portalInviteEmail } from "@/lib/email/templates";

@@ -99,7 +99,7 @@ const BRAND_ALLOW = [
 ];
 
 // Combined disallow sets per policy tier
-const BLOCK_ADMIN = [...ADMIN_PATHS];
+// (BLOCK_ADMIN was an alias for ADMIN_PATHS; callers now reference ADMIN_PATHS directly.)
 const BLOCK_ADMIN_AND_LISTINGS = [
   ...ADMIN_PATHS,
   ...MLS_LISTING_PATHS,

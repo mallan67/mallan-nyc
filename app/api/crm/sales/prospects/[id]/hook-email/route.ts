@@ -115,7 +115,6 @@ function buildHookEmail(params: {
       ? `<div style="font-size:16px;color:#059669;margin-top:8px;font-weight:bold;">+${formatUSD(equityGain)} in equity since ${purchaseYear}</div>`
       : "";
 
-  const compCount = topComps.length;
   const compCountLabel =
     comps.length === 1
       ? "1 recent comparable sale"

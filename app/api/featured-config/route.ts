@@ -3,7 +3,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
-import { safeJson } from "@/lib/api/safe-json";
 
 export const revalidate = 300; // 5 minutes
 

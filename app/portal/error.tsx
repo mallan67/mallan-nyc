@@ -2,7 +2,6 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from 'react';
-import Link from 'next/link';
 
 export default function PortalError({
   error,

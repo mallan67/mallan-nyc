@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import CompareProperties from '@/app/components/CompareProperties';
 import Link from 'next/link';
-import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
+import { useFavorites } from '@/lib/hooks/useFavorites';
 
 export default function ComparePage() {
   const { favorites, loaded } = useFavorites();
@@ -147,9 +147,13 @@ export default function ComparePage() {
                           : 'ring-1 ring-black/5 hover:shadow-md cursor-pointer'
                     }`}
                   >
-                    {/* Photo */}
+                    {/* Photo — plain <img> (Trestle photo URLs are dynamic
+                        and proxied through /api/media/proxy; <Image> requires
+                        domain whitelisting which is not maintained for this
+                        favorites picker). */}
                     <div className="relative aspect-[4/3] bg-gray-100">
                       {fav.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={fav.photoUrl}
                           alt={fav.address}

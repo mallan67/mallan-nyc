@@ -26,7 +26,7 @@ export default function MarketSnapshot({
   neighborhood,
   borough,
   listPrice,
-  pricePerSqft,
+  pricePerSqft: _pricePerSqft,
   listingType,
 }: {
   neighborhood: string;

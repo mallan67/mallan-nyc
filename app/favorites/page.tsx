@@ -194,9 +194,11 @@ export default function FavoritesPage() {
                   key={fav.id}
                   className="bg-white rounded-2xl ring-1 ring-black/5 overflow-hidden group hover:shadow-md transition-shadow"
                 >
-                  {/* Photo */}
+                  {/* Photo — plain <img> (Trestle proxy URLs aren't whitelisted
+                      for next/image; favorites page is private + behind login). */}
                   <div className="relative aspect-[4/3] bg-gray-100">
                     {fav.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={fav.photoUrl}
                         alt={fav.address}

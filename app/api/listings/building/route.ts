@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
-import { sanitizeOData, sanitizeNumeric, sanitizeDocumentId } from '@/lib/sanitize';
+import { sanitizeOData, sanitizeDocumentId } from '@/lib/sanitize';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';

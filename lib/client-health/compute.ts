@@ -21,7 +21,6 @@ export async function computeClientHealth(
 ): Promise<ClientHealth> {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
 
   // Fetch client + recent activity in parallel

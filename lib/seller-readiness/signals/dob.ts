@@ -11,7 +11,9 @@ import type { SignalInput } from '../types';
 
 const PERMITS_DATASET = process.env.SODA_DATASET_DOB_PERMITS!;
 const VIOLATIONS_DATASET = process.env.SODA_DATASET_DOB_VIOLATIONS!;
-const COMPLAINTS_DATASET = process.env.SODA_DATASET_DOB_COMPLAINTS!;
+// COMPLAINTS_DATASET is provisioned in env but not yet wired into a signal
+// pull. Keep the env var defined so deploys don't lose it; restore the
+// constant when the complaints signal is implemented.
 
 interface DobPermit {
   job_type?: string;

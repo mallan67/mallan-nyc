@@ -346,6 +346,9 @@ const jsonLd = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  // CSP nonce — set by middleware on every request. Apply to inline scripts
+  // so the inline JSON-LD passes Content-Security-Policy when nonce-based CSP
+  // is enabled. Empty string is a safe no-op when CSP is permissive.
   const nonce = (await headers()).get('x-nonce') ?? '';
 
   return (
@@ -359,6 +362,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link rel="dns-prefetch" href="https://api.cotality.com" />
         <script
           type="application/ld+json"
+          nonce={nonce || undefined}
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {/* Google Translate — loaded after hydration via Header component to prevent React Error #418/#300 */}

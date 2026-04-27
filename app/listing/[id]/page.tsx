@@ -5,7 +5,6 @@ import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
-import agentsData from '@/data/agents.json';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
 import BackButton from '@/app/components/BackButton';
@@ -26,7 +25,7 @@ import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { mapRESOToInternal } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
@@ -166,7 +165,7 @@ async function fetchLastSaleFromACRIS(
     }
 
     return null;
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -210,7 +209,7 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
   let dto: PublicListingDTO;
   try {
     dto = toPublicDTO(listing);
-  } catch (dtoErr) {
+  } catch {
     return null;
   }
 
@@ -227,7 +226,7 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
       }));
       dto.photosCount = mediaItems.length;
     }
-  } catch (mediaErr) {
+  } catch {
     // Non-fatal — listing displays without photos
   }
 
@@ -462,7 +461,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       listing: dto,
       tax: { taxBlock: null, taxLot: null },
     };
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -563,7 +562,7 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
   try {
     const dbResult = await fetchFromDB(slug, keyOverride);
     if (dbResult) return dbResult;
-  } catch (err) {
+  } catch {
     // DB lookup failed — fall through to Trestle
   }
 
@@ -577,7 +576,7 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 15_000)),
       ]);
       if (trestleResult) return trestleResult;
-    } catch (err) {
+    } catch {
       // Trestle fetch failed — fall through to API fallback
     }
   }
@@ -650,11 +649,6 @@ function formatTrestleValue(val: string): string {
     .trim();
 }
 
-/** Convert CamelCase to readable label (e.g., "HealthClub" → "Health Club") */
-function formatCamelCase(val: string): string {
-  return val.replace(/([a-z])([A-Z])/g, '$1 $2').trim();
-}
-
 /** Split comma-separated Trestle field into RAW trimmed tokens (no formatting) */
 function splitRaw(raw: string): string[] {
   return raw.split(',').map(v => v.trim()).filter(v => v.length > 0);
@@ -685,7 +679,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
   let result: ListingFetchResult | null = null;
   try {
     result = await fetchListing(id, key);
-  } catch (err) {
+  } catch {
     // Fatal fetch error — will show notFound()
   }
 
@@ -698,7 +692,6 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   const isRental = listing.listingType === 'rent';
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
-  const isCondo = listing.propertyType === 'Condo' || listing.propertyType === 'Condop' || listing.propertyType === 'Condominium';
   const borough = countyToBorough(listing.address.county);
   const neighborhood = listing.address.neighborhood || '';
   const displayPropertyType = listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType;

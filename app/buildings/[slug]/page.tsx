@@ -220,7 +220,6 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
   // No hero photo — unit listing photos are not building exterior photos
   const buildingType = displayLabel(building.commonInterest) || displayLabel(building.ownershipType);
   const structure = displayLabel(building.structureType);
-  const isCoop = building.commonInterest === 'StockCooperative' || building.ownershipType === 'Co-op';
   const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
   const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
   const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType || building.structureType || building.newConstruction || building.taxAnnualAmount;

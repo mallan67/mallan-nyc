@@ -32,13 +32,6 @@ export async function getListingsServer(
   type: 'sale' | 'rent',
   limit = 50,
 ): Promise<ServerListingsResult> {
-  const empty: ServerListingsResult = {
-    listings: [],
-    total: 0,
-    hasMore: false,
-    attribution: '',
-    source: 'none',
-  };
 
   const useIDX = process.env.IDX_ENABLED === 'true';
   if (!useIDX || !hasCredentials()) {

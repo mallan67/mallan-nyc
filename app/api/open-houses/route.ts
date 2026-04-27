@@ -126,10 +126,8 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         : `${((prop.City as string) || 'New York').replace('New York City', 'New York')} (Address Available on Request)`;
       const totalBaths = ((prop.BathroomsFull as number) || 0) + ((prop.BathroomsHalf as number) || 0) * 0.5;
 
-      // Format times
-      const startTime = formatTrestleTime(r.OpenHouseStartTime as string);
-      const endTime = formatTrestleTime(r.OpenHouseEndTime as string);
-
+      // Times are formatted inline below; the standalone consts that lived
+      // here were never referenced again.
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
         listingId: (r.ListingId as string) || (r.ListingKey as string) || '',

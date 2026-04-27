@@ -15,7 +15,6 @@ import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
 
 const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_SEND_PER_HOUR = 5;
 
 export async function POST(req: NextRequest) {
   let body;

@@ -11,7 +11,7 @@ interface InquiryFormProps {
   agentEmail?: string;
 }
 
-export default function InquiryForm({ listingId, listingAddress, agentEmail }: InquiryFormProps) {
+export default function InquiryForm({ listingId, listingAddress, agentEmail: _agentEmail }: InquiryFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',

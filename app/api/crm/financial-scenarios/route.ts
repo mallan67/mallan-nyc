@@ -4,7 +4,7 @@
 // Scenarios are stored as audit_events with action='financial_scenario'.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 /**

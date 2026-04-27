@@ -1,7 +1,7 @@
 // /api/crm/agents/[id]/ce-courses — POST: add, DELETE: remove CE course
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function POST(
@@ -64,9 +64,11 @@ export async function DELETE(
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
-  const { id } = await params;
+  // params.id (the agent ID) is unused on this DELETE — we look up the
+  // course directly by `courseId` query param instead. Discard the param
+  // resolution but still await the promise to surface any auth issues.
+  await params;
 
-  // The "id" here is the agent ID, but we need the course (audit event) ID
   const courseId = req.nextUrl.searchParams.get("courseId");
   if (!courseId) {
     return NextResponse.json({ error: "courseId query param required" }, { status: 400 });

@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
         engagementRate: sends.length > 0 ? Math.round((reactions.length / sends.length) * 100) : 0,
       },
     });
-  } catch (err) {
+  } catch {
     // If AuditEvent table doesn't support JSON path queries, return empty
     return NextResponse.json({ records: [], summary: { totalSends: 0, totalReactions: 0, liked: 0, disliked: 0, discussed: 0, showings: 0, engagementRate: 0 } });
   }
