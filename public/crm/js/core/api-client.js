@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// API CLIENT — Bridge between CRM mockup and Next.js backend
+// API CLIENT — Bridge between the CRM frontend and the Next.js backend.
 // Must be loaded BEFORE agent-context.js so session data is available.
 //
 // Auth: HttpOnly session_token cookie (same-origin). No Bearer tokens.
-// All methods call real endpoints. No mock fallback in production.
+// All methods call real endpoints. No fixture fallback in production.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 var MallanAPI = (function () {

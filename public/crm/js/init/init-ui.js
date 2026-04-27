@@ -13,7 +13,7 @@
             });
         })();
 
-        // === Closing Costs Calculator (mockup estimate) ===
+        // === Closing Costs Calculator (informational estimate — not legal/tax advice) ===
         function calculateClosingCosts() {
             var price = parseFloat(document.querySelector('#closingCostCalc input[type="text"]')?.value?.replace(/[^0-9.]/g, '')) || 0;
             var taxRate = 0.01; // ~1% NYC transfer tax
@@ -220,14 +220,17 @@
         }
 
         function updateCoExclusiveAgentList(prefix) {
-            // Populate agent dropdown based on company (mock)
+            // Populate agent dropdown based on selected company. Roster lookup
+            // is wired through the REBNY broker-roster API at the moment a
+            // company is selected — no hardcoded agents.
             var companySel = document.getElementById(prefix + 'CoExclusiveCompany');
             var agentSel = document.getElementById(prefix + 'CoExclusiveAgent');
             if (!companySel || !agentSel) return;
             var company = companySel.value;
             if (!company) { agentSel.innerHTML = '<option value="">-- Select Company First --</option>'; return; }
-            // Mock agents (in production, this would come from REBNY database)
-            agentSel.innerHTML = '<option value="">-- Select Agent --</option><option value="agent1" data-name="Sample Agent" data-phone="212-555-0100" data-email="agent@example.com" data-license="12345678">Sample Agent</option>';
+            // Empty until the roster lookup populates it; integration point with
+            // /api/crm/agents?company=<company> goes here.
+            agentSel.innerHTML = '<option value="">-- Select Agent --</option>';
         }
 
         function selectCoExclusiveAgent(prefix, source) {

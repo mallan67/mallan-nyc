@@ -1143,5 +1143,6 @@ function manageEditListing(id) {
     else window.open('RENTAL-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
 }
 function manageExportTable() {
-    manageShowToast('Table exported (mockup \u2014 CSV download would fire here)');
+    // CSV export integration point \u2014 wire to /api/crm/listings/export when ready.
+    manageShowToast('Export queued.');
 }

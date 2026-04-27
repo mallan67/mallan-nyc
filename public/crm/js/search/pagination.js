@@ -2087,8 +2087,9 @@
             var results = document.getElementById('detailCommuteResults');
             results.classList.remove('hidden');
 
-            // Mockup: simulate commute times based on distance
-            // In production this would call Google Directions or MapBox
+            // Estimated commute times derived from straight-line distance.
+            // Wire to Google Directions or MapBox Directions when an API key
+            // is available; the UI shape stays the same.
             var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) listing = { latitude: 40.7831, longitude: -73.9554 };
 

@@ -7,23 +7,9 @@
             agentSelect.innerHTML = '<option value="">-- Select Agent --</option>';
             document.getElementById('rentalTenantAgentInfo').style.display = 'none';
             if (!company) return;
-            // Mock agent data (same as sale form — production will use REBNY API)
-            var agents = {
-                mallan: [],
-                compass: [{ name: 'Agent Smith', id: 'COMP-101', phone: '212-555-0101', email: 'smith@compass.com', license: '10401234567' }],
-                douglas: [{ name: 'Agent Jones', id: 'DELI-201', phone: '212-555-0201', email: 'jones@elliman.com', license: '10402345678' }],
-                corcoran: [{ name: 'Agent Brown', id: 'CORC-301', phone: '212-555-0301', email: 'brown@corcoran.com', license: '10403456789' }],
-            };
-            var list = agents[company] || [{ name: 'Sample Agent', id: company.toUpperCase() + '-001', phone: '212-555-0000', email: 'agent@example.com', license: '1040000000' }];
-            list.forEach(a => {
-                var opt = document.createElement('option');
-                opt.value = a.id;
-                opt.textContent = a.name;
-                opt.dataset.phone = a.phone;
-                opt.dataset.email = a.email;
-                opt.dataset.license = a.license;
-                agentSelect.appendChild(opt);
-            });
+            // Roster lookup integration point: GET /api/crm/agents?company=<company>
+            // Populates agentSelect with the company's licensed agents. No
+            // hardcoded agent fixtures.
         }
 
         function populateRentalAgentInfo(type) {
@@ -108,7 +94,7 @@
                 var domEl = document.getElementById(formType + 'DaysOnMarket');
                 if (domEl) domEl.textContent = days;
                 var cdomEl = document.getElementById(formType + 'CumulativeDaysOnMarket');
-                if (cdomEl) cdomEl.textContent = days; // In mockup, same as DOM; production tracks across relists
+                if (cdomEl) cdomEl.textContent = days; // CDOM equals DOM here; cross-relist tracking lives server-side in lib/compliance/dom-tracker.ts
             }
         }
 

@@ -395,11 +395,10 @@ function logAuditEntry(action, details) {
 // Tag search criteria with RESO names, match badges, Gates 1-2
 // ═══════════════════════════════════════════════════════════════
 
-var mockSavedSearches = [
-    { id: 'SS-001', name: 'UES 2BR under $2M', criteria: { neighborhood: 'Upper East Side', minBeds: 2, maxPrice: 2000000, status: 'ACTIVE' }, matchCount: 3, lastChecked: '2026-02-16T10:30:00', reso: { neighborhood: 'SubdivisionName', minBeds: 'BedroomsTotal', maxPrice: 'ListPrice', status: 'MlsStatus' } },
-    { id: 'SS-002', name: 'Tribeca Loft 1500+ SF', criteria: { neighborhood: 'Tribeca', minSqft: 1500, status: 'ACTIVE' }, matchCount: 1, lastChecked: '2026-02-16T09:15:00', reso: { neighborhood: 'SubdivisionName', minSqft: 'LivingArea', status: 'MlsStatus' } },
-    { id: 'SS-003', name: 'West Village Rental <$5K', criteria: { neighborhood: 'West Village', maxPrice: 5000, listingCategory: 'rental', status: 'ACTIVE' }, matchCount: 2, lastChecked: '2026-02-16T11:00:00', reso: { neighborhood: 'SubdivisionName', maxPrice: 'ListPrice', status: 'MlsStatus' } }
-];
+// Saved searches load from /api/crm/saved-searches when the panel renders.
+// renderSavedSearchMatches() reads from this array — populated at runtime, no
+// hardcoded mock data.
+var mockSavedSearches = [];
 
 function savedSearchMatchBadge(search) {
     if (!search.matchCount || search.matchCount === 0) return '';
@@ -518,13 +517,10 @@ var taskCategories = [
     { id: 'compliance', label: 'Compliance', icon: 'fa-shield-alt', color: '#ef4444' }
 ];
 
-var mockComplianceTasks = [
-    { id: 'CT-001', category: 'compliance', title: 'ML-S006: Coming Soon 14-day limit approaching', dueDate: '2026-02-24', status: 'pending', ucbaRule: 'D2', listingId: 'ML-S006', priority: 'high', autoCreated: true },
-    { id: 'CT-002', category: 'compliance', title: 'Submit close price/date for ML-S004', dueDate: '2026-01-29', status: 'overdue', ucbaRule: 'C12', listingId: 'ML-S004', priority: 'critical', autoCreated: true },
-    { id: 'CT-003', category: 'follow_up', title: 'Call back Sarah Chen re: UES showing', dueDate: '2026-02-17', status: 'pending', listingId: null, priority: 'medium', autoCreated: false },
-    { id: 'CT-004', category: 'showing', title: 'Schedule showing at 400 E 90th St #17C', dueDate: '2026-02-18', status: 'pending', listingId: 'ML-S001', priority: 'medium', autoCreated: false },
-    { id: 'CT-005', category: 'document', title: 'Exhibit B withdrawal auth for ML-R007', dueDate: '2026-02-16', status: 'overdue', ucbaRule: 'C3', listingId: 'ML-R007', priority: 'high', autoCreated: true }
-];
+// Compliance tasks load from /api/crm/follow-up-tasks (auto-created from
+// listing-expiration cron + manual entries). renderEnhancedTasks() reads
+// from this array — populated at runtime, no hardcoded mock data.
+var mockComplianceTasks = [];
 
 function renderEnhancedTasks(clientId) {
     var tasks = mockComplianceTasks;
@@ -583,16 +579,10 @@ var noteTypes = [
     { id: 'system_alert', label: 'System Alert', icon: 'fa-bell', color: '#6b7280' }
 ];
 
-var mockEnhancedNotes = [
-    { id: 'N-001', type: 'showing', timestamp: '2026-02-16T14:30:00', author: 'Demo Agent', content: 'Showed 400 E 90th St #17C to Sarah Chen. Very positive — loved the views and layout.', listingId: 1, listingAddress: '400 E 90th St #17C', listingPrice: 4250000 },
-    { id: 'N-002', type: 'status_change', timestamp: '2026-02-15T11:00:00', author: 'System', content: 'Status changed from Active to Coming Soon', listingId: null, resoField: 'MlsStatus', oldValue: 'Active', newValue: 'ComingSoon' },
-    { id: 'N-003', type: 'call', timestamp: '2026-02-15T09:15:00', author: 'Demo Agent', content: 'Follow-up call with James Park re: Tribeca loft. Wants to schedule second showing.', listingId: 3, listingAddress: '50 Murray St #8B', listingPrice: 1850000 },
-    { id: 'N-004', type: 'email', timestamp: '2026-02-14T16:45:00', author: 'Demo Agent', content: 'Sent CMA report for UES properties to Demo Agent F.', listingId: null },
-    { id: 'N-005', type: 'system_alert', timestamp: '2026-02-14T08:00:00', author: 'System', content: 'ML-S006 Coming Soon — Day 4 of 14. Activate by 02/24/26.', listingId: null, compliance: true, ucbaRule: 'D2' },
-    { id: 'N-006', type: 'note', timestamp: '2026-02-13T10:00:00', author: 'Demo Agent', content: 'Client prefers pre-war buildings with high ceilings. Budget flexible up to $2.5M for right property.', listingId: null },
-    { id: 'N-007', type: 'showing', timestamp: '2026-02-12T15:00:00', author: 'Demo Agent', content: 'Toured 3 properties in Tribeca with James Park. He liked 50 Murray but concerned about the bathroom.', listingId: 3, listingAddress: '50 Murray St #8B', listingPrice: 1850000 },
-    { id: 'N-008', type: 'status_change', timestamp: '2026-02-10T09:00:00', author: 'System', content: 'Price reduced from $4,500,000 to $4,250,000', listingId: 1, resoField: 'ListPrice', oldValue: '4500000', newValue: '4250000' }
-];
+// Enhanced notes timeline loads from /api/crm/notes (or the per-client
+// notes API). renderEnhancedNotes() reads from this array — populated at
+// runtime, no hardcoded mock data.
+var mockEnhancedNotes = [];
 
 function renderEnhancedNotes(clientId) {
     var notes = mockEnhancedNotes;

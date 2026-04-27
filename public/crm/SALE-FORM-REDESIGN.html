@@ -7150,8 +7150,10 @@ function validateStatusChange(formType) {
     const newStatus = statusEl.value;
     const prevStatus = statusEl.dataset.prevStatus || 'Draft';
 
-    // Check valid transition per STATUS_TRANSITIONS state machine
-    // In mockup mode: warn but allow (don't block) — production will enforce strictly
+    // Check valid transition per STATUS_TRANSITIONS state machine.
+    // The frontend warns on disallowed transitions but does NOT block; the
+    // server-side gate at lib/compliance/rls-enforcement.ts is the source
+    // of truth and rejects illegal transitions on the actual write.
     if (prevStatus && STATUS_TRANSITIONS[prevStatus]) {
         const allowed = STATUS_TRANSITIONS[prevStatus];
         if (allowed.length > 0 && !allowed.includes(newStatus) && newStatus !== prevStatus) {

@@ -1826,7 +1826,8 @@
         // copyReportToClipboard removed — emails are sent directly from the system
 
         // ── Send email directly from CRM system ──
-        // In production this calls POST /api/email/send — mockup simulates the send
+        // Posts to /api/crm/email when wired; until then writes the send to
+        // localStorage so the sent-emails panel still has data to render.
         var _sentEmailsKey = 'sentEmails_' + LOGGED_IN_AGENT.id;
         var sentEmails = JSON.parse(localStorage.getItem(_sentEmailsKey)) || [];
 
@@ -2333,11 +2334,11 @@
                 created: new Date().toISOString()
             };
             var encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
-            var mockUrl = 'https://mallan.nyc/reports/view?config=' + encoded;
-            navigator.clipboard.writeText(mockUrl).then(function() {
+            var shareUrl = 'https://mallan.nyc/reports/view?config=' + encoded;
+            navigator.clipboard.writeText(shareUrl).then(function() {
                 showReportToast('Link copied to clipboard');
             }).catch(function() {
-                prompt('Copy this shareable link:', mockUrl);
+                prompt('Copy this shareable link:', shareUrl);
             });
             logAuditEntry('report_shareable_link', { format: config.format, listingCount: config.listingIds.length });
         }
