@@ -71,6 +71,24 @@ Same Trestle/Cotality credentials already in `.env.local` and Vercel env. After 
 
 ---
 
+## Deferred — PR #62 (SMS password reset, Twilio)
+
+**Status:** OPEN since 2026-04-26 · **Decision (2026-04-28):** leave open, defer until brainstorming/research is done.
+
+`feat/sms-password-reset` ([PR #62](https://github.com/mallan67/mallan-nyc/pull/62)) adds SMS-based password reset via Twilio. It is **not ready to merge** as-is — the auth-flow trade-offs (SMS vs. email-only OTP, TCPA opt-in surfaces, account-recovery security model, Twilio vendor contract scope) need a brainstorming pass before a merge/close decision.
+
+**Action for next session:** before any other auth work, run a brainstorming session on the password-reset model. Inputs to consider:
+- Current MFA flow is email OTP via M365 SMTP (`lib/auth/mfa.ts`). SMS is "ready when Twilio env vars added" per CLAUDE.md.
+- TCPA constraints on SMS to clients (consent capture surface, STOP keyword handling, message templates).
+- Whether SMS-reset belongs with brokers/agents only (low volume, internal) or extends to client portals (high volume, TCPA-hot).
+- Twilio cost model + vendor contract scope (PR description says "no new vendor" — confirm).
+
+After the brainstorming session: either merge PR #62 with whatever scoping it needs, or close it with a written rationale captured in `compliance/UPDATES.md`.
+
+**Do not auto-merge.** This is the only open PR after PR #81 lands; surfacing it here so it doesn't drift again.
+
+---
+
 ## Verification windows
 
 These will close themselves overnight without intervention; just spot-check on resume:
