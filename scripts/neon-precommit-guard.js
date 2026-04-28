@@ -79,32 +79,38 @@ triggered.forEach((f) => console.log(`  - ${f}`));
 console.log('');
 
 // ── 2. Require acknowledgment token in commit message ────────────────────
-// The message file is passed by git as $1 to commit-msg, but pre-commit runs
-// before the message exists. So we check the env var COMMIT_EDITMSG or fall
-// back to asking the dev to use -m with the token.
-let commitMsg = '';
-const msgFile = process.env.GIT_COMMIT_MSG_FILE || path.join(ROOT, '.git/COMMIT_EDITMSG');
-try {
-  commitMsg = fs.readFileSync(msgFile, 'utf-8');
-} catch {
-  // No commit message yet — pre-commit. We'll check the editor-provided one
-  // via the commit-msg hook too; for pre-commit, do the ops-health check now
-  // and defer token enforcement.
-}
-
-if (commitMsg && !commitMsg.includes(TOKEN)) {
-  fail(
-    `  This commit touches Neon-sensitive files but the message is missing the\n` +
-    `  required acknowledgment token: ${TOKEN}\n\n` +
-    `  Add it to your commit message after reading NEON.md §4 (Migration\n` +
-    `  discipline) + §5 (Pre-flight checklist).\n\n` +
-    `  Example:\n` +
-    `    fix(schema): add nullable column \`foo\` to Lead\n` +
-    `\n` +
-    `    ${TOKEN}\n` +
-    `    - Ran \`DATABASE_URL=prod prisma migrate deploy\` — applied cleanly\n` +
-    `    - Ran \`npm run ops:health\` — storage 43%, compute 38%`
-  );
+// The token check only runs in the commit-msg hook context, where git
+// passes the canonical message-file path as $1 (the commit-msg hook in
+// .githooks/commit-msg re-exports it as GIT_COMMIT_MSG_FILE before
+// invoking this script). At pre-commit time, .git/COMMIT_EDITMSG holds
+// the PREVIOUS commit's message — reading it here would falsely fail
+// any commit that follows another commit whose message lacked the token.
+// commit-msg hook is the correct enforcement point and runs even when
+// `git commit -m` or `-F` is used (git updates the file before invoking
+// commit-msg in both cases). The two-hook split matches the comment at
+// the top of .githooks/commit-msg.
+const msgFile = process.env.GIT_COMMIT_MSG_FILE;
+if (msgFile) {
+  let commitMsg = '';
+  try {
+    commitMsg = fs.readFileSync(msgFile, 'utf-8');
+  } catch {
+    /* commit-msg invoked but file unreadable — surface as missing token */
+  }
+  if (!commitMsg.includes(TOKEN)) {
+    fail(
+      `  This commit touches Neon-sensitive files but the message is missing the\n` +
+      `  required acknowledgment token: ${TOKEN}\n\n` +
+      `  Add it to your commit message after reading NEON.md §4 (Migration\n` +
+      `  discipline) + §5 (Pre-flight checklist).\n\n` +
+      `  Example:\n` +
+      `    fix(schema): add nullable column \`foo\` to Lead\n` +
+      `\n` +
+      `    ${TOKEN}\n` +
+      `    - Ran \`DATABASE_URL=prod prisma migrate deploy\` — applied cleanly\n` +
+      `    - Ran \`npm run ops:health\` — storage 43%, compute 38%`
+    );
+  }
 }
 
 // ── 3. Require recent ops:health run ─────────────────────────────────────
