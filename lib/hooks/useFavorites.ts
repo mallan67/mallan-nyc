@@ -93,6 +93,18 @@ function readFavoritesMap(): Map<string, FavoriteEntry> {
 
 export function useFavorites() {
   const arr = useSyncExternalStore(subscribe, readSnapshot, () => SERVER_SNAPSHOT);
+  // `loaded` mirrors the favorites snapshot's hydration state. SSR + first
+  // client render get false (matches SSR markup so consumers gating on
+  // `!loaded` render the same skeleton on both); after hydration completes
+  // it flips to true. Using `typeof window !== 'undefined'` here would
+  // diverge SSR (false) from first client render (true) and break that
+  // contract — components like FavoriteButton (return null until loaded)
+  // would then produce different markup between SSR and hydration.
+  const loaded = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
 
   const isFavorite = useCallback((id: string) => arr.some((f) => f.id === id), [arr]);
 
@@ -126,8 +138,6 @@ export function useFavorites() {
     toggleFavorite,
     updateNote,
     clearAll,
-    // Always "loaded" with useSyncExternalStore — no post-mount hydration
-    // race. Kept for backwards-compat with consumers that gate on it.
-    loaded: typeof window !== 'undefined',
+    loaded,
   };
 }

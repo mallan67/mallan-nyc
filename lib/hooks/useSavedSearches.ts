@@ -83,6 +83,15 @@ function writeSearches(arr: SavedSearchEntry[]): void {
 
 export function useSavedSearches() {
   const searches = useSyncExternalStore(subscribe, readSnapshot, () => SERVER_SNAPSHOT);
+  // SSR + first client render: false (matches SSR markup). Post-hydration:
+  // true. Same hydration-safe contract consumers gating on `!loaded`
+  // already expect. Using `typeof window !== 'undefined'` would diverge
+  // SSR from first client render and break the contract.
+  const loaded = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
 
   const saveSearch = useCallback((entry: Omit<SavedSearchEntry, 'id' | 'savedAt'>) => {
     const next = [
@@ -109,7 +118,6 @@ export function useSavedSearches() {
     saveSearch,
     deleteSearch,
     clearAll,
-    // Always "loaded" with useSyncExternalStore. Kept for backwards compat.
-    loaded: typeof window !== 'undefined',
+    loaded,
   };
 }
