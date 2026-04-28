@@ -1,4 +1,12 @@
 // /api/crm/sales/listings — GET: all sale listings with performance metrics
+//
+// Returned shape includes the UCBA Art. I auction columns directly off the
+// Listing model (added in PR #50): auction_yn, auction_type,
+// auction_start_date, auction_end_date, auction_terms_url. Agents reading
+// the CRM listing list see auction status alongside DOM, showings, and
+// inquiries. Validator AU-001..AU-005 (lib/compliance/rls-enforcement.ts,
+// PR #57) gates auction submissions on the write path; the form sub-section
+// in public/crm/SALE-FORM-REDESIGN.html (C3c) feeds those validators.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
+import AuctionBanner from '@/app/components/AuctionBanner';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
@@ -25,8 +26,8 @@ import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal } from '@/lib/idx/mapping';
-import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { toPublicDTO, buildAuctionPublic, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
@@ -449,6 +450,11 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       poolFeatures: features.PoolFeatures ? String(features.PoolFeatures) : undefined,
       spaFeatures: features.SpaFeatures ? String(features.SpaFeatures) : undefined,
       attendanceType: features.AttendanceType ? String(features.AttendanceType) : undefined,
+      // Auction (UCBA Art. I exception path) — null on non-auction listings.
+      // The five auction columns are top-level on the Listing model (PR #50);
+      // buildAuctionPublic() returns null unless auction_yn === true AND the
+      // mandatory type+endDate fields are set (validator AU-001..AU-005).
+      auction: buildAuctionPublic(dbListing),
       _source: 'db',
       _displayCompliance: {
         requiresAttribution: true,
@@ -1119,6 +1125,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 MAIN CONTENT (2/3)
                 ═══════════════════════════════════════ */}
             <div className="lg:col-span-2 space-y-0">
+
+              {/* ── AUCTION BANNER (UCBA Art. I exception path) ── */}
+              {/* Renders nothing on non-auction listings (auction=null). When  */}
+              {/* present, sits above the price hero — auction end date is     */}
+              {/* substantive and must be the first thing readers see.         */}
+              <AuctionBanner auction={listing.auction} />
 
               {/* ── 1. PRICE + ADDRESS HERO ── */}
               <section className="pb-6">

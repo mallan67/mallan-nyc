@@ -65,6 +65,96 @@ function proxyMediaUrl(url: string): string {
 }
 
 /**
+ * Coerce an arbitrary value (string | Date | null | undefined) to ISO 8601.
+ * Used for auction date fields which can arrive as Prisma DateTime objects
+ * (DB path) or pre-stringified ISO timestamps (Trestle path).
+ */
+function toIsoOrNull(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  return null;
+}
+
+/**
+ * Build the public auction object from a listing source that may carry the
+ * snake_case auction columns directly on the listing (DB path) or alongside
+ * the canonical IDXListing shape (Trestle path).
+ *
+ * Returns null when auction_yn is not strictly true. This is the single
+ * source of truth for the AuctionBanner render-or-not decision —
+ * non-auction listings MUST yield null so the banner short-circuits.
+ */
+export function buildAuctionPublic(source: unknown): AuctionPublic | null {
+  if (!source || typeof source !== 'object') return null;
+  const s = source as Record<string, unknown>;
+  if (s.auction_yn !== true) return null;
+  const rawType = s.auction_type;
+  // Type guard the picklist — reject any value the validator wouldn't accept.
+  const type =
+    rawType === 'Absolute' || rawType === 'WithReserve' || rawType === 'Minimum'
+      ? rawType
+      : null;
+  const endDate = toIsoOrNull(s.auction_end_date);
+  // Validator AU-002/AU-003 already block submission without these — but we
+  // still defensively return null if either is missing so the banner won't
+  // render half-information ("auction! …no end date").
+  if (!type || !endDate) return null;
+  return {
+    type,
+    startDate: toIsoOrNull(s.auction_start_date),
+    endDate,
+    termsUrl: safeHttpUrl(s.auction_terms_url),
+  };
+}
+
+/**
+ * Return the input only when it parses as an absolute http(s):// URL.
+ * Anything else — `javascript:`, `data:`, relative paths, garbage — yields
+ * null. The validator's AU-006 blocker rejects unsafe schemes at submit
+ * time; this is the second layer (defence-in-depth) for any row that
+ * pre-dates AU-006 or arrives via a path that bypasses the validator.
+ */
+function safeHttpUrl(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  try {
+    const protocol = new URL(trimmed).protocol.toLowerCase();
+    return protocol === 'http:' || protocol === 'https:' ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Auction details exposed to the public DTO when auction_yn=true.
+ *
+ * UCBA Art. I auction exception path. The auction end date is binding —
+ * standard 24-hour price-change rules don't apply to auction listings —
+ * so we surface it publicly with a strict shape.
+ *
+ * type values mirror the validator (lib/compliance/rls-enforcement.ts AU-002):
+ *   - "Absolute"     no reserve
+ *   - "WithReserve"  reserve price set
+ *   - "Minimum"      minimum bid stated
+ */
+export interface AuctionPublic {
+  type: 'Absolute' | 'WithReserve' | 'Minimum';
+  /** ISO 8601 string when present, otherwise null. */
+  startDate: string | null;
+  /** ISO 8601 string. Required by validator AU-003 when auction_yn=true. */
+  endDate: string;
+  /** Public terms doc (minimum bid, registration, inspection, buyer's premium). */
+  termsUrl: string | null;
+}
+
+/**
  * Public listing shape returned by GET /api/listings and GET /api/listings/:id.
  * No private remarks, no agent PII, address suppressed when required.
  */
@@ -156,6 +246,11 @@ export interface PublicListingDTO {
   additionalFee?: number;
   additionalFeeDescription?: string;
   feeFrequency?: string;
+  // Auction (UCBA Art. I exception path) — null on non-auction listings.
+  // Substantive listing facts (not a Trestle distribution-gate field): when
+  // auction_yn=true, the auction details are surfaced publicly so the
+  // detail page can render an unmissable banner with the bidding deadline.
+  auction: AuctionPublic | null;
   // Compliance metadata
   _source: string;
   _displayCompliance: {
@@ -301,6 +396,11 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     additionalFee: listing.additionalFee,
     additionalFeeDescription: listing.additionalFeeDescription,
     feeFrequency: listing.feeFrequency,
+    // Auction (UCBA Art. I exception path) — null on non-auction listings.
+    // The IDXListing canonical type doesn't yet carry the snake_case auction
+    // columns; the DB-mapped path (lib/idx/sync.ts) attaches them alongside,
+    // and the Trestle direct path resolves them through CustomFields.
+    auction: buildAuctionPublic(listing as unknown),
     // Source & compliance
     _source: listing._source,
     _displayCompliance: {
