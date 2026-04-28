@@ -122,6 +122,7 @@
         "eslint": "^9.39.3",
         "eslint-config-next": "^16.1.6",
         "jest": "^30.2.0",
+        "jsdom": "^25.0.1",
         "node-html-parser": "^7.0.2",
         "postcss": "^8.4.35",
         "tailwindcss": "^4.1.18",
@@ -130,7 +131,7 @@
         "zod": "^4.3.6"
     },
     "optionalDependencies": {
-        "lightningcss-linux-x64-gnu": "1.30.2",
-        "lightningcss-linux-arm64-gnu": "1.30.2"
+        "lightningcss-linux-arm64-gnu": "1.30.2",
+        "lightningcss-linux-x64-gnu": "1.30.2"
     }
 }
