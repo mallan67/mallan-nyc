@@ -48,26 +48,61 @@ jobs:
           node-version: '20'
           cache: npm
 
+      - name: Verify Trestle secrets are configured
+        id: secrets
+        run: |
+          # Without IDX_CLIENT_ID + IDX_CLIENT_SECRET in repo secrets, every
+          # downstream audit fails with "Missing IDX_CLIENT_ID..." in 0.5s and
+          # produces noise instead of signal. Detect once up front and skip
+          # cleanly so the workflow exits 0 (no daily false-alarm pages) and
+          # is_configured is false (downstream steps gate on it).
+          if [ -z "${IDX_CLIENT_ID}" ] || [ -z "${IDX_CLIENT_SECRET}" ]; then
+            echo "is_configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Trestle audit skipped — IDX_CLIENT_ID and/or IDX_CLIENT_SECRET secrets are not set on this repo. Add them via 'gh secret set IDX_CLIENT_ID' and 'gh secret set IDX_CLIENT_SECRET' to enable the daily live-audit."
+            {
+              echo "## Trestle live audit — SKIPPED"
+              echo ""
+              echo "Repo secrets \`IDX_CLIENT_ID\` and/or \`IDX_CLIENT_SECRET\` are not configured."
+              echo ""
+              echo "To enable the audit, run locally:"
+              echo ""
+              echo '```sh'
+              echo 'gh secret set IDX_CLIENT_ID --repo ${{ github.repository }}'
+              echo 'gh secret set IDX_CLIENT_SECRET --repo ${{ github.repository }}'
+              echo '```'
+              echo ""
+              echo "These are the same Trestle/Cotality credentials present in your local \`.env.local\` and Vercel env."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "is_configured=true" >> "$GITHUB_OUTPUT"
+            echo "✓ Trestle credentials present"
+          fi
+
       - name: Install dependencies
+        if: steps.secrets.outputs.is_configured == 'true'
         run: npm ci
 
       - name: Audit form bindings vs live Trestle
         id: audit-forms
+        if: steps.secrets.outputs.is_configured == 'true'
         continue-on-error: true
         run: npm run trestle:audit-forms
 
       - name: Audit server-side field references
         id: audit-server
+        if: steps.secrets.outputs.is_configured == 'true'
         continue-on-error: true
         run: npm run trestle:audit-server
 
       - name: Audit non-Property resource $select usage
         id: audit-resources
+        if: steps.secrets.outputs.is_configured == 'true'
         continue-on-error: true
         run: npm run trestle:audit-resources
 
       - name: CSV vs live diff
         id: csv-diff
+        if: steps.secrets.outputs.is_configured == 'true'
         continue-on-error: true
         run: |
           # Refresh script does NOT write in dry mode; we just diff.
@@ -75,6 +110,7 @@ jobs:
 
       - name: Aggregate result
         id: aggregate
+        if: steps.secrets.outputs.is_configured == 'true'
         run: |
           fail=0
           [ "${{ steps.audit-forms.outcome }}" != "success" ] && fail=$((fail+1))
@@ -86,8 +122,21 @@ jobs:
             echo "::error::Trestle live audit detected drift in $fail audit(s)"
           fi
 
+      - name: Ensure tracking labels exist
+        if: ${{ steps.secrets.outputs.is_configured == 'true' && github.event_name == 'schedule' && steps.aggregate.outputs.failed_audits != '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Older runs failed the entire workflow because the issue-create step
+          # tried to attach a `compliance` label that didn't exist in the repo.
+          # Pre-create both labels (idempotent: ignore "already exists" error).
+          gh label create trestle-drift --color B60205 \
+            --description "Auto-opened by trestle-live-audit cron" 2>/dev/null || true
+          gh label create compliance --color FBCA04 \
+            --description "Compliance / regulatory follow-up" 2>/dev/null || true
+
       - name: Open drift issue (scheduled runs only)
-        if: ${{ github.event_name == 'schedule' && steps.aggregate.outputs.failed_audits != '0' }}
+        if: ${{ steps.secrets.outputs.is_configured == 'true' && github.event_name == 'schedule' && steps.aggregate.outputs.failed_audits != '0' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -118,5 +167,5 @@ jobs:
           )"
 
       - name: Fail the workflow if any audit failed
-        if: ${{ steps.aggregate.outputs.failed_audits != '0' }}
+        if: ${{ steps.secrets.outputs.is_configured == 'true' && steps.aggregate.outputs.failed_audits != '0' }}
         run: exit 1
