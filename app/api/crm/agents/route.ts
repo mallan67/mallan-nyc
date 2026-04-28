@@ -37,6 +37,11 @@ export async function GET(req: NextRequest) {
       featured: true,
       specialties: true,
       languages: true,
+      // UCBA Art. III §6 ethics-training (Workstream C4 — Broker admin panel
+      // reads these to render compliance status. Schema in PR #51, gate in
+      // PR #58, broker UI in PR #59 / C4c).
+      ethics_training_completed_at: true,
+      ethics_training_expires_at: true,
     },
   });
 
@@ -45,6 +50,10 @@ export async function GET(req: NextRequest) {
     id: a.id.toString(),
     sale_split: a.sale_split?.toString() ?? null,
     rental_split: a.rental_split?.toString() ?? null,
+    ethics_training_completed_at:
+      a.ethics_training_completed_at?.toISOString() ?? null,
+    ethics_training_expires_at:
+      a.ethics_training_expires_at?.toISOString() ?? null,
   }));
 
   return NextResponse.json({ agents: serialized });
