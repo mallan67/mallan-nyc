@@ -11,9 +11,19 @@
 //   1 — warning (something is drifting but not urgent)
 //   2 — critical (immediate attention needed)
 //
-// Usage:
-//   node --env-file=.env.local scripts/ops-health.js           # human output
-//   node --env-file=.env.local scripts/ops-health.js --json    # machine output
+// Usage (npm run ops:health auto-loads BOTH .env.local and .env if present):
+//   npm run ops:health                                                            # human output
+//   npm run ops:health:json                                                       # machine output
+//
+// Direct invocation also accepts either env file (or both):
+//   node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js
+
+if (!process.env.DATABASE_URL) {
+  console.error(
+    '[ops-health] DATABASE_URL is not set. Set it in .env.local or .env (or shell env) and re-run.'
+  );
+  process.exit(2);
+}
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
