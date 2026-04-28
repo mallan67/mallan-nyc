@@ -1,0 +1,102 @@
+name: Auto-retry runner-pool flakes
+
+# Watches selected workflows for `failure` conclusions caused by GitHub's
+# hosted-runner pool failing to acquire a machine (annotation:
+# "The job was not acquired by Runner of type hosted ..."). When that
+# specific infra flake is detected, this workflow re-runs only the failed
+# jobs once. Real test/check failures are left untouched so they still
+# surface notifications.
+#
+# Heuristic for "runner-pool flake": the failed run has zero job steps
+# whose conclusion is `failure`. A real failure always has at least one
+# step that ran and reported a non-success conclusion. A runner-pool
+# flake never starts any step at all — the job is marked failed by
+# GitHub directly when allocation times out.
+#
+# Bounded to one auto-retry per run via the `run_attempt < 2` gate. If
+# the second attempt also can't acquire a runner, we let it stay failed
+# rather than spinning indefinitely.
+
+on:
+  workflow_run:
+    workflows:
+      - Live Site Smoke (cron)
+    types:
+      - completed
+
+permissions:
+  actions: write   # gh run rerun
+  contents: read
+
+jobs:
+  maybe-retry:
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 2
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+
+    steps:
+      - name: Classify failure
+        id: classify
+        run: |
+          set -eu
+          # Count failed steps across all jobs in the run.
+          failed_steps=$(gh api \
+            "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
+            --jq '[.jobs[]?.steps[]? | select(.conclusion == "failure")] | length' \
+            2>/dev/null || echo "0")
+          # Pull annotation messages on each job, looking for the runner-pool
+          # signature. Belt-and-suspenders alongside the failed-step count.
+          job_ids=$(gh api \
+            "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
+            --jq '.jobs[]?.id' 2>/dev/null || echo "")
+          annotations=""
+          for j in $job_ids; do
+            ann=$(gh api "repos/${{ github.repository }}/check-runs/${j}/annotations" \
+              --jq '.[]?.message' 2>/dev/null || echo "")
+            annotations="${annotations}\n${ann}"
+          done
+
+          echo "failed_steps=${failed_steps}"
+          echo "annotations: ${annotations}"
+
+          is_flake="false"
+          if [ "${failed_steps}" = "0" ]; then
+            is_flake="true"
+            echo "reason: zero failed steps (runner never acquired)"
+          elif echo -e "${annotations}" | grep -qiE "not acquired by Runner|runner.*not.*available"; then
+            is_flake="true"
+            echo "reason: runner-pool annotation matched"
+          else
+            echo "reason: real failure — has failed steps and no runner-pool annotation"
+          fi
+          echo "is_flake=${is_flake}" >> "$GITHUB_OUTPUT"
+
+      - name: Re-run failed jobs (flake only)
+        if: steps.classify.outputs.is_flake == 'true'
+        run: |
+          gh run rerun "${RUN_ID}" --failed
+          echo "Re-ran failed jobs in run ${RUN_ID} (${WORKFLOW_NAME})"
+
+      - name: Skipped — real failure
+        if: steps.classify.outputs.is_flake != 'true'
+        run: |
+          echo "Run ${RUN_ID} (${WORKFLOW_NAME}) failed with executed steps —"
+          echo "leaving it alone so the FAIL notification reaches a human."
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Auto-retry runner-pool flakes"
+            echo ""
+            echo "- Watched run: \`${RUN_ID}\` (${WORKFLOW_NAME})"
+            echo "- Run attempt: ${{ github.event.workflow_run.run_attempt }}"
+            echo "- Conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "- Verdict: ${{ steps.classify.outputs.is_flake == 'true' && 'flake — re-run triggered' || 'real failure — left alone' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
