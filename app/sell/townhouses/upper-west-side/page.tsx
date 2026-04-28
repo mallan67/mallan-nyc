@@ -65,7 +65,7 @@ const uwsFaqSchema = {
       name: 'Should I sell my UWS townhouse as single-family or keep it multi-unit?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'On the Upper West Side, both configurations have strong markets. Single-family conversions appeal to families seeking full-floor living near Central Park and top schools like Trinity. Multi-unit (2-4 family) appeals to investors and owner-occupants who want rental income to offset carrying costs. We model both scenarios to recommend the best strategy.',
+        text: 'On the Upper West Side, both configurations have strong markets. Single-family conversions appeal to end-users seeking full-floor living near Central Park and the cultural corridor. Multi-unit (2-4 family) appeals to investors and owner-occupants who want rental income to offset carrying costs. We model both scenarios to recommend the best strategy.',
       },
     },
     {
@@ -106,7 +106,7 @@ const FAQS = [
   {
     question: 'Should I sell as single-family or multi-unit?',
     answer:
-      'Both have strong UWS markets. Single-family appeals to families wanting full-floor living near Central Park and top schools. Multi-unit appeals to investors and owner-occupants who want rental income. We model both scenarios.',
+      'Both have strong UWS markets. Single-family appeals to end-users wanting full-floor living near Central Park and the cultural corridor. Multi-unit appeals to investors and owner-occupants who want rental income. We model both scenarios.',
   },
   {
     question: 'How long does it take to sell on the UWS?',
@@ -132,14 +132,14 @@ const UWS_TOWNHOUSE_BLOCKS = [
     area: 'West 80s',
     streets: '80th - 89th, Columbus to Riverside',
     character:
-      'Heart of the UWS townhouse market. The Riverside-West End Historic District preserves exceptional row house architecture. Quieter blocks, excellent schools.',
-    appeal: 'Families, long-term residents, preservation buyers',
+      'Heart of the UWS townhouse market. The Riverside-West End Historic District preserves exceptional row house architecture. Tree-lined, lower-traffic blocks with proximity to Riverside Park.',
+    appeal: 'Long-term residents, preservation buyers, end-users seeking quieter blocks',
   },
   {
     area: 'West 90s',
     streets: '90th - 99th, Columbus to Riverside',
     character:
-      'Excellent value relative to blocks further south. Still within prime school districts. Proximity to Riverside Park, Joan of Arc Park, and the 96th Street Express stop.',
+      'Strong value relative to blocks further south. Proximity to Riverside Park, Joan of Arc Park, and the 96th Street Express stop. Mix of original and renovated row houses.',
     appeal: 'Value buyers, investors, young families',
   },
   {
@@ -257,11 +257,10 @@ export default function UWSTownhousePage() {
                   a private house between two world-class parks.
                 </p>
                 <p className="text-brand-dark/60 text-[15px] font-light leading-[1.9] mb-6">
-                  Buyers here are drawn by the tree-lined blocks, proximity to
-                  top schools like Trinity and Collegiate, the cultural institutions
-                  of Lincoln Center and the American Museum of Natural History, and
-                  the intellectual, community-oriented atmosphere that has defined
-                  the UWS for generations.
+                  Buyers here are drawn by the tree-lined blocks, the cultural
+                  institutions of Lincoln Center and the American Museum of Natural
+                  History, and the intellectual, community-oriented atmosphere
+                  that has defined the UWS for generations.
                 </p>
                 <p className="text-brand-dark/60 text-[15px] font-light leading-[1.9]">
                   Your townhouse isn&apos;t just a home. It&apos;s a piece of Manhattan
@@ -328,8 +327,8 @@ export default function UWSTownhousePage() {
                   <ul className="space-y-2.5">
                     {[
                       'Dual park access — Central Park & Riverside Park',
-                      'Top schools — Trinity, Collegiate, PS 87, PS 199',
                       'Cultural corridor — Lincoln Center, AMNH, NYHS',
+                      'Walk to subway — 1, 2, 3, B, C lines',
                       'No board approval — close faster than co-ops',
                       'Rental income potential — garden-level apartments',
                       'Landmark character — irreplaceable architecture',

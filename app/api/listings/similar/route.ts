@@ -40,7 +40,8 @@ function proxyUrl(url: string): string {
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const type = searchParams.get('type') || 'sale';
-  const beds = Number(searchParams.get('beds') || 0);
+  // `beds` query param is accepted for forward-compat but not currently used
+  // — similarity is computed by ZIP + price band today.
   const price = Number(searchParams.get('price') || 0);
   const postalCode = searchParams.get('postalCode') || '';
   const excludeId = searchParams.get('excludeId') || '';

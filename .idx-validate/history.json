@@ -1,26 +1,5 @@
 [
   {
-    "timestamp": "2026-03-25T22:29:30.615Z",
-    "pass": 837,
-    "critical": 0,
-    "warning": 0,
-    "info": 39
-  },
-  {
-    "timestamp": "2026-03-25T22:29:55.686Z",
-    "pass": 837,
-    "critical": 0,
-    "warning": 0,
-    "info": 39
-  },
-  {
-    "timestamp": "2026-03-26T00:24:26.995Z",
-    "pass": 837,
-    "critical": 0,
-    "warning": 0,
-    "info": 39
-  },
-  {
     "timestamp": "2026-03-26T00:33:31.850Z",
     "pass": 837,
     "critical": 0,
@@ -348,5 +327,26 @@
     "critical": 0,
     "warning": 4,
     "info": 22
+  },
+  {
+    "timestamp": "2026-04-27T20:36:29.114Z",
+    "pass": 784,
+    "critical": 0,
+    "warning": 6,
+    "info": 24
+  },
+  {
+    "timestamp": "2026-04-27T21:39:14.258Z",
+    "pass": 784,
+    "critical": 0,
+    "warning": 6,
+    "info": 24
+  },
+  {
+    "timestamp": "2026-04-27T22:31:14.514Z",
+    "pass": 784,
+    "critical": 0,
+    "warning": 6,
+    "info": 24
   }
 ]

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { sendEmail, sendBulkEmail } from "@/lib/email/sendgrid";
+import { sendEmail } from "@/lib/email/sendgrid";
 import { genericCrmEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";

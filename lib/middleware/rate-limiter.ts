@@ -16,22 +16,17 @@ import redis from "@/lib/redis";
  */
 
 // ── Constants ──
-const GENERAL_RATE_LIMIT = 600;
-const API_RATE_LIMIT = 300;
 const LOGIN_RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
-const SCRAPING_WINDOW_S = 30;
-const SCRAPING_THRESHOLD = 60;
-const SCRAPING_BLOCK_S = 120; // 2min block — short enough to not lock out power users, long enough to deter scrapers
+// Scraping detection constants removed alongside the now-unused
+// checkScrapingBlock/checkScrapingPattern helpers. Reintroduce here if those
+// functions are restored.
 
 // ── Upstash rate limiters (null if Redis not configured) ──
-const pageRl = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(GENERAL_RATE_LIMIT, "60 s"), prefix: "rl:page", ephemeralCache: new Map() })
-  : null;
-const apiRl = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(API_RATE_LIMIT, "60 s"), prefix: "rl:api", ephemeralCache: new Map() })
-  : null;
+// Note: legacy pageRl/apiRl have been removed — page and api routes now flow
+// through the per-route limiter map (`routeLimiters` below) keyed by route
+// name, which is the canonical model for cross-instance enforcement.
 const loginRl = redis
   ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(LOGIN_RATE_LIMIT, "60 s"), prefix: "rl:login", ephemeralCache: new Map() })
   : null;
@@ -123,8 +118,6 @@ export function extractClientIp(headers: Headers): string {
 
 // ── In-memory fallback (used when Redis is unavailable) ──
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const scrapingMap = new Map<string, { count: number; windowStart: number }>();
-const scrapingBlockMap = new Map<string, number>(); // ip → blockedUntil timestamp
 const MAX_ENTRIES = 10_000;
 let lastCleanup = Date.now();
 
@@ -141,12 +134,6 @@ function cleanup() {
       const k = iter.next().value;
       if (k) rateLimitMap.delete(k);
     }
-  }
-  for (const [key, entry] of scrapingMap) {
-    if (now - entry.windowStart > SCRAPING_WINDOW_S * 1000) scrapingMap.delete(key);
-  }
-  for (const [key, until] of scrapingBlockMap) {
-    if (now > until) scrapingBlockMap.delete(key);
   }
 }
 
@@ -168,59 +155,9 @@ function memCheckRateLimit(key: string, limit: number): boolean {
 }
 
 // ── Scraping detection (REBNY IDX compliance) ──
-
-async function checkScrapingBlock(ip: string): Promise<number> {
-  if (redis) {
-    try {
-      const ttl = await redis.ttl(`scrape-block:${ip}`);
-      return ttl > 0 ? ttl : 0;
-    } catch {
-      // Fall through to in-memory
-    }
-  }
-  const until = scrapingBlockMap.get(ip);
-  if (!until) return 0;
-  const now = Date.now();
-  if (now < until) return Math.ceil((until - now) / 1000);
-  scrapingBlockMap.delete(ip);
-  return 0;
-}
-
-async function checkScrapingPattern(ip: string, pathname: string): Promise<boolean> {
-  if (!pathname.startsWith("/listing/") && !pathname.startsWith("/api/listings")) {
-    return false;
-  }
-
-  if (redis) {
-    try {
-      const key = `scrape:${ip}`;
-      const count = await redis.incr(key);
-      if (count === 1) await redis.expire(key, SCRAPING_WINDOW_S);
-
-      if (count >= SCRAPING_THRESHOLD) {
-        await redis.set(`scrape-block:${ip}`, 1, { ex: SCRAPING_BLOCK_S });
-        return true;
-      }
-      return false;
-    } catch {
-      // Fall through to in-memory
-    }
-  }
-
-  // In-memory fallback
-  const now = Date.now();
-  const entry = scrapingMap.get(ip);
-  if (!entry || now - entry.windowStart > SCRAPING_WINDOW_S * 1000) {
-    scrapingMap.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-  entry.count++;
-  if (entry.count >= SCRAPING_THRESHOLD) {
-    scrapingBlockMap.set(ip, now + SCRAPING_BLOCK_S * 1000);
-    return true;
-  }
-  return false;
-}
+// (Scraping check helpers removed — never wired into the active middleware
+// pipeline. If reintroduced, restore both checkScrapingBlock + checkScrapingPattern
+// and call them from checkRateLimits() before per-route checks.)
 
 // ── Rate limit check (Upstash primary, in-memory fallback) ──
 

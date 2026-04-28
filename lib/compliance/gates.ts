@@ -123,7 +123,7 @@ function readStatus(o: PermissionInput): StatusValue | null {
   if (typeof raw !== "string") return null;
   // Import on demand to avoid top-level cycle with status.ts
   // (status.ts has no imports from this module, so this is safe).
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+   
   const { normalizeStatus } = require("./status") as typeof import("./status");
   return normalizeStatus(raw);
 }

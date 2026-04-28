@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useSidePanel } from '@/lib/contexts/ListingSidePanelContext';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import InquiryModal from '@/app/components/InquiryModal';
+import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -156,6 +157,12 @@ export default function ListingSidePanel() {
                 sizes="(max-width: 768px) 100vw, 45vw"
                 priority
               />
+              {/* REBNY UCBA Art. I §16(C) — Coming Soon badge */}
+              <ComingSoonBadge
+                status={listing.status}
+                comingSoonDate={listing.compliance?.comingSoonDate}
+                className="absolute top-3 left-3 bg-blue-600 text-white text-[13px] font-semibold px-3 py-1.5 rounded leading-tight max-w-[80%] z-10"
+              />
             </div>
             {images.length > 1 && (
               <div className="grid grid-cols-4 gap-2">
@@ -269,7 +276,9 @@ export default function ListingSidePanel() {
             Ask a Question
           </button>
 
-          {/* Agent card — uses listing agent data, no hardcoded PII */}
+          {/* Listing-broker card — REBNY HID rule: no office direct phone/email/URL on public view.
+              Office NAME is the only office identifier permitted publicly (used for attribution).
+              Buyers contact via the "Schedule a Viewing" / "Ask a Question" CTAs above. */}
           {listing.agent?.listOfficeName && (
             <div className="glass-card rounded-2xl p-6 flex items-center gap-5">
               <div
@@ -277,22 +286,20 @@ export default function ListingSidePanel() {
                 style={{ background: 'linear-gradient(135deg, rgba(184,134,11,0.12), rgba(184,134,11,0.04))', boxShadow: 'var(--gold-glow)' }}
               >
                 <span className="font-display font-bold text-brand-gold-deep text-lg">
-                  {(listing.agent.listAgentName || listing.agent.listOfficeName).slice(0, 2).toUpperCase()}
+                  {listing.agent.listOfficeName.slice(0, 2).toUpperCase()}
                 </span>
               </div>
               <div>
                 <p className="font-display font-semibold text-[15px] text-brand-dark">{listing.agent.listOfficeName}</p>
-                {listing.agent.listOfficePhone && (
-                  <p className="text-brand-dark/85 text-[12px] font-light">{listing.agent.listOfficePhone}</p>
-                )}
+                <p className="text-brand-dark/70 text-[12px] mt-0.5">Listing brokerage</p>
               </div>
             </div>
           )}
 
-          {/* REBNY attribution */}
+          {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
           {listing.agent?.listOfficeName && (
-            <p className="text-[10px] text-brand-dark/90 mt-6 font-light text-center">
-              Listing Courtesy of {listing.agent.listOfficeName}
+            <p className="text-lg text-brand-dark/85 mt-6 text-center font-medium">
+              RLS · Listing Courtesy of {listing.agent.listOfficeName}
             </p>
           )}
 

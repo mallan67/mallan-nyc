@@ -104,18 +104,18 @@ function PastDealCard({ deal }: { deal: PastDealDTO }) {
           </p>
         </div>
 
-        {/* Bottom row: Listing Courtesy + RLS badge */}
+        {/* Bottom row: Listing Courtesy + RLS badge — UCBA Art. III §2(C): font not smaller than median (median in this card = 12px) */}
         {(hasCourtesy || isRLS) && (
           <div className="flex items-end justify-between mt-1.5 gap-2">
             {hasCourtesy ? (
-              <p className="text-[10px] text-brand-dark/75 leading-tight truncate">
+              <p className="text-[12px] text-brand-dark/85 leading-tight truncate">
                 Listing Courtesy of {deal.listingCourtesy}
               </p>
             ) : (
               <span />
             )}
             {isRLS && (
-              <span className="flex-shrink-0 text-[10px] font-bold text-red-500 tracking-wide">
+              <span className="flex-shrink-0 text-[12px] font-bold text-red-500 tracking-wide">
                 RLS
               </span>
             )}

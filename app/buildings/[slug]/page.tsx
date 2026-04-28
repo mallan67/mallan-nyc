@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import BackButton from '@/app/components/BackButton';
 import BuildingViolations from '@/app/components/BuildingViolations';
+import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 
 export const revalidate = 600;
 
@@ -32,6 +33,9 @@ interface ActiveUnit {
   status: string;
   listingType: string;
   photoUrl: string | null;
+  // UCBA Art. I §16(C) — first-showing date for Coming Soon badge.
+  comingSoonDate?: string | null;
+  activationDate?: string | null;
 }
 
 interface SaleRecord {
@@ -216,7 +220,6 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
   // No hero photo — unit listing photos are not building exterior photos
   const buildingType = displayLabel(building.commonInterest) || displayLabel(building.ownershipType);
   const structure = displayLabel(building.structureType);
-  const isCoop = building.commonInterest === 'StockCooperative' || building.ownershipType === 'Co-op';
   const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
   const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
   const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType || building.structureType || building.newConstruction || building.taxAnnualAmount;
@@ -355,6 +358,13 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                           <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
                         </div>
                       )}
+                      {/* REBNY UCBA Art. I §16(C) — Coming Soon badge */}
+                      <ComingSoonBadge
+                        status={unit.status}
+                        comingSoonDate={unit.comingSoonDate}
+                        activationDate={unit.activationDate}
+                        className="absolute top-2 left-2 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[80%]"
+                      />
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-1.5">
@@ -368,13 +378,14 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                         {unit.sqft > 0 && <><span className="text-brand-dark/20">&middot;</span><span>{unit.sqft.toLocaleString()} SF</span></>}
                       </div>
                       {unit.propertyType && <p className="text-[11px] text-brand-dark/50">{unit.propertyType}</p>}
+                      {/* REBNY attribution per-card — UCBA Art. III §2(C): font not smaller than median */}
+                      <p className="text-sm text-brand-dark/80 mt-2 truncate">
+                        RLS · Listing Courtesy of {unit.office || 'listing broker'}
+                      </p>
                     </div>
                   </Link>
                 ))}
               </div>
-              <p className="text-[10px] text-brand-dark/40 mt-3">
-                {saleUnits.map((u) => u.office).filter((v, i, a) => v && a.indexOf(v) === i).map((o) => `Courtesy of ${o}`).join(' | ')}
-              </p>
             </section>
           )}
 
@@ -415,13 +426,14 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                         {unit.sqft > 0 && <><span className="text-brand-dark/20">&middot;</span><span>{unit.sqft.toLocaleString()} SF</span></>}
                       </div>
                       {unit.propertyType && <p className="text-[11px] text-brand-dark/50">{unit.propertyType}</p>}
+                      {/* REBNY attribution per-card — UCBA Art. III §2(C): font not smaller than median */}
+                      <p className="text-sm text-brand-dark/80 mt-2 truncate">
+                        RLS · Listing Courtesy of {unit.office || 'listing broker'}
+                      </p>
                     </div>
                   </Link>
                 ))}
               </div>
-              <p className="text-[10px] text-brand-dark/40 mt-3">
-                {rentalUnits.map((u) => u.office).filter((v, i, a) => v && a.indexOf(v) === i).map((o) => `Courtesy of ${o}`).join(' | ')}
-              </p>
             </section>
           )}
 

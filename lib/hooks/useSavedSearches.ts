@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'mallan_saved_searches';
 
@@ -23,59 +23,101 @@ export interface SavedSearchEntry {
   savedAt: string;
 }
 
-function load(): SavedSearchEntry[] {
-  if (typeof window === 'undefined') return [];
+// External-store wiring (same pattern as useFavorites). Cached snapshot
+// keeps useSyncExternalStore referentially stable.
+const SERVER_SNAPSHOT: SavedSearchEntry[] = [];
+
+let cachedRaw: string | null = null;
+let cachedSnapshot: SavedSearchEntry[] = [];
+
+function readSnapshot(): SavedSearchEntry[] {
+  if (typeof window === 'undefined') return SERVER_SNAPSHOT;
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    raw = localStorage.getItem(STORAGE_KEY);
   } catch {
-    return [];
+    raw = null;
   }
+  if (raw === cachedRaw) return cachedSnapshot;
+  cachedRaw = raw;
+  try {
+    cachedSnapshot = raw ? (JSON.parse(raw) as SavedSearchEntry[]) : [];
+  } catch {
+    cachedSnapshot = [];
+  }
+  return cachedSnapshot;
 }
 
-function save(searches: SavedSearchEntry[]) {
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY) listener();
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', onStorage);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('storage', onStorage);
+    }
+  };
+}
+
+function emit() {
+  for (const l of listeners) l();
+}
+
+function writeSearches(arr: SavedSearchEntry[]): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(searches));
+    const json = JSON.stringify(arr);
+    localStorage.setItem(STORAGE_KEY, json);
+    cachedRaw = json;
+    cachedSnapshot = arr;
   } catch { /* storage full */ }
+  emit();
 }
 
 export function useSavedSearches() {
-  const [searches, setSearches] = useState<SavedSearchEntry[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setSearches(load());
-    setLoaded(true);
-  }, []);
+  const searches = useSyncExternalStore(subscribe, readSnapshot, () => SERVER_SNAPSHOT);
+  // SSR + first client render: false (matches SSR markup). Post-hydration:
+  // true. Same hydration-safe contract consumers gating on `!loaded`
+  // already expect. Using `typeof window !== 'undefined'` would diverge
+  // SSR from first client render and break the contract.
+  const loaded = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
 
   const saveSearch = useCallback((entry: Omit<SavedSearchEntry, 'id' | 'savedAt'>) => {
-    setSearches(prev => {
-      const next = [
-        {
-          ...entry,
-          id: `ss-${Date.now()}`,
-          savedAt: new Date().toISOString(),
-        },
-        ...prev,
-      ].slice(0, 20); // max 20 saved searches
-      save(next);
-      return next;
-    });
+    const next = [
+      {
+        ...entry,
+        id: `ss-${Date.now()}`,
+        savedAt: new Date().toISOString(),
+      },
+      ...readSnapshot(),
+    ].slice(0, 20); // max 20 saved searches
+    writeSearches(next);
   }, []);
 
   const deleteSearch = useCallback((id: string) => {
-    setSearches(prev => {
-      const next = prev.filter(s => s.id !== id);
-      save(next);
-      return next;
-    });
+    writeSearches(readSnapshot().filter((s) => s.id !== id));
   }, []);
 
   const clearAll = useCallback(() => {
-    setSearches([]);
-    save([]);
+    writeSearches([]);
   }, []);
 
-  return { searches, saveSearch, deleteSearch, clearAll, loaded };
+  return {
+    searches,
+    saveSearch,
+    deleteSearch,
+    clearAll,
+    loaded,
+  };
 }

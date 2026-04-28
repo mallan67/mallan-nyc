@@ -1135,11 +1135,11 @@ export async function GET(request: Request) {
                 }
                 return { id: listing.listingId, count: media.length };
               }));
-              const summary = results.map(r => r.status === 'fulfilled' ? `${r.value.id}:${r.value.count}` : `ERR:${(r as PromiseRejectedResult).reason?.message?.substring(0,30)}`);
-              // Photo batch result logged via audit trail
+              // Phase 1 photo-batch results are surfaced through the audit
+              // trail at the call site, not logged here.
+              void results;
             }
           } catch (e) { console.warn('[Photos] Phase 1 error:', e instanceof Error ? e.message : e); }
-          const afterPhase1 = pageListings.filter(l => l.media.length === 0).length;
           // Remaining empty listings fall through to DB phase
 
           // Phase 2: For listings STILL empty, check DB (photos from sync/backfill)

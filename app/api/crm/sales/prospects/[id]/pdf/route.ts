@@ -85,7 +85,7 @@ function nycTransferTaxRate(price: number): number {
 
 // ── Assemble pitch packet data ───────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 async function assemblePitchPacket(prospect: any, agentName: string): Promise<Record<string, any>> {
   // ── Pillar 1: Property Intel ──
   const compFields =

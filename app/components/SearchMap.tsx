@@ -362,11 +362,12 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
                         : listing.address.borough || 'Manhattan'}
                     </div>
                   </div>
+                  {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median (popup body=13px) */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
-                    <span style={{ fontSize: 11, color: '#999' }}>
-                      RLS · Courtesy of {listing.listOfficeName || 'REBNY RLS'}
+                    <span style={{ fontSize: 13, color: '#555' }}>
+                      RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}
                     </span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#C4A052' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#C4A052' }}>
                       View &rarr;
                     </span>
                   </div>

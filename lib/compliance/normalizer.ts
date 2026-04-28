@@ -6,7 +6,7 @@
  *   1. Strip removed fields (NAR Settlement)
  *   2. Rename alias keys → canonical RLS names
  *   3. Normalize enum values via valueAliases
- *   4. Apply defaults (IDXEntireListingDisplayYN, SyndicateYN)
+ *   4. Apply defaults (InternetEntireListingDisplayYN; SyndicateTo defaults to all-vendors when undefined)
  */
 
 import { REBNY_FIELD_TABLES } from './rebny-field-tables';
@@ -63,11 +63,13 @@ export function normalizePayload(raw: Payload): {
   }
 
   // Step 4: Apply defaults
-  if (normalized['IDXEntireListingDisplayYN'] === undefined) {
-    normalized['IDXEntireListingDisplayYN'] = true;
-  }
-  if (normalized['SyndicateYN'] === undefined) {
-    normalized['SyndicateYN'] = true;
+  // IDXEntireListingDisplayYN does NOT exist on live Trestle (verified 2026-04-19
+  // against $metadata) — use InternetEntireListingDisplayYN. SyndicateYN does
+  // NOT exist on Trestle either; SyndicateTo is the multi-select picker. Default
+  // is left undefined here (form supplies it explicitly); the gate logic in
+  // rls-enforcement treats undefined as "agent did not opt out".
+  if (normalized['InternetEntireListingDisplayYN'] === undefined) {
+    normalized['InternetEntireListingDisplayYN'] = true;
   }
 
   return { normalized, stripped, renamed, valueNormalized };

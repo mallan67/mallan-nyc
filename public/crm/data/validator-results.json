@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-04-07T22:31:29.253Z",
-  "pass": 823,
+  "timestamp": "2026-04-27T22:31:14.575Z",
+  "pass": 818,
   "critical": 0,
-  "warning": 4,
-  "info": 25,
+  "warning": 6,
+  "info": 27,
   "sections": [
     {
       "section": 1,
       "title": "$select Field Completeness",
       "category": "IDX Pipeline",
-      "pass": 32,
+      "pass": 29,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -27,9 +27,9 @@
       "section": 3,
       "title": "Field Count Verification",
       "category": "IDX Pipeline",
-      "pass": 14,
+      "pass": 13,
       "critical": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 0
     },
     {
@@ -63,7 +63,7 @@
       "section": 7,
       "title": "CRM fetch() → API Route Cross-Reference",
       "category": "CRM & API",
-      "pass": 79,
+      "pass": 74,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 144,
+      "pass": 138,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 94,
+      "pass": 98,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -90,7 +90,7 @@
       "section": 10,
       "title": "Cron Schedule Completeness",
       "category": "Cron",
-      "pass": 19,
+      "pass": 21,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -99,7 +99,7 @@
       "section": 11,
       "title": "Cron Secret Validation Pattern",
       "category": "Cron",
-      "pass": 19,
+      "pass": 21,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 129,
+      "pass": 125,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -216,7 +216,7 @@
       "section": 24,
       "title": "Dead Components",
       "category": "Bloat & Hygiene",
-      "pass": 92,
+      "pass": 96,
       "critical": 0,
       "warning": 0,
       "info": 1
@@ -225,10 +225,10 @@
       "section": 25,
       "title": "Unused npm Dependencies",
       "category": "Bloat & Hygiene",
-      "pass": 24,
+      "pass": 25,
       "critical": 0,
       "warning": 0,
-      "info": 5
+      "info": 8
     },
     {
       "section": 26,
@@ -254,7 +254,7 @@
       "category": "Search",
       "pass": 8,
       "critical": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 2
     },
     {
@@ -273,7 +273,7 @@
       "pass": 8,
       "critical": 0,
       "warning": 0,
-      "info": 3
+      "info": 2
     },
     {
       "section": 31,
@@ -333,7 +333,7 @@
       "section": 37,
       "title": "Search Flow Integrity",
       "category": "Search",
-      "pass": 5,
+      "pass": 6,
       "critical": 0,
       "warning": 0,
       "info": 2

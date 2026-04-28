@@ -106,9 +106,9 @@ function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string
     ModificationTimestamp: '2026-03-01T00:00:00Z',
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
-    IDXEntireListingDisplayYN: true,
-    IDXParticipationYN: true,
-    ParticipantOnlyYN: false,
+    // Permission enum (live Trestle 2026-04-19) replaces the legacy
+    // ParticipantOnlyYN / IDXParticipationYN / IDXEntireListingDisplayYN booleans.
+    Permission: 'IDX',
     PublicRemarks: 'Beautiful apartment',
     PhotosCount: 1,
     LivingArea: 1200,
@@ -405,13 +405,14 @@ describe('assertRlsCompliantPayload', () => {
       BathroomsTotal: 3,
       BedroomsTotal: 2,
       RoomsTotal: 6,
-      // Distribution gates
+      // Distribution gates — IDXEntireListingDisplayYN and SyndicateYN removed
+      // (do not exist on live Trestle, verified 2026-04-19). SyndicateTo is the
+      // multi-select picker that replaces the legacy SyndicateYN boolean.
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
       InternetAutomatedValuationDisplayYN: true,
       InternetConsumerCommentYN: true,
-      IDXEntireListingDisplayYN: true,
-      SyndicateYN: true,
+      SyndicateTo: 'AllOptedIn',
       // Content / Dates
       PublicRemarks: 'Spacious 2BR with great natural light.',
       ShowingInstructions: 'Call listing agent to schedule',

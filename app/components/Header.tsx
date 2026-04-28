@@ -114,10 +114,17 @@ export default function Header() {
   // Homepage: absolute (overlays hero). Inner pages: fixed.
   const dark = pathname !== '/';
 
-  // Close mobile menu on navigation
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+  // Close mobile menu on navigation. React docs canonical pattern for
+  // "adjust state when prop changes" — store the previous prop in state
+  // and compare during render. Set-state-during-render is supported by
+  // React (the in-progress render is discarded and re-run); avoids
+  // useEffect (which the React Compiler flags as set-state-in-effect).
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    if (mobileOpen) setMobileOpen(false);
+  }
 
   // Load Google Translate AFTER hydration to prevent React Error #418/#300
   // (Google Translate modifies the DOM which breaks React hydration)

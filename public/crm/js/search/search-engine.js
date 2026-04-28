@@ -107,14 +107,22 @@
 
         /**
          * Resolve which neighborhood tags container is currently active.
+         * Existing containers in this form: saleNeighborhoodTags,
+         * rentalNeighborhoodTags, buildingNeighborhoodTags,
+         * advancedNeighborhoodTags. Previous fallback ('searchNeighborhoodTags')
+         * referenced an element that does not exist — neighborhood search
+         * silently returned no results when the basic-search tab was active.
          */
         function _resolveActiveNeighborhoodTagsId() {
-            // Unified form: one tag container for basic, one for advanced
             var advMode = document.getElementById('searchAdvancedMode');
             if (advMode && advMode.style.display !== 'none' && !advMode.classList.contains('hidden')) {
                 return 'advancedNeighborhoodTags';
             }
-            return 'searchNeighborhoodTags';
+            // Basic search — pick the tag container for the active tab.
+            var tab = (typeof currentSearchTab !== 'undefined' && currentSearchTab) || 'sale';
+            if (tab === 'rent') return 'rentalNeighborhoodTags';
+            if (tab === 'building') return 'buildingNeighborhoodTags';
+            return 'saleNeighborhoodTags';
         }
 
         /**

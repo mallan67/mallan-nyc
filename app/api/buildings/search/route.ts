@@ -38,7 +38,7 @@ function parseAddressQuery(q: string): {
   // Try to match "123 Street Name..."
   const match = trimmed.match(/^(\d+)\s+(.+)$/);
   if (match) {
-    let streetName = match[2]
+    const streetName = match[2]
       .replace(/\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?\s*$/i, '')
       .trim()
       .toUpperCase();

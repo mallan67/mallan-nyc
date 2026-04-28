@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { getRecentlyViewed } from './RecentlyViewedTracker';
+import { useClientOnly } from '@/lib/hooks/useClientOnly';
+
+type RecentItems = ReturnType<typeof getRecentlyViewed>;
 
 function formatPrice(price: number, type: 'sale' | 'rent'): string {
   if (type === 'rent') return `$${price.toLocaleString()}/mo`;
@@ -15,23 +18,28 @@ function formatPrice(price: number, type: 'sale' | 'rent'): string {
  * Horizontal scrollable strip of recently viewed listings.
  * Renders from localStorage — no API calls.
  */
-export default function RecentlyViewed() {
-  const [items, setItems] = useState<ReturnType<typeof getRecentlyViewed>>([]);
-  const [dismissed, setDismissed] = useState(false);
+type Hydration = { items: RecentItems; dismissed: boolean };
 
-  useEffect(() => {
-    // Check if user dismissed (persists across refreshes)
-    try {
-      if (localStorage.getItem('mallan_rv_dismissed') === '1') {
-        setDismissed(true);
-        return;
-      }
-    } catch { /* no-op */ }
-    setItems(getRecentlyViewed());
-  }, []);
+export default function RecentlyViewed() {
+  // Mount-only hydration via state-machine reducer — reads both the
+  // dismissed flag and the recently-viewed list in one shot.
+  const { value: hydrated } = useClientOnly<Hydration>({
+    read: () => ({
+      items: getRecentlyViewed(),
+      dismissed: localStorage.getItem('mallan_rv_dismissed') === '1',
+    }),
+    serverFallback: { items: [] as RecentItems, dismissed: false },
+  });
+
+  // Local overrides applied by the dismiss/clear handlers — they layer
+  // on top of the hydrated values without re-running hydration.
+  const [locallyDismissed, setLocallyDismissed] = useState(false);
+  const [clearedItems, setClearedItems] = useState<RecentItems | null>(null);
+  const items = clearedItems ?? hydrated.items;
+  const dismissed = locallyDismissed || hydrated.dismissed;
 
   const handleDismiss = () => {
-    setDismissed(true);
+    setLocallyDismissed(true);
     try { localStorage.setItem('mallan_rv_dismissed', '1'); } catch { /* no-op */ }
   };
 
@@ -40,8 +48,8 @@ export default function RecentlyViewed() {
       localStorage.removeItem('mallan_recently_viewed');
       localStorage.setItem('mallan_rv_dismissed', '1');
     } catch { /* no-op */ }
-    setItems([]);
-    setDismissed(true);
+    setClearedItems([] as RecentItems);
+    setLocallyDismissed(true);
   };
 
   if (dismissed || items.length === 0) return null;
@@ -79,6 +87,9 @@ export default function RecentlyViewed() {
             >
               {item.photo ? (
                 <div className="w-14 h-14 rounded-l-lg overflow-hidden flex-shrink-0">
+                  {/* Plain <img> — Trestle proxy URLs aren't whitelisted for
+                      next/image and the recently-viewed strip is below the fold. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.photo}
                     alt={item.address}

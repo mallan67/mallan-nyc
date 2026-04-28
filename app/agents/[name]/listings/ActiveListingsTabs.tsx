@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 
 interface ListingDTO {
   id: string;
@@ -19,6 +20,13 @@ interface ListingDTO {
     city: string;
   };
   media: { url: string }[] | null;
+  // REBNY attribution — UCBA Art. III §2(C). Falls back to Mallan when the
+  // agent's listings do not carry an explicit ListOfficeName.
+  listOfficeName?: string | null;
+  // UCBA Art. I §16(C) — Coming Soon badge requires status + date.
+  status?: string | null;
+  comingSoonDate?: string | null;
+  activationDate?: string | null;
 }
 
 function formatPrice(price: number, isRental: boolean): string {
@@ -48,9 +56,44 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
           className="object-cover group-hover:scale-105 transition-transform duration-300"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         />
-        <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-green-600 text-white text-[10px] font-bold rounded uppercase tracking-wide">
-          Active
-        </span>
+        {/* Status badge — single source-of-truth render so we never show two
+            badges or mislabel a status. UCBA Art. I §16(C) Coming Soon takes
+            precedence (full required phrasing in <ComingSoonBadge/>). For all
+            other statuses we show a colored pill that reflects the ACTUAL
+            status — previously this was hardcoded "Active" which was incorrect
+            for Pending / ActiveUnderContract / Closed / Withdrawn etc. */}
+        {(() => {
+          const status = String(listing.status || '').replace(/\s+/g, '');
+          if (status === 'ComingSoon') {
+            return (
+              <ComingSoonBadge
+                status={listing.status}
+                comingSoonDate={listing.comingSoonDate}
+                activationDate={listing.activationDate}
+                className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[11px] font-semibold px-2 py-0.5 rounded leading-tight max-w-[80%]"
+              />
+            );
+          }
+          // Map known statuses to label + color. Unknown statuses fall through
+          // to the raw status text so they aren't silently misrepresented.
+          const statusMap: Record<string, { label: string; bg: string }> = {
+            Active: { label: 'Active', bg: 'bg-green-600' },
+            ActiveUnderContract: { label: 'In Contract', bg: 'bg-amber-600' },
+            Pending: { label: 'Pending', bg: 'bg-amber-600' },
+            Closed: { label: 'Closed', bg: 'bg-gray-600' },
+            Withdrawn: { label: 'Withdrawn', bg: 'bg-gray-500' },
+            Canceled: { label: 'Cancelled', bg: 'bg-gray-500' },
+            Cancelled: { label: 'Cancelled', bg: 'bg-gray-500' },
+            Expired: { label: 'Expired', bg: 'bg-gray-500' },
+            Hold: { label: 'On Hold', bg: 'bg-gray-500' },
+          };
+          const cfg = statusMap[status] || { label: status || 'Status', bg: 'bg-gray-600' };
+          return (
+            <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 ${cfg.bg} text-white text-[10px] font-bold rounded uppercase tracking-wide`}>
+              {cfg.label}
+            </span>
+          );
+        })()}
       </div>
       <div className="p-3.5">
         <p className="font-display font-bold text-lg text-brand-dark leading-tight">
@@ -75,6 +118,10 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
         </div>
         <p className="text-sm text-brand-dark/90 mt-1.5 truncate">{addr}</p>
         <p className="text-[11px] text-brand-dark/75">{neighborhood}</p>
+        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
+        <p className="text-sm text-brand-dark/80 mt-2 truncate">
+          RLS · Listing Courtesy of {listing.listOfficeName || 'Mallan Real Estate Inc.'}
+        </p>
       </div>
     </Link>
   );

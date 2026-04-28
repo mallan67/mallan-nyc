@@ -425,11 +425,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
             limit: docIds.length,
           });
 
-          // Process each document — store all with real dollar amounts
+          // Process each document — store all with real dollar amounts.
+          // Only deed + mortgage are surfaced; assignments and satisfactions
+          // are tracked elsewhere and intentionally not classified here.
           const deedTypes = ["DEED", "DEEDO"];
           const mortgageTypes = ["MTGE", "MORTGAGE"];
-          const assignTypes = ["AGMT", "ASST"];
-          const satisfyTypes = ["SAT", "SATI"]; // Satisfaction of mortgage = paid off
 
           let lastDeed: typeof docs[0] | null = null;
           let lastMortgage: typeof docs[0] | null = null;

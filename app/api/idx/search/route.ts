@@ -18,8 +18,6 @@ import { checkDistributionGates } from "@/lib/idx/trestle-mapper";
 import { generateAttributionText } from "@/lib/idx/mapping";
 import { affirmPermission } from "@/lib/compliance/gates";
 import { logFetchAttempt } from "@/lib/idx/logger";
-import prisma from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
 import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
 

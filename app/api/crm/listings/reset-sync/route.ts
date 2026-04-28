@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   // ══════════════════════════════════════════════════════════════
   log.push("Step 1: Deleting existing listings...");
 
-  const [delActions, delShowings, delComments, delPriceHistory, delMarketing] = await Promise.all([
+  const [delActions, delShowings, delComments, _delPriceHistory, _delMarketing] = await Promise.all([
     prisma.clientListingAction.deleteMany({}),
     prisma.showing.deleteMany({}),
     prisma.comment.deleteMany({}),

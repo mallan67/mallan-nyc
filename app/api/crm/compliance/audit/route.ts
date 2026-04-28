@@ -48,8 +48,6 @@ export async function POST(req: NextRequest) {
   });
 
   const findings: AuditFinding[] = [];
-  let totalChecks = 0;
-  let totalPasses = 0;
 
   for (const listing of listings) {
     const raw = (listing.raw_data as Record<string, unknown>) ?? {};
@@ -59,11 +57,6 @@ export async function POST(req: NextRequest) {
 
     // Run REBNY validator
     const validation = validateListing(raw);
-    totalChecks += (validation.errors?.length ?? 0) + (validation.warnings?.length ?? 0) + 1;
-
-    if (validation.valid) {
-      totalPasses++;
-    }
 
     // Convert validation errors to findings
     if (validation.errors) {

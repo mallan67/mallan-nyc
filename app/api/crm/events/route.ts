@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
   }
 
   const {
-    entity_type,
+    entity_type: _entity_type,
     entity_id,
     activity_type,
     title,

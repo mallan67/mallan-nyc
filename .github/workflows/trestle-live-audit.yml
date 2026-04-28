@@ -1,0 +1,122 @@
+name: Trestle live audit
+
+# Daily audit + on-demand dispatch that cross-references the codebase against
+# live Trestle $metadata. Catches drift the moment Cotality renames, retires,
+# or adds a field — before that drift breaks production.
+#
+# This workflow is SEPARATE from pr-check.yml because it needs Trestle API
+# credentials. PR CI cannot have those secrets (forks, etc.), so the live-data
+# checks run here on a schedule + manual dispatch.
+
+on:
+  schedule:
+    # Daily at 13:30 UTC = 09:30 ET (after Trestle's overnight metadata refresh).
+    - cron: '30 13 * * *'
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Optional commit SHA to audit (defaults to current main HEAD)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write           # Open an issue if drift is detected
+  pull-requests: write
+
+jobs:
+  trestle-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Live Trestle/Cotality credentials — read-only IDX Plus license.
+      IDX_CLIENT_ID: ${{ secrets.IDX_CLIENT_ID }}
+      IDX_CLIENT_SECRET: ${{ secrets.IDX_CLIENT_SECRET }}
+      TRESTLE_API_URL: ${{ vars.TRESTLE_API_URL || 'https://api.cotality.com/trestle' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || 'main' }}
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit form bindings vs live Trestle
+        id: audit-forms
+        continue-on-error: true
+        run: npm run trestle:audit-forms
+
+      - name: Audit server-side field references
+        id: audit-server
+        continue-on-error: true
+        run: npm run trestle:audit-server
+
+      - name: Audit non-Property resource $select usage
+        id: audit-resources
+        continue-on-error: true
+        run: npm run trestle:audit-resources
+
+      - name: CSV vs live diff
+        id: csv-diff
+        continue-on-error: true
+        run: |
+          # Refresh script does NOT write in dry mode; we just diff.
+          npm run trestle:refresh-csv
+
+      - name: Aggregate result
+        id: aggregate
+        run: |
+          fail=0
+          [ "${{ steps.audit-forms.outcome }}" != "success" ] && fail=$((fail+1))
+          [ "${{ steps.audit-server.outcome }}" != "success" ] && fail=$((fail+1))
+          [ "${{ steps.audit-resources.outcome }}" != "success" ] && fail=$((fail+1))
+          [ "${{ steps.csv-diff.outcome }}" != "success" ] && fail=$((fail+1))
+          echo "failed_audits=$fail" >> "$GITHUB_OUTPUT"
+          if [ "$fail" -gt 0 ]; then
+            echo "::error::Trestle live audit detected drift in $fail audit(s)"
+          fi
+
+      - name: Open drift issue (scheduled runs only)
+        if: ${{ github.event_name == 'schedule' && steps.aggregate.outputs.failed_audits != '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          today=$(date +%Y-%m-%d)
+          gh issue create \
+            --title "Trestle live drift detected — $today" \
+            --label "compliance,trestle-drift" \
+            --body "$(cat <<EOF
+          The daily Trestle live audit detected $((${{ steps.aggregate.outputs.failed_audits }})) audit(s) failing against live \`api.cotality.com/trestle\` \$metadata.
+
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          **Failed audits:**
+          - audit-forms: \`${{ steps.audit-forms.outcome }}\`
+          - audit-server: \`${{ steps.audit-server.outcome }}\`
+          - audit-resources: \`${{ steps.audit-resources.outcome }}\`
+          - csv-diff: \`${{ steps.csv-diff.outcome }}\`
+
+          Triage steps:
+          1. Pull latest \`main\`
+          2. Run the failed audit locally with \`.env.local\` populated
+          3. If it's a vendor-side schema change, update the affected code or CSV
+          4. If it's a regression (a field name was changed in our code), fix the code
+
+          See \`scripts/audit-server-trestle-coverage.ts\`, \`scripts/audit-form-trestle-coverage.ts\`,
+          \`scripts/audit-trestle-non-property-resources.ts\`, and \`scripts/refresh-trestle-csv.ts\` for details.
+          EOF
+          )"
+
+      - name: Fail the workflow if any audit failed
+        if: ${{ steps.aggregate.outputs.failed_audits != '0' }}
+        run: exit 1

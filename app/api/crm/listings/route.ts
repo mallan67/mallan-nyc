@@ -3,7 +3,7 @@
 // POST: Create a new listing (runs compliance validation + RLS enforcement gate).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";

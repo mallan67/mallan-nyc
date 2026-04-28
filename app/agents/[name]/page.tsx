@@ -76,7 +76,7 @@ async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
   return staticAgent || null;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 async function getAgentListings(slug: string): Promise<{
   activeSales: any[];
   activeRentals: any[];

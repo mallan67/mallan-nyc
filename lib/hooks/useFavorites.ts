@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'mallan_favorites';
 
@@ -17,69 +17,123 @@ export interface FavoriteEntry {
   note?: string;
 }
 
-function loadFavorites(): Map<string, FavoriteEntry> {
-  if (typeof window === 'undefined') return new Map();
+// ─────────────────────────────────────────────────────────────────────
+// External store wired through useSyncExternalStore so React 18+ +
+// React Compiler can subscribe without the "setState-in-effect"
+// anti-pattern. The snapshot is cached and only re-issued when the
+// underlying localStorage value actually changes (cross-tab `storage`
+// event or our own setSnapshot writes).
+// ─────────────────────────────────────────────────────────────────────
+
+const SERVER_SNAPSHOT: FavoriteEntry[] = [];
+
+let cachedRaw: string | null = null;
+let cachedSnapshot: FavoriteEntry[] = [];
+
+function readSnapshot(): FavoriteEntry[] {
+  if (typeof window === 'undefined') return SERVER_SNAPSHOT;
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Map();
-    const arr: FavoriteEntry[] = JSON.parse(raw);
-    return new Map(arr.map(f => [f.id, f]));
+    raw = localStorage.getItem(STORAGE_KEY);
   } catch {
-    return new Map();
+    raw = null;
   }
+  // Reuse the cached array reference when the underlying string has not
+  // changed — useSyncExternalStore requires referentially stable snapshots
+  // to avoid infinite render loops.
+  if (raw === cachedRaw) return cachedSnapshot;
+  cachedRaw = raw;
+  try {
+    cachedSnapshot = raw ? (JSON.parse(raw) as FavoriteEntry[]) : [];
+  } catch {
+    cachedSnapshot = [];
+  }
+  return cachedSnapshot;
 }
 
-function saveFavorites(favs: Map<string, FavoriteEntry>) {
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  // React to other tabs writing to the same key.
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY) listener();
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', onStorage);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('storage', onStorage);
+    }
+  };
+}
+
+function emit() {
+  for (const l of listeners) l();
+}
+
+function writeFavorites(arr: FavoriteEntry[]): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...favs.values()]));
+    const json = JSON.stringify(arr);
+    localStorage.setItem(STORAGE_KEY, json);
+    cachedRaw = json;
+    cachedSnapshot = arr;
   } catch { /* storage full or blocked */ }
+  emit();
 }
 
+function readFavoritesMap(): Map<string, FavoriteEntry> {
+  return new Map(readSnapshot().map((f) => [f.id, f]));
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
 export function useFavorites() {
-  const [favorites, setFavorites] = useState<Map<string, FavoriteEntry>>(new Map());
-  const [loaded, setLoaded] = useState(false);
+  const arr = useSyncExternalStore(subscribe, readSnapshot, () => SERVER_SNAPSHOT);
+  // `loaded` mirrors the favorites snapshot's hydration state. SSR + first
+  // client render get false (matches SSR markup so consumers gating on
+  // `!loaded` render the same skeleton on both); after hydration completes
+  // it flips to true. Using `typeof window !== 'undefined'` here would
+  // diverge SSR (false) from first client render (true) and break that
+  // contract — components like FavoriteButton (return null until loaded)
+  // would then produce different markup between SSR and hydration.
+  const loaded = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
 
-  useEffect(() => {
-    setFavorites(loadFavorites());
-    setLoaded(true);
-  }, []);
-
-  const isFavorite = useCallback((id: string) => favorites.has(id), [favorites]);
+  const isFavorite = useCallback((id: string) => arr.some((f) => f.id === id), [arr]);
 
   const toggleFavorite = useCallback((entry: FavoriteEntry) => {
-    setFavorites(prev => {
-      const next = new Map(prev);
-      if (next.has(entry.id)) {
-        next.delete(entry.id);
-      } else {
-        next.set(entry.id, { ...entry, savedAt: new Date().toISOString() });
-      }
-      saveFavorites(next);
-      return next;
-    });
+    const map = readFavoritesMap();
+    if (map.has(entry.id)) {
+      map.delete(entry.id);
+    } else {
+      map.set(entry.id, { ...entry, savedAt: new Date().toISOString() });
+    }
+    writeFavorites([...map.values()]);
   }, []);
 
   const clearAll = useCallback(() => {
-    setFavorites(new Map());
-    saveFavorites(new Map());
+    writeFavorites([]);
   }, []);
 
   const updateNote = useCallback((id: string, note: string) => {
-    setFavorites(prev => {
-      const next = new Map(prev);
-      const entry = next.get(id);
-      if (entry) {
-        next.set(id, { ...entry, note: note || undefined });
-        saveFavorites(next);
-      }
-      return next;
-    });
+    const map = readFavoritesMap();
+    const entry = map.get(id);
+    if (entry) {
+      map.set(id, { ...entry, note: note || undefined });
+      writeFavorites([...map.values()]);
+    }
   }, []);
 
   return {
-    favorites: [...favorites.values()],
-    count: favorites.size,
+    favorites: arr,
+    count: arr.length,
     isFavorite,
     toggleFavorite,
     updateNote,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { SearchTab, SearchFilters, AmenityFilter } from '@/lib/search/types';
 import {
   AMENITY_FIELD_MAP,
@@ -25,13 +25,22 @@ export default function SearchFilterPanel({
   currentFilters,
   activeTab,
 }: SearchFilterPanelProps) {
-  // Staged filters — only applied when user clicks "Apply"
+  // Staged filters — only applied when user clicks "Apply".
   const [staged, setStaged] = useState<SearchFilters>(currentFilters);
 
-  // Sync staged with current when panel opens
-  useEffect(() => {
+  // Re-sync staged with currentFilters when the panel opens, OR when
+  // currentFilters changes while the panel is open. React docs canonical
+  // "adjust state when prop changes" pattern: store previous prop values
+  // in state and compare during render. Set-state-during-render is
+  // supported by React (the in-progress render is discarded and re-run).
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevCurrentFilters, setPrevCurrentFilters] = useState(currentFilters);
+  if (prevIsOpen !== isOpen || prevCurrentFilters !== currentFilters) {
+    setPrevIsOpen(isOpen);
+    setPrevCurrentFilters(currentFilters);
     if (isOpen) setStaged(currentFilters);
-  }, [isOpen, currentFilters]);
+  }
 
   const tabConfig = TAB_CONFIG[activeTab];
   const isCommercial = tabConfig.commercial;

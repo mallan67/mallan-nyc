@@ -43,7 +43,7 @@ export async function parseWorkbookBuffer(
     // strict mode flags as incompatible. Runtime behavior is identical;
     // this is purely a type-variance issue between exceljs typings and
     // newer @types/node.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     await workbook.xlsx.load(buffer as any);
   }
 

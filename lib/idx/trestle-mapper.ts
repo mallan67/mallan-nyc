@@ -84,7 +84,10 @@ const B4_STATUS_DATES = [
   "CancelationDate", "WithdrawnDate",
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "PendingTimestamp", "ContingentDate",
-  "AvailabilityDate", "PossessionDate",
+  "AvailabilityDate",
+  // PossessionDate is RESO-standard but Trestle ignores it (CLAUDE.md, verified
+  // 2026-04-19). Use AvailabilityDate for rental availability and CloseDate for
+  // sale possession.
   "ComingSoonDate", "ComingSoonTimestamp",
   "ActiveOpenHouseCount",
   "OriginalListPrice", "PreviousListPrice",
@@ -99,13 +102,16 @@ const B5_PRICING = [
   "AuctionType", "LeaseAmount", "LeaseAmountFrequency",
 ];
 
-// B6: Display Flags / Distribution (8 fields)
+// B6: Display Flags / Distribution
+// Live-Trestle truth (verified 2026-04-19 against $metadata):
+//   - IDX*/VOW*/IDXParticipationYN/ParticipantOnlyYN do NOT exist as separate
+//     fields. Owner Opt-Out / Participant Only are encoded via the `Permission`
+//     enum on the Property resource (handled in checkDistributionGates).
+//   - InternetEntireListingDisplayYN/InternetAddressDisplayYN are listed in
+//     B3_LISTING_AGREEMENT (master gate + address gate).
 const B6_DISPLAY_FLAGS = [
-  "IDXEntireListingDisplayYN", "IDXAutomatedValuationDisplayYN",
   "InternetAutomatedValuationDisplayYN", "InternetConsumerCommentYN",
-  "VOWEntireListingDisplayYN", "VOWAutomatedValuationDisplayYN",
-  "VOWConsumerCommentYN", "SyndicateTo",
-  "IDXParticipationYN", "ParticipantOnlyYN",
+  "SyndicateTo",
   "ListingURL",
 ];
 
@@ -306,19 +312,24 @@ const B26_MEDIA = [
   "Media", "MediaURL",
 ];
 
-// B27: Rental-Specific (21 fields)
+// B27: Rental-Specific
+// Live-Trestle truth (verified 2026-04-19):
+//   - PossessionDate is a RESO field that Trestle ignores (CLAUDE.md "fields
+//     that DO NOT exist on Trestle"). Use AvailabilityDate.
+//   - MoveInCostsComments/MoveInCostsAmountTotal do NOT exist on Trestle.
+//     MoveInCosts (the multi-select picklist) is the only valid field; the
+//     dollar amounts are captured via CustomProperty.AdditionalFee* (B30).
 const B27_RENTAL = [
   "LeaseAmount", "LeaseAmountFrequency",
   "LeaseConsideredTerms", "LeaseTerm",
-  "AvailabilityDate", "PossessionDate",
+  "AvailabilityDate",
   "Furnished", "FurnishedDescription",
   "PetsAllowed", "PetDeposit", "PetRestrictions",
   "RentalApplicationRequired", "ApplicationFee",
   "SecurityDeposit", "KeyDeposit",
   "TenantPays",
   // FARE Act fee transparency (NYC LL 119/2024)
-  "MoveInCosts", "MoveInCostsComments", "MoveInCostsAmountTotal",
-  "OngoingFees", "TenantPaysDescription",
+  "MoveInCosts", "OngoingFees", "TenantPaysDescription",
 ];
 
 // B30: FARE Act Custom Property Fields (4 fields — need $expand=CustomProperty)
@@ -370,10 +381,9 @@ export const ALL_RLS_FIELDS: string[] = [...new Set([
 // via sanitizeForVOW() in lib/compliance/dto.ts — no license upgrade needed.
 // ═══════════════════════════════════════════════════════════
 const IDX_PLUS_EXCLUDED_FIELDS = new Set([
-  // Gate fields (pre-filtered by Trestle on IDX feed)
-  "IDXEntireListingDisplayYN", "IDXAutomatedValuationDisplayYN",
-  "VOWEntireListingDisplayYN", "VOWAutomatedValuationDisplayYN",
-  "VOWConsumerCommentYN", "IDXParticipationYN", "ParticipantOnlyYN",
+  // (IDX*/VOW*/IDXParticipationYN/ParticipantOnlyYN previously listed here are
+  // not present in any of the canonical B-category arrays anymore; they do not
+  // exist on live Trestle — the gate model uses the `Permission` enum.)
   // Address alternates
   "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
   "AlternateStreetDirPrefix", "AlternateStreetDirSuffix", "AlternateStreetSuffix",
@@ -381,9 +391,9 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   "NewDevelopmentYN",
   // Listing agreement
   "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
-  // Status & dates
+  // Status & dates (PossessionDate already removed from B4_STATUS_DATES — RESO-only)
   "SourceSystemModificationTimestamp", "ActivationTimestamp",
-  "CancelationDate", "PossessionDate",
+  "CancelationDate",
   "ComingSoonDate", "ComingSoonTimestamp",
   "ActiveOpenHouseCount", "LastChangeType", "LastChangeTimestamp",
   // Pricing
@@ -422,8 +432,8 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   // Rental
   "LeaseConsideredTerms", "FurnishedDescription",
   "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
-  // Rental move-in (not provisioned on IDX Plus — validated 2026-03-13)
-  "MoveInCostsComments", "MoveInCostsAmountTotal",
+  // (Rental move-in fields MoveInCostsComments/MoveInCostsAmountTotal previously
+  // excluded here are no longer in B27_RENTAL — they do NOT exist on Trestle.)
   // FARE Act CustomProperty fields (need $expand=CustomProperty)
   "AdditionalFee", "AdditionalFeeDescription", "AdditionalFeeYN", "FeeFrequency",
 ]);
@@ -452,11 +462,21 @@ const HIDDEN_FIELDS = new Set([
   "ListOfficePhone", "ListOfficeURL", "ListOfficeEmail",
 ]);
 
+// CTL fields — agent-controlled distribution gates. The canonical fields on live
+// Trestle (verified 2026-04-19) are the Internet-* gates plus the Permission enum
+// and SyndicateTo. The legacy IDX*/VOW*/IDXParticipationYN/ParticipantOnlyYN/
+// SyndicateYN names are retained as defensive entries so getFieldProfile() also
+// classifies legacy payloads as CTL — they should never leak through public DTOs.
 const CONTROL_FIELDS = new Set([
+  // Live-Trestle canonical
+  "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
+  "InternetAutomatedValuationDisplayYN", "InternetConsumerCommentYN",
+  "Permission", "SyndicateTo",
+  // Legacy-name guards (do NOT exist on live Trestle — defensive only)
   "IDXEntireListingDisplayYN", "IDXAutomatedValuationDisplayYN",
-  "VOWEntireListingDisplayYN", "InternetEntireListingDisplayYN",
-  "InternetAddressDisplayYN", "IDXParticipationYN",
-  "ParticipantOnlyYN", "SyndicateTo",
+  "IDXParticipationYN", "ParticipantOnlyYN",
+  "VOWEntireListingDisplayYN", "VOWAutomatedValuationDisplayYN",
+  "VOWConsumerCommentYN", "SyndicateYN",
 ]);
 
 const CLOSE_ONLY_FIELDS = new Set([

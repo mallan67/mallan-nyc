@@ -1,20 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
+import { useAuth } from './AuthProvider';
 
 export default function ExclusivesVault() {
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  // Derive unlock state from the shared AuthProvider — no local effect, no
+  // cookie scraping. AuthProvider fetches /api/auth/me once at app mount and
+  // shares the result across the tree, so this stays in sync with Header
+  // and other auth-aware components.
+  const auth = useAuth();
+  const isUnlocked = auth.authenticated;
   const sectionRef = useGsapReveal<HTMLDivElement>({ y: 40 });
-
-  // Check if user is signed in via auth provider
-  useEffect(() => {
-    // Check for session cookie existence (layout sets a client-readable flag)
-    const hasAuth = document.cookie.includes('mallan_logged_in=');
-    if (hasAuth) setIsUnlocked(true);
-  }, []);
 
   return (
     <section className="relative bg-brand-dark py-24 md:py-36 lg:py-44 overflow-hidden">

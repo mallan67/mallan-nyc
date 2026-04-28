@@ -1,7 +1,7 @@
 // /api/crm/listing-sends — POST: orchestrate listing sends to clients + email delivery
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingSendEmail } from "@/lib/email/templates";

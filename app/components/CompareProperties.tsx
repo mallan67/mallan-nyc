@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import { type FavoriteEntry } from '@/lib/hooks/useFavorites';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 interface ListingDetail {
   id: string;
@@ -101,30 +102,30 @@ function CompareRow({
 }
 
 export default function CompareProperties({ entries, onRemove }: ComparePropertiesProps) {
-  const [details, setDetails] = useState<(ListingDetail | null)[]>([]);
-  const [loading, setLoading] = useState(true);
+  // `key` is the comma-joined entry IDs — stable string identity, so the
+  // fetch only re-runs when the entries set actually changes.
+  const idsKey = entries.length > 0 ? entries.map((e) => e.id).join(',') : null;
 
-  // Fetch full details for each listing
-  useEffect(() => {
-    if (entries.length === 0) return;
-    setLoading(true);
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<(ListingDetail | null)[]> => {
+      const ids = String(key).split(',');
+      return Promise.all(
+        ids.map(async (id) => {
+          try {
+            const res = await fetch(`/api/listings/${encodeURIComponent(id)}`, { signal });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return (data?.listing || data || null) as ListingDetail | null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+    },
+    [],
+  );
 
-    Promise.all(
-      entries.map(async (entry) => {
-        try {
-          const res = await fetch(`/api/listings/${encodeURIComponent(entry.id)}`);
-          if (!res.ok) return null;
-          const data = await res.json();
-          return data?.listing || data || null;
-        } catch {
-          return null;
-        }
-      })
-    ).then((results) => {
-      setDetails(results);
-      setLoading(false);
-    });
-  }, [entries]);
+  const { data: details, loading } = useAsyncResource(idsKey, fetcher);
 
   const isRental = entries[0]?.listingType === 'rent';
 
@@ -142,10 +143,9 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
   // Use entry data (always available) supplemented by detail data (when loaded)
   const listings = entries.map((entry, i) => ({
     entry,
-    detail: details[i] || null,
+    detail: details?.[i] || null,
   }));
 
-  const prices = listings.map(l => l.entry.price);
   const beds = listings.map(l => l.entry.beds);
   const baths = listings.map(l => l.entry.baths);
   const sqfts = listings.map(l => l.detail?.livingArea ?? null);
@@ -156,7 +156,8 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
     return sqft && sqft > 0 ? Math.round(l.entry.price / sqft) : null;
   });
 
-  const bestPrice = highlightBest(prices, 'low');
+  // (bestPrice + prices array previously computed here were never read —
+  // the price column doesn't surface a "best price" highlight today.)
   const bestBeds = highlightBest(beds, 'high');
   const bestBaths = highlightBest(baths, 'high');
   const bestSqft = highlightBest(sqfts, 'high');
@@ -170,7 +171,7 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
         <thead>
           <tr className="border-b border-black/[0.06]">
             <th className="w-32 lg:w-40" />
-            {listings.map(({ entry }, i) => (
+            {listings.map(({ entry }) => (
               <th key={entry.id} className="px-3 pb-4 align-top">
                 <div className="relative">
                   {onRemove && (
@@ -298,8 +299,8 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
         </tbody>
       </table>
 
-      {/* RLS Attribution */}
-      <p className="text-[10px] text-brand-dark/60 mt-4 text-center">
+      {/* RLS Attribution — UCBA Art. III §2(C) + Art. VIII §4 (font not smaller than median page text) */}
+      <p className="text-sm text-brand-dark/70 mt-4 text-center">
         Based on information from the REBNY Listing Service. Information deemed reliable but not guaranteed.
       </p>
     </div>

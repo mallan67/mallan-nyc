@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 /* ────────────────────────────────────────────────────────────────────────────
    TYPES
@@ -186,13 +187,11 @@ export default function TenantPortalPage() {
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState<TabKey>('listings');
 
-  /* ── Data state ────────────────────────────────────────────────── */
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [showings, setShowings] = useState<Showing[]>([]);
-  const [preferences, setPreferences] = useState<Preferences | null>(null);
-  const [family, setFamily] = useState<FamilyMember[]>([]);
-  const [comments, setComments] = useState<Record<string, Comment[]>>({});
-  const [leaseData, setLeaseData] = useState<{
+  /* ── Data state ──────────────────────────────────────────────────
+     Each tab's data is owned by useAsyncResource — typed useReducer
+     state machine keyed off `ready ? tab : null` so the resource is
+     idle until auth completes AND the user is on that tab. */
+  type LeaseData = {
     lease_start_date: string | null;
     lease_end_date: string | null;
     rent_per_month: number | null;
@@ -200,10 +199,59 @@ export default function TenantPortalPage() {
     unit_number: string | null;
     renewal_status: string | null;
     days_remaining: number | null;
-  } | null>(null);
+  };
+
+  const fetchListingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Listing[]> => {
+    const r = await fetch('/api/portal/listings', { signal });
+    const d = await r.json();
+    return d.listings || [];
+  }, []);
+  const listingsRes = useAsyncResource(ready && tab === 'listings' ? 'listings' : null, fetchListingsResource);
+  const listings: Listing[] = listingsRes.data ?? [];
+
+  const fetchShowingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Showing[]> => {
+    const r = await fetch('/api/portal/showings', { signal });
+    const d = await r.json();
+    return d.showings || [];
+  }, []);
+  const showingsRes = useAsyncResource(ready && tab === 'showings' ? 'showings' : null, fetchShowingsResource);
+  const showings: Showing[] = showingsRes.data ?? [];
+
+  const fetchPreferencesResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Preferences | null> => {
+    const r = await fetch('/api/portal/preferences', { signal });
+    const d = await r.json();
+    return d.preferences ?? null;
+  }, []);
+  const preferencesRes = useAsyncResource(ready && tab === 'preferences' ? 'preferences' : null, fetchPreferencesResource);
+  const preferences: Preferences | null = preferencesRes.data ?? null;
+
+  const fetchFamilyResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<FamilyMember[]> => {
+    const r = await fetch('/api/portal/family', { signal });
+    const d = await r.json();
+    return d.family || [];
+  }, []);
+  const familyRes = useAsyncResource(ready && tab === 'family' ? 'family' : null, fetchFamilyResource);
+  const family: FamilyMember[] = familyRes.data ?? [];
+
+  const fetchLeaseResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<LeaseData | null> => {
+    const r = await fetch('/api/portal/tenant/lease', { signal });
+    const d = await r.json();
+    return d as LeaseData;
+  }, []);
+  const leaseRes = useAsyncResource(ready && tab === 'lease' ? 'lease' : null, fetchLeaseResource);
+  const leaseData = leaseRes.data;
+
+  // Aggregate loading state — true while any active tab's resource is
+  // mid-fetch.
+  const loading =
+    listingsRes.loading || showingsRes.loading || preferencesRes.loading ||
+    familyRes.loading || leaseRes.loading;
+
+  // Comments are keyed per-listing and triggered on expand — not a
+  // tab-level resource, so they stay as scoped state.
+  const [comments, setComments] = useState<Record<string, Comment[]>>({});
 
   /* ── UI state ──────────────────────────────────────────────────── */
-  const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [expandedListing, setExpandedListing] = useState<string | null>(null);
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -257,46 +305,11 @@ export default function TenantPortalPage() {
   }, [router]);
 
   /* ── Data loaders ──────────────────────────────────────────────── */
-  const loadListings = useCallback(async () => {
-    try {
-      const r = await fetch('/api/portal/listings');
-      const d = await r.json();
-      if (d.listings) setListings(d.listings);
-    } catch { /* silent */ }
-  }, []);
-
-  const loadShowings = useCallback(async () => {
-    try {
-      const r = await fetch('/api/portal/showings');
-      const d = await r.json();
-      if (d.showings) setShowings(d.showings);
-    } catch { /* silent */ }
-  }, []);
-
-  const loadPreferences = useCallback(async () => {
-    try {
-      const r = await fetch('/api/portal/preferences');
-      const d = await r.json();
-      setPreferences(d.preferences ?? null);
-    } catch { /* silent */ }
-  }, []);
-
-  const loadFamily = useCallback(async () => {
-    try {
-      const r = await fetch('/api/portal/family');
-      const d = await r.json();
-      if (d.family) setFamily(d.family);
-    } catch { /* silent */ }
-  }, []);
-
-  const loadLease = useCallback(async () => {
-    try {
-      const r = await fetch('/api/portal/tenant/lease');
-      const d = await r.json();
-      setLeaseData(d);
-    } catch { /* silent */ }
-  }, []);
-
+  // The tab data loaders (listings/showings/preferences/family/lease)
+  // are owned by the useAsyncResource hooks declared above — keyed off
+  // the active tab. The only loader still here is `loadComments`,
+  // triggered from expand-row event handlers (not from useEffect), so
+  // it doesn't trip the React Compiler set-state-in-effect rule.
   const loadComments = useCallback(async (listingId: string) => {
     try {
       const r = await fetch(`/api/portal/listings/${listingId}/comments`);
@@ -307,20 +320,14 @@ export default function TenantPortalPage() {
     } catch { /* silent */ }
   }, []);
 
-  /* ── Load data on tab switch ───────────────────────────────────── */
-  useEffect(() => {
-    if (!ready) return;
-    setLoading(true);
-    const load = async () => {
-      if (tab === 'listings') await loadListings();
-      else if (tab === 'lease') await loadLease();
-      else if (tab === 'showings') await loadShowings();
-      else if (tab === 'preferences') await loadPreferences();
-      else if (tab === 'family') await loadFamily();
-      setLoading(false);
-    };
-    load();
-  }, [ready, tab, loadListings, loadShowings, loadPreferences, loadFamily]);
+  // Imperative refetch helpers for use inside event handlers (e.g.
+  // after a mutation). The reducer-based dispatch is stable identity,
+  // so this doesn't cause cascade-render concerns. Lease has no
+  // mutation handler today so its refetch isn't surfaced.
+  const refetchListings = listingsRes.refetch;
+  const refetchShowings = showingsRes.refetch;
+  const refetchPreferences = preferencesRes.refetch;
+  const refetchFamily = familyRes.refetch;
 
   /* ── Reaction handler ──────────────────────────────────────────── */
   const handleReaction = useCallback(async (listingId: string, action: string) => {
@@ -331,17 +338,13 @@ export default function TenantPortalPage() {
         body: JSON.stringify({ action }),
       });
       if (r.ok) {
-        const d = await r.json();
-        setListings((prev) =>
-          prev.map((l) =>
-            l.id === listingId
-              ? { ...l, reactions: { ...l.reactions, [action]: d.active } }
-              : l
-          )
-        );
+        // The reaction state lives server-side; refetch the listings
+        // so the updated reaction counts appear (no optimistic merge —
+        // listings is owned by useAsyncResource).
+        refetchListings();
       }
     } catch { /* silent */ }
-  }, []);
+  }, [refetchListings]);
 
   /* ── Comment handler ───────────────────────────────────────────── */
   const handleComment = useCallback(async (listingId: string, body: string, parentId?: string) => {
@@ -389,7 +392,7 @@ export default function TenantPortalPage() {
       if (r.ok) {
         showToast('Showing request sent');
         setShowShowingModal(null);
-        await loadShowings();
+        refetchShowings();
       } else {
         const d = await r.json();
         showToast(d.error || 'Failed to request showing', 'error');
@@ -397,7 +400,7 @@ export default function TenantPortalPage() {
     } catch {
       showToast('Network error', 'error');
     }
-  }, [showToast, loadShowings]);
+  }, [showToast, refetchShowings]);
 
   /* ── Preferences save handler ──────────────────────────────────── */
   const handleSavePreferences = useCallback(async (prefs: Preferences) => {
@@ -408,8 +411,9 @@ export default function TenantPortalPage() {
         body: JSON.stringify(prefs),
       });
       if (r.ok) {
-        const d = await r.json();
-        setPreferences(d.preferences);
+        // Server is the source of truth for preferences. Refetch the
+        // resource so the saved view reflects what was persisted.
+        refetchPreferences();
         setPrefEditing(false);
         showToast('Preferences saved');
       } else {
@@ -419,7 +423,7 @@ export default function TenantPortalPage() {
     } catch {
       showToast('Network error', 'error');
     }
-  }, [showToast]);
+  }, [showToast, refetchPreferences]);
 
   /* ── Family invite handler ─────────────────────────────────────── */
   const handleFamilyInvite = useCallback(async (first: string, last: string, email: string, relationship: string) => {
@@ -432,7 +436,7 @@ export default function TenantPortalPage() {
       if (r.ok) {
         showToast('Invitation sent');
         setShowFamilyInvite(false);
-        await loadFamily();
+        refetchFamily();
       } else {
         const d = await r.json();
         showToast(d.error || 'Failed to invite', 'error');
@@ -440,7 +444,7 @@ export default function TenantPortalPage() {
     } catch {
       showToast('Network error', 'error');
     }
-  }, [showToast, loadFamily]);
+  }, [showToast, refetchFamily]);
 
   /* ── Loading / not-ready screens ───────────────────────────────── */
   if (!ready) {
@@ -817,10 +821,12 @@ function ListingCard({
       {/* Expanded section: photos, comments */}
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-4 space-y-4">
-          {/* Photos */}
+          {/* Photos — plain <img> (Trestle proxy URLs aren't whitelisted for
+              next/image and tenant portal is gated behind portal auth). */}
           {listing.photos && listing.photos.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
               {listing.photos.slice(0, 6).map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={i}
                   src={url}

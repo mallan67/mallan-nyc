@@ -161,7 +161,7 @@ const TOWNHOUSE_NEIGHBORHOODS = [
     name: 'Upper West Side',
     borough: 'Manhattan',
     priceRange: '$4M - $15M',
-    character: 'Classic brownstones between Central Park and Riverside Park. Top schools, cultural institutions.',
+    character: 'Classic brownstones between Central Park and Riverside Park. Cultural institutions, museums, and Lincoln Center within walking distance.',
     href: '/sell/townhouses/upper-west-side',
   },
   {
@@ -189,7 +189,7 @@ const TOWNHOUSE_NEIGHBORHOODS = [
     name: 'Park Slope',
     borough: 'Brooklyn',
     priceRange: '$3M - $8M',
-    character: 'Victorian brownstones near Prospect Park. Family-friendly with excellent schools.',
+    character: 'Victorian brownstones near Prospect Park, with tree-lined streets and a vibrant local commercial corridor along 5th and 7th Avenues.',
     href: '/brooklyn',
   },
   {

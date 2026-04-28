@@ -26,7 +26,7 @@ export default function MarketSnapshot({
   neighborhood,
   borough,
   listPrice,
-  pricePerSqft,
+  pricePerSqft: _pricePerSqft,
   listingType,
 }: {
   neighborhood: string;
@@ -115,6 +115,11 @@ export default function MarketSnapshot({
       <Link href="/market" className="block mt-3 text-[11px] text-brand-gold-deep hover:text-brand-gold transition-colors font-medium">
         View Full Market Report &rarr;
       </Link>
+
+      {/* REBNY UCBA Art. VIII §4 — statistical disclaimer required on all aggregate displays */}
+      <p className="text-[11px] text-brand-dark/55 mt-3 leading-snug">
+        Based on information from the REBNY Listing Service for the period currently available. Data deemed reliable but not guaranteed.
+      </p>
     </div>
   );
 }

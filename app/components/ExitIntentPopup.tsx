@@ -74,7 +74,7 @@ export default function ExitIntentPopup() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [visible]);
 
   // Lock body scroll while open

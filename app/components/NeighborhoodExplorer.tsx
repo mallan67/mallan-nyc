@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 interface POIItem {
   id: number;
@@ -103,36 +104,22 @@ export default function NeighborhoodExplorer({
   borough,
 }: NeighborhoodExplorerProps) {
   const [activeTab, setActiveTab] = useState<'poi' | 'community'>('poi');
-  const [categories, setCategories] = useState<CategoryData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
 
-  const [fetchError, setFetchError] = useState(false);
+  const fetchKey = `${latitude},${longitude}`;
+  const fetcher = useCallback(
+    async (key: string | number, signal: AbortSignal): Promise<CategoryData[]> => {
+      const [lat, lng] = String(key).split(',');
+      const res = await fetch(`/api/nearby-poi?lat=${lat}&lng=${lng}&radius=800`, { signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return (data.categories as CategoryData[]) || [];
+    },
+    [],
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setFetchError(false);
-    fetch(`/api/nearby-poi?lat=${latitude}&lng=${longitude}&radius=800`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setCategories(data.categories || []);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFetchError(true);
-          setLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [latitude, longitude]);
+  const { data: categoriesData, loading } = useAsyncResource(fetchKey, fetcher);
+  const categories = categoriesData ?? [];
 
   const selectedItems = selectedCategory
     ? categories.find((c) => c.category === selectedCategory)?.items || []
@@ -153,8 +140,8 @@ export default function NeighborhoodExplorer({
     (categories.find((c) => c.category === 'Cafes')?.count || 0);
   const shoppingCount = (categories.find((c) => c.category === 'Shopping')?.count || 0) +
     (categories.find((c) => c.category === 'Groceries')?.count || 0);
-  const schoolCount = (categories.find((c) => c.category === 'Schools')?.count || 0) +
-    (categories.find((c) => c.category === 'Daycares')?.count || 0);
+  // Note: per Fair Housing guidance we deliberately do NOT surface a
+  // "schoolCount" score in this UI — schools are not a steering criterion.
 
   // Simple walkability heuristic (0-10 based on POI density within 800m)
   const walkScore = Math.min(10, Math.round((totalPOIs / 15) * 10) / 10);
