@@ -37,6 +37,7 @@ jobs:
     timeout-minutes: 3
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
       RUN_ID: ${{ github.event.workflow_run.id }}
       WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
 
@@ -45,46 +46,72 @@ jobs:
         id: classify
         run: |
           set -eu
-          # Count failed steps across all jobs in the run.
-          failed_steps=$(gh api \
-            "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
-            --jq '[.jobs[]?.steps[]? | select(.conclusion == "failure")] | length' \
-            2>/dev/null || echo "0")
-          # Pull annotation messages on each job, looking for the runner-pool
-          # signature. Belt-and-suspenders alongside the failed-step count.
-          job_ids=$(gh api \
-            "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
-            --jq '.jobs[]?.id' 2>/dev/null || echo "")
-          annotations=""
+          # Fetch jobs once and parse locally so we can distinguish
+          # "API returned 0 failed steps" from "API call failed".
+          # The previous `|| echo "0"` pattern coerced any API error
+          # (auth, rate limit, transient outage) into "0 failed steps",
+          # which downstream interpreted as a runner-pool flake — and
+          # would have triggered an auto-rerun on real failures during
+          # any infra hiccup. Fail closed: unknown state -> no rerun.
+          if ! jobs_json=$(gh api \
+              "repos/${GH_REPO}/actions/runs/${RUN_ID}/jobs" 2>jobs_err); then
+            echo "WARN: jobs API call failed; leaving the run alone"
+            cat jobs_err >&2 || true
+            echo "is_flake=false" >> "$GITHUB_OUTPUT"
+            echo "classify_skipped=api_error" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! failed_steps=$(echo "$jobs_json" | \
+              jq -r '[.jobs[]?.steps[]? | select(.conclusion == "failure")] | length' 2>/dev/null) \
+              || ! [ "$failed_steps" -eq "$failed_steps" ] 2>/dev/null; then
+            echo "WARN: could not parse failed_steps count; leaving the run alone"
+            echo "is_flake=false" >> "$GITHUB_OUTPUT"
+            echo "classify_skipped=parse_error" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          job_ids=$(echo "$jobs_json" | jq -r '.jobs[]?.id' 2>/dev/null || true)
+          annotations_file=$(mktemp)
           for j in $job_ids; do
-            ann=$(gh api "repos/${{ github.repository }}/check-runs/${j}/annotations" \
-              --jq '.[]?.message' 2>/dev/null || echo "")
-            annotations="${annotations}\n${ann}"
+            gh api "repos/${GH_REPO}/check-runs/${j}/annotations" \
+              --jq '.[]?.message' >>"$annotations_file" 2>/dev/null || true
           done
 
           echo "failed_steps=${failed_steps}"
-          echo "annotations: ${annotations}"
+          echo "annotations follow:"
+          cat "$annotations_file" || true
 
           is_flake="false"
           if [ "${failed_steps}" = "0" ]; then
             is_flake="true"
             echo "reason: zero failed steps (runner never acquired)"
-          elif echo -e "${annotations}" | grep -qiE "not acquired by Runner|runner.*not.*available"; then
+          elif grep -qiE "not acquired by Runner|runner.*not.*available" "$annotations_file"; then
             is_flake="true"
             echo "reason: runner-pool annotation matched"
           else
             echo "reason: real failure — has failed steps and no runner-pool annotation"
           fi
+          rm -f "$annotations_file"
           echo "is_flake=${is_flake}" >> "$GITHUB_OUTPUT"
+
+      - name: Skipped — classifier could not safely decide
+        if: steps.classify.outputs.classify_skipped != ''
+        run: |
+          echo "Classifier skipped (${{ steps.classify.outputs.classify_skipped }})."
+          echo "Failing closed: leaving run ${RUN_ID} alone, no auto-rerun issued."
 
       - name: Re-run failed jobs (flake only)
         if: steps.classify.outputs.is_flake == 'true'
         run: |
-          gh run rerun "${RUN_ID}" --failed
+          # gh run rerun has no $GITHUB_REPOSITORY checkout to infer from
+          # in workflow_run jobs (we don't actions/checkout). Pass repo
+          # context explicitly via --repo (or GH_REPO env, set above).
+          gh run rerun "${RUN_ID}" --failed --repo "${GH_REPO}"
           echo "Re-ran failed jobs in run ${RUN_ID} (${WORKFLOW_NAME})"
 
       - name: Skipped — real failure
-        if: steps.classify.outputs.is_flake != 'true'
+        if: steps.classify.outputs.is_flake != 'true' && steps.classify.outputs.classify_skipped == ''
         run: |
           echo "Run ${RUN_ID} (${WORKFLOW_NAME}) failed with executed steps —"
           echo "leaving it alone so the FAIL notification reaches a human."
@@ -92,11 +119,18 @@ jobs:
       - name: Job summary
         if: always()
         run: |
+          if [ "${{ steps.classify.outputs.classify_skipped }}" != "" ]; then
+            verdict="classifier error (${{ steps.classify.outputs.classify_skipped }}) — failed closed, no rerun"
+          elif [ "${{ steps.classify.outputs.is_flake }}" = "true" ]; then
+            verdict="flake — re-run triggered"
+          else
+            verdict="real failure — left alone"
+          fi
           {
             echo "## Auto-retry runner-pool flakes"
             echo ""
             echo "- Watched run: \`${RUN_ID}\` (${WORKFLOW_NAME})"
             echo "- Run attempt: ${{ github.event.workflow_run.run_attempt }}"
             echo "- Conclusion: ${{ github.event.workflow_run.conclusion }}"
-            echo "- Verdict: ${{ steps.classify.outputs.is_flake == 'true' && 'flake — re-run triggered' || 'real failure — left alone' }}"
+            echo "- Verdict: ${verdict}"
           } >> "$GITHUB_STEP_SUMMARY"
