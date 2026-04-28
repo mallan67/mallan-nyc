@@ -160,6 +160,11 @@ describe('PATCH /api/crm/agents/:id/ethics-training', () => {
 
     const completed = new Date('2025-06-15T00:00:00Z');
     const expires = new Date('2027-06-15T00:00:00Z');
+    (prismaMock as { agent: { findUnique: jest.Mock } }).agent.findUnique =
+      jest.fn(async () => ({
+        ethics_training_completed_at: null,
+        ethics_training_expires_at: null,
+      }));
     (prismaMock as { agent: { update: jest.Mock } }).agent.update = jest.fn(
       async () => ({
         id: 42n,
@@ -212,6 +217,11 @@ describe('PATCH /api/crm/agents/:id/ethics-training', () => {
     });
     isAuthErrorMock.mockReturnValueOnce(false);
 
+    (prismaMock as { agent: { findUnique: jest.Mock } }).agent.findUnique =
+      jest.fn(async () => ({
+        ethics_training_completed_at: new Date('2025-06-01T00:00:00Z'),
+        ethics_training_expires_at: new Date('2027-06-01T00:00:00Z'),
+      }));
     (prismaMock as { agent: { update: jest.Mock } }).agent.update = jest.fn(
       async () => ({
         id: 42n,
@@ -236,5 +246,94 @@ describe('PATCH /api/crm/agents/:id/ethics-training', () => {
 
     const res = await callPatch({ completed_at: 'not-a-date' });
     expect(res.status).toBe(400);
+  });
+
+  // ────────────────────────────────────────────────────────────────────
+  // Regression tests for the four Codex review findings on c40aa1c1e2.
+  // Each pins a code path that was previously a 500 (or silently bypassed
+  // the date-ordering invariant).
+  // ────────────────────────────────────────────────────────────────────
+
+  it('returns 400 when body is null (Codex P2 — non-object JSON)', async () => {
+    requireBrokerMock.mockResolvedValueOnce({
+      userId: 1n,
+      userType: 'agent',
+      role: 'BROKER',
+      sessionId: 'test',
+    });
+    isAuthErrorMock.mockReturnValueOnce(false);
+
+    // JSON.stringify(null) === "null", which req.json() parses back to
+    // a literal null. Pre-fix this hit the hasOwnProperty(body, ...)
+    // call site and threw TypeError → 500.
+    const res = await callPatch(null);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/JSON object/i);
+  });
+
+  it('returns 400 when body is an array (Codex P2 — non-object JSON)', async () => {
+    requireBrokerMock.mockResolvedValueOnce({
+      userId: 1n,
+      userType: 'agent',
+      role: 'BROKER',
+      sessionId: 'test',
+    });
+    isAuthErrorMock.mockReturnValueOnce(false);
+
+    const res = await callPatch([{ completed_at: '2025-01-01T00:00:00Z' }]);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/JSON object/i);
+  });
+
+  it('returns 404 when agent does not exist (Codex P2 — missing 404 handling)', async () => {
+    requireBrokerMock.mockResolvedValueOnce({
+      userId: 1n,
+      userType: 'agent',
+      role: 'BROKER',
+      sessionId: 'test',
+    });
+    isAuthErrorMock.mockReturnValueOnce(false);
+
+    // Earlier tests reassign agent.findUnique to return an existing
+    // record; the buildPrismaMock proxy caches that override on the
+    // model target, so reset it explicitly here. The default would also
+    // return null, but being explicit makes the contract obvious.
+    (prismaMock as { agent: { findUnique: jest.Mock } }).agent.findUnique =
+      jest.fn(async () => null);
+
+    const res = await callPatch({
+      completed_at: '2025-06-15T00:00:00Z',
+      expires_at: '2027-06-15T00:00:00Z',
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/not found/i);
+  });
+
+  it('returns 400 on partial PATCH that violates ordering vs persisted state (Codex P1)', async () => {
+    // Persisted: completed_at = 2025-06-01. PATCH only expires_at to a
+    // date earlier than persisted completed_at. Pre-fix, this slipped
+    // through because validation only ran when both fields were in the
+    // body.
+    requireBrokerMock.mockResolvedValueOnce({
+      userId: 1n,
+      userType: 'agent',
+      role: 'BROKER',
+      sessionId: 'test',
+    });
+    isAuthErrorMock.mockReturnValueOnce(false);
+
+    (prismaMock as { agent: { findUnique: jest.Mock } }).agent.findUnique =
+      jest.fn(async () => ({
+        ethics_training_completed_at: new Date('2025-06-01T00:00:00Z'),
+        ethics_training_expires_at: new Date('2027-06-01T00:00:00Z'),
+      }));
+
+    const res = await callPatch({ expires_at: '2025-01-01T00:00:00Z' });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/earlier|before/i);
   });
 });
