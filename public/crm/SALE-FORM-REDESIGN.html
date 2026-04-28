@@ -697,6 +697,49 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether Zillow/Redfin can show AVM estimates</p>
             </div>
+
+            <!-- Auction (UCBA Art. I exception path) -->
+            <div class="border rounded-lg p-4 mb-4" id="saleAuctionSection">
+                <div class="section-collapse flex items-center gap-2 mb-3" onclick="toggleFormSection(this)">
+                    <i class="fas fa-gavel text-amber-600 text-sm"></i>
+                    <span class="text-xs font-bold text-gray-800 uppercase tracking-wide">Auction (optional)</span>
+                    <span class="text-[10px] text-gray-400 ml-1">UCBA Art. I exception</span>
+                    <i class="fas fa-chevron-down chevron text-gray-400 text-xs ml-auto"></i>
+                </div>
+                <div class="section-body">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm mb-3">
+                        <input type="checkbox" id="saleAuctionYn" class="w-4 h-4" onchange="toggleSaleAuctionFields()" data-rls-field="auction_yn">
+                        <span>This listing is being sold at auction</span>
+                    </label>
+                    <div id="saleAuctionFields" style="display:none;" class="space-y-3 pt-2 border-t border-gray-100">
+                        <div>
+                            <label class="field-label mb-1">Auction type <span class="text-red-500">*</span></label>
+                            <select id="saleAuctionType" class="field-input max-w-md" data-rls-field="auction_type">
+                                <option value="">— select —</option>
+                                <option value="Absolute">Absolute (no reserve)</option>
+                                <option value="WithReserve">With Reserve</option>
+                                <option value="Minimum">Minimum Bid</option>
+                            </select>
+                            <p class="text-[10px] text-gray-500 mt-1">Validator AU-002: must be Absolute, WithReserve, or Minimum.</p>
+                        </div>
+                        <div>
+                            <label class="field-label mb-1">Auction start date</label>
+                            <input type="datetime-local" id="saleAuctionStartDate" class="field-input max-w-md" data-rls-field="auction_start_date">
+                            <p class="text-[10px] text-gray-500 mt-1">Optional. When bidding opens.</p>
+                        </div>
+                        <div>
+                            <label class="field-label mb-1">Auction end date <span class="text-red-500">*</span></label>
+                            <input type="datetime-local" id="saleAuctionEndDate" class="field-input max-w-md" data-rls-field="auction_end_date">
+                            <p class="text-[10px] text-gray-500 mt-1">Validator AU-003: bidding-ends timestamp. Binding under UCBA Art. I.</p>
+                        </div>
+                        <div>
+                            <label class="field-label mb-1">Auction terms URL</label>
+                            <input type="url" id="saleAuctionTermsUrl" class="field-input max-w-md" placeholder="https://…" data-rls-field="auction_terms_url">
+                            <p class="text-[10px] text-gray-500 mt-1">Validator AU-004: recommended. Public terms doc — minimum bid, registration, inspection, buyer's premium.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Property Type & Ownership -->
@@ -4866,6 +4909,24 @@ function toggleFormSection(el) {
     }
 }
 
+// Auction sub-section visibility (UCBA Art. I exception path — C3c)
+// Reveals the four auction fields when the toggle is on; clears them when
+// the toggle is off so we never POST stale auction data on a non-auction
+// listing. Validator AU-001..AU-005 enforces presence on the write path.
+function toggleSaleAuctionFields() {
+    var toggle = document.getElementById('saleAuctionYn');
+    var fields = document.getElementById('saleAuctionFields');
+    if (!toggle || !fields) return;
+    var on = !!toggle.checked;
+    fields.style.display = on ? '' : 'none';
+    if (!on) {
+        ['saleAuctionType', 'saleAuctionStartDate', 'saleAuctionEndDate', 'saleAuctionTermsUrl'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+    }
+}
+
 // ══════════════════════════════════════════════════════
 // IDX SYSTEM LOGIC — Building Database & Auto-Populate
 // ══════════════════════════════════════════════════════
@@ -6597,6 +6658,29 @@ function collectSaleFormData() {
 
     // Living area source
     data.LivingAreaSource = data.saleLivingAreaSource || '';
+
+    // Auction (UCBA Art. I exception path — C3c).
+    // Validator AU-001..AU-005 enforces:
+    //   AU-001 auction_type required when auction_yn=true
+    //   AU-002 auction_type ∈ {Absolute|WithReserve|Minimum}
+    //   AU-003 auction_end_date required when auction_yn=true
+    //   AU-004 auction_terms_url recommended (warning, not blocker)
+    //   AU-005 auction_yn must be a boolean
+    // Always emit auction_yn (even when false) so the API has a clear signal
+    // to NOT validate auction fields on non-auction submissions.
+    data.auction_yn = data.saleAuctionYn === true;
+    if (data.auction_yn) {
+        data.auction_type = data.saleAuctionType || '';
+        data.auction_start_date = data.saleAuctionStartDate || null;
+        data.auction_end_date = data.saleAuctionEndDate || null;
+        data.auction_terms_url = data.saleAuctionTermsUrl || null;
+    } else {
+        // Toggle is off — drop any stale auction values to keep the payload clean.
+        data.auction_type = null;
+        data.auction_start_date = null;
+        data.auction_end_date = null;
+        data.auction_terms_url = null;
+    }
 
     return data;
 }
