@@ -25,8 +25,8 @@ import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal } from '@/lib/idx/mapping';
-import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { toPublicDTO, buildAuctionPublic, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
@@ -449,6 +449,11 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       poolFeatures: features.PoolFeatures ? String(features.PoolFeatures) : undefined,
       spaFeatures: features.SpaFeatures ? String(features.SpaFeatures) : undefined,
       attendanceType: features.AttendanceType ? String(features.AttendanceType) : undefined,
+      // Auction (UCBA Art. I exception path) — null on non-auction listings.
+      // The five auction columns are top-level on the Listing model (PR #50);
+      // buildAuctionPublic() returns null unless auction_yn === true AND the
+      // mandatory type+endDate fields are set (validator AU-001..AU-005).
+      auction: buildAuctionPublic(dbListing),
       _source: 'db',
       _displayCompliance: {
         requiresAttribution: true,

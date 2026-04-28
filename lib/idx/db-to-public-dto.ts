@@ -16,7 +16,7 @@
  */
 
 import type { PublicListingDTO } from './public-dto';
-import { mapPropertyTypeToDisplay } from './public-dto';
+import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 
@@ -120,6 +120,14 @@ export interface DbListing {
   created_at: string | Date;
   updated_at: string | Date;
   raw_data?: unknown;
+  // Auction (UCBA Art. I exception path) — schema added in PR #50.
+  // All five are nullable on the model; presence is gated by the validator
+  // (AU-001..AU-005) at the write path. Surfaced publicly via auction object.
+  auction_yn?: boolean | null;
+  auction_type?: string | null;
+  auction_start_date?: Date | string | null;
+  auction_end_date?: Date | string | null;
+  auction_terms_url?: string | null;
 }
 
 /** RESO StandardStatus values that are publicly displayable */
@@ -357,6 +365,10 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     additionalFee: features.AdditionalFee != null ? Number(features.AdditionalFee) : undefined,
     additionalFeeDescription: features.AdditionalFeeDescription ? String(features.AdditionalFeeDescription) : undefined,
     feeFrequency: features.FeeFrequency ? String(features.FeeFrequency) : undefined,
+    // Auction (UCBA Art. I exception path) — null on non-auction listings.
+    // buildAuctionPublic() reads the snake_case columns from the DB row and
+    // returns null unless auction_yn === true AND type/endDate are present.
+    auction: buildAuctionPublic(listing),
     _source: 'exclusive',
     _displayCompliance: {
       requiresAttribution: true,
