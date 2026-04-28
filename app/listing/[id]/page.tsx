@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
+import AuctionBanner from '@/app/components/AuctionBanner';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
@@ -1124,6 +1125,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 MAIN CONTENT (2/3)
                 ═══════════════════════════════════════ */}
             <div className="lg:col-span-2 space-y-0">
+
+              {/* ── AUCTION BANNER (UCBA Art. I exception path) ── */}
+              {/* Renders nothing on non-auction listings (auction=null). When  */}
+              {/* present, sits above the price hero — auction end date is     */}
+              {/* substantive and must be the first thing readers see.         */}
+              <AuctionBanner auction={listing.auction} />
 
               {/* ── 1. PRICE + ADDRESS HERO ── */}
               <section className="pb-6">
