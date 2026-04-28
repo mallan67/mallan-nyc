@@ -811,3 +811,44 @@ npm run release:truth -- --per-merge --from-sha A --to-sha B
 
 CI auto-runs `pr-check.yml` (jest --ci with 13 projects + type-check + ucba + ci-compliance + idx-validate + build), `target-platform-build.yml` (Linux/Vercel-class install/build on dependency PRs), `release-truth.yml` (verdict commit-status on push to main + advisory PR comment), and `live-site-cron.yml` (hourly smoke on prod, auto-issues on FAIL).
 
+---
+
+## Immediate Cleanup & MVP Lock
+
+The MVP scope and active in-flight workstreams are tracked in [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) (master 10-PR backend rebuild) and [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) (Workstream C — UCBA compliance gaps). The current snapshot of what's open vs. shipped lives in [`memory/OUTSTANDING-WORK-2026-04-27.md`](memory/OUTSTANDING-WORK-2026-04-27.md) and is the agreed entry point for any new session — open it first, run the pre-flight checklist at the top, then pick the next item.
+
+Cleanup discipline (no drift): every working-tree file is either committed, intentionally tracked-and-staged, or deleted — `.env.local` and `node_modules` excepted. Branches off `main` only, one focused change per PR, schema PRs follow [`NEON.md`](NEON.md) (nullable first, dual-write, manual `prisma migrate deploy` to Neon prod *before* code merges).
+
+## Compliance Requirements
+
+The full compliance surface — REBNY RLS / UCBA 2026, IDX Plus / Trestle connector, Fair Housing (federal + NY State + NYC Title 8), FARE Act, NY DOS § 175.25, TCPA, CAN-SPAM, NY SHIELD, WCAG 2.1 AA — is specified earlier in this README under [🚨 Compliance & Legal Requirements](#-compliance--legal-requirements-read-first), [📌 MLS / IDX DATA COMPLIANCE](#-mls--idx-data-compliance-rebny-rls--idx-plus), [IDX Plus / Trestle — Rules of the Road](#idx-plus--trestle-rebny-rls--rules-of-the-road), and [UCBA 2026](#ucba-2026-universal-co-brokerage-agreement--january-2026-revision).
+
+Operational gates that block CI / commits:
+
+- `npm run ucba:audit` — 145-rule checklist; **REGRESSIONS must be 0** (annotated FAILs are tracked in `compliance/rules/ucba-audit-checklist.json`)
+- `npm run rls:validate` — 10-section RLS validator (fields, renames, gates, masking, coverage)
+- `npm run idx:validate` — 32-section IDX Plus validator
+- `npm run compliance-check` — pre-commit sanity gate
+- `npm run ops:health` — Neon storage / compute headroom + sync freshness
+- The `rebny-compliance` skill must be invoked before any commit touching `lib/compliance/**`, `lib/idx/**`, `app/api/{crm,portal,listings}/**`, public listing display, or any free-text capture form
+
+## Listings: Types, Visibility, Distribution
+
+| Type | Source | Visibility | Distribution |
+|---|---|---|---|
+| **RLS-eligible sale / rental** | Submitted via RealPlus → REBNY RLS → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Trestle opt-in toggles) |
+| **Auction listing** | Same RLS path, `auction_yn=true` plus `auction_type` / `auction_end_date` (mandatory) and `auction_terms_url` (recommended http(s):// only — `AU-006` blocks unsafe schemes) | Public listing pages render an `AuctionBanner` above price; standard 24-hour price-change rule does NOT apply (UCBA Art. I auction exception) | Same as RLS-eligible |
+| **Commercial / website-only** | `rls_eligible: false` on the Listing model (commercial sub-types + ownership) | mallan.nyc only — bypasses all 6 distribution gates | Not distributed; Fair Housing + NY DOS + TCPA still apply |
+| **Coming Soon** | Sale/rental with `MlsStatus=ComingSoon` | Public pages render the [Coming Soon badge](app/components/ComingSoonBadge.tsx) — required exact phrasing per UCBA Art. I § 16(C) | Distributed when DOM rule allows |
+
+Enforcement: see `lib/compliance/rls-enforcement.ts` (assertRlsCompliantPayload), `lib/compliance/dto.ts` (portal DTO sanitizer with public/portal/CRM tiers), `lib/compliance/dom-tracker.ts` (UCBA DOM with 30-day reset), and `lib/idx/public-dto.ts` (the only safe surface that reaches the browser).
+
+## Last Work Completed
+
+Authoritative changelog lives in `git log` and the merged PR list. The two human-curated summaries are:
+
+- [`memory/OUTSTANDING-WORK-2026-04-27.md`](memory/OUTSTANDING-WORK-2026-04-27.md) — current snapshot reconciled against actual GitHub merge state (most recent additions land here first).
+- [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — master 10-PR backend rebuild plan with status table per PR.
+
+Recent areas of work: REBNY UCBA 2026 compliance (Workstream C — Inquiry / Offer transmission / Auction listings + enforcement / Ethics training fields + auth gate), Trestle media pipeline hardening (`ResourceRecordKey` correctness, batch-URL length, MediaStatus filter), media schema normalization (`ListingMedia` + `MediaSyncState`), React Compiler + lint hygiene sweep (`useAsyncResource`, `useClientOnly`, set-state-in-effect elimination), and CI gate restoration (`npm run crm:test`).
+
