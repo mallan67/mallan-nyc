@@ -5,6 +5,10 @@
 > `memory/FOLLOWUP-2026-05-01.md` (Workstream C). This file is a
 > what's-left summary, not a duplicate plan.
 
+> **Reconciled 2026-04-27 (later session) against actual GitHub merge state.**
+> Most "open" entries below were already MERGED on 2026-04-26 — see git log.
+> Truly remaining: PR 11 (CRM test runner), C3c (auction UI), C4c (ethics admin panel + dev-login catch). PRs 6/7 reserved for separate backend CRM/search redesign chat. PRs 3/4 blocked on R2 user-side provisioning. PR #62 (SMS password reset) open + CI green but gated on user running prod migration + Twilio verification.
+
 ---
 
 ## Neon — current state (verified 2026-04-27 19:06 ET)
@@ -26,7 +30,7 @@
 
 | ID | What | When | Why it's not done yet |
 |---|---|---|---|
-| **PR 2** | `refactor/02-media-metadata-schema` — new `ListingMedia` + `MediaSyncState` tables + 4 nullable cols on `Listing` | OPEN as PR #48 (per master plan status table — confirm latest on GitHub) | Schema PR; blocks PR 3/4 (media pipeline rewrite) |
+| **PR 2** | `refactor/02-media-metadata-schema` — `ListingMedia` + `MediaSyncState` + 4 nullable cols | **MERGED — `cb094c9b` · 2026-04-26 (PR #48)** | — |
 | **PR 5** | `refactor/05-listing-search-projection` — additive projection for search-core | NOT_STARTED | Depends on PR 4 merge |
 | **PR 8** | `refactor/08-collections-search-sends` — additive | NOT_STARTED | Depends on PR 7 in prod |
 | **PR 9** | `refactor/09-lease-lifecycle` — extends `ActiveLease` with 5 nullable cols + new lifecycle-alerts cron | NOT_STARTED | Independent of PR 8 — can run parallel |
@@ -51,34 +55,34 @@
 
 | PR | Title | Status | Blocks what |
 |---|---|---|---|
-| **1** | Compliance fail-closed cleanup | OPEN as PR #41 (per plan) — verify on GitHub | PR 2+ |
-| **2** | Media metadata schema | OPEN as PR #48 | PR 3 |
-| **3** | Media sync service (R2-backed) | NOT_STARTED | PR 4 |
-| **4** | Rewrite `/api/media/batch` | NOT_STARTED | PR 5 |
+| **1** | Compliance fail-closed cleanup | **MERGED 2026-04-26 (PR #41)** | — |
+| **2** | Media metadata schema | **MERGED 2026-04-26 (PR #48)** | — |
+| **3** | Media sync service (R2-backed) | NOT_STARTED — **blocked on R2 user-side provisioning** | PR 4 |
+| **4** | Rewrite `/api/media/batch` | NOT_STARTED — blocked on PR 3 | PR 5 |
 | **5** | Listing search projection | NOT_STARTED | PR 6, 10 |
-| **6** | `lib/search-core` library + public search migration | NOT_STARTED | PR 7 |
-| **7** | Backend/agent/portal search migration | NOT_STARTED | PR 8 |
+| **6** | `lib/search-core` library + public search migration | NOT_STARTED — **reserved for separate backend CRM/search redesign chat** | PR 7 |
+| **7** | Backend/agent/portal search migration | NOT_STARTED — **reserved for separate redesign chat** | PR 8 |
 | **8** | Collections + search sends + client behavior tracking | NOT_STARTED | — |
 | **9** | Lease lifecycle tracker | NOT_STARTED | parallel to PR 8 |
 | **10** | Neon shedding | NOT_STARTED | PR 12 |
-| **11** | Restore CRM browser-test runner (`npm run crm:test` is currently broken — `05-test-suite-runner.js` missing) | NOT_STARTED | independent — can pick up any time |
+| **11** | Restore CRM browser-test runner (`npm run crm:test` is currently broken — `05-test-suite-runner.js` missing) | **IN PROGRESS 2026-04-27 (this session)** | independent |
 | **12** | Prisma 7 upgrade | NOT_STARTED | depends on PR 10 + ≥1 week stability |
-| **13** | npm audit triage | OPEN as PR #44 | independent |
-| **13b** | Migrate `xlsx` → `exceljs` | OPEN as PR #45 | depends on #44 rebase |
+| **13** | npm audit triage | **MERGED 2026-04-26 (PR #44)** | — |
+| **13b** | Migrate `xlsx` → `exceljs` | **MERGED 2026-04-26 (PR #45)** | — |
 
 ### Workstream C — REBNY/UCBA compliance (parallel track)
 
 | Sub-PR | Title | Status |
 |---|---|---|
-| **C1a** | Inquiry model + 3 lead-capture endpoints | OPEN as PR #47 |
-| **C1b** | Wire 5 remaining lead-capture endpoints to Inquiry | OPEN as PR #52 (replaced by #55, MERGED) — confirm on GitHub |
-| **C2** | Offer transmission tracking (UCBA Art. II) | OPEN as PR #49 |
-| **C3a** | Auction listing fields (5 cols, UCBA Art. I exception) | OPEN as PR #50 |
-| **C3b** | Auction enforcement validator + 9 tests | OPEN as PR #53 (replaced by #57, MERGED) — confirm on GitHub |
-| **C3c** | Auction form sub-section + listing banner UI | **NOT_STARTED** |
+| **C1a** | Inquiry model + 3 lead-capture endpoints | **MERGED** `746f8c83` (PR #47) |
+| **C1b** | Wire 5 remaining lead-capture endpoints to Inquiry | **MERGED** `bd1f6f0b` (PR #55, replaces auto-closed #52) |
+| **C2** | Offer transmission tracking (UCBA Art. II) | **MERGED** `0bb3d740` (PR #49) |
+| **C3a** | Auction listing fields (5 cols, UCBA Art. I exception) | **MERGED** `ca4c7a5e` (PR #50) |
+| **C3b** | Auction enforcement validator + 9 tests | **MERGED** `3b3c8d1d` (PR #57, replaces auto-closed #53) |
+| **C3c** | Auction form sub-section + listing banner UI | **IN PROGRESS 2026-04-27 (this session)** |
 | **C4a** | Ethics training fields (`ethics_training_completed_at`, `_expires_at`) | **MERGED** `096b43d6` (PR #51) |
 | **C4b** | Ethics training auth gate (UCBA Art. III §6) | **MERGED** `276fe3ae` (PR #58) |
-| **C4c** | Broker admin panel for ethics training + dev-login catch + commit `scripts/c4-ethics-backfill.ts` to repo | **NOT_STARTED** |
+| **C4c** | Broker admin panel for ethics training + dev-login catch | **IN PROGRESS 2026-04-27 (this session)** — script-commit piece DONE in PR #59 (`2f43deaf`) |
 
 > **Note:** The status fields above are what the in-repo plan files claim. Several of these PRs may already be merged but not yet reflected in the plan's status table. **First action next session: open GitHub, check actual merge state, update the plan files.**
 
