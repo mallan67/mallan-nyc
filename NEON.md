@@ -2,7 +2,7 @@
 
 > **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json` — stop and read this file first. Then read `docs/DEPLOYMENT.md` which is the authoritative architecture doc.**
 
-**Last updated:** 2026-04-20 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
+**Last updated:** 2026-04-28 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
 
 ---
 
@@ -35,7 +35,7 @@ The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `pr
 | Storage | **500 MB** | ~215–220 MB after Phase 1 cleanup | `scripts/ops-health.js:25`, `scripts/phase1-ROLLBACK.md` |
 | Compute time | **191.9 hours / month** on primary branch | Recently hit quota on 2026-04-19 (build-time migrations + mass redeploys) | `scripts/neon-full-audit.js:336`, `scripts/ops-health.js:28` |
 | PITR retention | 7 days | — | `scripts/phase1-cleanup.sql:37` |
-| Compute auto-suspend | 5 min idle | Prevented by `db-keepalive` cron every 3 min | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
+| Compute auto-suspend | 5 min idle | Prevented by `db-keepalive` cron every 15 min | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
 
 ### The compute budget is the tight one, not storage
 
@@ -208,9 +208,9 @@ Storage-focused audits for when `ops:health` reports storage >80%.
 
 The cleanup-playbook pattern every DB-change script must follow: `--verify-only` / `--dry-run` / `--execute`, idempotent, with pre-state capture.
 
-### `lib/prisma-http.ts` (Phase 5, adoption deferred)
+### `lib/prisma.ts` — single Prisma client
 
-HTTP-driver Prisma client for public read routes. Avoids TCP handshake on cold start. 45–56ms vs 1–3s. Adopt one route at a time per CLAUDE.md follow-up.
+The HTTP-driver experiment (`lib/prisma-http.ts`, "Phase 5") was prototyped 2026-04-17 and dropped per user decision 2026-04-25. The file is no longer in the repo. All routes use the standard pooled client at `lib/prisma.ts`. If a future cold-start incident makes the HTTP driver worth revisiting, write a fresh proposal — do not resurrect the old plan as-is.
 
 ---
 
@@ -254,29 +254,21 @@ HTTP-driver Prisma client for public read routes. Avoids TCP handshake on cold s
 
 ---
 
-## 8. Deferred workstreams
+## 8. Status of prior workstreams
 
-Documented in `CLAUDE.md` top follow-up block. Review date **2026-05-01**.
+The two workstreams previously listed here have both resolved:
 
-### A — Phase 3: migrate 8 most-read fields out of JSON into columns
+### A — Phase 3 (migrate 8 most-read fields out of JSON into columns) — SUPERSEDED
 
-One column per PR, nullable, dual-write, wait one sync cycle, migrate one reader, verify. Target order:
-1. `primary_photo_url` + `photo_count`
-2. `list_agent_full_name` + `list_office_name`
-3. `public_remarks`
-4. `close_price` + `close_date`
-5. `latitude` + `longitude`
+Folded into master refactor plan PR 5 (search projection). Master plan complete 2026-04-28. Typed columns `primary_photo_url`, `photo_count`, `list_agent_full_name`, `list_office_name`, `public_remarks_excerpt`, `close_price`, `close_date`, `latitude`, `longitude` now live on `Listing`. See `memory/REFACTOR-2026-04-25.md` for the full status table.
 
-### B — Phase 5 HTTP adapter per-route adoption
+### B — Phase 5 HTTP adapter per-route adoption — DROPPED
 
-`lib/prisma-http.ts` validated 2026-04-17. Adoption plan:
-1. `app/api/idx/search/route.ts`
-2. `app/api/listings/similar/route.ts`
-3. `app/api/agents/[slug]/listings/route.ts`
-4. `app/api/buildings/route.ts`
-5. `app/api/open-houses/route.ts`
+Per user decision 2026-04-25. The prototype `lib/prisma-http.ts` was removed. Remaining cold-start mitigation is provided by the `db-keepalive` cron (§3 trap #3). See `memory/REFACTOR-2026-04-25.md` line 9 for the dropped-workstream record.
 
-Per-route pattern: swap import, type-check, smoke test, deploy, measure, then next route.
+### Open follow-up — legacy JSON columns on `Listing`
+
+Five JSON columns remain on `Listing` (`address`, `features`, `media`, `compliance`, `agent_info`) plus the slimmed `raw_data`. Master-plan PR 10 only delivered the `raw_data` slim writer + backfill; the other five columns are still written and read in parallel with the typed columns from PR 5. Drop plan: [`memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md`](memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md). Pick this up when prioritized — it is the largest remaining storage lever (~115 MB recoverable on the listings table).
 
 ---
 
@@ -305,13 +297,14 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 | Date | Event | Commit |
 |---|---|---|
 | 2026-03-16 | `\|\| echo 'Migration skipped'` pattern introduced in `vercel.json` buildCommand for cold-start survival | `db8ec5c4` |
-| 2026-03-26 | `db-keepalive` cron every 3 min added after 24-hour auto-suspend outage | `93fb0cd9` |
+| 2026-03-26 | `db-keepalive` cron added after 24-hour auto-suspend outage. Initially `*/3 * * * *`; subsequently relaxed to `*/15 * * * *` to fit within Vercel Hobby cron limits while still beating the 5-minute idle suspend window comfortably (compute burn ~5× lower). | `93fb0cd9` |
 | 2026-04-17 | Phase 0–5 production hardening — Phase 1 storage cleanup (250→215 MB), SyncState + Archive models, `lib/prisma-http.ts` built (adoption deferred) | multiple |
 | 2026-04-19 | First observed compute-quota silent-drift incident: `email_opt_out` migration rejected, build proceeded | `94b4808f` / `9032ab61` |
 | 2026-04-20 | Schema-dependent code reverted; smart migration runner attempted then reverted; `prisma migrate deploy` removed from buildCommand entirely (aligns with `docs/DEPLOYMENT.md`); `/api/health` returned to zero-DB form; this file created | `3e73af9c`, (current) |
 | 2026-04-28 | PR #75 — Neon shed (slim raw_data on Trestle imports); production backfill cut listings table from 270 MB to 173 MB and total DB from 293 MB to 196 MB (39.2% of cap) | `d39906fb` + (#76) |
 | 2026-04-28 | PR #80 — daily `neon-branch-prune` cron at 04:00 UTC + `lib/neon/branches.ts`, `scripts/neon-prune-branches.ts`, NEON.md §11 to keep the Neon-Vercel preview-branch integration under the free-tier 10-branch cap (root-cause fix for "Neon branching: Branch limit exceeded" check failures on preview deploys) | `2ebb6dbf` |
-| 2026-04-28 | Post-PR-#80 Codex review hardening — `scripts/neon-prune-branches.ts` now validates `--hours` is a positive finite number before passing to `pruneBranches` (prevents `Number("24h") === NaN` from making every branch look prunable on `--execute`); `app/api/cron/neon-branch-prune/route.ts` now returns HTTP 500 when `pruneBranches` reports per-branch DELETE failures, so Vercel Cron flags the run as failed instead of letting stale branches accumulate silently. Plus `memory/SESSION-2026-04-28-allnighter.md` captures the full operational sequence + numbers for future-session reference. | (current) |
+| 2026-04-28 | Post-PR-#80 Codex review hardening — `scripts/neon-prune-branches.ts` now validates `--hours` is a positive finite number before passing to `pruneBranches` (prevents `Number("24h") === NaN` from making every branch look prunable on `--execute`); `app/api/cron/neon-branch-prune/route.ts` now returns HTTP 500 when `pruneBranches` reports per-branch DELETE failures, so Vercel Cron flags the run as failed instead of letting stale branches accumulate silently. Plus `memory/SESSION-2026-04-28-allnighter.md` captures the full operational sequence + numbers for future-session reference. | `dc79b5be` (#81) |
+| 2026-04-28 | Doc-drift cleanup pass — corrected stale `*/3` `db-keepalive` references to `*/15`, removed three references to deleted `lib/prisma-http.ts`, replaced §8 deferred-workstreams content with current status (A superseded, B dropped, JSON-drop work moved to a dedicated plan), refreshed last-updated header. New planning doc `memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md` captures the remaining JSON-column drops on `Listing` (the largest unrealized storage lever, ~115 MB recoverable). | (current) |
 
 ---
 
