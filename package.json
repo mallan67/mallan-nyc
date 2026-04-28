@@ -73,6 +73,8 @@
         "ops:neon-audit": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-storage-audit.ts",
         "ops:neon-shed": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-shed-raw-data.ts",
         "ops:neon-shed:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-shed-raw-data.ts --execute",
+        "ops:neon-prune": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-prune-branches.ts",
+        "ops:neon-prune:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-prune-branches.ts --execute",
         "validate:form-rls": "node scripts/validate-form-rls.js",
         "test:compliance": "npx jest --config lib/compliance/jest.config.js",
         "geo:fetch-names": "node scripts/fetch-rls-neighborhoods.js",
