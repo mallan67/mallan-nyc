@@ -11,7 +11,7 @@ The file `NEON.md` at the repo root is the **single source of truth** for Neon /
 - Writing a migration under `prisma/migrations/`
 - Running `prisma migrate deploy` / `prisma db push`
 - Modifying `vercel.json`'s `buildCommand` or crons touching DB
-- Touching `scripts/vercel-migrate-deploy.js`, `lib/prisma.ts`, or `lib/prisma-http.ts`
+- Touching `scripts/vercel-migrate-deploy.js` or `lib/prisma.ts`
 - Removing or changing the `db-keepalive` cron
 - Any code that adds a column, FK, index, or table
 - Discussions about upgrading the Neon plan
@@ -177,7 +177,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 > - **Database** — PostgreSQL on Neon (Prisma ORM, 60 models)
 > - **Outlook integration** — Microsoft Graph OAuth for email scanning (StreetEasy lead import, folder browser)
 > - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
-> - **Cron** — 19 scheduled jobs via `vercel.json`: db-keepalive (*/3), data-retention (daily 3am), dom-reset (daily 6am), idx-sync (*/12), media-backfill (*/8), listing-expiration (daily 7am), search-alerts (daily 7:30am), tenant-nurture (daily 8:30am), prospect-triggers (daily 9am), seller-scoring (daily 8am), demand-signals (daily 10am), intent-profiles (daily 11am), agent-metrics (weekly Mon), lead-scoring (daily 1pm), conviction-scores (daily 2pm), listing-momentum (daily 3pm), social-proof (daily 4pm), experiment-metrics (weekly Sun), market-snapshots (monthly 1st).
+> - **Cron** — 19 scheduled jobs via `vercel.json`: db-keepalive (*/15), data-retention (daily 3am), dom-reset (daily 6am), idx-sync (*/12), media-backfill (*/8), listing-expiration (daily 7am), search-alerts (daily 7:30am), tenant-nurture (daily 8:30am), prospect-triggers (daily 9am), seller-scoring (daily 8am), demand-signals (daily 10am), intent-profiles (daily 11am), agent-metrics (weekly Mon), lead-scoring (daily 1pm), conviction-scores (daily 2pm), listing-momentum (daily 3pm), social-proof (daily 4pm), experiment-metrics (weekly Sun), market-snapshots (monthly 1st), neon-branch-prune (daily 04:00 UTC).
 >
 > **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure). Per-role TTL: Broker 24h, Agent 8h, Client 30d. Bearer fully removed.
 >
@@ -468,7 +468,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 All deployments and CI/CD workflows must maintain compliance with the above standards.
 
-**Cron jobs (vercel.json):** 7 scheduled tasks — db-keepalive (every 3min), data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 12min), media backfill (every 8min), listing expiration (daily 7am), search alerts (daily 7:30am) + 11 more scheduled. 19 cron route handlers total.
+**Cron jobs (vercel.json):** 19 scheduled tasks — db-keepalive (every 15min), data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 12min), media backfill (every 8min), listing expiration (daily 7am), search alerts (daily 7:30am), neon-branch-prune (daily 04:00 UTC) + 11 more scheduled. 19 cron route handlers total.
 
 **Validation (CI):** `npm run ci` runs: lint → type-check → compliance-check → **idx:validate (32-section validator)** → build. The IDX Plus Validator (`scripts/idx-validate.js`) blocks builds on critical issues. Results saved to `public/crm/data/validator-results.json` for the CRM System Health dashboard. Run history stored in `.idx-validate/history.json`.
 

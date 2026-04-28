@@ -130,6 +130,14 @@ git worktree prune
 
 Was originally gated on "PR 10 merged + ≥1 week prod stability." PR 10 just merged tonight; the week starts the clock now. So earliest start is ~2026-05-05. Not urgent — current Prisma 6.19 has no known issues.
 
+### Option E — Drop the five remaining legacy JSON columns on `Listing` (largest unrealized storage lever)
+
+Master refactor plan PR 10 was **intended** to drop `address`, `features`, `media`, `compliance`, `agent_info` JSON columns alongside the `raw_data` slim writer, but only the `raw_data` work shipped as PR #75/#76. The other five columns are still on the table — together they account for roughly 115 MB of the listings table's current 195 MB. Dropping them on the discipline plan brings the listings table to ~80 MB and the total DB to ~20% of cap.
+
+Dedicated plan: [`memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md`](PLAN-LEGACY-JSON-DROP-2026-04-28.md). It walks through column-by-column phases (A audit / B reader migration / C stop write / D drop), in order from lowest blast radius (`agent_info`, ~20 readers) to highest (`media`, gated on 30 days of R2 health). Spans ~20 PRs over 2–6 weeks; intentionally slow.
+
+Not urgent (DB is at 43% with multi-month runway), but this is the single biggest open Neon item and the master plan understated it as "complete." Pick this up after the SMS-reset brainstorm or after the intelligence-platform planning round, whichever lands first.
+
 ---
 
 ## Will Neon stay in the free range?
