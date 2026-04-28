@@ -123,6 +123,9 @@ jobs:
       - name: UCBA compliance audit
         run: npm run ucba:audit
 
+      - name: CRM tests
+        run: npm run crm:test
+
       - name: Form-to-RLS field mapping validation
         run: npm run validate:form-rls
 
