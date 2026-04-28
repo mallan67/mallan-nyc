@@ -294,6 +294,31 @@ export async function POST(req: NextRequest) {
         rls_eligible: rlsEligible,
         commercial_sub_type: (body.commercial_sub_type as string) ?? null,
         commercial_ownership: (body.commercial_ownership as string) ?? null,
+        // Auction (UCBA Art. I exception) — mallan-internal columns,
+        // not in persistenceMap. Coerce body values to typed columns so the
+        // AuctionBanner + DTO can read from `auction_*` columns directly
+        // instead of falling back to raw_data JSON. Validator AU-001..AU-005
+        // already enforced auction_type + auction_end_date when auction_yn=true.
+        auction_yn:
+          body.auction_yn === true || body.auction_yn === "true"
+            ? true
+            : body.auction_yn === false || body.auction_yn === "false"
+              ? false
+              : null,
+        auction_type: typeof body.auction_type === "string" && body.auction_type.length > 0
+          ? body.auction_type
+          : null,
+        auction_start_date:
+          typeof body.auction_start_date === "string" && body.auction_start_date.length > 0
+            ? new Date(body.auction_start_date)
+            : null,
+        auction_end_date:
+          typeof body.auction_end_date === "string" && body.auction_end_date.length > 0
+            ? new Date(body.auction_end_date)
+            : null,
+        auction_terms_url: typeof body.auction_terms_url === "string" && body.auction_terms_url.length > 0
+          ? body.auction_terms_url
+          : null,
         // Distribution gates from persistenceMap
         idx_display_yn: rlsEligible ? (persistence.topLevel.idx_display_yn !== false) : false,
         internet_entire_listing_display_yn: persistence.topLevel.internet_entire_listing_display_yn !== false,

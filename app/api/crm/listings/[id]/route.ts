@@ -157,6 +157,43 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.IDXEntireListingDisplayYN !== undefined) update.idx_display_yn = body.IDXEntireListingDisplayYN !== false;
   if (body.InternetEntireListingDisplayYN !== undefined) update.internet_entire_listing_display_yn = body.InternetEntireListingDisplayYN !== false;
   if (body.InternetAddressDisplayYN !== undefined) update.internet_address_display_yn = body.InternetAddressDisplayYN !== false;
+  // Auction (UCBA Art. I exception) — same direct-write pattern as POST.
+  // Form sends auction_yn / auction_type / auction_start_date / auction_end_date / auction_terms_url
+  // post-validator. AuctionBanner reads from these columns; without this
+  // mapping the data would land in raw_data only and the banner would never
+  // render even when the validator gates green.
+  if (body.auction_yn !== undefined) {
+    update.auction_yn =
+      body.auction_yn === true || body.auction_yn === "true"
+        ? true
+        : body.auction_yn === false || body.auction_yn === "false"
+          ? false
+          : null;
+  }
+  if (body.auction_type !== undefined) {
+    update.auction_type =
+      typeof body.auction_type === "string" && body.auction_type.length > 0
+        ? body.auction_type
+        : null;
+  }
+  if (body.auction_start_date !== undefined) {
+    update.auction_start_date =
+      typeof body.auction_start_date === "string" && body.auction_start_date.length > 0
+        ? new Date(body.auction_start_date)
+        : null;
+  }
+  if (body.auction_end_date !== undefined) {
+    update.auction_end_date =
+      typeof body.auction_end_date === "string" && body.auction_end_date.length > 0
+        ? new Date(body.auction_end_date)
+        : null;
+  }
+  if (body.auction_terms_url !== undefined) {
+    update.auction_terms_url =
+      typeof body.auction_terms_url === "string" && body.auction_terms_url.length > 0
+        ? body.auction_terms_url
+        : null;
+  }
   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
   // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
   if (body.Permissions !== undefined) {
