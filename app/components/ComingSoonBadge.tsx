@@ -11,6 +11,17 @@ export function isComingSoonStatus(status: string | null | undefined): boolean {
   return s === 'comingsoon';
 }
 
+// RESO date-only fields arrive as "YYYY-MM-DD". `new Date("2026-05-01")` parses
+// as UTC midnight, so toLocaleDateString shifts to the prior calendar day in
+// US timezones west of UTC — that misstates the compliance-facing "until [date]"
+// copy. Construct in local time when the input is date-only; trust JS for full
+// ISO timestamps (those carry their own offset). Exported for test coverage.
+export function parseRESODateLocal(input: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.trim());
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(input);
+}
+
 interface ComingSoonBadgeProps {
   status?: string | null;
   comingSoonDate?: string | null;
@@ -33,7 +44,7 @@ export function ComingSoonBadge({
   if (!isComingSoonStatus(status)) return null;
   const csDate = comingSoonDate || activationDate;
   const formatted = csDate
-    ? new Date(csDate).toLocaleDateString('en-US', {
+    ? parseRESODateLocal(csDate).toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
