@@ -112,18 +112,40 @@ function run() {
   const { window } = dom;
   // Some validators reach for symbols that the real form provides at top
   // level. Stub the harmless ones so script execution doesn't throw.
-  window.SALE_REQUIRED_FIELDS = window.SALE_REQUIRED_FIELDS || [];
-  window.REBNY_ACTIVE_STATUSES = window.REBNY_ACTIVE_STATUSES || ['Active', 'ComingSoon', 'BackOnMarket'];
-  window.isFieldRelevant = window.isFieldRelevant || (() => true);
-  window.isStatusRelevant = window.isStatusRelevant || (() => true);
-  window.fieldHasValue = window.fieldHasValue || (() => true);
-  window.updateSaleValidationSummary = window.updateSaleValidationSummary || (() => {});
-  window.updateSaleStatusFields = window.updateSaleStatusFields || (() => {});
-  window.handleSaleComingSoon = window.handleSaleComingSoon || (() => {});
-  window.updateStatusTracking = window.updateStatusTracking || (() => {});
-  window.getBuildingTypeMapping = window.getBuildingTypeMapping || (() => 'None');
-  window.showSaleMainTab = window.showSaleMainTab || (() => {});
-  window.showRentalMainTab = window.showRentalMainTab || (() => {});
+  //
+  // BUT: any pre-seeded stub also satisfies a downstream assertion like
+  // `typeof window.handleSaleComingSoon === 'function'`, masking regressions
+  // where a validator file stops attaching the symbol. Capture each stub
+  // reference into STUBS so post-load assertions can verify the symbol was
+  // REPLACED (window[name] !== STUBS[name]), not just "still a function".
+  const STUBS = {};
+  function stub(name, value) {
+    STUBS[name] = value;
+    window[name] = value;
+  }
+  stub('SALE_REQUIRED_FIELDS', []);
+  stub('REBNY_ACTIVE_STATUSES', ['Active', 'ComingSoon', 'BackOnMarket']);
+  stub('isFieldRelevant', () => true);
+  stub('isStatusRelevant', () => true);
+  stub('fieldHasValue', () => true);
+  stub('updateSaleValidationSummary', () => {});
+  stub('updateSaleStatusFields', () => {});
+  stub('handleSaleComingSoon', () => {});
+  stub('updateStatusTracking', () => {});
+  stub('getBuildingTypeMapping', () => 'None');
+  stub('showSaleMainTab', () => {});
+  stub('showRentalMainTab', () => {});
+
+  // True iff a symbol is present on window AND, if we pre-stubbed it, the
+  // current value is no longer the stub reference. Used by post-load
+  // assertions that need to detect "validator file replaced this" vs
+  // "validator file silently dropped it and the stub is still here".
+  function isAttachedAndReplaced(name, expectedType) {
+    const val = window[name];
+    if (typeof val !== expectedType) return false;
+    if (name in STUBS && val === STUBS[name]) return false; // still the test stub
+    return true;
+  }
 
   // ── Inject validators in the same order forms load them ─────────────
   // Each file gets a per-file prefix on window so we can target the
@@ -229,9 +251,24 @@ function run() {
   // ── 22: date + listing validators (no IIFE) ─────────────────────────
   // 22 exposes window.validateStatusChange / window.validateSalesListing /
   // window.handleSaleComingSoon directly (no `__crmTest_` prefix needed).
-  // Verify the live-DOM listings.
+  // Verify the live-DOM listings — using isAttachedAndReplaced() so a
+  // pre-seeded stub does NOT satisfy the assertion (would otherwise let
+  // a regression where 22 silently stops attaching `handleSaleComingSoon`
+  // pass green).
   for (const w of ['validateStatusChange', 'handleSaleComingSoon', 'handleSaleListingTypeChange', 'handleRentalListingTypeChange']) {
-    assert(results, `22:window.${w} attached`, typeof window[w] === 'function', `window.${w} not a function`);
+    const ok = isAttachedAndReplaced(w, 'function');
+    const stubsHave = w in STUBS;
+    const stillStub = stubsHave && window[w] === STUBS[w];
+    assert(
+      results,
+      `22:window.${w} attached`,
+      ok,
+      typeof window[w] !== 'function'
+        ? `window.${w} not a function`
+        : stillStub
+          ? `window.${w} is still the test stub — file 22 did not attach it`
+          : `window.${w} unexpected state`
+    );
   }
 
   try {
