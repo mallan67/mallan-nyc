@@ -167,3 +167,55 @@ describe('dbListingToPublicDTO — auction surface (DB path)', () => {
     expect(auction!.termsUrl).toBe('https://example.com/terms.pdf');
   });
 });
+
+describe('buildAuctionPublic — terms URL scheme safety (XSS defence)', () => {
+  // The DTO must NEVER pass a non-http(s) URL through to termsUrl. The
+  // listing detail page renders termsUrl as <a href> — a `javascript:`
+  // value would otherwise become a clickable XSS vector for every visitor.
+  // AU-006 (validator) is the primary gate; this is the second layer.
+
+  type AuctionShape = { termsUrl: string | null } | null;
+
+  function buildAuctionDb(termsUrl: unknown) {
+    return buildDb({
+      auction_yn: true,
+      auction_type: 'Absolute',
+      auction_end_date: '2026-06-15T17:00:00.000Z',
+      auction_terms_url: termsUrl,
+    } as unknown as Partial<DbListing>);
+  }
+
+  for (const unsafe of [
+    'javascript:alert(1)',
+    'JAVASCRIPT:alert(1)',
+    '   javascript:alert(1)   ',
+    'data:text/html,<script>alert(1)</script>',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd',
+    'about:blank',
+    '/relative/path',
+    'example.com/terms.pdf',
+    'mailto:agent@mallan.nyc',
+  ]) {
+    it(`yields termsUrl=null for unsafe input: ${unsafe.slice(0, 40)}`, () => {
+      const dto = dbListingToPublicDTO(buildAuctionDb(unsafe));
+      const auction = (dto as { auction: AuctionShape }).auction;
+      expect(auction).not.toBeNull();
+      expect(auction!.termsUrl).toBeNull();
+    });
+  }
+
+  for (const safe of [
+    'http://example.com/terms.pdf',
+    'https://example.com/terms.pdf',
+    'HTTPS://EXAMPLE.COM/TERMS.PDF',
+    '  https://example.com/terms.pdf  ',
+  ]) {
+    it(`preserves safe http(s) URL: ${safe.slice(0, 40)}`, () => {
+      const dto = dbListingToPublicDTO(buildAuctionDb(safe));
+      const auction = (dto as { auction: AuctionShape }).auction;
+      expect(auction).not.toBeNull();
+      expect(auction!.termsUrl).toBe(safe.trim());
+    });
+  }
+});

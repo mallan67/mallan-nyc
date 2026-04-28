@@ -744,6 +744,28 @@ export function assertRlsCompliantPayload(
           "buyer's premium). Recommended by UCBA Art. I auction-exception path.",
         ucbaRef: "UCBA Art. I — auction exception",
       });
+    } else if (typeof auctionTermsUrl === "string") {
+      // Block unsafe URL schemes — the public listing page renders this
+      // value as <a href>. Without this gate a `javascript:` (or `data:` /
+      // `vbscript:` / etc.) URL would become a clickable XSS vector on
+      // every visitor's browser.
+      let scheme = "";
+      try {
+        scheme = new URL(auctionTermsUrl.trim()).protocol.toLowerCase();
+      } catch {
+        scheme = "";
+      }
+      if (scheme !== "http:" && scheme !== "https:") {
+        blockers.push({
+          code: "AU-006",
+          severity: "BLOCKER",
+          field: "auction_terms_url",
+          message:
+            `auction_terms_url must be an absolute http(s):// URL. ` +
+            `Got: ${JSON.stringify(auctionTermsUrl)}.`,
+          ucbaRef: "UCBA Art. I — auction exception",
+        });
+      }
     }
   } else if (auctionYn !== undefined && auctionYn !== null && auctionYn !== false && auctionYn !== "false" && auctionYn !== "False") {
     // Defensive: non-boolean garbage value provided. Block.

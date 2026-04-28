@@ -626,6 +626,58 @@ describe('assertRlsCompliantPayload', () => {
       expect(result.passed).toBe(true);
       expect(result.blockers).toHaveLength(0);
     });
+
+    // ── AU-006: terms URL must be http(s) (XSS defence) ─────────────────
+    // Auction listings render `auction_terms_url` as <a href> on the
+    // public listing page. Without this gate a `javascript:` (or `data:`,
+    // `vbscript:`, etc.) URL would become a clickable XSS vector for
+    // every visitor.
+
+    for (const unsafe of [
+      'javascript:alert(1)',
+      'JAVASCRIPT:alert(1)',
+      '   javascript:alert(1)   ',
+      'data:text/html,<script>alert(1)</script>',
+      'vbscript:msgbox(1)',
+      'file:///etc/passwd',
+      'about:blank',
+      '/relative/path',
+      'example.com/terms.pdf',
+      'mailto:agent@mallan.nyc',
+    ]) {
+      it(`blocks unsafe auction_terms_url scheme via AU-006: ${unsafe.slice(0, 40)}`, () => {
+        const payload = buildValidPayload({
+          auction_yn: true,
+          auction_type: 'Absolute',
+          auction_end_date: '2026-06-15T18:00:00Z',
+          auction_terms_url: unsafe,
+        });
+        const result = assertRlsCompliantPayload(payload, saleCtx);
+
+        expect(result.passed).toBe(false);
+        expect(result.blockers.some(b => b.code === 'AU-006')).toBe(true);
+      });
+    }
+
+    for (const safe of [
+      'http://example.com/terms.pdf',
+      'https://example.com/terms.pdf',
+      'HTTPS://EXAMPLE.COM/TERMS.PDF',
+      '  https://example.com/terms.pdf  ',
+    ]) {
+      it(`allows safe http(s) auction_terms_url: ${safe.slice(0, 40)}`, () => {
+        const payload = buildValidPayload({
+          auction_yn: true,
+          auction_type: 'Absolute',
+          auction_end_date: '2026-06-15T18:00:00Z',
+          auction_terms_url: safe,
+        });
+        const result = assertRlsCompliantPayload(payload, saleCtx);
+
+        expect(result.passed).toBe(true);
+        expect(result.blockers.some(b => b.code === 'AU-006')).toBe(false);
+      });
+    }
   });
 });
 

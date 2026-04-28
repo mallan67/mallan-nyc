@@ -105,13 +105,31 @@ export function buildAuctionPublic(source: unknown): AuctionPublic | null {
   // still defensively return null if either is missing so the banner won't
   // render half-information ("auction! …no end date").
   if (!type || !endDate) return null;
-  const termsUrlRaw = s.auction_terms_url;
   return {
     type,
     startDate: toIsoOrNull(s.auction_start_date),
     endDate,
-    termsUrl: typeof termsUrlRaw === 'string' && termsUrlRaw.length > 0 ? termsUrlRaw : null,
+    termsUrl: safeHttpUrl(s.auction_terms_url),
   };
+}
+
+/**
+ * Return the input only when it parses as an absolute http(s):// URL.
+ * Anything else — `javascript:`, `data:`, relative paths, garbage — yields
+ * null. The validator's AU-006 blocker rejects unsafe schemes at submit
+ * time; this is the second layer (defence-in-depth) for any row that
+ * pre-dates AU-006 or arrives via a path that bypasses the validator.
+ */
+function safeHttpUrl(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  try {
+    const protocol = new URL(trimmed).protocol.toLowerCase();
+    return protocol === 'http:' || protocol === 'https:' ? trimmed : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
