@@ -52,8 +52,8 @@ export async function GET(req: NextRequest) {
       retentionHours: 24,
       execute: true,
     });
-    return NextResponse.json({
-      ok: true,
+    const body = {
+      ok: result.errors.length === 0,
       examined: result.examined,
       pruned: result.pruned.length,
       pruned_branches: result.pruned.map((b) => b.name),
@@ -64,7 +64,21 @@ export async function GET(req: NextRequest) {
       },
       errors: result.errors,
       ts: new Date().toISOString(),
-    });
+    };
+    if (result.errors.length > 0) {
+      // Per-branch DELETE failures are surfaced as a 500 so Vercel's
+      // cron logs flag the run as failed and an operator notices. A
+      // 200 here would let stale branches accumulate silently and
+      // defeat the whole point of the cron — `pruneBranches` already
+      // collected the per-branch errors instead of aborting, so the
+      // body still contains the partial-success details for triage.
+      console.error(
+        `[neon-branch-prune] ${result.errors.length} delete(s) failed:`,
+        result.errors.map((e) => `${e.name}: ${e.message}`).join("; ")
+      );
+      return NextResponse.json(body, { status: 500 });
+    }
+    return NextResponse.json(body);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown";
     console.error("[neon-branch-prune] Failed:", msg);

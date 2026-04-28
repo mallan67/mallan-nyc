@@ -8,6 +8,61 @@
 > silent-drift incident. Skipping it is how that incident happened.
 
 
+## ROUND 5 — NEON STORAGE + OPS HARDENING — 2026-04-28
+
+**Verdict:** PASS — 11 PRs shipped (#71–#81); gates clean (type-check 0 errors, lint 0 warnings, 194/194 compliance tests, UCBA 46 PASS / 0 regressions, ops:health HEALTHY at 43% of 500 MB cap).
+
+**Context:** Master plan PR 10 (`memory/REFACTOR-2026-04-25.md`) called for Neon storage shedding. The rollout produced six follow-on bugs in ops tooling, three CI infrastructure gaps, two open feature PRs (Workstream C C3c + C4c), and a Codex review on the cron that demanded one more pass — all addressed in a single overnight session and recorded in `memory/SESSION-2026-04-28-allnighter.md`. Storage went from 58.6 % of free-tier cap → 39.2 % at backfill close (43 % current with normal day's growth).
+
+**11 items shipped:**
+
+**Storage architecture (master plan PR 10 + harden):**
+- `lib/compliance/raw-data-keep-fields.ts` — 110-field keep set + `slimRawData()` slimmer + `projectShedSavings()` audit helper (now byte-exact match with full-scan dry-run; previously summed only per-value JSON length and undercounted by 50–65 % on real Trestle rows). Regression test pins `keptBytes + droppedBytes === JSON.stringify(input).length`.
+- `lib/idx/trestle-mapper.ts` — slim writer wraps `stripPrivateFields()` so all programmatic Trestle write paths (`lib/idx/sync.ts` main loop + `syncAgentHistory`, `app/api/cron/feed-reconcile`, `app/api/crm/listings/reset-sync`) inherit the slim from the single mapper function. Mallan-CRM-created listings (POST `/api/crm/listings`) preserved unchanged.
+- `scripts/neon-shed-raw-data.ts` — one-shot backfill. Final form uses single bulk `UPDATE listings AS l SET raw_data = v.new_data FROM (VALUES ...) AS v(id, new_data) WHERE l.id = v.id` per 500-row batch (~50× faster than the original sequential per-row updates). `withRetry` wrapper around every Prisma call so Neon serverless cold-start doesn't abort the run.
+- `scripts/neon-storage-audit.ts` — read-only audit. Same retry helper. Fixed under-projection bug.
+- Production backfill executed live during the session: 19,371 rows slimmed, 103 MB raw_data dropped; `VACUUM (FULL, ANALYZE) listings` reclaimed dead-tuple space in 5.7 s; listings table 270 → 173 MB; total DB 293 → 196 MB.
+
+**Operational tooling reliability:**
+- `scripts/neon-precommit-guard.js` — token check now gated on `GIT_COMMIT_MSG_FILE` env var (set only by commit-msg hook). Pre-commit phase no longer reads `.git/COMMIT_EDITMSG` (which holds the *previous* commit's message and was falsely rejecting legitimate commits that followed one whose message lacked the token).
+- `package.json` — `tsx@^4.21.0` pinned in devDependencies (the merged PR #75 wired `node --import tsx` but never installed tsx); ops scripts switched to `--env-file-if-exists=.env.local --env-file-if-exists=.env` so missing files don't hard-fail; new `ops:neon-prune` / `:execute` npm scripts.
+- `scripts/ops-health.js` — explicit preflight check exits 2 with a clear `DATABASE_URL not set` message instead of crashing inside Prisma.
+
+**CI infrastructure hardening:**
+- `.github/workflows/auto-retry-runner-flake.yml` (new) — `workflow_run` listener for `Live Site Smoke (cron)`. Detects "no runner acquired" failures via the zero-failed-steps signature and reruns once. Real test failures are left to notify a human. Bounded to one auto-retry per run via `run_attempt < 2`. Classifier fails closed on API errors (post-Codex review) so a transient `gh api` outage cannot be misread as a flake.
+- `.github/workflows/trestle-live-audit.yml` — pre-flight "Verify Trestle secrets are configured" step + idempotent `gh label create` for `trestle-drift` and `compliance` labels. Fixes the cascade where the daily audit failed (because `IDX_CLIENT_ID`/`IDX_CLIENT_SECRET` were never set on GitHub Actions secrets) → tried to open a tracking issue → failed because the `compliance` label didn't exist → workflow exited 1 → daily false-alarm email.
+
+**Neon-Vercel preview branching (root cause of "Branch limit exceeded"):**
+- `lib/neon/branches.ts` (new) — pure helpers: `listBranches`, `deleteBranch`, `isPrunable`, `pruneBranches`. Talks to `console.neon.tech/api/v2`. Never touches `primary` or `protected` branches.
+- `scripts/neon-prune-branches.ts` (new) — `npm run ops:neon-prune` (dry-run default) / `:execute`. `--hours=N` validated as positive finite number (Codex follow-up — pre-fix, `Number("24h") === NaN` would have made every branch look prunable on `--execute`).
+- `app/api/cron/neon-branch-prune/route.ts` (new) — daily 04:00 UTC. Returns HTTP 500 on partial-failure (per-branch DELETE errors) so Vercel cron logs flag the run as failed instead of letting stale branches accumulate (Codex follow-up).
+- `vercel.json` — new cron schedule.
+- `NEON.md` §11 — new architecture section: what the integration does, why the free-tier collision happens, why we keep the integration with automated cleanup rather than removing it, required Vercel env vars, future-operator guard against re-enabling preview branching without retention.
+- Manual one-time cleanup: 14+ accumulated stale preview branches swept down to just `main` (1 of 10 cap).
+
+**Workstream C closeout (UCBA 2026 compliance gaps):**
+- PR #74 — C3c auction form sub-section + listing banner UI (UCBA Art. I auction-listing display).
+- PR #73 — C4c broker ethics admin panel + dev-login catch (UCBA Art. III §6 ethics-training renewal). Codex review on `app/api/crm/agents/[id]/ethics-training/route.ts` flagged 4 real bugs (null/non-object body TypeError, partial-PATCH ordering bypass against persisted state, missing 404 handling, body-type guard) — all fixed at root with 3 new regression tests. Workstream C now 4/4 complete.
+
+**Documentation + handoff artifacts:**
+- `memory/SESSION-2026-04-28-allnighter.md` (new) — full session log: outcome metrics, every PR with merge SHA, the live operational backfill sequence step-by-step (incl. why we killed the first execute), required pending operator actions, file-level deltas worth knowing for future sessions.
+- `README.md` §Recent Work — one-paragraph 2026-04-28 entry summarizing all 10 PRs with one-sentence rationale each.
+- `NEON.md` §10 Change log — PR #75 (slim writer + backfill) and PR #80 (branch-prune cron) entries with merged SHAs; Codex-review-hardening entry covers the post-#80 pass.
+- `compliance/UPDATES.md` — April 2026 row capturing today's session as a compliance-affecting change to data lifecycle, ops tooling, and CI infrastructure.
+
+**Required pending operator actions (credential operations the agent permission system blocks):**
+- Set `NEON_API_KEY` + `NEON_PROJECT_ID` on Vercel **Production** environment (cron exits 200 with `skipped: true` until set).
+- Add `IDX_CLIENT_ID` + `IDX_CLIENT_SECRET` to **GitHub Actions secrets** (separate from Vercel env — these power the `Trestle live audit` cron at 13:30 UTC daily). Until added, the audit logs the new graceful-skip warning instead of running for real.
+
+**Storage runway forecast (post-session):**
+- Current: 216 MB / 500 MB (43.3 %)
+- Slim-writer steady-state: ~0.5–1 MB/day net growth (was ~3 MB/day pre-shed)
+- Time to 80 % cap warning line (400 MB): ~6 months
+- Time to 100 % cap (500 MB hard): ~9 months
+- Earliest other phase-6 trigger: `audit_events` partition at 10 M rows (currently 13 K). Months away.
+
+---
+
 ## ROUND 4 — WAVE 1 COMPLIANCE RELEASE — 2026-04-19
 **Verdict:** PASS — 13 items shipped; gates clean (type-check 0 errors, ci-compliance-check 58/58 PASS, UCBA 42/46 PASS 0 regressions, RLS validator 0 errors).
 

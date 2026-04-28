@@ -39,9 +39,21 @@ import { pruneBranches } from "@/lib/neon/branches";
 
 const args = process.argv.slice(2);
 const EXECUTE = args.includes("--execute");
-const HOURS = Number(
-  args.find((a) => a.startsWith("--hours="))?.split("=")[1] ?? 24
-);
+const hoursArg = args.find((a) => a.startsWith("--hours="))?.split("=")[1];
+const HOURS = hoursArg !== undefined ? Number(hoursArg) : 24;
+
+// Reject non-finite or non-positive --hours values so a CLI typo like
+// `--hours=24h` (Number("24h") === NaN) cannot reach pruneBranches.
+// In isPrunable, `ageHours < NaN` is always false — meaning every
+// non-primary/non-protected branch would be marked prunable, and a
+// follow-up `--execute` would mass-delete active branches by accident.
+if (!Number.isFinite(HOURS) || HOURS <= 0) {
+  console.error(
+    `[neon-prune-branches] --hours must be a positive finite number; got: ${JSON.stringify(hoursArg)}`
+  );
+  console.error(`  example: --hours=24    --hours=12.5    --hours=48`);
+  process.exit(2);
+}
 
 if (!process.env.NEON_API_KEY || !process.env.NEON_PROJECT_ID) {
   console.error(
