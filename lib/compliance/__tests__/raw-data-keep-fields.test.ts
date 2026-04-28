@@ -191,4 +191,29 @@ describe('projectShedSavings', () => {
     expect(r.droppedFields).not.toContain('ListPrice');
     expect(r.droppedFields).not.toContain('PublicRemarks');
   });
+
+  it('reports keptBytes + droppedBytes equal to JSON.stringify(input).length', () => {
+    // Regression pin for the 2026-04-28 audit-vs-dry-run discrepancy:
+    // the prior implementation summed only `JSON.stringify(value).length`
+    // per field, omitting the "key":, quotes, and comma overhead. On real
+    // Trestle rows the audit projected ~22% of actual savings (sample
+    // returned 23 MB; full-scan dry-run found 103 MB). The fix forces
+    // projectShedSavings to compute keptBytes from the full slimmed JSON
+    // and droppedBytes as the difference, so audit projections match the
+    // dry-run script byte-for-byte.
+    const input = {
+      ListPrice: 1000000,
+      PublicRemarks: 'A spacious one-bedroom with sun.',
+      AccessibilityFeatures: 'Wheelchair Ramp, Grab Bars',
+      WaterSource: 'Public',
+      TaxLot: '0042',
+    };
+    const r = projectShedSavings(input);
+    const beforeBytes = JSON.stringify(input).length;
+    expect(r.keptBytes + r.droppedBytes).toBe(beforeBytes);
+
+    // Slim semantic match: keptBytes must equal what slimRawData produces.
+    const slimmedBytes = JSON.stringify(slimRawData(input)).length;
+    expect(r.keptBytes).toBe(slimmedBytes);
+  });
 });

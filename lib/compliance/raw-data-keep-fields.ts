@@ -1,10 +1,14 @@
 /**
  * raw_data keep-field set (PR 10 — Neon shedding).
  *
- * Trestle's IDX Plus feed dumps ~1,457 Property fields per row into
- * Listing.raw_data. Most of those fields are not read by any consumer in
- * this codebase, but they accumulate to ~14 KB per row × 19K+ rows ≈ 268
- * MB on the listings table — the dominant chunk of Neon storage.
+ * Trestle's IDX Plus feed exposes ~1,457 Property fields per row, but the
+ * subset actually populated on a given listing is ~50-60. Even at that
+ * lower density, raw_data averaged ~9.3 KB / row across 19K+ Trestle rows
+ * (~180 MB on the listings table) before this module shipped — the
+ * dominant chunk of Neon free-tier storage. After the 2026-04-28
+ * production backfill ran with this keep set (110 fields), the listings
+ * table dropped from 270 MB to 173 MB and total DB went from 293 MB to
+ * 196 MB (58.6% → 39.2% of cap). See PR #75 for verification numbers.
  *
  * This module is the single source of truth for which raw_data fields
  * MUST be preserved. Every key on this list is either:
@@ -237,7 +241,13 @@ export function slimRawData(
  * Diagnostic: count bytes that WOULD be dropped if `slimRawData` were
  * applied. Used by `scripts/neon-storage-audit.ts` to project savings.
  *
- * Approximates byte size as `JSON.stringify(value).length`.
+ * Sums match the actual on-disk delta `slimRawData` produces:
+ * `keptBytes` is exactly `JSON.stringify(slimRawData(input)).length` and
+ * `keptBytes + droppedBytes === JSON.stringify(input).length`. Earlier
+ * implementations summed only per-value `JSON.stringify(value).length`,
+ * which omitted key names, quotes, colons, and commas — that undercounted
+ * total raw_data size by 50-65% on real Trestle rows and made the audit
+ * project ~5x lower savings than the actual full-scan dry-run.
  */
 export function projectShedSavings(
   input: Record<string, unknown> | null | undefined
@@ -245,17 +255,13 @@ export function projectShedSavings(
   if (!input || typeof input !== 'object') {
     return { keptBytes: 0, droppedBytes: 0, droppedFields: [] };
   }
-  let keptBytes = 0;
-  let droppedBytes = 0;
+  const slimmed = slimRawData(input);
+  const beforeBytes = JSON.stringify(input).length;
+  const keptBytes = JSON.stringify(slimmed ?? {}).length;
+  const droppedBytes = beforeBytes - keptBytes;
   const droppedFields: string[] = [];
   for (const key of Object.keys(input)) {
-    const size = JSON.stringify(input[key] ?? null).length;
-    if (RAW_DATA_KEEP_SET.has(key)) {
-      keptBytes += size;
-    } else {
-      droppedBytes += size;
-      droppedFields.push(key);
-    }
+    if (!RAW_DATA_KEEP_SET.has(key)) droppedFields.push(key);
   }
   return { keptBytes, droppedBytes, droppedFields };
 }

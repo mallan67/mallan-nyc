@@ -57,6 +57,38 @@ interface RowSlim {
   raw_data: unknown;
 }
 
+/**
+ * Retry transient Prisma/Neon errors with exponential backoff. Neon
+ * serverless free-tier compute auto-suspends after inactivity; the first
+ * query after a quiet period can fail with `Can't reach database server`
+ * before the cold-start completes. Without this wrapper the entire
+ * backfill aborts on the first such hiccup.
+ */
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const transient =
+        msg.includes("Can't reach database server") ||
+        msg.includes('Connection terminated') ||
+        msg.includes('connection closed') ||
+        msg.includes('ECONNRESET') ||
+        msg.includes('ETIMEDOUT');
+      if (!transient || attempt === maxAttempts) throw e;
+      const waitMs = attempt * 2000;
+      console.warn(
+        `  [${label}] attempt ${attempt}/${maxAttempts} failed (${msg.split('\n')[0]}); ` +
+          `retrying in ${waitMs}ms`
+      );
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+  throw new Error('unreachable');
+}
+
 async function main() {
   const mode = EXECUTE ? 'EXECUTE' : 'AUDIT-ONLY';
   console.log(`\n[neon-shed-raw-data] mode=${mode} batch=${BATCH} limit=${LIMIT}\n`);
@@ -67,9 +99,9 @@ async function main() {
     );
   }
 
-  const totalEligible = await prisma.listing.count({
-    where: { last_synced_from_trestle: { not: null } },
-  });
+  const totalEligible = await withRetry('count', () =>
+    prisma.listing.count({ where: { last_synced_from_trestle: { not: null } } })
+  );
   console.log(
     `Trestle-imported listings (last_synced_from_trestle IS NOT NULL): ` +
       `${totalEligible.toLocaleString()}`
@@ -87,17 +119,25 @@ async function main() {
   while (processed < totalEligible && processed < LIMIT && batchNumber < MAX_BATCHES) {
     batchNumber += 1;
     const remaining = Math.min(BATCH, LIMIT - processed);
-    const rows: RowSlim[] = await prisma.$queryRaw`
-      SELECT id, raw_data
-      FROM listings
-      WHERE last_synced_from_trestle IS NOT NULL
-        AND raw_data IS NOT NULL
-        ${cursor !== null ? Prisma.sql`AND id > ${cursor}` : Prisma.empty}
-      ORDER BY id ASC
-      LIMIT ${remaining}
-    `;
+    const rows: RowSlim[] = await withRetry(
+      `select batch ${batchNumber}`,
+      () => prisma.$queryRaw`
+        SELECT id, raw_data
+        FROM listings
+        WHERE last_synced_from_trestle IS NOT NULL
+          AND raw_data IS NOT NULL
+          ${cursor !== null ? Prisma.sql`AND id > ${cursor}` : Prisma.empty}
+        ORDER BY id ASC
+        LIMIT ${remaining}
+      `
+    );
     if (rows.length === 0) break;
 
+    interface PendingUpdate {
+      id: bigint;
+      afterJson: string;
+    }
+    const pendingUpdates: PendingUpdate[] = [];
     for (const row of rows) {
       processed += 1;
       const before = row.raw_data as Record<string, unknown> | null;
@@ -113,19 +153,36 @@ async function main() {
         continue;
       }
       mutated += 1;
-      if (EXECUTE) {
-        await prisma.listing.update({
-          where: { id: row.id },
-          data: { raw_data: after as Prisma.InputJsonValue },
-        });
-      }
+      pendingUpdates.push({ id: row.id, afterJson });
+    }
+
+    if (EXECUTE && pendingUpdates.length > 0) {
+      // Single bulk UPDATE FROM VALUES — one network round-trip per batch.
+      // Sequential per-row updates were ~0.8 rows/sec on Neon free-tier
+      // serverless because round-trip latency dominates per-statement cost;
+      // bulk SQL collapses 500 round-trips into 1 (~50× speedup observed
+      // on the 2026-04-28 production run). Atomic per batch — partial
+      // failures roll back the batch only, and the next run resumes from
+      // the cursor since slimRawData is idempotent.
+      const valueRows = pendingUpdates.map(
+        (u) => Prisma.sql`(${u.id}::bigint, ${u.afterJson}::jsonb)`
+      );
+      await withRetry(
+        `update batch ${batchNumber}`,
+        () => prisma.$executeRaw`
+          UPDATE listings AS l
+          SET raw_data = v.new_data
+          FROM (VALUES ${Prisma.join(valueRows, ', ')}) AS v(id, new_data)
+          WHERE l.id = v.id
+        `
+      );
     }
 
     cursor = rows[rows.length - 1]!.id;
     const saved = totalBytesBefore - totalBytesAfter;
-    console.log(
+    process.stdout.write(
       `  batch ${batchNumber}: processed=${processed} mutated=${mutated} ` +
-        `noop=${skippedNoOp} savings=${fmtBytes(saved)}`
+        `noop=${skippedNoOp} savings=${fmtBytes(saved)}\n`
     );
   }
 

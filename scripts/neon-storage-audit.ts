@@ -47,22 +47,56 @@ function fmtBytes(b: number): string {
   return `${(b / 1024 ** 3).toFixed(2)} GB`;
 }
 
+/**
+ * Retry transient Prisma/Neon errors with exponential backoff. Mirrors
+ * the helper in scripts/neon-shed-raw-data.ts — Neon free-tier compute
+ * auto-suspends, so the first query after a quiet period can fail with
+ * `Can't reach database server` before cold-start completes.
+ */
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const transient =
+        msg.includes("Can't reach database server") ||
+        msg.includes('Connection terminated') ||
+        msg.includes('connection closed') ||
+        msg.includes('ECONNRESET') ||
+        msg.includes('ETIMEDOUT');
+      if (!transient || attempt === maxAttempts) throw e;
+      const waitMs = attempt * 2000;
+      console.warn(
+        `  [${label}] attempt ${attempt}/${maxAttempts} failed (${msg.split('\n')[0]}); ` +
+          `retrying in ${waitMs}ms`
+      );
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+  throw new Error('unreachable');
+}
+
 async function main() {
   console.log('\n═══ Neon Storage Audit ═══════════════════════════════════════\n');
 
   // ── Top tables by bytes ─────────────────────────────────────────────
-  const topTables = await prisma.$queryRaw<TableSize[]>`
-    SELECT
-      relname AS table_name,
-      pg_total_relation_size(c.oid) AS total_bytes,
-      reltuples::bigint AS row_count
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public'
-      AND c.relkind = 'r'
-    ORDER BY pg_total_relation_size(c.oid) DESC
-    LIMIT 10
-  `;
+  const topTables = await withRetry(
+    'top-tables',
+    () => prisma.$queryRaw<TableSize[]>`
+      SELECT
+        relname AS table_name,
+        pg_total_relation_size(c.oid) AS total_bytes,
+        reltuples::bigint AS row_count
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'r'
+      ORDER BY pg_total_relation_size(c.oid) DESC
+      LIMIT 10
+    `
+  );
   console.log('── Top 10 tables by size ─────────────────────────────────────');
   for (const t of topTables) {
     const bytes = Number(t.total_bytes);
@@ -86,14 +120,17 @@ async function main() {
   // agent linked (per Codex review on PR #75 — the syncAgentHistory + reset-sync
   // paths both produce agent-linked Trestle rows).
   console.log(`\n── Sampling ${SAMPLE} Trestle-imported listings (last_synced_from_trestle IS NOT NULL) ──`);
-  const trestleSample = await prisma.$queryRaw<ListingRow[]>`
-    SELECT id, agent_id, raw_data
-    FROM listings
-    WHERE last_synced_from_trestle IS NOT NULL
-      AND raw_data IS NOT NULL
-    ORDER BY random()
-    LIMIT ${SAMPLE}
-  `;
+  const trestleSample = await withRetry(
+    'trestle-sample',
+    () => prisma.$queryRaw<ListingRow[]>`
+      SELECT id, agent_id, raw_data
+      FROM listings
+      WHERE last_synced_from_trestle IS NOT NULL
+        AND raw_data IS NOT NULL
+      ORDER BY random()
+      LIMIT ${SAMPLE}
+    `
+  );
   if (trestleSample.length === 0) {
     console.log('  (no Trestle-imported rows with raw_data found)');
   } else {
@@ -126,9 +163,9 @@ async function main() {
     console.log(`  % sheddable:                ${pctDropped.toFixed(1)}%`);
 
     // Project total savings across all Trestle-imported listings
-    const totalTrestleCount = await prisma.listing.count({
-      where: { last_synced_from_trestle: { not: null } },
-    });
+    const totalTrestleCount = await withRetry('trestle-count', () =>
+      prisma.listing.count({ where: { last_synced_from_trestle: { not: null } } })
+    );
     const projectedSavings = avgDropped * totalTrestleCount;
     console.log(`  Trestle-imported total:     ${totalTrestleCount.toLocaleString()} rows`);
     console.log(
@@ -154,9 +191,9 @@ async function main() {
   // CRM-only listings = never been Trestle-synced. agent_id alone is
   // ambiguous (syncAgentHistory + reset-sync produce agent-linked Trestle
   // rows), so we filter on the absence of last_synced_from_trestle.
-  const crmCount = await prisma.listing.count({
-    where: { last_synced_from_trestle: null },
-  });
+  const crmCount = await withRetry('crm-count', () =>
+    prisma.listing.count({ where: { last_synced_from_trestle: null } })
+  );
   console.log(
     `\n── CRM-only listings (never Trestle-synced): ${crmCount.toLocaleString()} rows ` +
       `(raw_data is NOT slimmed for these — preserves full form payload)`
