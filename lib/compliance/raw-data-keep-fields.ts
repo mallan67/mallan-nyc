@@ -1,0 +1,261 @@
+/**
+ * raw_data keep-field set (PR 10 — Neon shedding).
+ *
+ * Trestle's IDX Plus feed dumps ~1,457 Property fields per row into
+ * Listing.raw_data. Most of those fields are not read by any consumer in
+ * this codebase, but they accumulate to ~14 KB per row × 19K+ rows ≈ 268
+ * MB on the listings table — the dominant chunk of Neon storage.
+ *
+ * This module is the single source of truth for which raw_data fields
+ * MUST be preserved. Every key on this list is either:
+ *   1. Read by a server-side consumer (public DTO, compliance audit,
+ *      retention archive, buildings route, CRM PUT merge, status route),
+ *   2. Required for REBNY RLS / UCBA 2026 compliance reference,
+ *   3. Used by edit-mode form hydration for CRM-created listings, OR
+ *   4. Needed for downstream sync identity / change detection.
+ *
+ * ANY field NOT on this list is safe to drop from raw_data on Trestle
+ * imports. The public DTO and compliance code already handle missing
+ * fields gracefully (null/undefined fallbacks to top-level columns).
+ *
+ * Adding a new consumer that reads from raw_data?
+ *   → Add the field here in the right section, with a comment naming
+ *     the consumer file.
+ *
+ * Want to drop a field?
+ *   → Verify NO consumer reads it (grep `raw_data.X` and `rawData.X`
+ *     and `raw.X` across the repo), then remove the line.
+ *
+ * @module lib/compliance/raw-data-keep-fields
+ */
+
+/**
+ * Fields preserved on Trestle-imported listings' raw_data.
+ *
+ * Mallan-CRM-created listings (POST /api/crm/listings) write the agent's
+ * form payload into raw_data unchanged — this list does NOT apply to
+ * those. Identification: agent_id IS NOT NULL → mallan-created.
+ * Trestle-imported rows have agent_id linkage via ListAgentMlsId mapping
+ * in lib/idx/sync.ts; their raw_data IS slimmed by this list.
+ *
+ * Sourced from a complete grep of `raw_data.X`, `rawData.X`, `raw.X`,
+ * and `existingRaw.X` across `lib/`, `app/api/`, and the public CRM
+ * forms (verified 2026-04-27).
+ */
+export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
+  // ── Identifiers (sync identity + change detection) ─────────────────
+  // Used by lib/idx/sync.ts to detect edits + by reset-sync route.
+  'ListingKey',
+  'ListingId',
+  'SourceSystemKey',
+  'ModificationTimestamp',
+  'OriginatingSystemName',
+  'OriginatingSystemKey',
+
+  // ── Status / lifecycle ─────────────────────────────────────────────
+  // db-to-public-dto.ts reads StandardStatus + ActivationDate. The cron
+  // archive step also reads StandardStatus.
+  'StandardStatus',
+  'MlsStatus',
+  'ActivationDate',
+  'OnMarketDate',
+  'OffMarketDate',
+  'CloseDate',
+  'ListingContractDate',
+  'ExpirationDate',
+
+  // ── Pricing (sale + rental) ────────────────────────────────────────
+  // db-to-public-dto.ts pulls these for the public listing detail page,
+  // and the retention cron carries them into listings_archive.
+  'ListPrice',
+  'OriginalListPrice',
+  'PreviousListPrice',
+  'ClosePrice',
+  'LeaseAmount',
+  'LeaseAmountFrequency',
+  'AvailabilityDate',
+
+  // ── DOM (UCBA Art. I §11 — agent-facing display) ───────────────────
+  'DaysOnMarket',
+  'CumulativeDaysOnMarket',
+
+  // ── Address (display + suppression decisions) ──────────────────────
+  // CRM forms hydrate from these in edit mode; public DTO falls back to
+  // them when the address column is sparse.
+  'UnparsedAddress',
+  'StreetNumber',
+  'StreetName',
+  'StreetSuffix',
+  'StreetDirPrefix',
+  'UnitNumber',
+  'City',
+  'PostalCity',
+  'PostalCode',
+  'CityRegion',
+  'CountyOrParish',
+  'StateOrProvince',
+  'SubdivisionName',
+  'BuildingName',
+  'MLSAreaMajor',
+
+  // ── Property classification ────────────────────────────────────────
+  'PropertyType',
+  'PropertySubType',
+  'CommonInterest',
+  'StructureType',
+
+  // ── Property facts (form populate + DTO fallback) ──────────────────
+  'BedroomsTotal',
+  'BathroomsFull',
+  'BathroomsHalf',
+  'BathroomsTotalDecimal',
+  'LivingArea',
+  'LivingAreaUnits',
+  'YearBuilt',
+  'StoriesTotal',
+  'NumberOfUnitsTotal',
+  'RoomsTotal',
+  'NewDevelopmentYN',
+  'PropertyCondition',
+
+  // ── Compensation / agreement (UCBA + REBNY display) ────────────────
+  'ListingAgreement',
+  'CoBrokeAgreement',
+  'Concessions',
+  'ConcessionsAmount',
+
+  // ── Distribution / permission (gate decisions) ─────────────────────
+  // Even though these are mirrored as top-level boolean columns, the
+  // public DTO's fail-closed gate helpers in lib/compliance/gates.ts
+  // accept either source. Keeping them in raw_data lets the gate logic
+  // re-derive on a row that was synced before the columns existed.
+  'Permissions',
+  'InternetEntireListingDisplayYN',
+  'InternetAddressDisplayYN',
+  'InternetAutomatedValuationDisplayYN',
+  'InternetConsumerCommentYN',
+  'OwnerOptOut',
+  'ParticipantOnly',
+  'SyndicateTo',
+
+  // ── Display content (REBNY display + Fair Housing scan) ────────────
+  // PublicRemarks is read by the compliance audit route and is the
+  // listing description users see. Required for archive too.
+  'PublicRemarks',
+  'PrivateRemarks',
+  'ShowingInstructions',
+
+  // ── Agent / office (REBNY attribution + archive) ───────────────────
+  // The retention cron carries these into listings_archive. Compliance
+  // attribution requires display.
+  'ListAgentMlsId',
+  'ListAgentKey',
+  'ListAgentFullName',
+  'ListAgentEmail',
+  'ListAgentDirectPhone',
+  'ListOfficeName',
+  'ListOfficeKey',
+  'ListOfficeMlsId',
+  'CoListAgentFullName',
+  'CoListOfficeName',
+
+  // ── Media metadata (compliance audit photo count + virtual tour) ───
+  // The compliance audit route does `raw.Media ?? raw.photos ?? []` to
+  // count photos. Virtual tour URLs are surfaced on the public DTO.
+  // NOTE: the heavy per-photo Media array (URLs, dimensions, captions
+  // for every image) is what dominates raw_data. PR #48 normalized that
+  // into ListingMedia + ListingMedia.preferred_photo_yn etc., so the
+  // audit can pivot to ListingMedia in a follow-up. For now we keep
+  // raw.Media to stay reader-compatible.
+  'Media',
+  'PhotosChangeTimestamp',
+  'PhotosCount',
+  'VirtualTourURLBranded',
+  'VirtualTourURLUnbranded',
+
+  // ── Sale/rental specifics (form populate; agents re-edit) ──────────
+  'AssociationFee',
+  'AssociationFeeFrequency',
+  'TaxAnnualAmount',
+  'TaxMonthlyAmount',
+  'FlipTax',
+  'FurnishedYN',
+  'PetsAllowed',
+  'Furnished',
+  'AdditionalFeeYN',
+  'AdditionalFee',
+  'AdditionalFeeDescription',
+  'AdditionalFeeFrequency',
+  'OngoingFees',
+  'MoveInCosts',
+  'MoveInCostsAmountTotal',
+  'MoveInCostsComments',
+  'FeeFrequency',
+  'FirstShowingDate',
+
+  // ── Features (form populate) ───────────────────────────────────────
+  'Heating',
+  'Cooling',
+  'Appliances',
+  'InteriorFeatures',
+  'ExteriorFeatures',
+  'LaundryFeatures',
+  'ParkingFeatures',
+  'Flooring',
+] as const;
+
+/** Set form for O(1) keep checks. */
+export const RAW_DATA_KEEP_SET: ReadonlySet<string> = new Set(RAW_DATA_KEEP_FIELDS);
+
+/**
+ * Slim a Trestle raw_data payload to only the keep set.
+ *
+ * Used by:
+ *   - lib/idx/sync.ts on every Trestle upsert (stops ongoing growth)
+ *   - scripts/neon-shed-raw-data.ts to backfill existing rows
+ *   - app/api/cron/data-retention/route.ts to slim on terminal-status archive
+ *
+ * Returns a NEW object — does not mutate input. Returns `null` when input
+ * is null/undefined to preserve "no raw_data on this row" semantics.
+ *
+ * Idempotent: slimRawData(slimRawData(x)) === slimRawData(x).
+ */
+export function slimRawData(
+  input: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null {
+  if (!input || typeof input !== 'object') return null;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(input)) {
+    if (RAW_DATA_KEEP_SET.has(key)) {
+      out[key] = input[key];
+    }
+  }
+  return out;
+}
+
+/**
+ * Diagnostic: count bytes that WOULD be dropped if `slimRawData` were
+ * applied. Used by `scripts/neon-storage-audit.ts` to project savings.
+ *
+ * Approximates byte size as `JSON.stringify(value).length`.
+ */
+export function projectShedSavings(
+  input: Record<string, unknown> | null | undefined
+): { keptBytes: number; droppedBytes: number; droppedFields: string[] } {
+  if (!input || typeof input !== 'object') {
+    return { keptBytes: 0, droppedBytes: 0, droppedFields: [] };
+  }
+  let keptBytes = 0;
+  let droppedBytes = 0;
+  const droppedFields: string[] = [];
+  for (const key of Object.keys(input)) {
+    const size = JSON.stringify(input[key] ?? null).length;
+    if (RAW_DATA_KEEP_SET.has(key)) {
+      keptBytes += size;
+    } else {
+      droppedBytes += size;
+      droppedFields.push(key);
+    }
+  }
+  return { keptBytes, droppedBytes, droppedFields };
+}
