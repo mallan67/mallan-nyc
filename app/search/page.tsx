@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'rea
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useListings } from '@/lib/hooks/useListings';
+import { useClientOnly } from '@/lib/hooks/useClientOnly';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import SearchAutocomplete, { type Suggestion } from '@/app/components/SearchAutocomplete';
 import SearchChips, { buildChips, type FilterChip } from '@/app/components/SearchChips';
@@ -182,16 +183,30 @@ function SearchClient() {
   const [activeTab, setActiveTab] = useState<SearchTab>(resolveTab(typeParam));
   const [searchQuery, setSearchQuery] = useState(queryParam || neighborhoodParam);
   const viewParam = searchParams?.get('view') as ViewMode | null;
-  // Initial view: respect URL param when valid, otherwise default to
-  // 'all-listings' on mobile (<1024px) and 'split' on desktop. Lazy initializer
-  // avoids the post-mount setState that previously caused the React Compiler
-  // set-state-in-effect warning on the matching useEffect below.
+  // Initial view is SSR-stable: respect a valid URL param, otherwise 'split'.
+  // Reading window.innerWidth in the lazy initializer was diverging server
+  // render ('split') from first client render on mobile ('all-listings'),
+  // causing hydration churn. The mobile default is now applied post-mount
+  // via useClientOnly (which uses useReducer to satisfy the React Compiler
+  // set-state-in-effect rule), and only when the user has not explicitly
+  // chosen a view via URL or the toolbar.
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const allowed: ViewMode[] = ['split', 'all-listings', 'all-map', 'grid', 'list'];
-    if (viewParam && allowed.includes(viewParam)) return viewParam;
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) return 'all-listings';
-    return 'split';
+    return viewParam && allowed.includes(viewParam) ? viewParam : 'split';
   });
+  const { value: isMobileViewport, hydrated: viewportHydrated } = useClientOnly({
+    read: () => window.innerWidth < 1024,
+    serverFallback: false,
+  });
+  useEffect(() => {
+    if (!viewportHydrated) return;
+    if (viewParam) return;            // user set a view via URL
+    if (viewMode !== 'split') return; // user picked a view via toolbar
+    if (isMobileViewport) setViewMode('all-listings');
+    // We intentionally do not depend on viewMode — the flip happens once
+    // when hydration completes and the viewport is mobile.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewportHydrated, isMobileViewport, viewParam]);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(() => {
     const nParam = searchParams?.get('neighborhoods');
