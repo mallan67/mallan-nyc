@@ -99,6 +99,7 @@ var CRM = (function () {
     Router.register('/broker/system/licensing',    function () { Panels.licensingTracker(); });
     Router.register('/broker/system/settings',     function () { Panels.systemSettings(); });
     Router.register('/broker/system/health',       function () { Panels.complianceDashboard(); }); // System Health embedded in Compliance & IDX
+    Router.register('/broker/people/ethics',       function () { AdminEthics.render(); }); // UCBA Art. III §6 ethics training (C4c)
 
     // A2. Clients CRM — direct routes to real grids
     Router.register('/sales/prospects',         function () { SellerProspects.render(); });
@@ -379,6 +380,7 @@ var CRM = (function () {
         { route: '/broker/dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
         { route: '/broker/people/agents', icon: 'fa-user-tie', label: 'Agent Roster' },
         { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'Licensing & CE/E&O' },
+        { route: '/broker/people/ethics', icon: 'fa-graduation-cap', label: 'Ethics Training' },
         { route: '/broker/people/clients', icon: 'fa-address-book', label: 'Clients' },
         { route: '/broker/leads/referrals', icon: 'fa-exchange-alt', label: 'Referrals' },
         { route: '/broker/finance', icon: 'fa-dollar-sign', label: 'Finance' },
@@ -1460,6 +1462,7 @@ var CRM = (function () {
       routes.push({ route: '/broker/system/audit', label: 'Audit Log', group: 'Broker Console' });
       routes.push({ route: '/broker/system/idx-activity', label: 'IDX/RLS Activity', group: 'Broker Console' });
       routes.push({ route: '/broker/system/licensing', label: 'License/CE/E&O', group: 'Broker Console' });
+      routes.push({ route: '/broker/people/ethics', label: 'Ethics Training (UCBA Art. III §6)', group: 'Broker Console' });
       routes.push({ route: '/broker/system/settings', label: 'System Settings', group: 'Broker Console' });
     }
     // Operations

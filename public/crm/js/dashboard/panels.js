@@ -8406,6 +8406,7 @@ var Panels = (function () {
         { route: '/broker/dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
         { route: '/broker/people/agents', icon: 'fa-user-tie', label: 'Agent Roster' },
         { route: '/broker/system/licensing', icon: 'fa-id-card', label: 'Licensing & CE/E&O' },
+        { route: '/broker/people/ethics', icon: 'fa-graduation-cap', label: 'Ethics Training' },
         { route: '/broker/people/clients', icon: 'fa-address-book', label: 'Clients' },
         { route: '/broker/leads/referrals', icon: 'fa-exchange-alt', label: 'Referrals' },
         { route: '/broker/finance', icon: 'fa-dollar-sign', label: 'Finance' },
