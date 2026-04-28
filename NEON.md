@@ -309,3 +309,44 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 | 2026-04-17 | Phase 0–5 production hardening — Phase 1 storage cleanup (250→215 MB), SyncState + Archive models, `lib/prisma-http.ts` built (adoption deferred) | multiple |
 | 2026-04-19 | First observed compute-quota silent-drift incident: `email_opt_out` migration rejected, build proceeded | `94b4808f` / `9032ab61` |
 | 2026-04-20 | Schema-dependent code reverted; smart migration runner attempted then reverted; `prisma migrate deploy` removed from buildCommand entirely (aligns with `docs/DEPLOYMENT.md`); `/api/health` returned to zero-DB form; this file created | `3e73af9c`, (current) |
+| 2026-04-28 | PR #75 — Neon shed (slim raw_data on Trestle imports); production backfill cut listings table from 270 MB to 173 MB and total DB from 293 MB to 196 MB (39.2% of cap) | `d39906fb` + (#76) |
+| 2026-04-28 | PR (this branch) — daily `neon-branch-prune` cron at 04:00 UTC + `lib/neon/branches.ts`, `scripts/neon-prune-branches.ts`, NEON.md §11 to keep the Neon-Vercel preview-branch integration under the free-tier 10-branch cap (root-cause fix for "Neon branching: Branch limit exceeded" check failures on preview deploys) | (current) |
+
+---
+
+## 11. Preview-branch integration architecture
+
+### What's installed
+
+The Neon-Vercel marketplace integration is installed on this project (`store_K9l79ICRUTMsiRh2`, scope `mallan-nyc`). By default it creates a **fresh Neon branch on every preview deploy** so PR previews can write to a throwaway DB without touching production data.
+
+### The free-tier collision
+
+Neon's free tier caps at **10 branches per project**. A fast-pushing day (force-pushes, multiple PRs in flight) burns through the cap in hours. Once over, every subsequent preview deploy posts a `Neon branching: Branch limit exceeded` check to Vercel — visible in the deployment row's Checks panel as a red "Checks Failed" badge, even though the build itself succeeded and the deploy is `Ready`. The badge is cosmetic but the underlying cap is real: the 11th preview deploy of the day genuinely cannot get a fresh branch.
+
+### Resolution — automated cleanup, not architectural removal
+
+We keep the integration (preview isolation is genuinely useful) and add a daily prune that deletes preview branches idle for more than the retention window. With a 24-hour retention and roughly 1–3 deploys per active PR per day, the steady-state branch count stays well under the cap.
+
+| Layer | What it does |
+|---|---|
+| `lib/neon/branches.ts` | Pure helpers: `listBranches`, `deleteBranch`, `isPrunable`, `pruneBranches`. Talks to `console.neon.tech/api/v2`. Never touches branches flagged `primary` or `protected`. |
+| `scripts/neon-prune-branches.ts` (`npm run ops:neon-prune` / `:execute`) | One-shot CLI. Default dry-run; `--execute` deletes; `--hours=N` overrides the 24h retention. Lets an operator verify the cron's nightly decision before it runs. |
+| `app/api/cron/neon-branch-prune/route.ts` | Vercel Cron at `0 4 * * *` UTC. Calls the same `pruneBranches` helper with retention=24h, execute=true. Skips cleanly with a structured 200 if `NEON_API_KEY` / `NEON_PROJECT_ID` aren't set on the Vercel env. |
+
+### Required Vercel env vars
+
+The cron only works with both of these set on the Production env (Vercel Crons fire on production deploys only):
+
+- `NEON_API_KEY` — generate at https://console.neon.tech/app/settings/api-keys, scope **Project**, write access.
+- `NEON_PROJECT_ID` — visible at the top of https://console.neon.tech/app/projects/{slug}/settings.
+
+Set both via `vercel env add NEON_API_KEY production` and `vercel env add NEON_PROJECT_ID production`, or the dashboard. Without them, the cron exits 200 with `skipped: true, reason: "..."` so it's visible in cron logs without failing the run.
+
+### Re-enabling considerations
+
+Do not remove this cron without first either:
+- Disabling the Neon-Vercel preview-branching toggle (Vercel → Project → Integrations → Neon → Configure), OR
+- Upgrading Neon to a paid tier that lifts the 10-branch cap.
+
+Otherwise the failure mode resurfaces on the next fast-pushing day.

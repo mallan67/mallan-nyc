@@ -26,7 +26,7 @@ import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { mapRESOToInternal } from '@/lib/idx/mapping';
 import { toPublicDTO, buildAuctionPublic, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
