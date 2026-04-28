@@ -65,7 +65,7 @@
 | **8** | Collections + search sends + client behavior tracking | NOT_STARTED | — |
 | **9** | Lease lifecycle tracker | NOT_STARTED | parallel to PR 8 |
 | **10** | Neon shedding | NOT_STARTED | PR 12 |
-| **11** | Restore CRM browser-test runner (`npm run crm:test` is currently broken — `05-test-suite-runner.js` missing) | **IN PROGRESS 2026-04-27 (this session)** | independent |
+| **11** | Restore CRM browser-test runner (`npm run crm:test` is currently broken — `05-test-suite-runner.js` missing) | **IN REVIEW — PR #72** | independent |
 | **12** | Prisma 7 upgrade | NOT_STARTED | depends on PR 10 + ≥1 week stability |
 | **13** | npm audit triage | **MERGED 2026-04-26 (PR #44)** | — |
 | **13b** | Migrate `xlsx` → `exceljs` | **MERGED 2026-04-26 (PR #45)** | — |
@@ -79,10 +79,10 @@
 | **C2** | Offer transmission tracking (UCBA Art. II) | **MERGED** `0bb3d740` (PR #49) |
 | **C3a** | Auction listing fields (5 cols, UCBA Art. I exception) | **MERGED** `ca4c7a5e` (PR #50) |
 | **C3b** | Auction enforcement validator + 9 tests | **MERGED** `3b3c8d1d` (PR #57, replaces auto-closed #53) |
-| **C3c** | Auction form sub-section + listing banner UI | **IN PROGRESS 2026-04-27 (this session)** |
+| **C3c** | Auction form sub-section + listing banner UI | **IN REVIEW — PR #74** |
 | **C4a** | Ethics training fields (`ethics_training_completed_at`, `_expires_at`) | **MERGED** `096b43d6` (PR #51) |
 | **C4b** | Ethics training auth gate (UCBA Art. III §6) | **MERGED** `276fe3ae` (PR #58) |
-| **C4c** | Broker admin panel for ethics training + dev-login catch | **IN PROGRESS 2026-04-27 (this session)** — script-commit piece DONE in PR #59 (`2f43deaf`) |
+| **C4c** | Broker admin panel for ethics training + dev-login catch | **IN REVIEW — PR #73** (script-commit piece DONE in PR #59 `2f43deaf`) |
 
 > **Note:** The status fields above are what the in-repo plan files claim. Several of these PRs may already be merged but not yet reflected in the plan's status table. **First action next session: open GitHub, check actual merge state, update the plan files.**
 
