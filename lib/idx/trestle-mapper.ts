@@ -4,6 +4,7 @@
 // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
 
 import { affirmPermission } from "@/lib/compliance/gates";
+import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 
 // ═══════════════════════════════════════════════════════════
 // RESO-to-RLS RENAMES (23 fields)
@@ -763,7 +764,22 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     media,
     compliance,
     agent_info: agentInfo,
-    raw_data: stripPrivateFields(rawInput), // Filtered — private fields stripped for compliance
+    // raw_data goes through TWO filters before persistence:
+    //   1. stripPrivateFields — REBNY/UCBA private fields (PrivateRemarks,
+    //      ShowingInstructions, ShowingContactPhone, agent direct phone/email,
+    //      LockBox*) — never persistable on either path.
+    //   2. slimRawData — drops Trestle fields not read by any consumer.
+    //      This is the PR 10 Neon shedding lever — Trestle Property dumps
+    //      ~1,457 fields per row but our codebase reads ≈75 of them. The
+    //      keep set lives in lib/compliance/raw-data-keep-fields.ts and is
+    //      pinned by lib/compliance/__tests__/raw-data-keep-fields.test.ts.
+    //
+    // Note: this slimming applies ONLY to Trestle-imported listings (this
+    // mapper). CRM-agent-created listings preserve their full form payload
+    // in raw_data via app/api/crm/listings/route.ts → buildPersistenceRecord.
+    // stripPrivateFields always returns an object, so slimRawData's null
+    // branch is unreachable here — coerce for the mapped TrestleMapping type.
+    raw_data: slimRawData(stripPrivateFields(rawInput)) ?? {},
     modification_timestamp: modTimestamp,
     listing_contract_date: contractDate,
     last_synced_from_trestle: new Date(),
