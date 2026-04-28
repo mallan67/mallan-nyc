@@ -10,8 +10,12 @@
  * SAFETY:
  *   - Default mode is --audit-only: prints projected savings, no DB writes.
  *   - --execute is explicit and required to actually mutate.
- *   - Only touches rows where agent_id IS NULL (Trestle-imported).
- *   - Skips CRM-agent-created listings unconditionally.
+ *   - Only touches rows where last_synced_from_trestle IS NOT NULL — the
+ *     deterministic signal that this row's raw_data was last written by the
+ *     Trestle mapper (set by lib/idx/sync.ts main loop, syncAgentHistory,
+ *     feed-reconcile, AND reset-sync — covers every programmatic Trestle
+ *     write path, including agent-linked imports). Pure CRM-created
+ *     listings never have this column populated and are skipped.
  *   - Idempotent — re-running on already-slimmed rows is a no-op (slimRawData
  *     is fixed-point) and writes only if the JSON output differs.
  *   - Batched (default 500/run) so a long execute is interruptible.
@@ -63,8 +67,13 @@ async function main() {
     );
   }
 
-  const totalEligible = await prisma.listing.count({ where: { agent_id: null } });
-  console.log(`Trestle-imported listings (agent_id IS NULL): ${totalEligible.toLocaleString()}`);
+  const totalEligible = await prisma.listing.count({
+    where: { last_synced_from_trestle: { not: null } },
+  });
+  console.log(
+    `Trestle-imported listings (last_synced_from_trestle IS NOT NULL): ` +
+      `${totalEligible.toLocaleString()}`
+  );
 
   let processed = 0;
   let mutated = 0;
@@ -81,7 +90,7 @@ async function main() {
     const rows: RowSlim[] = await prisma.$queryRaw`
       SELECT id, raw_data
       FROM listings
-      WHERE agent_id IS NULL
+      WHERE last_synced_from_trestle IS NOT NULL
         AND raw_data IS NOT NULL
         ${cursor !== null ? Prisma.sql`AND id > ${cursor}` : Prisma.empty}
       ORDER BY id ASC

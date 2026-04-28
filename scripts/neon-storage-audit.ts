@@ -75,11 +75,21 @@ async function main() {
   }
 
   // ── Sample listings.raw_data composition ───────────────────────────
-  console.log(`\n── Sampling ${SAMPLE} Trestle-imported listings (agent_id IS NULL) ──`);
+  // The Trestle mapper (lib/idx/trestle-mapper.ts mapTrestleToPrisma) is the
+  // ONLY code path that sets last_synced_from_trestle. The CRM POST route
+  // never sets it. So this column is the deterministic signal for "this
+  // row's raw_data was last written by the Trestle mapper" — covering
+  // - lib/idx/sync.ts main loop AND syncAgentHistory (both set it)
+  // - app/api/cron/feed-reconcile/route.ts (sets it via mapped.* spread)
+  // - app/api/crm/listings/reset-sync/route.ts (sets it explicitly)
+  // Filtering on agent_id IS NULL would miss Trestle imports that have an
+  // agent linked (per Codex review on PR #75 — the syncAgentHistory + reset-sync
+  // paths both produce agent-linked Trestle rows).
+  console.log(`\n── Sampling ${SAMPLE} Trestle-imported listings (last_synced_from_trestle IS NOT NULL) ──`);
   const trestleSample = await prisma.$queryRaw<ListingRow[]>`
     SELECT id, agent_id, raw_data
     FROM listings
-    WHERE agent_id IS NULL
+    WHERE last_synced_from_trestle IS NOT NULL
       AND raw_data IS NOT NULL
     ORDER BY random()
     LIMIT ${SAMPLE}
@@ -116,7 +126,9 @@ async function main() {
     console.log(`  % sheddable:                ${pctDropped.toFixed(1)}%`);
 
     // Project total savings across all Trestle-imported listings
-    const totalTrestleCount = await prisma.listing.count({ where: { agent_id: null } });
+    const totalTrestleCount = await prisma.listing.count({
+      where: { last_synced_from_trestle: { not: null } },
+    });
     const projectedSavings = avgDropped * totalTrestleCount;
     console.log(`  Trestle-imported total:     ${totalTrestleCount.toLocaleString()} rows`);
     console.log(
@@ -139,9 +151,14 @@ async function main() {
   }
 
   // ── CRM-created listings (full payload, NOT slimmed) ───────────────
-  const crmCount = await prisma.listing.count({ where: { agent_id: { not: null } } });
+  // CRM-only listings = never been Trestle-synced. agent_id alone is
+  // ambiguous (syncAgentHistory + reset-sync produce agent-linked Trestle
+  // rows), so we filter on the absence of last_synced_from_trestle.
+  const crmCount = await prisma.listing.count({
+    where: { last_synced_from_trestle: null },
+  });
   console.log(
-    `\n── CRM-agent-created listings: ${crmCount.toLocaleString()} rows ` +
+    `\n── CRM-only listings (never Trestle-synced): ${crmCount.toLocaleString()} rows ` +
       `(raw_data is NOT slimmed for these — preserves full form payload)`
   );
 
