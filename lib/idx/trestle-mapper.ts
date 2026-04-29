@@ -810,68 +810,28 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
 /**
  * Check if a raw Trestle record passes all 6 distribution gates for IDX display.
  * Returns { displayable, reason? }.
+ *
+ * IMPLEMENTATION NOTE — 2026-04-28 fail-closed correction:
+ * The previous local implementation used `=== false` checks for IDX permission
+ * flags, which is FAIL-OPEN: null/undefined/missing values pass the gate. Per
+ * compliance doctrine, missing permission must FAIL CLOSED. This function now
+ * delegates to `evaluateDisplayGate()` in `lib/compliance/gates.ts` which uses
+ * `affirmPermission()` (returns true ONLY when explicitly true).
+ *
+ * The 12 callers across `app/api/{idx,listings,buildings,agents,crm,cron,market,
+ * open-houses}/...` automatically inherit the fix without source changes.
  */
 export function checkDistributionGates(raw: Record<string, unknown>): {
   displayable: boolean;
   reason?: string;
 } {
+  // Lazy require to avoid potential bundler cycle with lib/compliance/status.ts
+
+  const { evaluateDisplayGate } = require("@/lib/compliance/gates") as typeof import("@/lib/compliance/gates");
   const normalized = normalizeRenames(raw);
-  const permissions = typeof normalized.Permission === 'string' ? String(normalized.Permission) : (typeof normalized.Permissions === 'string' ? String(normalized.Permissions) : '');
-
-  // ─────────────────────────────────────────────────────────────
-  // REBNY RLS Distribution Gates — see compliance/IDX-VOW-DISPLAY-RULES.md
-  // Field names verified against live Trestle $metadata on 2026-04-19.
-  // Dead-field references previously in this function (ParticipantOnlyYN,
-  // IDXParticipationYN, IDXEntireListingDisplayYN) were transcribed from the
-  // REBNY English-language checklist, not the Trestle OData schema — removed.
-  // ─────────────────────────────────────────────────────────────
-
-  // Gate 1 — Owner Opt-Out (Permissions = 'OwnerOptOut'). UCBA Art. I §5(A).
-  // Owner has signed Exhibit B opt-out. NO public dissemination whatsoever.
-  if (
-    permissions === 'OwnerOptOut' ||
-    permissions === 'Owner Opt-Out' ||
-    String(normalized.MlsStatus || '') === 'OwnerOptOut'
-  ) {
-    return { displayable: false, reason: "Owner opted out" };
-  }
-
-  // Gate 2 — Participant Only (Permissions = 'Private'). UCBA Definition (W).
-  // Listing shared on RLS for authorized Participant view only — no public IDX,
-  // VOW, syndication, or website display. Per compliance/IDX-VOW-DISPLAY-RULES.md:41.
-  if (permissions === 'Private') {
-    return { displayable: false, reason: "Participant-only listing (Permissions=Private)" };
-  }
-
-  // Gate 3 — IDX Display (InternetEntireListingDisplayYN). UCBA Art. III §2(C).
-  // When False, listing is excluded from all IDX broker websites.
-  // Trestle also exposes an office-level `IDXOfficeParticipationYN` on the Office
-  // resource; we do not join to that here because the Trestle IDX Plus feed
-  // already pre-filters offices. Can be added via $expand=ListOffice if needed.
-  if (normalized.InternetEntireListingDisplayYN === false) {
-    return { displayable: false, reason: "Internet display disabled" };
-  }
-
-  // Gate 4 — Coming Soon status (not blocking — display with required badge).
-  // Handled downstream; see lib/idx/display-adapter.ts + SearchListingCard.tsx.
-
-  // Gate 5 — Closed > 24h must be removed. UCBA Art. I §6.
-  const status = String(normalized.StandardStatus || normalized.MlsStatus || "");
-  if (status === "Closed" || status === "Expired") {
-    const closeDate = normalized.CloseDate ? new Date(String(normalized.CloseDate)) : null;
-    if (closeDate) {
-      const hoursSinceClose = (Date.now() - closeDate.getTime()) / (1000 * 60 * 60);
-      if (hoursSinceClose > 24) {
-        return { displayable: false, reason: "Closed listing > 24 hours" };
-      }
-    }
-  }
-
-  // Gate 6 — Syndication opt-out (SyndicateOptOut). Not a display block for IDX
-  // surfaces — only prevents forwarding to third-party portals. Handled at the
-  // syndication pipeline level, not here.
-
-  return { displayable: true };
+  const result = evaluateDisplayGate(normalized as Record<string, unknown>);
+  if (result.displayable) return { displayable: true };
+  return { displayable: false, reason: result.reason };
 }
 
 /** 41 required REBNY RLS fields that must be present for a valid listing. */
