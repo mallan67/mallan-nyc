@@ -387,4 +387,22 @@ Validation after the external-listing tour/request slice:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Final save checkpoint before membership/session switch:
+
+- Saved at local time: **2026-04-29 04:12:34 -04:00**.
+- Working tree was clean before this checkpoint section was added.
+- Local `main` is ahead of `origin/main` by 15 commits.
+- Latest implementation commit before this checkpoint: `0ef50dbc Add external listing tour requests`.
+- Commits have not been pushed.
+- Memory is stored in-repo and mirrored to `C:\Users\MayaAllan\Desktop\memory`.
+
+Resume context for the next Codex session:
+
+- Continue from local repo `C:\Users\MayaAllan\Desktop\mallan-nyc`.
+- Read `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md` first.
+- Do not push/deploy until the target database has both external-listing migrations applied:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+- The next implementation slice should be buyer family/friend visibility rules for Outside Listings.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

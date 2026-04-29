@@ -747,3 +747,45 @@ Validation:
 Next recommended slice:
 
 Add buyer family/friend visibility rules for Outside Listings so invited collaborators can see and discuss the correct subset without broadening client data access.
+
+## Final Save Checkpoint Before Membership/Session Switch
+
+Saved at local time: **2026-04-29 04:12:34 -04:00**.
+
+Current Git state:
+
+- Working tree: clean before this checkpoint section was added.
+- Local branch: `main`.
+- Remote tracking: `main...origin/main [ahead 15]`.
+- Latest implementation commit before this checkpoint: `0ef50dbc Add external listing tour requests`.
+- The 15 local commits have **not** been pushed.
+
+What is safely saved locally:
+
+- All implementation work is committed in Git through `0ef50dbc`.
+- This memory file is saved in the repo at `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md`.
+- Mirror memory copies are saved on Desktop under `C:\Users\MayaAllan\Desktop\memory`.
+
+Critical production/deploy warning:
+
+- Do **not** push/deploy the external-listing workflow until the database migrations are applied manually to the target database.
+- Required migrations:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+- Per `NEON.md`, run `npm run ops:health`, manually run `prisma migrate deploy` against the target database, verify migration status, then push/deploy.
+
+Latest completed workflow:
+
+- Buyers can add outside/non-IDX listings.
+- Agents/brokers can add outside/non-IDX listings for clients.
+- Outside listings have buckets: `saved`, `seen`, `liked`, `disliked`, `discuss`.
+- Buyers and agents/brokers can update buckets.
+- Buyers can add notes, request info, and request tour/investigation on outside listings.
+- Agents/brokers can see and reply to outside-listing notes in CRM.
+- Outside inventory remains separate from IDX/MLS `Listing`.
+
+Recommended next slice:
+
+1. Add buyer family/friend visibility rules for Outside Listings.
+2. Then add CRM rollup/daily-priority queues for outside-listing activity.
+3. Then continue seller portal signal capture and seller CRM visibility.
