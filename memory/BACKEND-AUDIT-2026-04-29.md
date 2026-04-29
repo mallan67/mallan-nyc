@@ -619,4 +619,33 @@ Next recommended slice:
 
 - Final integration/deploy prep: final route/data-boundary smoke review, clean status check, required external-listing migrations manually applied/verified, full validation rerun, and push/deploy only after the user explicitly confirms pushing.
 
+Final integration / deploy preflight checkpoint saved at local time **2026-04-29 05:20:20 -04:00**:
+
+- Local `main` remains unpushed and ahead of `origin/main`.
+- No push or deploy was performed.
+- Final-preflight cleanup completed:
+  - IDX validator now recognizes `requirePortalRole` as route authentication.
+  - IDX validator treats `/api/identity/capture` as an intentionally public, rate-limited lead-capture route.
+  - `/api/idx/search` now explicitly documents that `checkboxFilters` are parsed by `buildCrmIdxODataFilter(params)` and OData-safe fields only are forwarded.
+  - IDX validator result/history artifacts were refreshed.
+- Final validation:
+  - `npm run ops:health` passed / healthy. DB size was 224.26 MB of 500 MB cap, last sync was recent with 12 upserted and 0 errors, REBNY Section 2.05 violations were 0, and upgrade needed was no.
+  - `npx prisma validate` passed with only the existing `driverAdapters` preview deprecation warning.
+  - `npm run ucba:audit` passed: 46/46.
+  - `npm run idx:validate` passed with WARN result and 0 critical. Terminal summary: 852 pass, 0 critical, 5 warnings, 29 info, 0 unverified. Persisted artifact: 851 pass, 0 critical, 5 warnings, 28 info.
+  - `npm run type-check` passed.
+  - `node --check public/crm/js/dashboard/workspace.js` passed.
+  - `npm run crm:test` passed: 39/39.
+  - `npm run lint` passed.
+  - `npm run test:compliance` passed: 194/194.
+  - `npm run compliance-check` passed: 87/87.
+  - `npm run rls:validate` passed with 0 errors and 1 existing warning for rental `MlsStatus` missing `ComingSoon`.
+- Remaining deploy gate:
+  - Do not push/deploy until the external-listing migrations are manually applied and verified against the target DB.
+  - Queued migrations:
+    - `20260429030000_add_external_listings`
+    - `20260429033000_add_external_listing_comments`
+    - `20260429040000_add_external_listing_family_visibility`
+  - Per `NEON.md`, run health, manually deploy migrations against the selected target DB, verify migration status, rerun validation, then push/deploy only after the user explicitly confirms.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

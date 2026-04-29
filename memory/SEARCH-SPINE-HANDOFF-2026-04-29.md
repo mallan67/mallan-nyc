@@ -1091,3 +1091,57 @@ Recommended next slice:
    - manually apply and verify required external-listing migrations
    - rerun full validation after DB verification
 2. Push/deploy only after the user explicitly confirms pushing.
+
+## Twenty-Sixth Slice: Final Integration / Deploy Preflight Checkpoint
+
+Saved at local time: **2026-04-29 05:20:20 -04:00**.
+
+Completed locally after the per-agent CRM access separation slice:
+
+- Ran final preflight review commands before any push.
+- Confirmed local `main` was ahead of `origin/main` and remained unpushed.
+- Confirmed the production/deploy blocker is still the required manual migration step, not code validation.
+- Updated the IDX validator so portal routes using `requirePortalRole` are recognized as authenticated mutation routes.
+- Marked `/api/identity/capture` as an intentionally public lead-capture endpoint in the IDX validator; it remains rate-limited.
+- Added an explicit `/api/idx/search` comment documenting that generic `checkboxFilters` are parsed in `buildCrmIdxODataFilter(params)` and only OData-safe fields are forwarded.
+- Refreshed IDX validator result/history artifacts after the validator cleanup.
+
+Final validation status:
+
+- `npm run ops:health` passed / healthy:
+  - DB size: 224.26 MB of 500 MB cap (44.9%).
+  - Largest table: `listings` at 201.21 MB.
+  - Last sync was recent, with 12 upserted and 0 errors.
+  - REBNY Section 2.05 violations: 0.
+  - Upgrade needed: no.
+- `npx prisma validate` passed.
+  - Warning only: Prisma preview feature `driverAdapters` is deprecated.
+- `npm run ucba:audit` passed: 46/46 rules.
+- `npm run idx:validate` passed with WARN result, 0 critical:
+  - Final terminal summary: 852 pass, 0 critical, 5 warnings, 29 info, 0 unverified.
+  - Persisted result artifact: 851 pass, 0 critical, 5 warnings, 28 info.
+  - Remaining accepted warnings: Property field coverage, mapper return fields not in `Listing`, and contact route PII log review.
+- `npm run type-check` passed.
+- `node --check public/crm/js/dashboard/workspace.js` passed.
+- `npm run crm:test` passed: 39/39.
+- `npm run lint` passed.
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run rls:validate` passed with 0 errors, 1 warning:
+  - Existing warning: `RENTAL-FORM-REDESIGN.html` `MlsStatus` missing RLS picklist value `ComingSoon`.
+
+Required before push/deploy:
+
+1. Do not push yet.
+2. Confirm the target production database URL is intentionally selected.
+3. Run `npm run ops:health`.
+4. Manually run `prisma migrate deploy` against the target database.
+5. Verify migration status after deploy.
+6. Rerun the validation suite after DB verification.
+7. Push/deploy only after the user explicitly confirms.
+
+Required local migrations still queued for manual target DB apply:
+
+- `20260429030000_add_external_listings`
+- `20260429033000_add_external_listing_comments`
+- `20260429040000_add_external_listing_family_visibility`

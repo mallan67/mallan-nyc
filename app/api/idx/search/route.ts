@@ -136,7 +136,8 @@ export async function GET(req: NextRequest) {
     const skip = Number(params.get("skip")) || 0;
     const sort = params.get("sort"); // OData $orderby value (e.g. "ListPrice desc")
 
-    // Build OData filter
+    // Build OData filter. Generic checkboxFilters are parsed in
+    // buildCrmIdxODataFilter(params) and only OData-safe fields are forwarded.
     const filter = buildCrmIdxODataFilter(params);
 
     // Cache key from filter + pagination

@@ -542,7 +542,7 @@ function section11() {
 function section12() {
   const s = startSection(12, 'RBAC / Authorization on Mutations', 'Auth & Security');
   const routes = findFiles('app/api', '.ts').filter(f => f.endsWith('route.ts'));
-  const authPatterns = /requireAgentOrBroker|requireBroker|requireAuth|requireSession|getSession|CRON_SECRET|requireWorkspace|requirePortalAuth/;
+  const authPatterns = /requireAgentOrBroker|requireBroker|requireAuth|requireSession|getSession|CRON_SECRET|requireWorkspace|requirePortalRole|requirePortalAuth/;
   for (const file of routes) {
     const content = readFile(file);
     if (!content) continue;
@@ -558,6 +558,7 @@ function section12() {
       || file.includes('/auth/dev-login') || file.includes('/auth/invite/')
       || file.includes('/auth/agent/register')
       || file.includes('/auth/verify-email')
+      || file.includes('/identity/capture/')
       || file.includes('/open-houses/rsvp')
       // /unsubscribe/ is intentionally public per CAN-SPAM §7704(a)(3)(A)(ii) and
       // RFC 8058 one-click — recipient cannot be required to log in to opt out.
