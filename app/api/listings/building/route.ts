@@ -222,12 +222,16 @@ export async function GET(request: NextRequest) {
     const activeData = activeRes.ok ? await activeRes.json() : { value: [] };
     const closedData = closedRes.ok ? await closedRes.json() : { value: [] };
 
-    // Distribution gate check — filter out non-displayable listings
+    // Distribution gate check — filter out non-displayable listings.
+    // ALSO fail-closed on InternetAddressDisplayYN: in a building view, the unit
+    // number itself is an address detail. If address-display is restricted, the
+    // listing must NOT appear at all in this surface (REBNY RLS Sec. 2.05).
+    const passesAddressGate = (r: Record<string, unknown>) => r.InternetAddressDisplayYN === true;
     const displayableActive = (activeData.value || []).filter(
-      (r: Record<string, unknown>) => checkDistributionGates(r).displayable
+      (r: Record<string, unknown>) => checkDistributionGates(r).displayable && passesAddressGate(r)
     );
     const displayableClosed = (closedData.value || []).filter(
-      (r: Record<string, unknown>) => checkDistributionGates(r).displayable
+      (r: Record<string, unknown>) => checkDistributionGates(r).displayable && passesAddressGate(r)
     );
 
     // Map active units
