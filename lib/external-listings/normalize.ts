@@ -33,6 +33,11 @@ function normalizeBucket(value: unknown): string {
   return ALLOWED_BUCKETS.has(bucket) ? bucket : "saved";
 }
 
+export function normalizeExternalListingBucket(value: unknown): string | null {
+  const bucket = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return ALLOWED_BUCKETS.has(bucket) ? bucket : null;
+}
+
 function normalizeStatus(value: unknown): string {
   const status = typeof value === "string" ? value.trim().toLowerCase() : "";
   return ALLOWED_STATUSES.has(status) ? status : "submitted";

@@ -623,3 +623,46 @@ Next steps left, in recommended order:
 8. Start seller CRM visibility panels mirroring the buyer tool-signal pattern.
 9. Continue portal-specific buildout for tenant, landlord, seller, and buyer independently.
 10. Apply and verify the external-listing migration in the target database before production rollout.
+
+## Seventeenth Implemented Slice
+
+Goal: complete bucket updates for external listings from both buyer portal and CRM.
+
+Added:
+
+- `app/api/portal/external-listings/[id]/route.ts`
+  - Buyer-owned `PATCH`.
+  - Allows only the owning buyer lead to update the bucket.
+  - Valid buckets: `saved`, `seen`, `liked`, `disliked`, `discuss`.
+  - Logs `external_listing_bucket_updated`.
+  - Records a buyer portal event.
+- `app/api/crm/clients/[id]/external-listings/[externalId]/route.ts`
+  - Agent/broker `PATCH`.
+  - Agents are scoped to assigned clients; brokers can update any client.
+  - Uses the same bucket whitelist.
+  - Logs `external_listing_bucket_updated_by_agent`.
+
+Updated:
+
+- `lib/external-listings/normalize.ts`
+  - Exports `normalizeExternalListingBucket()`.
+- `app/portal/buyer/page.tsx`
+  - Adds outside-listing bucket buttons for `saved`, `seen`, `liked`, `discuss`, and `pass`.
+  - Updates buyer portal state after the PATCH response.
+- `public/crm/js/dashboard/workspace.js`
+  - Adds bucket buttons on each Outside Listing card in the CRM client Listings tab.
+  - Updates cached CRM state after the PATCH response.
+
+Validation:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next recommended slice:
+
+Add comments/request-info threads for external listings, separate from IDX `Comment`, so buyers, family members, agents, and brokers can discuss outside inventory without requiring an IDX `Listing` row.

@@ -321,4 +321,24 @@ Next implementation steps left:
 9. Independent tenant, landlord, seller, and buyer portal hardening.
 10. Manual production migration deploy and verification per `NEON.md`.
 
+Follow-up external-listing bucket update slice completed next:
+
+- Added buyer portal PATCH route `app/api/portal/external-listings/[id]/route.ts`.
+- Added CRM PATCH route `app/api/crm/clients/[id]/external-listings/[externalId]/route.ts`.
+- Added shared bucket validation via `normalizeExternalListingBucket()`.
+- Updated `app/portal/buyer/page.tsx` with outside-listing bucket controls.
+- Updated `public/crm/js/dashboard/workspace.js` with CRM outside-listing bucket controls.
+- Buyer portal updates are scoped to the owning lead.
+- Agent updates are scoped to assigned clients; brokers can update all clients.
+
+Validation after the external-listing bucket slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

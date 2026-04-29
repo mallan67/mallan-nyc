@@ -1519,6 +1519,14 @@ var Workspace = (function () {
         item.action_bucket === 'disliked' ? 'bg-red-50 text-red-700' :
         item.action_bucket === 'discuss' ? 'bg-purple-50 text-purple-700' :
         item.action_bucket === 'seen' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600';
+      var bucketButtons = ['saved', 'seen', 'liked', 'discuss', 'disliked'].map(function (bucket) {
+        var active = item.action_bucket === bucket;
+        return '<button class="text-[11px] font-semibold rounded-lg border px-2 py-1 ' +
+          (active ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:bg-gray-50') +
+          '" onclick="Workspace._updateExternalListingBucket(\'' + E(item.id) + '\',\'' + bucket + '\')">' +
+          E(bucket === 'disliked' ? 'pass' : bucket) +
+          '</button>';
+      }).join('');
       html += '<div class="p-3 rounded-lg border border-amber-100 bg-amber-50/30">' +
         '<div class="flex items-start justify-between gap-3">' +
           '<div class="min-w-0 flex-1">' +
@@ -1531,6 +1539,7 @@ var Workspace = (function () {
             (item.address ? '<p class="text-xs text-gray-500 truncate">' + E(item.address) + '</p>' : '') +
             (item.notes ? '<p class="text-xs text-gray-600 mt-1">' + E(item.notes) + '</p>' : '') +
             '<p class="text-[11px] text-gray-400 mt-1">Added ' + E(item.created_at ? D(item.created_at) : '') + (item.source_host ? ' from ' + E(item.source_host) : '') + '</p>' +
+            '<div class="flex flex-wrap gap-1 mt-2">' + bucketButtons + '</div>' +
           '</div>' +
           (item.url ? '<button class="btn btn-xs btn-outline flex-shrink-0" data-url="' + E(encodeURIComponent(item.url)) + '" onclick="window.open(decodeURIComponent(this.getAttribute(\'data-url\')),\'_blank\',\'noopener,noreferrer\')"><i class="fas fa-external-link-alt"></i> Open</button>' : '') +
         '</div>' +
@@ -1577,6 +1586,25 @@ var Workspace = (function () {
       _renderClientExternalListings();
     }).catch(function (err) {
       CRM.toast('Could not add outside listing: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function _updateExternalListingBucket(externalListingId, bucket) {
+    if (!_clientId || !externalListingId || !bucket) return;
+    MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(_clientId) + '/external-listings/' + encodeURIComponent(externalListingId), {
+      method: 'PATCH',
+      body: JSON.stringify({ action_bucket: bucket }),
+    }).then(function (data) {
+      if (data.external_listing && _clientExternalListingsCache[_clientId]) {
+        _clientExternalListingsCache[_clientId] = _clientExternalListingsCache[_clientId].map(function (item) {
+          return item.id === externalListingId ? data.external_listing : item;
+        });
+      } else {
+        delete _clientExternalListingsCache[_clientId];
+      }
+      _renderClientExternalListings();
+    }).catch(function (err) {
+      CRM.toast('Could not update outside listing: ' + (err.message || 'Unknown error'), 'error');
     });
   }
 
@@ -5801,6 +5829,7 @@ var Workspace = (function () {
     _deleteScenario: _deleteScenario,
     _exportScenarioSummary: _exportScenarioSummary,
     _addExternalListingForClient: _addExternalListingForClient,
+    _updateExternalListingBucket: _updateExternalListingBucket,
 
     // Showings
     _addShowingFeedback: _addShowingFeedback,

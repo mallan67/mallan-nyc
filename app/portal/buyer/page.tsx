@@ -126,6 +126,14 @@ const RELATIONSHIP_OPTIONS = [
   'spouse', 'partner', 'parent', 'child', 'sibling', 'friend', 'other',
 ];
 
+const EXTERNAL_LISTING_BUCKETS = [
+  { key: 'saved', label: 'Saved' },
+  { key: 'seen', label: 'Seen' },
+  { key: 'liked', label: 'Like' },
+  { key: 'discuss', label: 'Discuss' },
+  { key: 'disliked', label: 'Pass' },
+];
+
 /* ───────── Helpers ───────── */
 
 function fmtPrice(val: string | null | undefined): string {
@@ -475,6 +483,29 @@ export default function BuyerPortalPage() {
       showToast('Failed to send request', 'error');
     } finally {
       setListingReqSubmitting(false);
+    }
+  }
+
+  async function updateExternalListingBucket(externalListingId: string, bucket: string) {
+    try {
+      const res = await fetch(`/api/portal/external-listings/${externalListingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_bucket: bucket }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Failed to update outside listing', 'error');
+        return;
+      }
+      const data = await res.json();
+      if (data.external_listing) {
+        setExternalListings((prev) =>
+          prev.map((item) => item.id === externalListingId ? data.external_listing : item)
+        );
+      }
+    } catch {
+      showToast('Failed to update outside listing', 'error');
     }
   }
 
@@ -893,6 +924,24 @@ export default function BuyerPortalPage() {
                               Added {fmtDate(item.created_at)}
                               {item.source_host ? ` from ${item.source_host}` : ''}
                             </p>
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {EXTERNAL_LISTING_BUCKETS.map((bucket) => {
+                                const active = item.action_bucket === bucket.key;
+                                return (
+                                  <button
+                                    key={bucket.key}
+                                    onClick={() => updateExternalListingBucket(item.id, bucket.key)}
+                                    className={`border rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                                      active
+                                        ? 'bg-amber-50 border-amber-300 text-amber-700'
+                                        : 'border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {bucket.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
                           {item.url && (
                             <a
