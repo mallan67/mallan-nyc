@@ -8,6 +8,10 @@ import { sendEmail } from '@/lib/email/sendgrid';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit } from '@/lib/middleware/rate-limiter';
 import { createInquiry } from '@/lib/inquiries/create';
+import {
+  extractBehavioralSessionId,
+  linkBehavioralSessionToLead,
+} from '@/lib/behavioral/session-link';
 
 const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
 
@@ -35,6 +39,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { firstName, lastName, email, phone, password, roles, website, tcpaConsent, tcpaConsentTimestamp } = body;
+    const behavioralSessionId = extractBehavioralSessionId(body);
 
     // TCPA prior express written consent is a server-side gate, not just UI.
     // A bot or modified client that skips the checkbox must still be rejected here.
@@ -159,6 +164,8 @@ export async function POST(req: NextRequest) {
         notes: message ? `[Sign-up message]: ${message}` : null,
       } as any,
     });
+
+    await linkBehavioralSessionToLead(behavioralSessionId, lead.id);
 
     // Real Inquiry row (Workstream C1 of master refactor). Never throws —
     // a missing table or other failure does not break sign-up.

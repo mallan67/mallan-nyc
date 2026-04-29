@@ -57,6 +57,7 @@ const limiterSpecs = {
   rsvp:         { count: 20, window: "3600 s" },
   guide:        { count: 15, window: "3600 s" },
   alert:        { count: 10, window: "3600 s" },
+  identity_capture: { count: 20, window: "3600 s" },
   unsubscribe:  { count: 20, window: "3600 s" },
 } as const satisfies Record<string, { count: number; window: `${number} s` }>;
 

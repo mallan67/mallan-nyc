@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 
+const BEHAVIORAL_SESSION_KEY = 'mallan_behavioral_session';
+
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -51,10 +53,11 @@ function SignInContent() {
     setLoading(true);
 
     try {
+      const sessionId = localStorage.getItem(BEHAVIORAL_SESSION_KEY) || undefined;
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, portalType: 'auto' }),
+        body: JSON.stringify({ email, password, portalType: 'auto', sessionId }),
       });
 
       const data = await res.json();

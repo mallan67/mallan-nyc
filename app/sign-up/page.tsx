@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 import AgencyDisclosure from '@/app/components/AgencyDisclosure';
 
+const BEHAVIORAL_SESSION_KEY = 'mallan_behavioral_session';
+
 const roles = [
   { id: 'buyer', label: 'Buyer', description: 'I want to buy a property', color: 'blue' },
   { id: 'renter', label: 'Renter', description: 'I want to rent a property', color: 'purple' },
@@ -88,6 +90,7 @@ export default function SignUpPage() {
     setSubmitting(true);
 
     try {
+      const sessionId = localStorage.getItem(BEHAVIORAL_SESSION_KEY) || undefined;
       const res = await fetch('/api/sign-up', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,6 +102,7 @@ export default function SignUpPage() {
           password,
           roles: selectedRoles,
           authMethod,
+          sessionId,
           tcpaConsent,
           tcpaConsentTimestamp: new Date().toISOString(),
           website: (document.getElementById('website') as HTMLInputElement)?.value || '',

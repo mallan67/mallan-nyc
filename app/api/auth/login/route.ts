@@ -12,6 +12,10 @@ import {
 } from "@/lib/auth";
 import { MFA_SESSION_TTL_MS, generateOtpCode, sendOtpEmail, sendOtpSms } from "@/lib/auth/mfa";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
+import {
+  extractBehavioralSessionId,
+  linkBehavioralSessionToLead,
+} from "@/lib/behavioral/session-link";
 
 /**
  * Login request body:
@@ -25,6 +29,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { email, password, portalType } = body;
+    const behavioralSessionId = extractBehavioralSessionId(body);
 
     if (!email || !password) {
       return NextResponse.json(
@@ -147,6 +152,7 @@ export async function POST(req: NextRequest) {
         // Use the portal_role stored on the lead, or the requested type, or default to buyer
         const role = lead.portal_role || (type !== "auto" && type !== "client" ? type : "buyer");
         const token = await createSession("lead", lead.id, role, ip, ua);
+        await linkBehavioralSessionToLead(behavioralSessionId, lead.id);
 
         const res = NextResponse.json({
           success: true,

@@ -5,6 +5,10 @@ import prisma from '@/lib/prisma';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { createInquiry } from '@/lib/inquiries/create';
+import {
+  extractBehavioralSessionId,
+  linkBehavioralSessionToLead,
+} from '@/lib/behavioral/session-link';
 
 /**
  * Contact Form API - TCPA-Safe Implementation
@@ -79,6 +83,7 @@ export async function POST(request: NextRequest) {
     const phone = body.phone ? sanitizeString(body.phone, 20) : undefined;
     const message = sanitizeString(body.message, 2000);
     const receivedAt = new Date().toISOString();
+    const behavioralSessionId = extractBehavioralSessionId(body);
 
     // Store in database as a Lead record
     const nameParts = name.trim().split(/\s+/);
@@ -104,6 +109,8 @@ export async function POST(request: NextRequest) {
         updated_at: new Date(),
       },
     });
+
+    await linkBehavioralSessionToLead(behavioralSessionId, lead.id);
 
     await prisma.auditEvent.create({
       data: {

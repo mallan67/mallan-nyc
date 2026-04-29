@@ -7,6 +7,8 @@ import AgencyDisclosure from '@/app/components/AgencyDisclosure';
 import AntiDiscriminationNotice from '@/app/components/AntiDiscriminationNotice';
 import { trackInquiry } from '@/lib/posthog';
 
+const BEHAVIORAL_SESSION_KEY = 'mallan_behavioral_session';
+
 /**
  * Contact Page - TCPA-Safe Implementation
  *
@@ -91,6 +93,7 @@ export default function ContactPage() {
     setSubmitStatus('idle');
 
     try {
+      const sessionId = localStorage.getItem(BEHAVIORAL_SESSION_KEY) || undefined;
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,6 +102,7 @@ export default function ContactPage() {
           email: formData.email.trim(),
           phone: formData.phone.trim() || undefined,
           message: formData.message.trim(),
+          sessionId,
           consentTimestamp: new Date().toISOString(),
         }),
       });

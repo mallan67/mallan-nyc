@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import AgencyDisclosure from '@/app/components/AgencyDisclosure';
+import AntiDiscriminationNotice from '@/app/components/AntiDiscriminationNotice';
 
 const SESSION_KEY = 'mallan_behavioral_session';
 const CAPTURED_KEY = 'mallan_soft_identity_captured';
@@ -58,6 +60,7 @@ export default function SoftIdentityCapture() {
           email: email.trim(),
           sessionId,
           source,
+          listingId,
         }),
       });
 
@@ -166,6 +169,9 @@ export default function SoftIdentityCapture() {
                 />
 
                 {error && <p className="text-red-600 text-xs">{error}</p>}
+
+                <AgencyDisclosure />
+                <AntiDiscriminationNotice />
 
                 <p className="text-[10px] text-brand-dark/40 leading-tight">
                   By submitting, you consent to receive emails from Mallan Real Estate Inc. You can unsubscribe at any time.

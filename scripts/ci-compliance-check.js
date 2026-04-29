@@ -221,6 +221,7 @@ const LEAD_CAPTURE_FORMS = [
   'app/components/CalculatorLeadCapture.tsx',
   'app/components/OpenHouseRSVP.tsx',
   'app/components/RegistrationGate.tsx',
+  'app/components/SoftIdentityCapture.tsx',
   'app/contact/page.tsx',
   'app/sign-up/page.tsx',
 ];
@@ -474,6 +475,7 @@ const LEAD_FORMS_REQUIRING_NOTICE = [
   'app/components/InquiryModal.tsx',
   'app/components/HomeValueWidget.tsx',
   'app/components/CalculatorLeadCapture.tsx',
+  'app/components/SoftIdentityCapture.tsx',
   'app/contact/page.tsx',
 ];
 const NOTICE_PATTERN = /AntiDiscriminationNotice|175\.28|Anti-Discrimination/i;

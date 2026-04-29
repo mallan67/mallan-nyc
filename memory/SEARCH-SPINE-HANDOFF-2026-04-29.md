@@ -201,6 +201,49 @@ Updated:
   - Added an ad hoc `idx_display_yn: true` filter check requiring either a canonical helper or the full gate set.
   - Compliance check total increased from 80 to 85 passing checks.
 
+## Tenth Implemented Slice
+
+Goal: connect anonymous browsing/behavioral sessions to identified leads at conversion points, without changing schema or making analytics failures user-visible.
+
+Added:
+
+- `lib/behavioral/session-link.ts`
+  - Extracts supported session ID fields from request bodies: `sessionId`, `session_id`, `behavioralSessionId`, and `anonymous_session_id`.
+  - Validates session IDs with bounded length and a conservative character set.
+  - Links anonymous `BehavioralEvent` rows to a `Lead`.
+  - Stores `Lead.anonymous_session_id` for future lead intelligence.
+  - Fails soft and falls back to the existing `linkSessionToLead()` helper.
+- `app/api/identity/capture/route.ts`
+  - New missing endpoint for `SoftIdentityCapture`.
+  - Rate limited through the shared route limiter.
+  - Upserts a minimal lead from email-only capture.
+  - Links the anonymous behavioral session to the lead.
+  - Writes an audit event and best-effort `Inquiry` row.
+
+Updated:
+
+- `app/sign-up/page.tsx`
+  - Sends `mallan_behavioral_session` as `sessionId` during account creation.
+- `app/contact/page.tsx`
+  - Sends `mallan_behavioral_session` as `sessionId` during contact submission.
+- `app/sign-in/page.tsx`
+  - Sends `mallan_behavioral_session` as `sessionId` during login.
+- `app/api/sign-up/route.ts`
+  - Links the submitted anonymous session to the newly created lead.
+- `app/api/contact/route.ts`
+  - Links the submitted anonymous session to the upserted contact lead.
+- `app/api/auth/login/route.ts`
+  - Links the submitted anonymous session to the authenticated lead after successful client login.
+- `app/components/SoftIdentityCapture.tsx`
+  - Sends `listingId` to the new capture route.
+  - Includes agency disclosure and anti-discrimination notice because it is a lead-capture surface.
+- `lib/inquiries/create.ts`
+  - Adds `soft_identity_capture` as a supported inquiry source.
+- `lib/middleware/rate-limiter.ts`
+  - Adds a dedicated `identity_capture` limiter.
+- `scripts/ci-compliance-check.js`
+  - Adds `SoftIdentityCapture` to agency-disclosure and anti-discrimination guardrails.
+
 ## Validation Already Run
 
 After the first slice:
@@ -263,42 +306,31 @@ After fail-open regression guardrails:
 - `npx jest --config lib/search/jest.config.js` passed: 171/171
 - `npm run test:compliance` passed: 194/194
 
+After anonymous session-to-lead linking:
+
+- `npm run type-check` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87 passed, 0 failed
+- `npm run test:runtime` was attempted. 11/12 runtime suites passed, but the suite failed on existing environment/dependency setup because `crm:test` could not load `jsdom` from `node_modules`. `jsdom` is already declared in `package.json` and `package-lock.json`; the local install appears incomplete.
+
 ## Current Working Tree Scope
 
-Expected modified files:
+The first nine slices were committed in `ac385564 Build compliant search spine`.
 
-- `app/api/crm/saved-searches/[id]/execute/route.ts`
-- `app/api/crm/saved-searches/route.ts`
-- `app/api/cron/search-alerts/route.ts`
-- `app/api/analytics/behavioral/route.ts`
-- `app/api/analytics/intent/route.ts`
-- `app/api/listings/route.ts`
-- `app/api/listings/similar/route.ts`
-- `app/listing/[id]/page.tsx`
-- `app/api/portal/comparables/route.ts`
-- `app/api/portal/offers/route.ts`
-- `app/api/portal/showings/route.ts`
-- `app/api/portal/favorites/route.ts`
-- `app/api/portal/listings/[id]/comments/route.ts`
-- `app/api/portal/listings/[id]/react/route.ts`
-- `app/api/portal/listings/route.ts`
-- `lib/compliance/gates.ts`
-- `lib/buyer-intent/recommender.ts`
-- `lib/behavioral/events.ts`
-- `lib/cma/engine.ts`
-- `lib/portal/events.ts`
-- `lib/listing-momentum/scorer.ts`
-- `lib/market-pulse/snapshot.ts`
-- `lib/social-proof/cache.ts`
+The current uncommitted slice is the anonymous session-to-lead linking work:
+
+- `app/api/auth/login/route.ts`
+- `app/api/contact/route.ts`
+- `app/api/identity/capture/route.ts`
+- `app/api/sign-up/route.ts`
+- `app/components/SoftIdentityCapture.tsx`
+- `app/contact/page.tsx`
+- `app/sign-in/page.tsx`
+- `app/sign-up/page.tsx`
+- `lib/behavioral/session-link.ts`
+- `lib/inquiries/create.ts`
+- `lib/middleware/rate-limiter.ts`
 - `scripts/ci-compliance-check.js`
-
-Expected new files:
-
-- `lib/search/__tests__/criteria-to-prisma.test.ts`
-- `lib/search/core.ts`
-- `lib/search/criteria-to-prisma.ts`
-- `lib/search/listing-access-decision.ts`
-- `lib/search/search-run-recorder.ts`
 - `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md`
 
 ## Remaining Fragmentation
@@ -308,10 +340,9 @@ Still not migrated:
 - Public `/api/listings` DB-first path.
 - Public `/api/listings` live Trestle fallback path.
 - CRM `/api/idx/search` direct Trestle path.
-- Portal offers/showings/comparables/favorites-adjacent surfaces beyond the first portal slice.
-- CMA comparables and market/reporting surfaces.
-- Client-side analytics/intent routes that appear referenced but not fully exposed.
-- PortalEvent write coverage.
+- Portal surfaces beyond listings, favorites, comments, offers, showings, and comparables.
+- Deeper market/reporting surfaces beyond the first CMA/recommendation/momentum/social-proof consolidation.
+- Social OAuth callbacks do not yet receive/link the browser's anonymous behavioral session.
 - Stale FastAPI backend stub and stale `docker-compose.yml` frontend service.
 
 ## Recommended Next Move

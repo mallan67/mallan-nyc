@@ -40,7 +40,8 @@ export type InquirySource =
   | "guide_download"
   | "favorite"
   | "search_alert"
-  | "sign_up";
+  | "sign_up"
+  | "soft_identity_capture";
 
 export interface CreateInquiryInput {
   source: InquirySource;
