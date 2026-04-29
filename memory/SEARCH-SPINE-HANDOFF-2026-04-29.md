@@ -427,6 +427,33 @@ Validation:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+## Thirteenth Implemented Slice
+
+Goal: finish the CRM `/api/idx/search` behavior-preserving extraction by moving the Trestle-to-CRM result mapper into shared search code.
+
+Added:
+
+- `lib/search/crm-idx-mapper.ts`
+  - Extracts `mapTrestleToCRM()`, property-type display mapping, and media-category classification from `app/api/idx/search/route.ts`.
+  - Preserves fail-closed address suppression with `affirmPermission()`.
+  - Preserves CRM flat response fields, rental monthly-price behavior, Trestle media proxying, status normalization, DPA fields, searchable checkbox pass-through fields, and permission flags.
+- `lib/search/__tests__/crm-idx-mapper.test.ts`
+  - Covers address suppression, affirmative internet display, media proxying, floorplan classification, status normalization, sales monthly cost, price-change fields, DPA fields, property labels, and rental total-monthly behavior.
+
+Updated:
+
+- `app/api/idx/search/route.ts`
+  - Now imports `mapTrestleToCrmListing()` from the shared search package.
+  - Keeps auth, Trestle fetch, distribution gates, cache, media backfill, and response shape unchanged.
+
+Validation:
+
+- `npm run type-check` passed
+- `npx jest --config lib/search/jest.config.js` passed: 186/186
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 ## Recommended Next Move
 
 Do not rewrite all of `/api/listings` at once. It mixes:

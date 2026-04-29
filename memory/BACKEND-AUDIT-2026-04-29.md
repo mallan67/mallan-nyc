@@ -232,4 +232,20 @@ Validation after the CRM IDX filter extraction:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Follow-up CRM IDX mapper extraction completed next:
+
+- Added `lib/search/crm-idx-mapper.ts`.
+- Added `lib/search/__tests__/crm-idx-mapper.test.ts`.
+- Updated `app/api/idx/search/route.ts` to call `mapTrestleToCrmListing(record, index)`.
+- Kept auth, Trestle fetch, distribution gates, cache, media backfill, and response shape unchanged.
+- Preserved fail-closed address suppression, media proxying, status normalization, rental monthly totals, DPA fields, and CRM flat-field pass-through behavior.
+
+Validation after the CRM IDX mapper extraction:
+
+- `npm run type-check` passed
+- `npx jest --config lib/search/jest.config.js` passed: 186/186
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
