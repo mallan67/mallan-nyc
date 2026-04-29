@@ -14,8 +14,8 @@ import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 
 /** Validate saved search criteria shape. Returns error message or null. */
 function validateCriteria(criteria: Record<string, unknown>): string | null {
-  if (!criteria.listing_type || !["sale", "rental"].includes(criteria.listing_type as string)) {
-    return "criteria.listing_type is required and must be 'sale' or 'rental'";
+  if (!criteria.listing_type || !["sale", "rent", "rental"].includes(criteria.listing_type as string)) {
+    return "criteria.listing_type is required and must be 'sale', 'rent', or 'rental'";
   }
   if (criteria.min_price !== undefined) {
     if (typeof criteria.min_price !== "number" || criteria.min_price < 0) {

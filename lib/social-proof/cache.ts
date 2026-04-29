@@ -9,6 +9,7 @@
  */
 import prisma from "@/lib/prisma";
 import { getListingEventCounts, getListingUniqueSessions } from "@/lib/behavioral/events";
+import { buildSearchDisplayWhere } from "@/lib/search/listing-access-decision";
 
 type DemandLevel = "low" | "moderate" | "high" | "very_high";
 
@@ -95,11 +96,7 @@ export async function batchComputeSocialProof(batchSize = 100): Promise<{
   processed: number;
 }> {
   const activeListings = await prisma.listing.findMany({
-    where: {
-      status: { in: ["Active", "ComingSoon", "ActiveUnderContract"] },
-      idx_display_yn: true,
-      owner_opt_out: false,
-    },
+    where: buildSearchDisplayWhere(),
     select: { id: true, listing_id: true, neighborhood: true },
     take: batchSize,
   });

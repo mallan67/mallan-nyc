@@ -6,6 +6,8 @@ import { requirePortalRole, requireAuth, isAuthError, logAuditEvent } from "@/li
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { createInquiry } from "@/lib/inquiries/create";
+import { isListingDisplayable } from "@/lib/search/listing-access-decision";
+import { recordPortalEvent } from "@/lib/portal/events";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -50,14 +52,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
-  // Distribution gate checks — all 3 gates must pass
-  if (listing.owner_opt_out) {
-    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
-  }
-  if (listing.participant_only) {
-    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
-  }
-  if (listing.internet_entire_listing_display_yn === false) {
+  if (!isListingDisplayable(listing)) {
     return NextResponse.json({ error: "Listing not available" }, { status: 403 });
   }
 
@@ -83,6 +78,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       { listing_id: id, action, toggled: "off" },
       req.headers.get("x-forwarded-for") ?? undefined
     );
+
+    if (auth.userType === "lead") {
+      await recordPortalEvent({
+        leadId: auth.userId,
+        eventType: "reaction",
+        listingId: listing.listing_id,
+        metadata: { action, active: false },
+      });
+    }
 
     return NextResponse.json({ action, active: false });
   }
@@ -110,6 +114,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // aren't in the Inquiry source enum; they remain as ClientListingAction
   // rows only. Never throws — a missing table or other failure does not
   // break the react endpoint.
+  if (auth.userType === "lead") {
+    await recordPortalEvent({
+      leadId: auth.userId,
+      eventType: "reaction",
+      listingId: listing.listing_id,
+      metadata: { action, active: true },
+    });
+  }
+
   if (action === "liked") {
     await createInquiry({
       source: "favorite",

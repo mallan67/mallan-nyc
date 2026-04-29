@@ -8,6 +8,7 @@ import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
+import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
   try {
@@ -212,15 +213,12 @@ export async function GET(request: Request) {
           // Two display paths: RLS listings (must pass 6 distribution gates) OR
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const dbWhere: Prisma.ListingWhereInput = {
-            status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] },
+            status: buildSearchDisplayWhere().status,
             OR: [
               // Path 1: RLS-eligible listings — must pass all distribution gates
               {
                 rls_eligible: true,
-                idx_display_yn: true,
-                internet_entire_listing_display_yn: true,
-                owner_opt_out: false,
-                participant_only: false,
+                ...SEARCH_DISPLAY_GATE,
               },
               // Path 2: Website-only listings (commercial) — no RLS gates
               {
@@ -1342,12 +1340,9 @@ async function fetchExclusiveListings(
   try {
     const where: Prisma.ListingWhereInput = {
       // Only Active statuses — Draft/Incomplete NEVER shown publicly
-      status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] },
+      status: buildSearchDisplayWhere().status,
       // Distribution gates
-      idx_display_yn: true,
-      internet_entire_listing_display_yn: true,
-      owner_opt_out: false,
-      participant_only: false,
+      ...SEARCH_DISPLAY_GATE,
     };
 
     if (listingType === 'sale' || listingType === 'buy') where.listing_type = 'sale';

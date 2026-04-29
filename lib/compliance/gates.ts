@@ -186,6 +186,17 @@ export function isClosedPast24Hours(input: PermissionInput): boolean {
   return hoursSince > 24;
 }
 
+function isClosedWithin24Hours(input: PermissionInput): boolean {
+  const status = readStatus(input);
+  if (status !== Status.CLOSED && status !== Status.EXPIRED) return false;
+  const rawDate = readFirst<unknown>(input, ["CloseDate", "close_date", "closeDate"]);
+  if (!rawDate) return false;
+  const closeDate = new Date(String(rawDate));
+  if (Number.isNaN(closeDate.getTime())) return false;
+  const hoursSince = (Date.now() - closeDate.getTime()) / (1000 * 60 * 60);
+  return hoursSince >= 0 && hoursSince <= 24;
+}
+
 // ── Unified gate result ──────────────────────────────────────────────────
 
 export interface GateResult {
@@ -262,11 +273,12 @@ export function evaluateDisplayGate(input: PermissionInput): GateResult {
   const status = readStatus(input);
   const activeStatus = status !== null && isActiveDisplayStatus(status);
   const terminal = status !== null && isTerminalStatus(status);
+  const closedWithin24Hours = isClosedWithin24Hours(input);
   const comingSoon = status === Status.COMING_SOON;
 
   return {
-    displayable: !terminal, // terminal statuses are not displayable
-    addressDisplayable: !terminal && isAddressDisplayable(input),
+    displayable: !terminal || closedWithin24Hours,
+    addressDisplayable: (!terminal || closedWithin24Hours) && isAddressDisplayable(input),
     comingSoon,
     activeStatus,
   };

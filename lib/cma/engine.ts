@@ -5,6 +5,7 @@
 
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { canDisplayListingAddress, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 
 export interface CmaInput {
   property_address: string;
@@ -60,10 +61,7 @@ export async function findComps(
   since.setMonth(since.getMonth() - radiusMonths);
 
   const where: Record<string, unknown> = {
-    idx_display_yn: true,
-    internet_entire_listing_display_yn: true,
-    owner_opt_out: false,
-    participant_only: false,
+    ...SEARCH_DISPLAY_GATE,
   };
 
   // Match neighborhood or borough
@@ -109,6 +107,7 @@ export async function findComps(
       status: true,
       days_on_market: true,
       internet_address_display_yn: true,
+      internet_entire_listing_display_yn: true,
     },
     take: maxComps * 3,
     orderBy: { modification_timestamp: 'desc' },
@@ -179,7 +178,7 @@ export async function findComps(
     }
 
     const addr = l.address as Record<string, string> | null;
-    const displayAddr = l.internet_address_display_yn && addr
+    const displayAddr = canDisplayListingAddress(l) && addr
       ? `${addr.StreetNumber || ''} ${addr.StreetName || ''}`.trim() || null
       : null;
 

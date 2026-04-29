@@ -7,6 +7,8 @@ import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { isListingDisplayable } from "@/lib/search/listing-access-decision";
+import { recordPortalEvent } from "@/lib/portal/events";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -176,13 +178,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Distribution gate checks — cannot schedule showing on restricted listings
-  if (listing.owner_opt_out) {
-    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
-  }
-  if (listing.participant_only) {
-    return NextResponse.json({ error: "Listing not available" }, { status: 403 });
-  }
-  if (listing.internet_entire_listing_display_yn === false) {
+  if (!isListingDisplayable(listing)) {
     return NextResponse.json({ error: "Listing not available" }, { status: 403 });
   }
 
@@ -243,6 +239,35 @@ export async function POST(req: NextRequest) {
     { listing_id: listingIdStr },
     req.headers.get("x-forwarded-for") ?? undefined
   );
+
+  if (auth.userType === "lead") {
+    await recordPortalEvent({
+      leadId: auth.userId,
+      eventType: "showing_request",
+      workspace: lead.portal_role,
+      listingId: listing.listing_id,
+      metadata: {
+        showing_id: showing.id.toString(),
+        date: showing.date.toISOString(),
+        time: showing.time,
+      },
+    });
+
+    if (listing.owner_client_id) {
+      await recordPortalEvent({
+        leadId: listing.owner_client_id,
+        eventType: "showing_request",
+        workspace: listing.listing_type === "rent" ? "landlord" : "seller",
+        listingId: listing.listing_id,
+        metadata: {
+          showing_id: showing.id.toString(),
+          requester_lead_id: auth.userId.toString(),
+          date: showing.date.toISOString(),
+          time: showing.time,
+        },
+      });
+    }
+  }
 
   return NextResponse.json(
     {

@@ -5,6 +5,7 @@
 import prisma from '@/lib/prisma';
 import { RECOMMENDATION_LIMIT } from './config';
 import type { RecommendationItem } from './types';
+import { canDisplayListingAddress, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 
 /**
  * Get personalized listing recommendations for a lead based on their intent profile.
@@ -22,10 +23,7 @@ export async function getRecommendations(
   // Build query filters from profile
   const where: Record<string, unknown> = {
     status: 'Active',
-    idx_display_yn: true,
-    internet_entire_listing_display_yn: true,
-    owner_opt_out: false,
-    participant_only: false,
+    ...SEARCH_DISPLAY_GATE,
   };
 
   // Price range
@@ -66,6 +64,7 @@ export async function getRecommendations(
       list_price: true,
       bedrooms_total: true,
       internet_address_display_yn: true,
+      internet_entire_listing_display_yn: true,
     },
     take: limit * 2, // Fetch extra for scoring
     orderBy: { modification_timestamp: 'desc' },
@@ -103,7 +102,7 @@ export async function getRecommendations(
     }
 
     const addr = l.address as Record<string, string> | null;
-    const displayAddr = l.internet_address_display_yn && addr
+    const displayAddr = canDisplayListingAddress(l) && addr
       ? `${addr.StreetNumber || ''} ${addr.StreetName || ''}`.trim() || null
       : null;
 

@@ -1,29 +1,32 @@
 // GET /api/cron/search-alerts
-// Daily cron — finds saved searches with alert_enabled=true,
-// executes them against the listings DB, and emails new results.
-// Protected by CRON_SECRET header (Vercel Cron).
+// Daily cron: runs saved searches through the shared SearchCore and emails
+// new compliant matches. Protected by CRON_SECRET header (Vercel Cron).
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
-import type { Prisma } from "@prisma/client";
 import { escapeHtml } from "@/lib/sanitize";
+import { formatSearchAlertAddress, runListingSearch } from "@/lib/search/core";
+import { recordSearchRun } from "@/lib/search/search-run-recorder";
 
 export const maxDuration = 60;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || !authHeader || authHeader.length !== ("Bearer " + cronSecret).length || !timingSafeEqual(Buffer.from(authHeader), Buffer.from("Bearer " + cronSecret))) {
+  if (
+    !cronSecret ||
+    !authHeader ||
+    authHeader.length !== ("Bearer " + cronSecret).length ||
+    !timingSafeEqual(Buffer.from(authHeader), Buffer.from("Bearer " + cronSecret))
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    // Find all enabled alerts that are due
     const now = new Date();
     const searches = await prisma.savedSearch.findMany({
       where: {
@@ -42,7 +45,6 @@ export async function GET(req: NextRequest) {
 
     for (const search of searches) {
       try {
-        // Check frequency — skip if not yet due
         if (search.last_alert_sent) {
           const hoursSinceLastAlert = (now.getTime() - search.last_alert_sent.getTime()) / (1000 * 60 * 60);
           if (search.alert_frequency === "daily" && hoursSinceLastAlert < 23) {
@@ -55,10 +57,7 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Determine recipient email
-        const email = search.alert_email
-          || search.lead?.email
-          || search.agent?.email;
+        const email = search.alert_email || search.lead?.email || search.agent?.email;
         if (!email) {
           skipped++;
           continue;
@@ -70,30 +69,29 @@ export async function GET(req: NextRequest) {
             ? `${search.agent.first_name || ""} ${search.agent.last_name || ""}`.trim()
             : "there";
 
-        // Execute search criteria against DB
         const criteria = search.criteria as Record<string, unknown>;
-        const where = criteriaToPrismaWhere(criteria);
-
-        // Only find listings newer than last alert (or last 24h for first run)
         const since = search.last_alert_sent || new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        where.modification_timestamp = { gte: since };
-
-        const newListings = await prisma.listing.findMany({
-          where,
-          take: 10,
-          orderBy: { modification_timestamp: "desc" },
-          select: {
-            listing_id: true,
-            list_price: true,
-            bedrooms_total: true,
-            bathrooms_full: true,
-            address: true,
-            internet_address_display_yn: true, // REBNY gate 4 — suppress street addr if false
-          },
+        const searchRun = await runListingSearch(prisma, criteria, {
+          limit: 10,
+          offset: 0,
+          modifiedSince: since,
         });
 
+        await recordSearchRun({
+          savedSearchId: search.id.toString(),
+          actor: {
+            userType: "system",
+            userId: null,
+          },
+          resultCount: searchRun.total,
+          limit: searchRun.limit,
+          offset: searchRun.offset,
+          source: "search_alert_cron",
+          criteria,
+        });
+
+        const newListings = searchRun.listings;
         if (newListings.length === 0) {
-          // No new listings — update last_alert_sent but don't email
           await prisma.savedSearch.update({
             where: { id: search.id },
             data: { last_alert_sent: now },
@@ -102,33 +100,14 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Format listings for email — REBNY gate 4 (InternetAddressDisplayYN):
-        // when false, the precise street address MUST be suppressed even in
-        // private client emails (not just public IDX display). We still show
-        // neighborhood/city so the alert is useful.
-        const formattedListings = newListings.map((l) => {
-          const addr = l.address as Record<string, string> | null;
-          const suppressAddress = l.internet_address_display_yn === false;
-          let address: string;
-          if (suppressAddress || !addr) {
-            const neighborhood = addr?.neighborhood || addr?.Neighborhood || "";
-            const city = addr?.city || addr?.City || "New York";
-            address = neighborhood
-              ? `${neighborhood}, ${city} (Address Available on Request)`
-              : "Address Available on Request";
-          } else {
-            address = `${addr.full || `${addr.streetNumber || ""} ${addr.streetName || ""}`.trim()}, ${addr.city || "New York"}`;
-          }
-          return {
-            address,
-            price: `$${Number(l.list_price).toLocaleString()}`,
-            beds: l.bedrooms_total || 0,
-            baths: l.bathrooms_full || 0,
-            url: `${BASE_URL}/listing/${l.listing_id}`,
-          };
-        });
+        const formattedListings = newListings.map((listing) => ({
+          address: formatSearchAlertAddress(listing),
+          price: `$${Number(listing.list_price).toLocaleString()}`,
+          beds: listing.bedrooms_total || 0,
+          baths: listing.bathrooms_full || 0,
+          url: `${BASE_URL}/listing/${listing.listing_id}`,
+        }));
 
-        // Send email
         const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"));
         const subject = `${newListings.length} New Listing${newListings.length !== 1 ? "s" : ""} Matching "${search.name}"`;
         const result = await sendEmail(email, subject, html);
@@ -137,33 +116,26 @@ export async function GET(req: NextRequest) {
           sent++;
           await prisma.savedSearch.update({
             where: { id: search.id },
-            data: { last_alert_sent: now, result_count: newListings.length },
+            data: { last_alert_sent: now, result_count: searchRun.total },
           });
 
-          // Also create ClientListingAction records so listings appear in portal
           if (search.lead_id) {
             for (const listing of newListings) {
-              const listingRecord = await prisma.listing.findUnique({
-                where: { listing_id: listing.listing_id },
-                select: { id: true },
-              });
-              if (listingRecord) {
-                await prisma.clientListingAction.upsert({
-                  where: {
-                    lead_id_listing_id_action: {
-                      lead_id: search.lead_id,
-                      listing_id: listingRecord.id,
-                      action: "sent",
-                    },
-                  },
-                  update: { created_at: now },
-                  create: {
+              await prisma.clientListingAction.upsert({
+                where: {
+                  lead_id_listing_id_action: {
                     lead_id: search.lead_id,
-                    listing_id: listingRecord.id,
+                    listing_id: listing.id,
                     action: "sent",
                   },
-                }).catch(() => {}); // Non-blocking — don't fail cron on individual insert errors
-              }
+                },
+                update: { created_at: now },
+                create: {
+                  lead_id: search.lead_id,
+                  listing_id: listing.id,
+                  action: "sent",
+                },
+              }).catch(() => {});
             }
           }
         } else {
@@ -175,7 +147,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Audit log
     await prisma.auditEvent.create({
       data: {
         action: "search_alerts_cron",
@@ -210,59 +181,4 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: `Alert cron failed: ${msg}` }, { status: 500 });
   }
-}
-
-/** Convert saved search criteria JSON to a Prisma where clause. */
-function criteriaToPrismaWhere(criteria: Record<string, unknown>): Prisma.ListingWhereInput {
-  const where: Prisma.ListingWhereInput = {};
-
-  if (criteria.listing_type) {
-    where.listing_type = criteria.listing_type === "sale" ? "sale" : "rent";
-  }
-
-  if (criteria.property_type && Array.isArray(criteria.property_type)) {
-    where.property_type = { in: criteria.property_type as string[] };
-  }
-
-  if (criteria.borough) {
-    where.borough = criteria.borough as string;
-  }
-
-  if (criteria.neighborhoods && Array.isArray(criteria.neighborhoods) && criteria.neighborhoods.length > 0) {
-    where.neighborhood = { in: criteria.neighborhoods as string[] };
-  }
-
-  if (criteria.min_price || criteria.max_price) {
-    where.list_price = {};
-    if (criteria.min_price) {
-      where.list_price.gte = criteria.min_price as number;
-    }
-    if (criteria.max_price) {
-      where.list_price.lte = criteria.max_price as number;
-    }
-  }
-
-  if (criteria.min_beds) {
-    where.bedrooms_total = { gte: criteria.min_beds as number };
-  }
-
-  if (criteria.min_baths) {
-    where.bathrooms_full = { gte: criteria.min_baths as number };
-  }
-
-  if (criteria.min_sqft) {
-    where.living_area = { gte: criteria.min_sqft as number };
-  }
-
-  if (criteria.status && Array.isArray(criteria.status)) {
-    where.status = { in: criteria.status as string[] };
-  } else {
-    where.status = "Active";
-  }
-
-  // Always filter to displayable listings
-  where.idx_display_yn = true;
-  where.owner_opt_out = false;
-
-  return where;
 }

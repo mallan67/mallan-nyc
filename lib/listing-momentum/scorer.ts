@@ -14,6 +14,7 @@ import {
   getListingEventCounts,
   getListingUniqueSessions,
 } from "@/lib/behavioral/events";
+import { buildSearchDisplayWhere } from "@/lib/search/listing-access-decision";
 
 const SCORE_WEIGHTS = {
   view_velocity: 0.25,
@@ -106,11 +107,7 @@ export async function batchComputeMomentum(batchSize = 100): Promise<{
 }> {
   // Get all active listing IDs
   const activeListings = await prisma.listing.findMany({
-    where: {
-      status: { in: ["Active", "ComingSoon", "ActiveUnderContract"] },
-      idx_display_yn: true,
-      owner_opt_out: false,
-    },
+    where: buildSearchDisplayWhere(),
     select: { listing_id: true },
     take: batchSize,
   });

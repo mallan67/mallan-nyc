@@ -9,6 +9,8 @@ import { requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { isListingDisplayable } from "@/lib/search/listing-access-decision";
+import { recordPortalEvent } from "@/lib/portal/events";
 
 /* ───────────────────────────── GET ───────────────────────────── */
 
@@ -201,19 +203,7 @@ export async function POST(req: NextRequest) {
       { status: 404 }
     );
   }
-  if (listing.owner_opt_out) {
-    return NextResponse.json(
-      { error: "Listing not available" },
-      { status: 403 }
-    );
-  }
-  if (listing.participant_only) {
-    return NextResponse.json(
-      { error: "Listing not available" },
-      { status: 403 }
-    );
-  }
-  if (listing.internet_entire_listing_display_yn === false) {
+  if (!isListingDisplayable(listing)) {
     return NextResponse.json(
       { error: "Listing not available" },
       { status: 403 }
@@ -277,6 +267,34 @@ export async function POST(req: NextRequest) {
     },
     req.headers.get("x-forwarded-for") ?? undefined
   );
+
+  if (auth.userType === "lead") {
+    await recordPortalEvent({
+      leadId: auth.userId,
+      eventType: "offer_submit",
+      workspace: lead.portal_role,
+      listingId: listing.listing_id,
+      metadata: {
+        offer_action_id: action.id.toString(),
+        amount,
+        financing_type: financing_type ?? null,
+      },
+    });
+
+    if (listing.owner_client_id) {
+      await recordPortalEvent({
+        leadId: listing.owner_client_id,
+        eventType: "offer_view",
+        workspace: listing.listing_type === "rent" ? "landlord" : "seller",
+        listingId: listing.listing_id,
+        metadata: {
+          offer_action_id: action.id.toString(),
+          buyer_lead_id: auth.userId.toString(),
+          amount,
+        },
+      });
+    }
+  }
 
   return NextResponse.json({
     id: action.id.toString(),

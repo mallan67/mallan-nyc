@@ -84,6 +84,17 @@ function fileContains(filePath, pattern) {
   return pattern.test(content);
 }
 
+function lineHits(filePath, pattern) {
+  const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+  const hits = [];
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    if (pattern.test(line)) hits.push(`${path.relative(ROOT, filePath)}:${idx + 1}`);
+  });
+  return hits;
+}
+
 console.log('=== CI Compliance Check ===\n');
 
 // ── 1. No Trestle URLs in client components ──
@@ -228,7 +239,7 @@ for (const rel of LEAD_CAPTURE_FORMS) {
 // because a listing can be IDX-displayable while the specific address is suppressed.
 const searchAlertsPath = path.join(ROOT, 'app/api/cron/search-alerts/route.ts');
 if (fs.existsSync(searchAlertsPath)) {
-  if (fileContains(searchAlertsPath, /internet_address_display_yn|InternetAddressDisplay/)) {
+  if (fileContains(searchAlertsPath, /internet_address_display_yn|InternetAddressDisplay|formatSearchAlertAddress/)) {
     pass('Address-display gate in search-alerts cron (REBNY §2.05)');
   } else {
     fail('Address-display gate missing in search-alerts cron — emails may leak suppressed addresses (REBNY §2.05 violation)');
@@ -239,6 +250,74 @@ if (fs.existsSync(searchAlertsPath)) {
 // Canonical source is `lib/middleware/security-headers.ts` — applied per-request via proxy.ts.
 // NOTE: These headers were previously in vercel.json but that created a split-brain policy
 // where the edge CSP competed with the middleware's stronger nonce-based CSP. Single-source-of-truth.
+// ── 10b. Fail-open IDX gate regression scan on public/portal surfaces ──
+// These patterns caused prior compliance drift:
+// - `flag === false` allows null/undefined to pass as displayable.
+// - `internet_address_display_yn &&` treats address permission as a loose truthy flag.
+// - ad hoc `idx_display_yn: true` filters can omit owner/participant/entire-listing gates.
+const PUBLIC_PORTAL_SCAN_ROOTS = [
+  path.join(ROOT, 'app', 'api', 'listings'),
+  path.join(ROOT, 'app', 'api', 'portal'),
+  path.join(ROOT, 'app', 'listing'),
+  path.join(ROOT, 'app', 'search'),
+  path.join(ROOT, 'lib', 'cma'),
+  path.join(ROOT, 'lib', 'buyer-intent'),
+  path.join(ROOT, 'lib', 'listing-momentum'),
+  path.join(ROOT, 'lib', 'market-pulse'),
+  path.join(ROOT, 'lib', 'social-proof'),
+];
+const publicPortalFiles = [
+  ...PUBLIC_PORTAL_SCAN_ROOTS.flatMap((dir) => findFiles(dir, '.ts')),
+  ...PUBLIC_PORTAL_SCAN_ROOTS.flatMap((dir) => findFiles(dir, '.tsx')),
+];
+
+const failOpenPatterns = [
+  {
+    name: 'Fail-open entire-listing display checks',
+    pattern: /\b(?:internet_entire_listing_display_yn|InternetEntireListingDisplayYN)\s*(?:===|!==)\s*false\b/,
+  },
+  {
+    name: 'Fail-open IDX display checks',
+    pattern: /\bidx_display_yn\s*(?:===|!==)\s*false\b/,
+  },
+  {
+    name: 'Truthy address-display checks',
+    pattern: /\b(?:internet_address_display_yn|InternetAddressDisplayYN)\s*&&/,
+  },
+  {
+    name: 'Fail-open address-display comparisons',
+    pattern: /\b(?:internet_address_display_yn|InternetAddressDisplayYN)\s*!==\s*false\b/,
+  },
+];
+
+for (const { name, pattern } of failOpenPatterns) {
+  const hits = publicPortalFiles.flatMap((file) => lineHits(file, pattern));
+  if (hits.length === 0) {
+    pass(`${name} absent on public/portal surfaces`);
+  } else {
+    fail(`${name} on public/portal surfaces`, hits.join(', '));
+  }
+}
+
+const CANONICAL_GATE_PATTERN = /SEARCH_DISPLAY_GATE|buildSearchDisplayWhere|isListingDisplayable|filterDisplayableDbListings|dbListingToPublicDTO|sanitizeListingForPortal|checkDistributionGates|toPublicDTO/;
+const idxLiteralGateFiles = publicPortalFiles.filter((file) => {
+  const content = fs.readFileSync(file, 'utf8');
+  if (!/\bidx_display_yn\s*:\s*true\b/.test(content)) return false;
+  if (CANONICAL_GATE_PATTERN.test(content)) return false;
+  return !/\bparticipant_only\s*:\s*false\b/.test(content) ||
+    !/\bowner_opt_out\s*:\s*false\b/.test(content) ||
+    !/\binternet_entire_listing_display_yn\s*:\s*true\b/.test(content);
+});
+if (idxLiteralGateFiles.length === 0) {
+  pass('Ad hoc idx_display_yn filters on public/portal surfaces include canonical/full gates');
+} else {
+  fail(
+    'Ad hoc idx_display_yn filter missing canonical/full gates',
+    idxLiteralGateFiles.map((file) => path.relative(ROOT, file)).join(', '),
+  );
+}
+
+// Section 11 resumes here after the fail-open gate regression checks above.
 const vercelJsonPath = path.join(ROOT, 'vercel.json');
 const securityHeadersPath = path.join(ROOT, 'lib/middleware/security-headers.ts');
 if (fs.existsSync(securityHeadersPath)) {

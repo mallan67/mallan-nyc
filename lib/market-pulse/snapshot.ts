@@ -4,6 +4,7 @@
 
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 
 /**
  * Compute market snapshot for a neighborhood + period.
@@ -20,10 +21,7 @@ export async function computeSnapshot(
   const where: Prisma.ListingWhereInput = {
     neighborhood,
     listing_type: listingType,
-    idx_display_yn: true,
-    internet_entire_listing_display_yn: true,
-    owner_opt_out: false,
-    participant_only: false,
+    ...SEARCH_DISPLAY_GATE,
   };
 
   // Active inventory at end of period

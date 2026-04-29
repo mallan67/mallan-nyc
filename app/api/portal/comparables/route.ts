@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requirePortalRole, isAuthError } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
+import { SEARCH_DISPLAY_GATE } from "@/lib/search/listing-access-decision";
 
 export async function GET(req: NextRequest) {
   const auth = await requirePortalRole(req, "buyer", "seller");
@@ -42,10 +43,7 @@ export async function GET(req: NextRequest) {
       neighborhood,
       borough,
       status: { in: ["Active", "Closed", "Sold", "Leased"] },
-      idx_display_yn: true,
-      owner_opt_out: false,
-      participant_only: false,
-      internet_entire_listing_display_yn: true,
+      ...SEARCH_DISPLAY_GATE,
     },
     orderBy: { modification_timestamp: "desc" },
     take: 20,

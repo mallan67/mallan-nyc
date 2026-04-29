@@ -5,6 +5,8 @@ import prisma from "@/lib/prisma";
 import { requirePortalRole, requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { isListingDisplayable } from "@/lib/search/listing-access-decision";
+import { recordPortalEvent } from "@/lib/portal/events";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -20,6 +22,13 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const listingId = safeBigInt(id);
   if (!listingId) {
     return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 });
+  }
+
+  const listing = await prisma.listing.findUnique({
+    where: { id: listingId },
+  });
+  if (!listing || !isListingDisplayable(listing)) {
+    return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
   // Get this client's family group (self + family members)
@@ -106,9 +115,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // Verify listing exists
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
-    select: { id: true, owner_opt_out: true },
   });
-  if (!listing || listing.owner_opt_out) {
+  if (!listing || !isListingDisplayable(listing)) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
@@ -131,6 +139,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     { listing_id: id, parent_id: parentId?.toString() ?? null },
     req.headers.get("x-forwarded-for") ?? undefined
   );
+
+  if (auth.userType === "lead") {
+    await recordPortalEvent({
+      leadId: auth.userId,
+      eventType: "comment_add",
+      listingId: listing.listing_id,
+      metadata: { comment_id: comment.id.toString(), parent_id: parentId?.toString() ?? null },
+    });
+  }
 
   return NextResponse.json(
     {

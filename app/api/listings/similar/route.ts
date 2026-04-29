@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 
 export const maxDuration = 60;
 
@@ -73,10 +74,7 @@ export async function GET(request: NextRequest) {
         listing_type: listingTypeFilter,
         list_price: { gte: minPrice, lte: maxPrice },
         listing_id: { not: excludeId },
-        idx_display_yn: true,
-        owner_opt_out: false,
-        internet_entire_listing_display_yn: true,
-        participant_only: false,
+        ...SEARCH_DISPLAY_GATE,
         OR: [
           { address: { path: ['PostalCode'], equals: postalCode } },
           ...(neighborhood ? [{ neighborhood }] : []),

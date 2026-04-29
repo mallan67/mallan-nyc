@@ -35,6 +35,7 @@ export type BehavioralEventType = (typeof BEHAVIORAL_EVENT_TYPES)[number];
 export interface BehavioralEventInput {
   sessionId: string;
   eventType: BehavioralEventType;
+  leadId?: bigint;
   listingId?: string;
   value?: number;
   metadata?: Record<string, unknown>;
@@ -60,6 +61,7 @@ export async function recordBehavioralEvent(event: BehavioralEventInput): Promis
   await prisma.behavioralEvent.create({
     data: {
       session_id: event.sessionId,
+      lead_id: event.leadId || null,
       event_type: event.eventType,
       listing_id: event.listingId || null,
       value: event.value || null,

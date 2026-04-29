@@ -41,6 +41,7 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
+import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
 
 // ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
 export const revalidate = 300;
@@ -306,13 +307,11 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     if (!dbListing) return null;
 
-    // Distribution gate check (use === false, not truthiness — null/undefined means "not set" = allow)
-    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates
-    if (dbListing.rls_eligible !== false) {
-      if (dbListing.idx_display_yn === false || dbListing.owner_opt_out === true ||
-          dbListing.internet_entire_listing_display_yn === false || dbListing.participant_only === true) {
-        return null;
-      }
+    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
+    // RLS-backed detail pages fail closed on missing display permissions.
+    const isRlsBacked = dbListing.rls_eligible !== false;
+    if (isRlsBacked && !isListingDisplayable(dbListing)) {
+      return null;
     }
 
     // Convert DB record to PublicListingDTO
@@ -365,7 +364,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
-    const suppressAddress = dbListing.internet_address_display_yn === false;
+    const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
     const dto: PublicListingDTO = {
       id: dbListing.listing_id,
