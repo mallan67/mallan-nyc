@@ -32,6 +32,15 @@ function proxyUrl(url: string): string {
 }
 
 /**
+ * Mask address when REBNY RLS InternetAddressDisplayYN gate is false or unknown.
+ * Fail-closed: null/undefined → masked. Per REBNY RLS Sec. 2.05.
+ */
+function maskAddressIfRestricted(address: string, internetAddressDisplayYN: boolean | null | undefined): string {
+  if (internetAddressDisplayYN === true) return address;
+  return 'Address available upon request';
+}
+
+/**
  * GET /api/listings/similar?type=sale&beds=1&price=715000&postalCode=10011&excludeId=xxx
  *
  * Returns up to 6 similar listings nearby (same ZIP, similar beds/price).
@@ -145,6 +154,7 @@ export async function GET(request: NextRequest) {
           photoUrl = firstPhoto?.url ? proxyUrl(firstPhoto.url) : null;
         }
 
+        const fullAddress = `${streetNum} ${streetName}${unit}`.trim();
         return {
           id: l.listing_id,
           mlsId: l.listing_id,
@@ -153,7 +163,7 @@ export async function GET(request: NextRequest) {
           beds: l.bedrooms_total ?? 0,
           baths: l.bathrooms_full ?? 0,
           sqft: l.living_area ? Number(l.living_area) : 0,
-          address: `${streetNum} ${streetName}${unit}`.trim(),
+          address: maskAddressIfRestricted(fullAddress, l.internet_address_display_yn),
           neighborhood: l.neighborhood || '',
           photoUrl,
           photosCount,
@@ -176,7 +186,7 @@ export async function GET(request: NextRequest) {
       : "PropertyType eq 'Residential'";
 
     const priceFilter = `ListPrice ge ${minPrice} and ListPrice le ${maxPrice}`;
-    const selectFields = 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,StreetNumber,StreetName,UnitNumber,PostalCode,PropertySubType,PropertyType,CommonInterest,ListOfficeName,CityRegion';
+    const selectFields = 'ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,StreetNumber,StreetName,UnitNumber,PostalCode,PropertySubType,PropertyType,CommonInterest,ListOfficeName,CityRegion,InternetAddressDisplayYN,InternetEntireListingDisplayYN,MlsStatus';
 
     // Build filter: same ZIP, similar price, active, same type
     // Do NOT use $expand=Media — Trestle often rejects it with 400.
@@ -272,6 +282,10 @@ export async function GET(request: NextRequest) {
           }
         } catch { /* non-fatal */ }
 
+        // REBNY RLS Sec. 2.05: mask address when InternetAddressDisplayYN is false/null (fail-closed).
+        const fullAddress = `${streetNum} ${streetName}${unit}`;
+        const addressDisplayYN = r.InternetAddressDisplayYN === true;
+
         return {
           id: String(r.ListingKey || r.ListingId),
           mlsId,
@@ -280,7 +294,7 @@ export async function GET(request: NextRequest) {
           beds: Number(r.BedroomsTotal || 0),
           baths: Number(r.BathroomsFull || 0),
           sqft: Number(r.LivingArea || 0),
-          address: `${streetNum} ${streetName}${unit}`,
+          address: maskAddressIfRestricted(fullAddress, addressDisplayYN),
           neighborhood: String(r.CityRegion || ''),
           photoUrl,
           photosCount,

@@ -62,9 +62,21 @@ function criteriaToPrismaWhere(criteria: Record<string, unknown>): Prisma.Listin
     where.status = "Active";
   }
 
-  // Always filter to displayable listings
+  // Always re-apply REBNY RLS distribution gates at execution time, regardless
+  // of what the saved criteria specify. Saved criteria may be stale (created
+  // when a listing was Active; the listing has since flipped to opt-out or
+  // crossed the 24h closed-display window). Re-applying here is fail-closed
+  // and matches the gate set applied by every other displayable surface:
+  //   - idx_display_yn=true: closes closed>24h via the data-retention cron
+  //   - owner_opt_out=false: respects owner opt-outs
+  //   - internet_entire_listing_display_yn=true: respects RLS display gate
+  //   - participant_only=false: agents have CRM-side participant access via
+  //     /api/idx/search; this endpoint is for saved-search execution and
+  //     should match the public/portal gate posture for safety.
   where.idx_display_yn = true;
   where.owner_opt_out = false;
+  where.internet_entire_listing_display_yn = true;
+  where.participant_only = false;
 
   return where;
 }

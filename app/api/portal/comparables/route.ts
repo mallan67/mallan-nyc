@@ -29,13 +29,20 @@ export async function GET(req: NextRequest) {
   const propertyType = listing.property_type || "";
   const bedrooms = listing.bedrooms_total || 0;
 
-  // Find comparables in same building (same street address)
+  // Find comparables in same building (same street address).
+  //
+  // REBNY UCBA Art. I §6: closed listings must be removed from public display
+  // within 24h. The `data-retention` cron flips `idx_display_yn=false` for
+  // listings that crossed the 24h boundary, so the `idx_display_yn: true`
+  // filter is the canonical fail-closed gate. Without it, this surface would
+  // expose closed listings indefinitely.
   const buildingComps = await prisma.listing.findMany({
     where: {
       id: { not: listing.id },
       neighborhood,
       borough,
       status: { in: ["Active", "Closed", "Sold", "Leased"] },
+      idx_display_yn: true,
       owner_opt_out: false,
       participant_only: false,
       internet_entire_listing_display_yn: true,
