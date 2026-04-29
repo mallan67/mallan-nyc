@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 
 interface MortgageModalProps {
@@ -10,6 +10,11 @@ interface MortgageModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   propertyType?: string;
+}
+
+function dispatchFinancialIntent(type: string, detail: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('mallan:intent', { detail: { type, ...detail } }));
 }
 
 export default function MortgageModal({
@@ -102,6 +107,47 @@ export default function MortgageModal({
       pmi: (calculations.monthlyPMI / total) * 100,
     };
   }, [calculations]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const timer = window.setTimeout(() => {
+      dispatchFinancialIntent('financial_tool_used', {
+        context: 'financial_tool',
+        tool_type: 'mortgage',
+        inputs: {
+          purchasePrice,
+          maintenanceFee,
+          monthlyTaxes,
+          propertyType,
+          downPaymentPercent,
+          interestRate,
+          loanTerm,
+        },
+        results: {
+          downPayment: calculations.downPayment,
+          loanAmount: calculations.loanAmount,
+          monthlyPayment: calculations.totalMonthly,
+          monthlyPrincipalInterest: calculations.monthlyPrincipalInterest,
+          totalClosingCosts: calculations.totalClosingCosts,
+          totalCashNeeded: calculations.totalCashNeeded,
+          totalInterest: calculations.totalInterest,
+        },
+      });
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    calculations,
+    downPaymentPercent,
+    interestRate,
+    loanTerm,
+    maintenanceFee,
+    monthlyTaxes,
+    open,
+    propertyType,
+    purchasePrice,
+  ]);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>

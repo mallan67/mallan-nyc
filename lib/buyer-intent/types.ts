@@ -19,6 +19,8 @@ export const INTENT_EVENT_TYPES = [
   'listing_browse_from',       // Client browsed to another listing from one we sent
   'listing_quick_dismiss',     // Client left listing in < 5 seconds
   'rent_vs_buy_viewed',        // Client viewed the rent vs buy analysis section
+  'financial_tool_used',       // Buyer used a calculator/tool with structured assumptions
+  'financial_tool_lead_request', // Buyer asked for follow-up from a financial tool
 ] as const;
 
 export type IntentEventType = typeof INTENT_EVENT_TYPES[number];

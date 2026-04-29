@@ -224,6 +224,24 @@ export default function AffordabilityCalculator() {
             calculatorType="affordability"
             hasCalculated={isExpanded}
             resultsSummary={`Budget: $${calculations.maxPrice.toLocaleString()} (${propertyType}). Monthly housing: $${calculations.maxMonthlyHousing.toLocaleString()}. DTI: ${calculations.dtiPercent}%.`}
+            financialIntent={{
+              inputs: {
+                annualIncome,
+                monthlyDebt,
+                downPayment,
+                interestRate,
+                propertyType,
+              },
+              results: {
+                maxPrice: calculations.maxPrice,
+                maxLoan: calculations.maxLoan,
+                maxMonthlyHousing: calculations.maxMonthlyHousing,
+                estMortgage: calculations.estMortgage,
+                estTaxesAndCharges: calculations.estTaxesAndCharges,
+                dtiPercent: Number(calculations.dtiPercent),
+                dtiLimit: Number(calculations.dtiLimit),
+              },
+            }}
           />
         </div>
       )}

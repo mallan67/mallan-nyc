@@ -312,6 +312,29 @@ export default function RentVsBuyCalculator({
           calculatorType="rent-vs-buy"
           hasCalculated={showLeadCapture}
           resultsSummary={`${calculations.buyIsBetter ? 'Buying saves' : 'Renting saves'} $${calculations.savings.toLocaleString()} over ${yearsToStay} years. Monthly owning: $${calculations.monthlyOwningCost.toLocaleString()}. Rent: $${rentAmount.toLocaleString()}/mo.`}
+          financialIntent={{
+            inputs: {
+              purchasePrice,
+              rentAmount,
+              downPaymentPercent,
+              interestRate,
+              yearsToStay,
+              annualRentIncrease,
+              annualAppreciation,
+              maintenanceFee,
+              realEstateTaxes,
+            },
+            results: {
+              buyIsBetter: calculations.buyIsBetter,
+              savings: calculations.savings,
+              monthlyOwningCost: calculations.monthlyOwningCost,
+              totalRentCost: calculations.totalRentCost,
+              totalBuyingCosts: calculations.totalBuyingCosts,
+              equityBuilt: calculations.equityBuilt,
+              estimatedPurchasePrice: calculations.estimatedPurchasePrice,
+              downPayment: calculations.downPayment,
+            },
+          }}
         />
 
         <p className="mt-4 text-xs text-brand-dark/90">

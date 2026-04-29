@@ -16,6 +16,8 @@ export const EVENT_WEIGHTS: Record<IntentEventType, number> = {
   listing_browse_from: 0.18,      // Browsed further = active exploration
   listing_quick_dismiss: -0.05,   // Quick leave = negative signal
   rent_vs_buy_viewed: 0.10,       // Viewed analysis = considering transition
+  financial_tool_used: 0.12,      // Tested budget/payment assumptions
+  financial_tool_lead_request: 0.25, // Asked for follow-up from a calculator
 };
 
 export const DECAY_HALF_LIFE_DAYS = 14;

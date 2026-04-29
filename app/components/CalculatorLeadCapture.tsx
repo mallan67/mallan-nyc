@@ -13,6 +13,12 @@ interface CalculatorLeadCaptureProps {
   resultsSummary?: string;
   /** Whether the user has actually run a calculation (controls visibility) */
   hasCalculated: boolean;
+  /** Structured assumptions/results for agent-visible buyer financial intent. */
+  financialIntent?: {
+    inputs?: Record<string, unknown>;
+    results?: Record<string, unknown>;
+    listing_id?: string;
+  };
 }
 
 const SUBTEXT: Record<CalculatorType, string> = {
@@ -33,10 +39,16 @@ const CALCULATOR_LABELS: Record<CalculatorType, string> = {
 
 const DISMISS_KEY = 'calc_lead_dismissed';
 
+function dispatchFinancialIntent(type: string, detail: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('mallan:intent', { detail: { type, ...detail } }));
+}
+
 export default function CalculatorLeadCapture({
   calculatorType,
   resultsSummary,
   hasCalculated,
+  financialIntent,
 }: CalculatorLeadCaptureProps) {
   const [dismissed, setDismissed] = useState(false);
   const [email, setEmail] = useState('');
@@ -54,6 +66,20 @@ export default function CalculatorLeadCapture({
       // sessionStorage unavailable (SSR or privacy mode)
     }
   }, []);
+
+  useEffect(() => {
+    if (!hasCalculated || !financialIntent) return;
+
+    const timer = window.setTimeout(() => {
+      dispatchFinancialIntent('financial_tool_used', {
+        context: 'financial_tool',
+        tool_type: calculatorType,
+        ...financialIntent,
+      });
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [calculatorType, financialIntent, hasCalculated]);
 
   if (!hasCalculated || dismissed || isSubmitted) {
     if (isSubmitted) {
@@ -121,6 +147,12 @@ export default function CalculatorLeadCapture({
       }
 
       setIsSubmitted(true);
+      dispatchFinancialIntent('financial_tool_lead_request', {
+        context: 'financial_tool',
+        tool_type: calculatorType,
+        results_summary: resultsSummary || null,
+        ...financialIntent,
+      });
       // Tag with the calculator type so the funnel can separate affordability
       // leads from rent-vs-buy etc. The backend inquiry record already keys off
       // source:'calculator', but PostHog needs its own breadcrumb.
