@@ -1570,6 +1570,76 @@ will populate the projection over 1–2 weeks. Defer the backfill
 decision to PR 5D, when we know which reader is migrating first and
 whether partial coverage is acceptable for that reader's contract.
 
+## PR 5C-backfill — bounded one-shot listing_search_projection backfill
+
+Decision after passive verification: rather than wait 1–2 weeks for
+natural-churn convergence, run a one-shot bounded backfill so PR 5D
+can start with full projection parity.
+
+New script: `scripts/backfill-listing-search-projection.ts`
+
+- Idempotent. Dry-run by default; `--execute` required for real writes.
+- Cursor-paginated by `id ASC`, 500-row default batch.
+- Filter: Prisma 1:1 relation `listing_search_projection: null` —
+  only listings without an existing projection.
+- Reuses the existing pure helpers `buildListingSearchProjectionFromListing`
+  + `buildProjectionUpsertPayload`. No new helper. No schema change.
+- Reads only existing `Listing` rows. Never touches Trestle.
+- Loud failure: per-row errors are logged + counted, and the script
+  exits non-zero if any row errored.
+- Flags: `--batch=N`, `--max-batches=N`, `--limit=N`.
+
+New npm scripts: `ops:projection-backfill` and
+`ops:projection-backfill:execute`. Match `ops:neon-shed[:execute]` pattern.
+
+Dry-run:
+
+- 19,579 expected to backfill out of 19,826 listings (247 already
+  populated by PR 5B dual-write across the prior ~50 min of sync cycles).
+- 40 batches. 0 errors. 18.0 s elapsed (read-only).
+- Sample payload validated: gates round-tripped, amenity_keys + feature_flags
+  populated, is_exclusive / is_rental correctly derived.
+
+Execute:
+
+- 40 batches. 0 errors. 16.4 min elapsed.
+- 11 net-new listings concurrently arrived via the natural sync cron;
+  no conflicts because upserts are idempotent on `listing_id`.
+
+Post-backfill SQL verification:
+
+- `SELECT COUNT(*) FROM listing_search_projection` → **19,830**
+- `SELECT COUNT(*) FROM listings` → **19,830**
+- `SELECT COUNT(*) FROM listings l LEFT JOIN listing_search_projection p
+  ON p.listing_id = l.listing_id WHERE p.listing_id IS NULL` → **0**
+- `MIN(proj.created_at)` → 2026-04-29T19:20:18.633Z (first PR 5B dual-write)
+- `MAX(proj.created_at)` → 2026-04-29T20:03:20.401Z (last backfilled row)
+
+Health post-backfill:
+
+- `ops:health` HEALTHY. Sync still running; dual-write firing every
+  12 min cycle (last cycle: 71 upserts, 0 errors, 8.3 s).
+- REBNY §2.05 violations: 0.
+
+Validation rerun (all green):
+
+- `npx prisma validate`: pass
+- `npm run type-check`: pass
+- `npx jest --config lib/search/jest.config.js`: 256/256
+- `npm run test:compliance`: 194/194
+- `npm run compliance-check`: 87/87
+- `npm run idx:validate`: WARN, 0 critical
+- `npm run lint`: 0/0
+
+PR 5D readiness: **safe to start.** Projection at full parity
+(19,830/19,830 with 0 missing). Dual-write keeps it converged on every
+sync cycle. Recommended first reader: `app/api/crm/saved-searches/[id]/execute/route.ts`
+— smallest surface area, already routes through `lib/search/core.ts`,
+easiest rollback.
+
+Push: not performed per the brief ("Do NOT push unless explicitly
+instructed").
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of

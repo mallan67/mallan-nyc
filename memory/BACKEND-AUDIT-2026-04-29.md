@@ -991,4 +991,52 @@ Diff stat for this slice: zero source code change. Documentation only.
 
 Push state: `origin/main` advanced from `38d4374d` to `0d6ccacd`. Local branch matched origin at push time. After this docs commit, local will be 1 commit ahead again — staged for the next session to push.
 
+PR 5C-backfill — bounded one-shot listing_search_projection backfill — completed:
+
+- Added `scripts/backfill-listing-search-projection.ts` (idempotent, dry-run by default, cursor-paginated by `id ASC`, 500-row default batch, `--execute` / `--batch=N` / `--max-batches=N` / `--limit=N` flags). Reads only existing `Listing` rows (never Trestle), reuses the existing pure helpers `buildListingSearchProjectionFromListing` + `buildProjectionUpsertPayload`. Filter: Prisma 1:1 relation `listing_search_projection: null` selects only listings without an existing projection. Fail-closed gate fields round-trip verbatim. Loud failures (process exits non-zero on per-row errors).
+- Added 2 npm scripts in `package.json`: `ops:projection-backfill` (dry-run) and `ops:projection-backfill:execute` (real writes). Match the existing `ops:neon-shed[:execute]` pattern.
+
+Dry-run (pre-execute):
+
+- Pre-flight counts: listings 19,826 · existing projections 247 · expected to backfill 19,579.
+- Batches: 40 (39 × 500 + 1 × 79).
+- Errors: 0. Elapsed: 18.0 s (read-only; no upserts).
+- Sample payload (RLS20021426, NoMad rental Co-op): every projection field correctly populated. Distribution gates round-tripped verbatim — `idx_display_yn: false`, `internet_entire_listing_display_yn: true`, `internet_address_display_yn: true`, `participant_only_yn: false`. `is_exclusive: true` (agent_id set), `is_rental: true`, amenity_keys `["laundry-room","skyline-views","views"]`, feature_flags `{has_floorplan: false, …, is_pet_friendly: false}`. searchable_text populated.
+
+Real backfill execute:
+
+- Batches: 40. Errors: 0. Elapsed: 16.4 min.
+- During execute, 11 net-new listings were also added to the DB via the natural sync cron. Both the backfill (selecting "no projection") and the dual-write in `lib/idx/sync.ts` (PR 5B) ran concurrently with no conflicts — the upserts are idempotent on `listing_id`. Final convergence is exact.
+- Post-execute counts (via direct SQL):
+  - `projection_count`: **19,830**
+  - `listings_count`: **19,830**
+  - `missing_projection_count`: **0**
+  - `MIN(proj.created_at)`: 2026-04-29T19:20:18.633Z (first PR 5B dual-write)
+  - `MAX(proj.created_at)`: 2026-04-29T20:03:20.401Z (last backfilled row)
+  - `MIN(proj.modified_at)`: 2024-10-26T18:55:57.357Z (oldest Trestle ModificationTimestamp in the DB)
+  - `MAX(proj.modified_at)`: 2026-04-29T19:58:30.257Z (latest)
+
+Sync health post-backfill:
+
+- `npm run ops:health` → HEALTHY. Sync state: ok. Last run: 71 upserted, 0 errors, 8.3 s. The dual-write continues to fire on every cycle. 24h error count: 0. REBNY §2.05 violations: 0.
+
+Validation:
+
+- `npx prisma validate` passed.
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 256/256.
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed: WARN, 0 critical (853 pass).
+- `npm run lint` passed: 0 errors, 0 warnings.
+
+Diff stat:
+
+- `scripts/backfill-listing-search-projection.ts`: +245 (new file).
+- `package.json`: +2 (two new ops scripts).
+
+PR 5D readiness: **safe to start.** The projection table is at full parity with `Listing` (19,830/19,830) and the dual-write keeps it converged on every sync cycle. A reader migration can now query `listing_search_projection` with confidence that no listings are missing. Recommended first reader for PR 5D: `app/api/crm/saved-searches/[id]/execute/route.ts` — already routes through `lib/search/core.ts` from the prior search-spine work, smallest surface area, easiest rollback.
+
+Push state: this slice is local-only — no push performed (per the brief's "Do NOT push unless explicitly instructed").
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
