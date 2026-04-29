@@ -812,4 +812,33 @@ Diff stat:
 
 No other files touched.
 
+Buyer-priorities slice committed (was previously mid-build in the working tree):
+
+- New `lib/buyer-priorities/summary.ts` (227 LOC) — pure derivation `summarizeBuyerDailyPriorities({externalListings, financialIntent, showings})`. Produces a sorted item queue with `urgent`/`high`/`normal` priorities and counts. Reads existing portal data; no schema change.
+- New `lib/buyer-priorities/__tests__/summary.test.ts` (124 LOC) — 2 tests: (1) prioritizes tour requests / info requests / budget stretch / liked outside listings / family discussion; (2) does NOT flag request-info after an agent response.
+- New `lib/buyer-priorities/jest.config.js` — package-local Jest config matching the same pattern used by `lib/seller-signals` / `lib/rental-signals` / `lib/external-listings`.
+- New `app/api/crm/clients/[id]/buyer-priorities/route.ts` (147 LOC) — `GET` only, agent/broker auth gated, broker access to all clients + agent access scoped to assigned leads (matches `lib/crm/access.ts` shape used elsewhere in CRM). Fetches lead, external listings (with comments), intent events (250 most recent), and showings (status in `requested`/`confirmed`) in parallel, derives a financial intent summary via the existing `summarizeFinancialIntent`, then calls `summarizeBuyerDailyPriorities`.
+- Updated `public/crm/js/dashboard/workspace.js` — adds `_buyerPrioritiesCache`, `_fetchBuyerPriorities`, `_buyerPriorityTone`, `_buyerPriorityAction`, `_renderBuyerPriorityQueue`, plus a `<div id="wsBuyerPriorityQueue">` injection in `_clientOverview` for buyer/renter clients, and three cache invalidations on outside-listing comment / add / update.
+- **Fixed a real bug surfaced by the audit**: `_renderRentalSignalsPanel` had `clientType = (...).toLowerCase()` without a `var` declaration after a prior refactor that hoisted `clientType` into `_clientOverview`'s function scope. Without `var`, the assignment would either create an implicit global (non-strict) or throw a ReferenceError (strict) the first time the rental-signals tab was opened for a non-rental client. Re-added `var`. Verified with `node --check public/crm/js/dashboard/workspace.js` and `npm run crm:test` (39/39).
+
+Validation after the buyer-priorities + workspace.js bug-fix slice:
+
+- `node --check public/crm/js/dashboard/workspace.js` passed.
+- `npx jest --config lib/buyer-priorities/jest.config.js` passed: 2/2.
+- `npm run type-check` passed.
+- `npm run crm:test` passed: 39/39.
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run lint` passed: 0 errors, 0 warnings.
+
+Diff stat:
+
+- `app/api/crm/clients/[id]/buyer-priorities/route.ts`: +147 (new file).
+- `lib/buyer-priorities/summary.ts`: +227 (new file).
+- `lib/buyer-priorities/__tests__/summary.test.ts`: +124 (new file).
+- `lib/buyer-priorities/jest.config.js`: +20 (new file).
+- `public/crm/js/dashboard/workspace.js`: ~+105 / −1 (panel + bug fix).
+
+No schema/migration/env/Vercel/CRM-route boundary touched (the new CRM endpoint is additive). Push gate unchanged.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

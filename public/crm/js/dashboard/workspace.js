@@ -19,6 +19,7 @@ var Workspace = (function () {
   var _clientId = null;
   var _clientTab = 'overview';
   var _clientData = {}; // secondary data cache
+  var _buyerPrioritiesCache = {};
 
   // Legacy CLIENT_TABS — kept for fallback when feature flag off
   var CLIENT_TABS = [
@@ -424,6 +425,94 @@ var Workspace = (function () {
 
   // ─── Smart Client Alerts ─────────────────────────────────────────────
 
+  function _fetchBuyerPriorities(clientId) {
+    return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/buyer-priorities')
+      .then(function (data) {
+        _buyerPrioritiesCache[clientId] = data;
+        return data;
+      });
+  }
+
+  function _buyerPriorityTone(priority) {
+    return {
+      urgent: 'bg-red-50 border-red-200 text-red-800',
+      high: 'bg-amber-50 border-amber-200 text-amber-800',
+      normal: 'bg-gray-50 border-gray-200 text-gray-700',
+    }[priority] || 'bg-gray-50 border-gray-200 text-gray-700';
+  }
+
+  function _buyerPriorityAction(action) {
+    return {
+      listings: 'Listings',
+      financial: 'Financial',
+      showings: 'Showings',
+    }[action] || 'Open';
+  }
+
+  function _renderBuyerPriorityQueue() {
+    var container = document.getElementById('wsBuyerPriorityQueue');
+    if (!container || !_clientId) return;
+
+    if (!_buyerPrioritiesCache[_clientId]) {
+      container.innerHTML = UI.loading();
+      _fetchBuyerPriorities(_clientId).then(function () {
+        _renderBuyerPriorityQueue();
+      }).catch(function (err) {
+        container.innerHTML = '<p class="text-xs text-red-500">Could not load buyer priorities: ' + E(err.message || 'Unknown error') + '</p>';
+      });
+      return;
+    }
+
+    var data = _buyerPrioritiesCache[_clientId] || {};
+    var priorities = data.priorities || {};
+    var counts = priorities.counts || {};
+    var items = priorities.items || [];
+
+    if (items.length === 0) {
+      container.innerHTML = '<div class="card p-3 border border-gray-100">' +
+        '<div class="flex items-center justify-between">' +
+          '<h3 class="text-sm font-bold text-gray-700"><i class="fas fa-list-check mr-2 text-gray-400"></i>Buyer Daily Priorities</h3>' +
+          '<span class="text-[10px] uppercase font-semibold text-gray-400">Clear</span>' +
+        '</div>' +
+        '<p class="text-xs text-gray-400 mt-2">No buyer requests, budget stretch, or active family discussion needing attention.</p>' +
+      '</div>';
+      return;
+    }
+
+    var html = '<div class="card p-3 border-l-4 border-red-400">' +
+      '<div class="flex items-start justify-between gap-3 mb-3">' +
+        '<div>' +
+          '<h3 class="text-sm font-bold text-gray-700"><i class="fas fa-list-check mr-2 text-red-500"></i>Buyer Daily Priorities</h3>' +
+          '<p class="text-xs text-gray-400 mt-0.5">Requests, budget stretch, outside listings, and family discussion.</p>' +
+        '</div>' +
+        '<div class="flex gap-1 text-[10px] uppercase font-semibold">' +
+          '<span class="rounded-full bg-red-50 text-red-700 px-2 py-0.5">' + E(String(counts.urgent || 0)) + ' urgent</span>' +
+          '<span class="rounded-full bg-amber-50 text-amber-700 px-2 py-0.5">' + E(String(counts.high || 0)) + ' high</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="space-y-2">';
+
+    items.slice(0, 6).forEach(function (item) {
+      var action = item.action || 'listings';
+      html += '<div class="rounded-lg border px-3 py-2 ' + _buyerPriorityTone(item.priority) + '">' +
+        '<div class="flex items-start justify-between gap-3">' +
+          '<div class="min-w-0">' +
+            '<div class="flex flex-wrap items-center gap-2">' +
+              '<span class="text-xs font-bold text-gray-900">' + E(item.title || 'Priority') + '</span>' +
+              '<span class="text-[10px] uppercase font-semibold rounded-full bg-white/70 px-2 py-0.5">' + E(item.priority || 'normal') + '</span>' +
+            '</div>' +
+            '<p class="text-xs mt-1 truncate">' + E(item.detail || '') + '</p>' +
+            '<p class="text-[10px] opacity-70 mt-1">' + E(item.latest_activity_at ? D(item.latest_activity_at) : '') + '</p>' +
+          '</div>' +
+          '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="Workspace.switchClientTab(\'' + E(action) + '\')">' + E(_buyerPriorityAction(action)) + '</button>' +
+        '</div>' +
+      '</div>';
+    });
+
+    html += '</div></div>';
+    container.innerHTML = html;
+  }
+
   function _computeClientAlerts(cl) {
     var alerts = [];
     var now = new Date();
@@ -499,6 +588,7 @@ var Workspace = (function () {
   function _clientOverview(el) {
     var cl = _client;
     var prefs = cl.preferences || {};
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
     var stage = cl.stage || cl.status || 'new';
     var healthScore = cl.healthScore || cl.health_score || '—';
     var hasSecondary = cl.secondary_first_name || cl.secondary_last_name;
@@ -579,6 +669,10 @@ var Workspace = (function () {
       '</div>' +
       typeSpecificCard +
     '</div>';
+
+    if (clientType === 'buyer' || clientType === 'renter') {
+      html += '<div id="wsBuyerPriorityQueue">' + UI.loading() + '</div>';
+    }
 
     // Connected listings
     var sentEvents = Events.getByEntity('client', _clientId).filter(function(e) { return e.type === 'listing_sent'; });
@@ -915,6 +1009,10 @@ var Workspace = (function () {
 
     html += '</div>';
     el.innerHTML = html;
+
+    if (clientType === 'buyer' || clientType === 'renter') {
+      _renderBuyerPriorityQueue();
+    }
 
     // Fetch lead score
     MallanAPI._fetch('/api/crm/lead-scoring/' + _clientId).then(function (data) {
@@ -1698,6 +1796,7 @@ var Workspace = (function () {
       method: 'POST',
       body: JSON.stringify({ body: body, request_type: 'comment' }),
     }).then(function (data) {
+      delete _buyerPrioritiesCache[_clientId];
       var key = _clientId + ':' + externalListingId;
       _clientExternalListingCommentsCache[key] = (_clientExternalListingCommentsCache[key] || []).concat(data.comment ? [data.comment] : []);
       _renderExternalListingComments(externalListingId);
@@ -1742,6 +1841,7 @@ var Workspace = (function () {
       if (addressEl) addressEl.value = '';
       if (notesEl) notesEl.value = '';
       if (familyVisibleEl) familyVisibleEl.checked = false;
+      delete _buyerPrioritiesCache[_clientId];
       CRM.toast('Outside listing added', 'success');
       _renderClientExternalListings();
     }).catch(function (err) {
@@ -1762,6 +1862,7 @@ var Workspace = (function () {
       } else {
         delete _clientExternalListingsCache[_clientId];
       }
+      delete _buyerPrioritiesCache[_clientId];
       _renderClientExternalListings();
     }).catch(function (err) {
       CRM.toast('Could not update outside listing: ' + (err.message || 'Unknown error'), 'error');

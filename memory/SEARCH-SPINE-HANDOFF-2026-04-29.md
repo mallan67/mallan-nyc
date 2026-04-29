@@ -1298,6 +1298,45 @@ Validation:
 
 Diff: `app/api/listings/route.ts` only (+5 / −18). No other files touched.
 
+## Buyer-priorities slice (committed from working tree + bug fix)
+
+Closed an in-flight feature that had been sitting on the working tree:
+buyer daily priorities panel for the agent CRM client view.
+
+New files:
+
+- `lib/buyer-priorities/summary.ts` — pure `summarizeBuyerDailyPriorities()`
+  derivation. Reads externalListings (with comments), financial intent
+  summary, and showings; emits a sorted urgent/high/normal queue with
+  counts. No schema dependency beyond what was already added by prior
+  Workstream-C external-listing migrations.
+- `lib/buyer-priorities/__tests__/summary.test.ts` — 2 cases.
+- `lib/buyer-priorities/jest.config.js` — package-local Jest config.
+- `app/api/crm/clients/[id]/buyer-priorities/route.ts` — GET only,
+  agent/broker auth, scoped per `lib/crm/access.ts` shape.
+
+Updated:
+
+- `public/crm/js/dashboard/workspace.js` — buyer priorities panel + cache
+  invalidation hooks + injection in `_clientOverview` for buyer/renter.
+- Fixed an incidental bug: the rental-signals panel was assigning
+  `clientType = ...` without a `var` declarator (prior refactor leftover).
+  Without `var`, the assignment would create an implicit global in
+  non-strict mode (or throw in strict). Re-added `var clientType = ...`.
+
+Validation:
+
+- `node --check public/crm/js/dashboard/workspace.js` passed.
+- `npx jest --config lib/buyer-priorities/jest.config.js` passed: 2/2.
+- `npm run type-check` passed.
+- `npm run crm:test` passed: 39/39.
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run lint` passed: 0 errors, 0 warnings.
+
+No schema, migration, package, env, Vercel, or unrelated route boundary
+touched. Push gate unchanged.
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of
