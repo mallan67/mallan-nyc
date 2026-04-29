@@ -301,4 +301,24 @@ Validation after the broker/agent external-listing slice:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Save checkpoint after the sixteenth slice:
+
+- Local implementation is committed through `ca9d0287 Let agents add external listings`.
+- Search spine, public listing search extraction, CRM IDX extraction, buyer financial-intent tracking, CRM buyer tool signals, buyer external-listing intake, and broker/agent external-listing intake are all recorded.
+- Repo memory and Desktop memory copies are synchronized.
+- The remaining critical deployment step is applying migration `20260429030000_add_external_listings` to the target database before production code depends on the table.
+
+Next implementation steps left:
+
+1. External-listing bucket update API/UI for buyer portal and CRM.
+2. CRM rollup of external-listing buckets beside IDX reactions.
+3. External-listing comments/request-info threads.
+4. External-listing showing/request workflow.
+5. Buyer family/friend visibility rules for outside listings.
+6. Broker/agent dashboard rollups across assigned buyer clients.
+7. Seller portal signal capture for valuation, proceeds, closing costs, and readiness.
+8. Seller CRM visibility panels.
+9. Independent tenant, landlord, seller, and buyer portal hardening.
+10. Manual production migration deploy and verification per `NEON.md`.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

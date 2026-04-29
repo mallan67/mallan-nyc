@@ -591,3 +591,35 @@ Validation:
 - `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
+
+## Save Checkpoint After Sixteen Slices
+
+Current local implementation state:
+
+- Search spine and compliance gate centralization are committed.
+- Public DB-first listing search extraction is committed.
+- CRM IDX OData filter extraction is committed.
+- CRM IDX result mapper extraction is committed.
+- Buyer financial intent tracking is committed.
+- CRM Buyer Tool Signals visibility is committed.
+- Buyer external-listing intake is committed.
+- Broker/agent external-listing intake from the CRM is committed.
+- Repo memory and Desktop memory copies have been kept in sync.
+
+Important deployment note:
+
+- Commit `be6414cc Add buyer external listing intake` includes migration `20260429030000_add_external_listings`.
+- Per `NEON.md`, production must run `prisma migrate deploy` manually before deploying code that depends on `external_listings`.
+
+Next steps left, in recommended order:
+
+1. Add external-listing bucket updates from both buyer portal and CRM: `saved`, `seen`, `liked`, `disliked`, `discuss`.
+2. Surface external-listing bucket activity in the CRM client workspace next to IDX reactions.
+3. Add comments/notes/request-info threads for external listings, separate from IDX `Comment`.
+4. Add showing/request workflow for external listings without requiring a `Listing` row.
+5. Add family/friend visibility rules for buyer portal outside listings.
+6. Add broker/agent dashboard rollups for buyer portal activity across assigned clients.
+7. Start seller portal signal capture: valuation requests, proceeds estimates, seller closing costs, readiness signals.
+8. Start seller CRM visibility panels mirroring the buyer tool-signal pattern.
+9. Continue portal-specific buildout for tenant, landlord, seller, and buyer independently.
+10. Apply and verify the external-listing migration in the target database before production rollout.
