@@ -12,6 +12,7 @@ import {
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
+import { assignLeadToAgent } from "@/lib/lead-distribution/assign";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -227,6 +228,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 
   const update: Record<string, unknown> = {};
+  let reassignmentAgentId: bigint | null | undefined;
 
   if (body.first_name !== undefined) update.first_name = String(body.first_name);
   if (body.last_name !== undefined) update.last_name = String(body.last_name);
@@ -273,7 +275,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     if (auth.role !== "BROKER") {
       return NextResponse.json({ error: "Only broker can reassign clients" }, { status: 403 });
     }
-    update.agent_id = BigInt(String(body.agent_id));
+    if (body.agent_id) {
+      const parsedAgentId = safeBigInt(String(body.agent_id));
+      if (!parsedAgentId) {
+        return NextResponse.json({ error: "Invalid agent_id" }, { status: 400 });
+      }
+      reassignmentAgentId = parsedAgentId;
+    } else {
+      reassignmentAgentId = null;
+    }
   }
 
   if (body.roles !== undefined) {
@@ -366,30 +376,47 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.outreach_60d_date !== undefined) update.outreach_60d_date = body.outreach_60d_date ? new Date(String(body.outreach_60d_date)) : null;
   if (body.outreach_30d_date !== undefined) update.outreach_30d_date = body.outreach_30d_date ? new Date(String(body.outreach_30d_date)) : null;
 
-  if (Object.keys(update).length === 0) {
+  if (Object.keys(update).length === 0 && reassignmentAgentId === undefined) {
     return NextResponse.json(
       { error: "No valid fields to update" },
       { status: 400 }
     );
   }
 
-  const updated = await prisma.lead.update({
-    where: { id: lead.id },
-    data: update,
-  });
+  const updated = Object.keys(update).length > 0
+    ? await prisma.lead.update({
+        where: { id: lead.id },
+        data: update,
+      })
+    : lead;
+
+  const assignment = reassignmentAgentId !== undefined
+    ? await assignLeadToAgent({
+        leadId: lead.id,
+        agentId: reassignmentAgentId,
+        assignedById: auth.userId,
+        assignedByRole: auth.role,
+        notify: true,
+      })
+    : null;
 
   await logAuditEvent(
     "update",
     "lead",
     lead.id.toString(),
     auth,
-    { fields: Object.keys(update) },
+    {
+      fields: Object.keys(update).concat(reassignmentAgentId !== undefined ? ["agent_id"] : []),
+      inherited: assignment?.inherited,
+    },
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
   return NextResponse.json({
-    id: updated.id.toString(),
-    status: updated.status,
+    id: (assignment?.lead_id ?? updated.id).toString(),
+    status: assignment?.status ?? updated.status,
+    agent_id: assignment?.assigned_agent_id?.toString() ?? updated.agent_id?.toString() ?? null,
+    inherited: assignment?.inherited,
   });
 }
 

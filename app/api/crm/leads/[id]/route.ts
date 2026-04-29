@@ -1,16 +1,16 @@
 // /api/crm/leads/[id]
 //
-// PATCH — assign lead to agent + notify agent (broker only)
-//         also updates status, pipeline_stage, priority, notes
+// PATCH - broker lead assignment and status updates.
 //
-// When a lead self-registers on mallan.nyc the broker sees them in
-// the Unassigned Leads panel and distributes via this endpoint.
-// The assigned agent receives an in-app notification immediately.
+// Self-registered mallan.nyc leads enter the broker distribution queue.
+// Assigning from this endpoint also hands off related portal work to the
+// assigned agent so the CRM opens with the client history intact.
 
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { assignLeadToAgent } from "@/lib/lead-distribution/assign";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 
 export async function PATCH(
   req: NextRequest,
@@ -22,94 +22,62 @@ export async function PATCH(
   if (isAuthError(auth)) return auth;
 
   const { id } = await params;
-  const leadId = BigInt(id);
+  const leadId = safeBigInt(id);
+  if (!leadId) {
+    return NextResponse.json({ error: "Invalid lead id" }, { status: 400 });
+  }
 
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch {
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: {
-      id: true, first_name: true, last_name: true, email: true,
-      phone: true, roles: true, portal_role: true, agent_id: true,
-      source: true, notes: true,
-    },
-  });
-  if (!lead) {
-    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-  }
-
-  const data: Record<string, unknown> = {};
-
-  // Agent assignment
   const newAgentId = body.assigned_agent_id !== undefined
-    ? (body.assigned_agent_id ? BigInt(body.assigned_agent_id as string) : null)
+    ? (body.assigned_agent_id ? safeBigInt(String(body.assigned_agent_id)) : null)
     : undefined;
-  if (newAgentId !== undefined) data.agent_id = newAgentId;
 
-  // Status + stage
-  if (body.status) data.status = body.status;
-  if (body.pipeline_stage) data.pipeline_stage = body.pipeline_stage;
-
-  // Priority note from broker
-  if (body.broker_note !== undefined) {
-    const existingNotes = lead.notes || '';
-    const notePrefix = `[Broker note ${new Date().toLocaleDateString()}]: ${body.broker_note}`;
-    data.notes = existingNotes ? notePrefix + '\n\n' + existingNotes : notePrefix;
+  if (body.assigned_agent_id !== undefined && body.assigned_agent_id && !newAgentId) {
+    return NextResponse.json({ error: "Invalid assigned_agent_id" }, { status: 400 });
   }
 
-  const updated = await prisma.lead.update({
-    where: { id: leadId },
-    data,
-  });
+  if (newAgentId === undefined && !body.status && !body.pipeline_stage && body.broker_note === undefined) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
 
-  // Notify assigned agent (if a new agent was assigned)
-  if (newAgentId && newAgentId !== lead.agent_id) {
-    const agent = await prisma.agent.findUnique({
-      where: { id: newAgentId },
-      select: { id: true, first_name: true, last_name: true },
+  try {
+    const assignment = await assignLeadToAgent({
+      leadId,
+      agentId: newAgentId,
+      assignedById: auth.userId,
+      assignedByRole: auth.role,
+      brokerNote: typeof body.broker_note === "string" ? body.broker_note : null,
+      status: body.status ? String(body.status) : null,
+      pipelineStage: body.pipeline_stage ? String(body.pipeline_stage) : null,
+      notify: true,
     });
 
-    if (agent) {
-      const roleLabel = (lead.portal_role || lead.roles[0] || 'client');
-      const roleDisplay = roleLabel === 'tenant' ? 'Renter'
-        : roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
+    await logAuditEvent("update", "lead", id, auth, {
+      assigned_agent_id: assignment.assigned_agent_id?.toString() ?? null,
+      previous_agent_id: assignment.previous_agent_id?.toString() ?? null,
+      status: body.status || undefined,
+      inherited: assignment.inherited,
+    }, req.headers.get("x-forwarded-for") ?? undefined);
 
-      await prisma.notification.create({
-        data: {
-          recipient_type: 'agent',
-          recipient_id: newAgentId,
-          channel: 'in_app',
-          type: 'lead_assigned',
-          title: `New Lead Assigned — ${lead.first_name} ${lead.last_name}`,
-          body: `You have been assigned a new ${roleDisplay} lead from ${lead.source || 'website'}. Please reach out within 24 hours.`,
-          data: {
-            lead_id: lead.id.toString(),
-            lead_name: `${lead.first_name} ${lead.last_name}`,
-            lead_email: lead.email,
-            lead_phone: lead.phone,
-            role: roleDisplay,
-            source: lead.source,
-            broker_note: body.broker_note || null,
-          },
-          status: 'pending',
-        },
-      });
-    }
+    return NextResponse.json({
+      lead: {
+        id: assignment.lead_id.toString(),
+        agent_id: assignment.assigned_agent_id?.toString() ?? null,
+        status: assignment.status,
+        pipeline_stage: assignment.pipeline_stage,
+        inherited: assignment.inherited,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to assign lead" },
+      { status: 400 }
+    );
   }
-
-  await logAuditEvent("update", "lead", id, auth, {
-    assigned_agent_id: body.assigned_agent_id || null,
-    previous_agent_id: lead.agent_id?.toString() || null,
-    status: body.status || undefined,
-  }, req.headers.get("x-forwarded-for") ?? undefined);
-
-  return NextResponse.json({ lead: {
-      id: updated.id.toString(),
-      agent_id: updated.agent_id?.toString() ?? null,
-      status: updated.status,
-    },
-  });
 }

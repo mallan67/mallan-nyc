@@ -1935,6 +1935,16 @@ function _renderBrokerLeadDistribution() {
           h += '<div class="mt-1.5 text-xs text-gray-600 bg-white/70 rounded-lg px-2 py-1.5 border border-gray-100 italic">' + E(msg) + '</div>';
         }
 
+        var inheritedBits = [];
+        if (lead.portal_activity_count) inheritedBits.push(lead.portal_activity_count + ' portal events');
+        if (lead.external_listing_count) inheritedBits.push(lead.external_listing_count + ' outside listings');
+        if (lead.saved_search_count) inheritedBits.push(lead.saved_search_count + ' saved searches');
+        if (lead.listing_action_count) inheritedBits.push(lead.listing_action_count + ' listing actions');
+        if (lead.activity_count) inheritedBits.push(lead.activity_count + ' CRM notes');
+        if (inheritedBits.length) {
+          h += '<div class="mt-2 text-[11px] text-gray-500 bg-white/80 rounded-lg px-2 py-1 border border-gray-100"><i class="fas fa-share-alt mr-1 text-gray-400"></i>Agent inherits: ' + E(inheritedBits.join(', ')) + '</div>';
+        }
+
         // Assignment row
         h += '<div class="flex items-center gap-2 mt-3 flex-wrap">';
         h += '<select id="assign-agent-full-' + E(lead.id) + '" class="border rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white flex-1 min-w-[180px]">';

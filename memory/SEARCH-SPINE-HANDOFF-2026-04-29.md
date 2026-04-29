@@ -993,3 +993,48 @@ Recommended next slice:
    - assigned agent inherits portal activity, calculators, outside listings, rental signals, seller signals, notes, and lead history
 2. Then implement per-agent system separation.
 3. Then complete final integration/deploy prep only after the required migrations are manually applied and verified.
+
+## Twenty-Fourth Slice: Broker Lead Distribution Inheritance
+
+Saved at local time: **2026-04-29 05:04:22 -04:00**.
+
+Completed locally after the tenant/landlord workflow signal slice:
+
+- Added shared broker assignment helper in `lib/lead-distribution/assign.ts`.
+- Broker lead assignment through `PATCH /api/crm/leads/[id]` now uses the shared helper.
+- Client reassignment through `PATCH /api/crm/clients/[id]` now uses the same helper for broker-driven reassignment.
+- Auto-assignment from lead scoring now uses the same inheritance path.
+- Assigned agents inherit unassigned child records where applicable:
+  - outside listings
+  - saved searches
+  - active leases connected as landlord or tenant
+- Assignment creates an activity log with previous agent, assigned agent, inherited counts, and broker note metadata.
+- Assignment notifications now tell the agent to review portal history.
+- Broker unassigned-leads API now returns inheritance preview counts:
+  - portal events
+  - outside listings
+  - saved searches
+  - listing actions
+  - CRM activity logs
+- Broker dashboard and full distribution panel now show what activity the assigned agent will inherit.
+- No new database migration was added for this slice.
+
+Validation after the broker lead distribution inheritance slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/app.js` passed
+- `node --check public/crm/js/dashboard/panels/home/home-screen.js` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Recommended next slice:
+
+1. Per-agent system separation:
+   - audit every CRM route and dashboard panel for agent-vs-broker data boundaries
+   - confirm each agent sees only their clients, searches, CRM, marketing, reports, pipeline, and activity
+   - confirm broker still sees all clients and can reassign/oversee
+2. Then complete final integration/deploy prep.
+3. Do not push/deploy until selected local work is complete, full validation passes, required external-listing migrations are manually applied/verified, and the user explicitly confirms pushing.

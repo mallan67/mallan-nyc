@@ -145,6 +145,10 @@ var HomeScreen = (function () {
         if (lead.notes) {
           html += '<div class="text-xs text-gray-600 mt-1 italic truncate">' + E(lead.notes.replace('[Sign-up message]: ', '').split('\n')[0]) + '</div>';
         }
+        var inheritedCount = (lead.portal_activity_count || 0) + (lead.external_listing_count || 0) + (lead.saved_search_count || 0) + (lead.listing_action_count || 0) + (lead.activity_count || 0);
+        if (inheritedCount) {
+          html += '<div class="text-[11px] text-gray-500 mt-1"><i class="fas fa-share-alt mr-1 text-gray-400"></i>Agent inherits ' + inheritedCount + ' saved activity items</div>';
+        }
         html += '</div>';
 
         // Agent selector + assign button

@@ -541,4 +541,37 @@ Next recommended slice:
 - Then implement per-agent system separation.
 - Do not push/deploy until selected local work is complete, full validation passes, required migrations are manually applied/verified, and the user explicitly confirms pushing.
 
+Broker lead distribution inheritance slice completed after tenant/landlord workflow signals:
+
+- Added `lib/lead-distribution/assign.ts` as the shared assignment path.
+- Updated `PATCH /api/crm/leads/[id]` to use the shared assignment path for broker queue assignment.
+- Updated `PATCH /api/crm/clients/[id]` to use the shared assignment path for broker reassignment from the client address book.
+- Updated lead scoring auto-assignment to use the same assignment path.
+- Assignment now hands off unassigned related records to the assigned agent where applicable:
+  - `ExternalListing`
+  - `SavedSearch`
+  - `ActiveLease`
+- Assignment writes an activity log with previous agent, assigned agent, inherited counts, and optional broker note metadata.
+- Assignment sends the assigned agent an in-app notification that points them to the lead portal history.
+- `GET /api/crm/unassigned-leads` now returns inheritance preview counts for portal events, outside listings, saved searches, listing actions, and CRM activity logs.
+- Broker home dashboard and broker lead distribution panel show the inherited activity preview before assignment.
+- No new database migration was added for this slice.
+
+Validation after the broker lead distribution inheritance slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/app.js` passed
+- `node --check public/crm/js/dashboard/panels/home/home-screen.js` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next recommended slice:
+
+- Per-agent system separation: audit and harden CRM routes/panels so each agent sees only their clients, searches, CRM, marketing, reports, pipeline, and activity, while broker keeps full oversight and reassignment.
+- Then complete final integration/deploy prep.
+- Do not push/deploy until selected local work is complete, full validation passes, required external-listing migrations are manually applied/verified, and the user explicitly confirms pushing.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

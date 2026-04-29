@@ -39,6 +39,15 @@ export async function GET(req: NextRequest) {
         pre_approved_amount: true,
         tenant_origin: true,
         is_high_net_worth: true,
+        _count: {
+          select: {
+            portal_events: true,
+            external_listings: true,
+            saved_searches: true,
+            activity_logs: true,
+            actions: true,
+          },
+        },
       },
     }),
     prisma.agent.findMany({
@@ -60,15 +69,23 @@ export async function GET(req: NextRequest) {
   ]);
 
   return NextResponse.json({
-    leads: leads.map(l => ({
-      ...l,
-      id: l.id.toString(),
-      pre_approved_amount: l.pre_approved_amount?.toString() ?? null,
-      annual_income: l.annual_income?.toString() ?? null,
-      hours_since_signup: Math.round(
-        (Date.now() - new Date(l.created_at).getTime()) / (1000 * 60 * 60)
-      ),
-    })),
+    leads: leads.map(l => {
+      const { _count, ...lead } = l;
+      return {
+        ...lead,
+        id: l.id.toString(),
+        pre_approved_amount: l.pre_approved_amount?.toString() ?? null,
+        annual_income: l.annual_income?.toString() ?? null,
+        portal_activity_count: _count.portal_events,
+        external_listing_count: _count.external_listings,
+        saved_search_count: _count.saved_searches,
+        activity_count: _count.activity_logs,
+        listing_action_count: _count.actions,
+        hours_since_signup: Math.round(
+          (Date.now() - new Date(l.created_at).getTime()) / (1000 * 60 * 60)
+        ),
+      };
+    }),
     agents: agents.map(a => ({
       id: a.id.toString(),
       name: `${a.first_name} ${a.last_name}`,

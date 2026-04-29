@@ -3,6 +3,7 @@
  */
 
 import prisma from '@/lib/prisma';
+import { assignLeadToAgent } from '@/lib/lead-distribution/assign';
 
 const SOURCE_SCORES: Record<string, number> = {
   referral: 90,
@@ -112,7 +113,7 @@ export async function scoreLeadById(leadId: bigint): Promise<LeadScoreResult> {
 export async function autoAssignLead(leadId: bigint): Promise<bigint | null> {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    select: { agent_id: true, source: true },
+    select: { agent_id: true },
   });
 
   if (!lead || lead.agent_id) return lead?.agent_id ?? null; // Already assigned
@@ -132,10 +133,11 @@ export async function autoAssignLead(leadId: bigint): Promise<bigint | null> {
     if (rule.agent.status !== 'active') continue;
     if (rule.current_month_count >= rule.max_leads_per_month) continue;
 
-    // Assign to this agent
-    await prisma.lead.update({
-      where: { id: leadId },
-      data: { agent_id: rule.agent.id },
+    await assignLeadToAgent({
+      leadId,
+      agentId: rule.agent.id,
+      assignedByRole: 'system',
+      notify: true,
     });
 
     // Increment counter
