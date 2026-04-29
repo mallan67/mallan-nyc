@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
-import { formatSearchAlertAddress, runListingSearch } from "@/lib/search/core";
+import { formatSearchAlertAddress, runProjectionListingSearch } from "@/lib/search/core";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
 
 export const maxDuration = 60;
@@ -71,7 +71,12 @@ export async function GET(req: NextRequest) {
 
         const criteria = search.criteria as Record<string, unknown>;
         const since = search.last_alert_sent || new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const searchRun = await runListingSearch(prisma, criteria, {
+        // PR 5E — second reader migrated to listing_search_projection.
+        // modifiedSince is supported by the projection runner via the
+        // mirrored `modified_at` column. Address suppression flows through
+        // the included Listing's permission flags via formatSearchAlertAddress
+        // below, preserving the existing alert formatting unchanged.
+        const searchRun = await runProjectionListingSearch(prisma, criteria, {
           limit: 10,
           offset: 0,
           modifiedSince: since,

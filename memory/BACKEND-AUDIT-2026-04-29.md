@@ -1104,4 +1104,45 @@ PR 5E readiness: **safe to start.** `runListingSearch` (the Listing-backed path)
 
 Push state: this slice is local-only — no push performed (per the brief's "Do NOT push" hard limit).
 
+PR 5E — search-alerts cron migrated to `listing_search_projection` — completed:
+
+- **`app/api/cron/search-alerts/route.ts`**: single import-line + single call-site change.
+  - Import: `runListingSearch` → `runProjectionListingSearch`.
+  - Call site: `runListingSearch(prisma, criteria, { limit, offset, modifiedSince })` → `runProjectionListingSearch(prisma, criteria, { limit, offset, modifiedSince })`.
+  - Added an inline comment documenting that `modifiedSince` is supported via the projection's mirrored `modified_at` column and that address suppression continues to flow through `formatSearchAlertAddress` on the included Listing.
+- No code change in `lib/search/core.ts`. The `runProjectionListingSearch` runner from PR 5D already supports the `modifiedSince` option via `criteriaToProjectionWhere`'s `modified_at: { gte: ... }` filter — the brief's "tiny adjustment if required" was not required.
+- No tests added. The runner contract is already covered by PR 5D's 14 projection tests including `modifiedSince` filters on `modified_at`, the cascade-race null filter, response shape preservation, and address suppression. Adding cron-level integration tests would require mocking SendGrid and Prisma, which is out of scope for this slice.
+
+`runListingSearch` (the Listing-backed runner) is now **unused in the route surface** — both saved-search execute and search-alerts cron go through the projection. The function remains exported from `lib/search/core.ts` because `lib/search/__tests__/criteria-to-prisma.test.ts` still references the existing test fixtures that exercise its `criteriaToPrismaWhere` shape, and removing it would break those tests with no behavior benefit. PR 5F or later can deprecate-and-remove if/when the Listing-backed path is no longer needed.
+
+Behavior preservation:
+
+- **modifiedSince**: preserved exactly. `criteriaToProjectionWhere(criteria, { modifiedSince: since })` produces `where.modified_at = { gte: since }`. The projection's `modified_at` is mirrored from `Listing.modification_timestamp` by the projection builder (PR 5A helper); same data, same column.
+- **Fail-closed display gates**: preserved. `runProjectionListingSearch` applies `PROJECTION_DISPLAY_GATE` (4 mirrored gates) plus `listing: { owner_opt_out: false }` via the FK relation. Identical fail-closed posture to the Listing-backed path.
+- **Address suppression**: preserved. The included `listing` carries `internet_entire_listing_display_yn` and `internet_address_display_yn`; `formatSearchAlertAddress(listing)` evaluates them through `canDisplayListingAddress` and produces "Neighborhood, City (Address Available on Request)" when display is not affirmatively true. Same string, same gate semantics.
+- **Search-run audit event**: preserved. `recordSearchRun` is still called with `searchRun.total / limit / offset / source: "search_alert_cron"` — same shape from both runners.
+- **Cron error handling**: preserved. The route's existing per-search `try/catch` and outer `try/catch` produce the same `errored++` counter and same `auditEvent.create({ action: "search_alerts_cron[_error]" })` audit shape on failures.
+- **Cron response shape**: preserved. `{ success, total, sent, skipped, errored }` on success; `{ error }` with HTTP 500 on outer failure.
+- **No fallback added.** Same posture as PR 5D — adding a Listing-backed fallback would change error semantics and mask projection-write bugs. Existing per-search catch already counts the error and continues to the next saved search.
+- **`ClientListingAction` upsert** (line 124-138 in the route): preserved. The new runner's listings carry the same `Listing.id` BigInt that the upsert uses for the `lead_id_listing_id_action` composite key. No change.
+
+Validation after the PR 5E slice:
+
+- `npx prisma validate` passed.
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 270/270 (unchanged from PR 5D — no new tests added in this slice).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed: WARN, 0 critical (853 pass).
+- `npm run lint` passed: 0 errors, 0 warnings.
+- `npm run ops:health` passed: HEALTHY. 19,845 listings (up 6 since PR 5D commit — natural sync continues; dual-write keeps projection converged). REBNY §2.05 violations: 0.
+
+Diff stat:
+
+- `app/api/cron/search-alerts/route.ts`: +7 / −1 (import line + comment + call site).
+
+Whether PR 5F can proceed: **yes, but it depends on what PR 5F is.** Per the agenda the user laid out: PR 5F is "maybe CRM saved search list/counts" — a smaller derived-data path. That can proceed with the same swap pattern. Public `/api/listings` migration is still deferred per the user's "Do not migrate public search yet" hard limit until at least two lower-risk projection readers are live and stable.
+
+Push state: this slice is local-only — no push performed (per the brief's "Do NOT push" hard limit).
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
