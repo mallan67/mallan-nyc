@@ -3,7 +3,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.local') });
 const path = require('path');
 const fs = require('fs');
-const XLSX = require('xlsx');
+const { readWorkbook, worksheetToObjects } = require('./lib/exceljs-rows');
 
 const TRESTLE_API_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 const CLIENT_ID = process.env.IDX_CLIENT_ID || process.env.IDX_API_KEY;
@@ -98,6 +98,7 @@ async function batchFetchPhotos(token, listingIds, idToKeyMap) {
 
 function parseExcelDate(serial) {
   if (!serial) return null;
+  if (serial instanceof Date) return serial.toISOString().split('T')[0];
   if (typeof serial === 'string') return serial;
   const d = new Date((serial - 25569) * 86400000);
   return d.toISOString().split('T')[0];
@@ -182,11 +183,11 @@ function mapCommonInterest(interest, propType) {
 
 async function main() {
   console.log('Reading Excel...');
-  const wb = XLSX.readFile(excelPath);
+  const wb = await readWorkbook(excelPath);
 
   // Parse Excel
-  const salesRows = XLSX.utils.sheet_to_json(wb.Sheets['Total Sales']);
-  const rentalRows = XLSX.utils.sheet_to_json(wb.Sheets['Total Rentals']);
+  const salesRows = worksheetToObjects(wb.getWorksheet('Total Sales'));
+  const rentalRows = worksheetToObjects(wb.getWorksheet('Total Rentals'));
   console.log(`Excel: ${salesRows.length} sales, ${rentalRows.length} rentals`);
 
   console.log('Getting Trestle token...');

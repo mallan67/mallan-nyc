@@ -22,7 +22,7 @@
 require('dotenv').config({ path: '.env.local' });
 const fs = require('fs');
 const path = require('path');
-const XLSX = require('xlsx');
+const { readWorkbook, worksheetToObjects } = require('./lib/exceljs-rows');
 
 const ROOT = path.resolve(__dirname, '..');
 const ARTIFACTS = path.join(ROOT, 'artifacts');
@@ -32,9 +32,11 @@ const csvOut = args.includes('--csv');
 
 fs.mkdirSync(ARTIFACTS, { recursive: true });
 
+async function main() {
+
 // ─── 1. Load REBNY fields ─────────────────────────────────────────────
-const wb = XLSX.readFile(path.join(ROOT, 'data', 'rebny-idx-plus-3.15.26.xlsx'));
-const rebnyData = XLSX.utils.sheet_to_json(wb.Sheets['Sheet1']);
+const wb = await readWorkbook(path.join(ROOT, 'data', 'rebny-idx-plus-3.15.26.xlsx'));
+const rebnyData = worksheetToObjects(wb.getWorksheet('Sheet1'));
 console.log(`REBNY fields loaded: ${rebnyData.length}`);
 
 // ─── 2. Load mapper fields ────────────────────────────────────────────
@@ -303,3 +305,9 @@ if (withIssues.length > 0) {
 console.log('');
 console.log('Saved: artifacts/field-mapping-validation.json');
 console.log('Saved: ' + csvPath);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

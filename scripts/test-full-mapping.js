@@ -10,7 +10,6 @@
  */
 require('dotenv').config({ path: '.env.local' });
 const fs = require('fs');
-const XLSX = require('xlsx');
 
 const API = 'https://api.cotality.com/trestle';
 
