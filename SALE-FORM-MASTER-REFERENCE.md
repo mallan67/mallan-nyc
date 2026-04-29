@@ -1,8 +1,10 @@
 # REBNY RLS — COMPLETE FIELD REFERENCE (902 IDX Plus Fields + All 79 Mandatory + All Rules)
 
+> ⚠️ **DEPRECATED CRM FILE REFERENCE — 2026-04-28.** The "CRM File" pointer below names `public/crm/MALLAN-NYC-CRM-FINAL2.html` (the mockup), which is no longer the source of truth. Production sale-form work uses `public/crm/SALE-FORM-REDESIGN.html` per `CLAUDE.md` File Roles section. The 902 RLS field references in this doc are still valid; only the CRM file pointer is stale.
+
 > **Single document. Every field has everything: Exhibit A ref, RESO name, distribution, rules, sharing, cross-references.**
 > **Source Data:** `data/rebny-rls-property-fields.csv` + `data/UCBA-2026-Requirements.md` + REBNY-MASTER.md Parts 1-3
-> **Date:** 2026-02-09 | **CRM File:** `public/crm/MALLAN-NYC-CRM-FINAL2.html`
+> **Date:** 2026-02-09 | **CRM File:** `public/crm/SALE-FORM-REDESIGN.html` (was `public/crm/MALLAN-NYC-CRM-FINAL2.html` mockup, removed 2026-04-28)
 
 ---
 
