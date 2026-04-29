@@ -841,4 +841,48 @@ Diff stat:
 
 No schema/migration/env/Vercel/CRM-route boundary touched (the new CRM endpoint is additive). Push gate unchanged.
 
+Master plan PR 5A — `listing_search_projection` schema slice completed:
+
+- Added `ListingSearchProjection` Prisma model (`prisma/schema.prisma`, end of file). Key shape per the user's bounded brief: `id BigInt @id`, `listing_id String @unique`, FK relation `listing Listing @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)` matching the existing `ListingMedia` pattern. RESO/Trestle source tracking (`listing_key`, `source_system`, `mls_status`), classification (`listing_type`, `property_type`, `property_sub_type`), promoted geography columns (`borough`, `neighborhood`, `postal_code`, `city`, `state`), numeric search dimensions (`list_price BigInt?`, `bedrooms Float?`, `bathrooms Float?`, `living_area Float?`, `year_built Int?`, `latitude Float?`, `longitude Float?`), four boolean flags (`is_commercial`, `is_new_development`, `is_exclusive`, `is_rental`), distribution-gate mirror (`rls_eligible Boolean @default(true)`, plus four nullable gate booleans), and three free-text/structured fields (`searchable_text Text?`, `amenity_keys Json?`, `feature_flags Json?`). Indexes per the brief: 9 total, including the 4-column composite gate index aliased as `lsp_distribution_gates_idx` to stay under Postgres 63-char identifier limit.
+- Added back-relation on `Listing`: `listing_search_projection ListingSearchProjection?` (singular, optional 1:1). Required for the FK to compile; no other Listing changes.
+- Added migration `prisma/migrations/20260429130000_add_listing_search_projection/migration.sql` (additive `CREATE TABLE` + 9 indexes + FK constraint with `ON DELETE CASCADE`). Per NEON.md §4: index creation is non-CONCURRENT but safe because the table is empty at creation time. Migration **NOT yet applied to production Neon** — application is paused for explicit user confirmation per the established push gate.
+- Added pure helper `lib/search/listing-search-projection.ts` (357 LOC) exporting:
+  - `buildListingSearchProjectionFromListing(listing): ListingSearchProjectionRow` — main builder.
+  - `normalizeProjectionSearchText(listing): string | null` — lowercased, whitespace-collapsed concatenation of PublicRemarks, address parts, neighborhood, city. PUB-tier only (compliance comment in helper explicitly forbids extending to PrivateRemarks/ShowingInstructions).
+  - `extractProjectionAmenityKeys(listing): string[] | null` — reuses `AMENITY_FIELD_MAP` from `lib/search/types` so amenity matching stays semantically identical to `applyPublicListingPostFilters`.
+  - `extractProjectionFeatureFlags(listing): Record<string, boolean> | null` — derives `has_floorplan`/`has_video`/`has_virtual_tour` from media[] + `is_furnished`/`is_pet_friendly` from features.
+  - All four functions are pure (no DB, no I/O). Loose `ListingProjectionSource` input shape tolerates both raw Prisma `Listing` rows and serialized fixtures.
+  - Distribution-gate fields are mirrored verbatim — null stays null, false stays false — so a future reader can fail-closed via the canonical evaluators in `lib/search/listing-access-decision.ts`.
+- Added focused tests `lib/search/__tests__/listing-search-projection.test.ts` (16 cases) covering: sale projection round-trip, rental projection (incl. furnished + pet-friendly flag), fail-closed permission preservation (null→null AND false→false), search text normalization (positive + null-empty path), amenity key extraction (positive + null + pet-friendly negative-value handling), feature flag extraction (media + features + null + pet-friendly negative), commercial flag (commercial_sub_type AND property_sub_type set), new-development flag, exclusive flag (agent_id presence), rental flag (listing_type === "rent").
+- `lib/idx/sync.ts` was NOT touched. PR 5B will add dual-write — schema only this slice.
+- No reader migrations attempted — `/api/listings`, `/api/idx/search`, saved-search execute, and search-alerts cron all continue to read `Listing` directly. PR 5D will move readers one at a time per `NEON.md §4`.
+
+Validation after the PR 5A slice:
+
+- `npx prisma validate` passed (only the existing `driverAdapters` preview deprecation warning).
+- `npx prisma generate` regenerated the Prisma Client cleanly.
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 252/252 (previous: 236/236; +16 new tests).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed with WARN result and 0 critical (terminal summary: 853 pass, 0 critical, 5 pre-existing warnings, 29 info — no new false positives from the new model).
+
+Diff stat:
+
+- `prisma/schema.prisma`: +96 lines (new model + 1-line back-relation on Listing).
+- `prisma/migrations/20260429130000_add_listing_search_projection/migration.sql`: +109 (new file).
+- `lib/search/listing-search-projection.ts`: +357 (new file).
+- `lib/search/__tests__/listing-search-projection.test.ts`: +259 (new file).
+
+Production migration application: **paused for user confirmation.** Per NEON.md §4, schema migrations apply manually to Neon prod before any code that depends on the table merges. PR 5A introduces no readers/writers of `listing_search_projection`, so applying the migration now is safe but not yet required. Recommended: apply when starting PR 5B (dual-write from `lib/idx/sync.ts`) so the table exists before sync attempts to populate it.
+
+Follow-up slices remaining:
+
+- **PR 5B** — Dual-write from `lib/idx/sync.ts` using `buildListingSearchProjectionFromListing`. Requires applied migration.
+- **PR 5C** — Verify one full sync cycle populates rows.
+- **PR 5D** — Migrate first reader (likely `/api/listings` DB-first via the existing `buildPublicListingDbSearch` helper).
+- **PR 5E** — Expand readers gradually (saved-search execute, search-alerts cron, similar listings, comparables).
+
+Push gate: unchanged. Local branch ahead of origin by N+1 commits after this slice; no push performed.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

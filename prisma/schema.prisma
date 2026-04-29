@@ -504,14 +504,15 @@ model Listing {
   auction_terms_url  String?   @map("auction_terms_url") // public auction terms doc
 
   // --- Relations ---
-  actions              ClientListingAction[]
-  showings             Showing[]
-  comments             Comment[]
-  inquiries            Inquiry[]
-  offers               Offer[]
-  price_history        PriceHistory[]
-  marketing_activities MarketingActivity[]
-  listing_media        ListingMedia[]
+  actions                   ClientListingAction[]
+  showings                  Showing[]
+  comments                  Comment[]
+  inquiries                 Inquiry[]
+  offers                    Offer[]
+  price_history             PriceHistory[]
+  marketing_activities      MarketingActivity[]
+  listing_media             ListingMedia[]
+  listing_search_projection ListingSearchProjection?
 
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at         DateTime? @map("status_changed_at")
@@ -2446,4 +2447,98 @@ model Offer {
   @@index([transmitted_to_seller_at])
   @@index([received_at])
   @@map("offers")
+}
+
+// ═══════════════════════════════════════════════════════════
+// Listing search projection (master refactor PR 5A — additive)
+// ═══════════════════════════════════════════════════════════
+// Lean denormalized read-model for public + agent + saved-search /
+// search-alert listing search. Columns are flat scalars or small JSON
+// payloads sized for fast facet filtering and ranking; the source of
+// truth remains `Listing` (and its `address` / `features` / `media`
+// JSON columns) until a future PR migrates readers.
+//
+// PR 5A — schema only. No reader migration yet, no dual-write yet
+// (lib/idx/sync.ts is intentionally NOT touched in this slice).
+// PR 5B will add dual-write from lib/idx/sync.ts. PR 5C verifies a
+// full sync cycle. PR 5D moves one reader at a time per NEON.md §4.
+//
+// FK relation matches the ListingMedia pattern: references
+// Listing.listing_id (String, unique) rather than the BigInt PK.
+// onDelete: Cascade prevents orphan projection rows from accumulating
+// when an upstream `Listing` is removed (rare in practice — listings
+// are tombstoned, not deleted — but cheap defense).
+//
+// Compliance: distribution-gate booleans are mirrored here so search
+// can be fail-closed at the index level without a join back to
+// `listings`. The semantic helpers in lib/search/listing-access-decision.ts
+// remain the canonical evaluators — readers must continue to use those
+// when they migrate to this projection.
+model ListingSearchProjection {
+  id         BigInt  @id @default(autoincrement())
+  listing_id String  @unique @map("listing_id")
+  listing    Listing @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
+
+  // RESO/Trestle source tracking (filled by sync — null until PR 5B).
+  listing_key   String? @map("listing_key")
+  source_system String? @map("source_system")
+  mls_status    String? @map("mls_status")
+
+  // Classification
+  listing_type      String? @map("listing_type")
+  property_type     String? @map("property_type")
+  property_sub_type String? @map("property_sub_type")
+
+  // Geography (promoted out of `listings.address` JSON)
+  borough      String?
+  neighborhood String?
+  postal_code  String? @map("postal_code")
+  city         String?
+  state        String?
+
+  // Numeric search dimensions
+  list_price  BigInt? @map("list_price")
+  bedrooms    Float?
+  bathrooms   Float?
+  living_area Float?  @map("living_area")
+  year_built  Int?    @map("year_built")
+  latitude    Float?
+  longitude   Float?
+
+  // Boolean flags for fast facet filtering — derived once at projection
+  // build time so search routes don't re-derive on every request.
+  is_commercial      Boolean @default(false) @map("is_commercial")
+  is_new_development Boolean @default(false) @map("is_new_development")
+  is_exclusive       Boolean @default(false) @map("is_exclusive")
+  is_rental          Boolean @default(false) @map("is_rental")
+
+  // Distribution-gate mirror — nullable booleans (fail-closed when
+  // missing once readers migrate; canonical evaluators in
+  // lib/search/listing-access-decision.ts treat null as "not displayable").
+  rls_eligible                       Boolean  @default(true) @map("rls_eligible")
+  idx_display_yn                     Boolean? @map("idx_display_yn")
+  internet_entire_listing_display_yn Boolean? @map("internet_entire_listing_display_yn")
+  internet_address_display_yn        Boolean? @map("internet_address_display_yn")
+  participant_only_yn                Boolean? @map("participant_only_yn")
+
+  // Free-text + structured supplemental data
+  searchable_text String? @map("searchable_text") @db.Text
+  amenity_keys    Json?   @map("amenity_keys")
+  feature_flags   Json?   @map("feature_flags")
+
+  // Timestamps
+  modified_at DateTime? @map("modified_at")
+  created_at  DateTime  @default(now()) @map("created_at")
+  updated_at  DateTime  @updatedAt @map("updated_at")
+
+  @@index([listing_type, mls_status])
+  @@index([borough, neighborhood])
+  @@index([postal_code])
+  @@index([list_price])
+  @@index([bedrooms])
+  @@index([bathrooms])
+  @@index([property_sub_type])
+  @@index([modified_at])
+  @@index([rls_eligible, idx_display_yn, internet_entire_listing_display_yn, participant_only_yn], map: "lsp_distribution_gates_idx")
+  @@map("listing_search_projection")
 }

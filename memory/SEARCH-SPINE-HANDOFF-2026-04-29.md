@@ -1337,6 +1337,103 @@ Validation:
 No schema, migration, package, env, Vercel, or unrelated route boundary
 touched. Push gate unchanged.
 
+## Master plan PR 5A — listing_search_projection schema slice
+
+User-bounded brief: schema-first additive slice only. No reader migration,
+no dual-write, no `lib/idx/sync.ts` edits, no public API shape change.
+Helper required to be pure and testable.
+
+Schema (`prisma/schema.prisma`):
+
+- New model `ListingSearchProjection` (end of file).
+- FK relation `listing Listing @relation(fields: [listing_id], references:
+  [listing_id], onDelete: Cascade)` mirroring the `ListingMedia` pattern
+  — references `Listing.listing_id` (String, unique) rather than the
+  BigInt PK because that's the canonical relation key in this schema.
+- Back-relation on `Listing`: `listing_search_projection
+  ListingSearchProjection?` (singular, optional 1:1). One-line addition
+  required for Prisma to compile; no other `Listing` changes.
+- Columns: as listed in the brief — RESO/Trestle source tracking,
+  classification, geography, numeric search dimensions, four boolean
+  facet flags, distribution-gate mirror (rls_eligible default true,
+  four nullable gate booleans), free-text/structured fields.
+- Indexes (9 total): `(listing_type, mls_status)`,
+  `(borough, neighborhood)`, `postal_code`, `list_price`, `bedrooms`,
+  `bathrooms`, `property_sub_type`, `modified_at`, plus a four-column
+  composite distribution-gate index aliased as
+  `lsp_distribution_gates_idx` so the identifier stays under the
+  63-char Postgres limit.
+
+Migration (`prisma/migrations/20260429130000_add_listing_search_projection/`):
+
+- Additive `CREATE TABLE` + 9 `CREATE INDEX` statements + FK with
+  `ON DELETE CASCADE ON UPDATE CASCADE`.
+- Per NEON.md §4 the indexes are non-CONCURRENT but safe — the table is
+  empty at creation. CONCURRENTLY is required only for >10K-row tables.
+- **NOT applied to production Neon** in this slice. Per NEON.md §4 the
+  migration applies manually to prod before any code that depends on
+  the table merges. PR 5A introduces no readers/writers of the new
+  table, so applying now is safe but not required. Recommended
+  application moment: at the start of PR 5B (dual-write).
+
+Helper (`lib/search/listing-search-projection.ts`, 357 LOC):
+
+- `buildListingSearchProjectionFromListing(listing)` — main builder
+  returning the canonical `ListingSearchProjectionRow` shape (excludes
+  Prisma-managed `id`/`created_at`/`updated_at` so the same shape works
+  for both `create` and `update`).
+- `normalizeProjectionSearchText(listing)` — lowercased,
+  whitespace-collapsed concatenation of PublicRemarks + address parts +
+  neighborhood + city. Compliance comment forbids extending to
+  PrivateRemarks/ShowingInstructions (HID tier).
+- `extractProjectionAmenityKeys(listing)` — reuses `AMENITY_FIELD_MAP`
+  from `@/lib/search/types`. Returns canonical AmenityFilter keys
+  matching features-JSON values. Same pet-friendly negative-value
+  handling as `applyPublicListingPostFilters`.
+- `extractProjectionFeatureFlags(listing)` — derives `has_floorplan` /
+  `has_video` / `has_virtual_tour` from media[] + `is_furnished` /
+  `is_pet_friendly` from features.
+- All four functions pure (no DB, no I/O). Loose `ListingProjectionSource`
+  input shape tolerates raw Prisma rows + serialized fixtures.
+- Distribution-gate fields mirrored verbatim — null stays null, false
+  stays false — preserving the fail-closed semantic for future readers.
+
+Tests (`lib/search/__tests__/listing-search-projection.test.ts`, 16 cases):
+
+1. Sale projection round-trip — every column in the canonical shape.
+2. Rental projection — incl. is_furnished + is_pet_friendly flags.
+3. Fail-closed permission preservation — null→null AND false→false
+   distribution-gate inputs round-trip without coercion.
+4. searchable_text positive + null-empty paths.
+5. Amenity key extraction — positive + null + pet-friendly negative
+   ("No" → not flagged).
+6. Feature flag extraction — media + features + null + pet-friendly
+   negative.
+7. Commercial flag — commercial_sub_type + property_sub_type set.
+8. New-development flag — property_sub_type = NewConstruction.
+9. Exclusive flag — agent_id presence.
+10. Rental flag — listing_type === "rent".
+
+Validation:
+
+- `npx prisma validate` passed (only the existing `driverAdapters`
+  preview deprecation warning).
+- `npx prisma generate` regenerated the Prisma Client.
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 252/252
+  (previous: 236/236; +16 new).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed: WARN, 0 critical (853 pass, 5 warn,
+  29 info — no new false positives from the new model).
+
+Diff: `prisma/schema.prisma` +96, migration SQL +109 new, helper +357
+new, tests +259 new. No other files touched.
+
+`lib/idx/sync.ts`: untouched. PR 5B will add dual-write here using
+`buildListingSearchProjectionFromListing`. PR 5C verifies one sync
+cycle. PR 5D migrates the first reader.
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of
