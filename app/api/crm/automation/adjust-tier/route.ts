@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -24,19 +25,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid tier. Must be: " + validTiers.join(", ") }, { status: 400 });
   }
 
-  // Verify access
-  const lead = await prisma.lead.findUnique({
-    where: { id: BigInt(lead_id) },
-    select: { agent_id: true },
-  });
-
-  if (!lead) {
-    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-  }
-
-  if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  }
+  const access = await assertLeadIdStringAccess(auth, lead_id);
+  if (access.response) return access.response;
 
   const updateData: Record<string, unknown> = {};
   if (drip_type === "sales") {
@@ -50,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.lead.update({
-    where: { id: BigInt(lead_id) },
+    where: { id: access.leadId! },
     data: updateData,
   });
 

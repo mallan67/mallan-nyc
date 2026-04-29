@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { assertLeadAccess } from "@/lib/crm/access";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   if (!leadId) {
     return NextResponse.json({ error: "Invalid client ID" }, { status: 400 });
   }
+  const access = await assertLeadAccess(auth, leadId);
+  if (access) return access;
 
   const members = await prisma.familyMember.findMany({
     where: { lead_id: leadId },
@@ -53,6 +56,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (!leadId) {
     return NextResponse.json({ error: "Invalid client ID" }, { status: 400 });
   }
+  const access = await assertLeadAccess(auth, leadId);
+  if (access) return access;
 
   let body: { member_lead_id?: string | number; relationship?: string };
   try {
@@ -65,6 +70,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (!memberLeadId) {
     return NextResponse.json({ error: "member_lead_id is required" }, { status: 400 });
   }
+  const memberAccess = await assertLeadAccess(auth, memberLeadId);
+  if (memberAccess) return memberAccess;
 
   const relationship = body.relationship || "spouse";
 

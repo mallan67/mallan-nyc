@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 /**
  * GET /api/crm/financial-scenarios?client_id=X
@@ -19,16 +20,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "client_id required" }, { status: 400 });
   }
 
-  // Scope: agents see only their clients' scenarios
-  if (auth.role !== "BROKER") {
-    const lead = await prisma.lead.findUnique({
-      where: { id: BigInt(clientId) },
-      select: { agent_id: true },
-    });
-    if (lead && lead.agent_id !== auth.userId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-  }
+  const access = await assertLeadIdStringAccess(auth, clientId);
+  if (access.response) return access.response;
 
   const events = await prisma.auditEvent.findMany({
     where: {
@@ -79,6 +72,8 @@ export async function POST(req: NextRequest) {
   if (!clientId || !type) {
     return NextResponse.json({ error: "client_id and type required" }, { status: 400 });
   }
+  const access = await assertLeadIdStringAccess(auth, clientId);
+  if (access.response) return access.response;
 
   const event = await prisma.auditEvent.create({
     data: {

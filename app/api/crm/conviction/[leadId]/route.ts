@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { computeConvictionScore } from '@/lib/conviction/scorer';
+import { assertLeadIdStringAccess } from '@/lib/crm/access';
+import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,18 +20,9 @@ export async function GET(
   if (isAuthError(auth)) return auth;
 
   const { leadId } = await params;
-  const leadIdBigInt = BigInt(leadId);
-
-  // Scope check: agents can only view their own assigned leads
-  if (auth.role !== 'BROKER') {
-    const lead = await prisma.lead.findUnique({
-      where: { id: leadIdBigInt },
-      select: { agent_id: true },
-    });
-    if (lead && lead.agent_id !== auth.userId) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-  }
+  const access = await assertLeadIdStringAccess(auth, leadId);
+  if (access.response) return access.response;
+  const leadIdBigInt = access.leadId!;
 
   // Get cached score
   const cached = await prisma.convictionScore.findUnique({

@@ -574,4 +574,49 @@ Next recommended slice:
 - Then complete final integration/deploy prep.
 - Do not push/deploy until selected local work is complete, full validation passes, required external-listing migrations are manually applied/verified, and the user explicitly confirms pushing.
 
+Per-agent CRM access separation slice completed after broker lead distribution inheritance:
+
+- Added `lib/crm/access.ts` for shared broker-vs-agent lead access checks.
+- Agents now get consistent access checks before reading or writing client-scoped data through direct IDs.
+- Hardened routes include:
+  - `app/api/crm/clients/[id]/family/route.ts`
+  - `app/api/crm/clients/[id]/parties/route.ts`
+  - `app/api/crm/activity/route.ts`
+  - `app/api/crm/events/route.ts`
+  - `app/api/crm/conviction/[leadId]/route.ts`
+  - `app/api/crm/financial-scenarios/route.ts`
+  - `app/api/crm/inquiries/route.ts`
+  - `app/api/crm/listing-engagement/route.ts`
+  - `app/api/crm/listing-sends/route.ts`
+  - `app/api/crm/listing-views/route.ts`
+  - `app/api/crm/communications/route.ts`
+  - `app/api/crm/email/route.ts`
+  - `app/api/crm/saved-searches/route.ts`
+  - `app/api/crm/saved-searches/[id]/route.ts`
+  - `app/api/crm/showing-history/route.ts`
+  - `app/api/crm/rentals/applications/route.ts`
+  - `app/api/crm/rentals/leases/route.ts`
+  - `app/api/crm/active-leases/route.ts`
+  - `app/api/crm/active-leases/[id]/route.ts`
+  - `app/api/crm/automation/adjust-tier/route.ts`
+  - `app/api/crm/sales/promote/route.ts`
+  - `app/api/crm/convert/route.ts`
+  - `app/api/crm/tasks/route.ts`
+- Closed direct-ID gaps for `lead_id`, `client_id`, `member_lead_id`, `tenant_lead_id`, `client_ids[]`, and conversion `agentId`.
+- Non-broker inquiry feeds are now scoped to the agent's assigned leads or own listings.
+- No new database migration was added for this slice.
+
+Validation after the per-agent CRM access separation slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next recommended slice:
+
+- Final integration/deploy prep: final route/data-boundary smoke review, clean status check, required external-listing migrations manually applied/verified, full validation rerun, and push/deploy only after the user explicitly confirms pushing.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

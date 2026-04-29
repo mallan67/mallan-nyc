@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -107,7 +108,13 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     }
 
     if (body.lead_id !== undefined) {
-      updates.lead_id = body.lead_id ? BigInt(body.lead_id as string) : null;
+      if (body.lead_id) {
+        const access = await assertLeadIdStringAccess(auth, body.lead_id as string);
+        if (access.response) return access.response;
+        updates.lead_id = access.leadId;
+      } else {
+        updates.lead_id = null;
+      }
     }
 
     const updated = await prisma.savedSearch.update({

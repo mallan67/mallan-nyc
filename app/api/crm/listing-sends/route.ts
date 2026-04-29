@@ -8,6 +8,7 @@ import { listingSendEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";
 import { generateTrackingToken } from "@/lib/tracking/listing-token";
+import { assertLeadIdsAccess } from "@/lib/crm/access";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  const access = await assertLeadIdsAccess(auth, client_ids);
+  if (access.response) return access.response;
 
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
 

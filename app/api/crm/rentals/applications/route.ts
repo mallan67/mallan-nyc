@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { safeJson } from "@/lib/api/safe-json";
+import { assertLeadIdStringAccess } from '@/lib/crm/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,9 +21,11 @@ export async function GET(req: NextRequest) {
   const where: Record<string, unknown> = {};
 
   if (landlordId) {
+    const access = await assertLeadIdStringAccess(auth, landlordId);
+    if (access.response) return access.response;
     // Get listings owned by this landlord, then find showings on those listings
     const landlord = await prisma.lead.findUnique({
-      where: { id: BigInt(landlordId) },
+      where: { id: access.leadId! },
       select: { active_rental_listing_id: true },
     });
     if (landlord?.active_rental_listing_id) {
@@ -69,10 +72,12 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+  const access = await assertLeadIdStringAccess(auth, lead_id);
+  if (access.response) return access.response;
 
   const record = await prisma.showingHistory.create({
     data: {
-      lead_id: BigInt(lead_id),
+      lead_id: access.leadId!,
       listing_id: listing_id || null,
       address,
       unit: unit || null,

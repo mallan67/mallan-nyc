@@ -11,6 +11,7 @@ import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 /** Validate saved search criteria shape. Returns error message or null. */
 function validateCriteria(criteria: Record<string, unknown>): string | null {
@@ -107,13 +108,15 @@ export async function POST(req: NextRequest) {
     if (alert_frequency !== undefined && alert_frequency !== null && !["daily", "weekly"].includes(alert_frequency)) {
       return NextResponse.json({ error: "alert_frequency must be 'daily', 'weekly', or null" }, { status: 400 });
     }
+    const leadAccess = lead_id ? await assertLeadIdStringAccess(auth, lead_id) : null;
+    if (leadAccess?.response) return leadAccess.response;
 
     const search = await prisma.savedSearch.create({
       data: {
         name: name.trim(),
         criteria: criteria as Prisma.InputJsonValue,
         agent_id: auth.userId,
-        lead_id: lead_id ? BigInt(lead_id) : null,
+        lead_id: leadAccess?.leadId ?? null,
         alert_frequency: alert_frequency ?? null,
         alert_enabled: alert_frequency ? Boolean(alert_enabled !== false) : false,
       },

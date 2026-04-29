@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 /**
  * GET /api/crm/listing-engagement?listing_id=X or ?client_id=X
@@ -31,6 +32,10 @@ export async function GET(req: NextRequest) {
     if (!listingId && !clientId) {
       return NextResponse.json({ error: "listing_id or client_id required" }, { status: 400 });
     }
+    if (clientId) {
+      const access = await assertLeadIdStringAccess(auth, clientId);
+      if (access.response) return access.response;
+    }
 
     // Query audit_events as the backing store for engagement records
     // Filter by action types that represent engagement
@@ -45,6 +50,7 @@ export async function GET(req: NextRequest) {
       where: {
         action: { in: engagementTypes },
         entity_id: entityId,
+        ...(auth.role !== "BROKER" ? { user_id: auth.userId } : {}),
       },
       orderBy: { created_at: "desc" },
       take: limit,
@@ -126,6 +132,10 @@ export async function POST(req: NextRequest) {
 
   if (!type) {
     return NextResponse.json({ error: "type is required" }, { status: 400 });
+  }
+  if (clientId) {
+    const access = await assertLeadIdStringAccess(auth, clientId);
+    if (access.response) return access.response;
   }
 
   // Store as an audit event (canonical, survives pruning because it's a real DB record)

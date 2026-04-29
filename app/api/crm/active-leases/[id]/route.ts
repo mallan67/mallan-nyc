@@ -8,6 +8,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { assertLeadAccess } from "@/lib/crm/access";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -100,7 +101,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   if (body.custom_fields !== undefined) update.custom_fields = body.custom_fields;
   if (body.tenant_lead_id !== undefined) {
-    update.tenant_lead_id = body.tenant_lead_id ? safeBigInt(body.tenant_lead_id as string) : null;
+    const tenantId = body.tenant_lead_id ? safeBigInt(body.tenant_lead_id as string) : null;
+    if (body.tenant_lead_id && !tenantId) {
+      return NextResponse.json({ error: "Invalid tenant_lead_id" }, { status: 400 });
+    }
+    if (tenantId) {
+      const tenantAccess = await assertLeadAccess(auth, tenantId);
+      if (tenantAccess) return tenantAccess;
+    }
+    update.tenant_lead_id = tenantId;
   }
 
   const updated = await prisma.activeLease.update({ where: { id: leaseId }, data: update });

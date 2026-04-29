@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -16,22 +17,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "lead_id required" }, { status: 400 });
   }
 
-  // Verify access
-  const lead = await prisma.lead.findUnique({
-    where: { id: BigInt(leadId) },
-    select: { agent_id: true },
-  });
-
-  if (!lead) {
-    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-  }
-
-  if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  }
+  const access = await assertLeadIdStringAccess(auth, leadId);
+  if (access.response) return access.response;
 
   const history = await prisma.showingHistory.findMany({
-    where: { lead_id: BigInt(leadId) },
+    where: { lead_id: access.leadId! },
     orderBy: { showing_date: "desc" },
     take: 200,
   });
@@ -59,23 +49,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "lead_id, address, showing_date required" }, { status: 400 });
   }
 
-  // Verify access
-  const lead = await prisma.lead.findUnique({
-    where: { id: BigInt(lead_id) },
-    select: { agent_id: true },
-  });
-
-  if (!lead) {
-    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-  }
-
-  if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-  }
+  const access = await assertLeadIdStringAccess(auth, lead_id);
+  if (access.response) return access.response;
 
   const record = await prisma.showingHistory.create({
     data: {
-      lead_id: BigInt(lead_id),
+      lead_id: access.leadId!,
       listing_id: listing_id || null,
       address,
       unit: unit || null,

@@ -1038,3 +1038,56 @@ Recommended next slice:
    - confirm broker still sees all clients and can reassign/oversee
 2. Then complete final integration/deploy prep.
 3. Do not push/deploy until selected local work is complete, full validation passes, required external-listing migrations are manually applied/verified, and the user explicitly confirms pushing.
+
+## Twenty-Fifth Slice: Per-Agent CRM Access Separation
+
+Saved at local time: **2026-04-29 05:14:05 -04:00**.
+
+Completed locally after the broker lead distribution inheritance slice:
+
+- Added shared CRM access helper in `lib/crm/access.ts`.
+- Hardened client-scoped API access so agents can only read/write assigned clients while brokers retain oversight.
+- Applied shared lead access checks to:
+  - client family links
+  - client parties
+  - activity/audit posts
+  - activity-log events
+  - conviction score reads
+  - financial scenarios
+  - inquiries
+  - listing engagement
+  - listing sends
+  - listing views
+  - communications
+  - CRM email sends
+  - saved searches
+  - showing history
+  - rental applications
+  - rental lease creation/update tenant links
+  - active lease tenant links
+  - automation drip-tier adjustments
+  - sales promotions
+  - conversion actions
+  - tasks filtered by client
+- Closed direct-ID access gaps where an agent could previously submit another client's `lead_id`, `client_id`, `member_lead_id`, `tenant_lead_id`, or `client_ids[]`.
+- Restricted non-broker inquiry feeds to inquiries connected to the agent's assigned leads or own listings.
+- Prevented non-broker conversion actions from choosing another `agentId`.
+- No new database migration was added for this slice.
+
+Validation after the per-agent CRM access separation slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Recommended next slice:
+
+1. Final integration/deploy prep:
+   - run a final route/data-boundary smoke review
+   - confirm all selected local slices are committed and working tree is clean
+   - manually apply and verify required external-listing migrations
+   - rerun full validation after DB verification
+2. Push/deploy only after the user explicitly confirms pushing.

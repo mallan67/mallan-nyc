@@ -38,6 +38,12 @@ export async function GET(req: NextRequest) {
   try {
     const where: Record<string, unknown> = {};
     if (listingId) where.listing_id = listingId;
+    if (auth.role !== "BROKER") {
+      where.OR = [
+        { lead: { agent_id: auth.userId } },
+        { listing: { agent_id: auth.userId } },
+      ];
+    }
 
     const inquiries = await prisma.inquiry.findMany({
       where,
@@ -126,7 +132,10 @@ export async function GET(req: NextRequest) {
 
   const leads = leadIds.length > 0
     ? await prisma.lead.findMany({
-        where: { id: { in: leadIds } },
+        where: {
+          id: { in: leadIds },
+          ...(auth.role !== "BROKER" ? { agent_id: auth.userId } : {}),
+        },
         select: {
           id: true,
           first_name: true,
@@ -144,10 +153,11 @@ export async function GET(req: NextRequest) {
 
   const leadMap = new Map(leads.map((l) => [l.id.toString(), l]));
 
-  const legacyRows: InquiryRow[] = auditEvents.map((e) => {
+  const legacyRows: InquiryRow[] = auditEvents.flatMap((e) => {
     const lead = e.entity_id ? leadMap.get(e.entity_id) : null;
+    if (auth.role !== "BROKER" && !lead) return [];
     const changes = (e.changes as Record<string, unknown>) || {};
-    return {
+    return [{
       id: "audit-" + e.id.toString(),
       lead_id: e.entity_id,
       name: lead
@@ -161,7 +171,7 @@ export async function GET(req: NextRequest) {
       status: lead?.status || "new",
       created_at: e.created_at.toISOString(),
       converted: lead?.agent_id != null,
-    };
+    }];
   });
 
   // Merge results — Inquiry model rows first (newer source), then AuditEvent

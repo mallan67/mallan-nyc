@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent, type SessionUser } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { assertLeadAccess } from "@/lib/crm/access";
 
 const VALID_ACTIONS = [
   "promote_to_listing",
@@ -89,6 +90,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (body.agentId && auth.role !== "BROKER") {
+    return NextResponse.json({ error: "Only broker can choose another agent" }, { status: 403 });
+  }
+
   const agentId = body.agentId ? BigInt(body.agentId) : auth.userId;
   const ip = req.headers.get("x-forwarded-for") || "unknown";
 
@@ -99,6 +104,8 @@ export async function POST(req: NextRequest) {
   if (!lead) {
     return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   }
+  const access = await assertLeadAccess(auth, lead.id);
+  if (access) return access;
 
   // --- Action handlers ---
 

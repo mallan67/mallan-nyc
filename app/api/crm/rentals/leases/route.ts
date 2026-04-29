@@ -8,6 +8,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { serializeBigInts } from "@/lib/api/serialize";
+import { assertLeadAccess } from "@/lib/crm/access";
 
 export async function POST(req: NextRequest) {
   const writeCheck = assertWriteAllowed();
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest) {
   if (!landlord) {
     return NextResponse.json({ error: "Landlord not found" }, { status: 404 });
   }
+  const landlordAccess = await assertLeadAccess(auth, landlordId);
+  if (landlordAccess) return landlordAccess;
 
   // Verify tenant exists (if provided as lead ID)
   let tenantId: bigint | null = null;
@@ -72,6 +75,8 @@ export async function POST(req: NextRequest) {
     if (!tenant) {
       return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     }
+    const tenantAccess = await assertLeadAccess(auth, tenantId);
+    if (tenantAccess) return tenantAccess;
   }
 
   const lease = await prisma.activeLease.create({

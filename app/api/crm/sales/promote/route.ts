@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 export async function POST(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -23,14 +24,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid promotion_type" }, { status: 400 });
   }
 
-  const lead = await prisma.lead.findUnique({ where: { id: BigInt(lead_id) } });
+  const access = await assertLeadIdStringAccess(auth, lead_id);
+  if (access.response) return access.response;
+
+  const lead = await prisma.lead.findUnique({ where: { id: access.leadId! } });
   if (!lead) {
     return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-  }
-
-  // Verify agent ownership (unless broker)
-  if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
   const updates: Record<string, unknown> = {};
@@ -60,14 +59,14 @@ export async function POST(req: NextRequest) {
   }
 
   const updated = await prisma.lead.update({
-    where: { id: BigInt(lead_id) },
+    where: { id: access.leadId! },
     data: updates,
   });
 
   // Log activity
   await prisma.activityLog.create({
     data: {
-      lead_id: BigInt(lead_id),
+      lead_id: access.leadId!,
       activity_type: "status_change",
       title: `Promoted: ${promotion_type.replace(/_/g, " ")}`,
       detail: `${lead.first_name} ${lead.last_name} promoted via ${promotion_type}`,

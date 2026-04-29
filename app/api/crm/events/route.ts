@@ -5,6 +5,7 @@ import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import type { Prisma } from "@prisma/client";
+import { assertLeadAccess } from "@/lib/crm/access";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -45,16 +46,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Ownership check: agent can only see their own clients' events
-  if (auth.role !== "BROKER") {
-    const lead = await prisma.lead.findUnique({
-      where: { id: leadId },
-      select: { agent_id: true },
-    });
-    if (lead && lead.agent_id !== auth.userId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-  }
+  const access = await assertLeadAccess(auth, leadId);
+  if (access) return access;
 
   // Optional filters
   const typeFilter = searchParams.get("type");
@@ -124,16 +117,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid entity_id" }, { status: 400 });
   }
 
-  // Ownership check
-  if (auth.role !== "BROKER") {
-    const lead = await prisma.lead.findUnique({
-      where: { id: leadId },
-      select: { agent_id: true },
-    });
-    if (lead && lead.agent_id !== auth.userId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-  }
+  const access = await assertLeadAccess(auth, leadId);
+  if (access) return access;
 
   // REBNY: Scrub PII from event metadata before storage
   // Events must not contain SSN, bank accounts, or other sensitive PII

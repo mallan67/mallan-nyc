@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email/sendgrid";
 import { genericCrmEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";
+import { assertLeadIdsAccess } from "@/lib/crm/access";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest) {
   if (clientIds.length > 200) {
     return NextResponse.json({ error: "Maximum 200 recipients" }, { status: 400 });
   }
+  const access = await assertLeadIdsAccess(auth, clientIds);
+  if (access.response) return access.response;
 
   // Resolve agent name
   const agent = await prisma.agent.findUnique({

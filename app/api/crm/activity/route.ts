@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -10,6 +11,11 @@ export async function GET(req: NextRequest) {
   const clientId = searchParams.get("client_id");
   const limit = Math.min(Number(searchParams.get("limit")) || 50, 200);
   const offset = Number(searchParams.get("offset")) || 0;
+
+  if (clientId) {
+    const access = await assertLeadIdStringAccess(auth, clientId);
+    if (access.response) return access.response;
+  }
 
   const where: Record<string, unknown> = {
     ...(auth.role !== "BROKER" ? { user_id: auth.userId } : {}),
@@ -79,6 +85,11 @@ export async function POST(req: NextRequest) {
       { error: "type/action and client_id/entityId are required" },
       { status: 400 }
     );
+  }
+
+  if (entityType === "lead" || entityType === "client") {
+    const access = await assertLeadIdStringAccess(auth, entityId);
+    if (access.response) return access.response;
   }
 
   const event = await prisma.auditEvent.create({

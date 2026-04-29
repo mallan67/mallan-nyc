@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
+import { assertLeadIdStringAccess } from '@/lib/crm/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,9 +14,11 @@ export async function GET(req: NextRequest) {
   if (!leadId) {
     return NextResponse.json({ error: 'lead_id query param required' }, { status: 400 });
   }
+  const access = await assertLeadIdStringAccess(auth, leadId);
+  if (access.response) return access.response;
 
   const views = await prisma.listingView.findMany({
-    where: { lead_id: BigInt(leadId) },
+    where: { lead_id: access.leadId! },
     orderBy: { viewed_at: 'desc' },
     take: 500,
   });

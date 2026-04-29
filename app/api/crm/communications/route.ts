@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";
+import { assertLeadIdStringAccess, assertLeadIdsAccess } from "@/lib/crm/access";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -15,6 +16,10 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
   const offset = parseInt(searchParams.get("offset") || "0");
   const clientId = searchParams.get("client_id");
+  if (clientId) {
+    const access = await assertLeadIdStringAccess(auth, clientId);
+    if (access.response) return access.response;
+  }
 
   // Build where clause: all email/sms/listing_sent events for this agent (or all for broker)
   const where: Prisma.AuditEventWhereInput = {
@@ -138,6 +143,8 @@ export async function POST(req: NextRequest) {
   const emails: { email: string; clientId?: string }[] = [];
 
   if (clientIds && clientIds.length > 0) {
+    const access = await assertLeadIdsAccess(auth, clientIds);
+    if (access.response) return access.response;
     const bigIntIds = clientIds.map((id) => BigInt(id));
     const clients = await prisma.lead.findMany({
       where: { id: { in: bigIntIds } },

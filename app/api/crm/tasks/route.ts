@@ -5,16 +5,23 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import prisma from "@/lib/prisma";
 import { safeJson } from "@/lib/api/safe-json";
+import { assertLeadIdStringAccess } from "@/lib/crm/access";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
   const status = req.nextUrl.searchParams.get("status") || "pending";
+  const clientId = req.nextUrl.searchParams.get("client_id");
   const limit = Math.min(Number(req.nextUrl.searchParams.get("limit")) || 50, 200);
 
   const where: Record<string, unknown> = {};
   if (status !== "all") where.status = status;
+  if (clientId) {
+    const access = await assertLeadIdStringAccess(auth, clientId);
+    if (access.response) return access.response;
+    where.lead_id = access.leadId;
+  }
   // Agents see own tasks only; broker sees all
   if (auth.role !== "BROKER") where.agent_id = auth.userId;
 
