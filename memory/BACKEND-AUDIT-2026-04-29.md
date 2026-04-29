@@ -168,4 +168,53 @@ The codebase is operational and compliance-gated. Three of ten master refactor P
 
 ---
 
-*Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). No code, schema, or gate changes were made during this audit.*
+## 2026-04-29 02:31 ET Update
+
+The 90-minute revisit window discussed in-session has passed. Local time verified at **2026-04-29 02:31:22 -04:00**.
+
+Current local `main` is clean and **5 commits ahead of `origin/main`**:
+
+- `ac385564 Build compliant search spine`
+- `d54b4395 Link anonymous sessions to leads`
+- `3599d293 Remove vulnerable xlsx dependency`
+- `fd5131d1 docs(memory): capture 2026-04-29 backend audit`
+- `44acc025 Add buyer financial intent tracking`
+
+The earlier audit text above is preserved as the historical diagnosis. The key correction is that the search-spine and anonymous-session work are no longer uncommitted; they are committed locally. The newest buyer slice adds schema-light financial/tool intent capture for buyer calculators and exposes it to the assigned agent or broker.
+
+Latest validated buyer slice:
+
+- `app/api/crm/clients/[id]/financial-intent/route.ts`
+- `lib/buyer-intent/financial-intent.ts`
+- `app/components/CalculatorLeadCapture.tsx`
+- `app/components/AffordabilityCalculator.tsx`
+- `app/components/RentVsBuyCalculator.tsx`
+- `app/components/MortgageModal.tsx`
+- `lib/buyer-intent/__tests__/financial-intent.test.ts`
+
+Validation after buyer slice:
+
+- `npm run type-check` passed
+- `npm run lint` passed
+- `npx jest --config lib/buyer-intent/jest.config.js` passed: 2/2
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next active implementation target remains the original search-spine continuation: incrementally migrate the DB-first public `/api/listings` where-building into shared search helpers while leaving the live Trestle fallback untouched.
+
+That next target was then completed locally in the follow-up slice:
+
+- Added `lib/search/public-listing-db.ts`.
+- Added `lib/search/__tests__/public-listing-db.test.ts`.
+- Updated `app/api/listings/route.ts` so the DB-first public path delegates where/order construction to `buildPublicListingDbSearch(searchParams)`.
+- Left the live Trestle fallback, media/geocoding, open-house filtering, DTO mapping, and exclusive merge behavior untouched.
+
+Validation after the public DB-first search extraction:
+
+- `npm run type-check` passed
+- `npx jest --config lib/search/jest.config.js` passed: 175/175
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+- `npm run lint` passed
+
+*Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

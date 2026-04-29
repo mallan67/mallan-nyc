@@ -345,6 +345,62 @@ Still not migrated:
 - Social OAuth callbacks do not yet receive/link the browser's anonymous behavioral session.
 - Stale FastAPI backend stub and stale `docker-compose.yml` frontend service.
 
+## 2026-04-29 02:31 ET Checkpoint
+
+The waiting window has passed. Local time verified at **2026-04-29 02:31:22 -04:00**. Working tree was clean before continuing.
+
+Current local commit stack above `origin/main`:
+
+- `ac385564 Build compliant search spine`
+- `d54b4395 Link anonymous sessions to leads`
+- `3599d293 Remove vulnerable xlsx dependency`
+- `fd5131d1 docs(memory): capture 2026-04-29 backend audit`
+- `44acc025 Add buyer financial intent tracking`
+
+Buyer portal/CRM slice added after the search spine:
+
+- Buyer calculator/tool usage now emits structured `IntentEvent` payloads for affordability, rent-vs-buy, mortgage, closing costs, cash needed, down payment, and monthly-payment tolerance.
+- New assigned-agent/broker route: `GET /api/crm/clients/[id]/financial-intent`.
+- New summarizer: `lib/buyer-intent/financial-intent.ts`, with tests.
+- Scope is intentionally schema-light and permissioned: broker can view any client; non-broker agents can view only their assigned client.
+
+Buyer-slice validation:
+
+- `npm run type-check` passed
+- `npm run lint` passed
+- `npx jest --config lib/buyer-intent/jest.config.js` passed: 2/2
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+## Eleventh Implemented Slice
+
+Goal: continue the original public-search migration without touching the live Trestle fallback path.
+
+Added:
+
+- `lib/search/public-listing-db.ts`
+  - Extracts DB-first `/api/listings` where/order construction into the shared search package.
+  - Preserves the two-path display model:
+    - RLS-eligible listings must pass the full shared fail-closed gate.
+    - Website-only `rls_eligible=false` listings remain available for non-RLS Mallan-owned inventory.
+  - Handles public filter params for type, commercial, price, beds, baths, sqft, borough, neighborhood-to-ZIP, `zipCodes`, status/statuses, property subtypes, address JSON search, and public sort modes.
+- `lib/search/__tests__/public-listing-db.test.ts`
+  - Covers full gate preservation, public filter translation, DB-backed address search, and special sort filters.
+
+Updated:
+
+- `app/api/listings/route.ts`
+  - DB-first public path now delegates where/order construction to `buildPublicListingDbSearch(searchParams)`.
+  - Live Trestle fallback, media/geocoding, open-house filtering, DTO mapping, and exclusive merge behavior were intentionally left untouched.
+
+Validation:
+
+- `npm run type-check` passed
+- `npx jest --config lib/search/jest.config.js` passed: 175/175
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+- `npm run lint` passed
+
 ## Recommended Next Move
 
 Do not rewrite all of `/api/listings` at once. It mixes:
