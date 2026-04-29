@@ -147,36 +147,24 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const useIDX = process.env.IDX_ENABLED === 'true';
 
-    // Parse query params
+    // Parse query params used directly by this route handler.
+    // Filter/sort params consumed only by buildPublicListingDbSearch /
+    // applyPublicListingPostFilters / buildPublicListingTrestleFilter are not
+    // re-extracted here — those helpers read searchParams themselves.
     const listingType = searchParams.get('type');
     const neighborhood = searchParams.get('neighborhood');
     const borough = searchParams.get('borough');
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
     const minBeds = searchParams.get('beds');
-    const maxBeds = searchParams.get('maxBeds');
-    const minBaths = searchParams.get('minBaths');
-    const maxBaths = searchParams.get('maxBaths');
-    const propertyTypeFilter = searchParams.get('propertyType');
-    const statusFilter = searchParams.get('status');
-    const statusesParam = searchParams.get('statuses'); // comma-separated: Active,ComingSoon
-    const minSqft = searchParams.get('minSqft');
-    const maxSqft = searchParams.get('maxSqft');
     const sortParam = searchParams.get('sort');
     const skipParam = searchParams.get('skip');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
     const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
-    // New filter params
-    const commercial = searchParams.get('commercial') === 'true';
     const propertySubTypes = searchParams.get('propertySubTypes') || searchParams.get('subTypes'); // accept both
-    const ownershipTypes = searchParams.get('ownershipTypes'); // comma-separated
-    const yearBuiltParam = searchParams.get('yearBuilt'); // 'pre-war' | 'post-war'
-    const furnishedParam = searchParams.get('furnished') === 'true';
-    const amenitiesParam = searchParams.get('amenities'); // comma-separated amenity keys
+    const amenitiesParam = searchParams.get('amenities'); // route-side pet-friendly RAW post-filter on the Trestle path
     const openHouseParam = searchParams.get('openHouse') === 'true';
     const openHouseDateParam = searchParams.get('openHouseDate'); // 'weekend' | ISO date | undefined
-    const addressParam = searchParams.get('address'); // free-text street name search
-    const keywords = searchParams.get('keywords')?.split(',').filter(Boolean) || [];
 
     // Min > Max price validation
     if (minPrice && maxPrice && parseInt(minPrice, 10) > parseInt(maxPrice, 10)) {

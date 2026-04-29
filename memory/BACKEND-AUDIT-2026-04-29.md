@@ -790,4 +790,26 @@ Remaining `/api/listings` fragmentation after this slice:
 
 User push gate unchanged — local `main` remains unpushed.
 
+`/api/listings` final integration audit + dead-var cleanup slice completed:
+
+- Item-by-item audit confirmed all 11 integration items: DB-first uses `buildPublicListingDbSearch()` + `applyPublicListingPostFilters()`; Trestle fallback uses `buildPublicListingTrestleFilter()`; zero `filterParts` / inline OData builder logic in the route; response shape, DTO mapping, media handling, geocoding, Open House, and exclusive merge are byte-identical to pre-slice; fail-closed gates enforced 3-layer on DB-first and 1-layer on Trestle.
+- Five pre-existing param mismatches between paths documented (NOT introduced by either prior slice; preserved verbatim): `type=buy` (DB-first ignores, Trestle aliases to sale), legacy single `propertyType` (DB-first ignores), `bounds` (DB-first ignores), neighborhood-name fallback when zips empty (DB-first only), amenities beyond pet-friendly (DB-first only).
+- Removed 14 dead `const X = searchParams.get(...)` declarations from `app/api/listings/route.ts:150-179`. These vars were referenced by the inline filter logic in earlier versions of the route and became unused once `buildPublicListingDbSearch`, `applyPublicListingPostFilters`, and `buildPublicListingTrestleFilter` started reading `searchParams` directly. Removed: `maxBeds`, `minBaths`, `maxBaths`, `propertyTypeFilter`, `statusFilter`, `statusesParam`, `minSqft`, `maxSqft`, `commercial`, `ownershipTypes`, `yearBuiltParam`, `furnishedParam`, `addressParam`, `keywords`. Kept (still actually used by route orchestration): `listingType`, `neighborhood`, `borough`, `minPrice`, `maxPrice`, `minBeds`, `sortParam`, `skipParam`, `limit`, `skip`, `propertySubTypes`, `amenitiesParam`, `openHouseParam`, `openHouseDateParam`.
+- Updated the comment block above the param extraction to explain why filter/sort params are no longer re-extracted in the route.
+
+Validation after the integration audit + dead-var cleanup slice:
+
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 236/236.
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed with WARN result, 0 critical (853 pass, 5 warnings, 29 info).
+- `npm run lint` passed: **0 errors, 0 warnings** (was 0 errors, 14 warnings before the cleanup).
+
+Diff stat:
+
+- `app/api/listings/route.ts`: −14 declaration lines + comment update (+5 / −18 net).
+
+No other files touched.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

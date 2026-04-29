@@ -1262,6 +1262,42 @@ explicitly out of scope for this slice):
 
 Push gate: unchanged. Local branch remains ahead of `origin/main`. No push performed.
 
+## `/api/listings` final integration audit + dead-var cleanup
+
+Pure audit of the 11 integration items requested (DB-first / Trestle helper
+adoption, response shape, DTO mapping, media, geocoding, Open House, exclusive
+merge, fail-closed gates) confirmed everything is wired correctly. Five
+pre-existing param mismatches between paths were documented (`type=buy`,
+legacy `propertyType`, `bounds`, neighborhood-name fallback, non-pet-friendly
+amenities) — none introduced by the extractions and all preserved verbatim.
+
+The audit surfaced 14 `@typescript-eslint/no-unused-vars` lint warnings on
+`app/api/listings/route.ts` from dead `const X = searchParams.get(...)`
+declarations that were used by the pre-extraction inline filter logic and
+became unused once the helpers started reading `searchParams` directly.
+
+Cleanup slice: deleted those 14 const declarations. Vars removed:
+`maxBeds`, `minBaths`, `maxBaths`, `propertyTypeFilter`, `statusFilter`,
+`statusesParam`, `minSqft`, `maxSqft`, `commercial`, `ownershipTypes`,
+`yearBuiltParam`, `furnishedParam`, `addressParam`, `keywords`.
+
+Vars kept (still used by route orchestration outside the helpers):
+`listingType`, `neighborhood`, `borough`, `minPrice`, `maxPrice`, `minBeds`,
+`sortParam`, `skipParam`, `limit`, `skip`, `propertySubTypes`, `amenitiesParam`
+(pet-friendly RAW post-filter on the Trestle path), `openHouseParam`,
+`openHouseDateParam`.
+
+Validation:
+
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 236/236.
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed: WARN, 0 critical (853 pass).
+- `npm run lint` passed: **0 errors, 0 warnings** (was 0 errors, 14 warnings).
+
+Diff: `app/api/listings/route.ts` only (+5 / −18). No other files touched.
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of
