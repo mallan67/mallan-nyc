@@ -7,6 +7,11 @@ import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgent
 import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
 import { logIDXAccess, createAuditEntry } from "./logger";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
+import {
+  buildListingSearchProjectionFromListing,
+  buildProjectionUpsertPayload,
+  type ListingProjectionSource,
+} from "@/lib/search/listing-search-projection";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -217,6 +222,46 @@ export async function syncListings(
           ...statusTransition,
         },
       });
+
+      // 5. Dual-write the search projection (master refactor PR 5B).
+      // Sequential write — matches the existing per-listing upsert pattern.
+      // No transaction: a projection-write failure leaves the Listing in
+      // place; the next sync cycle will retry the projection upsert.
+      // Errors share the same per-listing try/catch as the Listing upsert.
+      const projectionInput: ListingProjectionSource = {
+        listing_id: mapped.listing_id,
+        status: mapped.status,
+        listing_type: mapped.listing_type,
+        property_type: mapped.property_type,
+        property_sub_type: mapped.property_sub_type,
+        list_price: mapped.list_price,
+        bedrooms_total: mapped.bedrooms_total,
+        bathrooms_full: mapped.bathrooms_full,
+        bathrooms_half: mapped.bathrooms_half,
+        living_area: mapped.living_area,
+        borough: mapped.borough,
+        neighborhood: mapped.neighborhood,
+        city: mapped.city,
+        postal_code: mapped.postal_code,
+        // Trestle-sourced rows are RLS-eligible by definition; the
+        // `commercial_sub_type` column is only used for our CRM-authored
+        // website-only commercial listings, never for Trestle data.
+        rls_eligible: true,
+        commercial_sub_type: null,
+        idx_display_yn: mapped.idx_display_yn,
+        internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
+        internet_address_display_yn: mapped.internet_address_display_yn,
+        participant_only: mapped.participant_only,
+        // Trestle-sourced rows don't bind to one of our agents.
+        agent_id: null,
+        modification_timestamp: mapped.modification_timestamp,
+        address: mapped.address as Record<string, unknown>,
+        features: mapped.features as Record<string, unknown>,
+        media: mapped.media as unknown[],
+      };
+      const projection = buildListingSearchProjectionFromListing(projectionInput);
+      const projectionPayload = buildProjectionUpsertPayload(projection);
+      await prisma.listingSearchProjection.upsert(projectionPayload);
 
       upserted++;
     } catch (err) {
@@ -831,6 +876,44 @@ export async function syncAgentHistory(
           sync_status: mapped.sync_status,
         },
       });
+
+      // 4. Dual-write the search projection (master refactor PR 5B).
+      // Same sequential pattern as syncListings(); per-listing try/catch
+      // already wraps both writes. agent_id is set so the projection
+      // marks the row is_exclusive: true.
+      const projectionInput: ListingProjectionSource = {
+        listing_id: mapped.listing_id,
+        status: mapped.status,
+        listing_type: mapped.listing_type,
+        property_type: mapped.property_type,
+        property_sub_type: mapped.property_sub_type,
+        list_price: mapped.list_price,
+        bedrooms_total: mapped.bedrooms_total,
+        bathrooms_full: mapped.bathrooms_full,
+        bathrooms_half: mapped.bathrooms_half,
+        living_area: mapped.living_area,
+        borough: mapped.borough,
+        neighborhood: mapped.neighborhood,
+        city: mapped.city,
+        postal_code: mapped.postal_code,
+        // Trestle-sourced rows are RLS-eligible by definition; the
+        // `commercial_sub_type` column is only used for our CRM-authored
+        // website-only commercial listings, never for Trestle data.
+        rls_eligible: true,
+        commercial_sub_type: null,
+        idx_display_yn: mapped.idx_display_yn,
+        internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
+        internet_address_display_yn: mapped.internet_address_display_yn,
+        participant_only: mapped.participant_only,
+        agent_id: options.agentDbId,
+        modification_timestamp: mapped.modification_timestamp,
+        address: mapped.address as Record<string, unknown>,
+        features: mapped.features as Record<string, unknown>,
+        media: mapped.media as unknown[],
+      };
+      const projection = buildListingSearchProjectionFromListing(projectionInput);
+      const projectionPayload = buildProjectionUpsertPayload(projection);
+      await prisma.listingSearchProjection.upsert(projectionPayload);
 
       upserted++;
       agentMatched++;

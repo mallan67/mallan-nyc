@@ -1,5 +1,8 @@
+import { Prisma } from "@prisma/client";
+
 import {
   buildListingSearchProjectionFromListing,
+  buildProjectionUpsertPayload,
   extractProjectionAmenityKeys,
   extractProjectionFeatureFlags,
   normalizeProjectionSearchText,
@@ -288,5 +291,87 @@ describe("commercial / new-development / exclusive / rental flags", () => {
     expect(sale.is_rental).toBe(false);
     const rent = buildListingSearchProjectionFromListing({ ...baseSale, listing_type: "rent" });
     expect(rent.is_rental).toBe(true);
+  });
+});
+
+describe("buildProjectionUpsertPayload (PR 5B dual-write)", () => {
+  it("produces a Prisma upsert payload whose create branch carries every column", () => {
+    const projection = buildListingSearchProjectionFromListing(baseSale);
+    const payload = buildProjectionUpsertPayload(projection);
+
+    expect(payload.where).toEqual({ listing_id: "RLS20059088" });
+
+    const createData = payload.create as Record<string, unknown>;
+    expect(createData.listing_id).toBe("RLS20059088");
+    expect(createData.listing_type).toBe("sale");
+    expect(createData.borough).toBe("Manhattan");
+    expect(createData.list_price).toBe(BigInt(1850000));
+    expect(createData.bedrooms).toBe(2);
+    expect(createData.bathrooms).toBe(2.5);
+    expect(createData.living_area).toBe(1320.5);
+    expect(createData.is_rental).toBe(false);
+    expect(createData.is_exclusive).toBe(false);
+    expect(createData.is_commercial).toBe(false);
+    expect(createData.is_new_development).toBe(false);
+    expect(createData.rls_eligible).toBe(true);
+    expect(createData.modified_at).toEqual(new Date("2026-04-29T12:00:00Z"));
+  });
+
+  it("uses the same data on the update branch (idempotent overwrite)", () => {
+    const projection = buildListingSearchProjectionFromListing(baseSale);
+    const payload = buildProjectionUpsertPayload(projection);
+
+    // Every key in `create` must appear in `update` with the same value —
+    // a projection is fully determined by the source Listing, so re-syncing
+    // overwrites every column rather than diff-merging.
+    const create = payload.create as Record<string, unknown>;
+    const update = payload.update as Record<string, unknown>;
+    for (const key of Object.keys(create)) {
+      expect(update[key]).toEqual(create[key]);
+    }
+  });
+
+  it("preserves null permission inputs as Prisma SQL-null on the JSON columns and bare null on scalars", () => {
+    const projection = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      idx_display_yn: null,
+      internet_entire_listing_display_yn: null,
+      internet_address_display_yn: null,
+      participant_only: null,
+      // Strip features + media so the JSON columns must serialize as null.
+      address: {},
+      features: undefined,
+      media: undefined,
+    });
+    const payload = buildProjectionUpsertPayload(projection);
+
+    const create = payload.create as Record<string, unknown>;
+    expect(create.idx_display_yn).toBeNull();
+    expect(create.internet_entire_listing_display_yn).toBeNull();
+    expect(create.internet_address_display_yn).toBeNull();
+    expect(create.participant_only_yn).toBeNull();
+    // Nullable Json columns must use Prisma.JsonNull for SQL NULL — bare
+    // null is rejected by strict Prisma types on a `Json?` field.
+    expect(create.amenity_keys).toBe(Prisma.JsonNull);
+    expect(create.feature_flags).toBe(Prisma.JsonNull);
+  });
+
+  it("preserves false permission inputs verbatim through the payload", () => {
+    const projection = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      idx_display_yn: false,
+      internet_entire_listing_display_yn: false,
+      internet_address_display_yn: false,
+      participant_only: true,
+      rls_eligible: false,
+    });
+    const payload = buildProjectionUpsertPayload(projection);
+
+    const create = payload.create as Record<string, unknown>;
+    expect(create.idx_display_yn).toBe(false);
+    expect(create.internet_entire_listing_display_yn).toBe(false);
+    expect(create.internet_address_display_yn).toBe(false);
+    expect(create.participant_only_yn).toBe(true);
+    expect(create.rls_eligible).toBe(false);
   });
 });

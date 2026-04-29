@@ -18,6 +18,8 @@
  *     `lib/idx/db-to-public-dto.ts` and `lib/idx/public-dto.ts`.
  */
 
+import { Prisma } from "@prisma/client";
+
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 
 // PropertySubType values that should classify a listing as commercial when no
@@ -355,5 +357,85 @@ export function buildListingSearchProjectionFromListing(
     amenity_keys: extractProjectionAmenityKeys(listing),
     feature_flags: extractProjectionFeatureFlags(listing),
     modified_at: dateFrom(listing.modification_timestamp),
+  };
+}
+
+// ── Prisma upsert payload builder ─────────────────────────────────────
+
+/**
+ * Convert a `Json?` field value into a Prisma-acceptable input. Strict
+ * Prisma TypeScript types reject bare `null` for nullable Json columns —
+ * the runtime value `Prisma.JsonNull` is the correct way to set the
+ * column to SQL NULL on a `Json?` field.
+ */
+function jsonInput(
+  value: string[] | Record<string, boolean> | null,
+): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  return value === null ? Prisma.JsonNull : (value as Prisma.InputJsonValue);
+}
+
+export interface ListingSearchProjectionUpsertPayload {
+  where: { listing_id: string };
+  create: Prisma.ListingSearchProjectionCreateInput;
+  update: Prisma.ListingSearchProjectionUpdateInput;
+}
+
+/**
+ * Build the Prisma `upsert()` payload for a `listing_search_projection`
+ * row. Pure: no DB, no Prisma client. The caller (lib/idx/sync.ts) passes
+ * the result straight into `prisma.listingSearchProjection.upsert()`.
+ *
+ * `create` and `update` carry the same fields — every projection column
+ * is fully derived from the source `Listing`, so an update cycle simply
+ * overwrites every column. This guarantees no stale projection state
+ * survives a Listing update.
+ */
+export function buildProjectionUpsertPayload(
+  projection: ListingSearchProjectionRow,
+): ListingSearchProjectionUpsertPayload {
+  // The payload omits Prisma-managed fields (`id`, `created_at`,
+  // `updated_at`) and the `listing` relation (write via the FK column).
+  const data = {
+    listing_id: projection.listing_id,
+    listing_key: projection.listing_key,
+    source_system: projection.source_system,
+    mls_status: projection.mls_status,
+    listing_type: projection.listing_type,
+    property_type: projection.property_type,
+    property_sub_type: projection.property_sub_type,
+    borough: projection.borough,
+    neighborhood: projection.neighborhood,
+    postal_code: projection.postal_code,
+    city: projection.city,
+    state: projection.state,
+    list_price: projection.list_price,
+    bedrooms: projection.bedrooms,
+    bathrooms: projection.bathrooms,
+    living_area: projection.living_area,
+    year_built: projection.year_built,
+    latitude: projection.latitude,
+    longitude: projection.longitude,
+    is_commercial: projection.is_commercial,
+    is_new_development: projection.is_new_development,
+    is_exclusive: projection.is_exclusive,
+    is_rental: projection.is_rental,
+    rls_eligible: projection.rls_eligible,
+    idx_display_yn: projection.idx_display_yn,
+    internet_entire_listing_display_yn: projection.internet_entire_listing_display_yn,
+    internet_address_display_yn: projection.internet_address_display_yn,
+    participant_only_yn: projection.participant_only_yn,
+    searchable_text: projection.searchable_text,
+    amenity_keys: jsonInput(projection.amenity_keys),
+    feature_flags: jsonInput(projection.feature_flags),
+    modified_at: projection.modified_at,
+  };
+
+  return {
+    where: { listing_id: projection.listing_id },
+    // Cast to Prisma input types — the relation is satisfied by the
+    // `listing_id` scalar FK; Prisma accepts that without requiring a
+    // nested `listing.connect`.
+    create: data as unknown as Prisma.ListingSearchProjectionCreateInput,
+    update: data as unknown as Prisma.ListingSearchProjectionUpdateInput,
   };
 }

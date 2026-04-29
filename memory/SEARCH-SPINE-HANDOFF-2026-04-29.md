@@ -1457,6 +1457,82 @@ User-authorized application. NEON.md re-read before applying.
 - The neon-precommit-guard hook no longer requires bypass for future
   PR 5B/5C/5D commits — `prisma migrate status` is up-to-date.
 
+## Master plan PR 5B — dual-write ListingSearchProjection from IDX sync
+
+User-bounded brief: dual-write the projection from the canonical IDX
+sync path. Pure helper for the upsert payload; no schema change; no
+reader migration; no /api/listings change.
+
+Sync changes (`lib/idx/sync.ts`):
+
+- Located both Listing upsert sites:
+  - `syncListings()` — Trestle-driven incremental + full sync. No agent_id.
+  - `syncAgentHistory()` — per-agent historical sync. Sets `agent_id`.
+- Added imports for `buildListingSearchProjectionFromListing`,
+  `buildProjectionUpsertPayload`, and `ListingProjectionSource`.
+- After each `prisma.listing.upsert(...)` succeeds, the sync builds
+  a `ListingProjectionSource` from the same `mapped` object and calls
+  `prisma.listingSearchProjection.upsert(buildProjectionUpsertPayload(...))`.
+- Both writes share the existing per-listing try/catch — sequential
+  pattern, no transaction wrapper. A projection failure increments the
+  same `errors` counter and logs to console; the next sync cycle retries.
+- `mapTrestleToPrisma` output does NOT carry `rls_eligible` or
+  `commercial_sub_type` — Trestle data inherits schema defaults.
+  Both sync paths hardcode `rls_eligible: true, commercial_sub_type: null`
+  in the projection input because Trestle data is RLS-eligible by
+  definition and the website-only commercial path is CRM-authored.
+- Distribution-gate fields (`idx_display_yn`,
+  `internet_entire_listing_display_yn`, `internet_address_display_yn`,
+  `participant_only`) flow directly from `mapped` — null/false
+  round-trip verbatim.
+
+Helper (`lib/search/listing-search-projection.ts`):
+
+- New runtime import of `Prisma` from `@prisma/client` (was type-only).
+- New private `jsonInput()` coercion: returns `Prisma.JsonNull` for
+  `null`, otherwise `value as Prisma.InputJsonValue`. Strict Prisma
+  types reject bare `null` on `Json?` columns.
+- New exported `ListingSearchProjectionUpsertPayload` type.
+- New exported `buildProjectionUpsertPayload(projection)` function —
+  pure, returns Prisma-shaped `{ where: { listing_id }, create, update }`
+  payload. `create` and `update` carry the same fields (every column
+  is fully derived from the source Listing, so update overwrites
+  every column — no stale projection state).
+
+Tests (`lib/search/__tests__/listing-search-projection.test.ts`):
+
+- 4 new cases in a `describe("buildProjectionUpsertPayload …", …)`
+  block:
+  1. Create-branch payload carries every column.
+  2. Update-branch is idempotent against create.
+  3. Null permissions: gate scalars stay null, JSON columns become
+     `Prisma.JsonNull`.
+  4. False permissions: round-trip verbatim, no coercion.
+- No standalone IDX sync test file exists in the repo
+  (`lib/idx/__tests__/` doesn't exist). The testable seam is the pure
+  `buildProjectionUpsertPayload` helper, which is fully covered.
+
+Validation:
+
+- `npx prisma validate`: pass.
+- `npm run type-check`: pass.
+- `npx jest --config lib/search/jest.config.js`: 256/256 (was 252).
+- `npm run test:compliance`: 194/194.
+- `npm run compliance-check`: 87/87.
+- `npm run idx:validate`: WARN, 0 critical (853 pass).
+- `npm run lint`: 0 errors, 0 warnings.
+- `npm run ops:health`: HEALTHY. 19,697 listings; sync 0 errors.
+
+Diff: `lib/idx/sync.ts` +69 / −2, helper +83 / −1, tests +90.
+No schema, migration, env, Vercel, or unrelated routes touched.
+
+Production state: projection table still empty at commit time. Next
+idx-sync cycle (`*/12 * * * *`) will start populating rows.
+
+Next: PR 5C — verify the next sync cycle populates rows (passive
+verification preferred; active backfill is an option if faster
+population is required).
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of
