@@ -1182,4 +1182,38 @@ Once those three conditions are true, PR 5F (CRM saved-search list/counts projec
 
 Push gate: in-repo memory corrections are local-only. **Not pushed.**
 
+Resume + push checkpoint — `437b78e4` + `5b164553` delivered to `origin/main`:
+
+- **Push** at `2026-04-29T23:27:10Z`: `0ca7a0de..5b164553  main -> main`. Two commits delivered:
+  - `437b78e4` — memory corrections (10-min cron schedule, deploy time, parity counts, retracted Desktop-mirror claim).
+  - `5b164553` — RESO read-only diagnostic toolkit + MCP setup runbook. Layer 2 + Layer 3 deliverables. Added under `scripts/reso/` and `docs/reso-mcp-setup.md`. Six new `reso:*` npm scripts. No schema, no migration, no `lib/idx/` or `lib/search/` writer changes.
+- **Pre-push validation**: type-check 0 errors, compliance-check 87/87, lint 0/0, idx:validate WARN with 0 critical (853 pass, 5 warn, 29 info), ops:health HEALTHY (sync ok, 0 errors, REBNY §2.05 violations: 0). All six push-condition gates from the resume prompt satisfied.
+- **CI workflows on the new HEAD**: Release Truth ✅ success, Guardrails (Repo + Compliance) ✅ success, Auto-retry runner-pool flakes (skipped — correct).
+- **Vercel deploy live**: homepage 200, `/api/health` 200, `/api/listings` 200. Public site verified.
+- **`origin/main` now at `5b164553`.** Local even with origin at push time.
+- **RESO analyze run** at `2026-04-29T23:28Z`: Trestle active 10,433 (sale 9,490, rent 943); DB active 10,485 (sale 9,522, rent 963); projection 19,869 / 19,869 with 0 missing; public `/api/listings` 5,163. Deltas: Trestle expected − DB active = −52 (stale Active rows handled by data-retention cron); DB listings − projection = 0 (full parity); Trestle expected − public site = 5,270 (in-flight migration gap, unchanged).
+- **IDX Plus rate limit** partially consumed by today's earlier sessions — gate probes for `idx_display_yn=false`, `internet_address_display_yn=false`, `owner_opt_out=true`, `participant_only=true`, `auction_yn=true`, and `Coming Soon` returned `n/a`. Per the resume prompt's rule, RESO probing was stopped after the single analyze pass; values will refresh on the next quota window.
+
+**Search-alerts cron gate (Step 4)**: NOT YET CLEARED.
+
+- Latest `search_alerts_cron` audit row is `2026-04-29T07:30:06.434Z` (`{ sent: 0, total: 0, skipped: 0, errored: 0 }`).
+- That run is **pre-deploy** — the original 0ca7a0de deploy was ~`21:05Z`, and this resume push at `23:27Z` is even later.
+- Search-alerts schedule is `30 7 * * *` (daily 07:30 UTC).
+- Next firing on the new code: **`2026-04-30T07:30:00Z`** (~8 hours after this push).
+- No `search_alerts_cron_error` rows in the recent history (10-row window).
+- Current UTC: `2026-04-29T23:29:51Z`.
+
+PR 5F readiness: **NOT CLEARED.** Wait for the `2026-04-30T07:30 UTC` firing, then re-run:
+
+```sql
+SELECT * FROM audit_events
+ WHERE action IN ('search_alerts_cron', 'search_alerts_cron_error')
+ ORDER BY created_at DESC
+ LIMIT 10;
+```
+
+Confirm the latest row's `created_at` is after the deploy (after ~`21:05Z`), `changes.errored = 0`, and no `search_alerts_cron_error` rows post-deploy. Once those three conditions hold, PR 5F is cleared to start.
+
+Memory writeback push state: this checkpoint is local-only. The original Step 3 push delivered the two queued commits; the resume prompt did not authorize re-pushing a fresh memory commit, so this writeback sits at +1 ahead of `origin/main` until the next session decides to push.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
