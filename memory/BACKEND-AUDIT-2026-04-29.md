@@ -885,4 +885,22 @@ Follow-up slices remaining:
 
 Push gate: unchanged. Local branch ahead of origin by N+1 commits after this slice; no push performed.
 
+PR 5A migration applied to production Neon — checkpoint:
+
+- User authorization received explicitly. Re-read NEON.md before applying.
+- `npx prisma migrate deploy` applied `20260429130000_add_listing_search_projection` cleanly against the configured Neon DB (`ep-cold-waterfall-adno3ao2.c-2.us-east-1.aws.neon.tech`, database `neondb`).
+- `npx prisma migrate status` reported: "Database schema is up to date!" (20 migrations found, all applied).
+- Post-migration `npm run ops:health` passed / healthy. DB ~215 MB / 500 MB cap; sync ok (0 errors last 24h, last run 0.3h ago: 11 upserts in 1.8s); REBNY §2.05 violations: 0; no upgrade needed.
+- Post-migration validation rerun:
+  - `npm run type-check` passed.
+  - `npx jest --config lib/search/jest.config.js` passed: 252/252.
+  - `npm run test:compliance` passed: 194/194.
+  - `npm run compliance-check` passed: 87/87.
+  - `npm run idx:validate` passed: WARN, 0 critical (853 pass, 5 pre-existing warnings, 29 info).
+  - `npm run lint` passed: 0 errors, 0 warnings.
+- The `listing_search_projection` table is now present in production but empty — no writers yet. PR 5B (dual-write from `lib/idx/sync.ts`) is the next slice and is intentionally not started in this session per user instruction.
+- `lib/idx/sync.ts` remains untouched. The neon-precommit-guard hook will no longer require bypass for any future PR 5B / 5C / 5D commit, since the schema is now applied and `prisma migrate status` reports up-to-date.
+
+Push gate unchanged.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

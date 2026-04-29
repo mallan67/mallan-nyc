@@ -1434,6 +1434,29 @@ new, tests +259 new. No other files touched.
 `buildListingSearchProjectionFromListing`. PR 5C verifies one sync
 cycle. PR 5D migrates the first reader.
 
+## PR 5A migration applied to production Neon
+
+User-authorized application. NEON.md re-read before applying.
+
+- `npx prisma migrate deploy` applied `20260429130000_add_listing_search_projection`
+  cleanly against the configured Neon DB.
+- `npx prisma migrate status` reported "Database schema is up to date!"
+- Post-migration `ops:health`: HEALTHY. DB ~215 MB / 500 MB cap; sync 0
+  errors last 24h; REBNY §2.05 violations: 0; no upgrade needed.
+- Validation rerun (all green):
+  - `npm run type-check`: pass
+  - `npx jest --config lib/search/jest.config.js`: 252/252
+  - `npm run test:compliance`: 194/194
+  - `npm run compliance-check`: 87/87
+  - `npm run idx:validate`: WARN, 0 critical (853 pass)
+  - `npm run lint`: 0/0
+- The `listing_search_projection` table is in production but empty.
+  PR 5B (dual-write from `lib/idx/sync.ts`) is intentionally NOT
+  started in this session per the user's instruction; awaits a
+  separate brief.
+- The neon-precommit-guard hook no longer requires bypass for future
+  PR 5B/5C/5D commits — `prisma migrate status` is up-to-date.
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of
