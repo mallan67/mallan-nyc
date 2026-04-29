@@ -68,6 +68,49 @@ Mark items off as they complete by changing `[ ]` → `[x]` and updating the sta
 - [ ] PR-D12: Delete 5 unused lib files (display-adapter, get-listings-server, client, index, watermark)
 - [ ] PR-D13: Final cleanup — remove duplicated OData filter builders from old route handlers
 
+### Phase 1.5 — Legacy JSON column drops on `Listing` (~20 PRs, 2-6 weeks)
+
+Master refactor plan PR 10 was *intended* to drop these but only delivered `raw_data` shrink. Recoverable storage: ~115 MB. Listings table currently 195 MB / 89% of total DB. Drop order = lowest blast-radius first.
+
+**Column 1 — `agent_info` (~20 readers, lowest risk; replaced by typed `list_agent_full_name` + `list_office_name`)**
+- [ ] PR-E1.A — Phase A audit: greps + reader classification per `memory/JSON-DROP-AUDIT-agent_info.md`
+- [ ] PR-E1.B — Phase B: migrate readers (CRM routes batch)
+- [ ] PR-E1.C — Phase B: migrate readers (public DTO + portal routes batch)
+- [ ] PR-E1.D — Phase C: stop writing `agent_info` JSON in `lib/idx/sync.ts`
+- [ ] PR-E1.E — Phase D: `ALTER TABLE listings DROP COLUMN agent_info; VACUUM` + schema PR
+
+**Column 2 — `compliance` (~28 readers, touches RLS enforcement gate)**
+- [ ] PR-E2.A — Phase A audit + invoke `rebny-compliance` skill
+- [ ] PR-E2.B — Phase B: migrate `lib/compliance/rls-enforcement.ts` first
+- [ ] PR-E2.C — Phase B: remaining readers
+- [ ] PR-E2.D — Phase C: stop write
+- [ ] PR-E2.E — Phase D: drop column
+
+**Column 3 — `features` (~44 readers)**
+- [ ] PR-E3.A — Phase A audit (free-form `features['key']` accesses need promotion-or-decision)
+- [ ] PR-E3.B — Phase B: typed-column reader migration (bedrooms, bathrooms, sqft, amenities)
+- [ ] PR-E3.C — Phase B: search-side reader migration
+- [ ] PR-E3.D — Phase C: stop write
+- [ ] PR-E3.E — Phase D: drop column
+
+**Column 4 — `address` (~276 readers — highest blast radius)**
+- [ ] PR-E4.A — Phase A audit (very large; many false-positive matches like email_address)
+- [ ] PR-E4.B — Build address-normalizer if existing typed columns lack what JSON carried
+- [ ] PR-E4.C — Phase B: migrate listing display readers (CRM)
+- [ ] PR-E4.D — Phase B: migrate listing display readers (public)
+- [ ] PR-E4.E — Phase B: migrate listing display readers (4 portals)
+- [ ] PR-E4.F — Phase C: stop write
+- [ ] PR-E4.G — Phase D: drop column (off-hours; brief lock window)
+
+**Column 5 — `media` (15+ readers — gated on 30 days R2 health)**
+- [ ] PR-E5.A — Phase A audit
+- [ ] PR-E5.B — Verify `MediaSyncState` healthy + R2 authoritative for ≥30 days (`ops:r2-health` clean)
+- [ ] PR-E5.C — Phase B: migrate readers (already on `ListingMedia` table from PR 2/3/4)
+- [ ] PR-E5.D — Phase C: stop write
+- [ ] PR-E5.E — Phase D: drop column
+
+**Estimated:** ~20 PRs over 2-6 weeks; ~115 MB recovered; listings table goes from 195 MB → ~80 MB; total DB drops from 43% → ~20% of free cap.
+
 ### Phase 2 — Cutting-edge (sequenced after foundation lands)
 - [ ] **2A** — Decision-Engine Math (Approval Matrix, hypothesis distributions, profile drift, half-life decay, autonomy state machine) — depends on B + C
 - [ ] **2B** — Fiduciary Engine (LODCAR + 5-step customer-to-client gate + information firewall) — depends on C
@@ -81,6 +124,35 @@ Mark items off as they complete by changing `[ ]` → `[x]` and updating the sta
 
 ### Phase 3 — Open
 - [ ] [Decided after Phase 2 lands. Don't pre-commit.]
+
+### Cross-cutting workstreams + side tasks
+
+These are operational/grooming tasks that don't fit Phase 1/2/3 categorization but must be tracked.
+
+**Operator-only credential actions** (Maya's hands; agent permission system blocks)
+- [x] `vercel env add NEON_API_KEY production` — set 2026-04-28
+- [x] `vercel env add NEON_PROJECT_ID production` — set 2026-04-28
+- [ ] `gh secret set IDX_CLIENT_ID --repo mallan67/mallan-nyc` (enables daily Trestle live audit at 13:30 UTC; currently graceful-skips)
+- [ ] `gh secret set IDX_CLIENT_SECRET --repo mallan67/mallan-nyc`
+
+**Repo grooming**
+- [x] **2026-04-28: Mockup contamination removed.** Deleted `.claude/agents/{backend-sale-form-mockup,mockup-backend-agent,rental-listing-form-agent}.md` + their agent-memory dirs + `public/crm/scripts/validate-mockups.sh`. The 3 deleted agents referenced `Desktop/1/Old/MALLAN-NYC-CRM-FINAL2.html` and self-labeled the project as "MOCKUP/PROTOTYPE" — explicitly wrong since project is live production at mallan.nyc.
+- [ ] Worktree cleanup — remove 4 merged-branch worktrees:
+  - `git worktree remove C:/Users/MayaAllan/Desktop/mallan-nyc-c3c`
+  - `git worktree remove C:/Users/MayaAllan/Desktop/mallan-nyc-c4c`
+  - `git worktree remove C:/Users/MayaAllan/Desktop/mallan-nyc-pr10`
+  - `git worktree remove C:/Users/MayaAllan/Desktop/mallan-nyc-pr11`
+  - `git worktree prune`
+
+**Open PRs**
+- [ ] **PR #62 (SMS password reset, Twilio)** — open since 2026-04-26. Decision deferred per session. Needs brainstorming on password-reset model (SMS vs email-only OTP, TCPA opt-in surfaces, broker/agent vs client portal scope, Twilio vendor contract scope) before merge/close. Do NOT auto-merge.
+
+**Future-gated**
+- [ ] Prisma 7 upgrade — gated on PR-D (search migration) complete + ≥1 week prod stability. Earliest start ~2026-05-05.
+
+**Self-closing verification windows**
+- [ ] First `neon-branch-prune` cron run at 04:00 UTC Apr 29 — expect `{ examined, pruned, kept }` payload (was no-op until env vars set today)
+- [ ] First `Trestle live audit` workflow run at 13:30 UTC Apr 29 — will skip with `::warning` until Trestle GH secrets set
 
 ---
 
