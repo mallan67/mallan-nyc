@@ -542,8 +542,12 @@ export default function BuyerPortalPage() {
     }
   }
 
-  async function submitExternalListingComment(externalListingId: string, requestType: 'comment' | 'request_info' = 'comment') {
-    const body = externalCommentDrafts[externalListingId]?.trim();
+  async function submitExternalListingComment(
+    externalListingId: string,
+    requestType: 'comment' | 'request_info' | 'showing_request' = 'comment',
+    fallbackBody?: string,
+  ) {
+    const body = externalCommentDrafts[externalListingId]?.trim() || fallbackBody || '';
     if (!body) return;
     try {
       const res = await fetch(`/api/portal/external-listings/${externalListingId}/comments`, {
@@ -1009,7 +1013,14 @@ export default function BuyerPortalPage() {
                                   {(externalCommentsMap[item.id] || []).map((comment) => (
                                     <div key={comment.id} className="rounded-lg bg-gray-50 px-3 py-2">
                                       <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs font-semibold text-gray-700">{comment.author?.name || 'Mallan NYC'}</span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-semibold text-gray-700">{comment.author?.name || 'Mallan NYC'}</span>
+                                          {comment.request_type !== 'comment' && (
+                                            <span className="text-[10px] uppercase font-semibold bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">
+                                              {comment.request_type === 'showing_request' ? 'Tour' : 'Info'}
+                                            </span>
+                                          )}
+                                        </div>
                                         <span className="text-[10px] text-gray-400">{fmtDateTime(comment.created_at)}</span>
                                       </div>
                                       <p className="text-xs text-gray-700 mt-1">{comment.body}</p>
@@ -1038,6 +1049,12 @@ export default function BuyerPortalPage() {
                                   className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
                                 >
                                   Request Info
+                                </button>
+                                <button
+                                  onClick={() => submitExternalListingComment(item.id, 'showing_request', 'I would like to schedule a tour or have my agent investigate this outside listing.')}
+                                  className="bg-amber-600 text-white rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-amber-700"
+                                >
+                                  Request Tour
                                 </button>
                               </div>
                             </div>

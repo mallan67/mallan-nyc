@@ -1576,9 +1576,14 @@ var Workspace = (function () {
     var html = comments.length === 0
       ? '<p class="text-xs text-gray-400 mb-2">No notes yet.</p>'
       : '<div class="space-y-1 mb-2">' + comments.map(function (comment) {
+          var badge = comment.request_type === 'showing_request'
+            ? '<span class="text-[10px] uppercase font-semibold bg-amber-50 text-amber-700 rounded-full px-2 py-0.5">Tour</span>'
+            : comment.request_type === 'request_info'
+              ? '<span class="text-[10px] uppercase font-semibold bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">Info</span>'
+              : '';
           return '<div class="rounded-lg bg-white border border-gray-100 px-2 py-1.5">' +
             '<div class="flex items-center justify-between gap-2">' +
-              '<span class="text-[11px] font-semibold text-gray-700">' + E(comment.author && comment.author.name || 'Mallan NYC') + '</span>' +
+              '<div class="flex items-center gap-2"><span class="text-[11px] font-semibold text-gray-700">' + E(comment.author && comment.author.name || 'Mallan NYC') + '</span>' + badge + '</div>' +
               '<span class="text-[10px] text-gray-400">' + E(comment.created_at ? D(comment.created_at) : '') + '</span>' +
             '</div>' +
             '<p class="text-xs text-gray-700 mt-1">' + E(comment.body || '') + '</p>' +

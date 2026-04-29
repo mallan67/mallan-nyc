@@ -719,3 +719,31 @@ Deployment note:
 Next recommended slice:
 
 Add external-listing showing/request workflow so a buyer can ask to tour or investigate an outside listing without requiring an IDX `Listing` row.
+
+## Nineteenth Implemented Slice
+
+Goal: add an external-listing tour/request workflow without adding another migration.
+
+Updated:
+
+- `app/portal/buyer/page.tsx`
+  - Adds a `Request Tour` button on each Outside Listing.
+  - Uses the existing external-listing comment endpoint with `request_type: "showing_request"`.
+  - Allows the buyer to submit a tour/investigation request even when they have not typed a custom note.
+  - Displays `Tour` and `Info` badges inside the Outside Listing thread.
+- `public/crm/js/dashboard/workspace.js`
+  - Displays `Tour` and `Info` badges in the CRM Outside Listing notes thread.
+  - Agents/brokers can distinguish ordinary notes, request-info messages, and tour/investigation requests.
+
+Validation:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next recommended slice:
+
+Add buyer family/friend visibility rules for Outside Listings so invited collaborators can see and discuss the correct subset without broadening client data access.

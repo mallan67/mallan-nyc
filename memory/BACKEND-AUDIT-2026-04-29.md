@@ -370,4 +370,21 @@ Deployment note:
   - `20260429030000_add_external_listings`
   - `20260429033000_add_external_listing_comments`
 
+Follow-up external-listing tour/request workflow completed next:
+
+- Updated `app/portal/buyer/page.tsx` with a `Request Tour` button on each Outside Listing.
+- Reused the existing external-listing comment/request-info endpoint with `request_type = "showing_request"`.
+- Buyers can submit a tour/investigation request without requiring an IDX `Listing` row.
+- Updated buyer portal and CRM thread displays with `Tour` and `Info` badges.
+- No additional migration was needed for this slice.
+
+Validation after the external-listing tour/request slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
