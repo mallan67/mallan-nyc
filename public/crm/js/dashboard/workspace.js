@@ -1535,6 +1535,7 @@ var Workspace = (function () {
               '<span class="text-[10px] uppercase font-bold tracking-wide text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">Outside Listing</span>' +
               '<span class="text-[10px] uppercase font-bold tracking-wide rounded-full px-2 py-0.5 ' + bucketClass + '">' + E(item.action_bucket || 'saved') + '</span>' +
               '<span class="text-[10px] uppercase font-bold tracking-wide text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">' + E(item.status || 'reviewing') + '</span>' +
+              '<span class="text-[10px] uppercase font-bold tracking-wide rounded-full px-2 py-0.5 ' + (item.family_visible ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600') + '">' + (item.family_visible ? 'Family Visible' : 'Private') + '</span>' +
             '</div>' +
             '<p class="text-sm font-semibold text-gray-900 truncate">' + E(title) + '</p>' +
             (item.address ? '<p class="text-xs text-gray-500 truncate">' + E(item.address) + '</p>' : '') +
@@ -1576,6 +1577,14 @@ var Workspace = (function () {
     var html = comments.length === 0
       ? '<p class="text-xs text-gray-400 mb-2">No notes yet.</p>'
       : '<div class="space-y-1 mb-2">' + comments.map(function (comment) {
+          var authorType = comment.author && comment.author.type;
+          var authorBadge = authorType === 'buyer'
+            ? '<span class="text-[10px] uppercase font-semibold bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">Buyer</span>'
+            : authorType === 'family'
+              ? '<span class="text-[10px] uppercase font-semibold bg-green-50 text-green-700 rounded-full px-2 py-0.5">Family</span>'
+              : authorType === 'broker'
+                ? '<span class="text-[10px] uppercase font-semibold bg-purple-50 text-purple-700 rounded-full px-2 py-0.5">Broker</span>'
+                : '<span class="text-[10px] uppercase font-semibold bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">Agent</span>';
           var badge = comment.request_type === 'showing_request'
             ? '<span class="text-[10px] uppercase font-semibold bg-amber-50 text-amber-700 rounded-full px-2 py-0.5">Tour</span>'
             : comment.request_type === 'request_info'
@@ -1583,7 +1592,7 @@ var Workspace = (function () {
               : '';
           return '<div class="rounded-lg bg-white border border-gray-100 px-2 py-1.5">' +
             '<div class="flex items-center justify-between gap-2">' +
-              '<div class="flex items-center gap-2"><span class="text-[11px] font-semibold text-gray-700">' + E(comment.author && comment.author.name || 'Mallan NYC') + '</span>' + badge + '</div>' +
+              '<div class="flex items-center gap-2"><span class="text-[11px] font-semibold text-gray-700">' + E(comment.author && comment.author.name || 'Mallan NYC') + '</span>' + authorBadge + badge + '</div>' +
               '<span class="text-[10px] text-gray-400">' + E(comment.created_at ? D(comment.created_at) : '') + '</span>' +
             '</div>' +
             '<p class="text-xs text-gray-700 mt-1">' + E(comment.body || '') + '</p>' +
@@ -1624,11 +1633,13 @@ var Workspace = (function () {
     var addressEl = document.getElementById('wsExternalListingAddress');
     var notesEl = document.getElementById('wsExternalListingNotes');
     var bucketEl = document.getElementById('wsExternalListingBucket');
+    var familyVisibleEl = document.getElementById('wsExternalListingFamilyVisible');
     var payload = {
       url: urlEl ? urlEl.value : '',
       address: addressEl ? addressEl.value : '',
       notes: notesEl ? notesEl.value : '',
       action_bucket: bucketEl ? bucketEl.value : 'saved',
+      family_visible: familyVisibleEl ? familyVisibleEl.checked : false,
     };
 
     if (!payload.url && !payload.address) {
@@ -1651,6 +1662,7 @@ var Workspace = (function () {
       if (urlEl) urlEl.value = '';
       if (addressEl) addressEl.value = '';
       if (notesEl) notesEl.value = '';
+      if (familyVisibleEl) familyVisibleEl.checked = false;
       CRM.toast('Outside listing added', 'success');
       _renderClientExternalListings();
     }).catch(function (err) {
@@ -1717,6 +1729,10 @@ var Workspace = (function () {
         '</select>' +
         '<button class="btn btn-sm btn-gold" onclick="Workspace._addExternalListingForClient()"><i class="fas fa-plus mr-1"></i> Add</button>' +
       '</div>' +
+      '<label class="inline-flex items-center gap-2 text-xs text-gray-600 mb-3">' +
+        '<input id="wsExternalListingFamilyVisible" type="checkbox" class="rounded border-gray-300">' +
+        'Visible to invited family/friends' +
+      '</label>' +
       '<div id="wsClientExternalListings">' + UI.loading() + '</div>' +
     '</div>';
 

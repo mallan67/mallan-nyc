@@ -760,6 +760,7 @@ model ExternalListing {
   notes                String?   @db.Text
   status               String    @default("submitted")
   action_bucket        String    @default("saved") @map("action_bucket")
+  family_visible       Boolean   @default(false) @map("family_visible")
   comments             ExternalListingComment[]
   created_at           DateTime  @default(now()) @map("created_at")
   updated_at           DateTime  @updatedAt @map("updated_at")
@@ -770,6 +771,7 @@ model ExternalListing {
   @@index([submitted_by_lead_id])
   @@index([status])
   @@index([action_bucket])
+  @@index([lead_id, family_visible])
   @@map("external_listings")
 }
 

@@ -45,6 +45,9 @@ interface ExternalPortalListing {
   notes: string | null;
   status: string;
   action_bucket: string;
+  family_visible: boolean;
+  access_role?: 'owner' | 'family';
+  owner?: { id: string; name: string; email: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -529,6 +532,29 @@ export default function BuyerPortalPage() {
     }
   }
 
+  async function updateExternalListingFamilyVisible(externalListingId: string, familyVisible: boolean) {
+    try {
+      const res = await fetch(`/api/portal/external-listings/${externalListingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ family_visible: familyVisible }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Failed to update sharing', 'error');
+        return;
+      }
+      const data = await res.json();
+      if (data.external_listing) {
+        setExternalListings((prev) =>
+          prev.map((item) => item.id === externalListingId ? { ...item, ...data.external_listing } : item)
+        );
+      }
+    } catch {
+      showToast('Failed to update sharing', 'error');
+    }
+  }
+
   /* ───────── Showing Request ───────── */
 
   async function fetchExternalListingComments(externalListingId: string) {
@@ -961,7 +987,9 @@ export default function BuyerPortalPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {externalListings.map((item) => (
+                    {externalListings.map((item) => {
+                      const isOwner = item.access_role !== 'family';
+                      return (
                       <div key={item.id} className="bg-white border border-amber-200 rounded-xl p-5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -972,10 +1000,20 @@ export default function BuyerPortalPage() {
                               <span className="text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
                                 {item.action_bucket}
                               </span>
+                              <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 ${
+                                item.family_visible
+                                  ? 'bg-green-50 text-green-700 border border-green-200'
+                                  : 'bg-gray-50 text-gray-500 border border-gray-200'
+                              }`}>
+                                {item.family_visible ? 'Family visible' : 'Private'}
+                              </span>
                             </div>
                             <h3 className="font-semibold text-gray-900 text-sm leading-tight truncate">
                               {item.title || item.address || item.source_host || 'Submitted listing'}
                             </h3>
+                            {!isOwner && item.owner && (
+                              <p className="text-xs text-gray-500 mt-1">Shared by {item.owner.name}</p>
+                            )}
                             {item.address && (
                               <p className="text-xs text-gray-500 mt-1">{item.address}</p>
                             )}
@@ -986,6 +1024,7 @@ export default function BuyerPortalPage() {
                               Added {fmtDate(item.created_at)}
                               {item.source_host ? ` from ${item.source_host}` : ''}
                             </p>
+                            {isOwner && (
                             <div className="flex flex-wrap gap-2 mt-3">
                               {EXTERNAL_LISTING_BUCKETS.map((bucket) => {
                                 const active = item.action_bucket === bucket.key;
@@ -1004,6 +1043,18 @@ export default function BuyerPortalPage() {
                                 );
                               })}
                             </div>
+                            )}
+                            {isOwner && family.length > 0 && (
+                              <label className="mt-3 inline-flex items-center gap-2 text-xs text-gray-600">
+                                <input
+                                  type="checkbox"
+                                  checked={item.family_visible}
+                                  onChange={(e) => updateExternalListingFamilyVisible(item.id, e.target.checked)}
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                Share with invited family/friends
+                              </label>
+                            )}
                             <div className="mt-4 border-t border-gray-100 pt-3">
                               <p className="text-xs font-semibold text-gray-700 mb-2">Notes / Requests</p>
                               {(externalCommentsMap[item.id] || []).length === 0 ? (
@@ -1015,6 +1066,11 @@ export default function BuyerPortalPage() {
                                       <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                           <span className="text-xs font-semibold text-gray-700">{comment.author?.name || 'Mallan NYC'}</span>
+                                          {comment.author?.type && comment.author.type !== 'agent' && comment.author.type !== 'broker' && (
+                                            <span className="text-[10px] uppercase font-semibold bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
+                                              {comment.author.type === 'buyer' ? 'Buyer' : 'Family'}
+                                            </span>
+                                          )}
                                           {comment.request_type !== 'comment' && (
                                             <span className="text-[10px] uppercase font-semibold bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">
                                               {comment.request_type === 'showing_request' ? 'Tour' : 'Info'}
@@ -1071,7 +1127,8 @@ export default function BuyerPortalPage() {
                           )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

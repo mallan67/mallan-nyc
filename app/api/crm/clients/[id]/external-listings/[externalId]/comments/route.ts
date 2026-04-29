@@ -57,12 +57,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     where: { external_listing_id: externalListing.id },
     include: {
       lead: { select: { id: true, first_name: true, last_name: true, email: true } },
-      agent: { select: { id: true, first_name: true, last_name: true, email: true } },
+      agent: { select: { id: true, first_name: true, last_name: true, email: true, role: true } },
     },
     orderBy: { created_at: "asc" },
   });
 
-  return NextResponse.json({ comments: comments.map(serializeExternalListingComment) });
+  return NextResponse.json({
+    comments: comments.map((comment) => serializeExternalListingComment(comment, { ownerLeadId: externalListing.lead_id })),
+  });
 }
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
@@ -96,7 +98,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     },
     include: {
       lead: { select: { id: true, first_name: true, last_name: true, email: true } },
-      agent: { select: { id: true, first_name: true, last_name: true, email: true } },
+      agent: { select: { id: true, first_name: true, last_name: true, email: true, role: true } },
     },
   });
 
@@ -113,5 +115,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     req.headers.get("x-forwarded-for") ?? undefined,
   );
 
-  return NextResponse.json({ comment: serializeExternalListingComment(comment) }, { status: 201 });
+  return NextResponse.json(
+    { comment: serializeExternalListingComment(comment, { ownerLeadId: externalListing.lead_id }) },
+    { status: 201 },
+  );
 }

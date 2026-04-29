@@ -426,6 +426,7 @@ Validation:
 - `npm run lint` passed
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
+- `npm run ops:health` passed: healthy, storage 44.8%, no sync errors
 
 ## Thirteenth Implemented Slice
 
@@ -748,6 +749,48 @@ Next recommended slice:
 
 Add buyer family/friend visibility rules for Outside Listings so invited collaborators can see and discuss the correct subset without broadening client data access.
 
+## Twentieth Implemented Slice
+
+Goal: add buyer family/friend visibility rules for Outside Listings.
+
+Added:
+
+- `family_visible` on `ExternalListing`.
+- Migration `20260429040000_add_external_listing_family_visibility`.
+- `lib/external-listings/access.ts` for fail-closed portal access checks.
+
+Updated:
+
+- Buyer portal Outside Listings can be shared with invited family/friends.
+- Buyer-owned outside listings remain private by default.
+- Invited family/friends can only see outside listings where `family_visible = true`.
+- Invited family/friends can comment, request info, and request a tour on shared outside listings.
+- Family members cannot update the buyer's outside-listing bucket or sharing setting.
+- CRM Outside Listings now show whether each outside listing is private or family-visible.
+- CRM external-listing threads now identify commenters as buyer, family, agent, or broker.
+
+Validation:
+
+- `npx prisma generate` passed
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 6/6
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Deployment note:
+
+- Production now needs all three external-listing migrations before this workflow can run safely:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+  - `20260429040000_add_external_listing_family_visibility`
+
+Next recommended slice:
+
+Add CRM rollup and daily-priority queues for buyer outside-listing activity, grouped by liked, seen, discuss, pass, request-info, tour requested, and family discussion activity.
+
 ## Final Save Checkpoint Before Membership/Session Switch
 
 Saved at local time: **2026-04-29 04:12:34 -04:00**.
@@ -772,6 +815,7 @@ Critical production/deploy warning:
 - Required migrations:
   - `20260429030000_add_external_listings`
   - `20260429033000_add_external_listing_comments`
+  - `20260429040000_add_external_listing_family_visibility`
 - Per `NEON.md`, run `npm run ops:health`, manually run `prisma migrate deploy` against the target database, verify migration status, then push/deploy.
 
 Latest completed workflow:
@@ -781,14 +825,16 @@ Latest completed workflow:
 - Outside listings have buckets: `saved`, `seen`, `liked`, `disliked`, `discuss`.
 - Buyers and agents/brokers can update buckets.
 - Buyers can add notes, request info, and request tour/investigation on outside listings.
+- Buyers can choose whether an outside listing is visible to invited family/friends.
+- Invited family/friends can see and discuss only outside listings shared with them.
 - Agents/brokers can see and reply to outside-listing notes in CRM.
 - Outside inventory remains separate from IDX/MLS `Listing`.
 
 Recommended next slice:
 
-1. Add buyer family/friend visibility rules for Outside Listings.
-2. Then add CRM rollup/daily-priority queues for outside-listing activity.
-3. Then continue seller portal signal capture and seller CRM visibility.
+1. Add CRM rollup/daily-priority queues for outside-listing activity.
+2. Then continue seller portal signal capture and seller CRM visibility.
+3. Then continue tenant/landlord workflow signals and broker lead distribution.
 
 ## User Push Gate
 
@@ -797,9 +843,10 @@ User instruction: **make sure everything is completed before pushing anything. R
 Do not push `main` or deploy this work until all of the following are true:
 
 1. The next functional slices intentionally selected for this local batch are finished and validated.
-2. The two external-listing migrations have been applied manually to the target database and verified:
+2. The three external-listing migrations have been applied manually to the target database and verified:
    - `20260429030000_add_external_listings`
    - `20260429033000_add_external_listing_comments`
+   - `20260429040000_add_external_listing_family_visibility`
 3. Full validation has been rerun after the final local slice:
    - `npm run type-check`
    - `node --check public/crm/js/dashboard/workspace.js`

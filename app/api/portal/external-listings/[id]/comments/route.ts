@@ -11,10 +11,11 @@ import {
 } from "@/lib/external-listings/normalize";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { recordPortalEvent } from "@/lib/portal/events";
+import { buildPortalExternalListingWhere, externalListingAccessRole } from "@/lib/external-listings/access";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-async function loadOwnedExternalListing(req: NextRequest, id: string) {
+async function loadAccessibleExternalListing(req: NextRequest, id: string) {
   const auth = await requireWorkspace(req, "buyer");
   if (isAuthError(auth)) return { auth, response: auth };
   if (auth.userType !== "lead") {
@@ -35,7 +36,7 @@ async function loadOwnedExternalListing(req: NextRequest, id: string) {
   const externalListing = await prisma.externalListing.findFirst({
     where: {
       id: externalListingId,
-      lead_id: auth.userId,
+      AND: [await buildPortalExternalListingWhere(auth.userId)],
     },
   });
 
@@ -51,7 +52,7 @@ async function loadOwnedExternalListing(req: NextRequest, id: string) {
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
   const { id } = await params;
-  const access = await loadOwnedExternalListing(req, id);
+  const access = await loadAccessibleExternalListing(req, id);
   if (access.response) return access.response;
   const { externalListing } = access;
 
@@ -59,12 +60,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     where: { external_listing_id: externalListing.id },
     include: {
       lead: { select: { id: true, first_name: true, last_name: true, email: true } },
-      agent: { select: { id: true, first_name: true, last_name: true, email: true } },
+      agent: { select: { id: true, first_name: true, last_name: true, email: true, role: true } },
     },
     orderBy: { created_at: "asc" },
   });
 
-  return NextResponse.json({ comments: comments.map(serializeExternalListingComment) });
+  return NextResponse.json({
+    access_role: externalListingAccessRole(externalListing, access.auth.userId),
+    comments: comments.map((comment) => serializeExternalListingComment(comment, { ownerLeadId: externalListing.lead_id })),
+  });
 }
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (blocked) return blocked;
 
   const { id } = await params;
-  const access = await loadOwnedExternalListing(req, id);
+  const access = await loadAccessibleExternalListing(req, id);
   if (access.response) return access.response;
   const { auth, externalListing } = access;
 
@@ -98,7 +102,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     },
     include: {
       lead: { select: { id: true, first_name: true, last_name: true, email: true } },
-      agent: { select: { id: true, first_name: true, last_name: true, email: true } },
+      agent: { select: { id: true, first_name: true, last_name: true, email: true, role: true } },
     },
   });
 
@@ -111,6 +115,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       external_listing_id: externalListing.id.toString(),
       comment_id: comment.id.toString(),
       request_type: requestType,
+      access_role: externalListingAccessRole(externalListing, auth.userId),
     },
     req.headers.get("x-forwarded-for") ?? undefined,
   );
@@ -123,8 +128,12 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       external_listing_id: externalListing.id.toString(),
       comment_id: comment.id.toString(),
       request_type: requestType,
+      access_role: externalListingAccessRole(externalListing, auth.userId),
     },
   });
 
-  return NextResponse.json({ comment: serializeExternalListingComment(comment) }, { status: 201 });
+  return NextResponse.json(
+    { comment: serializeExternalListingComment(comment, { ownerLeadId: externalListing.lead_id }) },
+    { status: 201 },
+  );
 }

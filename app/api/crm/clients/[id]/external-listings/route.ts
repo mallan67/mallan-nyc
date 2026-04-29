@@ -136,6 +136,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           notes: normalized.notes,
           status,
           action_bucket: normalized.action_bucket,
+          family_visible: normalized.family_visible,
           agent_id: agentId,
         },
         create: data,

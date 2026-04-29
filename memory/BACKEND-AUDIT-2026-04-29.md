@@ -387,6 +387,38 @@ Validation after the external-listing tour/request slice:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Follow-up buyer family/friend visibility slice completed next:
+
+- Added `family_visible` to `ExternalListing`.
+- Added migration `prisma/migrations/20260429040000_add_external_listing_family_visibility/migration.sql`.
+- Added `lib/external-listings/access.ts` for fail-closed portal access checks.
+- Buyer-owned outside listings remain private by default.
+- Buyer portal now lets the buyer share an outside listing with invited family/friends.
+- Invited family/friends can only see outside listings where `family_visible = true`.
+- Invited family/friends can comment, request info, and request a tour on shared outside listings.
+- Family members cannot update the buyer's outside-listing bucket or sharing setting.
+- CRM Outside Listings now show whether each outside listing is private or family-visible.
+- CRM external-listing threads now identify commenters as buyer, family, agent, or broker.
+
+Validation after the buyer family/friend visibility slice:
+
+- `npx prisma generate` passed
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 6/6
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+- `npm run ops:health` passed: healthy, storage 44.8%, no sync errors
+
+Deployment note:
+
+- Production must apply all three external-listing migrations before this workflow is deployed:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+  - `20260429040000_add_external_listing_family_visibility`
+
 Final save checkpoint before membership/session switch:
 
 - Saved at local time: **2026-04-29 04:12:34 -04:00**.
@@ -400,18 +432,20 @@ Resume context for the next Codex session:
 
 - Continue from local repo `C:\Users\MayaAllan\Desktop\mallan-nyc`.
 - Read `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md` first.
-- Do not push/deploy until the target database has both external-listing migrations applied:
+- Do not push/deploy until the target database has all three external-listing migrations applied:
   - `20260429030000_add_external_listings`
   - `20260429033000_add_external_listing_comments`
-- The next implementation slice should be buyer family/friend visibility rules for Outside Listings.
+  - `20260429040000_add_external_listing_family_visibility`
+- The next implementation slice should be CRM rollup and daily-priority queues for outside-listing activity.
 
 User push gate:
 
 - User instruction: **make sure everything is completed before pushing anything. Read through and do not miss any lines.**
 - Do not push `main` or deploy this work until all selected local slices are finished and validated.
-- Both external-listing migrations must be manually applied to the target database and verified before deployment:
+- All three external-listing migrations must be manually applied to the target database and verified before deployment:
   - `20260429030000_add_external_listings`
   - `20260429033000_add_external_listing_comments`
+  - `20260429040000_add_external_listing_family_visibility`
 - Full validation must be rerun after the final local slice:
   - `npm run type-check`
   - `node --check public/crm/js/dashboard/workspace.js`

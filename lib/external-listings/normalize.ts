@@ -8,6 +8,7 @@ export interface ExternalListingInput {
   notes?: unknown;
   action_bucket?: unknown;
   status?: unknown;
+  family_visible?: unknown;
 }
 
 export interface NormalizedExternalListingInput {
@@ -19,6 +20,7 @@ export interface NormalizedExternalListingInput {
   notes: string | null;
   action_bucket: string;
   status: string;
+  family_visible: boolean;
 }
 
 function trimmed(value: unknown, max: number): string | null {
@@ -41,6 +43,15 @@ export function normalizeExternalListingBucket(value: unknown): string | null {
 function normalizeStatus(value: unknown): string {
   const status = typeof value === "string" ? value.trim().toLowerCase() : "";
   return ALLOWED_STATUSES.has(status) ? status : "submitted";
+}
+
+export function normalizeExternalListingFamilyVisible(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "yes", "shared", "family"].includes(normalized)) return true;
+  if (["false", "0", "no", "private"].includes(normalized)) return false;
+  return null;
 }
 
 export function normalizeExternalListingUrl(value: unknown): {
@@ -89,6 +100,7 @@ export function normalizeExternalListingInput(input: ExternalListingInput): Norm
     notes: trimmed(input.notes, 5000),
     action_bucket: normalizeBucket(input.action_bucket),
     status: normalizeStatus(input.status),
+    family_visible: normalizeExternalListingFamilyVisible(input.family_visible) ?? false,
   };
 }
 
@@ -112,6 +124,7 @@ export function serializeExternalListing(listing: {
   notes: string | null;
   status: string;
   action_bucket: string;
+  family_visible: boolean;
   created_at: Date;
   updated_at: Date;
 }) {
@@ -128,6 +141,7 @@ export function serializeExternalListing(listing: {
     notes: listing.notes,
     status: listing.status,
     action_bucket: listing.action_bucket,
+    family_visible: listing.family_visible,
     created_at: listing.created_at.toISOString(),
     updated_at: listing.updated_at.toISOString(),
   };
@@ -155,10 +169,12 @@ export function serializeExternalListingComment(comment: {
   request_type: string;
   created_at: Date;
   lead?: { id: bigint; first_name: string; last_name: string; email: string } | null;
-  agent?: { id: bigint; first_name: string; last_name: string; email: string } | null;
-}) {
+  agent?: { id: bigint; first_name: string; last_name: string; email: string; role?: string } | null;
+}, options: { ownerLeadId?: bigint } = {}) {
   const leadName = comment.lead ? `${comment.lead.first_name} ${comment.lead.last_name}`.trim() : null;
   const agentName = comment.agent ? `${comment.agent.first_name} ${comment.agent.last_name}`.trim() : null;
+  const leadAuthorType = options.ownerLeadId && comment.lead_id === options.ownerLeadId ? "buyer" : "family";
+  const agentAuthorType = comment.agent?.role === "BROKER" ? "broker" : "agent";
   return {
     id: comment.id.toString(),
     external_listing_id: comment.external_listing_id.toString(),
@@ -168,14 +184,14 @@ export function serializeExternalListingComment(comment: {
     request_type: comment.request_type,
     author: comment.lead
       ? {
-          type: "lead",
+          type: leadAuthorType,
           id: comment.lead.id.toString(),
           name: leadName || comment.lead.email,
           email: comment.lead.email,
         }
       : comment.agent
         ? {
-            type: "agent",
+            type: agentAuthorType,
             id: comment.agent.id.toString(),
             name: agentName || comment.agent.email,
             email: comment.agent.email,

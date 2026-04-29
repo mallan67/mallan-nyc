@@ -11,6 +11,7 @@ import {
   serializeExternalListing,
   validateExternalListingInput,
 } from "@/lib/external-listings/normalize";
+import { buildPortalExternalListingWhere, externalListingAccessRole } from "@/lib/external-listings/access";
 
 export async function GET(req: NextRequest) {
   const auth = await requireWorkspace(req, "buyer");
@@ -20,11 +21,24 @@ export async function GET(req: NextRequest) {
   }
 
   const listings = await prisma.externalListing.findMany({
-    where: { lead_id: auth.userId },
+    where: await buildPortalExternalListingWhere(auth.userId),
+    include: {
+      lead: { select: { id: true, first_name: true, last_name: true, email: true } },
+    },
     orderBy: { updated_at: "desc" },
   });
 
-  return NextResponse.json({ external_listings: listings.map(serializeExternalListing) });
+  return NextResponse.json({
+    external_listings: listings.map((listing) => ({
+      ...serializeExternalListing(listing),
+      access_role: externalListingAccessRole(listing, auth.userId),
+      owner: {
+        id: listing.lead.id.toString(),
+        name: `${listing.lead.first_name} ${listing.lead.last_name}`.trim() || listing.lead.email,
+        email: listing.lead.email,
+      },
+    })),
+  });
 }
 
 export async function POST(req: NextRequest) {
