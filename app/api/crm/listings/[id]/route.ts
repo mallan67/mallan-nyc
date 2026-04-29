@@ -14,6 +14,7 @@ import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
 import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
+import { coerceStrictBool } from "@/lib/compliance/gates";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -153,10 +154,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.Neighborhood !== undefined) update.neighborhood = String(body.Neighborhood);
   if (body.City !== undefined) update.city = String(body.City);
   if (body.PostalCode !== undefined) update.postal_code = String(body.PostalCode);
-  // Distribution gates — all use canonical RESO/RLS field names (YN suffix)
-  if (body.IDXEntireListingDisplayYN !== undefined) update.idx_display_yn = body.IDXEntireListingDisplayYN !== false;
-  if (body.InternetEntireListingDisplayYN !== undefined) update.internet_entire_listing_display_yn = body.InternetEntireListingDisplayYN !== false;
-  if (body.InternetAddressDisplayYN !== undefined) update.internet_address_display_yn = body.InternetAddressDisplayYN !== false;
+  // Distribution gates — all use canonical RESO/RLS field names (YN suffix).
+  //
+  // 2026-04-28 fail-closed correction: previous pattern was `body.X !== false`
+  // which coerced null/string-"false"/garbage to true (fail-OPEN). Use
+  // coerceStrictBool() so only literal true / "true" / "TRUE" stores as true;
+  // anything else (including null, "false", typos, malformed JSON) stores as
+  // false. This matches the compliance gate doctrine in lib/compliance/gates.ts.
+  if (body.IDXEntireListingDisplayYN !== undefined) update.idx_display_yn = coerceStrictBool(body.IDXEntireListingDisplayYN);
+  if (body.InternetEntireListingDisplayYN !== undefined) update.internet_entire_listing_display_yn = coerceStrictBool(body.InternetEntireListingDisplayYN);
+  if (body.InternetAddressDisplayYN !== undefined) update.internet_address_display_yn = coerceStrictBool(body.InternetAddressDisplayYN);
   // Auction (UCBA Art. I exception) — same direct-write pattern as POST.
   // Form sends auction_yn / auction_type / auction_start_date / auction_end_date / auction_terms_url
   // post-validator. AuctionBanner reads from these columns; without this
