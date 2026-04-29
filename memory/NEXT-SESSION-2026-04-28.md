@@ -1,6 +1,8 @@
 # Next Session Entry Point — 2026-04-28 (close-of-day)
 
-> **First doc to read in the next session.** Supersedes `memory/OUTSTANDING-WORK-2026-04-27.md` (now stale — every "remaining" item from that snapshot landed on `main` during the 2026-04-28 session). This file is the resume signal for whoever picks up next.
+> **First doc to read in the next session.** Supersedes `memory/OUTSTANDING-WORK-2026-04-27.md` (now stale).
+>
+> **MAJOR UPDATE 2026-04-28 evening:** the prior 5-attempt design loop ended. The single master plan is at [`docs/superpowers/specs/2026-04-28-MASTER-PLAN.md`](../docs/superpowers/specs/2026-04-28-MASTER-PLAN.md). It contains everything: diagnosis, 3 primitives, 40-PR Phase 1 foundation, Phase 2 cutting-edge roadmap, compliance, discipline, open questions — with checkboxes throughout for completion tracking. **All other "options A-E" pickup paths in this doc are SUPERSEDED by the master plan.** Read it before doing anything else. Don't make new plan files; put everything in there.
 
 ---
 

@@ -22,25 +22,45 @@ Failing to read `NEON.md` first is how the 2026-04-19 silent-drift incident happ
 
 ## 🔔 ACTIVE FOLLOW-UP — FIRST AGENDA ITEM EVERY SESSION
 
-**Status:** OPEN · **Updated:** 2026-04-25 · **Master plan in flight: 10-PR backend rebuild**
+**Status:** OPEN · **Updated:** 2026-04-28 · **Master plan in ONE file with checkboxes**
 
-**PRIMARY plan (read first):** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — full 10-PR backend rebuild plan with self-contained resume instructions. Status table inside that file is the source of truth for which PR is next.
+**PRIMARY — read first, do everything from here:** [`docs/superpowers/specs/2026-04-28-MASTER-PLAN.md`](docs/superpowers/specs/2026-04-28-MASTER-PLAN.md)
 
-**SECONDARY (parallel track):** [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — Workstream C (UCBA compliance gaps: Inquiry, Offers, Auction, Ethics) runs in parallel after PR 1 of the master plan lands. Workstream A (Phase 3 schema) is **superseded** by master-plan PR 5. Workstream B (HTTP adapter) is **dropped** per user decision 2026-04-25.
+This single file contains:
+- Status at a glance (every PR has a checkbox; mark off as completed so it is not all over the place)
+- §0 Why this plan exists (the 6-attempt context)
+- §1 Diagnosis (audit-grounded 2026-04-28)
+- §2 Architecture — the 3 primitives
+- §3 Phase 1 — Foundation (40 PRs with per-PR detail)
+- §4 Phase 2 — Cutting-edge applications (sequenced after foundation)
+- §5 Compliance gates throughout
+- §6 Implementation discipline
+- §7 Open questions (Maya answers before any PR ships)
+- §8 Change log
+- §9 Appendix — audit provenance
+- §10 Next step
+
+Every prior plan is folded into this file. Do not create new plan documents elsewhere. If something needs to be tracked, it gets a checkbox in the master plan.
+
+**Strategic anchor (background reading):** [`docs/superpowers/specs/2026-04-27-mallan-intelligence-platform-WIP.md`](docs/superpowers/specs/2026-04-27-mallan-intelligence-platform-WIP.md) — Maya's prior brainstorm capturing corrections, cuts, Sarah worked example. Folded into Phase 2 of the master plan.
+
+**Archived:** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — the prior 10-PR refactor plan (10/10 PRs merged 2026-04-26 to 2026-04-28). Master plan supersedes its remaining deferred items. [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — Workstream C (Inquiry, Offer, Auction, Ethics) all 4 sub-workstreams complete on schema.
 
 ### Action at next session (regardless of date):
-1. Open `memory/REFACTOR-2026-04-25.md`. Read the "Current state" snapshot, then the "PR sequence overview" status table.
-2. Run the pre-flight checklist at the top of that file (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`).
-3. If all pass, identify the lowest-numbered PR with status `NOT_STARTED` and execute it per the per-PR instructions in that file.
-4. Workstream C (C1–C4 in `FOLLOWUP-2026-05-01.md`) can be picked up in parallel as soon as master-plan PR 1 has merged.
-5. After any PR merges, update its status field in `memory/REFACTOR-2026-04-25.md` to `MERGED — <commit-sha> · <date>`.
+1. Open `docs/superpowers/specs/2026-04-28-mallan-foundation-spec.md`. Read §0 (why this exists), §1 (diagnosis), §2 (the 3 primitives), §3 (first migration target).
+2. Run the pre-flight checklist (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`).
+3. If all pass, identify the lowest-numbered PR in §2.1 (event spine), §2.2 (projection layer), §2.3 (lifecycle + agency), or §3.4 (search migration) with status `NOT_STARTED` and execute it.
+4. After any PR merges, update its status in the implementation plan at `docs/superpowers/plans/2026-04-28-mallan-foundation-plan.md` (created by `superpowers:writing-plans` after spec approval).
+5. Cutting-edge Phase 2 work (Approval Matrix, fiduciary engine, NYC moats, frontier mechanisms) is BLOCKED until at least PR-A2 + PR-B3 + PR-C2 of the foundation have merged. See `memory/CUTTING-EDGE-ROADMAP-2026-04-28.md` for the sequencing.
 
 ### Summary of in-flight workstreams
-- **Master plan (10 PRs)** — backend rebuild: PR 1 compliance fail-closed → PR 2 media schema → PR 3 R2-backed media sync → PR 4 rewrite media batch → PR 5 search projection → PR 6/7 search-core → PR 8 collections+sends → PR 9 lease lifecycle → PR 10 Neon shedding.
-- **Workstream C (4 sub-PRs)** — parallel UCBA compliance: C1 Inquiry, C2 Offer transmission, C3 Auction fields, C4 Ethics training gate.
+- **Foundation spec (40 PRs)** — 3 primitives + search migration: event spine (8 PRs), projection layer (9 PRs), lifecycle + agency (10 PRs), search migration (13 PRs). 12-28 weeks total, parallelizable to 12-16 weeks. Estimated net schema: 60 → 38 prisma models, but the 38 are coherent.
+- **Phase 2 (after foundation lands)** — cutting-edge applications sequenced in `memory/CUTTING-EDGE-ROADMAP-2026-04-28.md`. ~120-180 PRs over ~12-24 months. Decision-engine math, fiduciary engine, public-records ingestion, 4 NYC moats, AI tooling layer, 3 frontier mechanisms, Sarah worked example, per-role pipelines.
 
 ### Completion criteria
-Close this follow-up when both the master-plan completion criteria (in `memory/REFACTOR-2026-04-25.md`) and Workstream C completion criteria (in `memory/FOLLOWUP-2026-05-01.md`) are met. Replace this block with a dated archival note pointing to both files.
+**Foundation:** all 40 PRs merged, listings table size dropped (Search migration eliminates ~10K LOC of duplicate code; foundation drops ~10 dead/orphan models), 4 distribution-gate compliance gaps closed, Maya uses the migrated search routes daily for one week before Phase 2 starts.
+
+**Phase 2:** completion criteria documented per-component in `memory/CUTTING-EDGE-ROADMAP-2026-04-28.md`. Phase 2 succeeds if the Sarah lease-to-buy worked example runs end-to-end as documented in §2H of that roadmap.
 
 ### Recently landed (since 2026-04-25)
 - PR #38 (`fix(trestle-media): MediaStatus='Deleted' filter`) — merged 2026-04-26T01:46:50Z
