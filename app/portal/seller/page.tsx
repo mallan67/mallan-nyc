@@ -337,6 +337,19 @@ export default function SellerPortalPage() {
   // What-if calculator local state
   const [whatIfPercent, setWhatIfPercent] = useState(5);
 
+  // Seller planning signals
+  const [signalEstimatedValue, setSignalEstimatedValue] = useState('');
+  const [signalDesiredPrice, setSignalDesiredPrice] = useState('');
+  const [signalMortgagePayoff, setSignalMortgagePayoff] = useState('');
+  const [signalPrepBudget, setSignalPrepBudget] = useState('');
+  const [signalClosingCosts, setSignalClosingCosts] = useState('');
+  const [signalTimeline, setSignalTimeline] = useState('');
+  const [signalUrgency, setSignalUrgency] = useState('');
+  const [signalReadiness, setSignalReadiness] = useState('');
+  const [signalNotes, setSignalNotes] = useState('');
+  const [signalSaving, setSignalSaving] = useState(false);
+  const [signalMessage, setSignalMessage] = useState('');
+
   /* ───────────── Fetch functions ─────────────
      Mount-time fetches (listings/showings/offers/documents/family) and
      the dashboard fetch are owned by useAsyncResource above. The only
@@ -507,6 +520,38 @@ export default function SellerPortalPage() {
     setAttorneySaving(false);
   };
 
+  const handleSaveSellerSignals = async () => {
+    setSignalSaving(true);
+    setSignalMessage('');
+    try {
+      const res = await fetch('/api/portal/seller/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listing_id: dashboardListingId,
+          estimated_value: signalEstimatedValue,
+          desired_sale_price: signalDesiredPrice,
+          mortgage_payoff: signalMortgagePayoff,
+          prep_budget: signalPrepBudget,
+          closing_costs: signalClosingCosts,
+          timeline: signalTimeline,
+          urgency: signalUrgency,
+          readiness: signalReadiness,
+          notes: signalNotes,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setSignalMessage('Saved for your agent.');
+      } else {
+        setSignalMessage(data.error || 'Could not save seller signals.');
+      }
+    } catch {
+      setSignalMessage('Network error.');
+    }
+    setSignalSaving(false);
+  };
+
   /* ───────────── Loading state ───────────── */
 
   if (loading) {
@@ -531,6 +576,10 @@ export default function SellerPortalPage() {
 
   // Primary listing for dashboard data
   const primaryListing = listings.length > 0 ? listings[0] : null;
+  const signalSalePrice = Number(signalDesiredPrice || signalEstimatedValue || 0);
+  const signalNetProceeds = signalSalePrice
+    ? signalSalePrice - Number(signalMortgagePayoff || 0) - Number(signalPrepBudget || 0) - Number(signalClosingCosts || 0)
+    : null;
 
   /* ───────────── Render ───────────── */
 
@@ -774,6 +823,142 @@ export default function SellerPortalPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Seller planning signals */}
+                <div className="rounded-2xl border border-gray-200 p-6">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-700">Seller Planning</h3>
+                      <p className="text-xs text-gray-500 mt-1">Share valuation, proceeds, closing-cost, and readiness context with your agent.</p>
+                    </div>
+                    {signalNetProceeds !== null && (
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase font-semibold text-gray-400">Estimated Net</div>
+                        <div className="text-lg font-bold text-green-700">{fmt$(signalNetProceeds)}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500">Estimated Value</label>
+                      <input
+                        type="number"
+                        value={signalEstimatedValue}
+                        onChange={e => setSignalEstimatedValue(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        placeholder="1200000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Desired Sale Price</label>
+                      <input
+                        type="number"
+                        value={signalDesiredPrice}
+                        onChange={e => setSignalDesiredPrice(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        placeholder="1250000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Mortgage Payoff</label>
+                      <input
+                        type="number"
+                        value={signalMortgagePayoff}
+                        onChange={e => setSignalMortgagePayoff(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        placeholder="400000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Prep Budget</label>
+                      <input
+                        type="number"
+                        value={signalPrepBudget}
+                        onChange={e => setSignalPrepBudget(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        placeholder="25000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Estimated Closing Costs</label>
+                      <input
+                        type="number"
+                        value={signalClosingCosts}
+                        onChange={e => setSignalClosingCosts(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        placeholder="75000"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Timeline</label>
+                      <select
+                        value={signalTimeline}
+                        onChange={e => setSignalTimeline(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="">Select timeline</option>
+                        <option value="now">Now</option>
+                        <option value="30_60_days">30 to 60 days</option>
+                        <option value="60_90_days">60 to 90 days</option>
+                        <option value="3_6_months">3 to 6 months</option>
+                        <option value="exploring">Exploring</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Urgency</label>
+                      <select
+                        value={signalUrgency}
+                        onChange={e => setSignalUrgency(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="">Select urgency</option>
+                        <option value="urgent">Urgent</option>
+                        <option value="soon">Soon</option>
+                        <option value="flexible">Flexible</option>
+                        <option value="monitoring">Monitoring</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Readiness</label>
+                      <select
+                        value={signalReadiness}
+                        onChange={e => setSignalReadiness(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value="">Select readiness</option>
+                        <option value="ready_to_list">Ready to list</option>
+                        <option value="prep_needed">Prep needed</option>
+                        <option value="pricing_review">Pricing review</option>
+                        <option value="documents_needed">Documents needed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="text-xs text-gray-500">Notes</label>
+                    <textarea
+                      value={signalNotes}
+                      onChange={e => setSignalNotes(e.target.value)}
+                      rows={2}
+                      className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
+                      placeholder="Any pricing, timing, prep, or proceeds context..."
+                    />
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className={`text-xs ${signalMessage.includes('Saved') ? 'text-green-600' : 'text-red-600'}`}>
+                      {signalMessage}
+                    </div>
+                    <button
+                      onClick={handleSaveSellerSignals}
+                      disabled={signalSaving}
+                      className="px-4 py-2 text-sm bg-[#B8860B] text-white rounded-lg hover:bg-[#8B6914] disabled:opacity-50"
+                    >
+                      {signalSaving ? 'Saving...' : 'Save Seller Signals'}
+                    </button>
+                  </div>
+                </div>
 
                 {/* ─── Market Data ─── */}
                 {sellerFomo?.market && (

@@ -2807,6 +2807,7 @@ var Workspace = (function () {
 
   var _scenariosCache = {};
   var _financialIntentCache = {};
+  var _sellerSignalsCache = {};
 
   function _fmtFinancialSignalMoney(value) {
     var n = Number(value);
@@ -2822,6 +2823,14 @@ var Workspace = (function () {
     return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/financial-intent')
       .then(function (data) {
         _financialIntentCache[clientId] = data;
+        return data;
+      });
+  }
+
+  function _fetchSellerSignals(clientId) {
+    return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/seller-signals')
+      .then(function (data) {
+        _sellerSignalsCache[clientId] = data;
         return data;
       });
   }
@@ -2943,6 +2952,97 @@ var Workspace = (function () {
         var label = event.tool_type || event.event_type || 'financial_tool';
         html += '<div class="flex items-center justify-between gap-3 text-xs">' +
           '<span class="font-medium text-gray-700">' + E(String(label).replace(/[-_]/g, ' ')) + '</span>' +
+          '<span class="text-gray-400">' + E(event.recorded_at ? D(event.recorded_at) : '') + '</span>' +
+        '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function _renderSellerSignals() {
+    var container = document.getElementById('wsSellerSignals');
+    if (!container || !_clientId) return;
+
+    if (!_sellerSignalsCache[_clientId]) {
+      container.innerHTML = UI.loading();
+      _fetchSellerSignals(_clientId).then(function () {
+        _renderSellerSignals();
+      }).catch(function (err) {
+        container.innerHTML = '<p class="text-xs text-red-500">Could not load seller signals: ' + E(err.message || 'Unknown error') + '</p>';
+      });
+      return;
+    }
+
+    var data = _sellerSignalsCache[_clientId] || {};
+    var summary = data.seller_signals || {};
+    var recent = summary.recent_events || [];
+    var valuation = summary.latest_valuation_request || {};
+    var proceeds = summary.latest_proceeds_estimate || {};
+    var closing = summary.latest_closing_cost_estimate || {};
+    var readiness = summary.latest_readiness_update || {};
+    var attorney = data.attorney || {};
+    var property = data.property_context || {};
+
+    if (!summary.event_count) {
+      container.innerHTML = '<p class="text-xs text-gray-400">No seller portal planning signals captured yet.</p>';
+      return;
+    }
+
+    var html = '<div class="space-y-3">' +
+      '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">' +
+        _financialSignalMetric('Signals', String(summary.event_count || 0) + ' events', 'blue') +
+        _financialSignalMetric('Estimated Value', _fmtFinancialSignalMoney(summary.estimated_value), 'green') +
+        _financialSignalMetric('Desired Price', _fmtFinancialSignalMoney(summary.desired_sale_price), 'amber') +
+        _financialSignalMetric('Net Proceeds', _fmtFinancialSignalMoney(summary.estimated_net_proceeds), 'green') +
+      '</div>' +
+      '<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Valuation / Proceeds</p>' +
+          '<div class="space-y-1">' +
+            _financialSignalRows(valuation, [
+              { key: 'estimated_value', label: 'Estimated value', money: true },
+              { key: 'desired_sale_price', label: 'Desired price', money: true },
+            ]) +
+            _financialSignalRows(proceeds, [
+              { key: 'mortgage_payoff', label: 'Mortgage payoff', money: true },
+              { key: 'prep_budget', label: 'Prep budget', money: true },
+              { key: 'estimated_net_proceeds', label: 'Estimated net', money: true },
+            ]) +
+          '</div>' +
+        '</div>' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Closing / Readiness</p>' +
+          '<div class="space-y-1">' +
+            _financialSignalRows(closing, [
+              { key: 'closing_costs', label: 'Closing costs', money: true },
+            ]) +
+            _financialSignalRows(readiness, [
+              { key: 'timeline', label: 'Timeline' },
+              { key: 'urgency', label: 'Urgency' },
+              { key: 'readiness', label: 'Readiness' },
+            ]) +
+          '</div>' +
+        '</div>' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Context</p>' +
+          '<div class="space-y-1">' +
+            '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Property</span><span class="font-semibold text-gray-700 text-right">' + E(property.property_address || property.active_sale_listing_id || '-') + '</span></div>' +
+            '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Attorney</span><span class="font-semibold text-gray-700 text-right">' + E(attorney.name || attorney.firm || '-') + '</span></div>' +
+            '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Last signal</span><span class="font-semibold text-gray-700 text-right">' + E(summary.last_signal_at ? D(summary.last_signal_at) : '-') + '</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    if (recent.length > 0) {
+      html += '<div class="pt-2 border-t border-gray-100">' +
+        '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Recent Seller Activity</p>' +
+        '<div class="space-y-1">';
+      recent.slice(0, 4).forEach(function (event) {
+        html += '<div class="flex items-center justify-between gap-3 text-xs">' +
+          '<span class="font-medium text-gray-700">' + E(String(event.event_type || 'seller_signal').replace(/[-_]/g, ' ')) + '</span>' +
           '<span class="text-gray-400">' + E(event.recorded_at ? D(event.recorded_at) : '') + '</span>' +
         '</div>';
       });
@@ -3114,13 +3214,23 @@ var Workspace = (function () {
 
     var html = '<div class="space-y-4">';
     html += affordBanner;
-    html += '<div class="card p-4">' +
-      '<div class="flex items-center justify-between mb-3">' +
-        '<h4 class="text-sm font-bold text-gray-700"><i class="fas fa-chart-line mr-2"></i>Buyer Tool Signals</h4>' +
-        '<span class="text-[10px] uppercase font-semibold text-gray-400">Portal Activity</span>' +
-      '</div>' +
-      '<div id="wsFinancialIntent">' + UI.loading() + '</div>' +
-    '</div>';
+    if (clientType === 'seller') {
+      html += '<div class="card p-4">' +
+        '<div class="flex items-center justify-between mb-3">' +
+          '<h4 class="text-sm font-bold text-gray-700"><i class="fas fa-chart-line mr-2"></i>Seller Portal Signals</h4>' +
+          '<span class="text-[10px] uppercase font-semibold text-gray-400">Valuation / Proceeds / Readiness</span>' +
+        '</div>' +
+        '<div id="wsSellerSignals">' + UI.loading() + '</div>' +
+      '</div>';
+    } else {
+      html += '<div class="card p-4">' +
+        '<div class="flex items-center justify-between mb-3">' +
+          '<h4 class="text-sm font-bold text-gray-700"><i class="fas fa-chart-line mr-2"></i>Buyer Tool Signals</h4>' +
+          '<span class="text-[10px] uppercase font-semibold text-gray-400">Portal Activity</span>' +
+        '</div>' +
+        '<div id="wsFinancialIntent">' + UI.loading() + '</div>' +
+      '</div>';
+    }
     html += '<h3 class="text-sm font-bold text-gray-700">Financial Tools</h3>';
 
     // ── Mortgage Calculator ──
@@ -3189,8 +3299,12 @@ var Workspace = (function () {
     html += '</div>';
     el.innerHTML = html;
 
-    // Render saved scenarios
-    _renderFinancialIntent();
+    // Render portal signals and saved scenarios
+    if (clientType === 'seller') {
+      _renderSellerSignals();
+    } else {
+      _renderFinancialIntent();
+    }
     _renderSavedScenarios();
   }
 

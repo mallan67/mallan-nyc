@@ -898,3 +898,46 @@ Do not push `main` or deploy this work until all of the following are true:
    - `npm run compliance-check`
 4. `git status --short --branch` is clean except for the expected ahead-of-origin count.
 5. The user explicitly confirms it is time to push.
+
+## Twenty-Second Slice: Seller Portal Signal Capture
+
+Saved at local time: **2026-04-29 04:45:09 -04:00**.
+
+Completed locally after the CRM outside-listing rollup slice:
+
+- Seller portal now has a Seller Planning panel for valuation, desired sale price, mortgage payoff, prep budget, closing costs, timeline, urgency, readiness, and notes.
+- Seller portal saves those inputs through `POST /api/portal/seller/signals`.
+- Seller signals are stored as existing `PortalEvent` records with `workspace: "seller"`:
+  - `seller_valuation_request`
+  - `seller_proceeds_estimate`
+  - `seller_closing_cost_estimate`
+  - `seller_readiness_update`
+- Seller signal payloads are normalized by `lib/seller-signals/summary.ts`, including estimated net proceeds.
+- CRM now has `GET /api/crm/clients/[id]/seller-signals`.
+- CRM client financial view shows Seller Portal Signals for seller clients, including valuation, desired sale price, estimated net proceeds, closing costs, readiness, urgency, property context, attorney context, last signal date, and recent activity.
+- Broker can read seller signals for all leads; agents can read only assigned leads.
+- No new database migration was added for this slice.
+
+Validation after the seller portal signal capture slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/seller-signals/jest.config.js` passed: 2/2
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Recommended next slice:
+
+1. Continue tenant/landlord workflow signals:
+   - saved rentals
+   - outside rental links
+   - lease-end and rent-vs-buy conversion signals
+   - showing requests and document readiness
+   - vacancy cost calculator
+   - tenant renewal and re-listing signals
+   - owner document and showing workflow
+2. Then implement broker lead distribution.
+3. Then implement per-agent system separation.
+4. Then complete final integration/deploy prep only after the required migrations are manually applied and verified.

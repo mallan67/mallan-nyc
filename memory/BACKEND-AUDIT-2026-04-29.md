@@ -476,4 +476,39 @@ User push gate:
 - `git status --short --branch` should be clean except for the expected ahead-of-origin count.
 - The user must explicitly confirm it is time to push.
 
+Seller portal signal capture slice completed after the CRM rollup slice:
+
+- Added `lib/seller-signals/summary.ts`.
+- Added `lib/seller-signals/__tests__/summary.test.ts`.
+- Added `lib/seller-signals/jest.config.js`.
+- Added `POST /api/portal/seller/signals`.
+- Added `GET /api/crm/clients/[id]/seller-signals`.
+- Seller portal now captures valuation, desired sale price, mortgage payoff, prep budget, closing costs, timeline, urgency, readiness, and notes.
+- Seller portal saves those inputs as existing `PortalEvent` records in the seller workspace.
+- Seller signal events are:
+  - `seller_valuation_request`
+  - `seller_proceeds_estimate`
+  - `seller_closing_cost_estimate`
+  - `seller_readiness_update`
+- CRM seller clients now show a Seller Portal Signals panel with valuation, desired price, estimated net proceeds, closing costs, readiness, urgency, property context, attorney context, last signal, and recent seller activity.
+- CRM access is scoped so brokers can read all seller leads and agents can read assigned seller leads only.
+- No new database migration was added for this slice.
+
+Validation after the seller portal signal capture slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/seller-signals/jest.config.js` passed: 2/2
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next recommended slice:
+
+- Continue tenant/landlord workflow signals: saved rentals, outside rental links, lease-end and rent-vs-buy conversion signals, showing/document readiness, vacancy cost calculator, tenant renewal/re-listing signals, and owner document/showing workflow.
+- Then implement broker lead distribution.
+- Then implement per-agent system separation.
+- Do not push/deploy until the required external-listing migrations are manually applied and verified and the user explicitly confirms pushing.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
