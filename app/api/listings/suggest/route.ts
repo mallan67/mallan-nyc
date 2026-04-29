@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 
 // Neighborhood data for local matching (loaded once at module level)
@@ -159,7 +160,9 @@ export async function GET(request: Request) {
         for (const raw of result.records) {
           const gates = checkDistributionGates(raw);
           if (!gates.displayable) continue;
-          if (raw.InternetAddressDisplayYN === false) continue;
+          // Fail-closed: only include the address suggestion if InternetAddressDisplayYN
+          // is affirmatively true. null / undefined / missing / "false" → skip.
+          if (!affirmPermission(raw.InternetAddressDisplayYN)) continue;
 
           const streetNumber = String(raw.StreetNumber || '');
           const streetName = [raw.StreetDirPrefix, raw.StreetName, raw.StreetSuffix, raw.StreetDirSuffix]
@@ -272,7 +275,8 @@ export async function GET(request: Request) {
               .filter(Boolean).map(String).join(' ');
             const fullAddress = `${streetNumber} ${streetName}`.trim();
 
-            if (raw.InternetAddressDisplayYN === false) continue;
+            // Fail-closed: only include if InternetAddressDisplayYN affirmatively true.
+            if (!affirmPermission(raw.InternetAddressDisplayYN)) continue;
 
             const key = `${fullAddress}-${raw.PostalCode}`;
             if (seen.has(key)) continue;
