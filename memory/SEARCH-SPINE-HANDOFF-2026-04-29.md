@@ -1261,3 +1261,117 @@ explicitly out of scope for this slice):
 - Open House Trestle resource lookup — kept in the route's DB-first block by design (external resource).
 
 Push gate: unchanged. Local branch remains ahead of `origin/main`. No push performed.
+
+## Public `/api/listings` live Trestle fallback filter extraction
+
+User-bounded slice: extract the OData $filter string construction out of
+`app/api/listings/route.ts` into a new helper, leaving DB-first search,
+$orderby, $top, $select, post-fetch RAW filters, OpenHouse, media,
+geocoding, DTO mapping, cache, audit, and exclusive merge untouched.
+
+New file (`lib/search/public-listing-trestle.ts`, 370 LOC):
+
+- Exports `buildPublicListingTrestleFilter(searchParams: URLSearchParams): string`.
+- Internal helpers (not exported): `escapeOData`, `escapeODataLower`,
+  `stripStreetSuffix`, `stripStreetOrdinal`, `buildAddressFilterPart`,
+  `buildStatusFilterPart`, `buildListingTypeFilterPart`,
+  `buildPriceBedsBathsSqftParts`, `buildPropertySubTypeFilterPart`,
+  `buildSortNewDevelopmentFilterPart`, `buildOwnershipTypesFilterPart`,
+  `buildLegacyPropertyTypeFilterPart`, `buildZipCodesFilterPart`,
+  `buildNeighborhoodFilterPart`, `buildBoroughFilterPart`,
+  `buildKeywordsFilterParts`.
+- Imports `lookupNeighborhoodZips` from `@/lib/geo/neighborhood-zips`.
+- Filter clauses produced (verbatim semantic match to the prior inline route logic):
+  - status: ALLOWED `Active`/`ComingSoon`/`ActiveUnderContract` allowlist with
+    fallback to the default 3-status OR clause.
+  - listing type: `sale`/`buy` → `PropertyType ne 'ResidentialLease'`;
+    `rent` → `PropertyType eq 'ResidentialLease'`.
+  - commercial: OR-of-PropertySubType across Office/Retail/Industrial/Warehouse/MixedUse.
+  - price/beds/baths/sqft (incl. half-bath threshold).
+  - yearBuilt: pre-war ≤ 1946, post-war ≥ 1947.
+  - furnished: `Furnished eq 'Furnished'`.
+  - address: 4 patterns with `tolower()` + suffix/ordinal stripping +
+    quote escaping.
+  - propertySubTypes: CommonInterest push for Condo/Co-op/Condop +
+    PublicRemarks contains 4-phrase set for New Development.
+  - sort=new-development standalone: 3-phrase PublicRemarks contains.
+  - ownershipTypes: OR-of-CommonInterest.
+  - legacy single `propertyType`: only when neither propertySubTypes nor
+    ownershipTypes also supplied.
+  - zipCodes: 5-digit allowlist, 1 vs N branching.
+  - neighborhood→ZIP via `lookupNeighborhoodZips`, only when no explicit
+    zipCodes was supplied.
+  - borough → CountyOrParish (Manhattan→New York, etc.).
+  - keywords: per-keyword `contains(tolower(PublicRemarks), …)` with
+    wildcard stripping + quote escaping + lowercasing + AND join.
+- Compliance note in helper docstring: keywords search is restricted to
+  PublicRemarks (PUB-tier); do NOT extend to PrivateRemarks or
+  ShowingInstructions per IDX/VOW display rules.
+
+Route changes (`app/api/listings/route.ts`):
+
+- Import `buildPublicListingTrestleFilter` from the helper.
+- Inside the Trestle fallback `try {` block: removed ~267 lines of inline
+  filter-building (status, listing type, commercial, price/beds/baths/
+  sqft, yearBuilt, furnished, address parsing, propertySubTypes,
+  ownershipTypes, legacy propertyType, zip, neighborhood, borough,
+  keywords, plus the inline `commercialSubTypes` array, `commonInterestPush`
+  map, `commonInterestMap` map, `boroughMap` map, `ownerMap` map, and
+  `stripSuffix`/`stripOrdinal`/`odataSafe` closures).
+- Replaced with: `const filter = buildPublicListingTrestleFilter(searchParams);`
+- Preserved `const boundsParam = searchParams.get('bounds')` — still needed
+  for `hasPostFilter` sizing and the bounds post-filter further down.
+- Preserved the entire `$orderby` switch verbatim — sort wiring is
+  intentionally not part of the filter helper's scope.
+- Updated `fetchFromTrestle({ filter, ... })` call site and the audit log
+  payload to consume the new `filter` const instead of `filterParts.join(' and ')`.
+- Net diff for route: +17 / −249.
+
+Tests (`lib/search/__tests__/public-listing-trestle.test.ts`, 364 LOC):
+
+43 cases across 10 groups — default sale/rent/status, OData escaping,
+address parsing (4 patterns), borough/neighborhood/zip with precedence
+rules, ownershipTypes, yearBuilt thresholds, furnished, amenities including
+pet-friendly (verifies amenities do NOT push to OData), keywords/PublicRemarks
+with wildcard handling, commercial / new-development including the
+sort-vs-propertySubTypes precedence rule.
+
+Validation after the public `/api/listings` Trestle fallback filter extraction:
+
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 236/236 (previous: 193/193; +43 new tests).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed with WARN result, 0 critical: 853 pass, 0 critical, 5 warnings, 29 info.
+
+Diff stat:
+
+- `app/api/listings/route.ts`: +17 / −249.
+- `lib/search/public-listing-trestle.ts`: +370 (new file).
+- `lib/search/__tests__/public-listing-trestle.test.ts`: +364 (new file).
+
+DB-first path: untouched by this slice (only the import line at the top
+of the route was changed). Response shape: untouched (same responseBody
+keys, same `_compliance` block, same caching headers, same audit log
+shape — only the value passed for `filter` changed from
+`filterParts.join(' and ')` to the new `filter` const).
+
+Remaining `/api/listings` fragmentation:
+
+- DB-first cache check / responseBody construction (route-owned response shaping).
+- `featuresById` lookup build (needs pre-DTO serialized rows).
+- `filterDisplayableDbListings()` second-pass fail-closed gate (canonical helper).
+- `dbListingToPublicDTO` mapping (DTO mapping was explicitly out of scope).
+- `geocodeListings` chain on both DB-first and Trestle paths (route-owned side-effect).
+- Open House Trestle resource lookup on both paths (external resource by design).
+- Trestle fallback RAW post-filters: distribution gates, pet-friendly amenity
+  match against `PetsAllowed`, property sub-type post-filter, borough
+  post-filter against `address.county`/`address.city`, bounds post-filter
+  against geocoded lat/lng. All intentionally outside the helper's OData scope.
+- `mapRESOToInternal` mapping (DTO mapping out of scope).
+- Trestle media backfill chain (Phase 1 per-listing + Phase 2 DB fallback).
+- $orderby switch + `fetchTop` / `selectFields` / `useExpandMedia` flags
+  (route-owned Trestle query shaping).
+- The CRM `/api/idx/search` direct Trestle path — separately migrated.
+
+Push gate: unchanged. Local branch remains ahead of `origin/main`. No push performed.

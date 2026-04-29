@@ -732,4 +732,62 @@ Remaining `/api/listings` fragmentation (per the original SEARCH-SPINE-HANDOFF R
 
 User push gate is unchanged — still requires explicit user confirmation before push/deploy.
 
+Public `/api/listings` Trestle fallback filter extraction slice completed after the DB-first finish:
+
+- Added `lib/search/public-listing-trestle.ts` (370 LOC) exporting `buildPublicListingTrestleFilter(searchParams: URLSearchParams): string`.
+- Helper now owns the entire OData $filter string for the live Trestle fallback path: status, listing type (sale/rent/buy), commercial sub-type list, price/beds/baths/sqft (incl. half-bath threshold), yearBuilt pre-war/post-war, furnished, address parsing (4 patterns: number+dir+street, dir+street, number+street, text-only — all with suffix and ordinal stripping plus `tolower()` quoting), propertySubTypes (CommonInterest push + new-development PublicRemarks contains list), `sort=new-development` PublicRemarks contains, ownershipTypes, legacy single propertyType filter, zipCodes (5-digit allowlist), neighborhood→ZIP via `lookupNeighborhoodZips`, borough→CountyOrParish, and AND-joined PublicRemarks contains for keywords with wildcard stripping.
+- Updated `app/api/listings/route.ts`:
+  - Added import for `buildPublicListingTrestleFilter`.
+  - Replaced ~267 lines of inline `filterParts.push(...)` logic inside the Trestle fallback `try {` with a single `const filter = buildPublicListingTrestleFilter(searchParams);` call.
+  - Preserved the route's `boundsParam` extraction (still needed for `hasPostFilter` sizing and the bounds post-filter).
+  - Preserved the `$orderby` switch verbatim — sort wiring stays in the route per scope.
+  - Updated the `fetchFromTrestle({ filter, ... })` call site and the audit-log payload to use the new `filter` const instead of `filterParts.join(' and ')`.
+  - Net diff for the route: +17 / −249.
+- Trestle fallback's RAW post-filters (distribution gates, pet-friendly amenity match, property sub-type post-filter, borough post-filter, bounds post-filter, OpenHouse intersection) all preserved in place. Media handling, geocoding, DTO mapping, cache, and exclusive merge behavior all unchanged.
+- DB-first path is byte-identical to the prior slice — the only edit in the route's DB-first block was the import line at the top of the file.
+- Response shape is byte-identical: same `responseBody` keys, same `_compliance` block, same caching headers.
+
+Added focused tests in `lib/search/__tests__/public-listing-trestle.test.ts` (364 LOC, 43 cases across 10 groups):
+
+1. Default sale/rent/status filters (8 cases incl. type=buy alias and disallowed-status fallback).
+2. OData string escaping (3 cases: legacy propertyType, borough quote escape, keyword wildcard strip + quote escape).
+3. Address search parsing (4 patterns: number+direction+street, direction+street, number+street, text-only).
+4. Borough/neighborhood/zip filters (7 cases incl. multi-zip OR, malformed-zip rejection, zipCodes-wins-over-neighborhood precedence, no-zip-resolved fallback).
+5. ownershipTypes (3 cases: single, multi, unknown-token rejection).
+6. yearBuilt pre-war / post-war / unknown-value (3 cases).
+7. furnished true / false / missing (2 cases).
+8. Amenities including pet-friendly (2 cases) — verifies the helper does NOT push any amenity to OData; pet-friendly is a RAW post-filter the route owns.
+9. Keywords / PublicRemarks (4 cases: per-keyword clause, AND join, wildcard strip, empty-skip).
+10. Commercial / new-development filter behavior (5 cases: commercial sub-type list, propertySubTypes 4-phrase contains, mixed CommonInterest+new-dev OR group, sort=new-development standalone, sort=new-development suppression when propertySubTypes is also supplied).
+
+Validation after the public `/api/listings` Trestle fallback filter extraction slice:
+
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 236/236 (was 193 before this slice; +43 new tests).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed with WARN result and 0 critical (terminal summary: 853 pass, 0 critical, 5 warnings, 29 info).
+
+Diff stat for this slice:
+
+- `app/api/listings/route.ts`: +17 / −249.
+- `lib/search/public-listing-trestle.ts`: +370 (new file, additions only).
+- `lib/search/__tests__/public-listing-trestle.test.ts`: +364 (new file).
+
+Remaining `/api/listings` fragmentation after this slice:
+
+- DB-first cache check / responseBody construction / cache write (route-owned response shaping — out of scope).
+- `featuresById` build for DB-first post-filters (depends on pre-DTO `serialized` rows — route-owned).
+- `filterDisplayableDbListings()` defense-in-depth fail-closed gate (canonical helper in `lib/idx/db-to-public-dto.ts`).
+- `dbListingToPublicDTO` mapping (DTO mapping was explicitly out of scope).
+- `geocodeListings` chain (route-owned side-effect, hard limit preserved).
+- Open House Trestle resource lookup — kept in both the DB-first block and the Trestle fallback block (external resource by design).
+- Trestle fallback RAW post-filters: distribution gates, pet-friendly amenity match against `PetsAllowed`, property sub-type post-filter against `PropertySubType`/`CommonInterest`, borough post-filter against mapped `address.county`/`address.city`, bounds post-filter against geocoded lat/lng. These are intentionally outside the helper's OData scope.
+- `mapRESOToInternal` mapping (DTO mapping out of scope).
+- Trestle media backfill chain (Phase 1 per-listing fetch + Phase 2 DB fallback) — route-owned media chain.
+- $orderby switch + `fetchTop` / `selectFields` / `useExpandMedia` flags — route-owned Trestle query shaping.
+- The CRM `/api/idx/search` direct Trestle path — separately migrated by `lib/search/crm-idx-filter.ts` + `crm-idx-mapper.ts`. Not a `/api/listings` concern.
+
+User push gate unchanged — local `main` remains unpushed.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

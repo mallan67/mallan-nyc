@@ -13,6 +13,7 @@ import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
 } from '@/lib/search/public-listing-db';
+import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
   try {
@@ -366,243 +367,22 @@ export async function GET(request: Request) {
       // TRESTLE FALLBACK: Live Trestle API (when DB has no synced data)
       // ═══════════════════════════════════════════════════════════
       try {
-        // Build OData $filter — push what we can to the server
-        const filterParts: string[] = [];
+        // Build OData $filter via the public Trestle helper.
+        // The helper owns: status, listing type, commercial, price/beds/baths/
+        // sqft, propertySubTypes, ownershipTypes, propertyType, yearBuilt,
+        // furnished, address parsing, zip, neighborhood→ZIP, borough→county,
+        // and keywords. The route still owns $orderby, $top, $select, the
+        // RAW post-filters (pet-friendly, sub-type, borough, bounds), the
+        // OpenHouse intersection, media backfill, DTO mapping, and cache.
+        const filter = buildPublicListingTrestleFilter(searchParams);
 
-        // Status filter — default to active statuses
-        const allowedStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
-        if (statusesParam) {
-          // Multi-status: comma-separated
-          const requested = statusesParam.split(',').filter(s => allowedStatuses.includes(s));
-          if (requested.length === 1) {
-            filterParts.push(`StandardStatus eq '${requested[0]}'`);
-          } else if (requested.length > 1) {
-            filterParts.push(`(${requested.map(s => `StandardStatus eq '${s}'`).join(' or ')})`);
-          } else {
-            filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
-          }
-        } else if (statusFilter) {
-          if (allowedStatuses.includes(statusFilter)) {
-            filterParts.push(`StandardStatus eq '${statusFilter}'`);
-          } else {
-            filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
-          }
-        } else {
-          filterParts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
-        }
-
-        if (listingType === 'sale' || listingType === 'buy') {
-          filterParts.push("PropertyType ne 'ResidentialLease'");
-        } else if (listingType === 'rent') {
-          filterParts.push("PropertyType eq 'ResidentialLease'");
-        }
-
-        // Commercial filter — uses PropertySubType values under Residential PropertyType
-        if (commercial) {
-          const commercialSubTypes = ['Office', 'Retail', 'Industrial', 'Warehouse', 'MixedUse'];
-          filterParts.push(`(${commercialSubTypes.map(t => `PropertySubType eq '${t}'`).join(' or ')})`);
-        }
-
-        if (minPrice) filterParts.push(`ListPrice ge ${parseInt(minPrice, 10)}`);
-        if (maxPrice) filterParts.push(`ListPrice le ${parseInt(maxPrice, 10)}`);
-        if (minBeds !== null && minBeds !== undefined) {
-          filterParts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
-        }
-        if (maxBeds !== null && maxBeds !== undefined) {
-          filterParts.push(`BedroomsTotal le ${parseInt(maxBeds, 10)}`);
-        }
-        if (minBaths) {
-          const bathVal = Number(minBaths);
-          filterParts.push(`BathroomsFull ge ${Math.floor(bathVal)}`);
-          if (bathVal % 1 >= 0.5) filterParts.push(`BathroomsHalf ge 1`);
-        }
-        if (maxBaths) {
-          filterParts.push(`BathroomsFull le ${Math.floor(Number(maxBaths))}`);
-        }
-        if (minSqft) filterParts.push(`LivingArea ge ${parseInt(minSqft, 10)}`);
-        if (maxSqft) filterParts.push(`LivingArea le ${parseInt(maxSqft, 10)}`);
-
-        // Year Built: pre-war (<=1946) / post-war (>=1947)
-        if (yearBuiltParam === 'pre-war') filterParts.push('YearBuilt le 1946');
-        else if (yearBuiltParam === 'post-war') filterParts.push('YearBuilt ge 1947');
-
-        // Furnished (rental)
-        if (furnishedParam) filterParts.push("Furnished eq 'Furnished'");
-
-        // Address/text search — Trestle stores: StreetNumber, StreetDirPrefix (E/W/N/S), StreetName, StreetSuffix
-        // Must split input into components to match correctly.
-        // Uses tolower() for case-insensitive OData matching (Trestle stores uppercase but we normalize).
-        if (addressParam) {
-          const raw = addressParam.trim();
-
-          // Strip street suffixes (Street, Ave, etc.) from the end
-          const stripSuffix = (s: string): string =>
-            s.replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|COURT|CT|WAY|TERRACE|TER)\s*$/i, '').trim();
-
-          // Strip ordinal suffixes from street numbers (1ST→1, 2ND→2, 90TH→90)
-          // Only strip when preceded by a digit to avoid removing "ST" from "PARK"
-          const stripOrdinal = (s: string): string =>
-            s.replace(/(\d+)(ST|ND|RD|TH)\b/gi, '$1').trim();
-
-          // OData-safe string: lowercase, single-quote escaping
-          const odataSafe = (s: string): string =>
-            s.toLowerCase().replace(/'/g, "''");
-
-          // Pattern 1: "400 E 90TH ST" or "400 EAST 90TH STREET" — number + direction + street
-          const dirWithNumPattern = /^(\d+)\s+(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i;
-          // Pattern 2: "E 90TH ST" or "EAST 90TH STREET" — direction + street (no number)
-          const dirNoNumPattern = /^(E|W|N|S|EAST|WEST|NORTH|SOUTH)\.?\s+(.*)/i;
-          // Pattern 3: "400 PARK AVE" — number + street (no direction)
-          const numOnlyPattern = /^(\d+)\s+(.*)/;
-
-          const dirWithNumMatch = raw.match(dirWithNumPattern);
-          if (dirWithNumMatch) {
-            const streetNum = dirWithNumMatch[1];
-            const direction = dirWithNumMatch[2].charAt(0).toUpperCase();
-            const streetPart = odataSafe(stripOrdinal(stripSuffix(dirWithNumMatch[3])));
-            const conditions = [`startswith(StreetNumber,'${streetNum}')`, `StreetDirPrefix eq '${direction}'`];
-            if (streetPart) conditions.push(`contains(tolower(StreetName),'${streetPart}')`);
-            filterParts.push(`(${conditions.join(' and ')})`);
-          } else {
-            const dirNoNumMatch = raw.match(dirNoNumPattern);
-            if (dirNoNumMatch) {
-              // "East 90th Street" — direction + street, no number
-              const direction = dirNoNumMatch[1].charAt(0).toUpperCase();
-              const streetPart = odataSafe(stripOrdinal(stripSuffix(dirNoNumMatch[2])));
-              const conditions = [`StreetDirPrefix eq '${direction}'`];
-              if (streetPart) conditions.push(`contains(tolower(StreetName),'${streetPart}')`);
-              filterParts.push(`(${conditions.join(' and ')})`);
-            } else {
-              const numMatch = raw.match(numOnlyPattern);
-              if (numMatch && numMatch[1]) {
-                // "400 Park Ave" or "400 90th" — number + street, no direction
-                const streetNum = numMatch[1];
-                const streetPart = odataSafe(stripOrdinal(stripSuffix(numMatch[2] || '')));
-                if (streetPart) {
-                  filterParts.push(`(startswith(StreetNumber,'${streetNum}') and contains(tolower(StreetName),'${streetPart}'))`);
-                } else {
-                  filterParts.push(`startswith(StreetNumber,'${streetNum}')`);
-                }
-              } else {
-                // Text only — street name or building name
-                const cleaned = odataSafe(stripSuffix(raw));
-                if (cleaned) {
-                  filterParts.push(`(contains(tolower(StreetName),'${cleaned}') or contains(tolower(BuildingName),'${cleaned}'))`);
-                }
-              }
-            }
-          }
-        }
-
-        // Property sub-types: PropertySubType can't be pushed to OData (causes 502).
-        // But CommonInterest CAN be pushed for Condo/Co-op/Condop (ownership types).
-        // Structural types (Loft, Townhouse, etc.) are handled as post-filter.
-        // Property type OData push: ONLY CommonInterest works on Trestle IDX Plus.
-        // PropertySubType, NewConstructionYN, NewDevelopmentYN all cause 502.
-        // Non-CommonInterest types handled as post-filter after fetch.
-        if (propertySubTypes) {
-          const types = propertySubTypes.split(',').map(t => t.trim());
-          const odataParts: string[] = [];
-
-          // CommonInterest for ownership types
-          const commonInterestPush: Record<string, string> = {
-            'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
-          };
-          for (const t of types) {
-            if (commonInterestPush[t]) {
-              odataParts.push(`CommonInterest eq '${commonInterestPush[t]}'`);
-            }
-          }
-
-          // New Development — push PublicRemarks contains to OData
-          if (types.includes('New Development')) {
-            odataParts.push(
-              "contains(PublicRemarks,'new development')",
-              "contains(PublicRemarks,'new construction')",
-              "contains(PublicRemarks,'sponsor unit')",
-              "contains(PublicRemarks,'brand new')",
-            );
-          }
-
-          if (odataParts.length > 0) {
-            filterParts.push(`(${odataParts.join(' or ')})`);
-          }
-        }
-        // Sort = new-development
-        if (sortParam === 'new-development' && !propertySubTypes) {
-          filterParts.push("(contains(PublicRemarks,'new development') or contains(PublicRemarks,'new construction') or contains(PublicRemarks,'sponsor unit'))");
-        }
-
-        // Ownership types (comma-separated: Condo, Co-op, Condop)
-        if (ownershipTypes) {
-          const ownerMap: Record<string, string> = {
-            'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
-          };
-          const types = ownershipTypes.split(',').map(t => ownerMap[t.trim()]).filter(Boolean);
-          if (types.length > 0) {
-            filterParts.push(`(${types.map(t => `CommonInterest eq '${t}'`).join(' or ')})`);
-          }
-        }
-
-        // Legacy single propertyType filter — only push CommonInterest to OData
-        // (PropertySubType causes Trestle 502, handled as post-filter)
-        if (propertyTypeFilter && !propertySubTypes && !ownershipTypes) {
-          const commonInterestMap: Record<string, string> = {
-            'Condo': 'Condominium',
-            'Co-op': 'StockCooperative',
-            'Condop': 'Condop',
-          };
-          const safe = propertyTypeFilter.replace(/'/g, "''");
-          if (commonInterestMap[safe]) {
-            filterParts.push(`CommonInterest eq '${commonInterestMap[safe]}'`);
-          } else {
-            // Can't push PropertySubType to OData — will be post-filtered;
-          }
-        }
-
-        // Neighborhood filtering strategy:
-        // Trestle IDX Plus does NOT expose Latitude/Longitude for OData filtering.
-        // Step 1: Use ZIP codes to narrow the Trestle query (server-side push).
-        // Step 2: Post-filter results by lat/lng bounding box for precision.
+        // Bounds is needed twice below — for fetchTop sizing and for the
+        // bounds post-filter. Trestle IDX Plus does not expose Latitude/
+        // Longitude for OData $filter, so bounds is always a post-filter.
         const boundsParam = searchParams.get('bounds'); // "south,west,north,east"
-        const zipCodes = searchParams.get('zipCodes');
 
-        // Push ZIP filter to Trestle OData
-        if (zipCodes) {
-          const zips = zipCodes.split(',').map(z => z.trim().replace(/[^0-9]/g, '')).filter(z => z.length === 5);
-          if (zips.length === 1) {
-            filterParts.push(`PostalCode eq '${zips[0]}'`);
-          } else if (zips.length > 1) {
-            filterParts.push(`(${zips.map(z => `PostalCode eq '${z}'`).join(' or ')})`);
-          }
-        }
-
-        // Neighborhood → ZIP push for Trestle OData (CityRegion is unreliable)
-        // Supports multi-neighborhood: comma-separated names
-        if (neighborhood && !zipCodes) {
-          const names = neighborhood.split(',').map(n => n.trim()).filter(Boolean);
-          const allZips = [...new Set(names.flatMap(n => lookupNeighborhoodZips(n)))];
-          if (allZips.length > 0) {
-            if (allZips.length === 1) {
-              filterParts.push(`PostalCode eq '${allZips[0]}'`);
-            } else {
-              filterParts.push(`(${allZips.map(z => `PostalCode eq '${z}'`).join(' or ')})`);
-            }
-          }
-        }
-
-        // Borough — push to OData
-        if (borough) {
-          const boroughMap: Record<string, string> = {
-            'manhattan': 'New York', 'brooklyn': 'Kings', 'queens': 'Queens',
-            'bronx': 'Bronx', 'staten island': 'Richmond',
-          };
-          const countyValue = boroughMap[borough.toLowerCase()] || borough;
-          const safeBorough = countyValue.replace(/'/g, "''");
-          filterParts.push(`CountyOrParish eq '${safeBorough}'`);
-        }
-
-        // Build OData $orderby for sort
+        // Build OData $orderby for sort. Owned by the route — sort wiring
+        // is intentionally not part of the filter helper.
         let orderby: string | undefined;
         switch (sortParam) {
           case 'price-asc': orderby = 'ListPrice asc'; break;
@@ -622,18 +402,6 @@ export async function GET(request: Request) {
           default: orderby = 'ListPrice desc'; break;
         }
 
-        // Keywords → OData contains() on PublicRemarks (AND logic — all must match)
-        // PublicRemarks is a PUB-tier IDX field available on Trestle $select.
-        // OData-safe: escape single quotes, strip SQL wildcards.
-        if (keywords.length > 0) {
-          for (const kw of keywords) {
-            const safe = kw.replace(/[%_]/g, '').replace(/'/g, "''").trim().toLowerCase();
-            if (safe) {
-              filterParts.push(`contains(tolower(PublicRemarks),'${safe}')`);
-            }
-          }
-        }
-
         // Fetch extra to account for gate filtering + post-filters
         // Property type, neighborhood, borough all need heavy post-filtering headroom
         const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development');
@@ -650,7 +418,7 @@ export async function GET(request: Request) {
         const useExpandMedia = false;
 
         const result = await fetchFromTrestle({
-          filter: filterParts.join(' and '),
+          filter,
           select: selectFields,
           top: fetchTop,
           maxTotal: fetchTop,
@@ -953,7 +721,7 @@ export async function GET(request: Request) {
           endpoint: '/api/listings',
           method: 'GET',
           trestleResource: 'Property',
-          filter: filterParts.join(' and '),
+          filter,
           recordCount: publicListings.length,
           gateFilteredCount: result.totalFetched - displayable.length,
           caller: { ip },
