@@ -64,6 +64,7 @@ model Agent {
   showings             Showing[]
   saved_searches       SavedSearch[]
   seller_leads         SellerLead[]
+  external_listings    ExternalListing[]
   pricing_experiments  PricingExperiment[]
   demand_alerts        DemandAlert[]
   agent_metrics        AgentMetrics[]
@@ -229,6 +230,8 @@ model Lead {
   inquiries               Inquiry[]
   family_members          FamilyMember[]
   family_of               FamilyMember[]        @relation("FamilyOf")
+  external_listings       ExternalListing[]     @relation("LeadExternalListings")
+  submitted_external_listings ExternalListing[] @relation("SubmittedExternalListings")
   intent_events           IntentEvent[]
   intent_profile          BuyerIntentProfile?
   lead_score              LeadScore?
@@ -737,6 +740,36 @@ model ClientListingAction {
 // ═══════════════════════════════════════════════════════════
 // LISTING VIEW — Tracked listing link views (engagement data)
 // ═══════════════════════════════════════════════════════════
+// ExternalListing stores buyer-submitted non-IDX links/addresses separately
+// from MLS/IDX Listing rows.
+model ExternalListing {
+  id                   BigInt    @id @default(autoincrement())
+  lead_id              BigInt    @map("lead_id")
+  lead                 Lead      @relation("LeadExternalListings", fields: [lead_id], references: [id], onDelete: Cascade)
+  submitted_by_lead_id BigInt?   @map("submitted_by_lead_id")
+  submitted_by         Lead?     @relation("SubmittedExternalListings", fields: [submitted_by_lead_id], references: [id], onDelete: SetNull)
+  agent_id             BigInt?   @map("agent_id")
+  agent                Agent?    @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+  url                  String?   @db.VarChar(2048)
+  normalized_url       String?   @map("normalized_url") @db.VarChar(2048)
+  source_host          String?   @map("source_host") @db.VarChar(255)
+  address              String?   @db.VarChar(500)
+  title                String?   @db.VarChar(255)
+  notes                String?   @db.Text
+  status               String    @default("submitted")
+  action_bucket        String    @default("saved") @map("action_bucket")
+  created_at           DateTime  @default(now()) @map("created_at")
+  updated_at           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([lead_id, normalized_url])
+  @@index([lead_id])
+  @@index([agent_id])
+  @@index([submitted_by_lead_id])
+  @@index([status])
+  @@index([action_bucket])
+  @@map("external_listings")
+}
+
 model ListingView {
   id          BigInt   @id @default(autoincrement())
   lead_id     BigInt   @map("lead_id")

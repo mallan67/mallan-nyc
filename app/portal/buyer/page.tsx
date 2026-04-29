@@ -35,6 +35,20 @@ interface PortalListing {
   reactions: Record<string, boolean>;
 }
 
+interface ExternalPortalListing {
+  id: string;
+  url: string | null;
+  normalized_url: string | null;
+  source_host: string | null;
+  address: string | null;
+  title: string | null;
+  notes: string | null;
+  status: string;
+  action_bucket: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface Comment {
   id: string;
   listing_id: string;
@@ -176,6 +190,8 @@ export default function BuyerPortalPage() {
   /* ── Listings ── */
   const [listings, setListings] = useState<PortalListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(true);
+  const [externalListings, setExternalListings] = useState<ExternalPortalListing[]>([]);
+  const [externalListingsLoading, setExternalListingsLoading] = useState(true);
 
   /* ── Comments per listing (keyed by listing id) ── */
   const [commentsMap, setCommentsMap] = useState<Record<string, Comment[]>>({});
@@ -281,6 +297,20 @@ export default function BuyerPortalPage() {
     }
   }, []);
 
+  const fetchExternalListings = useCallback(async () => {
+    setExternalListingsLoading(true);
+    try {
+      const res = await fetch('/api/portal/external-listings');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setExternalListings(data.external_listings || []);
+    } catch {
+      setExternalListings([]);
+    } finally {
+      setExternalListingsLoading(false);
+    }
+  }, []);
+
   const fetchShowings = useCallback(async () => {
     setShowingsLoading(true);
     try {
@@ -326,10 +356,11 @@ export default function BuyerPortalPage() {
   useEffect(() => {
     if (!ready) return;
     fetchListings();
+    fetchExternalListings();
     fetchShowings();
     fetchPreferences();
     fetchFamily();
-  }, [ready, fetchListings, fetchShowings, fetchPreferences, fetchFamily]);
+  }, [ready, fetchListings, fetchExternalListings, fetchShowings, fetchPreferences, fetchFamily]);
 
   /* ───────── Reactions ───────── */
 
@@ -411,7 +442,7 @@ export default function BuyerPortalPage() {
     setListingReqSubmitting(true);
     setListingReqSuccess('');
     try {
-      const res = await fetch('/api/portal/listings/request', {
+      const res = await fetch('/api/portal/external-listings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -425,7 +456,14 @@ export default function BuyerPortalPage() {
         showToast(err.error || 'Failed to send request', 'error');
         return;
       }
-      setListingReqSuccess('Request sent to your agent.');
+      const data = await res.json();
+      setListingReqSuccess('Saved and sent to your agent.');
+      if (data.external_listing) {
+        setExternalListings((prev) => [
+          data.external_listing,
+          ...prev.filter((item) => item.id !== data.external_listing.id),
+        ]);
+      }
       setListingReqUrl('');
       setListingReqAddress('');
       setListingReqNotes('');
@@ -816,6 +854,64 @@ export default function BuyerPortalPage() {
               </div>
             )}
 
+            {/* Buyer-submitted outside listings */}
+            {(externalListingsLoading || externalListings.length > 0) && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800">Outside Listings</h3>
+                  <span className="text-xs text-gray-400">Not IDX inventory</span>
+                </div>
+                {externalListingsLoading ? (
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-2/3 mb-3" />
+                    <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {externalListings.map((item) => (
+                      <div key={item.id} className="bg-white border border-amber-200 rounded-xl p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
+                                Outside Listing
+                              </span>
+                              <span className="text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
+                                {item.action_bucket}
+                              </span>
+                            </div>
+                            <h3 className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                              {item.title || item.address || item.source_host || 'Submitted listing'}
+                            </h3>
+                            {item.address && (
+                              <p className="text-xs text-gray-500 mt-1">{item.address}</p>
+                            )}
+                            {item.notes && (
+                              <p className="text-xs text-gray-600 mt-2">{item.notes}</p>
+                            )}
+                            <p className="text-[10px] text-gray-400 mt-2">
+                              Added {fmtDate(item.created_at)}
+                              {item.source_host ? ` from ${item.source_host}` : ''}
+                            </p>
+                          </div>
+                          {item.url && (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="flex-shrink-0 text-xs font-medium text-blue-600 hover:text-blue-800"
+                            >
+                              Open
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Listing cards */}
             {listingsLoading ? (
               <div className="space-y-4">
@@ -826,9 +922,13 @@ export default function BuyerPortalPage() {
                   </div>
                 ))}
               </div>
-            ) : listings.length === 0 ? (
+            ) : listings.length === 0 && externalListings.length === 0 ? (
               <div className="text-center py-16 text-gray-400 text-sm">
                 No listings shared with you yet. Your agent will add listings for you to review.
+              </div>
+            ) : listings.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm">
+                No agent-shared IDX listings yet.
               </div>
             ) : (
               <div className="space-y-4">

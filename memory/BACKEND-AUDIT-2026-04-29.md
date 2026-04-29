@@ -264,4 +264,23 @@ Validation after the buyer CRM visibility slice:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Follow-up buyer external-listing intake slice completed next:
+
+- Added `ExternalListing` to `prisma/schema.prisma`.
+- Added migration `prisma/migrations/20260429030000_add_external_listings/migration.sql`.
+- Added `lib/external-listings/normalize.ts` and focused tests.
+- Added buyer portal API `app/api/portal/external-listings/route.ts`.
+- Added CRM read API `app/api/crm/clients/[id]/external-listings/route.ts`.
+- Updated `app/portal/buyer/page.tsx` so the existing listing-link/address form creates durable external-listing records and renders them separately as Outside Listings.
+- Outside listings are explicitly separate from IDX/MLS `Listing` records.
+
+Validation after the buyer external-listing slice:
+
+- `npx prisma generate` passed
+- `npm run type-check` passed
+- `npm run lint` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

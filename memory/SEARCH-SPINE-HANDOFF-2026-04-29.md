@@ -515,3 +515,49 @@ Recommended next portal/CRM slices:
 3. Add buyer family/friend invite acceptance and permission boundaries per buyer portal.
 4. Add agent/broker dashboard panels that roll up buyer portal activity across all assigned clients.
 5. Mirror the same approach for seller portal valuation/proceeds/closing-cost signals after buyer activity is stable.
+
+## Fifteenth Implemented Slice
+
+Goal: let buyers submit and track non-IDX listing links/addresses without contaminating IDX/MLS listing data.
+
+Added:
+
+- `ExternalListing` Prisma model and migration `20260429030000_add_external_listings`.
+  - Stores buyer-submitted outside links/addresses in `external_listings`.
+  - Keeps records separate from `Listing`.
+  - Tracks owner lead, submitting lead, assigned agent, URL, normalized URL, source host, address, notes, status, bucket, and timestamps.
+- `lib/external-listings/normalize.ts`.
+  - Normalizes http(s) listing URLs.
+  - Extracts source host.
+  - Rejects unsafe/non-http URLs unless an address is provided.
+  - Normalizes allowed buckets/status values.
+  - Serializes BigInt/Date values for API responses.
+- `app/api/portal/external-listings/route.ts`.
+  - Buyer workspace GET/POST endpoint.
+  - Creates durable external-listing records.
+  - Logs `external_listing_submitted` audit events.
+  - Records portal events for buyer activity.
+- `app/api/crm/clients/[id]/external-listings/route.ts`.
+  - Agent/broker read endpoint for a client’s outside listings.
+  - Agents are scoped to assigned clients; brokers can view all.
+- `lib/external-listings/__tests__/normalize.test.ts`.
+
+Updated:
+
+- `app/portal/buyer/page.tsx`
+  - Existing “Send a listing link or address” flow now saves a durable external listing.
+  - Renders “Outside Listings” separately from agent-shared IDX listings.
+  - Labels outside listings as not IDX inventory.
+
+Validation:
+
+- `npx prisma generate` passed
+- `npm run type-check` passed
+- `npm run lint` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Recommended next buyer slice:
+
+Add bucket-changing actions for external listings (`seen`, `liked`, `disliked`, `discuss`) and expose those buckets in the agent/broker CRM client workspace alongside IDX listing reactions.
