@@ -789,3 +789,23 @@ Recommended next slice:
 1. Add buyer family/friend visibility rules for Outside Listings.
 2. Then add CRM rollup/daily-priority queues for outside-listing activity.
 3. Then continue seller portal signal capture and seller CRM visibility.
+
+## User Push Gate
+
+User instruction: **make sure everything is completed before pushing anything. Read through and do not miss any lines.**
+
+Do not push `main` or deploy this work until all of the following are true:
+
+1. The next functional slices intentionally selected for this local batch are finished and validated.
+2. The two external-listing migrations have been applied manually to the target database and verified:
+   - `20260429030000_add_external_listings`
+   - `20260429033000_add_external_listing_comments`
+3. Full validation has been rerun after the final local slice:
+   - `npm run type-check`
+   - `node --check public/crm/js/dashboard/workspace.js`
+   - `npm run crm:test`
+   - `npm run lint`
+   - `npm run test:compliance`
+   - `npm run compliance-check`
+4. `git status --short --branch` is clean except for the expected ahead-of-origin count.
+5. The user explicitly confirms it is time to push.
