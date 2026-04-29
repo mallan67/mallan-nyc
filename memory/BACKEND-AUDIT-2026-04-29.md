@@ -676,4 +676,60 @@ External listing migrations applied / push-ready gate saved at local time **2026
 - The DB migration gate that previously blocked push/deploy is now complete.
 - No push has been performed yet. Next action is user-confirmed push/deploy only.
 
+Public `/api/listings` DB-first finish slice completed after the migration-applied gate:
+
+- Updated `lib/search/public-listing-db.ts`:
+  - Added `OWNERSHIP_TYPE_MAP` and `AMENITY_FIELD_TO_DTO` constants alongside the existing `PROPERTY_SUB_TYPE_MAP`.
+  - Added static `import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types"` (replaces the route-local dynamic `await import`).
+  - Exported `applyPublicListingPostFilters<T extends PublicPostFilterListing>(listings, featuresById, params)` which now owns every DB-first DTO post-filter (`ownershipTypes`, `yearBuilt`, `furnished`, `amenities` including `pet-friendly` negative-value handling, `keywords`).
+  - Comments inline note that open-house and geocoding are intentionally NOT moved (external Trestle resource lookup / route-owned side-effect chain).
+- Updated `app/api/listings/route.ts`:
+  - Import expanded to `{ applyPublicListingPostFilters, buildPublicListingDbSearch }`.
+  - Removed 5 inline post-filter blocks from the DB-first path (ownership ~18 lines, yearBuilt ~5 lines, furnished ~5 lines, amenities ~50 lines incl. dynamic import, keywords ~7 lines).
+  - Replaced with a single `publicListings = applyPublicListingPostFilters(publicListings, featuresById, searchParams)` call.
+  - Geocoding promise repositioned to start before the bundled post-filter (was previously between `ownershipTypes` and `yearBuilt`); behavior preserved — still `Promise.race([geocodeListings(...), 1.5s timeout])`, still fire-and-forget, still awaited at the end of the block.
+  - `featuresById` build kept in the route (needs the raw `serialized: DbListing[]` rows that exist before DTO mapping).
+  - Trestle fallback (line 360+) and the open-house Trestle resource lookup (still inside the DB-first block) were not touched.
+- Updated `lib/search/__tests__/public-listing-db.test.ts`:
+  - 7 new tests added under a `describe("applyPublicListingPostFilters", ...)` block covering: no-op pass-through, ownershipTypes substring rules incl. Condo-vs-Condop disambiguation, yearBuilt pre-war/post-war thresholds, furnished, amenities (single, pet-friendly negative handling, AND across multiple amenities), keywords (single + AND across two terms), and graceful fallback when a listing has no entry in the features map.
+
+What is now handled by `buildPublicListingDbSearch()` + `applyPublicListingPostFilters()` (as a pair, both exported from `lib/search/public-listing-db.ts`):
+
+- `where`: SEARCH_DISPLAY_GATE / fail-closed RLS-eligible path, website-only `rls_eligible=false` path, listing_type, commercial OR sub-type set, price/beds/baths/sqft (incl. half-bath threshold), borough, neighborhood with zip-alias expansion, zipCodes, status/statuses with whitelist, propertySubTypes (mapped), address (Prisma JSON path), special-sort `agent_id`/`property_sub_type` overlays for `exclusives` and `new-development`.
+- `orderBy`: every public sort key (price-asc/desc, newest, sqft-desc, beds-desc, exclusives, neighborhood, new-development), default `list_price desc`.
+- DTO post-filters: ownershipTypes, yearBuilt, furnished, amenities (incl. pet-friendly), keywords.
+
+What stays in the route by design (and why):
+
+- DB-first cache check / responseBody / cache write (route-owned response shaping).
+- `featuresById` build (needs the pre-DTO `serialized: DbListing[]` array).
+- `filterDisplayableDbListings()` second-pass fail-closed gate (canonical helper in `lib/idx/db-to-public-dto.ts`, defense-in-depth).
+- `dbListingToPublicDTO` mapping (DTO mapping is out of scope per the user's hard limits).
+- `geocodeListings` promise + 1.5s race (route-owned side-effect chain).
+- Open House filter — issues a live `OpenHouse` query against the Trestle OData endpoint and intersects by `ListingKey`. The helper intentionally does not own external Trestle calls.
+- Exclusive merge behavior — the DB-first path returns `_compliance.source: 'db+exclusive'` because the helper's `where.OR` already covers `rls_eligible: false` (website-only / exclusives) alongside the gated RLS path; no separate route-side merge code exists or is needed.
+- Trestle live fallback (line 360+) — completely untouched.
+
+Validation after the public `/api/listings` DB-first finish slice:
+
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 193/193 (was 186 before; +7 new tests).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed with WARN result and 0 critical. Terminal summary: 853 pass, 0 critical, 5 warnings, 29 info.
+
+Diff stat:
+
+- `app/api/listings/route.ts`: +12 / -117 net.
+- `lib/search/public-listing-db.ts`: +144 / 0 net (additions only — `buildPublicListingDbSearch` itself is unchanged).
+- `lib/search/__tests__/public-listing-db.test.ts`: +157 / 0.
+
+Remaining `/api/listings` fragmentation (per the original SEARCH-SPINE-HANDOFF Remaining Fragmentation list):
+
+- Public `/api/listings` live Trestle fallback path — still has its own inline OData filter builder (~520 lines below the DB-first block). Out of scope for this slice; user explicitly said not to touch.
+- Open House Trestle resource lookup — kept in the route inside the DB-first block (external resource by design).
+- The CRM `/api/idx/search` direct Trestle path remains independently migrated by `lib/search/crm-idx-filter.ts` + `crm-idx-mapper.ts`; not a `/api/listings` concern.
+
+User push gate is unchanged — still requires explicit user confirmation before push/deploy.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

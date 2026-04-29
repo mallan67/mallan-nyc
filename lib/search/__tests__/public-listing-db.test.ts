@@ -1,4 +1,7 @@
-import { buildPublicListingDbSearch } from "@/lib/search/public-listing-db";
+import {
+  applyPublicListingPostFilters,
+  buildPublicListingDbSearch,
+} from "@/lib/search/public-listing-db";
 
 describe("buildPublicListingDbSearch", () => {
   it("applies the shared fail-closed RLS gate while preserving website-only path", () => {
@@ -69,5 +72,157 @@ describe("buildPublicListingDbSearch", () => {
     const newDev = buildPublicListingDbSearch(new URLSearchParams("sort=new-development"));
     expect(newDev.where.property_sub_type).toEqual({ in: ["NewConstruction", "New Construction"] });
     expect(newDev.orderBy).toEqual({ modification_timestamp: "desc" });
+  });
+});
+
+describe("applyPublicListingPostFilters", () => {
+  type Listing = {
+    id: string;
+    propertyType?: string | null;
+    yearBuilt?: number | null;
+    furnished?: string | null;
+    petsAllowed?: string | null;
+    publicRemarks?: string | null;
+    interiorFeatures?: string | null;
+    appliances?: string | null;
+  };
+
+  const listings: Listing[] = [
+    {
+      id: "a",
+      propertyType: "Condo",
+      yearBuilt: 1920,
+      furnished: "Furnished",
+      petsAllowed: "CatsOk",
+      publicRemarks: "Sun-drenched corner unit with high floor and southern exposure",
+      interiorFeatures: "HighCeilings, NaturalLight",
+      appliances: "Dishwasher, Washer",
+    },
+    {
+      id: "b",
+      propertyType: "Condop",
+      yearBuilt: 1965,
+      furnished: "Unfurnished",
+      petsAllowed: "No",
+      publicRemarks: "Renovated quiet rear-facing studio in a postwar building",
+      interiorFeatures: "Renovated",
+      appliances: "Dishwasher",
+    },
+    {
+      id: "c",
+      propertyType: "Co-op",
+      yearBuilt: 1972,
+      furnished: null,
+      petsAllowed: null,
+      publicRemarks: "Renovated kitchen, oversized windows, washer dryer in unit",
+      interiorFeatures: null,
+      appliances: null,
+    },
+  ];
+
+  const featuresById = new Map<string, Record<string, unknown>>([
+    ["a", { PublicRemarks: listings[0].publicRemarks, InteriorFeatures: "HighCeilings,NaturalLight", Appliances: "Dishwasher,Washer", PetsAllowed: "CatsOk" }],
+    ["b", { PublicRemarks: listings[1].publicRemarks, InteriorFeatures: "Renovated", Appliances: "Dishwasher", PetsAllowed: "No" }],
+    ["c", { PublicRemarks: listings[2].publicRemarks, Appliances: "WasherDryer" }],
+  ]);
+
+  it("returns the input list unchanged when no filter params are supplied", () => {
+    const result = applyPublicListingPostFilters(listings, featuresById, new URLSearchParams());
+    expect(result).toHaveLength(3);
+    expect(result.map((l) => l.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("filters by ownershipTypes using DTO propertyType substring rules", () => {
+    const result = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("ownershipTypes=Co-op"),
+    );
+    expect(result.map((l) => l.id)).toEqual(["c"]);
+
+    // Condo MUST NOT match Condop, per the existing inline filter behavior.
+    const condoOnly = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("ownershipTypes=Condo"),
+    );
+    expect(condoOnly.map((l) => l.id)).toEqual(["a"]);
+  });
+
+  it("filters by yearBuilt pre-war and post-war using the same threshold as Trestle", () => {
+    const preWar = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("yearBuilt=pre-war"),
+    );
+    expect(preWar.map((l) => l.id)).toEqual(["a"]);
+
+    const postWar = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("yearBuilt=post-war"),
+    );
+    expect(postWar.map((l) => l.id)).toEqual(["b", "c"]);
+  });
+
+  it("filters by furnished only when the DTO value matches Furnished", () => {
+    const result = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("furnished=true"),
+    );
+    expect(result.map((l) => l.id)).toEqual(["a"]);
+  });
+
+  it("ANDs amenity filters across DTO + features JSON, with pet-friendly handling negative values", () => {
+    const dishwasher = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("amenities=dishwasher"),
+    );
+    expect(dishwasher.map((l) => l.id)).toEqual(["a", "b"]);
+
+    // pet-friendly excludes "No" but includes CatsOk / DogsOk / null falls through.
+    const petFriendly = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("amenities=pet-friendly"),
+    );
+    expect(petFriendly.map((l) => l.id)).toEqual(["a"]);
+
+    // AND logic across multiple amenities.
+    const dishAndRenovated = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("amenities=dishwasher,renovated"),
+    );
+    expect(dishAndRenovated.map((l) => l.id)).toEqual(["b"]);
+  });
+
+  it("ANDs keyword search across PublicRemarks substring (case-insensitive)", () => {
+    const single = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("keywords=renovated"),
+    );
+    expect(single.map((l) => l.id)).toEqual(["b", "c"]);
+
+    const both = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("keywords=renovated,washer"),
+    );
+    expect(both.map((l) => l.id)).toEqual(["c"]);
+  });
+
+  it("does not throw when a listing has no features map entry", () => {
+    const sparse = new Map<string, Record<string, unknown>>();
+    const result = applyPublicListingPostFilters(
+      listings,
+      sparse,
+      new URLSearchParams("keywords=renovated"),
+    );
+    // Falls back to listing.publicRemarks when the features map is empty.
+    expect(result.map((l) => l.id)).toEqual(["b", "c"]);
   });
 });

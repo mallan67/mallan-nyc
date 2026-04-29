@@ -1196,3 +1196,68 @@ Current deployment state:
 - Local branch remains ahead of `origin/main`.
 - No push has been performed yet.
 - Next action is user-confirmed push/deploy only.
+
+## Public `/api/listings` DB-first migration FINISH
+
+User-bounded slice: complete the DB-first path so all where/order/filter
+construction is delegated to `buildPublicListingDbSearch()`. Hard limits
+honored: only `app/api/listings/route.ts` and `lib/search/public-listing-db.ts`
+modified, plus focused tests in `lib/search/__tests__/public-listing-db.test.ts`.
+Trestle live fallback, schema, migrations, package files, env, Vercel config,
+and unrelated routes were not touched.
+
+Helper changes (`lib/search/public-listing-db.ts`):
+
+- New static import: `AMENITY_FIELD_MAP, AmenityFilter` from `@/lib/search/types` (replaces the previous route-local dynamic `await import`).
+- New constants: `OWNERSHIP_TYPE_MAP`, `AMENITY_FIELD_TO_DTO`.
+- New exported interface: `PublicPostFilterListing` (DTO shape needed for post-filter typing).
+- New exported function: `applyPublicListingPostFilters<T extends PublicPostFilterListing>(listings, featuresById, params): T[]`.
+- The function applies, in order matching the prior inline route logic:
+  - `ownershipTypes` — substring match against DTO `propertyType` (Condo excludes Condop).
+  - `yearBuilt` — pre-war ≤ 1946 / post-war ≥ 1947.
+  - `furnished` — DTO `furnished === "Furnished"`.
+  - `amenities` — AND across requested keys; each key is OR-of-substring across DTO + features JSON; pet-friendly retains the negative-value handling.
+  - `keywords` — AND across PublicRemarks substring (PUB-tier only; deliberately not extended to PrivateRemarks/ShowingInstructions).
+- `buildPublicListingDbSearch()` itself is unchanged.
+
+Route changes (`app/api/listings/route.ts`):
+
+- Import expanded to `{ applyPublicListingPostFilters, buildPublicListingDbSearch }` from the helper.
+- The DB-first block now flows: serialize → `filterDisplayableDbListings` → `dbListingToPublicDTO` → build `featuresById` → start `geocodePromise` (race vs 1.5s) → `applyPublicListingPostFilters(...)` → open-house Trestle filter → `await geocodePromise` → response/cache.
+- 5 inline post-filter blocks deleted (~110 lines): `ownershipTypes`, `yearBuilt`, `furnished`, `amenities` (incl. dynamic import), `keywords`.
+- Geocoding promise position moved from "after ownership / before yearBuilt" to "before the bundled post-filter call". Geocoding now sees the full DTO list rather than the post-ownership list, but is still fire-and-forget with the same 1.5s race and the same final await; the response is unchanged.
+- Open-house Trestle resource intersection stays in the route (external resource lookup is intentionally not delegated to the helper).
+- Trestle live fallback (line ~360 onward) is untouched.
+
+Test changes (`lib/search/__tests__/public-listing-db.test.ts`):
+
+- 7 new tests in a dedicated `describe("applyPublicListingPostFilters", ...)` block:
+  1. No-op pass-through with empty `URLSearchParams`.
+  2. `ownershipTypes` Co-op selection + Condo-vs-Condop disambiguation.
+  3. `yearBuilt` pre-war / post-war thresholds.
+  4. `furnished` matches DTO `Furnished`.
+  5. `amenities` single key (`dishwasher`), `pet-friendly` negative-value handling, AND across multiple keys.
+  6. `keywords` single + AND across two terms.
+  7. Sparse `featuresById` map falls back to listing.publicRemarks without throwing.
+
+Validation after the public `/api/listings` DB-first finish slice:
+
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 193/193 (previous: 186/186; +7 new tests).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed with WARN result, 0 critical: 853 pass, 0 critical, 5 warnings, 29 info.
+
+Diff stat:
+
+- `app/api/listings/route.ts`: +12 / -117.
+- `lib/search/public-listing-db.ts`: +144 (additions only).
+- `lib/search/__tests__/public-listing-db.test.ts`: +157.
+
+Remaining `/api/listings` fragmentation (unchanged from prior handoff —
+explicitly out of scope for this slice):
+
+- Public `/api/listings` live Trestle fallback path — still has its own inline OData filter builder.
+- Open House Trestle resource lookup — kept in the route's DB-first block by design (external resource).
+
+Push gate: unchanged. Local branch remains ahead of `origin/main`. No push performed.

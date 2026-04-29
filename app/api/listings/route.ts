@@ -9,7 +9,10 @@ import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
-import { buildPublicListingDbSearch } from '@/lib/search/public-listing-db';
+import {
+  applyPublicListingPostFilters,
+  buildPublicListingDbSearch,
+} from '@/lib/search/public-listing-db';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
   try {
@@ -267,32 +270,12 @@ export async function GET(request: Request) {
             const displayable = filterDisplayableDbListings(serialized);
             let publicListings = displayable.map(dbListingToPublicDTO);
 
-            // Build features lookup — shared by ownershipTypes, amenities, and keywords post-filters
+            // Build features lookup — passed into applyPublicListingPostFilters
+            // for amenity/keyword evaluation against the raw Trestle features JSON.
             const featuresById = new Map<string, Record<string, unknown>>();
             for (const dbL of serialized) {
               const feat = (dbL.features || {}) as Record<string, unknown>;
               featuresById.set(dbL.listing_id, feat);
-            }
-
-            // Post-filter for fields stored in features JSON (not DB columns)
-            // ownershipTypes → CommonInterest in features
-            if (ownershipTypes) {
-              const ownerMap: Record<string, string> = {
-                'Condo': 'Condominium', 'Co-op': 'StockCooperative', 'Condop': 'Condop',
-              };
-              const types = ownershipTypes.split(',').map(t => ownerMap[t.trim()] || t.trim()).filter(Boolean);
-              if (types.length > 0) {
-                publicListings = publicListings.filter(l => {
-                  // propertyType on DTO is mapped from CommonInterest
-                  const pt = l.propertyType?.toLowerCase() || '';
-                  return types.some(t => {
-                    if (t === 'Condominium') return pt.includes('condo') && !pt.includes('condop');
-                    if (t === 'StockCooperative') return pt.includes('co-op');
-                    if (t === 'Condop') return pt.includes('condop');
-                    return false;
-                  });
-                });
-              }
             }
 
             // Geocode DB listings — use only in-memory + DB cache (fast).
@@ -304,87 +287,13 @@ export async function GET(request: Request) {
               new Promise<void>((resolve) => setTimeout(resolve, 1500)),
             ]).catch(() => { /* non-fatal */ });
 
-            // yearBuilt filter
-            if (yearBuiltParam === 'pre-war') {
-              publicListings = publicListings.filter(l => l.yearBuilt != null && l.yearBuilt <= 1946);
-            } else if (yearBuiltParam === 'post-war') {
-              publicListings = publicListings.filter(l => l.yearBuilt != null && l.yearBuilt >= 1947);
-            }
-
-            // Furnished filter
-            if (furnishedParam) {
-              publicListings = publicListings.filter(l =>
-                l.furnished?.toLowerCase() === 'furnished'
-              );
-            }
-
-            // Address search is now handled in the Prisma query (JSON path filters)
-            // so no post-filter needed here — results are already narrowed by SQL
-
-            // Amenity post-filtering on DB path (same AND logic as Trestle path)
-            // DB listings store amenity fields in the features JSON column with
-            // PascalCase keys (same as raw Trestle field names). The DTO also
-            // exposes these as camelCase. We check both DTO + features JSON.
-            if (amenitiesParam) {
-              const { AMENITY_FIELD_MAP } = await import('@/lib/search/types');
-              // PascalCase → camelCase mapping for DTO fields
-              const fieldToDto: Record<string, string> = {
-                'BuildingFeatures': 'buildingFeatures',
-                'InteriorFeatures': 'interiorFeatures',
-                'ExteriorFeatures': 'exteriorFeatures',
-                'Appliances': 'appliances',
-                'Cooling': 'cooling',
-                'View': 'view',
-                'ParkingFeatures': 'parkingFeatures',
-                'LaundryFeatures': 'laundryFeatures',
-                'PetsAllowed': 'petsAllowed',
-              };
-              const requestedAmenities = amenitiesParam.split(',').filter(
-                (a): a is import('@/lib/search/types').AmenityFilter => a in AMENITY_FIELD_MAP
-              );
-
-              // AND logic: each selected amenity must be present
-              for (const amenityKey of requestedAmenities) {
-                const mapping = AMENITY_FIELD_MAP[amenityKey];
-                const fields = mapping.field.split(',').map(f => f.trim());
-                const matchValues = mapping.values.map(v => v.toLowerCase());
-
-                if (amenityKey === 'pet-friendly') {
-                  publicListings = publicListings.filter((listing) => {
-                    // Check DTO petsAllowed + features JSON PetsAllowed
-                    const dtoVal = String(listing.petsAllowed || '').toLowerCase();
-                    const feat = featuresById.get(listing.id) || {};
-                    const featVal = String(feat.PetsAllowed || '').toLowerCase();
-                    const val = dtoVal || featVal;
-                    if (!val) return false;
-                    return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
-                  });
-                } else {
-                  publicListings = publicListings.filter((listing) => {
-                    const feat = featuresById.get(listing.id) || {};
-                    return fields.some(fieldName => {
-                      // Try DTO field first (camelCase), then features JSON (PascalCase)
-                      const dtoKey = fieldToDto[fieldName];
-                      const dtoVal = dtoKey ? String((listing as unknown as Record<string, unknown>)[dtoKey] || '') : '';
-                      const featVal = String(feat[fieldName] || '');
-                      const val = (dtoVal || featVal).toLowerCase();
-                      return matchValues.some(mv => val.includes(mv));
-                    });
-                  });
-                }
-              }
-            }
-
-            // Keywords post-filter: search PublicRemarks in features JSON (AND logic)
-            // PublicRemarks is a PUB-tier IDX field — safe for public text search.
-            // Do NOT search PrivateRemarks or ShowingInstructions (HID tier).
-            if (keywords.length > 0) {
-              publicListings = publicListings.filter(listing => {
-                const feat = featuresById.get(listing.id) || {};
-                const remarks = String(feat.PublicRemarks || listing.publicRemarks || '').toLowerCase();
-                return keywords.every(kw => remarks.includes(kw.toLowerCase().trim()));
-              });
-            }
+            // All DB-first DTO post-filters (ownership, yearBuilt, furnished,
+            // amenities, keywords) are owned by lib/search/public-listing-db.ts.
+            // Address search is already pushed into the Prisma query via
+            // buildPublicListingDbSearch(). Open House is handled below — it
+            // requires a live Trestle OpenHouse resource lookup that the
+            // helper intentionally does not own.
+            publicListings = applyPublicListingPostFilters(publicListings, featuresById, searchParams);
 
             // Open House filter on DB path — query Trestle OpenHouse resource
             if (openHouseParam) {

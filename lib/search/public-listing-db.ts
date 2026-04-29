@@ -4,6 +4,7 @@ import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
+import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 
 export interface PublicListingDbSearch {
   where: Prisma.ListingWhereInput;
@@ -23,6 +24,30 @@ const PROPERTY_SUB_TYPE_MAP: Record<string, string> = {
   Loft: "Loft",
   Duplex: "Duplex",
   Triplex: "Triplex",
+};
+
+// CommonInterest enum values mapped from the public-facing ownership filter.
+// Substring match against the DTO `propertyType` (which dbListingToPublicDTO
+// derives from CommonInterest in the JSON address column).
+const OWNERSHIP_TYPE_MAP: Record<string, string> = {
+  Condo: "Condominium",
+  "Co-op": "StockCooperative",
+  Condop: "Condop",
+};
+
+// PascalCase Trestle field name → camelCase DTO key on the public listing.
+// Used for amenity filtering: try the DTO key first, fall back to the raw
+// features JSON when the DTO doesn't expose that field directly.
+const AMENITY_FIELD_TO_DTO: Record<string, string> = {
+  BuildingFeatures: "buildingFeatures",
+  InteriorFeatures: "interiorFeatures",
+  ExteriorFeatures: "exteriorFeatures",
+  Appliances: "appliances",
+  Cooling: "cooling",
+  View: "view",
+  ParkingFeatures: "parkingFeatures",
+  LaundryFeatures: "laundryFeatures",
+  PetsAllowed: "petsAllowed",
 };
 
 function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhereInput): void {
@@ -243,4 +268,123 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
   appendAndMany(where, addressConditions(params.get("address")));
 
   return { where, orderBy };
+}
+
+// Public listings carry feature data both as DTO fields (camelCase, mapped by
+// dbListingToPublicDTO) and as the original Trestle features JSON column. The
+// DB-first post-filters need both, so callers must pass a Map keyed by the
+// listing id (matching `PublicPostFilterListing.id`) → raw features object.
+export interface PublicPostFilterListing {
+  id: string;
+  propertyType?: string | null;
+  yearBuilt?: number | null;
+  furnished?: string | null;
+  petsAllowed?: string | null;
+  publicRemarks?: string | null;
+}
+
+// All DB-first DTO post-filters that aren't expressible as a Prisma where —
+// run after dbListingToPublicDTO maps a row but before media/open-house
+// resource lookups. Order matches the previous inline route logic exactly so
+// behavior is preserved across the migration.
+//
+// NOT included on purpose:
+//   - openHouse: needs a live Trestle OpenHouse query (external resource).
+//   - media backfill / geocoding: side-effect chains the route owns.
+export function applyPublicListingPostFilters<T extends PublicPostFilterListing>(
+  listings: T[],
+  featuresById: Map<string, Record<string, unknown>>,
+  params: URLSearchParams,
+): T[] {
+  let result = listings;
+
+  // ownershipTypes — substring match against DTO propertyType. Mirrors the
+  // dbListingToPublicDTO mapping from address.CommonInterest, so "Condo"
+  // matches `condo` but not `condop`, etc.
+  const ownershipTypesParam = params.get("ownershipTypes");
+  if (ownershipTypesParam) {
+    const types = csv(ownershipTypesParam)
+      .map((type) => OWNERSHIP_TYPE_MAP[type] || type)
+      .filter(Boolean);
+    if (types.length > 0) {
+      result = result.filter((listing) => {
+        const pt = (listing.propertyType || "").toLowerCase();
+        return types.some((type) => {
+          if (type === "Condominium") return pt.includes("condo") && !pt.includes("condop");
+          if (type === "StockCooperative") return pt.includes("co-op");
+          if (type === "Condop") return pt.includes("condop");
+          return false;
+        });
+      });
+    }
+  }
+
+  // yearBuilt — pre-war (≤1946) / post-war (≥1947). Same threshold as the
+  // Trestle fallback path (YearBuilt le 1946 / ge 1947).
+  const yearBuiltParam = params.get("yearBuilt");
+  if (yearBuiltParam === "pre-war") {
+    result = result.filter((l) => l.yearBuilt != null && l.yearBuilt <= 1946);
+  } else if (yearBuiltParam === "post-war") {
+    result = result.filter((l) => l.yearBuilt != null && l.yearBuilt >= 1947);
+  }
+
+  // furnished — rental-only filter; matches DTO furnished === "Furnished".
+  if (params.get("furnished") === "true") {
+    result = result.filter((l) => (l.furnished || "").toLowerCase() === "furnished");
+  }
+
+  // amenities — AND across requested keys; each key is OR-of-substring across
+  // the configured fields (DTO camelCase first, features JSON PascalCase
+  // fallback). PetsAllowed has its own logic because its values encode
+  // negative cases (e.g., "No") that need positive recognition.
+  const amenitiesParam = params.get("amenities");
+  if (amenitiesParam) {
+    const requested = amenitiesParam
+      .split(",")
+      .filter((a): a is AmenityFilter => a in AMENITY_FIELD_MAP);
+
+    for (const amenityKey of requested) {
+      const mapping = AMENITY_FIELD_MAP[amenityKey];
+      const fields = mapping.field.split(",").map((f) => f.trim());
+      const matchValues = mapping.values.map((v) => v.toLowerCase());
+
+      if (amenityKey === "pet-friendly") {
+        result = result.filter((listing) => {
+          const dtoVal = String(listing.petsAllowed || "").toLowerCase();
+          const feat = featuresById.get(listing.id) || {};
+          const featVal = String(feat.PetsAllowed || "").toLowerCase();
+          const val = dtoVal || featVal;
+          if (!val) return false;
+          return !val.includes("no") || val.includes("catsok") || val.includes("dogsok");
+        });
+      } else {
+        result = result.filter((listing) => {
+          const feat = featuresById.get(listing.id) || {};
+          return fields.some((fieldName) => {
+            const dtoKey = AMENITY_FIELD_TO_DTO[fieldName];
+            const dtoVal = dtoKey
+              ? String((listing as unknown as Record<string, unknown>)[dtoKey] || "")
+              : "";
+            const featVal = String(feat[fieldName] || "");
+            const val = (dtoVal || featVal).toLowerCase();
+            return matchValues.some((mv) => val.includes(mv));
+          });
+        });
+      }
+    }
+  }
+
+  // keywords — AND across PublicRemarks substring matches. PublicRemarks is a
+  // PUB-tier IDX field so this stays compliance-safe; do NOT extend to
+  // PrivateRemarks or ShowingInstructions (HID tier).
+  const keywords = csv(params.get("keywords")).filter(Boolean);
+  if (keywords.length > 0) {
+    result = result.filter((listing) => {
+      const feat = featuresById.get(listing.id) || {};
+      const remarks = String(feat.PublicRemarks || listing.publicRemarks || "").toLowerCase();
+      return keywords.every((kw) => remarks.includes(kw.toLowerCase().trim()));
+    });
+  }
+
+  return result;
 }
