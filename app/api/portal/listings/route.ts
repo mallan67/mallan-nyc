@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth";
 import { sanitizeListingForPortal } from "@/lib/compliance/dto";
+import { affirmPermission } from "@/lib/compliance/gates";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -50,15 +51,20 @@ export async function GET(req: NextRequest) {
   }
 
   // REBNY RLS: Explicit distribution gate enforcement (fail-closed)
-  // These checks run BEFORE DTO sanitization as a hard-block layer
+  // These checks run BEFORE DTO sanitization as a hard-block layer.
+  //
+  // 2026-04-28 fail-closed correction: Gates 2 and 3 previously used
+  // `=== false`, which fails OPEN on null/undefined/missing column values
+  // (older listing rows pre-dating the column may have null defaults).
+  // Switched to affirmPermission() — passes ONLY when explicitly true.
   const listings = Array.from(listingMap.values())
     .map(({ listing, reactions }) => {
       // Gate 1: Owner opt-out — must not display
       if (listing.owner_opt_out) return null;
-      // Gate 2: IDX display — must be true for portal display
-      if (listing.idx_display_yn === false) return null;
-      // Gate 3: Internet entire listing display — must be true
-      if (listing.internet_entire_listing_display_yn === false) return null;
+      // Gate 2: IDX display — must be affirmatively true for portal display
+      if (!affirmPermission(listing.idx_display_yn)) return null;
+      // Gate 3: Internet entire listing display — must be affirmatively true
+      if (!affirmPermission(listing.internet_entire_listing_display_yn)) return null;
       // Gate 4: Participant only — must not show on portal
       if (listing.participant_only) return null;
       // DTO sanitization (address suppression, agent masking, additional checks)
