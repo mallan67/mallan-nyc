@@ -1145,3 +1145,54 @@ Required local migrations still queued for manual target DB apply:
 - `20260429030000_add_external_listings`
 - `20260429033000_add_external_listing_comments`
 - `20260429040000_add_external_listing_family_visibility`
+
+## Twenty-Seventh Slice: External Listing Migrations Applied / Push-Ready Gate
+
+Saved at local time: **2026-04-29 05:26:30 -04:00**.
+
+Completed after the final preflight checkpoint:
+
+- Re-read `NEON.md` before touching the database.
+- Confirmed `.env.local` contains a `DATABASE_URL` pointed at Neon database `neondb`; credentials were not printed.
+- Ran `npm run ops:health` before migration:
+  - Healthy.
+  - DB size: 224.26 MB of 500 MB cap (44.9%).
+  - REBNY Section 2.05 violations: 0.
+  - Upgrade needed: no.
+- Ran `prisma migrate status` against the configured Neon DB and confirmed exactly these pending migrations:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+  - `20260429040000_add_external_listing_family_visibility`
+- Re-read all three migration SQL files before applying them.
+- Ran `prisma migrate deploy` against the configured Neon DB.
+- All three external-listing migrations applied successfully.
+- Ran `prisma migrate status` after deploy:
+  - Database schema is up to date.
+- Ran `npm run ops:health` after migration:
+  - Healthy.
+  - DB size: 224.44 MB of 500 MB cap (44.9%).
+  - REBNY Section 2.05 violations: 0.
+  - Upgrade needed: no.
+
+Post-migration validation:
+
+- `npx prisma validate` passed.
+  - Warning only: Prisma preview feature `driverAdapters` is deprecated.
+- `npm run type-check` passed.
+- `node --check public/crm/js/dashboard/workspace.js` passed.
+- `npm run crm:test` passed: 39/39.
+- `npm run lint` passed.
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed with WARN result, 0 critical:
+  - Final terminal summary: 852 pass, 0 critical, 5 warnings, 29 info, 0 unverified.
+- `npm run ucba:audit` passed: 46/46.
+- `npm run rls:validate` passed with 0 errors, 1 warning:
+  - Existing warning: `RENTAL-FORM-REDESIGN.html` `MlsStatus` missing RLS picklist value `ComingSoon`.
+
+Current deployment state:
+
+- The prior hard DB migration gate is now complete.
+- Local branch remains ahead of `origin/main`.
+- No push has been performed yet.
+- Next action is user-confirmed push/deploy only.

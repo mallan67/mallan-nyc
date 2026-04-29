@@ -648,4 +648,32 @@ Final integration / deploy preflight checkpoint saved at local time **2026-04-29
     - `20260429040000_add_external_listing_family_visibility`
   - Per `NEON.md`, run health, manually deploy migrations against the selected target DB, verify migration status, rerun validation, then push/deploy only after the user explicitly confirms.
 
+External listing migrations applied / push-ready gate saved at local time **2026-04-29 05:26:30 -04:00**:
+
+- Re-read `NEON.md` before database work.
+- Confirmed `.env.local` has a Neon `DATABASE_URL` for database `neondb`; credentials were not printed.
+- Pre-migration `npm run ops:health` passed / healthy. DB size was 224.26 MB of 500 MB cap, REBNY Section 2.05 violations were 0, and upgrade needed was no.
+- `prisma migrate status` against the configured Neon DB showed exactly three pending migrations:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+  - `20260429040000_add_external_listing_family_visibility`
+- Re-read all three migration SQL files.
+- Ran `prisma migrate deploy` against the configured Neon DB.
+- All three external-listing migrations applied successfully.
+- Post-migration `prisma migrate status` reported: database schema is up to date.
+- Post-migration `npm run ops:health` passed / healthy. DB size was 224.44 MB of 500 MB cap, REBNY Section 2.05 violations were 0, and upgrade needed was no.
+- Post-migration validation:
+  - `npx prisma validate` passed with only the existing `driverAdapters` preview deprecation warning.
+  - `npm run type-check` passed.
+  - `node --check public/crm/js/dashboard/workspace.js` passed.
+  - `npm run crm:test` passed: 39/39.
+  - `npm run lint` passed.
+  - `npm run test:compliance` passed: 194/194.
+  - `npm run compliance-check` passed: 87/87.
+  - `npm run idx:validate` passed with WARN result and 0 critical. Terminal summary: 852 pass, 0 critical, 5 warnings, 29 info, 0 unverified.
+  - `npm run ucba:audit` passed: 46/46.
+  - `npm run rls:validate` passed with 0 errors and 1 existing warning for rental `MlsStatus` missing `ComingSoon`.
+- The DB migration gate that previously blocked push/deploy is now complete.
+- No push has been performed yet. Next action is user-confirmed push/deploy only.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
