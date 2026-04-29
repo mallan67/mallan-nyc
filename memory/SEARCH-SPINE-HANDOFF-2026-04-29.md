@@ -791,6 +791,47 @@ Next recommended slice:
 
 Add CRM rollup and daily-priority queues for buyer outside-listing activity, grouped by liked, seen, discuss, pass, request-info, tour requested, and family discussion activity.
 
+## Twenty-First Implemented Slice
+
+Goal: add CRM rollup and daily-priority queues for buyer outside-listing activity.
+
+Added:
+
+- `lib/external-listings/rollup.ts`.
+  - Groups outside listings by bucket: saved, seen, liked, disliked/pass, discuss.
+  - Counts request-info and tour/showing requests.
+  - Counts family-visible listings and active family discussion.
+  - Builds a daily-priority queue for items needing agent response.
+- `lib/external-listings/__tests__/rollup.test.ts`.
+
+Updated:
+
+- `GET /api/crm/clients/[id]/external-listings` now returns `activity_summary`.
+- CRM client Outside Listings card now shows:
+  - total outside listings
+  - needs response
+  - tours requested
+  - info requests
+  - family discussion active
+  - daily-priority queue
+  - quick filters for all, needs response, liked, seen, discuss, pass, info, and tours
+- Existing outside-listing cards still show bucket controls, privacy/family-visible status, notes, and request badges.
+- No new migration was added for this slice.
+
+Validation:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 7/7
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next recommended slice:
+
+Start seller portal signal capture: seller valuation requests, proceeds calculator, seller closing-cost calculator, readiness/urgency inputs, then expose those signals in seller CRM visibility panels.
+
 ## Final Save Checkpoint Before Membership/Session Switch
 
 Saved at local time: **2026-04-29 04:12:34 -04:00**.
@@ -827,14 +868,15 @@ Latest completed workflow:
 - Buyers can add notes, request info, and request tour/investigation on outside listings.
 - Buyers can choose whether an outside listing is visible to invited family/friends.
 - Invited family/friends can see and discuss only outside listings shared with them.
+- Agents/brokers can see outside-listing rollups and daily-priority queues in the CRM client workspace.
 - Agents/brokers can see and reply to outside-listing notes in CRM.
 - Outside inventory remains separate from IDX/MLS `Listing`.
 
 Recommended next slice:
 
-1. Add CRM rollup/daily-priority queues for outside-listing activity.
-2. Then continue seller portal signal capture and seller CRM visibility.
-3. Then continue tenant/landlord workflow signals and broker lead distribution.
+1. Start seller portal signal capture and seller CRM visibility.
+2. Then continue tenant/landlord workflow signals and broker lead distribution.
+3. Then finish final integration/deploy prep after migrations are manually applied.
 
 ## User Push Gate
 

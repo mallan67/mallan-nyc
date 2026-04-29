@@ -419,6 +419,26 @@ Deployment note:
   - `20260429033000_add_external_listing_comments`
   - `20260429040000_add_external_listing_family_visibility`
 
+Follow-up CRM outside-listing rollup slice completed next:
+
+- Added `lib/external-listings/rollup.ts`.
+- Added `lib/external-listings/__tests__/rollup.test.ts`.
+- `GET /api/crm/clients/[id]/external-listings` now returns `activity_summary`.
+- CRM client Outside Listings now shows totals, needs-response count, tours requested, info requests, family discussion active, and a daily-priority queue.
+- CRM client Outside Listings now has quick filters for all, needs response, liked, seen, discuss, pass, info, and tours.
+- Existing outside-listing cards still show bucket controls, privacy/family-visible status, notes, and request badges.
+- No new migration was added for this slice.
+
+Validation after the CRM outside-listing rollup slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 7/7
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 Final save checkpoint before membership/session switch:
 
 - Saved at local time: **2026-04-29 04:12:34 -04:00**.
@@ -436,7 +456,7 @@ Resume context for the next Codex session:
   - `20260429030000_add_external_listings`
   - `20260429033000_add_external_listing_comments`
   - `20260429040000_add_external_listing_family_visibility`
-- The next implementation slice should be CRM rollup and daily-priority queues for outside-listing activity.
+- The next implementation slice should start seller portal signal capture and seller CRM visibility.
 
 User push gate:
 

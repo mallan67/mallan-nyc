@@ -1484,13 +1484,74 @@ var Workspace = (function () {
   // ─── Tab: Listings (sent, find & send, reactions, auto-alerts) ──────
   var _clientExternalListingsCache = {};
   var _clientExternalListingCommentsCache = {};
+  var _clientExternalListingSummaryCache = {};
+  var _externalListingFilter = 'all';
 
   function _fetchClientExternalListings(clientId) {
     return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/external-listings')
       .then(function (data) {
         _clientExternalListingsCache[clientId] = data.external_listings || [];
+        _clientExternalListingSummaryCache[clientId] = data.activity_summary || null;
         return _clientExternalListingsCache[clientId];
       });
+  }
+
+  function _externalListingMatchesFilter(item, filter, priorityIds) {
+    if (filter === 'all') return true;
+    if (filter === 'needs_response') return priorityIds.indexOf(String(item.id)) !== -1;
+    if (filter === 'request_info' || filter === 'showing_request') return item.latest_request_type === filter;
+    return item.action_bucket === filter;
+  }
+
+  function _renderExternalListingRollup(summary, listings) {
+    if (!summary) return '';
+    var buckets = summary.buckets || {};
+    var requests = summary.requests || {};
+    var priorityItems = summary.priority_items || [];
+    var filters = [
+      { id: 'all', label: 'All', count: summary.total || listings.length },
+      { id: 'needs_response', label: 'Needs response', count: summary.needs_agent_response || 0 },
+      { id: 'liked', label: 'Liked', count: buckets.liked || 0 },
+      { id: 'seen', label: 'Seen', count: buckets.seen || 0 },
+      { id: 'discuss', label: 'Discuss', count: buckets.discuss || 0 },
+      { id: 'disliked', label: 'Pass', count: buckets.disliked || 0 },
+      { id: 'request_info', label: 'Info', count: requests.request_info || 0 },
+      { id: 'showing_request', label: 'Tours', count: requests.showing_request || 0 },
+    ];
+
+    var html = '<div class="mb-3 rounded-lg border border-amber-100 bg-white p-3">' +
+      '<div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">' +
+        '<div><p class="text-[10px] uppercase font-semibold text-gray-400">Outside</p><p class="text-lg font-bold text-gray-900">' + E(String(summary.total || 0)) + '</p></div>' +
+        '<div><p class="text-[10px] uppercase font-semibold text-gray-400">Needs Response</p><p class="text-lg font-bold text-red-600">' + E(String(summary.needs_agent_response || 0)) + '</p></div>' +
+        '<div><p class="text-[10px] uppercase font-semibold text-gray-400">Tours</p><p class="text-lg font-bold text-amber-700">' + E(String(requests.showing_request || 0)) + '</p></div>' +
+        '<div><p class="text-[10px] uppercase font-semibold text-gray-400">Info</p><p class="text-lg font-bold text-blue-700">' + E(String(requests.request_info || 0)) + '</p></div>' +
+        '<div><p class="text-[10px] uppercase font-semibold text-gray-400">Family Active</p><p class="text-lg font-bold text-green-700">' + E(String(summary.family_discussion_active || 0)) + '</p></div>' +
+      '</div>' +
+      '<div class="flex flex-wrap gap-1 mb-3">' + filters.map(function (filter) {
+        var active = _externalListingFilter === filter.id;
+        return '<button class="text-[11px] font-semibold rounded-lg border px-2 py-1 ' +
+          (active ? 'bg-gray-900 border-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50') +
+          '" onclick="Workspace._filterExternalListings(\'' + E(filter.id) + '\')">' +
+          E(filter.label) + ' <span class="opacity-70">' + E(String(filter.count)) + '</span></button>';
+      }).join('') + '</div>';
+
+    if (priorityItems.length > 0) {
+      html += '<div class="space-y-1">' +
+        '<p class="text-[10px] uppercase font-semibold text-gray-400">Daily Priority Queue</p>' +
+        priorityItems.slice(0, 5).map(function (item) {
+          var color = item.priority === 'urgent' ? 'text-red-700 bg-red-50' : item.priority === 'high' ? 'text-amber-700 bg-amber-50' : 'text-gray-700 bg-gray-50';
+          return '<button class="w-full text-left rounded-lg border border-gray-100 px-2 py-1.5 hover:bg-gray-50" onclick="Workspace._filterExternalListings(\'needs_response\')">' +
+            '<div class="flex items-center justify-between gap-2">' +
+              '<span class="text-xs font-semibold text-gray-800 truncate">' + E(item.title || 'Outside listing') + '</span>' +
+              '<span class="text-[10px] uppercase font-semibold rounded-full px-2 py-0.5 ' + color + '">' + E(item.priority || 'normal') + '</span>' +
+            '</div>' +
+            '<p class="text-[11px] text-gray-500">' + E(item.reason || 'Needs response') + ' - ' + E(item.latest_activity_at ? D(item.latest_activity_at) : '') + '</p>' +
+          '</button>';
+        }).join('') +
+      '</div>';
+    }
+
+    return html + '</div>';
   }
 
   function _renderClientExternalListings() {
@@ -1513,8 +1574,21 @@ var Workspace = (function () {
       return;
     }
 
-    var html = '<div class="space-y-2">';
-    listings.forEach(function (item) {
+    var summary = _clientExternalListingSummaryCache[_clientId];
+    var priorityItems = summary && summary.priority_items || [];
+    var priorityIds = priorityItems.map(function (item) { return String(item.external_listing_id); });
+    var filteredListings = listings.filter(function (item) {
+      return _externalListingMatchesFilter(item, _externalListingFilter, priorityIds);
+    });
+
+    var html = _renderExternalListingRollup(summary, listings);
+    if (filteredListings.length === 0) {
+      container.innerHTML = html + '<p class="text-sm text-gray-500">No outside listings match this filter.</p>';
+      return;
+    }
+
+    html += '<div class="space-y-2">';
+    filteredListings.forEach(function (item) {
       var title = item.title || item.address || item.source_host || 'Outside listing';
       var bucketClass = item.action_bucket === 'liked' ? 'bg-green-50 text-green-700' :
         item.action_bucket === 'disliked' ? 'bg-red-50 text-red-700' :
@@ -1540,7 +1614,7 @@ var Workspace = (function () {
             '<p class="text-sm font-semibold text-gray-900 truncate">' + E(title) + '</p>' +
             (item.address ? '<p class="text-xs text-gray-500 truncate">' + E(item.address) + '</p>' : '') +
             (item.notes ? '<p class="text-xs text-gray-600 mt-1">' + E(item.notes) + '</p>' : '') +
-            '<p class="text-[11px] text-gray-400 mt-1">Added ' + E(item.created_at ? D(item.created_at) : '') + (item.source_host ? ' from ' + E(item.source_host) : '') + '</p>' +
+            '<p class="text-[11px] text-gray-400 mt-1">Added ' + E(item.created_at ? D(item.created_at) : '') + (item.source_host ? ' from ' + E(item.source_host) : '') + (item.comment_count ? ' · ' + E(item.comment_count) + ' notes' : '') + '</p>' +
             '<div class="flex flex-wrap gap-1 mt-2">' + bucketButtons + '</div>' +
             '<div class="mt-3 border-t border-amber-100 pt-2" id="wsExternalComments_' + E(item.id) + '">' + UI.loading() + '</div>' +
           '</div>' +
@@ -1550,9 +1624,14 @@ var Workspace = (function () {
     });
     html += '</div>';
     container.innerHTML = html;
-    listings.forEach(function (item) {
+    filteredListings.forEach(function (item) {
       _renderExternalListingComments(item.id);
     });
+  }
+
+  function _filterExternalListings(filter) {
+    _externalListingFilter = filter || 'all';
+    _renderClientExternalListings();
   }
 
   function _renderExternalListingComments(externalListingId) {
@@ -5916,6 +5995,7 @@ var Workspace = (function () {
     _addExternalListingForClient: _addExternalListingForClient,
     _updateExternalListingBucket: _updateExternalListingBucket,
     _addExternalListingComment: _addExternalListingComment,
+    _filterExternalListings: _filterExternalListings,
 
     // Showings
     _addShowingFeedback: _addShowingFeedback,

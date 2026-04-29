@@ -10,6 +10,7 @@ import {
   serializeExternalListing,
   validateExternalListingInput,
 } from "@/lib/external-listings/normalize";
+import { summarizeExternalListingActivity } from "@/lib/external-listings/rollup";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -65,9 +66,22 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       submitted_by: {
         select: { id: true, first_name: true, last_name: true, email: true },
       },
+      comments: {
+        select: {
+          id: true,
+          external_listing_id: true,
+          lead_id: true,
+          agent_id: true,
+          request_type: true,
+          created_at: true,
+        },
+        orderBy: { created_at: "asc" },
+      },
     },
     orderBy: { updated_at: "desc" },
   });
+
+  const activitySummary = summarizeExternalListingActivity(externalListings);
 
   return NextResponse.json({
     client: {
@@ -75,8 +89,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       name: `${lead.first_name} ${lead.last_name}`.trim(),
       email: lead.email,
     },
+    activity_summary: activitySummary,
     external_listings: externalListings.map((listing) => ({
       ...serializeExternalListing(listing),
+      comment_count: listing.comments.length,
+      latest_comment_at: listing.comments.at(-1)?.created_at.toISOString() ?? null,
+      latest_request_type: [...listing.comments].reverse().find((comment) =>
+        comment.request_type === "request_info" || comment.request_type === "showing_request"
+      )?.request_type ?? null,
       submitted_by: listing.submitted_by
         ? {
             id: listing.submitted_by.id.toString(),
