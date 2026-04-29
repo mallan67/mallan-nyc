@@ -43,6 +43,7 @@ node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,Standar
 | `query.js` | Generic OData GET (`$filter`/`$select`/`$top`/`$orderby`/`$expand`) | Trestle |
 | `lookups.js` | Distinct enum values populated for a field (catches lookup drift, multi-value fields auto-split) | Trestle |
 | `coverage.js` | Per-field populated % across a sample (catches "advertised but not populated") | Trestle |
+| `trace.js` | **Trace a single ListingId through every layer** — Trestle live, DB Listing, DB projection, distribution-gate evaluation, public site. Shows exactly where a listing lands or drops. | Trestle (1) + DB + public site |
 | `lib/trestle-client.js` | Shared OAuth + OData helpers used by the rest of the kit | — |
 
 ## Examples
@@ -58,6 +59,22 @@ DB / projection / sync state, public-site probe, and parity deltas. The
 fastest way to see where the site stands at a moment in time.
 
 ### 2. Why isn't this listing showing up?
+
+```bash
+# Single-listing trace through Trestle → DB → projection → gates → public site:
+npm run reso:trace -- --listing-id=RLS20059088
+
+# JSON form (good for piping into a ticket / chat message):
+npm run reso:trace -- --listing-id=RLS20059088 --json | jq
+```
+
+`trace.js` is the operational tool for "where did this listing go?"
+It pulls the record from Trestle, looks it up in the DB Listing +
+projection tables, evaluates each distribution gate, and probes the
+public detail page. Output names the exact gate (or absence) that's
+suppressing the listing.
+
+For broader filter-level diagnostics:
 
 ```bash
 node scripts/reso/parity.js --status=Active --type=sale --json

@@ -83,6 +83,7 @@
         "reso:query": "node scripts/reso/query.js",
         "reso:lookups": "node scripts/reso/lookups.js",
         "reso:coverage": "node scripts/reso/coverage.js",
+        "reso:trace": "node scripts/reso/trace.js",
         "validate:form-rls": "node scripts/validate-form-rls.js",
         "test:compliance": "npx jest --config lib/compliance/jest.config.js",
         "geo:fetch-names": "node scripts/fetch-rls-neighborhoods.js",
