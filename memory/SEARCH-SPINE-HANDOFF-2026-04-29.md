@@ -941,3 +941,55 @@ Recommended next slice:
 2. Then implement broker lead distribution.
 3. Then implement per-agent system separation.
 4. Then complete final integration/deploy prep only after the required migrations are manually applied and verified.
+
+## Twenty-Third Slice: Tenant/Landlord Workflow Signals
+
+Saved at local time: **2026-04-29 04:54:26 -04:00**.
+
+Completed locally after the seller portal signal capture slice:
+
+- Added shared rental signal normalization and summaries in `lib/rental-signals/summary.ts`.
+- Added focused rental signal tests in `lib/rental-signals/__tests__/summary.test.ts`.
+- Added tenant portal signal capture through `POST /api/portal/tenant/signals`.
+- Added landlord portal signal capture through `POST /api/portal/landlord/signals`.
+- Added CRM rental signal visibility through `GET /api/crm/clients/[id]/rental-signals`.
+- Tenant portal Lease tab now captures:
+  - outside rental link
+  - outside rental address
+  - rent-vs-buy context
+  - lease intent
+  - move timing
+  - document readiness
+  - notes for the agent
+- Landlord portal Dashboard now captures:
+  - expected vacancy days
+  - monthly carrying cost
+  - estimated vacancy cost
+  - relist timing
+  - tenant renewal intent
+  - owner document readiness
+  - showing readiness
+  - vacant-now flag
+  - owner notes
+- CRM Financial tab now shows Rental Portal Signals for tenant/renter and landlord clients.
+- Broker can read rental workflow signals for all leads; agents can read only assigned leads.
+- No new database migration was added for this slice.
+
+Validation after the tenant/landlord workflow signal slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/rental-signals/jest.config.js` passed: 4/4
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Recommended next slice:
+
+1. Broker lead distribution:
+   - self-registered buyers/sellers/tenants/landlords enter a broker queue
+   - broker assigns an agent
+   - assigned agent inherits portal activity, calculators, outside listings, rental signals, seller signals, notes, and lead history
+2. Then implement per-agent system separation.
+3. Then complete final integration/deploy prep only after the required migrations are manually applied and verified.

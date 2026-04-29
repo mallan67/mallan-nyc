@@ -258,6 +258,15 @@ export default function TenantPortalPage() {
   const [showShowingModal, setShowShowingModal] = useState<string | null>(null);
   const [showFamilyInvite, setShowFamilyInvite] = useState(false);
   const [prefEditing, setPrefEditing] = useState(false);
+  const [outsideRentalUrl, setOutsideRentalUrl] = useState('');
+  const [outsideRentalAddress, setOutsideRentalAddress] = useState('');
+  const [targetPurchasePrice, setTargetPurchasePrice] = useState('');
+  const [monthlyOwnershipBudget, setMonthlyOwnershipBudget] = useState('');
+  const [leaseIntent, setLeaseIntent] = useState('undecided');
+  const [moveTiming, setMoveTiming] = useState('');
+  const [documentReadiness, setDocumentReadiness] = useState('not_started');
+  const [tenantSignalNotes, setTenantSignalNotes] = useState('');
+  const [savingTenantSignals, setSavingTenantSignals] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* ── Toast helper ──────────────────────────────────────────────── */
@@ -446,6 +455,50 @@ export default function TenantPortalPage() {
     }
   }, [showToast, refetchFamily]);
 
+  const handleSaveTenantSignals = useCallback(async () => {
+    setSavingTenantSignals(true);
+    try {
+      const r = await fetch('/api/portal/tenant/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outside_rental_url: outsideRentalUrl,
+          outside_rental_address: outsideRentalAddress,
+          monthly_rent: leaseData?.rent_per_month ?? undefined,
+          target_purchase_price: targetPurchasePrice,
+          monthly_ownership_budget: monthlyOwnershipBudget,
+          lease_end_date: leaseData?.lease_end_date ?? undefined,
+          lease_intent: leaseIntent,
+          move_timing: moveTiming,
+          document_readiness: documentReadiness,
+          notes: tenantSignalNotes,
+        }),
+      });
+      if (r.ok) {
+        showToast('Signals saved for your agent');
+      } else {
+        const d = await r.json();
+        showToast(d.error || 'Failed to save signals', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    } finally {
+      setSavingTenantSignals(false);
+    }
+  }, [
+    documentReadiness,
+    leaseData?.lease_end_date,
+    leaseData?.rent_per_month,
+    leaseIntent,
+    monthlyOwnershipBudget,
+    moveTiming,
+    outsideRentalAddress,
+    outsideRentalUrl,
+    showToast,
+    targetPurchasePrice,
+    tenantSignalNotes,
+  ]);
+
   /* ── Loading / not-ready screens ───────────────────────────────── */
   if (!ready) {
     return (
@@ -629,6 +682,110 @@ export default function TenantPortalPage() {
                     )}
                   </>
                 )}
+                <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">Rental Planning</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Share lease timing, document readiness, outside rentals, and rent-vs-buy context.</p>
+                    </div>
+                    <button
+                      onClick={handleSaveTenantSignals}
+                      disabled={savingTenantSignals}
+                      className="px-3 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                    >
+                      {savingTenantSignals ? 'Saving...' : 'Save Signals'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Outside Rental Link</label>
+                      <input
+                        type="url"
+                        value={outsideRentalUrl}
+                        onChange={(e) => setOutsideRentalUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Outside Rental Address</label>
+                      <input
+                        type="text"
+                        value={outsideRentalAddress}
+                        onChange={(e) => setOutsideRentalAddress(e.target.value)}
+                        placeholder="Address or building"
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Target Purchase Price</label>
+                      <input
+                        type="number"
+                        value={targetPurchasePrice}
+                        onChange={(e) => setTargetPurchasePrice(e.target.value)}
+                        placeholder="$0"
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Monthly Ownership Budget</label>
+                      <input
+                        type="number"
+                        value={monthlyOwnershipBudget}
+                        onChange={(e) => setMonthlyOwnershipBudget(e.target.value)}
+                        placeholder="$0/mo"
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Lease Intent</label>
+                      <select
+                        value={leaseIntent}
+                        onChange={(e) => setLeaseIntent(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white"
+                      >
+                        <option value="undecided">Undecided</option>
+                        <option value="renew">Renew</option>
+                        <option value="not_renewing">Not Renewing</option>
+                        <option value="buy_next">Considering Buying</option>
+                        <option value="month_to_month">Month to Month</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Move Timing</label>
+                      <input
+                        type="text"
+                        value={moveTiming}
+                        onChange={(e) => setMoveTiming(e.target.value)}
+                        placeholder="ASAP, 60 days, flexible..."
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Document Readiness</label>
+                      <select
+                        value={documentReadiness}
+                        onChange={(e) => setDocumentReadiness(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white"
+                      >
+                        <option value="not_started">Not Started</option>
+                        <option value="collecting">Collecting</option>
+                        <option value="mostly_ready">Mostly Ready</option>
+                        <option value="ready">Ready</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Notes</label>
+                      <input
+                        type="text"
+                        value={tenantSignalNotes}
+                        onChange={(e) => setTenantSignalNotes(e.target.value)}
+                        placeholder="Anything your agent should know"
+                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             {tab === 'showings' && <ShowingsTab showings={showings} />}

@@ -2808,6 +2808,7 @@ var Workspace = (function () {
   var _scenariosCache = {};
   var _financialIntentCache = {};
   var _sellerSignalsCache = {};
+  var _rentalSignalsCache = {};
 
   function _fmtFinancialSignalMoney(value) {
     var n = Number(value);
@@ -2831,6 +2832,14 @@ var Workspace = (function () {
     return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/seller-signals')
       .then(function (data) {
         _sellerSignalsCache[clientId] = data;
+        return data;
+      });
+  }
+
+  function _fetchRentalSignals(clientId) {
+    return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/rental-signals')
+      .then(function (data) {
+        _rentalSignalsCache[clientId] = data;
         return data;
       });
   }
@@ -3053,6 +3062,136 @@ var Workspace = (function () {
     container.innerHTML = html;
   }
 
+  function _renderRentalSignals() {
+    var container = document.getElementById('wsRentalSignals');
+    if (!container || !_clientId) return;
+
+    if (!_rentalSignalsCache[_clientId]) {
+      container.innerHTML = UI.loading();
+      _fetchRentalSignals(_clientId).then(function () {
+        _renderRentalSignals();
+      }).catch(function (err) {
+        container.innerHTML = '<p class="text-xs text-red-500">Could not load rental signals: ' + E(err.message || 'Unknown error') + '</p>';
+      });
+      return;
+    }
+
+    var data = _rentalSignalsCache[_clientId] || {};
+    var cl = _client || {};
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
+    var isLandlord = clientType === 'landlord' || (data.roles || []).indexOf('landlord') !== -1;
+    var summary = isLandlord ? (data.landlord_signals || {}) : (data.tenant_signals || {});
+    var context = data.rental_context || {};
+    var recent = summary.recent_events || [];
+
+    if (!summary.event_count) {
+      container.innerHTML = '<p class="text-xs text-gray-400">No rental portal workflow signals captured yet.</p>';
+      return;
+    }
+
+    var html = '<div class="space-y-3">' +
+      '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">';
+
+    if (isLandlord) {
+      html +=
+        _financialSignalMetric('Signals', String(summary.event_count || 0) + ' events', 'blue') +
+        _financialSignalMetric('Monthly Rent', _fmtFinancialSignalMoney(summary.monthly_rent || context.rent_per_month), 'green') +
+        _financialSignalMetric('Vacancy Cost', _fmtFinancialSignalMoney(summary.estimated_vacancy_cost), 'amber') +
+        _financialSignalMetric('Vacancy Days', summary.expected_vacancy_days != null ? E(String(summary.expected_vacancy_days)) : '&mdash;', 'gray');
+    } else {
+      html +=
+        _financialSignalMetric('Signals', String(summary.event_count || 0) + ' events', 'blue') +
+        _financialSignalMetric('Current Rent', _fmtFinancialSignalMoney(summary.monthly_rent || context.rent_per_month), 'green') +
+        _financialSignalMetric('Target Purchase', _fmtFinancialSignalMoney(summary.target_purchase_price), 'amber') +
+        _financialSignalMetric('Ownership Budget', _fmtFinancialSignalMoney(summary.monthly_ownership_budget), 'gray');
+    }
+
+    html += '</div>' +
+      '<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">';
+
+    if (isLandlord) {
+      html += '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Vacancy / Relist</p>' +
+          '<div class="space-y-1">' +
+            _financialSignalRows(summary.latest_vacancy_cost, [
+              { key: 'monthly_rent', label: 'Monthly rent', money: true },
+              { key: 'expected_vacancy_days', label: 'Vacancy days' },
+              { key: 'monthly_carrying_cost', label: 'Carrying cost', money: true },
+              { key: 'estimated_vacancy_cost', label: 'Vacancy cost', money: true },
+            ]) +
+            _financialSignalRows(summary.latest_relist_signal, [
+              { key: 'relist_timing', label: 'Relist timing' },
+              { key: 'tenant_renewal_intent', label: 'Tenant renewal' },
+              { key: 'lease_end_date', label: 'Lease end' },
+            ]) +
+          '</div>' +
+        '</div>' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Docs / Showing</p>' +
+          '<div class="space-y-1">' +
+            _financialSignalRows(summary.latest_document_readiness, [
+              { key: 'document_readiness', label: 'Documents' },
+            ]) +
+            _financialSignalRows(summary.latest_showing_workflow, [
+              { key: 'showing_readiness', label: 'Showing readiness' },
+              { key: 'vacant_now', label: 'Vacant now' },
+              { key: 'owner_notes', label: 'Owner notes' },
+            ]) +
+          '</div>' +
+        '</div>';
+    } else {
+      html += '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Rent vs Buy</p>' +
+          '<div class="space-y-1">' +
+            _financialSignalRows(summary.latest_rent_vs_buy, [
+              { key: 'monthly_rent', label: 'Monthly rent', money: true },
+              { key: 'target_purchase_price', label: 'Target purchase', money: true },
+              { key: 'monthly_ownership_budget', label: 'Ownership budget', money: true },
+            ]) +
+          '</div>' +
+        '</div>' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Lease / Docs</p>' +
+          '<div class="space-y-1">' +
+            _financialSignalRows(summary.latest_lease_timing, [
+              { key: 'lease_end_date', label: 'Lease end' },
+              { key: 'move_timing', label: 'Move timing' },
+              { key: 'lease_intent', label: 'Lease intent' },
+            ]) +
+            _financialSignalRows(summary.latest_document_readiness, [
+              { key: 'document_readiness', label: 'Documents' },
+            ]) +
+          '</div>' +
+        '</div>';
+    }
+
+    html += '<div class="p-3 rounded-lg border border-gray-100">' +
+        '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Context</p>' +
+        '<div class="space-y-1">' +
+          '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Property</span><span class="font-semibold text-gray-700 text-right">' + E(context.property_address || context.active_rental_listing_id || '-') + '</span></div>' +
+          '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Lease end</span><span class="font-semibold text-gray-700 text-right">' + E(context.lease_end_date ? D(context.lease_end_date) : '-') + '</span></div>' +
+          '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Last signal</span><span class="font-semibold text-gray-700 text-right">' + E(summary.last_signal_at ? D(summary.last_signal_at) : '-') + '</span></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+    if (recent.length > 0) {
+      html += '<div class="pt-2 border-t border-gray-100">' +
+        '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Recent Rental Activity</p>' +
+        '<div class="space-y-1">';
+      recent.slice(0, 4).forEach(function (event) {
+        html += '<div class="flex items-center justify-between gap-3 text-xs">' +
+          '<span class="font-medium text-gray-700">' + E(String(event.event_type || 'rental_signal').replace(/[-_]/g, ' ')) + '</span>' +
+          '<span class="text-gray-400">' + E(event.recorded_at ? D(event.recorded_at) : '') + '</span>' +
+        '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
   function _loadSavedScenarios(clientId) {
     // Return cached if available
     if (_scenariosCache[clientId]) return _scenariosCache[clientId];
@@ -3222,6 +3361,14 @@ var Workspace = (function () {
         '</div>' +
         '<div id="wsSellerSignals">' + UI.loading() + '</div>' +
       '</div>';
+    } else if (clientType === 'renter' || clientType === 'tenant' || clientType === 'landlord') {
+      html += '<div class="card p-4">' +
+        '<div class="flex items-center justify-between mb-3">' +
+          '<h4 class="text-sm font-bold text-gray-700"><i class="fas fa-key mr-2"></i>Rental Portal Signals</h4>' +
+          '<span class="text-[10px] uppercase font-semibold text-gray-400">Lease / Vacancy / Readiness</span>' +
+        '</div>' +
+        '<div id="wsRentalSignals">' + UI.loading() + '</div>' +
+      '</div>';
     } else {
       html += '<div class="card p-4">' +
         '<div class="flex items-center justify-between mb-3">' +
@@ -3302,6 +3449,8 @@ var Workspace = (function () {
     // Render portal signals and saved scenarios
     if (clientType === 'seller') {
       _renderSellerSignals();
+    } else if (clientType === 'renter' || clientType === 'tenant' || clientType === 'landlord') {
+      _renderRentalSignals();
     } else {
       _renderFinancialIntent();
     }

@@ -313,6 +313,15 @@ export default function LandlordPortalPage() {
   const [savingAttorney, setSavingAttorney] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expectedVacancyDays, setExpectedVacancyDays] = useState('');
+  const [monthlyCarryingCost, setMonthlyCarryingCost] = useState('');
+  const [relistTiming, setRelistTiming] = useState('60_days');
+  const [tenantRenewalIntent, setTenantRenewalIntent] = useState('unknown');
+  const [ownerDocumentReadiness, setOwnerDocumentReadiness] = useState('not_started');
+  const [showingReadiness, setShowingReadiness] = useState('needs_prep');
+  const [vacantNow, setVacantNow] = useState(false);
+  const [ownerSignalNotes, setOwnerSignalNotes] = useState('');
+  const [savingLandlordSignals, setSavingLandlordSignals] = useState(false);
 
   // ── Show toast ──
   const showToast = useCallback((msg: string) => {
@@ -595,6 +604,39 @@ export default function LandlordPortalPage() {
       showToast('Failed to save attorney info');
     } finally {
       setSavingAttorney(false);
+    }
+  };
+
+  const handleSaveLandlordSignals = async () => {
+    setSavingLandlordSignals(true);
+    try {
+      const res = await fetch('/api/portal/landlord/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listing_id: selectedListing?.listing_id,
+          monthly_rent: selectedListing?.list_price,
+          expected_vacancy_days: expectedVacancyDays,
+          monthly_carrying_cost: monthlyCarryingCost,
+          lease_end_date: null,
+          relist_timing: relistTiming,
+          tenant_renewal_intent: tenantRenewalIntent,
+          document_readiness: ownerDocumentReadiness,
+          showing_readiness: showingReadiness,
+          vacant_now: vacantNow,
+          owner_notes: ownerSignalNotes,
+        }),
+      });
+      if (res.ok) {
+        showToast('Owner workflow saved');
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to save owner workflow');
+      }
+    } catch {
+      showToast('Failed to save owner workflow');
+    } finally {
+      setSavingLandlordSignals(false);
     }
   };
 
@@ -914,6 +956,127 @@ export default function LandlordPortalPage() {
                     ) : (
                       <p className="text-gray-400 text-sm">Rent price scenario not available.</p>
                     )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-700">Owner Workflow</h4>
+                      <p className="text-xs text-gray-500 mt-0.5">Share vacancy, renewal, document, and showing readiness signals with your agent.</p>
+                    </div>
+                    <button
+                      onClick={handleSaveLandlordSignals}
+                      disabled={savingLandlordSignals}
+                      className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      {savingLandlordSignals ? 'Saving...' : 'Save Workflow'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">Expected Vacancy Days</label>
+                      <input
+                        type="number"
+                        value={expectedVacancyDays}
+                        onChange={(e) => setExpectedVacancyDays(e.target.value)}
+                        placeholder="0"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">Monthly Carrying Cost</label>
+                      <input
+                        type="number"
+                        value={monthlyCarryingCost}
+                        onChange={(e) => setMonthlyCarryingCost(e.target.value)}
+                        placeholder="$0"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">Relist Timing</label>
+                      <select
+                        value={relistTiming}
+                        onChange={(e) => setRelistTiming(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="now">Now</option>
+                        <option value="30_days">30 Days</option>
+                        <option value="60_days">60 Days</option>
+                        <option value="90_days">90 Days</option>
+                        <option value="after_renewal_decision">After Renewal Decision</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">Tenant Renewal</label>
+                      <select
+                        value={tenantRenewalIntent}
+                        onChange={(e) => setTenantRenewalIntent(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="unknown">Unknown</option>
+                        <option value="renewing">Renewing</option>
+                        <option value="not_renewing">Not Renewing</option>
+                        <option value="negotiating">Negotiating</option>
+                        <option value="month_to_month">Month to Month</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">Document Readiness</label>
+                      <select
+                        value={ownerDocumentReadiness}
+                        onChange={(e) => setOwnerDocumentReadiness(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="not_started">Not Started</option>
+                        <option value="collecting">Collecting</option>
+                        <option value="mostly_ready">Mostly Ready</option>
+                        <option value="ready">Ready</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">Showing Readiness</label>
+                      <select
+                        value={showingReadiness}
+                        onChange={(e) => setShowingReadiness(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="needs_prep">Needs Prep</option>
+                        <option value="tenant_coordination">Tenant Coordination</option>
+                        <option value="ready">Ready</option>
+                        <option value="restricted">Restricted Access</option>
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={vacantNow}
+                        onChange={(e) => setVacantNow(e.target.checked)}
+                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      Vacant now
+                    </label>
+                    <div className="bg-green-50 rounded-lg px-3 py-2">
+                      <div className="text-xs text-green-700 font-semibold">Estimated Vacancy Cost</div>
+                      <div className="text-sm font-bold text-green-900">
+                        {(() => {
+                          const rent = Number(selectedListing.list_price) || Number(monthlyCarryingCost) || 0;
+                          const days = Number(expectedVacancyDays) || 0;
+                          return days > 0 ? formatPrice((rent / 30) * days) : '--';
+                        })()}
+                      </div>
+                    </div>
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <label className="text-xs font-semibold text-gray-700 block mb-1">Owner Notes</label>
+                      <input
+                        type="text"
+                        value={ownerSignalNotes}
+                        onChange={(e) => setOwnerSignalNotes(e.target.value)}
+                        placeholder="Tenant access, turnover plan, pricing concerns..."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
                   </div>
                 </div>
 

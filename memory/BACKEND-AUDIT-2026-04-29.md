@@ -511,4 +511,34 @@ Next recommended slice:
 - Then implement per-agent system separation.
 - Do not push/deploy until the required external-listing migrations are manually applied and verified and the user explicitly confirms pushing.
 
+Tenant/landlord workflow signal slice completed after seller signal capture:
+
+- Added `lib/rental-signals/summary.ts`.
+- Added `lib/rental-signals/__tests__/summary.test.ts`.
+- Added `lib/rental-signals/jest.config.js`.
+- Added `POST /api/portal/tenant/signals`.
+- Added `POST /api/portal/landlord/signals`.
+- Added `GET /api/crm/clients/[id]/rental-signals`.
+- Tenant portal Lease tab now captures outside rental links/addresses, rent-vs-buy context, lease intent, move timing, document readiness, and notes.
+- Landlord portal Dashboard now captures expected vacancy days, carrying cost, estimated vacancy cost, relist timing, tenant renewal intent, document readiness, showing readiness, vacant-now flag, and owner notes.
+- CRM Financial tab now shows Rental Portal Signals for tenant/renter and landlord clients.
+- CRM access is scoped so brokers can read all rental workflow signals and agents can read assigned rental leads only.
+- No new database migration was added for this slice.
+
+Validation after the tenant/landlord workflow signal slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/rental-signals/jest.config.js` passed: 4/4
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Next recommended slice:
+
+- Broker lead distribution: self-registered buyers/sellers/tenants/landlords enter a broker queue, broker assigns an agent, and the assigned agent inherits portal activity, calculators, outside listings, rental signals, seller signals, notes, and lead history.
+- Then implement per-agent system separation.
+- Do not push/deploy until selected local work is complete, full validation passes, required migrations are manually applied/verified, and the user explicitly confirms pushing.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
