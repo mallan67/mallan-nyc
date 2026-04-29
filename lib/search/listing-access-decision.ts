@@ -19,6 +19,32 @@ export const SEARCH_DISPLAY_GATE: Prisma.ListingWhereInput = {
   internet_entire_listing_display_yn: true,
 };
 
+// Distribution-gate filter for the listing_search_projection table.
+//
+// Four of the five Listing-side gate columns are mirrored on the projection
+// (rls_eligible, idx_display_yn, internet_entire_listing_display_yn,
+// participant_only_yn). The fifth — owner_opt_out — was deliberately not
+// mirrored in PR 5A's bounded schema, so we close the gap by filtering it
+// via the FK relation to listings. The relation traversal still uses the
+// same Postgres index path (FK + b-tree on listings.owner_opt_out), so the
+// query planner can combine the projection scan with the owner_opt_out
+// filter without any extra round-trip.
+//
+// Fail-closed semantics are preserved exactly:
+//   - idx_display_yn === true                   (null/false excluded)
+//   - internet_entire_listing_display_yn === true (null/false excluded)
+//   - participant_only_yn === false             (null/true excluded — null is "unknown", treated as not-displayable)
+//   - rls_eligible === true                     (matches the existing search posture; website-only rls_eligible=false rows are out of scope for this reader's surface)
+//   - listing.owner_opt_out === false           (canonical Listing-side gate)
+export const PROJECTION_DISPLAY_GATE: Prisma.ListingSearchProjectionWhereInput = {
+  rls_eligible: true,
+  idx_display_yn: true,
+  internet_entire_listing_display_yn: true,
+  participant_only_yn: false,
+  // owner_opt_out is not on the projection — apply via the FK relation.
+  listing: { owner_opt_out: false },
+};
+
 const ACTIVE_DISPLAY_SET = new Set<StatusValue>(ACTIVE_DISPLAY_VALUES);
 
 export function normalizeSearchStatuses(input: unknown): StatusValue[] {
@@ -41,6 +67,23 @@ export function buildSearchDisplayWhere(statusInput?: unknown): Prisma.ListingWh
   return {
     ...SEARCH_DISPLAY_GATE,
     status: statuses.length > 0 ? { in: statuses } : { in: [] },
+  };
+}
+
+/**
+ * Projection analog of `buildSearchDisplayWhere`. Returns the where-shape
+ * for `listing_search_projection` that enforces the same fail-closed
+ * distribution gates plus the active-status filter, with `mls_status`
+ * standing in for `status` (mirrored by the projection builder).
+ */
+export function buildProjectionSearchWhere(
+  statusInput?: unknown,
+): Prisma.ListingSearchProjectionWhereInput {
+  const statuses = normalizeSearchStatuses(statusInput);
+
+  return {
+    ...PROJECTION_DISPLAY_GATE,
+    mls_status: statuses.length > 0 ? { in: statuses } : { in: [] },
   };
 }
 

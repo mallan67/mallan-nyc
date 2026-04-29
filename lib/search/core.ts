@@ -1,6 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import { canDisplayListingAddress } from "@/lib/search/listing-access-decision";
-import { criteriaToPrismaWhere, type SearchCriteria } from "@/lib/search/criteria-to-prisma";
+import {
+  criteriaToProjectionWhere,
+  criteriaToPrismaWhere,
+  type SearchCriteria,
+} from "@/lib/search/criteria-to-prisma";
 
 export const SEARCH_RESULT_LISTING_SELECT = {
   id: true,
@@ -86,6 +90,90 @@ export async function runListingSearch(
     limit,
     offset,
     where,
+  };
+}
+
+// ── Projection-backed search (master refactor PR 5D — first reader) ──
+
+export interface ProjectionSearchRunResult {
+  listings: SearchResultListing[];
+  total: number;
+  limit: number;
+  offset: number;
+  projection_where: Prisma.ListingSearchProjectionWhereInput;
+}
+
+type ProjectionSearchDb = {
+  listingSearchProjection: {
+    findMany(args: Prisma.ListingSearchProjectionFindManyArgs): Promise<unknown[]>;
+    count(args: Prisma.ListingSearchProjectionCountArgs): Promise<number>;
+  };
+};
+
+/**
+ * Projection-backed listing search. Uses `listing_search_projection` as
+ * the index for facet filtering, then includes the related Listing row
+ * for full SEARCH_RESULT_LISTING_SELECT data so callers consuming
+ * `serializeSearchListing` see the same shape they got from
+ * `runListingSearch`.
+ *
+ * Why this exists (PR 5D):
+ *   - `listing_search_projection` is denormalized for fast filter scans.
+ *     Bedrooms/bathrooms/list_price etc. are flat scalar columns; gate
+ *     fields are mirrored; mls_status is mirrored from Listing.status.
+ *   - Address suppression rules still flow from the included Listing's
+ *     `internet_entire_listing_display_yn` + `internet_address_display_yn`
+ *     through `sanitizeSearchAddress`, so response shape is identical to
+ *     the Listing-backed path.
+ *   - The fail-closed gate is split: 4 of 5 gates fire on the projection
+ *     directly via PROJECTION_DISPLAY_GATE; `owner_opt_out` is the only
+ *     gate not mirrored on the projection (PR 5A bounded scope) and is
+ *     applied via the `listing` relation filter.
+ *   - `modifiedSince` filters on the projection's `modified_at` column
+ *     (mirrored from `listing.modification_timestamp` by the projection
+ *     builder).
+ *
+ * Order: `modified_at desc` matches `runListingSearch`'s
+ * `modification_timestamp desc`. Same data, same column-by-column.
+ */
+export async function runProjectionListingSearch(
+  db: ProjectionSearchDb,
+  criteria: SearchCriteria,
+  options: SearchRunOptions = {},
+): Promise<ProjectionSearchRunResult> {
+  const limit = clampLimit(options.limit);
+  const offset = normalizeOffset(options.offset);
+  const projection_where = criteriaToProjectionWhere(criteria, {
+    modifiedSince: options.modifiedSince,
+  });
+
+  const [rows, total] = await Promise.all([
+    db.listingSearchProjection.findMany({
+      where: projection_where,
+      take: limit,
+      skip: offset,
+      orderBy: [{ modified_at: "desc" }, { id: "asc" }],
+      include: { listing: { select: SEARCH_RESULT_LISTING_SELECT } },
+    }),
+    db.listingSearchProjection.count({ where: projection_where }),
+  ]);
+
+  // Each projection row carries its included Listing under `.listing` (FK
+  // relation declared on the projection model). The relation is mandatory
+  // at the schema level (every projection row has a parent Listing because
+  // ON DELETE CASCADE), but defensively filter null in case of in-flight
+  // sync race conditions.
+  const listings: SearchResultListing[] = [];
+  for (const row of rows as Array<{ listing: SearchResultListing | null }>) {
+    if (row.listing !== null) listings.push(row.listing);
+  }
+
+  return {
+    listings,
+    total,
+    limit,
+    offset,
+    projection_where,
   };
 }
 

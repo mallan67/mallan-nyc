@@ -1,11 +1,21 @@
-import { criteriaToPrismaWhere } from "@/lib/search/criteria-to-prisma";
 import {
+  criteriaToProjectionWhere,
+  criteriaToPrismaWhere,
+} from "@/lib/search/criteria-to-prisma";
+import {
+  buildProjectionSearchWhere,
   buildSearchDisplayWhere,
   canDisplayListingAddress,
   isListingDisplayable,
   normalizeSearchStatuses,
+  PROJECTION_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
-import { formatSearchAlertAddress, sanitizeSearchAddress } from "@/lib/search/core";
+import {
+  formatSearchAlertAddress,
+  runProjectionListingSearch,
+  sanitizeSearchAddress,
+  serializeSearchListing,
+} from "@/lib/search/core";
 
 describe("SearchCore criteriaToPrismaWhere", () => {
   it("always applies the fail-closed display gate", () => {
@@ -140,5 +150,231 @@ describe("SearchCore address display", () => {
     });
 
     expect(label).toBe("Chelsea, New York (Address Available on Request)");
+  });
+});
+
+// ── PR 5D — projection-backed search path ─────────────────────────────
+
+describe("PROJECTION_DISPLAY_GATE", () => {
+  it("mirrors the four projection-side gate columns and applies owner_opt_out via the listing relation", () => {
+    expect(PROJECTION_DISPLAY_GATE).toEqual({
+      rls_eligible: true,
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      participant_only_yn: false,
+      listing: { owner_opt_out: false },
+    });
+  });
+});
+
+describe("buildProjectionSearchWhere", () => {
+  it("defaults to the active-display status set on mls_status", () => {
+    expect(buildProjectionSearchWhere().mls_status).toEqual({
+      in: ["Active", "ActiveUnderContract", "ComingSoon"],
+    });
+  });
+
+  it("fails closed when every requested status normalizes to a non-displayable value", () => {
+    expect(buildProjectionSearchWhere(["Closed", "Expired"]).mls_status).toEqual({ in: [] });
+  });
+});
+
+describe("criteriaToProjectionWhere", () => {
+  it("always carries the projection-side fail-closed gate (incl. listing.owner_opt_out)", () => {
+    const where = criteriaToProjectionWhere({ listing_type: "sale" });
+
+    expect(where).toMatchObject({
+      rls_eligible: true,
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      participant_only_yn: false,
+      listing: { owner_opt_out: false },
+      listing_type: "sale",
+    });
+  });
+
+  it("normalizes rental aliases to listing_type=rent on the projection", () => {
+    expect(criteriaToProjectionWhere({ listing_type: "rental" }).listing_type).toBe("rent");
+    expect(criteriaToProjectionWhere({ type: "lease" }).listing_type).toBe("rent");
+    expect(criteriaToProjectionWhere({ type: "rent" }).listing_type).toBe("rent");
+  });
+
+  it("renames numeric filter columns to their projection equivalents", () => {
+    const where = criteriaToProjectionWhere({
+      type: "sale",
+      minPrice: "1,000,000",
+      maxPrice: 2000000,
+      bedsMin: 1,
+      bedsMax: 3,
+      minBaths: 2,
+      minSqft: 900,
+    });
+
+    // Listing-side names (bedrooms_total / bathrooms_full / list_price Decimal)
+    // do NOT appear on the projection where.
+    expect((where as Record<string, unknown>).bedrooms_total).toBeUndefined();
+    expect((where as Record<string, unknown>).bathrooms_full).toBeUndefined();
+
+    // Projection-side names ARE used (Float for beds/baths, BigInt for price).
+    expect(where.list_price).toEqual({ gte: 1000000, lte: 2000000 });
+    expect(where.bedrooms).toEqual({ gte: 1, lte: 3 });
+    expect(where.bathrooms).toEqual({ gte: 2 });
+    expect(where.living_area).toEqual({ gte: 900 });
+  });
+
+  it("filters borough + neighborhoods + property_type the same way as the Listing-backed path", () => {
+    const where = criteriaToProjectionWhere({
+      borough: "Manhattan",
+      neighborhoods: ["Chelsea", "Tribeca"],
+      property_type: "Residential",
+    });
+
+    expect(where.borough).toBe("Manhattan");
+    expect(where.neighborhood).toEqual({ in: ["Chelsea", "Tribeca"] });
+    expect(where.property_type).toEqual({ in: ["Residential"] });
+  });
+
+  it("uses modified_at (not modification_timestamp) for modifiedSince filters", () => {
+    const since = new Date("2026-04-01T00:00:00Z");
+    const where = criteriaToProjectionWhere({ listing_type: "sale" }, { modifiedSince: since });
+
+    expect(where.modified_at).toEqual({ gte: since });
+    // Listing-side column name must NOT leak into the projection where.
+    expect((where as Record<string, unknown>).modification_timestamp).toBeUndefined();
+  });
+
+  it("respects multi-status input via mls_status", () => {
+    const where = criteriaToProjectionWhere({ statuses: ["Active", "ComingSoon"] });
+    expect(where.mls_status).toEqual({ in: ["Active", "ComingSoon"] });
+  });
+});
+
+describe("runProjectionListingSearch", () => {
+  type Row = { listing: Record<string, unknown> | null };
+
+  function fakeDb(rows: Row[], total: number) {
+    return {
+      listingSearchProjection: {
+        findMany: jest.fn().mockResolvedValue(rows),
+        count: jest.fn().mockResolvedValue(total),
+      },
+    };
+  }
+
+  const sampleListing = {
+    id: BigInt(1),
+    listing_id: "RLS20059088",
+    status: "Active",
+    listing_type: "sale",
+    property_type: "Residential",
+    property_sub_type: "Condominium",
+    list_price: "1850000",
+    bedrooms_total: 2,
+    bathrooms_full: 2,
+    bathrooms_half: 0,
+    living_area: "1320",
+    borough: "Manhattan",
+    neighborhood: "Tribeca",
+    address: { streetNumber: "217", streetName: "W 57th Street", city: "New York" },
+    media: [],
+    modification_timestamp: new Date("2026-04-29T12:00:00Z"),
+    internet_entire_listing_display_yn: true,
+    internet_address_display_yn: true,
+  };
+
+  it("queries the projection table with the projection-side where + 1:1 listing include", async () => {
+    const db = fakeDb([{ listing: sampleListing }], 1);
+
+    const result = await runProjectionListingSearch(db, { listing_type: "sale" });
+
+    expect(db.listingSearchProjection.findMany).toHaveBeenCalledTimes(1);
+    const args = db.listingSearchProjection.findMany.mock.calls[0][0];
+    expect(args.orderBy).toEqual([{ modified_at: "desc" }, { id: "asc" }]);
+    expect(args.include).toEqual({ listing: { select: expect.any(Object) } });
+    expect(args.where).toMatchObject({
+      rls_eligible: true,
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      participant_only_yn: false,
+      listing: { owner_opt_out: false },
+      listing_type: "sale",
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.listings).toHaveLength(1);
+    expect(result.listings[0].listing_id).toBe("RLS20059088");
+    expect(result.projection_where).toBe(args.where);
+  });
+
+  it("filters out null listings (cascade race) without throwing", async () => {
+    const db = fakeDb(
+      [
+        { listing: sampleListing },
+        { listing: null },
+        { listing: { ...sampleListing, listing_id: "RLS20060000" } },
+      ],
+      3,
+    );
+
+    const result = await runProjectionListingSearch(db, { listing_type: "sale" });
+
+    expect(result.listings).toHaveLength(2);
+    expect(result.listings.map((l) => l.listing_id)).toEqual(["RLS20059088", "RLS20060000"]);
+    expect(result.total).toBe(3);
+  });
+
+  it("preserves the same response shape as runListingSearch via serializeSearchListing", () => {
+    const serialized = serializeSearchListing(sampleListing as never);
+
+    // Same keys as the Listing-backed path emits.
+    expect(Object.keys(serialized).sort()).toEqual([
+      "address",
+      "bathrooms_full",
+      "bathrooms_half",
+      "bedrooms_total",
+      "borough",
+      "id",
+      "list_price",
+      "listing_id",
+      "listing_type",
+      "living_area",
+      "media",
+      "modification_timestamp",
+      "neighborhood",
+      "property_sub_type",
+      "property_type",
+      "status",
+    ]);
+
+    // BigInt id is stringified, Decimal-shaped list_price round-trips as string.
+    expect(serialized.id).toBe("1");
+    expect(serialized.list_price).toBe("1850000");
+  });
+
+  it("preserves address suppression via sanitizeSearchAddress on the included listing", () => {
+    const suppressedListing = {
+      ...sampleListing,
+      internet_address_display_yn: null, // not affirmatively true → suppressed
+    };
+    const serialized = serializeSearchListing(suppressedListing as never);
+    const address = serialized.address as Record<string, unknown>;
+    expect(address.suppressed).toBe(true);
+    expect(address.label).toBe("Tribeca, New York (Address Available on Request)");
+  });
+
+  it("propagates limit, offset, and modifiedSince through to the projection query", async () => {
+    const db = fakeDb([], 0);
+    const since = new Date("2026-04-01T00:00:00Z");
+
+    await runProjectionListingSearch(
+      db,
+      { listing_type: "sale" },
+      { limit: 25, offset: 50, modifiedSince: since },
+    );
+
+    const args = db.listingSearchProjection.findMany.mock.calls[0][0];
+    expect(args.take).toBe(25);
+    expect(args.skip).toBe(50);
+    expect(args.where.modified_at).toEqual({ gte: since });
   });
 });

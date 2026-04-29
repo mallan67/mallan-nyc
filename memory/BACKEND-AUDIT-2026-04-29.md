@@ -1039,4 +1039,69 @@ PR 5D readiness: **safe to start.** The projection table is at full parity with 
 
 Push state: this slice is local-only — no push performed (per the brief's "Do NOT push unless explicitly instructed").
 
+PR 5D — saved-search execute reader migrated to `listing_search_projection` — completed:
+
+- **`lib/search/listing-access-decision.ts`**: added the projection-side gate constant + helper.
+  - New exported `PROJECTION_DISPLAY_GATE: Prisma.ListingSearchProjectionWhereInput` mirroring 4 of 5 Listing-side gates on the projection columns (`rls_eligible: true`, `idx_display_yn: true`, `internet_entire_listing_display_yn: true`, `participant_only_yn: false`). The 5th gate (`owner_opt_out`) wasn't mirrored on the projection in PR 5A's bounded schema — the gate constant closes that gap by including a relation filter `listing: { owner_opt_out: false }`. Single Prisma query, full fail-closed semantics preserved exactly: `idx_display_yn === true` excludes null/false, `participant_only_yn === false` excludes null/true, and `listing.owner_opt_out === false` is enforced via the FK relation.
+  - New exported `buildProjectionSearchWhere(statusInput?)` — projection analog of `buildSearchDisplayWhere`, applies the gate plus a status filter on the projection's `mls_status` column.
+
+- **`lib/search/criteria-to-prisma.ts`**: added a parallel projection where-builder.
+  - New exported `criteriaToProjectionWhere(criteria, options)` returning `Prisma.ListingSearchProjectionWhereInput`. Same `SearchCriteria` input shape and same field-alias normalization as the existing `criteriaToPrismaWhere` (snake_case + camelCase, rental aliases, multi-status, neighborhood arrays, price/beds/baths/sqft ranges).
+  - Field-name renames where the projection differs from `Listing`: `bedrooms_total` → `bedrooms` (Float), `bathrooms_full` → `bathrooms` (Float; the projection's bathrooms column already encodes the half-bath threshold via `bathrooms_full + bathrooms_half * 0.5`), `living_area` (Float vs Decimal), `list_price` (BigInt vs Decimal), `status` → `mls_status`, `modification_timestamp` → `modified_at`.
+
+- **`lib/search/core.ts`**: added the projection-backed runner alongside the existing Listing-backed one (existing `runListingSearch` untouched and still used by search-alerts cron — that's PR 5E).
+  - New exported `runProjectionListingSearch(db, criteria, options): ProjectionSearchRunResult`. Single Prisma query: `prisma.listingSearchProjection.findMany({ where: PROJECTION_WHERE, take, skip, orderBy: [{ modified_at: 'desc' }, { id: 'asc' }], include: { listing: { select: SEARCH_RESULT_LISTING_SELECT } } })`. The included `listing` carries the same `SearchResultListing` shape that `serializeSearchListing` already consumes, so the response shape is byte-identical to the Listing-backed path.
+  - Defensive null filter on `row.listing` to handle in-flight cascade-race edge cases (the FK is mandatory at the schema level, but PR 5B race-windows can theoretically produce null briefly).
+  - `total` count via a parallel `prisma.listingSearchProjection.count({ where })`.
+  - Sort key parity: `modified_at desc` on the projection equals `modification_timestamp desc` on `Listing` (the projection builder mirrors `modification_timestamp` into `modified_at`). Same data, same column.
+
+- **`app/api/crm/saved-searches/[id]/execute/route.ts`**: swapped `runListingSearch` for `runProjectionListingSearch`. Single import-line + single call-site change. Response body shape, `serializeSearchListing` mapping, `recordSearchRun` audit shape, `last_run` / `result_count` updates on `SavedSearch`, auth gate, broker-vs-agent scope check, and pagination defaults are all unchanged.
+
+- **`lib/search/__tests__/criteria-to-prisma.test.ts`**: extended with 14 new cases covering:
+  1. `PROJECTION_DISPLAY_GATE` constant shape (4 mirrored gates + listing.owner_opt_out via relation).
+  2. `buildProjectionSearchWhere` defaults to active-display statuses on `mls_status`.
+  3. `buildProjectionSearchWhere` fails closed when every requested status normalizes to a non-displayable value.
+  4. `criteriaToProjectionWhere` always carries the projection-side fail-closed gate.
+  5. Rental alias handling (`rental` / `lease` / `rent` → `rent`).
+  6. Numeric column renames — Listing-side names DO NOT leak into projection where; projection-side names ARE used.
+  7. Borough + neighborhoods + property_type filters work the same way as the Listing-backed path.
+  8. `modifiedSince` filters on `modified_at`, NOT `modification_timestamp`.
+  9. Multi-status input via `mls_status`.
+  10. `runProjectionListingSearch` queries the projection with the projection-side where + 1:1 listing include + the right `orderBy` shape.
+  11. Null listings (cascade race) are filtered out without throwing.
+  12. Response shape preservation via `serializeSearchListing` (every key from the Listing-backed path is present).
+  13. Address suppression preserved via `sanitizeSearchAddress` on the included listing.
+  14. `limit` / `offset` / `modifiedSince` propagate through the projection query correctly.
+
+Validation after the PR 5D slice:
+
+- `npx prisma validate` passed.
+- `npm run type-check` passed.
+- `npx jest --config lib/search/jest.config.js` passed: 270/270 (previous: 256/256; +14 new tests).
+- `npm run test:compliance` passed: 194/194.
+- `npm run compliance-check` passed: 87/87.
+- `npm run idx:validate` passed: WARN, 0 critical (853 pass).
+- `npm run lint` passed: 0 errors, 0 warnings.
+- `npm run ops:health` passed: HEALTHY. 19,839 listings (up from 19,830 since the backfill — natural sync added 9 more, all dual-written into the projection per PR 5B). REBNY §2.05 violations: 0.
+
+Diff stat:
+
+- `lib/search/listing-access-decision.ts`: +30 lines (new constant + helper).
+- `lib/search/criteria-to-prisma.ts`: +90 lines (new `criteriaToProjectionWhere` builder).
+- `lib/search/core.ts`: +85 lines (new `runProjectionListingSearch` runner + types).
+- `app/api/crm/saved-searches/[id]/execute/route.ts`: +9 / −2 (import + call-site + comment).
+- `lib/search/__tests__/criteria-to-prisma.test.ts`: +175 lines (14 new tests).
+
+Whether saved-search execute now reads the projection first: **yes — projection is the primary index.** `prisma.listingSearchProjection.findMany` runs first with the projection where, then Postgres joins to `listings` for the included Listing rows. No two-stage round-trip; single Prisma call.
+
+Whether Listing include/join is still used: **yes — via Prisma `include: { listing: ... }`.** Required because the projection doesn't carry full `address`/`media` JSON nor the full `Listing.id` / `Listing.list_price` Decimal needed by `serializeSearchListing`. The include resolves to a SQL JOIN, not a separate query.
+
+Response shape preservation: **identical.** `serializeSearchListing` consumes the same `SearchResultListing` shape regardless of whether it came from `runListingSearch` (Listing-backed) or `runProjectionListingSearch` (projection-backed via include). No DTO change. Address suppression, BigInt→string serialization, Decimal→string serialization, media pass-through — all unchanged.
+
+Fallback behavior: **none added.** The brief allowed fallback only "if existing project error policy allows it." The existing route's error policy is a top-level try/catch returning HTTP 500 + console.error on any failure (including DB errors). Adding a fallback that silently drops to the Listing-backed path would change error semantics and mask projection-write bugs, so I did not add one. If projection reads fail, the route returns 500 — same as the Listing-backed path returns 500 on Listing read failures.
+
+PR 5E readiness: **safe to start.** `runListingSearch` (the Listing-backed path) is still exported from `lib/search/core.ts` and is now used only by the search-alerts cron — that's the PR 5E migration target. Same migration shape: swap the `runListingSearch` call in `app/api/cron/search-alerts/route.ts` for `runProjectionListingSearch`, preserve the `modifiedSince` cron pattern (already supported by the new runner).
+
+Push state: this slice is local-only — no push performed (per the brief's "Do NOT push" hard limit).
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

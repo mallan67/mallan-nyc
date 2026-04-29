@@ -1640,6 +1640,88 @@ easiest rollback.
 Push: not performed per the brief ("Do NOT push unless explicitly
 instructed").
 
+## PR 5D — saved-search execute reader migrated to projection
+
+Bounded brief executed: migrate the first reader
+(`app/api/crm/saved-searches/[id]/execute/route.ts`) to read through
+`listing_search_projection`. Preserve fail-closed gates, address
+suppression, and response shape. No reader migration for public
+search yet.
+
+### Files changed
+
+- `lib/search/listing-access-decision.ts`: +30. Added
+  `PROJECTION_DISPLAY_GATE` + `buildProjectionSearchWhere`. Closes the
+  PR 5A schema gap (no `owner_opt_out` column on projection) by
+  applying `owner_opt_out: false` via the FK relation
+  `listing: { owner_opt_out: false }`.
+- `lib/search/criteria-to-prisma.ts`: +90. Added
+  `criteriaToProjectionWhere`. Same `SearchCriteria` aliases, same
+  rental/multi-status normalization. Renames Listing-side columns to
+  projection columns (bedrooms_total → bedrooms, bathrooms_full →
+  bathrooms, status → mls_status, modification_timestamp → modified_at).
+- `lib/search/core.ts`: +85. Added `runProjectionListingSearch`
+  alongside the existing `runListingSearch` (kept intact for PR 5E's
+  search-alerts cron). Single Prisma call:
+  `prisma.listingSearchProjection.findMany({ ..., include: { listing:
+  { select: SEARCH_RESULT_LISTING_SELECT } } })`.
+- `app/api/crm/saved-searches/[id]/execute/route.ts`: +9 / −2.
+  Swapped `runListingSearch` → `runProjectionListingSearch`. Single
+  call-site change. Response body shape, audit shape, scope check, and
+  pagination defaults are byte-identical.
+- `lib/search/__tests__/criteria-to-prisma.test.ts`: +175. 14 new
+  tests covering gate constant shape, default-status fallback, fail-
+  closed multi-status, criteria → projection where, rental aliases,
+  column renames (Listing-side names absent / projection-side present),
+  borough/neighborhoods/property_type filters, `modifiedSince` on
+  `modified_at`, multi-status, runner orderBy + include + where shape,
+  null cascade-race resilience, response shape preservation, address
+  suppression preservation, limit/offset/modifiedSince propagation.
+
+### Behavior
+
+- **Saved-search execute now reads projection first.** Single Prisma
+  call: projection is the primary index, listings is JOIN via the FK
+  relation declared on the projection model.
+- **Listing include/join still used** — `include: { listing: { select:
+  SEARCH_RESULT_LISTING_SELECT } }`. Required because the projection
+  doesn't carry full `address` / `media` JSON. Single SQL JOIN, no
+  second round-trip.
+- **Response shape preservation: identical.** `serializeSearchListing`
+  consumes the same `SearchResultListing` shape regardless of source.
+  Address suppression via `sanitizeSearchAddress` still applies.
+- **Fallback behavior: none.** Existing error policy already returns
+  HTTP 500 on DB failures; adding a Listing-backed fallback would
+  change error semantics and mask projection-write bugs.
+- **Fail-closed gates preserved exactly:** 4 mirrored gates
+  (`rls_eligible`, `idx_display_yn`,
+  `internet_entire_listing_display_yn`, `participant_only_yn`) fire on
+  the projection. `owner_opt_out` fires on the FK-linked listing. Null
+  excluded everywhere — `idx_display_yn === true` excludes null/false;
+  `participant_only_yn === false` excludes null/true.
+
+### Validation
+
+- `npx prisma validate`: pass
+- `npm run type-check`: pass
+- `npx jest --config lib/search/jest.config.js`: 270/270 (was 256, +14)
+- `npm run test:compliance`: 194/194
+- `npm run compliance-check`: 87/87
+- `npm run idx:validate`: WARN, 0 critical (853 pass)
+- `npm run lint`: 0 errors, 0 warnings
+- `npm run ops:health`: HEALTHY. 19,839 listings (up 9 from PR 5C
+  backfill close — sync's dual-write keeps the projection converged).
+
+### PR 5E readiness
+
+Safe to start. `runListingSearch` is still exported and is now used
+only by the search-alerts cron at
+`app/api/cron/search-alerts/route.ts`. Same migration shape as PR 5D:
+swap the call to `runProjectionListingSearch`, preserve the
+`modifiedSince` cron pattern (already supported by the new runner).
+
+Push: not performed per the brief.
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of
