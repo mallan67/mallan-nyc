@@ -405,4 +405,21 @@ Resume context for the next Codex session:
   - `20260429033000_add_external_listing_comments`
 - The next implementation slice should be buyer family/friend visibility rules for Outside Listings.
 
+User push gate:
+
+- User instruction: **make sure everything is completed before pushing anything. Read through and do not miss any lines.**
+- Do not push `main` or deploy this work until all selected local slices are finished and validated.
+- Both external-listing migrations must be manually applied to the target database and verified before deployment:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+- Full validation must be rerun after the final local slice:
+  - `npm run type-check`
+  - `node --check public/crm/js/dashboard/workspace.js`
+  - `npm run crm:test`
+  - `npm run lint`
+  - `npm run test:compliance`
+  - `npm run compliance-check`
+- `git status --short --branch` should be clean except for the expected ahead-of-origin count.
+- The user must explicitly confirm it is time to push.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
