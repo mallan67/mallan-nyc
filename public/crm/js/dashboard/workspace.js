@@ -2491,6 +2491,152 @@ var Workspace = (function () {
   // ─── Tab: Financial ──────────────────────────────────────────────────
 
   var _scenariosCache = {};
+  var _financialIntentCache = {};
+
+  function _fmtFinancialSignalMoney(value) {
+    var n = Number(value);
+    return Number.isFinite(n) ? $(n) : '&mdash;';
+  }
+
+  function _fmtFinancialSignalPercent(value) {
+    var n = Number(value);
+    return Number.isFinite(n) ? (n > 0 ? '+' : '') + n.toFixed(Math.abs(n) >= 10 ? 0 : 1) + '%' : '&mdash;';
+  }
+
+  function _fetchFinancialIntent(clientId) {
+    return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/financial-intent')
+      .then(function (data) {
+        _financialIntentCache[clientId] = data;
+        return data;
+      });
+  }
+
+  function _financialSignalMetric(label, value, tone) {
+    tone = tone || 'gray';
+    var toneClass = {
+      gray: 'bg-gray-50 text-gray-700',
+      green: 'bg-green-50 text-green-700',
+      amber: 'bg-amber-50 text-amber-700',
+      red: 'bg-red-50 text-red-700',
+      blue: 'bg-blue-50 text-blue-700',
+    }[tone] || 'bg-gray-50 text-gray-700';
+
+    return '<div class="p-3 rounded-lg ' + toneClass + '">' +
+      '<p class="text-[10px] uppercase font-semibold opacity-70">' + E(label) + '</p>' +
+      '<p class="text-sm font-bold mt-1">' + value + '</p>' +
+    '</div>';
+  }
+
+  function _financialSignalRows(source, keys) {
+    if (!source || typeof source !== 'object') return '';
+    return keys.map(function (item) {
+      var value = source[item.key];
+      if (value === undefined || value === null || value === '') return '';
+      var display = item.money ? _fmtFinancialSignalMoney(value) : E(String(value));
+      return '<div class="flex items-center justify-between gap-3 text-xs">' +
+        '<span class="text-gray-500">' + E(item.label) + '</span>' +
+        '<span class="font-semibold text-gray-700 text-right">' + display + '</span>' +
+      '</div>';
+    }).filter(Boolean).join('');
+  }
+
+  function _renderFinancialIntent() {
+    var container = document.getElementById('wsFinancialIntent');
+    if (!container || !_clientId) return;
+
+    if (!_financialIntentCache[_clientId]) {
+      container.innerHTML = UI.loading();
+      _fetchFinancialIntent(_clientId).then(function () {
+        _renderFinancialIntent();
+      }).catch(function (err) {
+        container.innerHTML = '<p class="text-xs text-red-500">Could not load buyer tool signals: ' + E(err.message || 'Unknown error') + '</p>';
+      });
+      return;
+    }
+
+    var data = _financialIntentCache[_clientId] || {};
+    var summary = data.financial_intent || {};
+    var tools = summary.tools_used || [];
+    var recent = summary.recent_events || [];
+    var stated = data.stated_financials || {};
+    var profile = data.buyer_intent_profile || {};
+
+    if (!summary.event_count) {
+      container.innerHTML = '<p class="text-xs text-gray-400">No buyer calculator activity captured yet.</p>';
+      return;
+    }
+
+    var stretch = Number(summary.stretch_amount);
+    var stretchTone = !Number.isFinite(stretch) ? 'gray' : stretch > 250000 ? 'red' : stretch > 0 ? 'amber' : 'green';
+    var lastTool = summary.last_tool_used_at ? D(summary.last_tool_used_at) : '-';
+
+    var html = '<div class="space-y-3">' +
+      '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">' +
+        _financialSignalMetric('Tools Used', String(tools.length || 0) + ' tools / ' + String(summary.event_count || 0) + ' events', 'blue') +
+        _financialSignalMetric('Highest Budget', _fmtFinancialSignalMoney(summary.highest_budget_tested), 'green') +
+        _financialSignalMetric('Monthly Payment', _fmtFinancialSignalMoney(summary.latest_monthly_payment || summary.highest_monthly_payment), 'gray') +
+        _financialSignalMetric('Stretch', _fmtFinancialSignalMoney(summary.stretch_amount) + ' (' + _fmtFinancialSignalPercent(summary.stretch_percent) + ')', stretchTone) +
+      '</div>' +
+      '<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Budget Context</p>' +
+          '<div class="space-y-1">' +
+            _financialSignalRows(stated, [
+              { key: 'stated_budget_max', label: 'Stated budget', money: true },
+              { key: 'pre_approved_amount', label: 'Pre-approval', money: true },
+              { key: 'available_funds', label: 'Available funds', money: true },
+              { key: 'down_payment', label: 'Down payment', money: true },
+            ]) +
+            _financialSignalRows(summary, [
+              { key: 'latest_budget_tested', label: 'Latest tested budget', money: true },
+              { key: 'latest_cash_needed', label: 'Latest cash needed', money: true },
+              { key: 'latest_closing_costs', label: 'Latest closing costs', money: true },
+            ]) +
+          '</div>' +
+        '</div>' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Tool Mix</p>' +
+          '<div class="space-y-2">';
+
+    tools.slice(0, 4).forEach(function (tool) {
+      html += '<div class="flex items-center justify-between gap-3">' +
+        '<div class="min-w-0">' +
+          '<p class="text-xs font-semibold text-gray-700 truncate">' + E(tool.label || tool.tool_type || 'Financial tool') + '</p>' +
+          '<p class="text-[11px] text-gray-400">' + E(tool.last_used_at ? D(tool.last_used_at) : 'No date') + '</p>' +
+        '</div>' +
+        '<span class="text-xs font-bold text-gray-600">' + E(String(tool.count || 0)) + '</span>' +
+      '</div>';
+    });
+
+    html += '</div>' +
+        '</div>' +
+        '<div class="p-3 rounded-lg border border-gray-100">' +
+          '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Readiness Signals</p>' +
+          '<div class="space-y-1">' +
+            '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Last tool use</span><span class="font-semibold text-gray-700 text-right">' + E(lastTool) + '</span></div>' +
+            '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Intent stage</span><span class="font-semibold text-gray-700 text-right">' + E(profile.intent_stage || '-') + '</span></div>' +
+            '<div class="flex items-center justify-between gap-3 text-xs"><span class="text-gray-500">Intent strength</span><span class="font-semibold text-gray-700 text-right">' + E(profile.intent_strength || '-') + '</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    if (recent.length > 0) {
+      html += '<div class="pt-2 border-t border-gray-100">' +
+        '<p class="text-[10px] uppercase font-semibold text-gray-400 mb-2">Recent Tool Activity</p>' +
+        '<div class="space-y-1">';
+      recent.slice(0, 4).forEach(function (event) {
+        var label = event.tool_type || event.event_type || 'financial_tool';
+        html += '<div class="flex items-center justify-between gap-3 text-xs">' +
+          '<span class="font-medium text-gray-700">' + E(String(label).replace(/[-_]/g, ' ')) + '</span>' +
+          '<span class="text-gray-400">' + E(event.recorded_at ? D(event.recorded_at) : '') + '</span>' +
+        '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
 
   function _loadSavedScenarios(clientId) {
     // Return cached if available
@@ -2653,6 +2799,13 @@ var Workspace = (function () {
 
     var html = '<div class="space-y-4">';
     html += affordBanner;
+    html += '<div class="card p-4">' +
+      '<div class="flex items-center justify-between mb-3">' +
+        '<h4 class="text-sm font-bold text-gray-700"><i class="fas fa-chart-line mr-2"></i>Buyer Tool Signals</h4>' +
+        '<span class="text-[10px] uppercase font-semibold text-gray-400">Portal Activity</span>' +
+      '</div>' +
+      '<div id="wsFinancialIntent">' + UI.loading() + '</div>' +
+    '</div>';
     html += '<h3 class="text-sm font-bold text-gray-700">Financial Tools</h3>';
 
     // ── Mortgage Calculator ──
@@ -2722,6 +2875,7 @@ var Workspace = (function () {
     el.innerHTML = html;
 
     // Render saved scenarios
+    _renderFinancialIntent();
     _renderSavedScenarios();
   }
 

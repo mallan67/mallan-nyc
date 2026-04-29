@@ -248,4 +248,20 @@ Validation after the CRM IDX mapper extraction:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Follow-up buyer CRM visibility slice completed next:
+
+- Updated `public/crm/js/dashboard/workspace.js`.
+- Added Buyer Tool Signals to the CRM client Financial tab.
+- The workspace now reads `/api/crm/clients/[id]/financial-intent` and displays buyer calculator/tool behavior to the assigned agent or broker.
+- Signals shown include tools used, event count, highest budget tested, latest/highest monthly payment, cash needed, closing costs, stated budget/pre-approval context, stretch amount/percent, intent stage/strength, and recent tool activity.
+- Existing saved scenarios and calculator flows remain unchanged.
+
+Validation after the buyer CRM visibility slice:
+
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run type-check` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

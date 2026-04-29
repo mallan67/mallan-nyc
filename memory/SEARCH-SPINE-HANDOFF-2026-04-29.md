@@ -486,3 +486,32 @@ Suggested next steps:
 ## Legal/Compliance Note
 
 This is an engineering compliance implementation and audit trail, not legal sign-off. Current external context checked during review: NY DOS real-estate advertising guidance, REBNY RLS FAQ, and NYC DCWP FARE Act FAQ. Any policy-sensitive production release should still be reviewed by the responsible broker/legal owner.
+
+## Fourteenth Implemented Slice
+
+Goal: make the buyer financial-intent tracking visible to the assigned agent or broker inside the client workspace.
+
+Updated:
+
+- `public/crm/js/dashboard/workspace.js`
+  - Added a Buyer Tool Signals card to the Financial tab.
+  - Calls the protected CRM endpoint at `/api/crm/clients/[id]/financial-intent`.
+  - Shows tools used, total financial events, highest budget tested, latest/highest monthly payment, cash needed, closing costs, stated budget context, pre-approval context, stretch amount/percent, intent stage/strength, and recent tool activity.
+  - Keeps display read-only and scoped to the existing workspace client id.
+  - Preserves the existing saved-scenarios and local calculator workflows.
+
+Validation:
+
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run type-check` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
+Recommended next portal/CRM slices:
+
+1. Add a buyer external-listing link intake model/API so registered or invited buyers can add non-IDX listing links without mixing those records into IDX listings.
+2. Add buyer shortlist buckets for saved, liked, disliked, seen, and discuss/request-info states, using existing `ClientListingAction` where possible.
+3. Add buyer family/friend invite acceptance and permission boundaries per buyer portal.
+4. Add agent/broker dashboard panels that roll up buyer portal activity across all assigned clients.
+5. Mirror the same approach for seller portal valuation/proceeds/closing-cost signals after buyer activity is stable.
