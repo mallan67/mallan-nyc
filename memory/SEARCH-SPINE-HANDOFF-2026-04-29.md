@@ -1527,7 +1527,7 @@ Diff: `lib/idx/sync.ts` +69 / −2, helper +83 / −1, tests +90.
 No schema, migration, env, Vercel, or unrelated routes touched.
 
 Production state: projection table still empty at commit time. Next
-idx-sync cycle (`*/12 * * * *`) will start populating rows.
+idx-sync cycle (`*/10 * * * *`) will start populating rows.
 
 Next: PR 5C — verify the next sync cycle populates rows (passive
 verification preferred; active backfill is an option if faster
@@ -1618,7 +1618,7 @@ Post-backfill SQL verification:
 Health post-backfill:
 
 - `ops:health` HEALTHY. Sync still running; dual-write firing every
-  12 min cycle (last cycle: 71 upserts, 0 errors, 8.3 s).
+  10-min cycle (last cycle: 71 upserts, 0 errors, 8.3 s).
 - REBNY §2.05 violations: 0.
 
 Validation rerun (all green):
@@ -1797,6 +1797,73 @@ PR 5F is "maybe CRM saved search list/counts" — a smaller derived-
 data path with the same swap pattern. Public `/api/listings` is still
 deferred until at least two lower-risk projection readers (5D + 5E)
 are live and stable in production.
+
+## PR 5C/5D/5E pushed + corrections to the prior session report
+
+Push delivered: `0d6ccacd..0ca7a0de  main -> main`. Vercel deploy READY
+at commit `0ca7a0de` around `2026-04-29T21:05Z`. `origin/main` and
+local HEAD both at `0ca7a0de`. Branch even with origin.
+
+CI: Release Truth ✅, Guardrails (Repo + Compliance) ✅, Auto-retry
+runner-pool flakes (skipped — correct).
+
+Corrections to my prior post-push report:
+
+- **Cron schedule**: IDX sync is `*/10 * * * *` (every 10 minutes), NOT
+  every 12 minutes. All earlier passages in this file have been
+  corrected.
+- **Search-alerts schedule** is `30 7 * * *` (daily 07:30 UTC). The
+  pre-deploy audit row at `2026-04-29T07:30:06.434Z` was on the OLD
+  code; deploy happened ~14h later. Next firing on the new code:
+  `2026-04-30T07:30 UTC`.
+- **Audit `created_at` is `timestamp without time zone`.** Treat row
+  values as scheduled / raw DB times rather than precision UTC stamps
+  through Prisma's TS layer.
+- **Live counts at verification** (2026-04-29T21:45 UTC):
+  `projection_count = 19,851`, `listings_count = 19,851`,
+  `missing_projection_count = 0`. Listings count grew naturally
+  between push and verification because the dual-write kept the
+  projection converged.
+- **Latest `ops:health` post-deploy**: HEALTHY. Last sync 105 upserted,
+  0 errors, 8340 ms. REBNY §2.05 violations: 0.
+- **`listing_search_projection` storage**: 12.68 MB (table now visible
+  in the top-5 by size).
+- **Targeted projection tests**: 24/24 pass (incl. PR 5D's 14
+  projection-reader cases).
+- **Public smoke**: homepage 200, `/api/listings` 200, `/api/health`
+  200 — no regression on unchanged surfaces.
+- **Saved-search execute** (auth-gated): structurally verified — CI
+  + parity + 14 projection-reader unit tests covering response shape,
+  address suppression, and `SearchResultListing` contract. End-to-end
+  response-shape probe was not performed (needs a session cookie).
+- **Search-alerts cron** history: clean. 5 most recent runs all
+  `errored: 0` / `total: 0` (no saved searches with
+  `alert_enabled: true` configured — normal). Active backfill is no
+  longer required.
+- **Desktop mirror claim retracted.** I cannot independently
+  substantiate that an obvious root Desktop / `.codex/memories`
+  mirror exists. **In-repo memory is the reliable source.**
+
+Wait for next search-alerts cron firing at `2026-04-30T07:30 UTC`,
+then run:
+
+```sql
+SELECT * FROM audit_events
+ WHERE action IN ('search_alerts_cron', 'search_alerts_cron_error')
+ ORDER BY created_at DESC
+ LIMIT 10;
+```
+
+(this project's column is `action`, not `event_type`)
+
+Confirm:
+- Latest `search_alerts_cron` row exists with `created_at` after the
+  deploy time (`2026-04-29T21:05Z`).
+- That row's `changes.errored = 0`.
+- No `search_alerts_cron_error` rows after the deploy.
+
+After all three conditions hold, PR 5F is safe to start. Public
+`/api/listings` projection migration remains deferred.
 
 ## Public `/api/listings` live Trestle fallback filter extraction
 

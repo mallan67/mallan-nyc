@@ -918,7 +918,7 @@ Master plan PR 5B — dual-write `ListingSearchProjection` from IDX sync — com
   2. Update-branch payload is idempotent (every key in `create` appears in `update` with the same value).
   3. Null permission inputs round-trip (gate scalars stay `null`, JSON columns become `Prisma.JsonNull`).
   4. False permission inputs round-trip verbatim (no coercion).
-- No backfill in this slice — by design per the brief. The new projection table is empty until the next idx-sync cycle (every 12 minutes per `vercel.json`) populates rows.
+- No backfill in this slice — by design per the brief. The new projection table is empty until the next idx-sync cycle (every 10 minutes per `vercel.json`) populates rows.
 
 Validation after the PR 5B slice:
 
@@ -938,10 +938,10 @@ Diff stat:
 - `lib/search/listing-search-projection.ts`: +83 / −1 (Prisma runtime import + `jsonInput` helper + `ListingSearchProjectionUpsertPayload` type + `buildProjectionUpsertPayload` function).
 - `lib/search/__tests__/listing-search-projection.test.ts`: +90 (4 new test cases + Prisma import).
 
-Production projection table: still empty at commit time. Next idx-sync cycle (`*/12 * * * *`) will populate rows for any listing it upserts.
+Production projection table: still empty at commit time. Next idx-sync cycle (`*/10 * * * *`) will populate rows for any listing it upserts.
 
 Next step for PR 5C: backfill / sync-cycle verification. Two paths:
-1. **Passive verification** — wait for the next 12-minute sync cycle, then query `SELECT COUNT(*) FROM listing_search_projection` and verify it grows. Cheapest, lowest blast radius.
+1. **Passive verification** — wait for the next 10-minute sync cycle, then query `SELECT COUNT(*) FROM listing_search_projection` and verify it grows. Cheapest, lowest blast radius.
 2. **Active backfill** — write a one-shot script that calls `buildListingSearchProjectionFromListing` + `buildProjectionUpsertPayload` for every existing `Listing` row. Faster to populate but adds compute load. Bounded brief required before starting.
 
 Push gate unchanged.
@@ -1144,5 +1144,42 @@ Diff stat:
 Whether PR 5F can proceed: **yes, but it depends on what PR 5F is.** Per the agenda the user laid out: PR 5F is "maybe CRM saved search list/counts" — a smaller derived-data path. That can proceed with the same swap pattern. Public `/api/listings` migration is still deferred per the user's "Do not migrate public search yet" hard limit until at least two lower-risk projection readers are live and stable.
 
 Push state: this slice is local-only — no push performed (per the brief's "Do NOT push" hard limit).
+
+PR 5C/5D/5E stack pushed + post-deploy verification — corrections to the prior report:
+
+- **Push delivered**: `0d6ccacd..0ca7a0de  main -> main`. **Vercel deploy READY at commit `0ca7a0de` around 2026-04-29T21:05Z** — NOT the earlier "~13:14 UTC" guess in my self-report (that timestamp was carried over by mistake from the earlier `b9b83245..0d6ccacd` push at 19:14 UTC; the actual PR 5C/5D/5E push was several hours later).
+- **`origin/main` and local HEAD both at `0ca7a0de`. Branch even with origin.**
+- **CI: Release Truth ✅ + Guardrails (Repo + Compliance) ✅ + Auto-retry runner-pool flakes (skipped — correct).**
+- **IDX sync schedule is `*/10 * * * *` (every 10 minutes)**, NOT every 12 minutes. Earlier passages in this file have been corrected (5 occurrences swapped to `*/10`).
+- **Search-alerts schedule is `30 7 * * *`** (daily 07:30 UTC). Pre-deploy run at `2026-04-29T07:30:06.434Z` was on the OLD code — deploy happened ~14 hours later. Next cron firing on the new code: **`2026-04-30T07:30 UTC`** (~9–10 hours after this push).
+- **Audit `created_at` column is `timestamp without time zone`** — the prior report read those values as UTC ISO strings via Prisma's TS layer. Treat them as scheduled/raw DB times rather than precision-precision UTC stamps.
+- **Live counts at the time of this verification (2026-04-29T21:45 UTC)**: `projection_count = 19,851`, `listings_count = 19,851`, `missing_projection_count = 0`. The `listings` count grew naturally between push and verification because the IDX sync continued to fire on its 10-minute schedule; PR 5B dual-write kept the projection converged.
+- **Latest `ops:health` post-deploy**: HEALTHY. Last sync 105 upserted, 0 errors, 8340 ms. REBNY §2.05 violations: 0.
+- **`listing_search_projection` storage**: 12.68 MB (table now visible in the top-5 by size).
+- **Public smoke checks**: homepage 200, `/api/listings` 200 (cold), `/api/listings?type=sale` 200, `/api/health` 200. No regression on unchanged surfaces.
+- **Targeted projection tests**: 24/24 pass (incl. the 14 PR 5D projection-reader cases).
+- **Saved-search execute** (auth-gated): structurally verified via CI + projection parity + PR 5D's 14 unit tests for response-shape preservation, address suppression, and `SearchResultListing` shape contract. Direct end-to-end response-shape probe was not performed — needs a session cookie. Acceptable: the deploy is live and gates are green.
+- **Search-alerts cron history**: clean. 5 most recent runs (2026-04-25 → 2026-04-29) all `errored: 0`, `total: 0` (no saved searches with `alert_enabled: true` configured anywhere; this is normal — the cron handles the empty case correctly). Active backfill is no longer needed for projection parity.
+- **Desktop mirror claim retracted.** I cannot independently substantiate that any obvious root Desktop / `.codex/memories` mirror exists. **In-repo memory is the reliable source.** Any earlier sentence in this file or my reports that asserted "byte-identical Desktop mirror" should be read as my own session-local belief, not a verified claim.
+
+PR 5F readiness: still **deferred until the first post-deploy search-alerts cron run is observed clean.** That happens at the next `30 7 * * *` firing (`2026-04-30T07:30 UTC`). After that fires, run:
+
+```sql
+SELECT * FROM audit_events
+ WHERE action IN ('search_alerts_cron', 'search_alerts_cron_error')
+ ORDER BY created_at DESC
+ LIMIT 10;
+```
+
+(Note: this project's column is `action` rather than `event_type`. Same query intent.)
+
+Confirm:
+- Latest `search_alerts_cron` row exists with `created_at` after the deploy time (`2026-04-29T21:05Z`).
+- That row's `changes.errored = 0`.
+- No `search_alerts_cron_error` rows after the deploy.
+
+Once those three conditions are true, PR 5F (CRM saved-search list/counts projection migration) is safe to start.
+
+Push gate: in-repo memory corrections are local-only. **Not pushed.**
 
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
