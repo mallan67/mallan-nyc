@@ -1533,6 +1533,43 @@ Next: PR 5C — verify the next sync cycle populates rows (passive
 verification preferred; active backfill is an option if faster
 population is required).
 
+## PR 5C — passive verification (post-push, post-sync)
+
+Push completed at 19:14:17 UTC: `b9b83245..0d6ccacd main -> main`.
+3 commits delivered (PR 5A schema, migration-applied checkpoint,
+PR 5B dual-write).
+
+CI: `Release Truth` ✅ + `Guardrails (Repo + Compliance)` ✅
++ `Auto-retry runner-pool flakes` skipped.
+
+Sync cycle observation:
+
+- Baseline (19:14:30 UTC): `projection_count = 0`, `listings_count = 19,813`.
+- First post-deploy sync cycle ran 19:20:18 → 19:20:24 UTC (8.2 s).
+- Post-cycle: `projection_count = 101`, `listings_count = 19,815`.
+- Projection rows: `min(created_at) = max(created_at) - 3s` —
+  all 101 rows inserted in a 3-second window during the sync.
+- Sync duration grew from ~4.9 s pre-PR-5B to 8.2 s for a 101-row
+  cycle — ~33 ms per projection upsert. Within Vercel cron budget.
+
+ops:health post-cycle: HEALTHY. Last run 0.0h ago, 101 upserted,
+0 errors. 24h error count: 0. REBNY §2.05 violations: 0.
+
+idx:validate post-cycle: WARN, 0 critical (853 pass, 5 warnings,
+29 info — unchanged from pre-push).
+
+compliance-check post-cycle: 87/87.
+
+**Dual-write confirmed working in production.** The 101 rows include
+2 newly-inserted listings (count 19,813 → 19,815) and 99 existing
+listings whose Trestle ModificationTimestamp updated, triggering
+re-upsert of both `Listing` and projection.
+
+Active backfill: not needed for correctness — natural-churn convergence
+will populate the projection over 1–2 weeks. Defer the backfill
+decision to PR 5D, when we know which reader is migrating first and
+whether partial coverage is acceptable for that reader's contract.
+
 ## Public `/api/listings` live Trestle fallback filter extraction
 
 User-bounded slice: extract the OData $filter string construction out of

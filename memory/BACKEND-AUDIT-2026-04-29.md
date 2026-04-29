@@ -946,4 +946,49 @@ Next step for PR 5C: backfill / sync-cycle verification. Two paths:
 
 Push gate unchanged.
 
+PR 5C — passive verification — completed:
+
+- **Pre-push checks** (all green):
+  - `git status --short --branch` → 3 ahead of origin/main, only auto-regenerated validator artifacts dirty.
+  - `npx prisma migrate status` → "Database schema is up to date!" (20 migrations).
+  - `npm run ops:health` → HEALTHY. DB ~215 MB; sync 0 errors; 19,813 listings.
+  - `npm run type-check` → 0 errors.
+  - `npm run compliance-check` → 87/87.
+  - `npm run lint` → 0 errors, 0 warnings.
+
+- **Push** at 19:14:17 UTC: `b9b83245..0d6ccacd  main -> main` (3 commits delivered: PR 5A schema `03ea8cf9`, migration-applied checkpoint `8d738087`, PR 5B dual-write `0d6ccacd`).
+
+- **CI workflows** (kicked off by push, polled until completion):
+  - `Release Truth` → success
+  - `Guardrails (Repo + Compliance)` → success
+  - `Auto-retry runner-pool flakes` → skipped (correct — no flake to retry)
+
+- **Pre-deploy projection baseline** (19:14:30 UTC, before next sync cycle): `projection_count: 0`, `listings_count: 19,813`. Confirms the table was empty at deploy time as expected from PR 5B's "no backfill" design.
+
+- **First post-deploy sync cycle**: ran 19:20:18 → 19:20:24 UTC (8.2 s elapsed). The dual-write code in `lib/idx/sync.ts` activated.
+  - Pre-cycle: `projection_count: 0` at 19:19:57 UTC.
+  - Post-cycle: `projection_count: 101` at 19:20:28 UTC.
+  - Projection `min(created_at) === min(updated_at) = 2026-04-29T19:20:18.633Z`.
+  - Projection `max(created_at) === max(updated_at) = 2026-04-29T19:20:21.642Z`.
+  - 3-second window for 101 row inserts → ~30 ms per upsert, consistent with normal Neon write throughput.
+  - Listings count: 19,813 → 19,815 (+2 net new listings; the other 99 projection upserts represent existing listings whose Trestle ModificationTimestamp updated this cycle, triggering a re-upsert of both Listing and projection).
+
+- **Sync health** (post-cycle):
+  - `npm run ops:health` → HEALTHY. Sync state: ok. Last run: 101 upserted, 0 errors, 8.2 s.
+  - 24-hour error count: 0.
+  - Sync duration grew from ~4.9 s pre-PR-5B to 8.2 s post-PR-5B for a 101-row cycle — ~3.3 s overhead for 101 projection upserts (~33 ms per projection upsert). Well within the Vercel cron budget; no quota concern.
+  - REBNY §2.05 violations: 0 (unchanged).
+
+- **Validation rerun** (all green):
+  - `npm run idx:validate` → WARN, 0 critical (853 pass, 5 pre-existing warnings, 29 info).
+  - `npm run compliance-check` → 87/87, 0 fail.
+
+- **Dual-write status: confirmed working in production.** The projection populates as a side effect of normal Trestle sync, with no errors. Subsequent cycles will continue adding rows; over the typical 1–2 week churn window the projection should converge on parity with `Listing` count (19,815 today; whatever the active count is at convergence).
+
+- **Whether active backfill is still needed: not for correctness, possibly for speed.** Convergence is naturally driven by `ModificationTimestamp` updates from Trestle. Listings that change frequently (active sales, rentals with showings) will have projections within hours; quiet rows will only get projections when they next change. If a reader migration (PR 5D) needs full coverage before the natural-churn window converges, a one-shot backfill script can be added under a separate bounded brief. Current recommendation: defer the backfill until PR 5D plans which reader is migrating first; for some readers (saved-search execute, search-alerts cron), partial coverage is acceptable since they only return what's present.
+
+Diff stat for this slice: zero source code change. Documentation only.
+
+Push state: `origin/main` advanced from `38d4374d` to `0d6ccacd`. Local branch matched origin at push time. After this docs commit, local will be 1 commit ahead again — staged for the next session to push.
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
