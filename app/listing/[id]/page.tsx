@@ -39,6 +39,7 @@ import TrackListingSend from '@/app/components/TrackListingSend';
 
 import { getAccessToken } from '@/lib/idx/auth';
 import { soda } from '@/lib/soda';
+import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 
 // ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
@@ -503,8 +504,12 @@ async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promi
   if (parsed && parsed.streetNumber && parsed.postalCode) {
     const raw = await fetchListingByAddress(parsed);
     if (raw) {
-      // COMPLIANCE: If the resolved listing has address suppressed, reject.
-      if (raw.InternetAddressDisplayYN === false) return null;
+      // COMPLIANCE — fail-closed: this strategy only runs when the URL slug IS
+      // an address (the user typed/linked to a specific street). If the listing
+      // does NOT explicitly affirm InternetAddressDisplayYN=true, the URL itself
+      // is an address-leak vector, so reject. Previous `=== false` check was
+      // fail-OPEN — null/undefined/missing all returned the page.
+      if (!affirmPermission(raw.InternetAddressDisplayYN)) return null;
       const result = await rawToDTO(raw, slug);
       if (result) return { listing: result.dto, tax: result.tax };
     }
