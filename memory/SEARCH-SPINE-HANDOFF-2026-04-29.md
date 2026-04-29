@@ -401,6 +401,32 @@ Validation:
 - `npm run compliance-check` passed: 87/87
 - `npm run lint` passed
 
+## Twelfth Implemented Slice
+
+Goal: continue CRM `/api/idx/search` migration with a behavior-preserving extraction before touching Trestle fetch or CRM result mapping.
+
+Added:
+
+- `lib/search/crm-idx-filter.ts`
+  - Extracts the CRM IDX OData filter builder from `app/api/idx/search/route.ts`.
+  - Keeps neighborhood alias expansion, OData string escaping, sale/rent filters, status defaults/wildcard, address parsing, date filters, building/management/property/ownership filters, safe checkbox filters, safe grid filters, and direct `listingId` lookup.
+- `lib/search/__tests__/crm-idx-filter.test.ts`
+  - Covers sale/rent filters, default and explicit statuses, status wildcard, OData escaping, address search, date/building filters, ownership/property subtype filters, safe checkbox filters, and grid filters.
+
+Updated:
+
+- `app/api/idx/search/route.ts`
+  - Now imports and calls `buildCrmIdxODataFilter(params)`.
+  - Keeps auth, Trestle fetch, distribution gates, media handling, mapping, caching, and response shape unchanged.
+
+Validation:
+
+- `npm run type-check` passed
+- `npx jest --config lib/search/jest.config.js` passed: 181/181
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 ## Recommended Next Move
 
 Do not rewrite all of `/api/listings` at once. It mixes:

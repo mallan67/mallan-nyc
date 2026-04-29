@@ -217,4 +217,19 @@ Validation after the public DB-first search extraction:
 - `npm run compliance-check` passed: 87/87
 - `npm run lint` passed
 
+Follow-up CRM IDX extraction completed next:
+
+- Added `lib/search/crm-idx-filter.ts`.
+- Added `lib/search/__tests__/crm-idx-filter.test.ts`.
+- Updated `app/api/idx/search/route.ts` to call `buildCrmIdxODataFilter(params)`.
+- Kept auth, Trestle fetch, distribution gates, media handling, CRM mapping, cache, and response shape unchanged.
+
+Validation after the CRM IDX filter extraction:
+
+- `npm run type-check` passed
+- `npx jest --config lib/search/jest.config.js` passed: 181/181
+- `npm run lint` passed
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
