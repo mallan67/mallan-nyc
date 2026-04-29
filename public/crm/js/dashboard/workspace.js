@@ -1483,6 +1483,7 @@ var Workspace = (function () {
 
   // ─── Tab: Listings (sent, find & send, reactions, auto-alerts) ──────
   var _clientExternalListingsCache = {};
+  var _clientExternalListingCommentsCache = {};
 
   function _fetchClientExternalListings(clientId) {
     return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/external-listings')
@@ -1540,6 +1541,7 @@ var Workspace = (function () {
             (item.notes ? '<p class="text-xs text-gray-600 mt-1">' + E(item.notes) + '</p>' : '') +
             '<p class="text-[11px] text-gray-400 mt-1">Added ' + E(item.created_at ? D(item.created_at) : '') + (item.source_host ? ' from ' + E(item.source_host) : '') + '</p>' +
             '<div class="flex flex-wrap gap-1 mt-2">' + bucketButtons + '</div>' +
+            '<div class="mt-3 border-t border-amber-100 pt-2" id="wsExternalComments_' + E(item.id) + '">' + UI.loading() + '</div>' +
           '</div>' +
           (item.url ? '<button class="btn btn-xs btn-outline flex-shrink-0" data-url="' + E(encodeURIComponent(item.url)) + '" onclick="window.open(decodeURIComponent(this.getAttribute(\'data-url\')),\'_blank\',\'noopener,noreferrer\')"><i class="fas fa-external-link-alt"></i> Open</button>' : '') +
         '</div>' +
@@ -1547,6 +1549,68 @@ var Workspace = (function () {
     });
     html += '</div>';
     container.innerHTML = html;
+    listings.forEach(function (item) {
+      _renderExternalListingComments(item.id);
+    });
+  }
+
+  function _renderExternalListingComments(externalListingId) {
+    var container = document.getElementById('wsExternalComments_' + externalListingId);
+    if (!container || !_clientId) return;
+    var key = _clientId + ':' + externalListingId;
+
+    if (!_clientExternalListingCommentsCache[key]) {
+      container.innerHTML = UI.loading();
+      MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(_clientId) + '/external-listings/' + encodeURIComponent(externalListingId) + '/comments')
+        .then(function (data) {
+          _clientExternalListingCommentsCache[key] = data.comments || [];
+          _renderExternalListingComments(externalListingId);
+        })
+        .catch(function () {
+          container.innerHTML = '<p class="text-xs text-gray-400">Could not load notes</p>';
+        });
+      return;
+    }
+
+    var comments = _clientExternalListingCommentsCache[key] || [];
+    var html = comments.length === 0
+      ? '<p class="text-xs text-gray-400 mb-2">No notes yet.</p>'
+      : '<div class="space-y-1 mb-2">' + comments.map(function (comment) {
+          return '<div class="rounded-lg bg-white border border-gray-100 px-2 py-1.5">' +
+            '<div class="flex items-center justify-between gap-2">' +
+              '<span class="text-[11px] font-semibold text-gray-700">' + E(comment.author && comment.author.name || 'Mallan NYC') + '</span>' +
+              '<span class="text-[10px] text-gray-400">' + E(comment.created_at ? D(comment.created_at) : '') + '</span>' +
+            '</div>' +
+            '<p class="text-xs text-gray-700 mt-1">' + E(comment.body || '') + '</p>' +
+          '</div>';
+        }).join('') + '</div>';
+
+    html += '<div class="flex gap-2">' +
+      '<input id="wsExternalCommentInput_' + E(externalListingId) + '" class="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs" placeholder="Add note or response...">' +
+      '<button class="btn btn-xs btn-outline" onclick="Workspace._addExternalListingComment(\'' + E(externalListingId) + '\')">Add</button>' +
+    '</div>';
+    container.innerHTML = html;
+  }
+
+  function _addExternalListingComment(externalListingId) {
+    if (!_clientId || !externalListingId) return;
+    var input = document.getElementById('wsExternalCommentInput_' + externalListingId);
+    var body = input ? input.value.trim() : '';
+    if (!body) {
+      CRM.toast('Add a note first', 'warning');
+      return;
+    }
+
+    MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(_clientId) + '/external-listings/' + encodeURIComponent(externalListingId) + '/comments', {
+      method: 'POST',
+      body: JSON.stringify({ body: body, request_type: 'comment' }),
+    }).then(function (data) {
+      var key = _clientId + ':' + externalListingId;
+      _clientExternalListingCommentsCache[key] = (_clientExternalListingCommentsCache[key] || []).concat(data.comment ? [data.comment] : []);
+      _renderExternalListingComments(externalListingId);
+    }).catch(function (err) {
+      CRM.toast('Could not add note: ' + (err.message || 'Unknown error'), 'error');
+    });
   }
 
   function _addExternalListingForClient() {
@@ -5830,6 +5894,7 @@ var Workspace = (function () {
     _exportScenarioSummary: _exportScenarioSummary,
     _addExternalListingForClient: _addExternalListingForClient,
     _updateExternalListingBucket: _updateExternalListingBucket,
+    _addExternalListingComment: _addExternalListingComment,
 
     // Showings
     _addShowingFeedback: _addShowingFeedback,

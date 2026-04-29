@@ -341,4 +341,33 @@ Validation after the external-listing bucket slice:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Follow-up external-listing comments/request-info slice completed next:
+
+- Added `ExternalListingComment` to `prisma/schema.prisma`.
+- Added migration `prisma/migrations/20260429033000_add_external_listing_comments/migration.sql`.
+- Added buyer portal comments API `app/api/portal/external-listings/[id]/comments/route.ts`.
+- Added CRM comments API `app/api/crm/clients/[id]/external-listings/[externalId]/comments/route.ts`.
+- Updated `lib/external-listings/normalize.ts` with comment/request-type normalization and serialization.
+- Updated `app/portal/buyer/page.tsx` so buyers can add notes or request info on Outside Listings.
+- Updated `public/crm/js/dashboard/workspace.js` so agents/brokers can view and reply to external-listing notes from the client Listings tab.
+- External-listing comments remain separate from IDX `Comment` records.
+
+Validation after the external-listing comments slice:
+
+- `npx prisma generate` passed
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run lint` passed
+- `npm run crm:test` passed: 39/39
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+- `npm run ops:health` passed: healthy, storage 44.8%, no sync errors
+
+Deployment note:
+
+- Production must apply both external-listing migrations before this workflow is deployed:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

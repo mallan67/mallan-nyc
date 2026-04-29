@@ -65,6 +65,7 @@ model Agent {
   saved_searches       SavedSearch[]
   seller_leads         SellerLead[]
   external_listings    ExternalListing[]
+  external_listing_comments ExternalListingComment[]
   pricing_experiments  PricingExperiment[]
   demand_alerts        DemandAlert[]
   agent_metrics        AgentMetrics[]
@@ -232,6 +233,7 @@ model Lead {
   family_of               FamilyMember[]        @relation("FamilyOf")
   external_listings       ExternalListing[]     @relation("LeadExternalListings")
   submitted_external_listings ExternalListing[] @relation("SubmittedExternalListings")
+  external_listing_comments ExternalListingComment[]
   intent_events           IntentEvent[]
   intent_profile          BuyerIntentProfile?
   lead_score              LeadScore?
@@ -758,6 +760,7 @@ model ExternalListing {
   notes                String?   @db.Text
   status               String    @default("submitted")
   action_bucket        String    @default("saved") @map("action_bucket")
+  comments             ExternalListingComment[]
   created_at           DateTime  @default(now()) @map("created_at")
   updated_at           DateTime  @updatedAt @map("updated_at")
 
@@ -768,6 +771,26 @@ model ExternalListing {
   @@index([status])
   @@index([action_bucket])
   @@map("external_listings")
+}
+
+model ExternalListingComment {
+  id                  BigInt          @id @default(autoincrement())
+  external_listing_id BigInt          @map("external_listing_id")
+  external_listing    ExternalListing @relation(fields: [external_listing_id], references: [id], onDelete: Cascade)
+  lead_id             BigInt?         @map("lead_id")
+  lead                Lead?           @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  agent_id            BigInt?         @map("agent_id")
+  agent               Agent?          @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+  body                String          @db.Text
+  request_type        String          @default("comment") @map("request_type")
+  created_at          DateTime        @default(now()) @map("created_at")
+  updated_at          DateTime        @updatedAt @map("updated_at")
+
+  @@index([external_listing_id])
+  @@index([lead_id])
+  @@index([agent_id])
+  @@index([request_type])
+  @@map("external_listing_comments")
 }
 
 model ListingView {

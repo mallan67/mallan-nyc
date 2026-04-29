@@ -132,3 +132,55 @@ export function serializeExternalListing(listing: {
     updated_at: listing.updated_at.toISOString(),
   };
 }
+
+export function normalizeExternalListingCommentBody(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const body = value.trim();
+  if (!body || body.length > 2000) return null;
+  return body;
+}
+
+export function normalizeExternalListingRequestType(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (raw === "request_info" || raw === "showing_request") return raw;
+  return "comment";
+}
+
+export function serializeExternalListingComment(comment: {
+  id: bigint;
+  external_listing_id: bigint;
+  lead_id: bigint | null;
+  agent_id: bigint | null;
+  body: string;
+  request_type: string;
+  created_at: Date;
+  lead?: { id: bigint; first_name: string; last_name: string; email: string } | null;
+  agent?: { id: bigint; first_name: string; last_name: string; email: string } | null;
+}) {
+  const leadName = comment.lead ? `${comment.lead.first_name} ${comment.lead.last_name}`.trim() : null;
+  const agentName = comment.agent ? `${comment.agent.first_name} ${comment.agent.last_name}`.trim() : null;
+  return {
+    id: comment.id.toString(),
+    external_listing_id: comment.external_listing_id.toString(),
+    lead_id: comment.lead_id?.toString() ?? null,
+    agent_id: comment.agent_id?.toString() ?? null,
+    body: comment.body,
+    request_type: comment.request_type,
+    author: comment.lead
+      ? {
+          type: "lead",
+          id: comment.lead.id.toString(),
+          name: leadName || comment.lead.email,
+          email: comment.lead.email,
+        }
+      : comment.agent
+        ? {
+            type: "agent",
+            id: comment.agent.id.toString(),
+            name: agentName || comment.agent.email,
+            email: comment.agent.email,
+          }
+        : null,
+    created_at: comment.created_at.toISOString(),
+  };
+}

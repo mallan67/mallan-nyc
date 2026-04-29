@@ -58,6 +58,15 @@ interface Comment {
   created_at: string;
 }
 
+interface ExternalListingComment {
+  id: string;
+  external_listing_id: string;
+  body: string;
+  request_type: string;
+  author: { type: string; id: string; name: string; email: string } | null;
+  created_at: string;
+}
+
 interface Showing {
   id: string;
   listing_id: string;
@@ -206,6 +215,8 @@ export default function BuyerPortalPage() {
   const [commentsOpen, setCommentsOpen] = useState<Record<string, boolean>>({});
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [commentSubmitting, setCommentSubmitting] = useState<Record<string, boolean>>({});
+  const [externalCommentsMap, setExternalCommentsMap] = useState<Record<string, ExternalListingComment[]>>({});
+  const [externalCommentDrafts, setExternalCommentDrafts] = useState<Record<string, string>>({});
 
   /* ── Listing request form ── */
   const [listingReqOpen, setListingReqOpen] = useState(false);
@@ -370,6 +381,15 @@ export default function BuyerPortalPage() {
     fetchFamily();
   }, [ready, fetchListings, fetchExternalListings, fetchShowings, fetchPreferences, fetchFamily]);
 
+  useEffect(() => {
+    if (!ready || externalListings.length === 0) return;
+    externalListings.forEach((item) => {
+      if (externalCommentsMap[item.id] === undefined) {
+        fetchExternalListingComments(item.id);
+      }
+    });
+  }, [ready, externalListings, externalCommentsMap]);
+
   /* ───────── Reactions ───────── */
 
   async function handleReaction(listingId: string, action: string) {
@@ -510,6 +530,44 @@ export default function BuyerPortalPage() {
   }
 
   /* ───────── Showing Request ───────── */
+
+  async function fetchExternalListingComments(externalListingId: string) {
+    try {
+      const res = await fetch(`/api/portal/external-listings/${externalListingId}/comments`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setExternalCommentsMap((prev) => ({ ...prev, [externalListingId]: data.comments || [] }));
+    } catch {
+      setExternalCommentsMap((prev) => ({ ...prev, [externalListingId]: [] }));
+    }
+  }
+
+  async function submitExternalListingComment(externalListingId: string, requestType: 'comment' | 'request_info' = 'comment') {
+    const body = externalCommentDrafts[externalListingId]?.trim();
+    if (!body) return;
+    try {
+      const res = await fetch(`/api/portal/external-listings/${externalListingId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body, request_type: requestType }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Failed to send note', 'error');
+        return;
+      }
+      const data = await res.json();
+      if (data.comment) {
+        setExternalCommentsMap((prev) => ({
+          ...prev,
+          [externalListingId]: [...(prev[externalListingId] || []), data.comment],
+        }));
+      }
+      setExternalCommentDrafts((prev) => ({ ...prev, [externalListingId]: '' }));
+    } catch {
+      showToast('Failed to send note', 'error');
+    }
+  }
 
   function openShowingModal(listingId: string) {
     setShowingModalListingId(listingId);
@@ -941,6 +999,47 @@ export default function BuyerPortalPage() {
                                   </button>
                                 );
                               })}
+                            </div>
+                            <div className="mt-4 border-t border-gray-100 pt-3">
+                              <p className="text-xs font-semibold text-gray-700 mb-2">Notes / Requests</p>
+                              {(externalCommentsMap[item.id] || []).length === 0 ? (
+                                <p className="text-xs text-gray-400 mb-2">No notes yet.</p>
+                              ) : (
+                                <div className="space-y-2 mb-3">
+                                  {(externalCommentsMap[item.id] || []).map((comment) => (
+                                    <div key={comment.id} className="rounded-lg bg-gray-50 px-3 py-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-semibold text-gray-700">{comment.author?.name || 'Mallan NYC'}</span>
+                                        <span className="text-[10px] text-gray-400">{fmtDateTime(comment.created_at)}</span>
+                                      </div>
+                                      <p className="text-xs text-gray-700 mt-1">{comment.body}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <textarea
+                                value={externalCommentDrafts[item.id] || ''}
+                                onChange={(e) => setExternalCommentDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                rows={2}
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none resize-none"
+                                placeholder="Ask a question or add context for your agent..."
+                              />
+                              <div className="flex flex-wrap gap-2 justify-end mt-2">
+                                <button
+                                  onClick={() => submitExternalListingComment(item.id, 'comment')}
+                                  disabled={!externalCommentDrafts[item.id]?.trim()}
+                                  className="border border-gray-200 text-gray-600 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                  Add Note
+                                </button>
+                                <button
+                                  onClick={() => submitExternalListingComment(item.id, 'request_info')}
+                                  disabled={!externalCommentDrafts[item.id]?.trim()}
+                                  className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  Request Info
+                                </button>
+                              </div>
                             </div>
                           </div>
                           {item.url && (

@@ -666,3 +666,56 @@ Validation:
 Next recommended slice:
 
 Add comments/request-info threads for external listings, separate from IDX `Comment`, so buyers, family members, agents, and brokers can discuss outside inventory without requiring an IDX `Listing` row.
+
+## Eighteenth Implemented Slice
+
+Goal: add durable comments/request-info threads for external listings, separate from IDX `Comment`.
+
+Added:
+
+- `ExternalListingComment` Prisma model and migration `20260429033000_add_external_listing_comments`.
+  - Stores comments and request-info records for non-IDX external listings.
+  - Supports buyer/lead-authored and agent-authored comments.
+  - Keeps these records isolated from IDX `Listing` and `Comment`.
+- `app/api/portal/external-listings/[id]/comments/route.ts`
+  - Buyer-owned GET/POST thread endpoint.
+  - Allows comment and request-info entries.
+  - Logs `external_listing_comment_added`.
+  - Records buyer portal events.
+- `app/api/crm/clients/[id]/external-listings/[externalId]/comments/route.ts`
+  - Agent/broker GET/POST thread endpoint.
+  - Agents scoped to assigned clients; brokers can access all clients.
+  - Logs `external_listing_comment_added_by_agent`.
+
+Updated:
+
+- `lib/external-listings/normalize.ts`
+  - Adds comment body/request-type normalization and comment serialization.
+- `app/portal/buyer/page.tsx`
+  - Shows notes/request-info threads under each Outside Listing.
+  - Buyers can add notes or send request-info messages to their agent.
+- `public/crm/js/dashboard/workspace.js`
+  - Shows external-listing notes in the CRM client Listings tab.
+  - Agents/brokers can reply from the same Outside Listings card.
+
+Validation:
+
+- `npx prisma generate` passed
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run lint` passed
+- `npm run crm:test` passed: 39/39
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+- `npm run ops:health` passed: healthy, storage 44.8%, no sync errors
+
+Deployment note:
+
+- Production now needs both external-listing migrations before this workflow can run safely:
+  - `20260429030000_add_external_listings`
+  - `20260429033000_add_external_listing_comments`
+
+Next recommended slice:
+
+Add external-listing showing/request workflow so a buyer can ask to tour or investigate an outside listing without requiring an IDX `Listing` row.
