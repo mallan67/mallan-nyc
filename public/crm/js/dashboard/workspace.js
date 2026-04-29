@@ -1482,6 +1482,104 @@ var Workspace = (function () {
   }
 
   // ─── Tab: Listings (sent, find & send, reactions, auto-alerts) ──────
+  var _clientExternalListingsCache = {};
+
+  function _fetchClientExternalListings(clientId) {
+    return MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(clientId) + '/external-listings')
+      .then(function (data) {
+        _clientExternalListingsCache[clientId] = data.external_listings || [];
+        return _clientExternalListingsCache[clientId];
+      });
+  }
+
+  function _renderClientExternalListings() {
+    var container = document.getElementById('wsClientExternalListings');
+    if (!container || !_clientId) return;
+
+    if (!_clientExternalListingsCache[_clientId]) {
+      container.innerHTML = UI.loading();
+      _fetchClientExternalListings(_clientId).then(function () {
+        _renderClientExternalListings();
+      }).catch(function (err) {
+        container.innerHTML = '<p class="text-sm text-red-500">Could not load outside listings: ' + E(err.message || 'Unknown error') + '</p>';
+      });
+      return;
+    }
+
+    var listings = _clientExternalListingsCache[_clientId] || [];
+    if (listings.length === 0) {
+      container.innerHTML = '<p class="text-sm text-gray-500">No outside listings added yet.</p>';
+      return;
+    }
+
+    var html = '<div class="space-y-2">';
+    listings.forEach(function (item) {
+      var title = item.title || item.address || item.source_host || 'Outside listing';
+      var bucketClass = item.action_bucket === 'liked' ? 'bg-green-50 text-green-700' :
+        item.action_bucket === 'disliked' ? 'bg-red-50 text-red-700' :
+        item.action_bucket === 'discuss' ? 'bg-purple-50 text-purple-700' :
+        item.action_bucket === 'seen' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600';
+      html += '<div class="p-3 rounded-lg border border-amber-100 bg-amber-50/30">' +
+        '<div class="flex items-start justify-between gap-3">' +
+          '<div class="min-w-0 flex-1">' +
+            '<div class="flex flex-wrap items-center gap-2 mb-1">' +
+              '<span class="text-[10px] uppercase font-bold tracking-wide text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">Outside Listing</span>' +
+              '<span class="text-[10px] uppercase font-bold tracking-wide rounded-full px-2 py-0.5 ' + bucketClass + '">' + E(item.action_bucket || 'saved') + '</span>' +
+              '<span class="text-[10px] uppercase font-bold tracking-wide text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">' + E(item.status || 'reviewing') + '</span>' +
+            '</div>' +
+            '<p class="text-sm font-semibold text-gray-900 truncate">' + E(title) + '</p>' +
+            (item.address ? '<p class="text-xs text-gray-500 truncate">' + E(item.address) + '</p>' : '') +
+            (item.notes ? '<p class="text-xs text-gray-600 mt-1">' + E(item.notes) + '</p>' : '') +
+            '<p class="text-[11px] text-gray-400 mt-1">Added ' + E(item.created_at ? D(item.created_at) : '') + (item.source_host ? ' from ' + E(item.source_host) : '') + '</p>' +
+          '</div>' +
+          (item.url ? '<button class="btn btn-xs btn-outline flex-shrink-0" data-url="' + E(encodeURIComponent(item.url)) + '" onclick="window.open(decodeURIComponent(this.getAttribute(\'data-url\')),\'_blank\',\'noopener,noreferrer\')"><i class="fas fa-external-link-alt"></i> Open</button>' : '') +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function _addExternalListingForClient() {
+    if (!_clientId) return;
+    var urlEl = document.getElementById('wsExternalListingUrl');
+    var addressEl = document.getElementById('wsExternalListingAddress');
+    var notesEl = document.getElementById('wsExternalListingNotes');
+    var bucketEl = document.getElementById('wsExternalListingBucket');
+    var payload = {
+      url: urlEl ? urlEl.value : '',
+      address: addressEl ? addressEl.value : '',
+      notes: notesEl ? notesEl.value : '',
+      action_bucket: bucketEl ? bucketEl.value : 'saved',
+    };
+
+    if (!payload.url && !payload.address) {
+      CRM.toast('Add a listing URL or address', 'warning');
+      return;
+    }
+
+    MallanAPI._fetch('/api/crm/clients/' + encodeURIComponent(_clientId) + '/external-listings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(function (data) {
+      var current = _clientExternalListingsCache[_clientId] || [];
+      if (data.external_listing) {
+        _clientExternalListingsCache[_clientId] = [data.external_listing].concat(current.filter(function (item) {
+          return item.id !== data.external_listing.id;
+        }));
+      } else {
+        delete _clientExternalListingsCache[_clientId];
+      }
+      if (urlEl) urlEl.value = '';
+      if (addressEl) addressEl.value = '';
+      if (notesEl) notesEl.value = '';
+      CRM.toast('Outside listing added', 'success');
+      _renderClientExternalListings();
+    }).catch(function (err) {
+      CRM.toast('Could not add outside listing: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
   function _clientListings(el) {
     var cl = _client;
     var prefs = cl.preferences || {};
@@ -1501,6 +1599,29 @@ var Workspace = (function () {
     // Client Reactions — visual sentiment cards
     html += '<div class="card"><div class="card-header"><h3>Client Reactions</h3></div>' +
       '<div class="card-body" id="wsClientReactions">' + UI.loading() + '</div></div>';
+
+    html += '<div class="card p-3">' +
+      '<div class="flex items-center justify-between mb-3">' +
+        '<h4 class="text-xs font-bold text-gray-500 uppercase"><i class="fas fa-link mr-1"></i>Outside Listings</h4>' +
+        '<span class="text-[10px] uppercase font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">Not IDX Inventory</span>' +
+      '</div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">' +
+        '<input id="wsExternalListingUrl" type="url" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Listing URL outside IDX">' +
+        '<input id="wsExternalListingAddress" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Address if no URL">' +
+      '</div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-2 mb-3">' +
+        '<input id="wsExternalListingNotes" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Notes for this client">' +
+        '<select id="wsExternalListingBucket" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">' +
+          '<option value="saved">Saved</option>' +
+          '<option value="seen">Seen</option>' +
+          '<option value="liked">Liked</option>' +
+          '<option value="discuss">Discuss</option>' +
+          '<option value="disliked">Disliked</option>' +
+        '</select>' +
+        '<button class="btn btn-sm btn-gold" onclick="Workspace._addExternalListingForClient()"><i class="fas fa-plus mr-1"></i> Add</button>' +
+      '</div>' +
+      '<div id="wsClientExternalListings">' + UI.loading() + '</div>' +
+    '</div>';
 
     // Auto-Alert Settings
     var alertFreq = prefs.alertFrequency || 'daily';
@@ -1544,6 +1665,8 @@ var Workspace = (function () {
     el.innerHTML = html;
 
     // ── Load Sent Listings (API-first, fallback to Events) ──
+    _renderClientExternalListings();
+
     var sentEl = document.getElementById('wsClientSent');
     if (sentEl) {
       sentEl.innerHTML = UI.loading();
@@ -5677,6 +5800,7 @@ var Workspace = (function () {
     _saveScenario: _saveScenario,
     _deleteScenario: _deleteScenario,
     _exportScenarioSummary: _exportScenarioSummary,
+    _addExternalListingForClient: _addExternalListingForClient,
 
     // Showings
     _addShowingFeedback: _addShowingFeedback,

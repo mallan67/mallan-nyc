@@ -1,21 +1,28 @@
-// GET /api/crm/clients/[id]/external-listings
-// Agent/broker view of buyer-submitted non-IDX listings.
+// GET/POST /api/crm/clients/[id]/external-listings
+// Agent/broker view and intake for non-IDX listings tied to a client.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { isAuthError, requireAgentOrBroker } from "@/lib/auth";
+import { isAuthError, logAuditEvent, requireAgentOrBroker } from "@/lib/auth";
+import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
-import { serializeExternalListing } from "@/lib/external-listings/normalize";
+import {
+  normalizeExternalListingInput,
+  serializeExternalListing,
+  validateExternalListingInput,
+} from "@/lib/external-listings/normalize";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function GET(req: NextRequest, { params }: RouteParams) {
+async function loadAuthorizedLead(req: NextRequest, id: string) {
   const auth = await requireAgentOrBroker(req);
-  if (isAuthError(auth)) return auth;
+  if (isAuthError(auth)) return { auth, response: auth };
 
-  const { id } = await params;
   const leadId = safeBigInt(id);
   if (!leadId) {
-    return NextResponse.json({ error: "Invalid client id" }, { status: 400 });
+    return {
+      auth,
+      response: NextResponse.json({ error: "Invalid client id" }, { status: 400 }),
+    };
   }
 
   const lead = await prisma.lead.findUnique({
@@ -30,12 +37,27 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   });
 
   if (!lead) {
-    return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    return {
+      auth,
+      response: NextResponse.json({ error: "Client not found" }, { status: 404 }),
+    };
   }
 
   if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    return {
+      auth,
+      response: NextResponse.json({ error: "Access denied" }, { status: 403 }),
+    };
   }
+
+  return { auth, lead, response: null };
+}
+
+export async function GET(req: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const access = await loadAuthorizedLead(req, id);
+  if (access.response) return access.response;
+  const { lead } = access;
 
   const externalListings = await prisma.externalListing.findMany({
     where: { lead_id: lead.id },
@@ -64,4 +86,76 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         : null,
     })),
   });
+}
+
+export async function POST(req: NextRequest, { params }: RouteParams) {
+  const blocked = assertWriteAllowed();
+  if (blocked) return blocked;
+
+  const { id } = await params;
+  const access = await loadAuthorizedLead(req, id);
+  if (access.response) return access.response;
+  const { auth, lead } = access;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const normalized = normalizeExternalListingInput(body);
+  const inputError = validateExternalListingInput(normalized);
+  if (inputError) {
+    return NextResponse.json({ error: inputError }, { status: 400 });
+  }
+
+  const agentId = lead.agent_id ?? auth.userId;
+  const status = typeof body.status === "string" ? normalized.status : "reviewing";
+  const data = {
+    lead_id: lead.id,
+    submitted_by_lead_id: null,
+    agent_id: agentId,
+    ...normalized,
+    status,
+  };
+
+  const listing = normalized.normalized_url
+    ? await prisma.externalListing.upsert({
+        where: {
+          lead_id_normalized_url: {
+            lead_id: lead.id,
+            normalized_url: normalized.normalized_url,
+          },
+        },
+        update: {
+          url: normalized.url,
+          source_host: normalized.source_host,
+          address: normalized.address,
+          title: normalized.title,
+          notes: normalized.notes,
+          status,
+          action_bucket: normalized.action_bucket,
+          agent_id: agentId,
+        },
+        create: data,
+      })
+    : await prisma.externalListing.create({ data });
+
+  await logAuditEvent(
+    "external_listing_added_by_agent",
+    "lead",
+    lead.id.toString(),
+    auth,
+    {
+      external_listing_id: listing.id.toString(),
+      url: listing.normalized_url,
+      address: listing.address,
+      action_bucket: listing.action_bucket,
+      status: listing.status,
+    },
+    req.headers.get("x-forwarded-for") ?? undefined,
+  );
+
+  return NextResponse.json({ external_listing: serializeExternalListing(listing) }, { status: 201 });
 }

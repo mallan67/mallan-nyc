@@ -283,4 +283,22 @@ Validation after the buyer external-listing slice:
 - `npm run test:compliance` passed: 194/194
 - `npm run compliance-check` passed: 87/87
 
+Follow-up broker/agent external-listing completion completed next:
+
+- Updated `app/api/crm/clients/[id]/external-listings/route.ts` with `POST`.
+- Agents can add outside listings for assigned clients; brokers can add them for any client.
+- Agent-created outside listings use the same URL normalization and validation as buyer portal submissions.
+- Updated `public/crm/js/dashboard/workspace.js` with an Outside Listings card in the client Listings tab.
+- The card lets agents/brokers add URL/address/notes/bucket and view existing outside listings labeled as not IDX inventory.
+
+Validation after the broker/agent external-listing slice:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
+
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*

@@ -561,3 +561,33 @@ Validation:
 Recommended next buyer slice:
 
 Add bucket-changing actions for external listings (`seen`, `liked`, `disliked`, `discuss`) and expose those buckets in the agent/broker CRM client workspace alongside IDX listing reactions.
+
+## Sixteenth Implemented Slice
+
+Goal: let brokers and agents add outside inventory for a client from the CRM, because IDX Plus Web API coverage may not include every listing source agents need to consider.
+
+Updated:
+
+- `app/api/crm/clients/[id]/external-listings/route.ts`
+  - Added `POST`.
+  - Agents can add outside listings for assigned clients.
+  - Brokers can add outside listings for any client.
+  - Uses the same external-listing normalization and validation as the buyer portal.
+  - Upserts by normalized URL per client when a URL exists.
+  - Defaults agent-created records to `reviewing` status.
+  - Logs `external_listing_added_by_agent`.
+- `public/crm/js/dashboard/workspace.js`
+  - Added an Outside Listings card to the client Listings tab.
+  - Agents/brokers can enter an outside listing URL, address, notes, and bucket.
+  - Displays existing outside listings with clear “Not IDX Inventory” labeling.
+  - Keeps outside inventory separate from IDX search and sent IDX listing records.
+
+Validation:
+
+- `npm run type-check` passed
+- `node --check public/crm/js/dashboard/workspace.js` passed
+- `npm run crm:test` passed: 39/39
+- `npm run lint` passed
+- `npx jest --config lib/external-listings/jest.config.js` passed: 4/4
+- `npm run test:compliance` passed: 194/194
+- `npm run compliance-check` passed: 87/87
