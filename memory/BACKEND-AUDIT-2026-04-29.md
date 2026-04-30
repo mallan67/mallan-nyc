@@ -1374,3 +1374,85 @@ All six sit local-only awaiting explicit push authorization.
 
 Phase 1 — PLUTO ingest. Per Maya's "compliance and then pluto" order. Will likely be a `scripts/scanner/pluto-ingest.ts` that downloads NYC MapPLUTO, filters to Manhattan + corridor polygon, writes to `data/scanner/pluto-corridor.csv` (or similar). No DB writes in v0 — flat file, idempotent, re-runnable. Each row passes through `isInCorridor(lat, lng)` before inclusion.
 
+---
+
+## 2026-04-30 · Off-market scanner — Phase 1 PLUTO ingest pipeline (flat-file, streaming)
+
+Built per "compliance and then pluto" directive. Streaming CSV pipeline; constant memory regardless of input size. PLUTO Manhattan CSV (~200MB) processes in 1-2 minutes on a laptop. Filter logic pulled into a pure module so it's testable without downloading 500MB of real data.
+
+### What shipped
+
+| File | Role |
+|---|---|
+| `lib/scanner/pluto-filter.ts` | Pure filter functions: `isManhattanCorridorRow()`, `isResidentialOrMixed()`, `isProspectableOwnerType()`, `isScannableProspect()`, `projectPlutoRow()` (31 columns), `processRow()` (full pipeline + stats accumulator), `emptyStats()`. |
+| `lib/scanner/__tests__/pluto-filter.test.ts` | 38 tests — composite filter, normalization, projection, stats accumulation, realistic mixed-batch scenarios. |
+| `scripts/scanner/pluto-ingest.ts` | Streaming CSV ingest. Tiny inline CSV parser (handles quoted commas). Per-100k-row progress chatter. Writes `data/scanner/pluto-corridor.csv` (gitignored) + `data/scanner/pluto-manifest.json` (committed) + optional `pluto-corridor.sample.csv` for tests/reference. |
+| `data/scanner/.gitignore` | Excludes large outputs (`pluto-corridor.csv`, `acris-*.csv`, `dof-*.csv`, `dob-*.csv`, `hpd-*.csv`, `*.ndjson`); keeps the manifest, sample, source-of-truth files. |
+| `data/scanner/pluto-fixture.csv` | 10-row synthetic fixture for smoke-testing the script. Mix of Manhattan-corridor / Manhattan-Harlem / Brooklyn / non-residential / government / bad-geo rows. |
+| `package.json` | Added `scanner:pluto-ingest` script. |
+
+### Filter pipeline
+
+Each PLUTO row goes through 5 gates in order, each with separate stats:
+
+1. **BoroCode = "1"** — drop non-Manhattan rows early (cheapest check).
+2. **Lat/Lng valid** (non-empty, finite) — drop bad-geo separately so we can measure geocoding completeness.
+3. **`isInCorridor(lat, lng)`** from `lib/geo/manhattan-corridor.ts`.
+4. **LandUse ∈ {01,02,03,04,05,06}** (residential / mixed-residential / commercial); drop industrial, transp/utility, public, parking, vacant.
+5. **OwnerType ∈ {P, X, M, blank}** (private / mixed / misc); drop city / other-government.
+
+Kept rows are projected to 31 columns (BBL, BoroCode, Block, Lot, Address, ZipCode, OwnerName, OwnerType, LandUse, BldgClass, UnitsRes, UnitsTotal, YearBuilt, YearAlter1/2, Assess*, Exempt*, BuiltFAR, ResidFAR, CommFAR, Latitude, Longitude, CondoNo, HistDist, Landmark, LotArea, BldgArea, NumFloors, ZoneDist1) — ~5x smaller than full PLUTO width.
+
+### Smoke results against synthetic fixture
+
+10 rows in, expected 5 kept (rows 1, 2, 6, 9, 10) + 5 specific drops (one each per drop class). Actual:
+
+```
+rows seen: 10 · Manhattan: 9 · corridor: 7 · kept: 5
+drops · outside_manhattan: 1 (Brooklyn row)
+drops · outside_corridor:  1 (Harlem row)
+drops · non_residential:   1 (subway easement, LandUse=08)
+drops · gov_owner:         1 (NYC Housing Auth, OwnerType=C)
+drops · bad_geo:           1 (empty Lat/Lng)
+unique owners (est):       5
+unique addresses (est):    5
+```
+
+All counters match expected. Manifest written + sample CSV written.
+
+### Test results
+
+- 38/38 PASS pluto-filter suite
+- 19/19 PASS suppression suite (no regressions)
+- Combined `npm run test:scanner`: 57/57 PASS
+- 67/67 PASS corridor suite
+- `npx tsc --noEmit`: exit 0
+
+### What's NOT done in this slice
+
+- **Real PLUTO download.** Operator runs `npm run scanner:pluto-ingest -- --input <local-pluto.csv>` after downloading from NYC DCP. Auto-download deferred (download URL is versioned + 500MB; better as a manual operator step).
+- **DB persistence.** PLUTO data lives as flat CSV. No schema, no Neon migration. Future ACRIS / DOF / DOB ingests will follow the same flat-file pattern, joinable by BBL.
+- **Owner de-duping across LLCs.** PLUTO owner_name is the legal owner-of-record (often LLC/Trust); collapsing one LLC across multiple BBLs requires ACRIS join. Phase 2.
+- **Co-op shareholder visibility.** PLUTO shows the corp as owner for co-op buildings, not individual shareholders. Will need ACRIS stock-transfer ingest for unit-level visibility. Phase 2.
+
+### Push state
+
+`origin/main` at `5b164553`. Local commits ahead of origin (chronological):
+- `dde1819a` docs(memory): RESO toolkit + corrections
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- `078769bb` feat(scanner): Manhattan luxury corridor primitive
+- `091910fd` feat(scanner): Phase 0 compliance gate (flat-file)
+- (this commit) feat(scanner): Phase 1 PLUTO ingest pipeline + 38 tests
+
+All seven sit local-only awaiting explicit push authorization.
+
+### Next slice options
+
+- **ACRIS ingest** — deeds + lis pendens + estate transfers. Strongest single sell-signal (lis pendens). Same flat-file pattern as PLUTO.
+- **DOF property tax delinquency / lien sale list** — tax-distress signal.
+- **DOB violations** — building-condition signal.
+- **Stand up the actual scoring engine** — combines PLUTO + (whichever signal sources are ingested) into a per-BBL seller-intent score.
+- **OwnerSuppression Prisma schema migration** — when multi-broker scaling becomes real and flat-file mallan-suppression-list.json isn't enough.
+

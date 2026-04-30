@@ -1,0 +1,16 @@
+# Full PLUTO corridor output is large (~50–100MB). Re-derive locally
+# from the source CSV via `scripts/scanner/pluto-ingest.ts`.
+pluto-corridor.csv
+
+# ACRIS / DOF / DOB / HPD ingests will land here; same pattern.
+acris-*.csv
+dof-*.csv
+dob-*.csv
+hpd-*.csv
+*.ndjson
+
+# Keep the manifest, sample, source-of-truth files.
+!pluto-manifest.json
+!pluto-corridor.sample.csv
+!compliance/
+!*.json
