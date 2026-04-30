@@ -1456,3 +1456,115 @@ All seven sit local-only awaiting explicit push authorization.
 - **Stand up the actual scoring engine** — combines PLUTO + (whichever signal sources are ingested) into a per-BBL seller-intent score.
 - **OwnerSuppression Prisma schema migration** — when multi-broker scaling becomes real and flat-file mallan-suppression-list.json isn't enough.
 
+---
+
+## 2026-04-30 · ACRIS bulk ingest (lis pendens / foreclosure / tax / estate)
+
+Three-pass streaming join: Master → Legals → Parties. Output is one row per (document_id × bbl × grantor-party) tuple — i.e., one affected-owner-on-an-affected-property record per scanner signal, with full mailing address from the recorded document.
+
+| Doc-type code | Category | Strength as sell-signal |
+|---|---|---|
+| LP, LIS, LPND, LISPD | `lis_pendens` | Strongest — pre-foreclosure litigation notice |
+| FORE, JDF, JDGMT_F | `foreclosure` | Bank has won; still time for workout sale |
+| TAX, NOTL, NTOFL, NYSTAX | `tax_lien` | Tax-distress signal |
+| EATR, EXECUTOR, ADMIN, LBADM | `estate` | Heir wants out (probate transfer or letters) |
+
+The existing `lib/seller-readiness/signals/acris.ts` handles deeds + mortgages via per-BBL Socrata calls — that's complementary, not duplicate. Bulk distress-signal ingest is what was missing.
+
+### Files (commit `f3027c61`)
+
+- `lib/scanner/acris-filter.ts` — pure filter + projection + stats (Master/Legals/Parties row processors)
+- `lib/scanner/__tests__/acris-filter.test.ts` — 58 tests
+- `scripts/scanner/acris-ingest.ts` — 3-pass streaming join I/O wrapper
+- `data/scanner/acris-{master,legals,parties}-fixture.csv` — synthetic fixtures
+- `data/scanner/.gitignore` — allow `*-fixture.csv` through
+- `package.json` — `scanner:acris-ingest`
+
+### Smoke test results (synthetic fixtures, 10/7/10 rows)
+
+```
+Master kept: 7 (3 lis_pendens, 1 foreclosure, 1 tax_lien, 2 estate)
+Drops: 1 deed (not on watchlist), 1 Brooklyn, 1 out-of-window (>730d)
+Legals in corridor: 7 (no clip) / 5 (with whitelist clip to 3 BBLs)
+Output records: 7 / 5
+Unique BBLs: 5 / 3 · Unique owners: 7 / 5
+```
+
+Output schema (per row):
+```
+doc_id, doc_type, category, document_date, recorded_datetime, document_amt,
+bbl, street_number, street_name, unit, property_type,
+party_name, party_address_1, party_address_2,
+party_city, party_state, party_zip, party_country
+```
+
+This is the foundation for verifiable contact records — the `party_name` + full mailing address comes from a court-recorded document, the `doc_id` provides chain of custody (anyone can pull the actual document), and `recorded_datetime` gives currency.
+
+---
+
+## 2026-04-30 · Verifiable contact enrichment foundation
+
+Per Maya's directive: contact info has to be **verifiable** — every field must carry provenance (where it came from, when, whether independently verified, by what method, with what confidence).
+
+### Files (commit pending)
+
+| File | Role |
+|---|---|
+| `lib/scanner/contact/types.ts` | `ContactField` (per-field provenance), `ContactRecord` (aggregated), `SourceContactRow` (adapter input). 10 source enums, 7 verification-method enums, 4-tier confidence enum. |
+| `lib/scanner/contact/aggregator.ts` | `aggregateContacts()` combines multiple source rows into one record. Cross-source agreement upgrades confidence automatically. Active verification (USPS / Twilio Lookup / NeverBounce / owner-response) bumps to high. |
+| `lib/scanner/contact/sources/pluto-mailing.ts` | PLUTO row → SourceContactRow. Owner-of-record name + property address (low-confidence as a contact address — owners may live elsewhere). |
+| `lib/scanner/contact/sources/acris-parties.ts` | ACRIS ingest output row → SourceContactRow. Party name + full mailing address with ACRIS source URL + recorded date. |
+| `lib/scanner/contact/__tests__/aggregator.test.ts` | 18 tests across normalize helpers, single-source, cross-source, active-verification, de-dup, both source adapters end-to-end. |
+
+### Confidence logic
+
+| Condition | Confidence |
+|---|---|
+| Active verification (USPS / Twilio / NeverBounce / owner_response) | **high** |
+| 3+ independent sources agree on normalized value | **high** |
+| 2 sources agree | **medium** |
+| 1 source, no verification | **low** |
+| No usable value | **unverified** |
+
+### Source enums supported
+
+`pluto_mailing` · `acris_party` · `hpd_registration` · `dos_corporation` · `dob_application` · `surrogate_court` · `manual_agent_note` · `broker_referral` · `verified_via_response` · `third_party_skip_trace`
+
+Two source adapters wired so far (PLUTO + ACRIS); the rest are typed for future ingests.
+
+### Verification methods supported
+
+`none` · `usps_address_validation` · `twilio_lookup_carrier` · `smtp_email_validation` · `neverbounce` · `owner_response` · `cross_source_agreement` (auto-derived)
+
+Active verifications are NOT performed in this slice — the architecture accepts a `VerificationMap` keyed by `${kind}:${normalized}` from a caller. Future commit: small wrapper script that runs USPS/Twilio/etc. against the aggregated records.
+
+### Smoke results
+
+- 18/18 PASS aggregator tests
+- 4 suites total, **133/133 PASS**
+- `npx tsc --noEmit`: exit 0
+
+### Push state
+
+`origin/main` at `5b164553`. Local commits ahead of origin (chronological):
+- `dde1819a` docs(memory): RESO toolkit + corrections
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- `078769bb` feat(scanner): Manhattan luxury corridor primitive
+- `091910fd` feat(scanner): Phase 0 compliance gate
+- `337b3c68` feat(scanner): Phase 1 PLUTO ingest pipeline
+- `f3027c61` feat(scanner): ACRIS bulk ingest
+- (this commit) feat(scanner): verifiable contact enrichment foundation
+
+All nine sit local-only awaiting explicit push authorization.
+
+### Next slice options
+
+- **DOF tax delinquency / lien sale list** — tax-distress, fills the financial-pressure signal vector.
+- **DOB violations** — building-condition signal (open class 1/2/3 violations).
+- **HPD building registration** — strongest landlord-side contact source (multi-fam ≥3 units must register; phone + email + agent name are all public).
+- **Surrogate's Court** — estate executor + their attorney's contact info (highest-quality contact for probate-track).
+- **Active verification wrappers** — small modules that run USPS / Twilio Lookup / NeverBounce against aggregated records and feed back into the VerificationMap.
+- **Scoring engine** — combines all signals into a per-BBL seller-intent score, gated through the compliance gate before display.
+
