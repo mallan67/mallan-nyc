@@ -153,11 +153,19 @@ function mapPlutoFromSoda(raw: Record<string, unknown>): PlutoRow {
     }
     return "";
   };
+  /** Socrata returns numeric fields with `.00000` decimals — strip them
+   *  so BBL/Block/Lot are clean string keys for downstream joins. */
+  const intish = (...names: string[]): string => {
+    const raw = get(...names);
+    if (!raw) return "";
+    if (/^\d+(?:\.0+)?$/.test(raw)) return raw.split(".")[0];
+    return raw;
+  };
   return {
-    BBL: get("bbl", "BBL"),
-    BoroCode: get("borocode", "boro_code", "boro"),
-    Block: get("block"),
-    Lot: get("lot"),
+    BBL: intish("bbl", "BBL"),
+    BoroCode: intish("borocode", "boro_code", "boro"),
+    Block: intish("block"),
+    Lot: intish("lot"),
     Address: get("address"),
     ZipCode: get("zipcode", "zip_code"),
     OwnerName: get("ownername", "owner_name"),
