@@ -1874,3 +1874,75 @@ The score is the queue order. The reasons are the talking points + the audit tra
 
 All 12 sit local-only awaiting explicit push authorization.
 
+---
+
+## 2026-04-30 · Aggregator — assembles BblProspect bundles for the scorer
+
+Pure function that walks already-loaded outputs of every upstream filter and produces `BblProspect[]` ready to feed the scoring engine. No I/O. No Prisma. No file reads.
+
+### Joins
+
+| Source | Join key | Result |
+|---|---|---|
+| ACRIS distress signals | BBL exact | `prospect.acris_signals[]` |
+| DOS Corp records | normalized owner_name (exact, fallback to stripped) | `prospect.dos_matches[]` with `match_kind: "exact_normalized" \| "stripped_match"` |
+| Off-market signals | BBL exact | `prospect.off_market_signals[]` |
+| Off-market relist count | BBL exact (caller-supplied Map) | `prospect.off_market_relist_count_24mo` |
+| Ownership duration years | BBL exact (caller-supplied Map) | `prospect.ownership_duration_years` |
+
+### Derived flags
+
+- **`is_dissolved_llc`** — true if any matched DOS Corp record has non-active status
+- **`is_absentee`** — true if any LLC's process-address street-lead differs from the property's. Only computable when DOS match exists; null otherwise (we can't determine absentee for individual owners without DOF tax-bill mailing data)
+- **`ownership_duration_years`** — null until a separate ACRIS deed-history ingest lands (current ACRIS ingest filters to distress doc types only)
+
+### Files
+
+- `lib/scanner/aggregator/build-prospects.ts` — `buildProspects()` pure function + `summarizeAggregator()` stats
+- `lib/scanner/aggregator/__tests__/build-prospects.test.ts` — 23 tests covering basic shape, ACRIS join, DOS Corp join (exact + stripped), derived flags, off-market signals, end-to-end aggregator+scorer realistic 3-BBL scenario, summary stats
+
+### End-to-end test scenario (3 BBLs)
+
+Three corridor BBLs assembled from PLUTO + ACRIS + DOS + off-market:
+
+| BBL | Owner | ACRIS | Off-market | DOS | Tenure | Computed |
+|---|---|---|---|---|---|---|
+| `1015730019` | 400 East 90 Owner LLC | LP 45d ago | Expired 120d ago | Active LLC, addr matches | 32y | not absentee |
+| `1010100007` | Midtown Owner LLC | FORE 30d ago | — | Dissolved LLC, addr differs | — | dissolved + absentee |
+| `1004500001` | Smith Family | — | — | no match | 28y | — |
+
+After scoring:
+- BBL `1015730019` outscores BBL `1010100007` (more converging signals)
+- BBL `1004500001` filtered out (only 10pt < 25 threshold)
+- Both surfacing prospects reach `confidence: high`
+
+### Smoke results
+
+- 23/23 PASS aggregator tests
+- **Combined: 291/291 PASS** across 8 suites
+- `npx tsc --noEmit`: exit 0
+
+### What's NOT in this slice
+
+- **DB-side wrapper script** — `scripts/scanner/build-prospects.ts` would load the four CSVs (PLUTO/ACRIS/DOS Corp + off-market from Prisma), call `buildProspects()`, then `scoreProspects()`, write a single `data/scanner/scored-prospects.csv` + manifest. Mechanical.
+- **ACRIS deed-history ingest** — current ACRIS filter is distress-only; ownership_duration_years requires a parallel ingest of DEED doc types from ACRIS Master.
+- **DOF tax delinquency / lien sale list** — last unbuilt signal source.
+
+### Push state (post-aggregator commit)
+
+13 local commits ahead of `origin/main`. All scanner work and the prior RESO toolkit work sit local-only awaiting explicit push authorization.
+
+## Search / Scanner Handoff Checkpoint â€” 2026-04-30
+
+Current handoff state:
+
+- PR 5E is complete. The search-alerts cron reader was migrated to `listing_search_projection`, and the route now uses the projection-backed runner.
+- PR 5F is not started. It remains gated until the first post-deploy `search_alerts_cron` run is observed clean, with `errored = 0` and no post-deploy `search_alerts_cron_error` rows.
+- The local branch has moved into seller scanner work. Current top commits are:
+  - `cdecff1a` seller-intent scoring engine
+  - `915b0075` Trestle off-market signal filter
+  - `122a5970` NY DOS Corporation DB ingest
+  - `88b5fad6` verifiable contact enrichment foundation
+  - `f3027c61` ACRIS bulk ingest
+- Seller scanners are the active local thread now. They are separate from the PR 5F search projection gate.
+- No push has been performed.
