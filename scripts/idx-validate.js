@@ -177,6 +177,19 @@ function getListingColumns() {
   return cols;
 }
 
+function getPropertyFieldCoveragePolicy() {
+  const policy = readFile('config/idx/property-field-coverage-policy.json');
+  if (!policy) return { searchCritical: new Set(), fieldReasons: new Map() };
+  try {
+    const parsed = JSON.parse(policy);
+    const fieldReasons = new Map(Object.entries(parsed.fieldReasons || {}));
+    const searchCritical = new Set(parsed.searchCritical || []);
+    return { searchCritical, fieldReasons };
+  } catch {
+    return { searchCritical: new Set(), fieldReasons: new Map() };
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION 1: $select Field Completeness
 // ═══════════════════════════════════════════════════════════════════════════
@@ -295,6 +308,7 @@ function section3() {
   }
 
   // Check mapper coverage of CSV Property fields
+  const { searchCritical, fieldReasons } = getPropertyFieldCoveragePolicy();
   const csvPropertyFields = new Set();
   for (const line of csvLines) {
     const parts = line.split(',');
@@ -304,15 +318,25 @@ function section3() {
   }
 
   const mappedPropertyFields = [...csvPropertyFields].filter(f => allRls.has(f));
-  const unmappedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f));
-  const coveragePct = ((mappedPropertyFields.length / csvPropertyFields.size) * 100).toFixed(1);
+  const intentionallyExcludedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && fieldReasons.has(f));
+  const unclassifiedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && !fieldReasons.has(f));
+  const criticalMissingPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && searchCritical.has(f));
+  const classifiedPct = (((mappedPropertyFields.length + intentionallyExcludedPropertyFields.length) / csvPropertyFields.size) * 100).toFixed(1);
 
-  // 50%+ coverage is expected — mapper only includes fields used by the Listing model
-  if (coveragePct >= 50) {
-    pass(s, `Property field coverage: ${mappedPropertyFields.length}/${csvPropertyFields.size} (${coveragePct}%)`);
+  for (const field of criticalMissingPropertyFields) {
+    critical(s, field, 'Search-critical Property field is missing from mapper.');
+  }
+
+  pass(s, `Property fields: ${csvPropertyFields.size} total`);
+  pass(s, `Property fields mapped: ${mappedPropertyFields.length}`);
+  pass(s, `Property fields intentionally excluded: ${intentionallyExcludedPropertyFields.length}`);
+  pass(s, `Property fields classified: ${mappedPropertyFields.length + intentionallyExcludedPropertyFields.length}/${csvPropertyFields.size} (${classifiedPct}%)`);
+
+  if (unclassifiedPropertyFields.length === 0) {
+    pass(s, 'Property field coverage policy: no unclassified gaps');
   } else {
-    warning(s, `Property field coverage: ${mappedPropertyFields.length}/${csvPropertyFields.size} (${coveragePct}%)`,
-      `${unmappedPropertyFields.length} CSV Property fields not in mapper.`);
+    warning(s, `Property field coverage: ${unclassifiedPropertyFields.length} unclassified gap(s)`,
+      unclassifiedPropertyFields.slice(0, 25).join(', '));
   }
 
   pass(s, `Mapper ALL_RLS_FIELDS: ${allRls.size} unique fields`);
