@@ -2,6 +2,7 @@ var HomeScreen = (function () {
   'use strict';
   var E = Utils.esc;
   var $ = Utils.formatMoney;
+  var _growthItemIndex = {};
 
   function render() {
     CRM.setPanelTitle('Dashboard');
@@ -183,6 +184,10 @@ var HomeScreen = (function () {
     var marketingItems = (growth.marketing_queue || []).slice(0, 5);
     var pipelineItems = (growth.pipeline_queue || []).slice(0, 5);
     var gaps = growth.tool_gaps || [];
+    _growthItemIndex = {};
+    sellerItems.concat(marketingItems, pipelineItems).forEach(function (item) {
+      if (item && item.id) _growthItemIndex[item.id] = item;
+    });
 
     var html = '<div class="max-w-5xl mx-auto mt-6 space-y-4">';
     html += '<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">';
@@ -244,11 +249,25 @@ var HomeScreen = (function () {
       html += '<div class="flex items-start justify-between gap-3">';
       html += '<div class="min-w-0"><div class="text-sm font-semibold text-gray-900 truncate">' + E(item.title || 'Action') + '</div>';
       html += '<div class="text-xs text-gray-500 mt-0.5">' + E(item.detail || '') + '</div>';
-      html += '<div class="text-[11px] text-gray-500 mt-1"><i class="fas fa-arrow-right mr-1"></i>' + E(item.next_action || '') + '</div></div>';
+      html += '<div class="text-[11px] text-gray-500 mt-1"><i class="fas fa-arrow-right mr-1"></i>' + E(item.next_action || '') + '</div>';
+      html += _growthActionButtons(item);
+      html += '</div>';
       html += '<span class="' + _priorityClass(item.priority) + '">' + E(item.priority || 'normal') + '</span>';
       html += '</div></div>';
     });
     html += '</div></div>';
+    return html;
+  }
+
+  function _growthActionButtons(item) {
+    if (!item || !item.lead_id) return '';
+
+    var html = '<div class="mt-2 flex flex-wrap gap-2">';
+    html += '<button type="button" onclick="event.stopPropagation(); HomeScreen.createGrowthTask(\'' + E(item.id) + '\')" class="px-2 py-1 rounded-md bg-gray-900 text-white text-[11px] font-semibold hover:bg-gray-800 transition-colors">Create task</button>';
+    if (item.segment === 'marketing' || item.segment === 'seller' || item.segment === 'landlord' || item.segment === 'tenant') {
+      html += '<button type="button" onclick="event.stopPropagation(); HomeScreen.generateGrowthReport(\'' + E(item.id) + '\')" class="px-2 py-1 rounded-md bg-amber-50 text-amber-800 text-[11px] font-semibold hover:bg-amber-100 transition-colors">Report</button>';
+    }
+    html += '</div>';
     return html;
   }
 
@@ -282,6 +301,68 @@ var HomeScreen = (function () {
       .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
+  function _growthTaskDefaults(item) {
+    var title = 'Follow up on ' + String(item.title || 'client');
+    if (item.segment === 'seller') title = 'Seller follow-up: ' + String(item.title || 'client');
+    if (item.segment === 'marketing') title = 'Send market report to ' + String(item.title || 'client');
+    if (item.segment === 'landlord') title = 'Landlord renewal check-in: ' + String(item.title || 'client');
+    if (item.segment === 'tenant') title = 'Tenant follow-up: ' + String(item.title || 'client');
+
+    return {
+      title: title,
+      description: (item.detail || '') + (item.next_action ? '\nNext: ' + item.next_action : ''),
+      due_date: item.due_at || new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+      priority: item.priority || 'normal',
+      task_type: item.type || 'follow_up',
+    };
+  }
+
+  function createGrowthTask(itemId) {
+    var item = _growthItemIndex[itemId];
+    if (!item || !item.lead_id) {
+      CRM.toast('Action not available', 'warning');
+      return;
+    }
+
+    var payload = _growthTaskDefaults(item);
+    payload.lead_id = item.lead_id;
+
+    MallanAPI._fetch('/api/crm/tasks', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then(function () {
+      CRM.toast('Task created', 'success');
+    }).catch(function (err) {
+      CRM.toast('Failed to create task: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  function generateGrowthReport(itemId) {
+    var item = _growthItemIndex[itemId];
+    if (!item || !item.lead_id) {
+      CRM.toast('Action not available', 'warning');
+      return;
+    }
+
+    var reportType = 'both';
+    if (item.segment === 'seller') reportType = 'sale';
+    if (item.segment === 'landlord' || item.segment === 'tenant') reportType = 'rent';
+    if (item.type === 'seller_comps_due') reportType = 'sale';
+    if (item.type === 'monthly_report_due' || item.type === 'quarterly_report_due') reportType = item.segment === 'marketing' ? 'both' : reportType;
+
+    MallanAPI._fetch('/api/crm/market-report', {
+      method: 'POST',
+      body: JSON.stringify({
+        report_type: reportType,
+        period: 'current',
+      }),
+    }).then(function () {
+      CRM.toast('Market report requested', 'success');
+    }).catch(function (err) {
+      CRM.toast('Failed to generate report: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
   function _statRow(icon, iconColor, label, value, valueClass) {
     return '<div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">' +
       '<div class="flex items-center gap-3">' +
@@ -292,5 +373,5 @@ var HomeScreen = (function () {
     '</div>';
   }
 
-  return { render: render, assignLead: assignLead };
+  return { render: render, assignLead: assignLead, createGrowthTask: createGrowthTask, generateGrowthReport: generateGrowthReport };
 })();

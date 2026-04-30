@@ -2124,3 +2124,10 @@ All four sit local-only awaiting explicit push authorization.
 - `scripts/backfill-listing-search-projection.ts`: executed in bounded mode and closed the projection gap from 3 missing rows to 0.
 - `reso:analyze` now reports `Listings missing projection: 0`.
 - Media observation window remains active through `2026-05-02 06:00:42 ET`; PR 4 is still blocked until then.
+
+## 2026-04-30 growth tools action wiring
+
+- The CRM Growth Tools dashboard is no longer read-only.
+- Queue items can now create follow-up tasks via the existing `/api/crm/tasks` route.
+- Seller, landlord, tenant, and marketing items can request market reports through `/api/crm/market-report`.
+- This is a bounded CRM improvement only; public search and media behavior were left alone.

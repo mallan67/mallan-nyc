@@ -2145,3 +2145,10 @@ Current handoff state:
 - `reso:analyze` now reports `Listings missing projection: 0`.
 - Media observation window remains active through `2026-05-02 06:00:42 ET`; PR 4 is still blocked until then.
 - No unrelated dirty files were bundled into this cleanup pass.
+
+## 2026-04-30 growth tools action wiring
+
+- The CRM Growth Tools panel now exposes real action buttons on queue items.
+- Queue items can create follow-up tasks through `/api/crm/tasks`.
+- Marketing, seller, landlord, and tenant items can request a market report through `/api/crm/market-report`.
+- This stayed within existing endpoints and did not require schema or migration changes.
