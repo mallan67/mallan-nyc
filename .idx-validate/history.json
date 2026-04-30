@@ -1,19 +1,5 @@
 [
   {
-    "timestamp": "2026-04-07T07:33:39.538Z",
-    "pass": 792,
-    "critical": 0,
-    "warning": 4,
-    "info": 38
-  },
-  {
-    "timestamp": "2026-04-07T07:46:03.623Z",
-    "pass": 790,
-    "critical": 0,
-    "warning": 4,
-    "info": 22
-  },
-  {
     "timestamp": "2026-04-07T07:56:19.079Z",
     "pass": 790,
     "critical": 0,
@@ -348,5 +334,19 @@
     "critical": 0,
     "warning": 0,
     "info": 29
+  },
+  {
+    "timestamp": "2026-04-30T20:06:25.394Z",
+    "pass": 1271,
+    "critical": 0,
+    "warning": 1,
+    "info": 37
+  },
+  {
+    "timestamp": "2026-04-30T20:07:05.682Z",
+    "pass": 1272,
+    "critical": 0,
+    "warning": 0,
+    "info": 37
   }
 ]

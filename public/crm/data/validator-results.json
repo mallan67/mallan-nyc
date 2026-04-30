@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-04-30T20:00:18.561Z",
-  "pass": 1257,
+  "timestamp": "2026-04-30T20:07:05.683Z",
+  "pass": 1272,
   "critical": 0,
   "warning": 0,
-  "info": 29,
+  "info": 37,
   "sections": [
     {
       "section": 1,
@@ -27,7 +27,7 @@
       "section": 3,
       "title": "Field Count Verification",
       "category": "IDX Pipeline",
-      "pass": 18,
+      "pass": 22,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -54,10 +54,10 @@
       "section": 6,
       "title": "Picklist / Value Canonicalization",
       "category": "IDX Pipeline",
-      "pass": 2,
+      "pass": 14,
       "critical": 0,
       "warning": 0,
-      "info": 0
+      "info": 8
     },
     {
       "section": 7,
@@ -288,7 +288,7 @@
       "section": 32,
       "title": "Run History & Trends",
       "category": "Platform",
-      "pass": 3,
+      "pass": 2,
       "critical": 0,
       "warning": 0,
       "info": 0

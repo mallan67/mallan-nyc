@@ -16,7 +16,7 @@
     "PropertySubType",
     "ListPrice",
     "BedroomsTotal",
-    "BathroomsTotal",
+    "BathroomsTotalInteger",
     "LivingArea",
     "ModificationTimestamp"
   ],

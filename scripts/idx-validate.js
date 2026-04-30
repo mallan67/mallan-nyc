@@ -72,6 +72,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { parse } = require('csv-parse/sync');
 
 const ROOT = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -190,6 +191,45 @@ function getPropertyFieldCoveragePolicy() {
   }
 }
 
+function parseCsvRows(content) {
+  return parse(content, {
+    bom: true,
+    relax_column_count: true,
+    skip_empty_lines: true,
+  });
+}
+
+function getRebnyFieldRows() {
+  const csv = readFile('data/rebny-rls-property-fields.csv');
+  if (!csv) return null;
+  return parseCsvRows(csv)
+    .map((row) => ({
+      name: String(row[1] || '').trim(),
+      resource: String(row[5] || '').trim() || 'Unknown',
+    }))
+    .filter((row) => row.name && row.name !== 'Attribute Name - Current System');
+}
+
+function getRebnyLookupPicklists() {
+  const lookup = readFile('data/rebny-rls-property-lookup.csv');
+  if (!lookup) return null;
+  const picklists = {};
+  for (const row of parseCsvRows(lookup)) {
+    const table = String(row[1] || '').trim();
+    const lookupName = String(row[2] || '').trim();
+    const lookupValue = String(row[3] || '').trim();
+    const matrixName = String(row[5] || '').trim();
+    const matrixValue = String(row[6] || '').trim();
+    if (table !== 'Property') continue;
+    for (const [field, value] of [[lookupName, lookupValue], [matrixName, matrixValue]]) {
+      if (!field || !value || field === 'LookupName (Current)' || value === 'Value (Current)') continue;
+      if (!picklists[field]) picklists[field] = new Set();
+      picklists[field].add(value);
+    }
+  }
+  return picklists;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION 1: $select Field Completeness
 // ═══════════════════════════════════════════════════════════════════════════
@@ -277,20 +317,14 @@ function section3() {
   const s = startSection(3, 'Field Count Verification', 'IDX Pipeline');
   const { allRls, excluded, select } = getMapperFields();
 
-  // Check CSV (902 IDX Plus fields)
-  const csv = readFile('data/rebny-rls-property-fields.csv');
-  if (!csv) { warning(s, 'rebny-rls-property-fields.csv', 'File not found'); return; }
-  const csvLines = csv.split('\n').filter(l => l.trim() && !l.startsWith(',Attribute') && l.includes(','));
+  // Check CSV (IDX Plus field reference)
+  const fieldRows = getRebnyFieldRows();
+  if (!fieldRows) { warning(s, 'rebny-rls-property-fields.csv', 'File not found'); return; }
   const csvFields = new Set();
   const csvByResource = {};
-  for (const line of csvLines) {
-    const parts = line.split(',');
-    const name = parts[1]?.trim();
-    const resource = parts[5]?.trim() || 'Unknown';
-    if (name) {
-      csvFields.add(name);
-      csvByResource[resource] = (csvByResource[resource] || 0) + 1;
-    }
+  for (const { name, resource } of fieldRows) {
+    csvFields.add(name);
+    csvByResource[resource] = (csvByResource[resource] || 0) + 1;
   }
 
   pass(s, `CSV total: ${csvFields.size} IDX Plus fields across ${Object.keys(csvByResource).length} resources`);
@@ -310,17 +344,18 @@ function section3() {
   // Check mapper coverage of CSV Property fields
   const { searchCritical, fieldReasons } = getPropertyFieldCoveragePolicy();
   const csvPropertyFields = new Set();
-  for (const line of csvLines) {
-    const parts = line.split(',');
-    const name = parts[1]?.trim();
-    const resource = parts[5]?.trim();
-    if (name && resource === 'Property') csvPropertyFields.add(name);
+  for (const { name, resource } of fieldRows) {
+    if (resource === 'Property') csvPropertyFields.add(name);
   }
 
   const mappedPropertyFields = [...csvPropertyFields].filter(f => allRls.has(f));
   const intentionallyExcludedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && fieldReasons.has(f));
   const unclassifiedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && !fieldReasons.has(f));
   const criticalMissingPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && searchCritical.has(f));
+  const stalePolicyFields = [...fieldReasons.keys()].filter(f => !csvPropertyFields.has(f));
+  const mappedPolicyFields = [...fieldReasons.keys()].filter(f => csvPropertyFields.has(f) && allRls.has(f));
+  const staleSearchCriticalFields = [...searchCritical].filter(f => !csvPropertyFields.has(f));
+  const noopExcludedFields = [...excluded].filter(f => !allRls.has(f));
   const classifiedPct = (((mappedPropertyFields.length + intentionallyExcludedPropertyFields.length) / csvPropertyFields.size) * 100).toFixed(1);
 
   for (const field of criticalMissingPropertyFields) {
@@ -337,6 +372,30 @@ function section3() {
   } else {
     warning(s, `Property field coverage: ${unclassifiedPropertyFields.length} unclassified gap(s)`,
       unclassifiedPropertyFields.slice(0, 25).join(', '));
+  }
+  if (stalePolicyFields.length === 0) {
+    pass(s, 'Property field coverage policy: no stale field reasons');
+  } else {
+    warning(s, `Property field coverage policy: ${stalePolicyFields.length} stale reason(s)`,
+      `These fields are no longer in the current REBNY Property CSV: ${stalePolicyFields.slice(0, 25).join(', ')}`);
+  }
+  if (mappedPolicyFields.length === 0) {
+    pass(s, 'Property field coverage policy: no mapped fields still marked excluded');
+  } else {
+    warning(s, `Property field coverage policy: ${mappedPolicyFields.length} mapped field(s) still have exclusion reasons`,
+      `Remove no-longer-needed reasons: ${mappedPolicyFields.slice(0, 25).join(', ')}`);
+  }
+  if (staleSearchCriticalFields.length === 0) {
+    pass(s, 'Search-critical field policy: no stale fields');
+  } else {
+    warning(s, `Search-critical field policy: ${staleSearchCriticalFields.length} stale field(s)`,
+      `These fields are no longer in the current REBNY Property CSV: ${staleSearchCriticalFields.join(', ')}`);
+  }
+  if (noopExcludedFields.length === 0) {
+    pass(s, 'IDX_PLUS_EXCLUDED: all excluded fields are present in mapper categories');
+  } else {
+    warning(s, `IDX_PLUS_EXCLUDED: ${noopExcludedFields.length} no-op exclusion(s)`,
+      `These exclusions no longer affect $select because the fields are not in ALL_RLS_FIELDS: ${noopExcludedFields.slice(0, 25).join(', ')}`);
   }
 
   pass(s, `Mapper ALL_RLS_FIELDS: ${allRls.size} unique fields`);
@@ -397,23 +456,10 @@ function section5() {
 // ═══════════════════════════════════════════════════════════════════════════
 function section6() {
   const s = startSection(6, 'Picklist / Value Canonicalization', 'IDX Pipeline');
-  const lookup = readFile('data/rebny-rls-property-lookup.csv');
+  const picklists = getRebnyLookupPicklists();
   const mapper = readFile('lib/idx/trestle-mapper.ts');
   const enforcement = readFile('lib/compliance/rls-enforcement.ts');
-  if (!lookup || !mapper) { warning(s, 'Required files', 'Cannot read'); return; }
-
-  // Parse lookup CSV for field→values map
-  const picklists = {};
-  for (const line of lookup.split('\n').slice(1)) {
-    if (!line.trim()) continue;
-    const parts = line.split(',');
-    const field = parts[0]?.trim();
-    const value = parts[1]?.trim();
-    if (field && value) {
-      if (!picklists[field]) picklists[field] = new Set();
-      picklists[field].add(value);
-    }
-  }
+  if (!picklists || !mapper) { warning(s, 'Required files', 'Cannot read'); return; }
   pass(s, `Parsed ${Object.keys(picklists).length} picklist fields from lookup CSV`);
 
   // Check gate logic uses canonical values
@@ -1902,19 +1948,13 @@ function section39() {
   const s = startSection(39, 'data-field vs Trestle/RESO Validation', 'Search');
 
   const html = readFile('public/crm/index-built.html');
-  const csv = readFile('data/rebny-rls-property-fields.csv');
+  const fieldRows = getRebnyFieldRows();
   if (!html) { warning(s, 'Cannot read index-built.html', ''); return; }
-  if (!csv) { warning(s, 'Cannot read rebny-rls-property-fields.csv', ''); return; }
+  if (!fieldRows) { warning(s, 'Cannot read rebny-rls-property-fields.csv', ''); return; }
 
-  // Parse field names from CSV (column 2, 0-indexed column 1)
+  // Parse field names from the real REBNY IDX Plus CSV.
   const trestleFields = new Set();
-  const csvLines = csv.split('\n');
-  for (const line of csvLines) {
-    const cols = line.split(',');
-    if (cols.length >= 2 && cols[1].trim() && cols[1].trim() !== 'Attribute Name - Current System') {
-      trestleFields.add(cols[1].trim());
-    }
-  }
+  for (const { name } of fieldRows) trestleFields.add(name);
 
   // Also add known RESO standard fields that are on Trestle but may not be in IDX Plus CSV
   // (distribution gates, status fields, etc.)
@@ -2205,9 +2245,7 @@ console.log(`\nFinal: ${totalPass} pass · ${totalCritical} critical · ${totalW
 
 if (validatorHistoryCache) {
   const { historyDir, historyFile, history } = validatorHistoryCache;
-  const historySection = sections.find((sec) => sec.num === 32);
   try {
-    if (historySection) pass(historySection, `Run history saved (${Math.min(history.length + 1, 50)} runs)`);
     const currentRun = {
       timestamp: new Date().toISOString(),
       pass: totalPass, critical: totalCritical, warning: totalWarning, info: totalInfo,
@@ -2216,6 +2254,7 @@ if (validatorHistoryCache) {
     if (!fs.existsSync(historyDir)) fs.mkdirSync(historyDir, { recursive: true });
     fs.writeFileSync(historyFile, JSON.stringify(updatedHistory, null, 2));
   } catch (e) {
+    const historySection = sections.find((sec) => sec.num === 32);
     if (historySection) info(historySection, 'Could not save run history', e.message);
   }
 }
