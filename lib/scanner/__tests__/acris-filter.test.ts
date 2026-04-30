@@ -7,6 +7,10 @@ import {
   isWatchedMasterRow,
   isGrantorParty,
   processMasterRow,
+  isDeedDocType,
+  computeOwnershipDuration,
+  processDeedMasterRow,
+  emptyDeedHistoryStats,
   projectMasterRow,
   projectLegalsRow,
   projectPartyRow,
@@ -313,10 +317,6 @@ describe("projectMasterRow / projectLegalsRow / projectPartyRow", () => {
 });
 
 describe("isDeedDocType + computeOwnershipDuration", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { isDeedDocType, computeOwnershipDuration, processDeedMasterRow, emptyDeedHistoryStats } =
-    require("@/lib/scanner/acris-filter");
-
   test("isDeedDocType matches DEED variants", () => {
     expect(isDeedDocType("DEED")).toBe(true);
     expect(isDeedDocType("DEEDS")).toBe(true);

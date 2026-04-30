@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
 
       const emailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
       if (!emailResult.success) {
-        console.error('[CONTACT] Notification email failed:', emailResult.error);
+        console.error('[CONTACT] Notification email failed: provider error redacted');
       }
     } catch (emailErr) {
       console.error('[CONTACT] [email redacted] notification error (non-fatal):', emailErr);

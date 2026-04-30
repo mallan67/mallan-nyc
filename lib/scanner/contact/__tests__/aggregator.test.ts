@@ -1,6 +1,5 @@
 import {
   aggregateContacts,
-  emptyRecord,
   normalizeName,
   normalizePhone,
   normalizeEmail,

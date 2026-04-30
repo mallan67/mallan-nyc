@@ -2116,3 +2116,11 @@ the delta on stdout.
 - (this commit) chore(reso): Layer-2 tools — snapshot/gate-breakdown/drift/route-catalog/schema-audit
 
 All four sit local-only awaiting explicit push authorization.
+
+## 2026-04-30 cleanup checkpoint
+
+- `app/api/contact/route.ts`: raw email-provider error logging was redacted; the PII logging warning is now gone.
+- `lib/scanner/__tests__/acris-filter.test.ts`, `lib/scanner/contact/__tests__/aggregator.test.ts`, `lib/scanner/scoring/__tests__/scorer.test.ts`: lint warnings cleared.
+- `scripts/backfill-listing-search-projection.ts`: executed in bounded mode and closed the projection gap from 3 missing rows to 0.
+- `reso:analyze` now reports `Listings missing projection: 0`.
+- Media observation window remains active through `2026-05-02 06:00:42 ET`; PR 4 is still blocked until then.

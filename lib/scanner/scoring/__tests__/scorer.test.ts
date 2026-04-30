@@ -5,7 +5,6 @@ import {
   type AcrisDistressSignal,
   type OffMarketSignalRef,
   type DosCorpMatch,
-  type ScoringConfig,
 } from "@/lib/scanner/scoring/types";
 
 const NOW = new Date("2026-04-30T12:00:00Z");
