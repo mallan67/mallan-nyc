@@ -1,12 +1,5 @@
 [
   {
-    "timestamp": "2026-04-06T22:30:27.791Z",
-    "pass": 791,
-    "critical": 0,
-    "warning": 3,
-    "info": 38
-  },
-  {
     "timestamp": "2026-04-06T22:36:50.891Z",
     "pass": 791,
     "critical": 0,
@@ -347,6 +340,13 @@
     "pass": 825,
     "critical": 0,
     "warning": 4,
+    "info": 25
+  },
+  {
+    "timestamp": "2026-04-30T10:47:44.130Z",
+    "pass": 828,
+    "critical": 0,
+    "warning": 1,
     "info": 25
   }
 ]

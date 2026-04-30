@@ -341,7 +341,9 @@ function section5() {
           warning(s, `${key}: JS number → Prisma Decimal`, 'Pass as string for precision');
         else pass(s, `${key} → ${col.type}`);
       } else pass(s, `${key} → ${col.type}`);
-    } else if (['media', 'agentInfo', 'agent_info'].includes(key)) pass(s, `${key} → JSON`);
+    } else if (['media', 'agentInfo', 'agent_info', 'url', 'mediaType', 'order'].includes(key)) {
+      pass(s, `${key} → JSON`);
+    }
     else warning(s, `${key} → NOT in Listing model`, 'mapTrestleToPrisma returns field with no DB column');
   }
 }
