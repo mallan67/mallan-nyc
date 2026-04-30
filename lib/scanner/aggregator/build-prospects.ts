@@ -24,6 +24,7 @@
 import type {
   AcrisDistressSignal,
   BblProspect,
+  DofTaxLienSignalRef,
   DosCorpMatch,
   OffMarketSignalRef,
   PlutoContext,
@@ -73,6 +74,8 @@ export interface AggregatorInput {
   offMarketRelistCounts?: Map<string, number>;
   /** Optional: ACRIS deed history per BBL (years since most recent deed). */
   ownershipDurationYearsByBbl?: Map<string, number>;
+  /** DOF tax lien-sale signals (from dof-tax-ingest output). */
+  dofTaxLiens?: DofTaxLienSignalRef[];
 }
 
 /** Per-BBL aggregation, returned in the same order as the input PLUTO array. */
@@ -166,6 +169,17 @@ function indexOffMarketByBbl(rows: OffMarketInputRow[] = []): Map<string, OffMar
   return out;
 }
 
+function indexDofTaxByBbl(rows: DofTaxLienSignalRef[] = []): Map<string, DofTaxLienSignalRef[]> {
+  const out = new Map<string, DofTaxLienSignalRef[]>();
+  for (const r of rows) {
+    if (!r.bbl) continue;
+    const list = out.get(r.bbl) || [];
+    list.push(r);
+    out.set(r.bbl, list);
+  }
+  return out;
+}
+
 function formatProcessAddress(row: DosCorpProjected): string {
   const parts: string[] = [];
   if (row.process_address_1) parts.push(row.process_address_1);
@@ -251,6 +265,7 @@ export function buildProspects(input: AggregatorInput): AggregateOutput {
   const acrisByBbl = indexAcrisByBbl(input.acris);
   const dos = indexDosCorp(input.dosCorp);
   const offMarketByBbl = indexOffMarketByBbl(input.offMarket);
+  const dofByBbl = indexDofTaxByBbl(input.dofTaxLiens);
 
   const out: BblProspect[] = [];
   for (const plutoRow of input.pluto) {
@@ -259,6 +274,7 @@ export function buildProspects(input: AggregatorInput): AggregateOutput {
     const acris = acrisByBbl.get(plutoRow.BBL) || [];
     const dosMatches = lookupDosMatches(ctx.owner_name, dos);
     const offMarket = offMarketByBbl.get(plutoRow.BBL) || [];
+    const dofTax = dofByBbl.get(plutoRow.BBL) || [];
     const dissolved = deriveDissolvedLlc(dosMatches);
     const absentee = deriveAbsentee(ctx, dosMatches);
 
@@ -269,6 +285,7 @@ export function buildProspects(input: AggregatorInput): AggregateOutput {
       off_market_signals: offMarket.length > 0 ? offMarket : undefined,
       off_market_relist_count_24mo: input.offMarketRelistCounts?.get(plutoRow.BBL) ?? undefined,
       dos_matches: dosMatches.length > 0 ? dosMatches : undefined,
+      dof_tax_lien_signals: dofTax.length > 0 ? dofTax : undefined,
       ownership_duration_years: input.ownershipDurationYearsByBbl?.get(plutoRow.BBL) ?? null,
       // Only attach the flag when truthy — keeps the prospect lean and
       // matches the convention that signals are surfaced, non-signals omitted.

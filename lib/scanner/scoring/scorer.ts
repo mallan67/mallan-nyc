@@ -132,6 +132,46 @@ function ruleOffMarketExpired(
   }];
 }
 
+function ruleDofTaxLienSale(
+  prospect: BblProspect,
+  config: ScoringConfig,
+  now: Date,
+): ScoreReason[] {
+  const signals = prospect.dof_tax_lien_signals || [];
+  if (signals.length === 0) return [];
+  // Most recent lien-sale list entry is the strongest
+  const sorted = signals.slice().sort((a, b) => {
+    const ta = a.list_date ? Date.parse(a.list_date) : 0;
+    const tb = b.list_date ? Date.parse(b.list_date) : 0;
+    return tb - ta;
+  });
+  const most = sorted[0];
+  const dateRef = most.list_date || most.sale_date;
+  const age = ageDays(dateRef, now);
+  if (age === null) return [];
+  const decay = linearDecay(age, config.dof_tax_lien_sale.decay_days);
+  if (decay <= 0) return [];
+
+  // Property-tax lien is full weight; water/sewer alone is reduced
+  const allWaterSewer = signals.every((s) => s.lien_category === "water_sewer");
+  const baseWeight = config.dof_tax_lien_sale.max_weight;
+  const adjustedWeight = allWaterSewer
+    ? Math.max(0, baseWeight + config.dof_tax_lien_water_sewer_only_penalty.weight)
+    : baseWeight;
+  if (adjustedWeight === 0) return [];
+
+  const contribution = adjustedWeight * decay;
+  const flavor = allWaterSewer ? "water/sewer only" : most.lien_category.replace("_", " ");
+  return [{
+    signal: "dof_tax_lien_sale",
+    raw_weight: adjustedWeight,
+    decay_factor: Math.round(decay * 100) / 100,
+    contribution: Math.round(contribution * 100) / 100,
+    detail: `On NYC DOF tax-lien-sale list — ${flavor}, $${most.lien_amount} (${dateRef.slice(0, 10)})`,
+    source: `DOF lien-sale ${most.bbl}`,
+  }];
+}
+
 function ruleOffMarketRelistBoost(
   prospect: BblProspect,
   config: ScoringConfig,
@@ -245,6 +285,7 @@ function ruleConvergenceBoost(
     else if (r.signal === "long_ownership_25y" || r.signal === "long_ownership_40y") distinctCategories.add("tenure");
     else if (r.signal === "dissolved_llc") distinctCategories.add("dissolved_llc");
     else if (r.signal === "absentee_owner") distinctCategories.add("absentee");
+    else if (r.signal === "dof_tax_lien_sale") distinctCategories.add("dof_tax_lien_sale");
   }
   if (distinctCategories.size < config.convergence_boost.threshold) return [];
   return [{
@@ -307,6 +348,9 @@ export function scoreProspect(
   reasons.push(...ruleOffMarketExpired(prospect, config, now));
   reasons.push(...ruleOffMarketRelistBoost(prospect, config));
 
+  // DOF lien sale
+  reasons.push(...ruleDofTaxLienSale(prospect, config, now));
+
   // Tenure
   reasons.push(...ruleLongOwnership(prospect, config));
   reasons.push(...ruleRecentPurchasePenalty(prospect, config));
@@ -345,6 +389,7 @@ export function scoreProspect(
     else if (r.signal === "dissolved_llc") categories.add("dissolved_llc");
     else if (r.signal === "absentee_owner") categories.add("absentee");
     else if (r.signal === "recent_purchase_penalty") categories.add("recent_purchase");
+    else if (r.signal === "dof_tax_lien_sale") categories.add("dof_tax_lien_sale");
   }
 
   return {

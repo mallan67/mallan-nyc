@@ -39,6 +39,15 @@ export interface ScoreReason {
   signal_date?: string;
 }
 
+/** DOF property-tax lien-sale signal (highest-precision tax-distress signal). */
+export interface DofTaxLienSignalRef {
+  bbl: string;
+  lien_category: "property_tax" | "water_sewer" | "emergency_repair" | "other";
+  lien_amount: string;
+  sale_date: string;
+  list_date: string;
+}
+
 /** ACRIS distress signal (denormalized output of acris-filter). */
 export interface AcrisDistressSignal {
   doc_id: string;
@@ -102,6 +111,7 @@ export interface BblProspect {
   off_market_signals?: OffMarketSignalRef[];
   off_market_relist_count_24mo?: number;
   dos_matches?: DosCorpMatch[];
+  dof_tax_lien_signals?: DofTaxLienSignalRef[];
   /** Computed at upstream join: years since last deed (from ACRIS deed history). */
   ownership_duration_years?: number | null;
   /** Computed: PLUTO mailing address ≠ property address. */
@@ -119,6 +129,8 @@ export interface ScoringConfig {
   estate: { max_weight: number; decay_days: number };
   off_market_expired: { max_weight: number; decay_days: number };
   off_market_relist_boost: { threshold: number; weight: number };
+  dof_tax_lien_sale: { max_weight: number; decay_days: number };
+  dof_tax_lien_water_sewer_only_penalty: { weight: number };
   long_ownership_25y: { weight: number };
   long_ownership_40y: { weight: number };
   recent_purchase_penalty: { years: number; weight: number };
@@ -139,6 +151,8 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
   estate: { max_weight: 25, decay_days: 1095 },              // 3 years
   off_market_expired: { max_weight: 30, decay_days: 365 },   // 1 year
   off_market_relist_boost: { threshold: 3, weight: 15 },
+  dof_tax_lien_sale: { max_weight: 28, decay_days: 365 },    // strong tax-distress
+  dof_tax_lien_water_sewer_only_penalty: { weight: -10 },    // less severe than property tax
   long_ownership_25y: { weight: 10 },
   long_ownership_40y: { weight: 5 },
   recent_purchase_penalty: { years: 2, weight: -10 },
