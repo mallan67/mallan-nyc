@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 
@@ -58,9 +59,12 @@ interface TrestleRecord {
  * Free-text building search for the CRM listing forms.
  * Returns a simplified list of matching buildings with key fields.
  *
- * COMPLIANCE: Server-side only, rate limited, no MLS credentials exposed.
+ * COMPLIANCE: Agent/broker only, server-side, rate limited, no MLS credentials exposed.
  */
 export async function GET(request: NextRequest) {
+  const auth = await requireAgentOrBroker(request);
+  if (isAuthError(auth)) return auth;
+
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });

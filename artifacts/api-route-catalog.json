@@ -1,18 +1,18 @@
 {
   "stats": {
-    "total_routes": 276,
+    "total_routes": 277,
     "by_auth_class": {
-      "public": 36,
+      "public": 35,
       "broker": 24,
       "public (auth)": 17,
-      "agent/broker": 134,
+      "agent/broker": 136,
       "agent/broker (path)": 2,
       "cron": 23,
       "portal": 25,
       "portal (path)": 15
     },
     "public_routes_with_gate": 8,
-    "public_routes_without_gate": 2
+    "public_routes_without_gate": 0
   },
   "catalog": [
     {
@@ -358,8 +358,10 @@
       "methods": [
         "GET"
       ],
-      "auth_class": "public",
-      "auth_signals": [],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
       "compliance_signals": [],
       "distribution_gate_signals": [],
       "gate_enforced": false
@@ -1380,6 +1382,20 @@
       "compliance_signals": [
         "audit-event"
       ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/growth-tools",
+      "file": "app/api/crm/growth-tools/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
       "distribution_gate_signals": [],
       "gate_enforced": false
     },

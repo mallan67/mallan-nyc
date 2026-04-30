@@ -48,6 +48,25 @@ describe("seller signal summary", () => {
     expect(summary.desired_sale_price).toBe(1250000);
     expect(summary.estimated_net_proceeds).toBe(750000);
     expect(summary.timeline).toBe("30_60_days");
+    expect(summary.seller_signal_score).toBeGreaterThanOrEqual(50);
+    expect(summary.seller_temperature).toMatch(/hot|warm/);
+    expect(summary.next_best_action).toBeTruthy();
     expect(summary.recent_events).toHaveLength(3);
+  });
+
+  it("identifies missing seller planning inputs", () => {
+    const summary = summarizeSellerSignals([
+      {
+        id: BigInt(1),
+        event_type: "seller_valuation_request",
+        listing_id: null,
+        metadata: { urgency: "exploring" },
+        created_at: new Date("2026-04-29T08:00:00.000Z"),
+      },
+    ]);
+
+    expect(summary.missing_inputs).toContain("estimated_value");
+    expect(summary.missing_inputs).toContain("desired_sale_price");
+    expect(summary.seller_temperature).toBe("cold");
   });
 });

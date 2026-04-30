@@ -21,6 +21,7 @@ var HomeScreen = (function () {
       isBroker
         ? MallanAPI._fetch('/api/crm/unassigned-leads').catch(function () { return { leads: [], agents: [] }; })
         : Promise.resolve({ leads: [], agents: [] }),
+      MallanAPI._fetch('/api/crm/growth-tools').catch(function () { return { growth_tools: {} }; }),
     ]).then(function (results) {
       _renderCards(c, results, isBroker);
     }).catch(function () {
@@ -37,6 +38,7 @@ var HomeScreen = (function () {
     var deals = results[5].deals || [];
     var unassignedLeads = results[6].leads || [];
     var agentRoster = results[6].agents || [];
+    var growth = (results[7] && (results[7].growth_tools || results[7])) || {};
 
     // Calculate counts for Sales card
     var sellersNeedingResponse = sellers.filter(function (s) { return s.unread_comments > 0 || s.pending_approvals > 0; }).length;
@@ -170,7 +172,90 @@ var HomeScreen = (function () {
       html += '</div></div></div>';
     }
 
+    html += _growthToolsSection(growth);
+
     c.innerHTML = html;
+  }
+
+  function _growthToolsSection(growth) {
+    var counts = growth.counts || {};
+    var sellerItems = (growth.seller_signal_queue || []).slice(0, 5);
+    var marketingItems = (growth.marketing_queue || []).slice(0, 5);
+    var pipelineItems = (growth.pipeline_queue || []).slice(0, 5);
+    var gaps = growth.tool_gaps || [];
+
+    var html = '<div class="max-w-5xl mx-auto mt-6 space-y-4">';
+    html += '<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">';
+    html += '<div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">';
+    html += '<div class="flex items-center gap-3"><div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center"><i class="fas fa-bolt text-amber-600"></i></div>';
+    html += '<div><h2 class="text-lg font-bold text-gray-900">Growth Tools</h2><p class="text-xs text-gray-500">Seller signals, marketing cadence, and pipeline cleanup</p></div></div>';
+    html += '<div class="flex gap-2 text-xs">';
+    html += '<span class="px-2 py-1 rounded-full bg-red-50 text-red-700 font-semibold">' + Number(counts.urgent_actions || 0) + ' urgent</span>';
+    html += '<span class="px-2 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold">' + Number(counts.high_actions || 0) + ' high</span>';
+    html += '</div></div>';
+
+    html += '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">';
+    html += _miniMetric('Buyers', counts.buyers || 0, 'fa-user-check');
+    html += _miniMetric('Sellers', counts.sellers || 0, 'fa-home');
+    html += _miniMetric('Landlords', counts.landlords || 0, 'fa-key');
+    html += _miniMetric('Tenants', counts.tenants || 0, 'fa-file-signature');
+    html += '</div>';
+
+    html += '<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 p-6">';
+    html += _growthList('Potential Sellers', 'fa-chart-line', sellerItems, 'No seller signals need attention.');
+    html += _growthList('Marketing', 'fa-envelope-open-text', marketingItems, 'No marketing cadence items due.');
+    html += _growthList('Pipeline', 'fa-stream', pipelineItems, 'No pipeline cleanup items due.');
+    html += '</div>';
+
+    if (gaps.length) {
+      html += '<div class="px-6 pb-6">';
+      html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">';
+      gaps.forEach(function (gap) {
+        html += '<div class="rounded-xl border border-gray-100 bg-gray-50 p-3">';
+        html += '<div class="flex items-center justify-between"><span class="text-xs font-bold text-gray-700">' + E(gap.segment || 'segment') + '</span><span class="text-lg font-black text-gray-900">' + Number(gap.count || 0) + '</span></div>';
+        html += '<div class="text-xs text-gray-600 mt-1">' + E(gap.tool || '') + '</div>';
+        html += '<div class="text-[11px] text-gray-500 mt-1">' + E(gap.next_action || '') + '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div></div>';
+    return html;
+  }
+
+  function _miniMetric(label, value, icon) {
+    return '<div class="bg-white rounded-xl border border-gray-100 p-3 flex items-center justify-between">' +
+      '<div><div class="text-[11px] uppercase tracking-wide text-gray-400 font-bold">' + E(label) + '</div><div class="text-xl font-black text-gray-900">' + Number(value || 0) + '</div></div>' +
+      '<i class="fas ' + icon + ' text-gray-300"></i>' +
+    '</div>';
+  }
+
+  function _growthList(title, icon, items, emptyText) {
+    var html = '<div class="rounded-xl border border-gray-100 overflow-hidden">';
+    html += '<div class="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm font-bold text-gray-800"><i class="fas ' + icon + ' mr-2 text-gray-400"></i>' + E(title) + '</div>';
+    html += '<div class="divide-y divide-gray-100">';
+    if (!items.length) {
+      html += '<div class="p-4 text-sm text-gray-400">' + E(emptyText) + '</div>';
+    }
+    items.forEach(function (item) {
+      var open = item.lead_id ? " onclick=\"Router.navigate('/workspace/client/" + E(item.lead_id) + "/overview')\" role=\"button\"" : "";
+      html += '<div class="p-4 hover:bg-gray-50 ' + (item.lead_id ? 'cursor-pointer' : '') + '"' + open + '>';
+      html += '<div class="flex items-start justify-between gap-3">';
+      html += '<div class="min-w-0"><div class="text-sm font-semibold text-gray-900 truncate">' + E(item.title || 'Action') + '</div>';
+      html += '<div class="text-xs text-gray-500 mt-0.5">' + E(item.detail || '') + '</div>';
+      html += '<div class="text-[11px] text-gray-500 mt-1"><i class="fas fa-arrow-right mr-1"></i>' + E(item.next_action || '') + '</div></div>';
+      html += '<span class="' + _priorityClass(item.priority) + '">' + E(item.priority || 'normal') + '</span>';
+      html += '</div></div>';
+    });
+    html += '</div></div>';
+    return html;
+  }
+
+  function _priorityClass(priority) {
+    if (priority === 'urgent') return 'px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[10px] font-bold uppercase';
+    if (priority === 'high') return 'px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold uppercase';
+    return 'px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold uppercase';
   }
 
   function assignLead(leadId) {

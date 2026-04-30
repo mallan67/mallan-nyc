@@ -145,7 +145,11 @@ function classifyAuth(authMatches, routePath) {
   for (const r of catalog) {
     stats.by_auth_class[r.auth_class] = (stats.by_auth_class[r.auth_class] || 0) + 1;
     const isPublic = r.auth_class === 'public' || r.auth_class === 'public (auth)';
-    if (isPublic && r.route.includes('/api/listings') || r.route.includes('/api/buildings') || r.route.includes('/api/market') || r.route.includes('/api/open-houses')) {
+    const listingAdjacent = r.route.includes('/api/listings') ||
+      r.route.includes('/api/buildings') ||
+      r.route.includes('/api/market') ||
+      r.route.includes('/api/open-houses');
+    if (isPublic && listingAdjacent && r.methods.includes('GET')) {
       // Listing-display-adjacent public routes — should have gates.
       if (r.gate_enforced) stats.public_routes_with_gate++;
       else stats.public_routes_without_gate++;
