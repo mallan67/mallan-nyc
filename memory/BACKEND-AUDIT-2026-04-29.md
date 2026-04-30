@@ -1662,3 +1662,102 @@ When the scanner surfaces a prospect like "lis pendens filed on BBL 1015730019, 
 
 All 10 sit local-only awaiting explicit push authorization.
 
+---
+
+## 2026-04-30 · Trestle off-market signal filter (Expired/Withdrawn/Canceled/Hold)
+
+Maya's expanded ask: the Trestle/RLS feed already exposes expired/off-market listings, and those owners "just tried to sell" → strong sell-intent signal. Built it as a pure filter on top of the existing DB Listing model — no new ingest, since this data is already in our Prisma DB.
+
+### Compliance encoded into the filter (non-negotiable)
+
+1. **Cooling-off period** — default 30 days, hard floor 7 days. Outreach to an owner whose listing recently expired (with another broker) within the cooling window is a NYS DOS / UCBA 2026 violation. The filter returns `kept=false reason=in_cooling_off` for those — they show up in stats so the operator sees the funnel, but they don't surface for outreach.
+
+2. **Internal use only** — Trestle data is licensed for IDX/VOW display per REBNY rules. Off-market statuses MAY NOT be displayed publicly. The filter's output is for internal CRM signals to a Mallan broker/agent, never the public site.
+
+3. **Mallan-exclusives flagged separately** — a listing whose `agent_id` matched a Mallan agent at expiration is a former-client relationship, not cold outreach. Filter sets `was_mallan_listing=true` so the UI routes it differently.
+
+4. **Owner contact comes from PLUTO + ACRIS + DOS Corp**, not from the listing. The listing has the LISTING AGENT's contact, not the owner's. This module produces BBL + signal; the existing pipeline produces verifiable owner contact.
+
+### What shipped (this commit)
+
+| File | Role |
+|---|---|
+| `lib/scanner/trestle-off-market-filter.ts` | Pure filter functions: `isOffMarketStatus`, `offMarketSince`, `coolingThroughDate`, `isPastCoolingPeriod`, `isMallanListing`, `isCorridorListing`, `daysOffMarket`, `processListing` (full pipeline + stats), `aggregateByBbl` (relist-frequency signal). |
+| `lib/scanner/__tests__/trestle-off-market-filter.test.ts` | 47 tests across status normalization, cooling-off math, Mallan-exclusive detection, corridor check, mixed-batch pipeline, BBL aggregation. |
+
+### Off-market statuses recognized
+
+- `Expired` — listing agreement ended without sale
+- `Withdrawn` — owner pulled it
+- `Canceled` / `Cancelled` (British) — agreement canceled mid-term
+- `Hold` — temporarily off-market
+
+`Closed` / `Sold` deliberately NOT included — that's a different signal (recently-sold owners aren't sellers).
+
+### Scanner output schema (per signal)
+
+```ts
+{
+  bbl, mls_id, listing_id, address,
+  listing_status, off_market_since, cool_through_date,
+  days_off_market, past_cooling_off, was_mallan_listing,
+  list_price, days_on_market_last_listing, cumulative_days_on_market
+}
+```
+
+### Aggregator: relist-frequency signal
+
+`aggregateByBbl()` groups multiple off-market signals on the same BBL within a window. A BBL with 3+ expired/withdrawn/canceled listings in 24 months is a much stronger sell-intent signal than a single expiry — the owner is actively trying and failing to sell.
+
+Output: `{ bbl, count_24mo, most_recent_status, most_recent_off_market_since, most_recent_cool_through_date, any_was_mallan, signals[] }` — sorted by count descending.
+
+### Smoke results
+
+47/47 PASS new suite. **Combined: 233/233 PASS** across 6 suites. `npx tsc --noEmit`: exit 0.
+
+Realistic mixed-batch test (6 in):
+- 2 KEPT (corridor expired past cooling-off)
+- 1 DROP active (Active status)
+- 1 DROP outside corridor (Harlem)
+- 1 DROP cooling-off (5 days post-expiry)
+- 1 DROP no-geo (missing lat/lng)
+
+### What this enables
+
+The scanner now has its 5th major signal vector:
+
+| Source | Signal type | Layer |
+|---|---|---|
+| PLUTO | Property + owner-of-record | Foundation |
+| ACRIS lis pendens | Pre-foreclosure | Distress |
+| ACRIS foreclosure | Foreclosure judgment | Distress |
+| ACRIS tax liens | Tax distress | Distress |
+| ACRIS estate | Probate | Disposition |
+| **Trestle off-market** | **Tried to sell, didn't** | **Direct sell-intent** |
+| DOS Corp | LLC resolution | Contact enrichment |
+
+Trestle off-market is the highest-quality sell-intent signal because the owner's intent was the listing itself. The other signals are inferential; this one is direct.
+
+### What's NOT done
+
+- **DB query script** — `scripts/scanner/trestle-off-market-export.ts` would query Prisma's `Listing` model with corridor lat/lng filter and write a flat CSV. Deferred because it needs the DB connection + the existing IDX sync + auth context. The pure filter is what matters; the wrapper is mechanical.
+- **Cross-source join** — combining PLUTO+ACRIS+DOS+off-market signals into one per-BBL prospect record. That's the scoring engine slice.
+- **Source adapter for contact enrichment** — none needed. Off-market is a property-level signal, not a contact source.
+
+### Push state
+
+`origin/main` at `5b164553`. Local commits ahead of origin (chronological):
+- `dde1819a` docs(memory): RESO toolkit + corrections
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- `078769bb` feat(scanner): Manhattan luxury corridor primitive
+- `091910fd` feat(scanner): Phase 0 compliance gate
+- `337b3c68` feat(scanner): Phase 1 PLUTO ingest pipeline
+- `f3027c61` feat(scanner): ACRIS bulk ingest
+- `88b5fad6` feat(scanner): contact enrichment foundation
+- `122a5970` feat(scanner): NY DOS Corporation DB ingest
+- (this commit) feat(scanner): Trestle off-market signal filter
+
+All 11 sit local-only awaiting explicit push authorization.
+
