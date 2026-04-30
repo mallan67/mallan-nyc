@@ -182,12 +182,14 @@ const B12_UNIT_ROOMS = [
   "TotalLegalRooms", "Levels", "Stories", "EntryLevel",
 ];
 
-// B13: Building Details (19 fields)
+// B13: Building Details (23 fields)
 const B13_BUILDING = [
   "BuildingName", "BuilderName", "ArchitectName",
   "YearBuilt", "YearBuiltSource", "YearBuiltDetails",
   "ArchitecturalStyle", "ConstructionMaterials",
   "Roof", "Foundation", "Heating", "Cooling",
+  // Search/CRM filters and reporting depend on these live IDX Plus fields.
+  "Basement", "CoolingYN", "HeatingYN", "DirectionFaces",
   "ElectricOnPropertyYN", "Sewer", "WaterSource",
   "OtherStructures", "FloorNumber", "FloorNumberInBuilding",
   "BuildingKeyNumeric", "BasementYN", "FoundationArea", "FoundationDetails",
@@ -207,11 +209,12 @@ const B14_BUILDING_AMENITIES = [
   "CommonWalls",
 ];
 
-// B15: Financial — Unit (12 fields)
+// B15: Financial — Unit (14 fields)
 const B15_FINANCIAL_UNIT = [
   "AssociationFee", "AssociationFeeFrequency",
   "AssociationFee2", "AssociationFee2Frequency",
   "AssociationFeeIncludes", "AssociationName", "AssociationYN",
+  "CurrentFinancing", "FinancialDataSource",
   "TaxAnnualAmount", "TaxYear", "TaxBlock", "TaxLot",
   "TaxMapNumber",
 ];
@@ -240,23 +243,25 @@ const B18_CONCESSIONS = [
   "SpecialListingConditions",
 ];
 
-// B19: Lot & Land (14 fields)
+// B19: Lot & Land (15 fields)
 const B19_LOT_LAND = [
   "LotSizeArea", "LotSizeUnits", "LotSizeSource",
   "LotSizeDimensions", "LotDimensionsSource",
   "LotFeatures", "FrontageLength", "FrontageLengthUnits",
+  "FrontageLengthUnit",
   "FrontageType", "RoadSurfaceType", "RoadFrontageType",
   "Topography", "Vegetation", "WaterfrontFeatures",
   "LandLeaseYN", "LandLeaseAmount", "LandLeaseAmountFrequency", "LandLeaseExpirationDate",
   "ZoningDescription",
 ];
 
-// B20: Unit Features (18 fields)
+// B20: Unit Features (19 fields)
 const B20_UNIT_FEATURES = [
   "InteriorFeatures", "ExteriorFeatures", "Flooring",
   "WindowFeatures", "FireplaceYN", "FireplaceFeatures",
   "FireplacesTotal", "Appliances", "PatioAndPorchFeatures",
   "Fencing", "View", "ViewYN",
+  "Exposures",
   "BathroomCondition", "KitchenCondition",
   "AreaOverFAR", "AreaUnderFAR",
   "Furnished", "PropertyCondition", "CurrentUse",
@@ -323,6 +328,7 @@ const B27_RENTAL = [
   "LeaseAmount", "LeaseAmountFrequency",
   "LeaseConsideredTerms", "LeaseTerm",
   "AvailabilityDate",
+  "AvailableLeaseType", "ExistingLeaseType",
   "Furnished", "FurnishedDescription",
   "PetsAllowed", "PetDeposit", "PetRestrictions",
   "RentalApplicationRequired", "ApplicationFee",
