@@ -1761,3 +1761,116 @@ Trestle off-market is the highest-quality sell-intent signal because the owner's
 
 All 11 sit local-only awaiting explicit push authorization.
 
+---
+
+## 2026-04-30 · Seller-intent scoring engine
+
+The intelligence layer that combines all 5 signal sources into a per-BBL 0..100 sell-intent score with full explainability and compliance-gate enforcement.
+
+### Design philosophy (per Maya's WIP doc)
+
+- **Rules-based weighted scoring with decay, NOT machine learning.** NYC luxury deal volume (30–80/yr) is too small for reliable supervised ML — Maya rejected that explicitly: "causal inference and synthetic pricing experiments — sample size of 30–80 deals/yr is too small to be reliable; quant-shop cargo cult."
+- **Half-life style decay** matches the WIP doc's "profile decay with half-lives" framing — recent signals weigh more, old signals fade out.
+- **Per-signal explainability.** Every score has a `reasons[]` array with `signal`, `raw_weight`, `decay_factor`, `contribution`, `detail`, `source`, `source_url`, `signal_date`. Required for compliance audit ("why did you reach out to this owner?").
+- **Compliance gate is the LAST step.** A prospect that scores 95 but is on the suppression list comes out with `score=0`, `suppressed=true`, and the suppression reasons recorded.
+
+### Scoring rules + weights
+
+| Signal | Max | Decay | Notes |
+|---|---|---|---|
+| Lis pendens (most recent) | 35 | linear over 730d | Strongest single signal — pre-foreclosure litigation |
+| Foreclosure judgment | 30 | 365d | Bank won; still time for workout sale |
+| Tax lien | 20 | 730d | Financial stress |
+| Estate transfer | 25 | 1095d | Heirs decide slowly — 3-year window |
+| Off-market expired (past cooling) | 30 | 365d | Direct sell-intent — they tried |
+| **Off-market relist boost** ≥3 in 24mo | +15 | none | Compounding signal |
+| Long ownership ≥25y | +10 | step | Tenure-based |
+| Long ownership ≥40y | +5 boost | step | Aging-in-place |
+| Recent purchase <2y | **−10** | step | Just bought = unlikely seller |
+| Dissolved LLC + still owns | +15 | none | Entity ended but property remains |
+| Absentee owner (mailing ≠ property) | +10 | none | Not occupant — easier sell |
+| **Convergence boost** (≥3 distinct categories) | +10 | none | Multi-source signal alignment |
+| Hard cap | 100 | — | — |
+| Min score to surface | 25 | — | Below this → not in queue (still scored) |
+
+### Confidence tiers
+
+- **high** — strong recent ACRIS distress (≥25 contribution) OR strong off-market expired (≥20) OR 4+ reasons
+- **medium** — score ≥ threshold + 2-3 reasons
+- **low** — score ≥ threshold + 1 reason
+- **below_threshold** — score < min_score_to_surface
+
+### Files (this commit)
+
+- `lib/scanner/scoring/types.ts` — `BblProspect`, `ScoredProspect`, `ScoreReason`, `ScoringConfig`, `DEFAULT_SCORING_CONFIG`
+- `lib/scanner/scoring/scorer.ts` — `scoreProspect()` pure function, `scoreProspects()` batch wrapper
+- `lib/scanner/scoring/__tests__/scorer.test.ts` — 35 tests covering empty input, single-signal contribution, ACRIS most-recent-only, off-market with cooling-off, relist boost, tenure rules, recent-purchase penalty, absentee, dissolved LLC, convergence boost, score capping, compliance gate, confidence tiers, audit trail, batch sorting, realistic UES scenario.
+
+### Realistic scenario test (UES coop)
+
+Input:
+- Lis pendens 45 days ago
+- Foreclosure 800 days ago (decayed to 0)
+- Expired Mallan listing 120 days ago
+- Withdrawn 500 days ago (relist count = 2, below threshold)
+- 32-year tenure
+- Not absentee
+
+Output:
+- Score: ~73
+- 4 reasons: lis_pendens, off_market_expired (with "former Mallan listing" flag), long_ownership_25y, convergence_boost
+- 3 distinct categories
+- Confidence: high
+- Each reason carries `source_url` for audit trail
+
+### Smoke results
+
+- 35/35 PASS scoring tests
+- **Combined: 268/268 PASS** across 7 suites
+- `npx tsc --noEmit`: exit 0
+
+### What this enables (the actual user value)
+
+Up to this commit, each filter was independent — the scanner had 5 separate lists. Now there's one ranked queue:
+
+```
+BBL 1015730019 — score 73 (high confidence, 3 categories)
+  ✓ Lis pendens recorded 2026-03-16 (45 days ago)        +33pt
+  ✓ Expired listing — off market 2025-12-31 (120d ago)   +20pt · former Mallan listing
+  ✓ Owner has held for 32 years                          +10pt
+  ✓ 3 converging signal categories                       +10pt
+
+BBL 1010100007 — score 51 (medium, 2 categories)
+  ✓ Estate transfer recorded 2025-09-12 (230d ago)       +20pt
+  ✓ Repeat off-market: 4 listings ended without sale     +15pt
+  ✓ 41 years tenure                                      +15pt
+  ✓ Absentee owner                                       +10pt
+  ⚠ Convergence boost not earned (only 2 distinct cats)
+```
+
+The score is the queue order. The reasons are the talking points + the audit trail.
+
+### What's NOT in this slice
+
+- **DB-side aggregator** — a function that walks the upstream filter outputs (PLUTO + ACRIS + DOS + off-market) and assembles `BblProspect` bundles. Pure glue code; needs Prisma / file-reading wrapper to make it runnable. Future commit.
+- **CRM workspace UI** — surfacing the scored queue inside `dashboard.html`. Picks up the 2026-03-21 Seller Prospecting Engine spec's 5-tab workspace.
+- **Auto-refresh cron** — re-score nightly as upstream signals refresh.
+
+### Push state
+
+`origin/main` at `5b164553`. Local commits ahead of origin (chronological):
+- `dde1819a` docs(memory): RESO toolkit + corrections
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- `078769bb` feat(scanner): Manhattan luxury corridor primitive
+- `091910fd` feat(scanner): Phase 0 compliance gate
+- `337b3c68` feat(scanner): Phase 1 PLUTO ingest pipeline
+- `f3027c61` feat(scanner): ACRIS bulk ingest
+- `88b5fad6` feat(scanner): contact enrichment foundation
+- `122a5970` feat(scanner): NY DOS Corporation DB ingest
+- `915b0075` feat(scanner): Trestle off-market signal filter
+- (this commit) feat(scanner): seller-intent scoring engine
+
+All 12 sit local-only awaiting explicit push authorization.
+
