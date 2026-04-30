@@ -11,6 +11,8 @@ hpd-*.csv
 
 # Keep the manifest, sample, source-of-truth files.
 !pluto-manifest.json
+!acris-manifest.json
 !pluto-corridor.sample.csv
+!*-fixture.csv
 !compliance/
 !*.json
