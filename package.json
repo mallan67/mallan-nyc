@@ -96,6 +96,7 @@
         "scanner:dof-tax-ingest": "npx tsx scripts/scanner/dof-tax-ingest.ts",
         "scanner:acris-deeds-ingest": "npx tsx scripts/scanner/acris-deed-history-ingest.ts",
         "scanner:build-prospects": "npx tsx scripts/scanner/build-prospects.ts",
+        "scanner:refresh-from-soda": "npx tsx scripts/scanner/refresh-from-soda.ts",
         "test:scanner": "jest --config lib/scanner/jest.config.js",
         "test:corridor": "jest --config lib/geo/jest.config.js",
         "validate:form-rls": "node scripts/validate-form-rls.js",

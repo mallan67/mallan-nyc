@@ -2008,6 +2008,64 @@ Audit array carries per-call detail (provider, verified, detail, at) — require
 
 ---
 
+## 2026-04-30 · Socrata-direct refresh — one-command NYC OpenData pull
+
+Maya confirmed her Vercel env has `SODA_DATASET_PLUTO`, `SODA_DATASET_ACRIS_MASTER`, `SODA_DATASET_ACRIS_REALPROPERTY` (= Legals) configured. The existing `lib/soda.ts` helper already supports the App Token via `NYC_SODA_APP_TOKEN` (or several fallback env names).
+
+### What shipped
+
+| File | Role |
+|---|---|
+| `scripts/scanner/lib/soda-paginator.ts` | Async generator over Socrata datasets — handles `$offset` pagination, stable `:id` ordering, retry-with-backoff, max-rows cap. Reuses `lib/soda.ts` so the App Token + headers are auto-applied. |
+| `scripts/scanner/refresh-from-soda.ts` | Unified one-command refresh — pulls PLUTO + ACRIS distress + ACRIS deed-history straight from NYC OpenData via Socrata, applies the same filters as the standalone ingest scripts, writes the same output CSVs. |
+| `package.json` | Added `scanner:refresh-from-soda` |
+
+### Single-command operator workflow
+
+```bash
+# Refresh all Socrata-sourced data in one shot:
+npm run scanner:refresh-from-soda
+
+# Optional flags:
+#   --only=pluto              just PLUTO (skip ACRIS)
+#   --only=acris,deeds        ACRIS distress + deed history (skip PLUTO)
+#   --window-days=730         distress-signal window (default 2 years)
+#   --deed-window-years=50    deed-history window (default 50 years)
+#   --page-size=10000         Socrata $limit per page (max 50000)
+#   --quiet
+
+# Then for non-Socrata sources (DOS Corp, DOF lien sale not on OpenData):
+npm run scanner:dof-tax-ingest -- --input <dof.csv>
+npm run scanner:dos-corp-ingest -- --input <dos.csv>
+
+# Build the queue:
+npm run scanner:build-prospects
+```
+
+### Filter strategy
+
+Pull is **server-side filtered** via SoQL `$where` clauses so we never download the 30M+ ACRIS Master rows just to throw most away:
+
+- **PLUTO**: `borocode='1' OR borough='MN'`
+- **ACRIS Master (distress)**: `recorded_borough='1' AND doc_type IN ('LP','LIS','LPND','LISPD','LISPENDENS','FORE','JDF','JDGMT_F','TAX','NOTL','NTOFL','NYSTAX','EATR','EXECUTOR','ADMIN','LBADM','ESTATE') AND recorded_datetime > '<cutoff>'`
+- **ACRIS Master (deeds)**: `recorded_borough='1' AND doc_type LIKE 'DEED%' AND recorded_datetime > '<cutoff>'`
+- **ACRIS Legals**: `document_id IN (<watched-ids>)` — chunked into 200-id batches to fit Socrata query length limits
+- **ACRIS Parties**: same chunked join + `party_type='1'` (grantors only)
+
+PLUTO runs first so its corridor BBL set is available to clip ACRIS Legals — the "outside corridor" gate doesn't have to come from a separate pluto-corridor.csv pre-step.
+
+### Smoke results
+
+- 10 test suites, **323/323 PASS** (no regressions)
+- `npx tsc --noEmit`: exit 0
+- Live-fetch not exercised here (would burn Socrata rate limit budget); tested via lib type-check only
+
+### Push state
+
+20 local commits ahead of origin/main, all local-only awaiting explicit push authorization.
+
+---
+
 ## 2026-04-30 · Aggregator — assembles BblProspect bundles for the scorer
 
 Pure function that walks already-loaded outputs of every upstream filter and produces `BblProspect[]` ready to feed the scoring engine. No I/O. No Prisma. No file reads.
