@@ -115,13 +115,6 @@ interface FieldAccumulator {
   source_record_dates: (string | undefined)[];
 }
 
-function bestValue(values: string[]): string {
-  // Prefer the longest non-empty value (richer formatting wins).
-  return values
-    .filter(Boolean)
-    .sort((a, b) => b.length - a.length)[0] || "";
-}
-
 function buildField(
   kind: ContactFieldKind,
   acc: FieldAccumulator,

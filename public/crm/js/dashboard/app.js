@@ -103,6 +103,7 @@ var CRM = (function () {
 
     // A2. Clients CRM — direct routes to real grids
     Router.register('/sales/prospects',         function () { SellerProspects.render(); });
+    Router.register('/sales/scanner',           function () { OffMarketScanner.render(document.getElementById('mainContent') || document.body); });
     Router.register('/sales/sellers',           function () { SalesCRM.activeSellers(); });
     Router.register('/sales/buyers',            function () { SalesCRM.activeBuyers(); });
     Router.register('/rentals/landlords',       function () { RentalsCRM.landlords(); });

@@ -314,7 +314,6 @@ export interface AggregatorStats {
 }
 
 export function summarizeAggregator(input: AggregatorInput, output: AggregateOutput): AggregatorStats {
-  const acrisByBbl = indexAcrisByBbl(input.acris);
   const dos = indexDosCorp(input.dosCorp);
 
   let withAcris = 0;

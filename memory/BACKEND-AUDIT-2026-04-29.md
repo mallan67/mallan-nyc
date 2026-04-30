@@ -1876,6 +1876,90 @@ All 12 sit local-only awaiting explicit push authorization.
 
 ---
 
+## 2026-04-30 · Final assembly — DOF lien sale + ACRIS deeds + end-to-end runner + API + UI
+
+Five commits closing out the scanner foundation.
+
+### `f14f0876` — DOF tax-lien-sale ingest
+
+NYC DOF Property Tax Lien Sale list — strongest tax-distress signal short of an actual foreclosure. New `lib/scanner/dof-tax-filter.ts` + ingest script + scoring rule (max 28pt, 365d decay). Water/sewer-only liens get a −10 penalty (less severe). 21 tests.
+
+### `fe832b39` — ACRIS deed-history ingest
+
+Companion to the distress-only ACRIS ingest. Filters DEED doc types and produces `data/scanner/ownership-duration.csv` — the missing input the tenure scoring rules depend on. New `processDeedMasterRow()`, `computeOwnershipDuration()`. 4 new tests.
+
+### `13dcee87` — `scripts/scanner/build-prospects.ts` end-to-end runner
+
+Loads all 5 ingest outputs, optionally fetches off-market signals from Prisma, runs through `buildProspects()` + `scoreProspects()`, writes:
+- `data/scanner/scored-prospects.json` (full audit trail per prospect)
+- `data/scanner/scored-prospects.csv` (flat row-per-prospect summary)
+- `data/scanner/build-prospects-manifest.json` (run stats)
+
+End-to-end smoke (synthetic fixtures, all 4 ingests pre-run): 5 prospects assembled → 3 surfaced (2 high, 1 medium). Top: BBL 1010100007 score 89.1 (foreclosure 29d + estate 15d + DOF tax lien + convergence). Each reason carries `source_url` for audit trail.
+
+### `6d1e8f2f` — `GET /api/crm/scanner/prospects`
+
+Agent/broker-auth required. Reads pre-computed flat-file output. Filters by `confidence`, `bbl`, `include_suppressed`. Cache-Control: private, no-store. The corridor join is minutes of work — recompute belongs in a script, not an HTTP handler.
+
+### (this commit) — Off-Market Scanner CRM panel
+
+`public/crm/js/dashboard/panels/sales-crm/off-market-scanner.js` — read-only ranked-queue UI. Each row shows score, BBL, reason badges (color + icon per signal type), confidence tier. Click → detail modal showing every reason with audit-trail source URL. Filter by confidence + BBL. Empty-state instructs the operator to run `scanner:build-prospects`. Wired into router at `/sales/scanner`.
+
+### Combined test totals
+
+- 9 suites, **316/316 PASS**
+- `npx tsc --noEmit`: exit 0
+- Lint: 3 minor warnings (unused imports in tests), 0 errors
+
+### Full scanner stack — final state
+
+| Layer | Status |
+|---|---|
+| Geographic gate (`isInCorridor`) | ✅ |
+| Compliance gate (`isSuppressed`) | ✅ |
+| PLUTO ingest | ✅ |
+| ACRIS distress ingest | ✅ |
+| ACRIS deed-history ingest | ✅ NEW |
+| DOS Corp ingest | ✅ |
+| DOF tax-lien-sale ingest | ✅ NEW |
+| Trestle off-market filter | ✅ |
+| Verifiable contact aggregator | ✅ |
+| Scoring engine (rules + decay + explainability) | ✅ |
+| Aggregator (assembles BblProspect bundles) | ✅ |
+| End-to-end runner | ✅ NEW |
+| API endpoint | ✅ NEW |
+| CRM workspace UI panel | ✅ NEW |
+
+### Push state (final)
+
+`origin/main` at `5b164553`. **18 local commits ahead of origin**, all local-only awaiting explicit push authorization:
+- `dde1819a` docs(memory): RESO toolkit + corrections
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- `078769bb` feat(scanner): Manhattan luxury corridor primitive
+- `091910fd` feat(scanner): Phase 0 compliance gate
+- `337b3c68` feat(scanner): Phase 1 PLUTO ingest pipeline
+- `f3027c61` feat(scanner): ACRIS bulk ingest
+- `88b5fad6` feat(scanner): contact enrichment foundation
+- `122a5970` feat(scanner): NY DOS Corporation DB ingest
+- `915b0075` feat(scanner): Trestle off-market signal filter
+- `cdecff1a` feat(scanner): seller-intent scoring engine
+- `029ff7c7` feat(scanner): aggregator
+- `f14f0876` feat(scanner): DOF tax-lien-sale ingest
+- `fe832b39` feat(scanner): ACRIS deed-history ingest
+- `13dcee87` feat(scanner): build-prospects runner
+- `6d1e8f2f` feat(scanner): GET /api/crm/scanner/prospects
+- (this commit) feat(scanner): off-market scanner CRM UI panel
+
+### Remaining deferred work (not blockers)
+
+- **Active verification wrappers** (USPS / Twilio Lookup / NeverBounce). Need vendor account setup + API keys.
+- **Surrogate's Court probate scrape** — per-county scraping, no clean OpenData feed.
+- **Real PLUTO + ACRIS download** — operator pulls from NYC OpenData and runs the ingests.
+
+---
+
 ## 2026-04-30 · Aggregator — assembles BblProspect bundles for the scorer
 
 Pure function that walks already-loaded outputs of every upstream filter and produces `BblProspect[]` ready to feed the scoring engine. No I/O. No Prisma. No file reads.
