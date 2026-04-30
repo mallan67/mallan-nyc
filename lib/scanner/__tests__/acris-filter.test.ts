@@ -312,6 +312,64 @@ describe("projectMasterRow / projectLegalsRow / projectPartyRow", () => {
   });
 });
 
+describe("isDeedDocType + computeOwnershipDuration", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isDeedDocType, computeOwnershipDuration, processDeedMasterRow, emptyDeedHistoryStats } =
+    require("@/lib/scanner/acris-filter");
+
+  test("isDeedDocType matches DEED variants", () => {
+    expect(isDeedDocType("DEED")).toBe(true);
+    expect(isDeedDocType("DEEDS")).toBe(true);
+    expect(isDeedDocType("DEED, RP")).toBe(true);
+    expect(isDeedDocType("DEED, TS")).toBe(true);
+    expect(isDeedDocType("BARGAIN AND SALE DEED")).toBe(true);
+    expect(isDeedDocType("QUITCLAIM")).toBe(true);
+    expect(isDeedDocType("QC")).toBe(true);
+    expect(isDeedDocType("LP")).toBe(false);
+    expect(isDeedDocType("MTGE")).toBe(false);
+    expect(isDeedDocType("")).toBe(false);
+  });
+
+  test("computeOwnershipDuration picks most-recent deed per BBL", () => {
+    const NOW2 = new Date("2026-04-30T00:00:00Z");
+    const entries = [
+      { bbl: "1015730019", doc_id: "OLD", doc_type: "DEED", recorded_datetime: "2010-01-15T00:00:00.000", document_amt: "100" },
+      { bbl: "1015730019", doc_id: "RECENT", doc_type: "DEED", recorded_datetime: "2018-06-15T00:00:00.000", document_amt: "200" },
+      { bbl: "1010100007", doc_id: "DEED2", doc_type: "DEED", recorded_datetime: "2020-09-01T00:00:00.000", document_amt: "300" },
+    ];
+    const out = computeOwnershipDuration(entries, NOW2);
+    expect(out.size).toBe(2);
+    // 2018-06 → ~7.9 years before 2026-04
+    expect(out.get("1015730019")).toBeCloseTo(7.9, 1);
+    expect(out.get("1010100007")).toBeCloseTo(5.7, 1);
+  });
+
+  test("processDeedMasterRow keeps Manhattan deeds in window", () => {
+    const NOW2 = new Date("2026-04-30T00:00:00Z");
+    const stats = emptyDeedHistoryStats(50 * 365);
+    const r = processDeedMasterRow({
+      document_id: "X",
+      recorded_borough: "1",
+      doc_type: "DEED",
+      recorded_datetime: "2018-06-15T00:00:00.000",
+    }, stats, 50 * 365, NOW2);
+    expect(r.kept).toBe(true);
+    expect(stats.master_rows_in_window).toBe(1);
+  });
+
+  test("processDeedMasterRow drops mortgages", () => {
+    const stats = emptyDeedHistoryStats(50 * 365);
+    const r = processDeedMasterRow({
+      document_id: "X",
+      recorded_borough: "1",
+      doc_type: "MTGE",
+      recorded_datetime: "2018-06-15T00:00:00.000",
+    }, stats, 50 * 365, new Date());
+    expect(r.kept).toBe(false);
+    expect(stats.master_rows_manhattan_deeds).toBe(0);
+  });
+});
+
 describe("SELLER_INTENT_DOC_TYPES — sanity", () => {
   test("includes all categorized doc types", () => {
     for (const set of [

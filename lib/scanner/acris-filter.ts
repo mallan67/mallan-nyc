@@ -30,6 +30,22 @@
  *       EXECUTOR, ADMIN, LBADM — letters of testamentary / administration
  */
 
+/** Doc-type codes for property transfers (deeds). Used by deed-history ingest. */
+export const DEED_DOC_TYPES = new Set<string>([
+  "DEED", "DEEDS", "DEEDO", "DEED, RP", "DEED, RC", "DEED, TS", "DEEDR",
+  "BARGAIN AND SALE DEED", "BARGAIN", "QUIT CLAIM", "QUITCLAIM", "QC", "QCD",
+]);
+
+/** Returns true if the doc type is a deed/transfer record. */
+export function isDeedDocType(docType: string | null | undefined): boolean {
+  const dt = String(docType || "").trim().toUpperCase();
+  if (!dt) return false;
+  if (DEED_DOC_TYPES.has(dt)) return true;
+  // Common substring match for variations like "DEED, RP" → contains "DEED"
+  if (dt.startsWith("DEED")) return true;
+  return false;
+}
+
 /** Doc-type codes treated as high-signal seller-intent indicators. */
 export const SELLER_INTENT_DOC_TYPES = new Set<string>([
   // Lis pendens — pre-foreclosure litigation notice. STRONGEST single signal.
@@ -295,3 +311,95 @@ export function projectPartyRow(row: AcrisRow): PartyRowSummary {
 
 // Re-export lc for testability of normalization
 export { lc as _lc };
+
+// ────────────────────────────────────────────────────────────
+// Deed-history extension (ownership_duration_years computation)
+// ────────────────────────────────────────────────────────────
+
+export interface DeedHistoryEntry {
+  bbl: string;
+  doc_id: string;
+  doc_type: string;
+  recorded_datetime: string;
+  document_amt: string;
+}
+
+export interface DeedHistoryStats {
+  master_rows_seen: number;
+  master_rows_manhattan_deeds: number;
+  master_rows_in_window: number;
+  legals_rows_seen: number;
+  legals_rows_kept: number;
+  unique_bbls: number;
+  date_started: string;
+  date_finished: string | null;
+  window_days: number;
+}
+
+export function emptyDeedHistoryStats(windowDays: number): DeedHistoryStats {
+  return {
+    master_rows_seen: 0,
+    master_rows_manhattan_deeds: 0,
+    master_rows_in_window: 0,
+    legals_rows_seen: 0,
+    legals_rows_kept: 0,
+    unique_bbls: 0,
+    date_started: new Date().toISOString(),
+    date_finished: null,
+    window_days: windowDays,
+  };
+}
+
+/**
+ * Process a Master row in pass 1 of the deed-history ingest. Returns the
+ * doc_id if it's a Manhattan deed within the window.
+ */
+export function processDeedMasterRow(
+  row: AcrisRow,
+  stats: DeedHistoryStats,
+  windowDays: number,
+  now: Date = new Date(),
+): { kept: boolean; doc_id: string; recorded_datetime: string; document_amt: string; doc_type: string } {
+  stats.master_rows_seen += 1;
+  const docId = (getField(row, "document_id") || "").trim();
+  const docType = (getField(row, "doc_type") || "").trim();
+  const recorded = (getField(row, "recorded_datetime", "document_date", "modified_date") || "").trim();
+  const amt = (getField(row, "document_amt") || "").trim();
+  if (!isManhattanRecord(row)) return { kept: false, doc_id: docId, recorded_datetime: recorded, document_amt: amt, doc_type: docType };
+  if (!isDeedDocType(docType)) return { kept: false, doc_id: docId, recorded_datetime: recorded, document_amt: amt, doc_type: docType };
+  stats.master_rows_manhattan_deeds += 1;
+  if (windowDays > 0 && !isWithinWindow(row, windowDays, now)) {
+    return { kept: false, doc_id: docId, recorded_datetime: recorded, document_amt: amt, doc_type: docType };
+  }
+  stats.master_rows_in_window += 1;
+  if (!docId) return { kept: false, doc_id: docId, recorded_datetime: recorded, document_amt: amt, doc_type: docType };
+  return { kept: true, doc_id: docId, recorded_datetime: recorded, document_amt: amt, doc_type: docType };
+}
+
+/**
+ * Given a list of deed-history entries (one row per (doc, BBL)), compute
+ * the most-recent deed date per BBL, returning a Map<bbl, years-since>.
+ *
+ * `now` is used to compute years-since.
+ */
+export function computeOwnershipDuration(
+  entries: DeedHistoryEntry[],
+  now: Date = new Date(),
+): Map<string, number> {
+  const mostRecent = new Map<string, number>();
+  for (const e of entries) {
+    if (!e.bbl) continue;
+    const t = Date.parse(e.recorded_datetime);
+    if (!Number.isFinite(t)) continue;
+    const prior = mostRecent.get(e.bbl);
+    if (prior === undefined || t > prior) mostRecent.set(e.bbl, t);
+  }
+  const out = new Map<string, number>();
+  for (const [bbl, t] of mostRecent) {
+    const years = (now.getTime() - t) / (365.25 * 86400000);
+    if (Number.isFinite(years) && years >= 0) {
+      out.set(bbl, Math.round(years * 10) / 10);
+    }
+  }
+  return out;
+}
