@@ -6,10 +6,9 @@ import {
   uploadToR2,
 } from "./r2-client";
 
+const TRESTLE_API_URL = (process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle").replace(/\/$/, "");
 const TRESTLE_MEDIA_HOSTS = new Set([
-  "api.cotality.com",
-  "api-trestle.corelogic.com",
-  "api-prod.corelogic.com",
+  new URL(TRESTLE_API_URL).hostname.toLowerCase(),
   "img.cotality.com",
 ]);
 
