@@ -1,0 +1,16 @@
+{
+  "type": "FeatureCollection",
+  "name": "nyc-dos-cease-desist-zones",
+  "description": "Currently-active NY Department of State Cease and Desist Real Estate Solicitation Zones, established under 19 NYCRR § 175.17(b). In any zone listed here, a real estate broker MAY NOT solicit owners (in any form: door-to-door, phone, mail, email) without express written invitation from the owner. Violations carry license suspension, fines, and civil exposure. Zones are renewed in cycles by the Secretary of State; refresh annually or whenever a renewal notice is published.",
+  "source": {
+    "name": "NY Department of State, Division of Licensing Services",
+    "url": "https://dos.ny.gov/real-estate-cease-and-desist-zones",
+    "regulatory_basis": "19 NYCRR § 175.17(b)",
+    "regulatory_basis_url": "https://www.dos.ny.gov/info/register/2010/aug11/pdf/rulemaking.pdf"
+  },
+  "captured_at": "2026-04-30",
+  "active_through": "PENDING_REFRESH",
+  "refresh_instructions": "Run `npm run scanner:refresh-cd-zones` to fetch the latest published zones from NY DOS and update this file. Until that script runs, this file is a placeholder structure.",
+  "manhattan_relevance_note": "Historically, NY DOS C&D zones have been concentrated in parts of Brooklyn (East Flatbush, Mill Basin, Marine Park, Bergen Beach, Canarsie, etc.), Queens (Whitestone, Bayside, Auburndale), and the Bronx (Riverdale). No active zones inside Manhattan have been published in recent renewal cycles, but this can change at any cycle and must be re-checked. Even though Mallan's corridor (Manhattan south of 97E/110W) is unlikely to overlap with active zones, the gate is built unconditionally so any future Manhattan zone is honored automatically.",
+  "features": []
+}

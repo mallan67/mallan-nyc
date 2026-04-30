@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "name": "mallan-suppression-list",
+  "description": "Per-Mallan-broker Cease and Desist suppression list. Required by 19 NYCRR § 175.17(b): once a property owner has indicated 'do not solicit' to Mallan (verbal, written, or via opt-out link), they MUST be excluded from outreach for at least one year from the date of indication. This list is the source of truth. Every prospect surfaced by the off-market scanner is checked against this list before display in any queue.",
+  "captured_at": "2026-04-30",
+  "policy": {
+    "minimum_exclusion_period_days": 365,
+    "match_modes": ["bbl", "owner_name_normalized", "phone", "email", "address_normalized"],
+    "case_insensitive": true,
+    "whitespace_normalized": true,
+    "expired_entries_handled": "automatically excluded from match (still kept in file for audit trail)"
+  },
+  "schema": {
+    "id": "mallan-internal id like 'ms-001'",
+    "type": "one of: bbl | owner_name | phone | email | address",
+    "value": "the actual value to match against (will be normalized at compare time)",
+    "reason": "why suppressed (verbal no, opt-out click, etc.)",
+    "added_at": "ISO 8601 date",
+    "expires_at": "ISO 8601 date — minimum +365 days from added_at",
+    "added_by": "Mallan agent email"
+  },
+  "entries": []
+}

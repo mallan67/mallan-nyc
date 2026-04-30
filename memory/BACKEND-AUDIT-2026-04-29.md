@@ -1313,3 +1313,64 @@ These remain Phase 0 blockers per my earlier scanner architecture proposal. The 
 
 All five sit local-only awaiting explicit push authorization.
 
+---
+
+## 2026-04-30 · Off-market scanner — Phase 0 compliance gate (flat-file, no schema migration)
+
+After the corridor primitive landed, picked up Phase 0 of the scanner per Maya's "compliance and then pluto" directive. Phase 0 v0 is **flat-file backed** — no Prisma schema change, no Neon migration, no DB writes. When multi-broker scaling is needed, swap reads to a `OwnerSuppression` table and the gate API stays identical.
+
+### What the gate does
+
+Single entry point: `lib/scanner/compliance/suppression.ts` `isSuppressed({ bbl, owner_name, phone, email, address, lat, lng })` → `{ suppressed, reasons[], matched_entries[] }`. Composes:
+
+1. **NY DOS C&D zone geographic check** (19 NYCRR § 175.17[b]) via `cease-desist.ts`. Reads `data/scanner/compliance/nyc-dos-cease-desist-zones.json` (currently empty — placeholder structure). Manhattan rarely has historic active zones, but the gate honors any future Manhattan zone automatically.
+2. **Per-Mallan suppression list** (BBL / owner_name / phone / email / address). Reads `data/scanner/compliance/mallan-suppression-list.json` (currently empty). Required by NY law: 365-day minimum exclusion after a "no". Expired entries stay in the file for audit trail but are excluded from match.
+
+### Files added (commit local-only)
+
+| File | Role |
+|---|---|
+| `data/scanner/compliance/nyc-dos-cease-desist-zones.json` | GeoJSON FeatureCollection of active zones. Empty placeholder. Refresh via `npm run scanner:refresh-cd-zones`. |
+| `data/scanner/compliance/mallan-suppression-list.json` | Per-Mallan C&D list. Empty initially. Schema documented in-file. |
+| `data/scanner/compliance/README.md` | What the directory is, how the gate works, what's NOT in v0 (DNC, DB persistence). |
+| `lib/scanner/compliance/types.ts` | TS types for both files + gate input/output. |
+| `lib/scanner/compliance/cease-desist.ts` | `isInCeaseDesistZone(lat, lng)` — ray-cast against zone polygons. Empty zones = always returns false (correct per file = source of truth). |
+| `lib/scanner/compliance/suppression.ts` | `isSuppressed()` — combined gate. Phone normalization handles "(212) 555-1234" / "212-555-1234" / "+1 (212) 555-1234" / "2125551234" all match. Email + name case-insensitive + whitespace-tolerant. Expired-entry exclusion. |
+| `lib/scanner/compliance/__tests__/suppression.test.ts` | 19 tests across empty-state, dynamic-mock'd list, dynamic-mock'd zones. |
+| `lib/scanner/jest.config.js` | Test runner config. |
+| `scripts/scanner/refresh-cd-zones.ts` | Human-in-the-loop helper (NY DOS doesn't expose machine-readable feed). `--check` shows current state. `--import` is a stub for future ZIP-to-polygon converter. |
+| `package.json` | Added `scanner:refresh-cd-zones`, `test:scanner`, `test:corridor` scripts. |
+
+### Smoke results
+
+- 19/19 PASS scanner suite
+- 67/67 PASS corridor suite (no regressions)
+- `npx tsc --noEmit` exit 0 (project type-check clean)
+- `npm run scanner:refresh-cd-zones -- --check` shows expected empty-state output (0 zones loaded, with refresh instructions)
+
+### Compliance posture as of this commit
+
+| Layer | State |
+|---|---|
+| Geographic suppression (NY DOS C&D zones) | ✅ Gate built. Data file empty pending refresh. |
+| Per-Mallan suppression list | ✅ Gate built. List empty (Maya hand-adds first entries on first "no" responses). |
+| NYS DNC + FTC DNC (phone) | ❌ Deferred (v1 outreach is letter + email only — phone outreach gated until DNC sync exists). |
+| OwnerSuppression Prisma table | ❌ Deferred (v0 reads JSON; swap to DB when multi-broker scaling needed). |
+| Audit logging at gate | ❌ Deferred — hooks belong in the consumer (e.g. seller-prospect endpoint), not in the gate module. |
+
+### Push state
+
+`origin/main` at `5b164553`. Local commits ahead of origin (chronological):
+- `dde1819a` docs(memory): record resume + push of memory corrections + RESO toolkit
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- `078769bb` feat(scanner): Manhattan luxury corridor primitive + 67 tests
+- (this commit) feat(scanner): Phase 0 compliance gate (flat-file) + 19 tests
+
+All six sit local-only awaiting explicit push authorization.
+
+### Next slice
+
+Phase 1 — PLUTO ingest. Per Maya's "compliance and then pluto" order. Will likely be a `scripts/scanner/pluto-ingest.ts` that downloads NYC MapPLUTO, filters to Manhattan + corridor polygon, writes to `data/scanner/pluto-corridor.csv` (or similar). No DB writes in v0 — flat file, idempotent, re-runnable. Each row passes through `isInCorridor(lat, lng)` before inclusion.
+
