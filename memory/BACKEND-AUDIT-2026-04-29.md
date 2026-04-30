@@ -1954,9 +1954,57 @@ Agent/broker-auth required. Reads pre-computed flat-file output. Filters by `con
 
 ### Remaining deferred work (not blockers)
 
-- **Active verification wrappers** (USPS / Twilio Lookup / NeverBounce). Need vendor account setup + API keys.
+- ~~**Active verification wrappers** (USPS / Twilio Lookup / NeverBounce). Need vendor account setup + API keys.~~ **DONE — Maya already has all keys in Vercel.**
 - **Surrogate's Court probate scrape** — per-county scraping, no clean OpenData feed.
 - **Real PLUTO + ACRIS download** — operator pulls from NYC OpenData and runs the ingests.
+
+---
+
+## 2026-04-30 · Active verification layer (Twilio + NeverBounce/DNS + USPS)
+
+Maya confirmed all API keys are already in Vercel. Wired up the active-verification layer that promotes contact-field confidence from "cross-source agreement" (medium) to actively-verified (high).
+
+### Files
+
+| File | Role |
+|---|---|
+| `lib/scanner/contact/verify/types.ts` | `VerificationResult`, `PhoneVerification`, `EmailVerification`, `AddressVerification`, `VerifyOptions` types |
+| `lib/scanner/contact/verify/twilio-lookup.ts` | Twilio Lookup v2 phone validation. Reuses `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` already in use for SMS MFA. ~$0.005/call. |
+| `lib/scanner/contact/verify/email-validate.ts` | Two-tier email validation: NeverBounce (`NEVERBOUNCE_API_KEY`) when configured, falls back to Node `dns.resolveMx()` (free, always-on). Includes disposable-domain + role-account detection. |
+| `lib/scanner/contact/verify/usps-address.ts` | USPS Addresses v3 with OAuth client_credentials flow. `USPS_CLIENT_ID` + `USPS_CLIENT_SECRET`. Free with USPS dev account. Token cached 50 min. DPV confirmation surfaces as `verified=true`. |
+| `lib/scanner/contact/verify/orchestrator.ts` | `runVerifications(record, opts, injected?)` — composes all three, de-dups by normalized value, applies `max_per_call` budget cap (default 10), returns `VerificationMap` for `aggregateContacts()`. |
+| `lib/scanner/contact/verify/__tests__/orchestrator.test.ts` | 7 tests using injected mock verifiers — empty record, single-source full coverage, dedup across sources, budget cap, selective skip, end-to-end aggregator round-trip (low → high after verification), failure surfaces in audit |
+| `lib/scanner/contact/verify/README.md` | Env vars, costs, API contract, budget guards |
+| `app/api/crm/scanner/verify/route.ts` | `POST /api/crm/scanner/verify` — agent/broker auth, runs orchestrator, returns audit + upgraded ContactRecord. Logs AuditEvent for cost tracking. |
+
+### Behavior
+
+```ts
+const record = aggregateContacts(sourceRows);
+// Initially: phones[0].confidence = "low" (single source)
+const { verifications, audit } = await runVerifications(record);
+const upgraded = aggregateContacts(sourceRows, verifications);
+// After: phones[0].confidence = "high", verification_method = "twilio_lookup_carrier"
+```
+
+Audit array carries per-call detail (provider, verified, detail, at) — required for compliance audit ("how did you verify this phone number?").
+
+### Smoke results
+
+- 7/7 PASS orchestrator tests (with mocked providers)
+- **Combined: 323/323 PASS** across 10 suites
+- `npx tsc --noEmit`: exit 0
+
+### Defaults / safety
+
+- Soft-fail when env vars missing (returns `skipped=true`, never throws)
+- Hard cap on lookups per orchestrator call (`max_per_call`, default 10)
+- Selective skip flags (`skip_phone`, `skip_email`, `skip_address`)
+- AuditEvent logged on every API verification call with per-kind breakdown
+
+### Push state
+
+`origin/main` at `5b164553`. **19 local commits** ahead of origin, all local-only awaiting explicit push authorization.
 
 ---
 
