@@ -91,6 +91,7 @@ const SEVERITY = { CRITICAL: 0, WARNING: 1, INFO: 2, UNVERIFIED: 3 };
 
 let totalCritical = 0, totalWarning = 0, totalInfo = 0, totalUnverified = 0, totalPass = 0;
 const sections = [];
+let validatorHistoryCache = null;
 
 function startSection(num, title, category) {
   const s = { num, title, category, items: [] };
@@ -142,12 +143,16 @@ function hasAnnotation(content, index, annotation) {
 // ── Shared data extractors ────────────────────────────────────────────────
 function getMapperFields() {
   const mapper = readFile('lib/idx/trestle-mapper.ts');
-  if (!mapper) return { allRls: new Set(), excluded: new Set(), select: new Set(), required: new Set() };
-  const blocks = mapper.match(/const B\d+_\w+\s*=\s*\[([^\]]+)\]/g) || [];
+  if (!mapper) return { allRls: new Set(), excluded: new Set(), select: new Set(), required: new Set(), blocks: new Map() };
+  const blockRx = /const\s+(B\d+_\w+)\s*=\s*\[([\s\S]*?)\];/g;
+  const blocks = new Map();
   const allRls = new Set();
-  for (const b of blocks) {
-    const names = b.match(/"([^"]+)"/g) || [];
-    for (const n of names) allRls.add(n.replace(/"/g, ''));
+  let blockMatch;
+  while ((blockMatch = blockRx.exec(mapper)) !== null) {
+    const name = blockMatch[1];
+    const fields = (blockMatch[2].match(/"([^"]+)"/g) || []).map((n) => n.replace(/"/g, ''));
+    blocks.set(name, fields);
+    for (const field of fields) allRls.add(field);
   }
   const exMatch = mapper.match(/IDX_PLUS_EXCLUDED_FIELDS\s*=\s*new\s+Set\(\[\s*([\s\S]*?)\]\)/);
   const excluded = new Set();
@@ -156,7 +161,7 @@ function getMapperFields() {
   const reqMatch = mapper.match(/REQUIRED_RLS_FIELDS\s*=\s*\[\s*([\s\S]*?)\]/);
   const required = new Set();
   if (reqMatch) { for (const n of (reqMatch[1].match(/"([^"]+)"/g) || [])) required.add(n.replace(/"/g, '')); }
-  return { allRls, excluded, select, required, content: mapper };
+  return { allRls, excluded, select, required, blocks, content: mapper };
 }
 
 function getListingColumns() {
@@ -177,7 +182,7 @@ function getListingColumns() {
 // ═══════════════════════════════════════════════════════════════════════════
 function section1() {
   const s = startSection(1, '$select Field Completeness', 'IDX Pipeline');
-  const { select, excluded, allRls, content: mapper } = getMapperFields();
+  const { select, excluded, allRls, blocks, content: mapper } = getMapperFields();
   if (!mapper) { critical(s, 'trestle-mapper.ts', 'File not found'); return; }
 
   const expandFields = new Set(['Media','MediaURL','MediaCategory','Order','PreferredPhotoYN','ShortDescription',
@@ -190,6 +195,14 @@ function section1() {
   const accessed = new Set();
   let m;
   while ((m = rawPattern.exec(mapper)) !== null) accessed.add(m[1]);
+
+  const pickPattern = /pick\(\s*(?:raw|normalized)\s*,\s*(B\d+_\w+)\s*\)/g;
+  const picked = new Set();
+  let p;
+  while ((p = pickPattern.exec(mapper)) !== null) {
+    const fields = blocks.get(p[1]) || [];
+    for (const field of fields) picked.add(field);
+  }
 
   for (const field of accessed) {
     if (select.has(field)) pass(s, field);
@@ -204,6 +217,13 @@ function section1() {
       critical(s, field, `Accessed via raw.${field} but EXCLUDED from $select and not pre-filtered. Always undefined.`);
     else if (!allRls.has(field))
       critical(s, field, `Accessed via raw.${field} but NOT in any RLS category (B1-B30). Never fetched.`);
+  }
+
+  for (const field of picked) {
+    if (accessed.has(field)) continue;
+    if (select.has(field)) pass(s, `${field} (via pick)`); 
+    else if (excluded.has(field)) pass(s, `${field} (via pick, excluded from $select)`);
+    else if (allRls.has(field)) pass(s, `${field} (via pick)`);
   }
 }
 
@@ -1359,11 +1379,7 @@ function section32() {
       history = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
     }
   } catch (e) { /* ignore */ }
-
-  const currentRun = {
-    timestamp: new Date().toISOString(),
-    pass: totalPass, critical: totalCritical, warning: totalWarning, info: totalInfo,
-  };
+  validatorHistoryCache = { historyDir, historyFile, history };
 
   // Compare with last run
   if (history.length > 0) {
@@ -1382,16 +1398,6 @@ function section32() {
     pass(s, 'First run — baseline established');
   }
 
-  // Save current run
-  history.push(currentRun);
-  if (history.length > 50) history = history.slice(-50); // Keep last 50 runs
-  try {
-    if (!fs.existsSync(historyDir)) fs.mkdirSync(historyDir, { recursive: true });
-    fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
-    pass(s, `Run history saved (${history.length} runs)`);
-  } catch (e) {
-    info(s, 'Could not save run history', e.message);
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2097,25 +2103,6 @@ if (jsonOutput) {
   console.log('');
 }
 
-// Save CRM-readable results to public/crm/data/validator-results.json
-try {
-  const crmResult = {
-    timestamp: new Date().toISOString(),
-    pass: totalPass, critical: totalCritical, warning: totalWarning, info: totalInfo,
-    sections: sections.map(sec => ({
-      section: sec.num, title: sec.title, category: sec.category,
-      pass: sec.items.filter(i => i.status === 'PASS').length,
-      critical: sec.items.filter(i => i.severity === 'CRITICAL').length,
-      warning: sec.items.filter(i => i.severity === 'WARNING').length,
-      info: sec.items.filter(i => i.severity === 'INFO').length,
-    })),
-  };
-  const crmDataDir = path.join(ROOT, 'public', 'crm', 'data');
-  if (fs.existsSync(crmDataDir)) {
-    fs.writeFileSync(path.join(crmDataDir, 'validator-results.json'), JSON.stringify(crmResult, null, 2));
-  }
-} catch (e) { /* ignore */ }
-
 // ─── v2 RELEASE-TRUTH HOOKS (validator framework §16) ──────────────────
 // Strict promotion + workflow linkage + optional runtime evidence.
 {
@@ -2191,6 +2178,41 @@ try {
 
 // Final summary line including the v2 counts
 console.log(`\nFinal: ${totalPass} pass · ${totalCritical} critical · ${totalWarning} warning · ${totalInfo} info · ${totalUnverified} unverified${STRICT_PROMOTION ? ' [strict mode: warnings → critical]' : ''}`);
+
+if (validatorHistoryCache) {
+  const { historyDir, historyFile, history } = validatorHistoryCache;
+  const historySection = sections.find((sec) => sec.num === 32);
+  try {
+    if (historySection) pass(historySection, `Run history saved (${Math.min(history.length + 1, 50)} runs)`);
+    const currentRun = {
+      timestamp: new Date().toISOString(),
+      pass: totalPass, critical: totalCritical, warning: totalWarning, info: totalInfo,
+    };
+    const updatedHistory = [...history, currentRun].slice(-50);
+    if (!fs.existsSync(historyDir)) fs.mkdirSync(historyDir, { recursive: true });
+    fs.writeFileSync(historyFile, JSON.stringify(updatedHistory, null, 2));
+  } catch (e) {
+    if (historySection) info(historySection, 'Could not save run history', e.message);
+  }
+}
+
+try {
+  const crmResult = {
+    timestamp: new Date().toISOString(),
+    pass: totalPass, critical: totalCritical, warning: totalWarning, info: totalInfo,
+    sections: sections.map(sec => ({
+      section: sec.num, title: sec.title, category: sec.category,
+      pass: sec.items.filter(i => i.status === 'PASS').length,
+      critical: sec.items.filter(i => i.severity === 'CRITICAL').length,
+      warning: sec.items.filter(i => i.severity === 'WARNING').length,
+      info: sec.items.filter(i => i.severity === 'INFO').length,
+    })),
+  };
+  const crmDataDir = path.join(ROOT, 'public', 'crm', 'data');
+  if (fs.existsSync(crmDataDir)) {
+    fs.writeFileSync(path.join(crmDataDir, 'validator-results.json'), JSON.stringify(crmResult, null, 2));
+  }
+} catch (e) { /* ignore */ }
 
 const effectiveCritical = STRICT_PROMOTION ? (totalCritical + totalWarning) : totalCritical;
 process.exit(effectiveCritical > 0 ? 1 : 0);
