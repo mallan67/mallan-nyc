@@ -27,8 +27,11 @@ function parseArgs(argv: string[]) {
       continue;
     }
 
-    if (arg.startsWith("--batch-size=")) {
-      batchSize = Math.max(1, Number(arg.slice("--batch-size=".length)) || 10);
+    if (arg.startsWith("--batch-size=") || arg.startsWith("--batch=")) {
+      const value = arg.includes("=")
+        ? arg.slice(arg.indexOf("=") + 1)
+        : "";
+      batchSize = Math.max(1, Number(value) || 10);
       continue;
     }
 
@@ -97,7 +100,7 @@ async function main() {
   for (const batch of selectedBatches) {
     const result = await mirrorListingMediaBatch(batch, {
       execute,
-      batchSize: 5,
+      batchSize,
       logger: console,
     });
 
