@@ -1,6 +1,7 @@
 import {
   criteriaToProjectionWhere,
   criteriaToPrismaWhere,
+  getUnsupportedProjectionCriteria,
 } from "@/lib/search/criteria-to-prisma";
 import {
   buildProjectionSearchWhere,
@@ -246,6 +247,62 @@ describe("criteriaToProjectionWhere", () => {
   it("respects multi-status input via mls_status", () => {
     const where = criteriaToProjectionWhere({ statuses: ["Active", "ComingSoon"] });
     expect(where.mls_status).toEqual({ in: ["Active", "ComingSoon"] });
+  });
+});
+
+describe("getUnsupportedProjectionCriteria", () => {
+  it("returns no unsupported keys for supported criteria", () => {
+    expect(getUnsupportedProjectionCriteria({
+      listing_type: "sale",
+      statuses: ["Active"],
+      property_type: ["Residential"],
+      borough: "Manhattan",
+      neighborhoods: ["Chelsea"],
+      min_price: 1000000,
+      max_price: "2000000",
+      min_beds: 1,
+      max_beds: 3,
+      min_baths: 1,
+      max_baths: 2,
+      min_sqft: 800,
+      max_sqft: 1200,
+    })).toEqual([]);
+  });
+
+  it("treats property_type as supported but ownership/CommonInterest as unsupported unless mapped", () => {
+    expect(getUnsupportedProjectionCriteria({
+      property_type: "Residential",
+      CommonInterest: ["Condominium"],
+    })).toEqual(["CommonInterest"]);
+  });
+
+  it("returns unsupported criteria for keys that projection does not support", () => {
+    expect(getUnsupportedProjectionCriteria({
+      zip: "10001",
+      listing_id: "RLS20059088",
+      propertySubType: "Condominium",
+      min_year: 2000,
+    }).sort()).toEqual([
+      "listing_id",
+      "min_year",
+      "propertySubType",
+      "zip",
+    ]);
+  });
+
+  it("does not silently ignore nested unknown criteria", () => {
+    expect(getUnsupportedProjectionCriteria({
+      checkboxFilters: {
+        MlsStatus: ["Active"],
+      },
+    })).toEqual(["checkboxFilters"]);
+  });
+
+  it("ignores reserved internal search-tab metadata", () => {
+    expect(getUnsupportedProjectionCriteria({
+      _search_tab: "sale",
+      listing_type: "sale",
+    })).toEqual([]);
   });
 });
 

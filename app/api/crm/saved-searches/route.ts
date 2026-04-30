@@ -12,6 +12,24 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
+import {
+  criteriaToProjectionWhere,
+  getUnsupportedProjectionCriteria,
+} from "@/lib/search/criteria-to-prisma";
+
+function stableStringify(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, item]) => item !== undefined)
+    .sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
+}
+
+type SavedSearchCountStatus = "projection_live" | "unsupported_criteria";
 
 /** Validate saved search criteria shape. Returns error message or null. */
 function validateCriteria(criteria: Record<string, unknown>): string | null {
@@ -56,14 +74,43 @@ export async function GET(req: NextRequest) {
       orderBy: { updated_at: "desc" },
     });
 
-    // Serialize BigInt
-    const serialized = searches.map((s) => ({
-      ...s,
-      id: s.id.toString(),
-      agent_id: s.agent_id?.toString() ?? null,
-      lead_id: s.lead_id?.toString() ?? null,
-      alert_frequency: s.alert_frequency ?? null,
-      alert_enabled: s.alert_enabled ?? false,
+    const countCache = new Map<string, Promise<number>>();
+
+    const serialized = await Promise.all(searches.map(async (s) => {
+      const criteria = (s.criteria && typeof s.criteria === "object" && !Array.isArray(s.criteria))
+        ? (s.criteria as Record<string, unknown>)
+        : {};
+      const unsupportedCriteria = getUnsupportedProjectionCriteria(criteria);
+      const countStatus: SavedSearchCountStatus = unsupportedCriteria.length > 0
+        ? "unsupported_criteria"
+        : "projection_live";
+
+      let projectionCount: number | null = null;
+      if (countStatus === "projection_live") {
+        const cacheKey = stableStringify(criteria);
+        let countPromise = countCache.get(cacheKey);
+        if (!countPromise) {
+          const where = criteriaToProjectionWhere(criteria);
+          countPromise = prisma.listingSearchProjection.count({ where });
+          countCache.set(cacheKey, countPromise);
+        }
+        projectionCount = await countPromise;
+      }
+
+      // Serialize BigInt
+      return {
+        ...s,
+        id: s.id.toString(),
+        agent_id: s.agent_id?.toString() ?? null,
+        lead_id: s.lead_id?.toString() ?? null,
+        alert_frequency: s.alert_frequency ?? null,
+        alert_enabled: s.alert_enabled ?? false,
+        result_count: s.result_count ?? null,
+        projection_count: projectionCount,
+        live_result_count: projectionCount,
+        count_status: countStatus,
+        unsupported_criteria: unsupportedCriteria.length > 0 ? unsupportedCriteria : null,
+      };
     }));
 
     return NextResponse.json({ savedSearches: serialized, total: serialized.length });

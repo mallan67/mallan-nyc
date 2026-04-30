@@ -10,6 +10,54 @@ export interface SearchWhereOptions {
   modifiedSince?: Date;
 }
 
+const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
+  "listing_type",
+  "listingType",
+  "type",
+  "searchTab",
+  "statuses",
+  "status",
+  "standardStatus",
+  "standard_status",
+  "property_type",
+  "property_types",
+  "propertyType",
+  "propertyTypes",
+  "borough",
+  "neighborhoods",
+  "neighborhood",
+  "min_price",
+  "max_price",
+  "minPrice",
+  "maxPrice",
+  "priceMin",
+  "priceMax",
+  "min_beds",
+  "max_beds",
+  "minBeds",
+  "maxBeds",
+  "bedsMin",
+  "bedsMax",
+  "beds",
+  "min_baths",
+  "max_baths",
+  "minBaths",
+  "maxBaths",
+  "bathsMin",
+  "bathsMax",
+  "baths",
+  "min_sqft",
+  "max_sqft",
+  "minSqft",
+  "maxSqft",
+  "sqftMin",
+  "sqftMax",
+]);
+
+const PROJECTION_RESERVED_CRITERIA_KEYS = new Set([
+  "_search_tab",
+]);
+
 function first(criteria: SearchCriteria, keys: string[]): unknown {
   for (const key of keys) {
     const value = criteria[key];
@@ -47,6 +95,84 @@ function normalizeListingType(value: unknown): "sale" | "rent" | undefined {
 
 function normalizeStatusInput(criteria: SearchCriteria): unknown {
   return first(criteria, ["statuses", "status", "standardStatus", "standard_status"]);
+}
+
+function isSupportedStringArray(value: unknown): boolean {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isSupportedProjectionCriterionValue(key: string, value: unknown): boolean {
+  if (value === undefined || value === null || value === "") return true;
+
+  if (key === "listing_type" || key === "listingType" || key === "type" || key === "searchTab") {
+    return typeof value === "string";
+  }
+
+  if (key === "statuses" || key === "status" || key === "standardStatus" || key === "standard_status") {
+    return typeof value === "string" || isSupportedStringArray(value);
+  }
+
+  if (key === "property_type" || key === "property_types" || key === "propertyType" || key === "propertyTypes") {
+    return typeof value === "string" || isSupportedStringArray(value);
+  }
+
+  if (key === "borough" || key === "neighborhood" || key === "searchTab") {
+    return typeof value === "string";
+  }
+
+  if (
+    key === "neighborhoods" ||
+    key === "min_price" ||
+    key === "max_price" ||
+    key === "minPrice" ||
+    key === "maxPrice" ||
+    key === "priceMin" ||
+    key === "priceMax" ||
+    key === "min_beds" ||
+    key === "max_beds" ||
+    key === "minBeds" ||
+    key === "maxBeds" ||
+    key === "bedsMin" ||
+    key === "bedsMax" ||
+    key === "beds" ||
+    key === "min_baths" ||
+    key === "max_baths" ||
+    key === "minBaths" ||
+    key === "maxBaths" ||
+    key === "bathsMin" ||
+    key === "bathsMax" ||
+    key === "baths" ||
+    key === "min_sqft" ||
+    key === "max_sqft" ||
+    key === "minSqft" ||
+    key === "maxSqft" ||
+    key === "sqftMin" ||
+    key === "sqftMax"
+  ) {
+    if (key === "neighborhoods") return typeof value === "string" || isSupportedStringArray(value);
+    return typeof value === "string" || typeof value === "number";
+  }
+
+  return false;
+}
+
+export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): string[] {
+  const unsupported = new Set<string>();
+
+  for (const [key, value] of Object.entries(criteria)) {
+    if (PROJECTION_RESERVED_CRITERIA_KEYS.has(key)) continue;
+
+    if (!PROJECTION_SUPPORTED_CRITERIA_KEYS.has(key)) {
+      unsupported.add(key);
+      continue;
+    }
+
+    if (!isSupportedProjectionCriterionValue(key, value)) {
+      unsupported.add(key);
+    }
+  }
+
+  return [...unsupported].sort();
 }
 
 export function criteriaToPrismaWhere(

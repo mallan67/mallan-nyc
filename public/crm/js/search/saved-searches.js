@@ -33,10 +33,26 @@
                     var clientBadge = search.lead_id
                         ? '<span class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-semibold rounded-full"><i class="fas fa-user text-[7px]"></i></span>'
                         : '';
+                    var countBadge = '';
+                    var hasLiveCount = typeof search.live_result_count === 'number';
+                    var hasStoredCount = typeof search.result_count === 'number';
+                    if (hasLiveCount) {
+                        var storedTitle = hasStoredCount ? ' title="Stored count: ' + escapeHtml(String(search.result_count)) + '"' : '';
+                        countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-semibold rounded-full"' + storedTitle + '>' + search.live_result_count + '</span>';
+                    } else if (search.count_status === 'unsupported_criteria') {
+                        var unsupportedTitle = search.unsupported_criteria && search.unsupported_criteria.length
+                            ? 'Unsupported criteria: ' + search.unsupported_criteria.join(', ')
+                            : 'Unsupported criteria';
+                        countBadge = hasStoredCount
+                            ? '<span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[9px] font-semibold rounded-full" title="' + escapeHtml(unsupportedTitle) + '">' + search.result_count + '</span>'
+                            : '<span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-semibold rounded-full" title="' + escapeHtml(unsupportedTitle) + '">stored</span>';
+                    } else if (hasStoredCount) {
+                        countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-semibold rounded-full">' + search.result_count + '</span>';
+                    }
                     var dateStr = search.updated_at ? new Date(search.updated_at).toLocaleDateString() : '';
                     return '<div class="flex items-center justify-between px-3 py-2 hover:bg-gray-100">'
                         + '<button onclick="loadSavedSearch(\'' + search.id + '\')" class="text-left flex-1">'
-                        + '<div class="font-medium text-sm">' + escapeHtml(search.name) + alertBadge + clientBadge + '</div>'
+                        + '<div class="font-medium text-sm">' + escapeHtml(search.name) + alertBadge + clientBadge + countBadge + '</div>'
                         + '<div class="text-xs text-gray-500">' + dateStr + '</div>'
                         + '</button>'
                         + '<button onclick="deleteSavedSearch(\'' + search.id + '\')" class="p-1 text-red-500 hover:bg-red-100 rounded" aria-label="Delete">'
