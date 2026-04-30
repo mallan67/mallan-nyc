@@ -467,6 +467,43 @@ if (fs.existsSync(mapperPath)) {
   } else {
     fail('Gate 2 (Participant Only) missing — must check Permission === "Private" per REBNY RLS');
   }
+
+  // ── 18a. IDX Plus pre-filter semantics on writer-side display gates ──
+  // InternetEntireListingDisplayYN / InternetAddressDisplayYN return null for
+  // the vast majority of records and are not OData-filterable — REBNY/Cotality
+  // pre-filter non-displayable rows out of the IDX Plus feed at the provider
+  // level. The mapper MUST therefore use `!== false` on these two fields, NOT
+  // `affirmPermission`. Wrapping null in `affirmPermission` collapses every
+  // pre-filtered row to false and silently suppresses public inventory
+  // (regression observed 2026-04-23..2026-04-30; ~7,500 rows corrupted).
+  //
+  // This guard locks the asymmetry: AVM and ConsumerComment remain fail-closed
+  // via affirmPermission (per-row opt-out flags); EntireListing/Address use
+  // `!== false` (provider pre-filter convention).
+  const idxPlusPrefilterViolations = [
+    { pattern: /affirmPermission\(\s*(?:raw|normalized)\.InternetEntireListingDisplayYN\s*\)/, name: 'InternetEntireListingDisplayYN wrapped in affirmPermission (must use !== false per IDX Plus pre-filter)' },
+    { pattern: /affirmPermission\(\s*(?:raw|normalized)\.InternetAddressDisplayYN\s*\)/, name: 'InternetAddressDisplayYN wrapped in affirmPermission (must use !== false per IDX Plus pre-filter)' },
+  ];
+  const idxPlusHits = idxPlusPrefilterViolations.filter(({ pattern }) => pattern.test(content));
+  if (idxPlusHits.length === 0) {
+    pass('Mapper uses IDX Plus pre-filter semantics for InternetEntireListingDisplayYN / InternetAddressDisplayYN (writer-side: !== false; reader-side: still strict === true)');
+  } else {
+    fail('Writer-side regression: ' + idxPlusHits.map(h => h.name).join('; '));
+  }
+
+  // The fail-closed posture for the per-row opt-out flags must remain.
+  // AVM and ConsumerComment ARE populated per row in the live feed (~97% true);
+  // null on these means "unknown" and must collapse to false.
+  if (/affirmPermission\(\s*(?:raw|normalized)\.InternetAutomatedValuationDisplayYN\s*\)/.test(content)) {
+    pass('Mapper keeps AVM (InternetAutomatedValuationDisplayYN) fail-closed via affirmPermission (per-row opt-out)');
+  } else {
+    fail('Mapper missing affirmPermission on InternetAutomatedValuationDisplayYN — per-row opt-out flag must remain fail-closed');
+  }
+  if (/affirmPermission\(\s*(?:raw|normalized)\.InternetConsumerCommentYN\s*\)/.test(content)) {
+    pass('Mapper keeps ConsumerComment (InternetConsumerCommentYN) fail-closed via affirmPermission (per-row opt-out)');
+  } else {
+    fail('Mapper missing affirmPermission on InternetConsumerCommentYN — per-row opt-out flag must remain fail-closed');
+  }
 }
 
 // ── 19. NY DOS §175.28 Anti-Discrimination Notice on lead-capture forms ──

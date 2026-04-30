@@ -654,13 +654,31 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // live $metadata; docs explicitly state "no separate IDXEntireListingDisplayYN
   // field exists"). Use InternetEntireListingDisplayYN instead.
   //
-  // Fail-CLOSED boolean coercion — `affirmPermission` from lib/compliance/gates.ts
-  // is the single source of truth for how permission flags are interpreted.
-  // Previous `!== false` pattern failed OPEN (null/undefined → displayable),
-  // which violated the fail-closed doctrine documented in
-  // MASTER-PROJECT-TREE-v3.3.md Rule 5.
-  const internetEntireListing = affirmPermission(raw.InternetEntireListingDisplayYN);
-  const internetAddress = affirmPermission(raw.InternetAddressDisplayYN);
+  // IDX PLUS PRE-FILTER SEMANTICS (verified 2026-04-30 against live Trestle +
+  // production DB state). REBNY/Cotality pre-filter non-displayable rows out
+  // of the IDX Plus feed at the provider level: every record reaching this
+  // mapper has already passed the upstream gate. Two consequences:
+  //   1. InternetEntireListingDisplayYN and InternetAddressDisplayYN return
+  //      null for the majority of records (the field exists in metadata but
+  //      is intentionally unset because the upstream filter already enforced
+  //      the policy).
+  //   2. These fields are NOT OData-filterable — Trestle returns HTTP 400
+  //      "Results from 'RLS' has been suppressed (provider Level)" for any
+  //      `eq true` / `eq false` filter. Confirmed proof of pre-filter intent.
+  //
+  // Therefore null on these two fields means "upstream already gated this row
+  // in" = displayable. Only an explicit `false` (rare, but valid for the
+  // per-row override case) means "do not display." `affirmPermission` would
+  // collapse null → false and suppress every Trestle-sourced row; that is
+  // the bug fixed here (commit 55803f87 → recovery 2026-04-30).
+  //
+  // This is INTENTIONALLY DIFFERENT from InternetAutomatedValuationDisplayYN
+  // and InternetConsumerCommentYN below, which are per-listing opt-out flags
+  // populated at row level (~97% true / ~3% false in the live feed). Those
+  // remain fail-CLOSED via affirmPermission. Locked in by the writer-side
+  // gate coercion tests in lib/compliance/__tests__/compliance-gates.test.ts.
+  const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
+  const internetAddress = raw.InternetAddressDisplayYN !== false;
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
   // (The legacy field name ParticipantOnlyYN was never a Trestle field — it was

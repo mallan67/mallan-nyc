@@ -954,3 +954,182 @@ describe('toPublicDTO suppressAddress — fail-closed on null permission', () =>
     expect(dto.address.latitude).toBe(40.7);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 6. WRITER-SIDE GATE COERCION (mapTrestleToPrisma) — IDX Plus pre-filter
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// IDX Plus convention (verified 2026-04-30 against live Trestle metadata + DB):
+//   InternetEntireListingDisplayYN / InternetAddressDisplayYN return null for
+//   the majority of records and are NOT OData-filterable (provider returns
+//   400 "Results from 'RLS' has been suppressed (provider Level)"). REBNY/
+//   Cotality pre-filter non-displayable rows out of the IDX Plus feed at the
+//   provider level. Therefore null on these fields means "upstream already
+//   gated this row in" — the writer must treat null as displayable.
+//
+//   InternetAutomatedValuationDisplayYN / InternetConsumerCommentYN are per-
+//   row opt-out flags carried at row level (~97% true / ~3% false in the
+//   live feed). The writer must treat null as fail-CLOSED for these.
+//
+// This describe block locks in that asymmetry.
+
+describe('mapTrestleToPrisma — writer-side gate coercion', () => {
+  describe('InternetEntireListingDisplayYN / InternetAddressDisplayYN — IDX Plus pre-filtered', () => {
+    it('treats null InternetEntireListingDisplayYN as displayable (REBNY/Cotality pre-filter)', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetEntireListingDisplayYN: null })
+      );
+      expect(mapped.internet_entire_listing_display_yn).toBe(true);
+    });
+
+    it('treats undefined InternetEntireListingDisplayYN as displayable', () => {
+      const raw = buildRawTrestle();
+      delete raw.InternetEntireListingDisplayYN;
+      const mapped = mapTrestleToPrisma(raw);
+      expect(mapped.internet_entire_listing_display_yn).toBe(true);
+    });
+
+    it('treats null InternetAddressDisplayYN as displayable', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetAddressDisplayYN: null })
+      );
+      expect(mapped.internet_address_display_yn).toBe(true);
+    });
+
+    it('treats undefined InternetAddressDisplayYN as displayable', () => {
+      const raw = buildRawTrestle();
+      delete raw.InternetAddressDisplayYN;
+      const mapped = mapTrestleToPrisma(raw);
+      expect(mapped.internet_address_display_yn).toBe(true);
+    });
+
+    it('honors explicit false on InternetEntireListingDisplayYN', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetEntireListingDisplayYN: false })
+      );
+      expect(mapped.internet_entire_listing_display_yn).toBe(false);
+    });
+
+    it('honors explicit false on InternetAddressDisplayYN', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetAddressDisplayYN: false })
+      );
+      expect(mapped.internet_address_display_yn).toBe(false);
+    });
+
+    it('honors explicit true on InternetEntireListingDisplayYN', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetEntireListingDisplayYN: true })
+      );
+      expect(mapped.internet_entire_listing_display_yn).toBe(true);
+    });
+
+    it('honors explicit true on InternetAddressDisplayYN', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetAddressDisplayYN: true })
+      );
+      expect(mapped.internet_address_display_yn).toBe(true);
+    });
+  });
+
+  describe('InternetAutomatedValuationDisplayYN / InternetConsumerCommentYN — per-row opt-out, fail-closed', () => {
+    it('treats null InternetAutomatedValuationDisplayYN as NOT displayable (fail-closed)', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetAutomatedValuationDisplayYN: null })
+      );
+      expect(mapped.internet_automated_valuation_display_yn).toBe(false);
+    });
+
+    it('treats undefined InternetAutomatedValuationDisplayYN as NOT displayable', () => {
+      const raw = buildRawTrestle();
+      delete raw.InternetAutomatedValuationDisplayYN;
+      const mapped = mapTrestleToPrisma(raw);
+      expect(mapped.internet_automated_valuation_display_yn).toBe(false);
+    });
+
+    it('treats null InternetConsumerCommentYN as NOT displayable (fail-closed)', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({ InternetConsumerCommentYN: null })
+      );
+      expect(mapped.internet_consumer_comment_yn).toBe(false);
+    });
+
+    it('treats undefined InternetConsumerCommentYN as NOT displayable', () => {
+      const raw = buildRawTrestle();
+      delete raw.InternetConsumerCommentYN;
+      const mapped = mapTrestleToPrisma(raw);
+      expect(mapped.internet_consumer_comment_yn).toBe(false);
+    });
+
+    it('honors explicit true on AVM and consumer-comment', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({
+          InternetAutomatedValuationDisplayYN: true,
+          InternetConsumerCommentYN: true,
+        })
+      );
+      expect(mapped.internet_automated_valuation_display_yn).toBe(true);
+      expect(mapped.internet_consumer_comment_yn).toBe(true);
+    });
+
+    it('honors explicit false on AVM and consumer-comment', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({
+          InternetAutomatedValuationDisplayYN: false,
+          InternetConsumerCommentYN: false,
+        })
+      );
+      expect(mapped.internet_automated_valuation_display_yn).toBe(false);
+      expect(mapped.internet_consumer_comment_yn).toBe(false);
+    });
+  });
+
+  describe('idx_display_yn derivation — null entire/address with no upstream block', () => {
+    it('idx_display_yn is true when entire/address are null and Permission is IDX', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({
+          InternetEntireListingDisplayYN: null,
+          InternetAddressDisplayYN: null,
+          Permission: 'IDX',
+        })
+      );
+      expect(mapped.idx_display_yn).toBe(true);
+      expect(mapped.participant_only).toBe(false);
+      expect(mapped.owner_opt_out).toBe(false);
+    });
+
+    it('idx_display_yn is false when InternetEntireListingDisplayYN is explicitly false', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({
+          InternetEntireListingDisplayYN: false,
+          Permission: 'IDX',
+        })
+      );
+      expect(mapped.idx_display_yn).toBe(false);
+    });
+
+    it('idx_display_yn is false when Permission is Private (participant-only) — even with null entire/address', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({
+          InternetEntireListingDisplayYN: null,
+          InternetAddressDisplayYN: null,
+          Permission: 'Private',
+        })
+      );
+      expect(mapped.idx_display_yn).toBe(false);
+      expect(mapped.participant_only).toBe(true);
+    });
+
+    it('idx_display_yn is false when Permission is OwnerOptOut — even with null entire/address', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawTrestle({
+          InternetEntireListingDisplayYN: null,
+          InternetAddressDisplayYN: null,
+          Permission: 'OwnerOptOut',
+        })
+      );
+      expect(mapped.idx_display_yn).toBe(false);
+      expect(mapped.owner_opt_out).toBe(true);
+    });
+  });
+});
