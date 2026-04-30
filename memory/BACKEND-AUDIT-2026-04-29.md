@@ -1217,3 +1217,40 @@ Confirm the latest row's `created_at` is after the deploy (after ~`21:05Z`), `ch
 Memory writeback push state: this checkpoint is local-only. The original Step 3 push delivered the two queued commits; the resume prompt did not authorize re-pushing a fresh memory commit, so this writeback sits at +1 ahead of `origin/main` until the next session decides to push.
 
 *Audit captured 2026-04-29 by Claude Opus 4.7 (1M context). Updated in-repo by Codex after local implementation checkpoints.*
+
+---
+
+## 2026-04-30 · RESO toolkit Layer-2 expansion (5 new tools — local commit only, no push)
+
+While waiting on the `2026-04-30T07:30 UTC` search-alerts cron gate (PR 5F prerequisite), added five read-only diagnostic tools to `scripts/reso/`. None of them touch DB writers, Trestle writers, schema, env, Vercel config, or the master-plan migration path. All four local-only / dry-run smoke tests passed.
+
+| Tool | Reads from | Writes to | Smoke test |
+|---|---|---|---|
+| `snapshot.js` | analyze.js (Trestle + DB + public) | `artifacts/reso-snapshots/YYYY-MM-DDTHHmmssZ.json` + `latest.json` | not run (would burn one analyze pass) — invocation path verified by static review |
+| `gate-breakdown.js` | Trestle (1 baseline + ≤4 gate probes) | stdout / `--json` | `--dry-run` PASS — emits the 6 planned probes as a JSON plan, zero Trestle calls |
+| `drift.js` | `artifacts/metadata.xml` + `data/rebny-rls-property-fields.csv` | `artifacts/reso-drift/YYYY-MM-DDTHHmmssZ.json` + `latest.json` | PASS — first-run snapshot saved at `2026-04-30T00-10-34-631Z.json`. Visible drift: REBNY uses `Custom Property` / `Open House` / `Property UnitTypes` (with spaces), Trestle uses `CustomProperty` / `OpenHouse` / `PropertyUnitTypes`. Property-level: 745 in both, 1 REBNY-only, 0 Trestle-only |
+| `route-catalog.js` | `app/api/**/route.ts` (regex-only) | `artifacts/api-route-catalog.{md,json}` | PASS — 276 routes catalogued. Auth class breakdown: agent/broker 134, public 36, portal 25, broker 24, cron 23, public(auth) 17, portal(path) 15, agent/broker(path) 2. Listing-adjacent public: 8 with gate / 2 without |
+| `schema-audit.js` | `prisma/schema.prisma` Listing model + REBNY CSV + metadata.xml | `artifacts/schema-audit.{md,json}` | PASS — 58 columns: 22 fully aligned (REBNY+Trestle), 31 mallan-internal (no RESO mapping by design), 5 drift/verify |
+
+### Trestle ↔ RESO drift posture (drift.js note)
+
+Per the 2026-04-29 RESO Desktop Client session: **Cotality/Trestle is currently certified on RESO Web API Core 2.0.0 + DD 2.0 + DD 1.7. RESO has DD 2.1 published; Trestle has NOT certified there yet.** REBNY publishes its own IDX Plus subset on its own cadence. `drift.js` persists a dated snapshot every run, so when any side moves the next run surfaces the delta. To refresh the Trestle-side cache (one-time): `npx tsx scripts/refresh-trestle-csv.ts`.
+
+### Package.json npm aliases added
+
+```
+reso:snapshot          → node scripts/reso/snapshot.js
+reso:gate-breakdown    → node scripts/reso/gate-breakdown.js
+reso:drift             → node scripts/reso/drift.js
+reso:route-catalog     → node scripts/reso/route-catalog.js
+reso:schema-audit      → node scripts/reso/schema-audit.js
+```
+
+### Push gate
+
+This addition is **local-only** per the established gate. `origin/main` is at `5b164553`. The `14b16d4e` trace.js commit, the RESO-compliance memory at `9bf3c9c9`, the post-push memory `dde1819a`, and now this Layer-2 tools commit sit ahead of origin awaiting explicit push authorization.
+
+### Still gated
+
+PR 5F (CRM saved-search list/counts projection migration) remains gated on the `2026-04-30T07:30 UTC` search-alerts cron clean run. Public `/api/listings` projection migration deferred until 5D/5E observed stable. Saved-search clone toolkit (`scripts/reso/search/`) deferred per the earlier hard-limits decision.
+

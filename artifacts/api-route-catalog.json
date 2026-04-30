@@ -1,0 +1,4321 @@
+{
+  "stats": {
+    "total_routes": 276,
+    "by_auth_class": {
+      "public": 36,
+      "broker": 24,
+      "public (auth)": 17,
+      "agent/broker": 134,
+      "agent/broker (path)": 2,
+      "cron": 23,
+      "portal": 25,
+      "portal (path)": 15
+    },
+    "public_routes_with_gate": 8,
+    "public_routes_without_gate": 2
+  },
+  "catalog": [
+    {
+      "route": "/api/agents/[slug]/listings",
+      "file": "app/api/agents/[slug]/listings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "checkDistributionGates",
+        "filterDisplayableDbListings"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/agents/[slug]/past-deals",
+      "file": "app/api/agents/[slug]/past-deals/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/agents/public",
+      "file": "app/api/agents/public/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/analytics/behavioral",
+      "file": "app/api/analytics/behavioral/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/analytics/intent",
+      "file": "app/api/analytics/intent/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/agent/register",
+      "file": "app/api/auth/agent/register/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/change-password",
+      "file": "app/api/auth/change-password/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/dev-login",
+      "file": "app/api/auth/dev-login/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/facebook/callback",
+      "file": "app/api/auth/facebook/callback/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/facebook",
+      "file": "app/api/auth/facebook/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/forgot-password",
+      "file": "app/api/auth/forgot-password/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/google/callback",
+      "file": "app/api/auth/google/callback/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/google",
+      "file": "app/api/auth/google/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/impersonation/stop",
+      "file": "app/api/auth/impersonation/stop/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/invite/[token]",
+      "file": "app/api/auth/invite/[token]/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/invite",
+      "file": "app/api/auth/invite/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/linkedin/callback",
+      "file": "app/api/auth/linkedin/callback/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/linkedin",
+      "file": "app/api/auth/linkedin/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/login",
+      "file": "app/api/auth/login/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/logout",
+      "file": "app/api/auth/logout/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/me",
+      "file": "app/api/auth/me/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/mfa/verify",
+      "file": "app/api/auth/mfa/verify/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/reset-password",
+      "file": "app/api/auth/reset-password/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/auth/verify-email",
+      "file": "app/api/auth/verify-email/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public (auth)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/buildings",
+      "file": "app/api/buildings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/buildings/search",
+      "file": "app/api/buildings/search/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cma",
+      "file": "app/api/cma/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/contact",
+      "file": "app/api/contact/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker",
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/1099",
+      "file": "app/api/crm/1099/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/active-leases/[id]",
+      "file": "app/api/crm/active-leases/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/active-leases",
+      "file": "app/api/crm/active-leases/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/activity",
+      "file": "app/api/crm/activity/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/[id]/ce-courses",
+      "file": "app/api/crm/agents/[id]/ce-courses/route.ts",
+      "methods": [
+        "POST",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/[id]/ethics-training",
+      "file": "app/api/crm/agents/[id]/ethics-training/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/[id]/impersonate",
+      "file": "app/api/crm/agents/[id]/impersonate/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/[id]/photo",
+      "file": "app/api/crm/agents/[id]/photo/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/[id]",
+      "file": "app/api/crm/agents/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/me/photo",
+      "file": "app/api/crm/agents/me/photo/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/me",
+      "file": "app/api/crm/agents/me/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents",
+      "file": "app/api/crm/agents/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/agents/sync-profiles",
+      "file": "app/api/crm/agents/sync-profiles/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/alerts",
+      "file": "app/api/crm/alerts/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/audit-log",
+      "file": "app/api/crm/audit-log/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/automation/adjust-tier",
+      "file": "app/api/crm/automation/adjust-tier/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/automation/status",
+      "file": "app/api/crm/automation/status/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/buildings/[id]",
+      "file": "app/api/crm/buildings/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/buildings",
+      "file": "app/api/crm/buildings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/campaigns",
+      "file": "app/api/crm/campaigns/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/ce-courses",
+      "file": "app/api/crm/ce-courses/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/actions",
+      "file": "app/api/crm/clients/[id]/actions/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/buyer-priorities",
+      "file": "app/api/crm/clients/[id]/buyer-priorities/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/external-listings/[externalId]/comments",
+      "file": "app/api/crm/clients/[id]/external-listings/[externalId]/comments/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/external-listings/[externalId]",
+      "file": "app/api/crm/clients/[id]/external-listings/[externalId]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/external-listings",
+      "file": "app/api/crm/clients/[id]/external-listings/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/family",
+      "file": "app/api/crm/clients/[id]/family/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/financial-intent",
+      "file": "app/api/crm/clients/[id]/financial-intent/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/invite",
+      "file": "app/api/crm/clients/[id]/invite/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/parties",
+      "file": "app/api/crm/clients/[id]/parties/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/preferences",
+      "file": "app/api/crm/clients/[id]/preferences/route.ts",
+      "methods": [
+        "PUT"
+      ],
+      "auth_class": "agent/broker (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/rental-signals",
+      "file": "app/api/crm/clients/[id]/rental-signals/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]",
+      "file": "app/api/crm/clients/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "fair-housing-scan"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients/[id]/seller-signals",
+      "file": "app/api/crm/clients/[id]/seller-signals/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/clients",
+      "file": "app/api/crm/clients/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/cma/[id]",
+      "file": "app/api/crm/cma/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/cma",
+      "file": "app/api/crm/cma/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/commissions/[id]",
+      "file": "app/api/crm/commissions/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/commissions",
+      "file": "app/api/crm/commissions/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/commissions/stats",
+      "file": "app/api/crm/commissions/stats/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/communications/[id]/read",
+      "file": "app/api/crm/communications/[id]/read/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/communications",
+      "file": "app/api/crm/communications/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/communications/templates",
+      "file": "app/api/crm/communications/templates/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/compliance/audit",
+      "file": "app/api/crm/compliance/audit/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "owner_opt_out"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/crm/convert",
+      "file": "app/api/crm/convert/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/crm/conviction/[leadId]",
+      "file": "app/api/crm/conviction/[leadId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/deals/[id]",
+      "file": "app/api/crm/deals/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/deals/[id]/status",
+      "file": "app/api/crm/deals/[id]/status/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/deals",
+      "file": "app/api/crm/deals/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/document-requests",
+      "file": "app/api/crm/document-requests/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/documents/[id]/approve",
+      "file": "app/api/crm/documents/[id]/approve/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/documents/[id]/request-approval",
+      "file": "app/api/crm/documents/[id]/request-approval/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/documents/[id]",
+      "file": "app/api/crm/documents/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/documents/[id]/signatures",
+      "file": "app/api/crm/documents/[id]/signatures/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/documents/batch-approve",
+      "file": "app/api/crm/documents/batch-approve/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/documents",
+      "file": "app/api/crm/documents/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/documents/upload",
+      "file": "app/api/crm/documents/upload/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/email",
+      "file": "app/api/crm/email/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/events",
+      "file": "app/api/crm/events/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/financial-scenarios/[id]",
+      "file": "app/api/crm/financial-scenarios/[id]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/financial-scenarios",
+      "file": "app/api/crm/financial-scenarios/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/inquiries",
+      "file": "app/api/crm/inquiries/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/intake/[type]",
+      "file": "app/api/crm/intake/[type]/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lead-scoring/[id]",
+      "file": "app/api/crm/lead-scoring/[id]/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lead-scoring/assign",
+      "file": "app/api/crm/lead-scoring/assign/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lead-scoring",
+      "file": "app/api/crm/lead-scoring/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lead-scoring/rules",
+      "file": "app/api/crm/lead-scoring/rules/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lead-scoring/stats",
+      "file": "app/api/crm/lead-scoring/stats/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/leads/[id]/parties",
+      "file": "app/api/crm/leads/[id]/parties/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/leads/[id]",
+      "file": "app/api/crm/leads/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/leads",
+      "file": "app/api/crm/leads/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lease-tracker/[id]/outreach",
+      "file": "app/api/crm/lease-tracker/[id]/outreach/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lease-tracker/[id]",
+      "file": "app/api/crm/lease-tracker/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/lease-tracker",
+      "file": "app/api/crm/lease-tracker/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listing-engagement",
+      "file": "app/api/crm/listing-engagement/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listing-sends",
+      "file": "app/api/crm/listing-sends/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "participant_only",
+        "owner_opt_out"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/crm/listing-views",
+      "file": "app/api/crm/listing-views/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listings/[id]/media-order",
+      "file": "app/api/crm/listings/[id]/media-order/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listings/[id]/media/upload",
+      "file": "app/api/crm/listings/[id]/media/upload/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listings/[id]/photos",
+      "file": "app/api/crm/listings/[id]/photos/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listings/[id]",
+      "file": "app/api/crm/listings/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/crm/listings/[id]/status",
+      "file": "app/api/crm/listings/[id]/status/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listings/[id]/validate",
+      "file": "app/api/crm/listings/[id]/validate/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/listings/reset-sync",
+      "file": "app/api/crm/listings/reset-sync/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/crm/listings",
+      "file": "app/api/crm/listings/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/crm/market-report",
+      "file": "app/api/crm/market-report/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/notes",
+      "file": "app/api/crm/notes/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/notifications/preferences",
+      "file": "app/api/crm/notifications/preferences/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/notifications",
+      "file": "app/api/crm/notifications/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/offers/[id]/transmit",
+      "file": "app/api/crm/offers/[id]/transmit/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/outlook/auth",
+      "file": "app/api/crm/outlook/auth/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/outlook/callback",
+      "file": "app/api/crm/outlook/callback/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/outlook/disconnect",
+      "file": "app/api/crm/outlook/disconnect/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/outlook/folders",
+      "file": "app/api/crm/outlook/folders/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/outlook/scan",
+      "file": "app/api/crm/outlook/scan/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/past-deals/[id]",
+      "file": "app/api/crm/past-deals/[id]/route.ts",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/past-deals",
+      "file": "app/api/crm/past-deals/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/pipeline",
+      "file": "app/api/crm/pipeline/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/protected-periods/[id]/buyers",
+      "file": "app/api/crm/protected-periods/[id]/buyers/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/protected-periods/[id]",
+      "file": "app/api/crm/protected-periods/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/protected-periods",
+      "file": "app/api/crm/protected-periods/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/referrals",
+      "file": "app/api/crm/referrals/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/activity",
+      "file": "app/api/crm/rentals/activity/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/applications",
+      "file": "app/api/crm/rentals/applications/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/landlords",
+      "file": "app/api/crm/rentals/landlords/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/leases",
+      "file": "app/api/crm/rentals/leases/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/listings",
+      "file": "app/api/crm/rentals/listings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/prospects",
+      "file": "app/api/crm/rentals/prospects/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/renters",
+      "file": "app/api/crm/rentals/renters/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/rentals/tenants",
+      "file": "app/api/crm/rentals/tenants/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "fair-housing-scan"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/activity",
+      "file": "app/api/crm/sales/activity/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/buyers",
+      "file": "app/api/crm/sales/buyers/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "fair-housing-scan"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/comps/criteria",
+      "file": "app/api/crm/sales/comps/criteria/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/comps",
+      "file": "app/api/crm/sales/comps/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/landlord-sellers",
+      "file": "app/api/crm/sales/landlord-sellers/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/listings",
+      "file": "app/api/crm/sales/listings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/promote",
+      "file": "app/api/crm/sales/promote/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/comps",
+      "file": "app/api/crm/sales/prospects/[id]/comps/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/convert",
+      "file": "app/api/crm/sales/prospects/[id]/convert/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/hook-email",
+      "file": "app/api/crm/sales/prospects/[id]/hook-email/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/outreach",
+      "file": "app/api/crm/sales/prospects/[id]/outreach/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/pdf",
+      "file": "app/api/crm/sales/prospects/[id]/pdf/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/pitch-packet",
+      "file": "app/api/crm/sales/prospects/[id]/pitch-packet/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/research",
+      "file": "app/api/crm/sales/prospects/[id]/research/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]",
+      "file": "app/api/crm/sales/prospects/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PUT",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/[id]/send-packet",
+      "file": "app/api/crm/sales/prospects/[id]/send-packet/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects/import",
+      "file": "app/api/crm/sales/prospects/import/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/prospects",
+      "file": "app/api/crm/sales/prospects/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/sales/sellers",
+      "file": "app/api/crm/sales/sellers/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/saved-searches/[id]/execute",
+      "file": "app/api/crm/saved-searches/[id]/execute/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "owner_opt_out"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/crm/saved-searches/[id]",
+      "file": "app/api/crm/saved-searches/[id]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/saved-searches",
+      "file": "app/api/crm/saved-searches/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "fair-housing-scan"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/settings/renewal-alerts",
+      "file": "app/api/crm/settings/renewal-alerts/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/showing-history",
+      "file": "app/api/crm/showing-history/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/showings/[id]/feedback",
+      "file": "app/api/crm/showings/[id]/feedback/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/showings/[id]",
+      "file": "app/api/crm/showings/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/showings",
+      "file": "app/api/crm/showings/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/syndication/refresh",
+      "file": "app/api/crm/syndication/refresh/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/tasks/[id]",
+      "file": "app/api/crm/tasks/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/tasks",
+      "file": "app/api/crm/tasks/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/tools/1031-timeline",
+      "file": "app/api/crm/tools/1031-timeline/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/tools/cap-rate",
+      "file": "app/api/crm/tools/cap-rate/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/tools/cash-on-cash",
+      "file": "app/api/crm/tools/cash-on-cash/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/tools/rental-yield",
+      "file": "app/api/crm/tools/rental-yield/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/unassigned-leads",
+      "file": "app/api/crm/unassigned-leads/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/crm/validator/run",
+      "file": "app/api/crm/validator/run/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/agent-metrics",
+      "file": "app/api/cron/agent-metrics/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/conviction-scores",
+      "file": "app/api/cron/conviction-scores/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/data-retention",
+      "file": "app/api/cron/data-retention/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "filterDisplayableDbListings"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/cron/db-keepalive",
+      "file": "app/api/cron/db-keepalive/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/demand-signals",
+      "file": "app/api/cron/demand-signals/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/dom-reset",
+      "file": "app/api/cron/dom-reset/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/experiment-metrics",
+      "file": "app/api/cron/experiment-metrics/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/feed-reconcile",
+      "file": "app/api/cron/feed-reconcile/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/cron/idx-sync",
+      "file": "app/api/cron/idx-sync/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/intent-profiles",
+      "file": "app/api/cron/intent-profiles/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/lead-scoring",
+      "file": "app/api/cron/lead-scoring/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/lifecycle-triggers",
+      "file": "app/api/cron/lifecycle-triggers/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/listing-expiration",
+      "file": "app/api/cron/listing-expiration/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/listing-momentum",
+      "file": "app/api/cron/listing-momentum/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/market-snapshots",
+      "file": "app/api/cron/market-snapshots/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/media-backfill",
+      "file": "app/api/cron/media-backfill/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/neon-branch-prune",
+      "file": "app/api/cron/neon-branch-prune/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/prospect-triggers",
+      "file": "app/api/cron/prospect-triggers/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/search-alerts",
+      "file": "app/api/cron/search-alerts/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/seller-scoring",
+      "file": "app/api/cron/seller-scoring/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/social-proof",
+      "file": "app/api/cron/social-proof/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/cron/tenant-nurture",
+      "file": "app/api/cron/tenant-nurture/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/debug/media-health",
+      "file": "app/api/debug/media-health/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/dob/ecb-violations",
+      "file": "app/api/dob/ecb-violations/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/featured-config",
+      "file": "app/api/featured-config/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/guides/download",
+      "file": "app/api/guides/download/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/health/crons",
+      "file": "app/api/health/crons/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/health/env",
+      "file": "app/api/health/env/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/health/geoclient",
+      "file": "app/api/health/geoclient/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/health",
+      "file": "app/api/health/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/health/socrata",
+      "file": "app/api/health/socrata/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/identity/capture",
+      "file": "app/api/identity/capture/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/idx/ensure-listing",
+      "file": "app/api/idx/ensure-listing/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/idx/search",
+      "file": "app/api/idx/search/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/idx/status",
+      "file": "app/api/idx/status/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/idx/sync-historical",
+      "file": "app/api/idx/sync-historical/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/idx/sync",
+      "file": "app/api/idx/sync/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/idx/watermark",
+      "file": "app/api/idx/watermark/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/inquiries",
+      "file": "app/api/inquiries/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/listings/[id]",
+      "file": "app/api/listings/[id]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/listings/building",
+      "file": "app/api/listings/building/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/listings",
+      "file": "app/api/listings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "SEARCH_DISPLAY_GATE",
+        "checkDistributionGates",
+        "filterDisplayableDbListings"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/listings/similar",
+      "file": "app/api/listings/similar/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "internet_address_display_yn",
+        "SEARCH_DISPLAY_GATE",
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/listings/suggest",
+      "file": "app/api/listings/suggest/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/market",
+      "file": "app/api/market/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/media/batch",
+      "file": "app/api/media/batch/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "agent/broker",
+      "auth_signals": [
+        "agent-or-broker"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/media/proxy",
+      "file": "app/api/media/proxy/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/nearby-poi",
+      "file": "app/api/nearby-poi/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/neighborhoods/[slug]",
+      "file": "app/api/neighborhoods/[slug]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/neighborhoods",
+      "file": "app/api/neighborhoods/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/open-houses",
+      "file": "app/api/open-houses/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/open-houses/rsvp",
+      "file": "app/api/open-houses/rsvp/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/pages/[slug]",
+      "file": "app/api/pages/[slug]/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/attorney",
+      "file": "app/api/portal/attorney/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/buyer/activity",
+      "file": "app/api/portal/buyer/activity/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/buyer/saved",
+      "file": "app/api/portal/buyer/saved/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/comparables",
+      "file": "app/api/portal/comparables/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_address_display_yn",
+        "SEARCH_DISPLAY_GATE"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/portal/complete-profile",
+      "file": "app/api/portal/complete-profile/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/documents",
+      "file": "app/api/portal/documents/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/external-listings/[id]/comments",
+      "file": "app/api/portal/external-listings/[id]/comments/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/external-listings/[id]",
+      "file": "app/api/portal/external-listings/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/external-listings",
+      "file": "app/api/portal/external-listings/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/family/invite",
+      "file": "app/api/portal/family/invite/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/family",
+      "file": "app/api/portal/family/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/favorites",
+      "file": "app/api/portal/favorites/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/portal/landlord/activity",
+      "file": "app/api/portal/landlord/activity/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/landlord/dashboard",
+      "file": "app/api/portal/landlord/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/landlord/relist",
+      "file": "app/api/portal/landlord/relist/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/landlord/signals",
+      "file": "app/api/portal/landlord/signals/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/listings/[id]/comments",
+      "file": "app/api/portal/listings/[id]/comments/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "isListingDisplayable"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/portal/listings/[id]/react",
+      "file": "app/api/portal/listings/[id]/react/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [
+        "isListingDisplayable"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/portal/listings/request",
+      "file": "app/api/portal/listings/request/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/listings",
+      "file": "app/api/portal/listings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [
+        "isListingDisplayable"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/portal/marketing",
+      "file": "app/api/portal/marketing/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/me",
+      "file": "app/api/portal/me/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/messages",
+      "file": "app/api/portal/messages/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/offer-status",
+      "file": "app/api/portal/offer-status/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/offers",
+      "file": "app/api/portal/offers/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "internet_entire_listing_display_yn",
+        "internet_address_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "isListingDisplayable"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/portal/open-houses",
+      "file": "app/api/portal/open-houses/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/open-houses/rsvp",
+      "file": "app/api/portal/open-houses/rsvp/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/preferences",
+      "file": "app/api/portal/preferences/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/price-history",
+      "file": "app/api/portal/price-history/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/seller/activity",
+      "file": "app/api/portal/seller/activity/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/seller/dashboard",
+      "file": "app/api/portal/seller/dashboard/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/seller/demand",
+      "file": "app/api/portal/seller/demand/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/seller/fomo",
+      "file": "app/api/portal/seller/fomo/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/seller/signals",
+      "file": "app/api/portal/seller/signals/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/showings/feedback",
+      "file": "app/api/portal/showings/feedback/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/showings",
+      "file": "app/api/portal/showings/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal (path)",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event",
+        "attribution"
+      ],
+      "distribution_gate_signals": [
+        "internet_address_display_yn",
+        "isListingDisplayable"
+      ],
+      "gate_enforced": true
+    },
+    {
+      "route": "/api/portal/tenant/lease",
+      "file": "app/api/portal/tenant/lease/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/tenant/renewal",
+      "file": "app/api/portal/tenant/renewal/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/tenant/signals",
+      "file": "app/api/portal/tenant/signals/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/portal/tenant/viewed-history",
+      "file": "app/api/portal/tenant/viewed-history/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "portal",
+      "auth_signals": [
+        "portal-role"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/schools/nearby",
+      "file": "app/api/schools/nearby/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/search-alerts",
+      "file": "app/api/search-alerts/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event",
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/search-alerts/unsubscribe",
+      "file": "app/api/search-alerts/unsubscribe/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/settings/company",
+      "file": "app/api/settings/company/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "broker",
+      "auth_signals": [
+        "broker-required"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/sign-up",
+      "file": "app/api/sign-up/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "consent-capture"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/tracking/listing-view",
+      "file": "app/api/tracking/listing-view/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/transit/commute",
+      "file": "app/api/transit/commute/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/transit/nearby",
+      "file": "app/api/transit/nearby/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "public",
+      "auth_signals": [],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    },
+    {
+      "route": "/api/unsubscribe",
+      "file": "app/api/unsubscribe/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "auth_class": "public",
+      "auth_signals": [
+        "rate-limited"
+      ],
+      "compliance_signals": [
+        "audit-event"
+      ],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
+    }
+  ]
+}

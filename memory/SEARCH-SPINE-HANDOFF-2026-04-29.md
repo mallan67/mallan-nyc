@@ -2046,3 +2046,73 @@ Memory writeback push state: this checkpoint is **local-only**. The
 resume prompt's Step 3 push authorized only the two queued commits;
 this fresh memory commit sits at +1 ahead of `origin/main` until the
 next session decides to push.
+
+---
+
+## 2026-04-30 · RESO toolkit Layer-2 expansion (5 tools added — local commit only)
+
+While waiting on the `2026-04-30T07:30 UTC` search-alerts cron gate
+that clears PR 5F, expanded `scripts/reso/` from a 7-tool set to a
+12-tool set. None of the additions touch DB writers, schema, env,
+Vercel config, or the master-plan migration path — all are
+read-only diagnostics that can run alongside the in-flight migration
+without quota or risk concerns.
+
+| New tool | npm alias | Burns Trestle quota? |
+|---|---|---|
+| `snapshot.js` | `reso:snapshot` | yes — one analyze pass per run (same as `reso:analyze`) |
+| `gate-breakdown.js` | `reso:gate-breakdown` | yes — 1 baseline + 4 gate probes per run; has `--dry-run` to plan without spending |
+| `drift.js` | `reso:drift` | **no** — reads `artifacts/metadata.xml` + REBNY CSV only |
+| `route-catalog.js` | `reso:route-catalog` | **no** — static analysis of `app/api/**/route.ts` |
+| `schema-audit.js` | `reso:schema-audit` | **no** — three-way compare of Prisma Listing model + REBNY CSV + metadata.xml |
+
+### Trestle ↔ REBNY drift baseline (`drift.js` first run)
+
+Cached `artifacts/metadata.xml` vs `data/rebny-rls-property-fields.csv`,
+captured `2026-04-30T00:10:34Z` and persisted to
+`artifacts/reso-drift/2026-04-30T00-10-34-631Z.json` + `latest.json`:
+
+- **Property**: 745 fields in both, 0 Trestle-only, 1 REBNY-only.
+  Trestle catches up on DD 2.1 → expect Trestle field count to rise.
+- **Member / Office / Media**: identical sets (90/79/55 each).
+- **OpenHouse / PropertyUnitTypes / CustomProperty**: REBNY uses
+  spaced names (`Open House`, `Property UnitTypes`, `Custom Property`)
+  while Trestle uses non-spaced (`OpenHouse`, `PropertyUnitTypes`,
+  `CustomProperty`). Same fields — naming-cosmetic drift.
+- **Trestle-only resources REBNY does not document**:
+  PropertyRooms (39), Teams (48), TeamMembers (29),
+  PropertyGreenVerification (39), DataSystem (7), Field (15),
+  Lookup (15), Enumeration (8), Model (8). Matches the
+  "Additional Trestle Resources" line in `CLAUDE.md`.
+
+This baseline is what future runs diff against. When Trestle pushes
+new fields (DD 2.1 certification, new resources) or REBNY revises the
+IDX Plus CSV, the next run's `changes_since_prior` array will surface
+the delta on stdout.
+
+### Compliance topology baselines
+
+`route-catalog.js` first run — 276 routes:
+- agent/broker (explicit + path heuristic): 136
+- public: 36 · portal: 25 · broker: 24 · cron: 23 · public(auth): 17
+  · portal(path): 15 · agent/broker(path): 2
+- listing-adjacent public routes WITH gate enforcement: 8
+- listing-adjacent public routes WITHOUT gate enforcement: 2
+  (worth eyeballing once for a tighter audit, but the static heuristic
+  may be conservative — manual review before flagging as a finding.)
+
+`schema-audit.js` first run — 58 Listing columns:
+- 22 fully RESO + Trestle aligned
+- 31 mallan-internal (deliberately not RESO-mapped: FKs, sync state,
+  derived columns, JSON containers)
+- 5 drift / verify-mapping (auction composite + small tail)
+
+### Push state
+
+`origin/main` is at `5b164553`. Local commits ahead of origin:
+- `dde1819a` docs(memory): record resume + push of memory corrections + RESO toolkit
+- `9bf3c9c9` docs(memory): RESO compliance audit 2026-04-29
+- `14b16d4e` chore(reso): add scripts/reso/trace.js
+- (this commit) chore(reso): Layer-2 tools — snapshot/gate-breakdown/drift/route-catalog/schema-audit
+
+All four sit local-only awaiting explicit push authorization.
