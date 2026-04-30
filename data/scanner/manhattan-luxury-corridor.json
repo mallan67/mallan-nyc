@@ -1,0 +1,59 @@
+{
+  "type": "FeatureCollection",
+  "name": "manhattan-luxury-corridor",
+  "description": "Mallan Real Estate's primary market: Manhattan south of 97th St (East side) / 110th St (West side). Source-of-truth boundary for the off-market seller-intent scanner and every other geographic-scoped tool. Refine vertices from NYC LION centerlines as needed; this is a working polygon accurate to street-block resolution.",
+  "license": "CC-BY-4.0 (mallan-nyc internal use)",
+  "captured_at": "2026-04-30",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "manhattan-luxury-corridor-v1",
+      "properties": {
+        "name": "Manhattan Luxury Corridor",
+        "boro_code": "1",
+        "boro_name": "Manhattan",
+        "north_boundary_east": "97th Street (5th Ave to FDR Drive)",
+        "north_boundary_west": "110th Street / Cathedral Pkwy (CPW to Hudson River)",
+        "north_boundary_park": "97th–110th cross-park diagonal (96th St transverse)",
+        "south_boundary": "Battery / Castle Clinton",
+        "east_boundary": "East River / FDR Drive",
+        "west_boundary": "Hudson River / Riverside Park / Hudson River Park",
+        "version": "v1",
+        "notes": "Excludes East Harlem, Harlem, Morningside Heights, Hamilton Heights, Washington Heights, Inwood. Includes UES (south of 96th), Carnegie Hill, Yorkville (below 97th), Lenox Hill, Midtown East, Sutton Place, Murray Hill, Tudor City, Turtle Bay, Kips Bay, Gramercy, Stuy Town, East Village, LES, Two Bridges, FiDi, Battery Park, TriBeCa, SoHo, NoHo, Greenwich Village, West Village, Chelsea, Hudson Yards, Hell's Kitchen, Midtown West, Lincoln Square, UWS (south of 110th)."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-73.9450, 40.7866],
+          [-73.9514, 40.7864],
+          [-73.9577, 40.7861],
+          [-73.9582, 40.7920],
+          [-73.9580, 40.7997],
+          [-73.9645, 40.8005],
+          [-73.9707, 40.8020],
+          [-73.9744, 40.7950],
+          [-73.9836, 40.7843],
+          [-74.0010, 40.7717],
+          [-74.0107, 40.7501],
+          [-74.0125, 40.7415],
+          [-74.0188, 40.7115],
+          [-74.0188, 40.7050],
+          [-74.0185, 40.7034],
+          [-74.0150, 40.7016],
+          [-74.0098, 40.7011],
+          [-74.0006, 40.7059],
+          [-73.9904, 40.7124],
+          [-73.9788, 40.7159],
+          [-73.9728, 40.7321],
+          [-73.9670, 40.7505],
+          [-73.9594, 40.7587],
+          [-73.9577, 40.7615],
+          [-73.9559, 40.7660],
+          [-73.9499, 40.7745],
+          [-73.9469, 40.7810],
+          [-73.9450, 40.7866]
+        ]]
+      }
+    }
+  ]
+}

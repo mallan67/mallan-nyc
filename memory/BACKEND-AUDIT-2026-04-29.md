@@ -1254,3 +1254,62 @@ This addition is **local-only** per the established gate. `origin/main` is at `5
 
 PR 5F (CRM saved-search list/counts projection migration) remains gated on the `2026-04-30T07:30 UTC` search-alerts cron clean run. Public `/api/listings` projection migration deferred until 5D/5E observed stable. Saved-search clone toolkit (`scripts/reso/search/`) deferred per the earlier hard-limits decision.
 
+---
+
+## 2026-04-30 · Off-market scanner foundation — Manhattan luxury corridor primitive
+
+While waiting on the search-alerts cron gate, started the off-market seller-intent scanner per the user's expanded ask (PLUTO + ACRIS + DOF + DOB + HPD + lis pendens + probate + aging-owners). User constrained the geographic scope: **Manhattan only, south of 97th E and 110th W, both rivers, down to the Battery.** Roughly 14 sq miles, 30K–40K PLUTO tax lots, 8K–15K buildings, 20K–30K distinct owners, 1K–3K with active sell-signals at any moment, 50–200 hot-prospect queue.
+
+User also clarified the dual-track strategy: rentals don't get scanned for tenant intent (most landlords self-advertise) but landlords with distress signals are dual prospects — listing-acquisition AND sale-disposition. This matches the cross-side-opportunity state machine in `docs/superpowers/specs/2026-04-27-mallan-intelligence-platform-WIP.md`.
+
+### Existing prior work that this slice continues
+
+- `docs/superpowers/specs/2026-04-27-mallan-intelligence-platform-WIP.md` — combined buyer+seller intelligence platform, the master vision
+- `docs/superpowers/specs/_archived-2026-04-27/2026-03-21-seller-prospecting-engine-design.md` — full seller scanner spec with `SellerLead` extension, `OutreachCadenceStep` model, 5-tab prospect workspace, 9-step cadence, daily trigger cron
+- `docs/superpowers/specs/_archived-2026-04-27/2026-03-25-buyer-engagement-system-design.md` — buyer-side tracked-listing-link intelligence
+
+### What shipped this slice (commit local-only)
+
+`lib/geo/manhattan-corridor.ts` — the geographic primitive. Every scanner read filters through `isInCorridor(lat, lng)`. Foundation for everything downstream.
+
+| File | Role |
+|---|---|
+| `data/scanner/manhattan-luxury-corridor.json` | GeoJSON polygon, 26 vertices, accurate to street-block resolution. Source-of-truth boundary. Refinable from NYC LION centerlines later. |
+| `lib/geo/manhattan-corridor.ts` | `isInCorridor(lat, lng)` ray-cast + `CORRIDOR_BOUNDS` bbox + `MANHATTAN_BORO_CODE` + `MANHATTAN_BBL_PREFIX` + `isManhattanBbl()` + `CORRIDOR_FEATURE` export |
+| `lib/geo/jest.config.js` | Test runner config |
+| `lib/geo/__tests__/manhattan-corridor.test.ts` | 67 tests across 30 inside-landmarks, 20 outside-landmarks, bad-input handling, bounds, BBL prefix, GeoJSON shape |
+
+### Test-suite results
+
+- 67/67 PASS
+- 30 inside-landmarks (Mallan office, ESB, Times Sq, Battery, FiDi, Hudson Yards, Stuy Town, UN HQ, Sutton Place, Carnegie Hill, UWS, TriBeCa, SoHo, etc.) — all correctly classified as inside
+- 20 outside-landmarks (East Harlem, Harlem, Morningside Hts, Hamilton Hts, Wash Hts, Inwood, Bronx, Brooklyn, Queens, JFK, etc.) — all correctly classified as outside
+- Edge tests at 96th/Lex (just south of E boundary, inside), 98th/Lex (just north, outside), 109th/CPW (just south of W boundary, inside), 111th/CPW (just north, outside)
+- Type-check: 0 errors project-wide
+
+### Known limitations of v1 polygon
+
+- Hand-drawn from known street/avenue intersections, not derived from NYC LION centerlines. Accurate to street-block resolution; sub-block precision could be off by ~30–100 ft in places.
+- Diagonal across Central Park is approximate (96th transverse line). Listings inside Central Park itself (Tavern on the Green, etc.) will resolve to inside the corridor — fine for prospecting since CP has no residential parcels.
+- Refinement plan: after PLUTO ingest, use BBL polygon centroids and refine corridor edges so every Manhattan BBL has an unambiguous in-or-out classification.
+
+### Compliance NOT done yet (Phase 0 still required before any scanner output reaches outreach)
+
+- `OwnerSuppression` table not built
+- NY DOS Cease & Desist Zone GeoJSON not ingested
+- NYS DNC + FTC DNC sync not built
+- Per-broker C&D list not built
+
+These remain Phase 0 blockers per my earlier scanner architecture proposal. The corridor primitive is the geographic gate; the compliance gate is the outreach gate. Both must exist before any prospect surfaces to a queue.
+
+### Push state
+
+`origin/main` at `5b164553`. Local commits ahead of origin (chronological):
+- `dde1819a` docs(memory): record resume + push of memory corrections + RESO toolkit
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- (this commit) feat(scanner): Manhattan luxury corridor primitive + 67 tests
+
+All five sit local-only awaiting explicit push authorization.
+
