@@ -1568,3 +1568,97 @@ All nine sit local-only awaiting explicit push authorization.
 - **Active verification wrappers** — small modules that run USPS / Twilio Lookup / NeverBounce against aggregated records and feed back into the VerificationMap.
 - **Scoring engine** — combines all signals into a per-BBL seller-intent score, gated through the compliance gate before display.
 
+---
+
+## 2026-04-30 · NY DOS Corporation DB ingest (LLC resolution layer)
+
+Maya's expanded ask: pull contact info from "LLC registration disclosure". Clarified scope — the LLC Transparency Act (LLCTA) and federal CTA beneficial-ownership databases are confidential per 2024 amendments; only law enforcement can query. The pre-existing **NY DOS Corporation database** is fully public though, and that's what ships here.
+
+### Scope decision
+
+**HPD ingest dropped per Maya's directive** — she doesn't work with rent-stabilized / rent-control sellers, "too much headaches." HPD building registration removed from priority list.
+
+**DOS Corp prioritized** because it's the LLC-resolution layer for ACRIS. ACRIS shows "ACME 90 LLC" as a grantor with the LLC's address — useless for outreach. DOS Corp tells you the registered agent + process address (often the manager's actual address) plus status (active vs dissolved).
+
+### What shipped (this commit)
+
+| File | Role |
+|---|---|
+| `lib/scanner/dos-corp-filter.ts` | Pure filter — NYC county check, NYC process-address fallback, entity-type filter (LLC/Corp/NFP/LP/LLP, skip DBA/assumed-name), name normalization (`normalizeEntityName` for join with ACRIS, `normalizeEntityNameStripped` for fuzzier matching). |
+| `lib/scanner/__tests__/dos-corp-filter.test.ts` | 50 tests across normalization, NYC matching, entity-type filtering, mixed-batch, projection. |
+| `scripts/scanner/dos-corp-ingest.ts` | Streaming script — reads NY OpenData "Active Corporations" CSV, filters, writes `data/scanner/dos-corp-corridor.csv`. |
+| `lib/scanner/contact/sources/dos-corporation.ts` | Source adapter — DosCorpProjected → SourceContactRow with `source: "dos_corporation"`, source URL pointing at NY DOS public-inquiry permalink keyed by DOS_ID. |
+| `data/scanner/dos-corp-fixture.csv` | 10-row synthetic fixture — Manhattan LLC, Brooklyn LLC, Westchester+NYC-process, Albany (drop), DBA (drop), dissolved (keep), NFP. |
+| `package.json` | `scanner:dos-corp-ingest` |
+
+### Filter pipeline
+
+1. **Entity type** ∈ relevant set (LLC, Corp, NFP, LP, LLP — skip DBA/assumed-name)
+2. **NYC relevance**: NYC-county OR NYC-process-address (catches LLCs registered upstate but with NYC process address)
+3. **Status preserved** (not a filter): Active vs Dissolved/Forfeited/Surrendered both kept; dissolved-with-corridor-property is itself a sell signal.
+
+Output schema:
+```
+dos_id, current_entity_name, normalized_name, normalized_name_stripped,
+entity_type, status, initial_filing_date, jurisdiction, county,
+process_name, process_address_1, process_address_2,
+process_city, process_state, process_zip
+```
+
+### Aggregator update
+
+Aggregator's `normalizeName()` was less aggressive than dos-corp-filter's `normalizeEntityName()` — the former didn't strip commas/periods. Fixed: aggregator now strips punctuation so "ACME, LLC" / "ACME LLC" / "ACME L.L.C." all normalize identically. This is what makes 3-source agreement work in practice.
+
+Added `dos_corporation` source adapter to the aggregator pipeline; new aggregator test covers full PLUTO + ACRIS + DOS triple-source flow.
+
+### Smoke results
+
+Synthetic fixture (10 rows in):
+```
+kept=8 active=7 inactive=1
+manhattan=6 other_nyc=1 process_only=1
+drops_non_nyc=1 (Albany)
+drops_irrel=1 (DBA assumed-name)
+unique=8
+```
+
+Triple-source aggregator test (PLUTO + ACRIS + DOS Corp on same LLC):
+- 3 sources agree on normalized name
+- `owner_entity.confidence = "high"` (3+ sources)
+- DOS process_name surfaces a managing-member-or-rep human ("JOHN A SMITH")
+- Address is high-confidence cross-source agreement
+
+Combined: **186/186 PASS** (5 suites). `npx tsc --noEmit`: exit 0.
+
+### What this enables
+
+When the scanner surfaces a prospect like "lis pendens filed on BBL 1015730019, grantor 400 EAST 90 OWNER LLC", we can now:
+
+1. Get the LLC's process address (DOS Corp)
+2. Confirm the LLC is still active (or flag dissolved as additional signal)
+3. Surface the registered agent / managing member name as a contact
+4. Cross-reference: does DOS process address match PLUTO mailing? If different → owner is non-occupant (absentee); if same → owner-occupant
+5. Audit trail: every field carries source URL + capture date + verification method
+
+### What remains for full LLC contact resolution
+
+- **NY DOS Corp inactive/dissolved dataset ingest** — same shape but separate file. Future commit.
+- **Cross-source join layer** — a function that takes an ACRIS grantor name and returns the matched DOS Corp record by `normalized_name` (or fallback to `normalized_name_stripped`). Pure module on top of both ingests' outputs. Future commit.
+- **DOS Corp Annual Report / Biennial Statement** — newer filings carry officer names. Separate dataset, similar shape.
+
+### Push state
+
+`origin/main` at `5b164553`. Local commits ahead of origin (chronological):
+- `dde1819a` docs(memory): RESO toolkit + corrections
+- `9bf3c9c9` docs(memory): RESO compliance audit
+- `14b16d4e` chore(reso): trace.js
+- `2ab89410` chore(reso): Layer-2 toolkit
+- `078769bb` feat(scanner): Manhattan luxury corridor primitive
+- `091910fd` feat(scanner): Phase 0 compliance gate
+- `337b3c68` feat(scanner): Phase 1 PLUTO ingest pipeline
+- `f3027c61` feat(scanner): ACRIS bulk ingest
+- `88b5fad6` feat(scanner): contact enrichment foundation
+- (this commit) feat(scanner): NY DOS Corporation DB ingest
+
+All 10 sit local-only awaiting explicit push authorization.
+

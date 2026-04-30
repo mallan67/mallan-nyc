@@ -27,9 +27,16 @@ import type {
   VerificationMethod,
 } from "@/lib/scanner/contact/types";
 
-/** Trim, lower-case, collapse whitespace. */
+/** Trim, lower-case, strip commas/periods, collapse whitespace.
+ *  Mirrors dos-corp-filter's normalizeEntityName so PLUTO + ACRIS + DOS
+ *  cross-source matches succeed despite formatting variations like
+ *  "ACME, LLC" vs "ACME LLC" vs "ACME L.L.C.". */
 export function normalizeName(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[.,]/g, "")
+    .replace(/\s+/g, " ");
 }
 
 /** Strip non-digits, drop a leading "1" country code on 11-digit US numbers. */

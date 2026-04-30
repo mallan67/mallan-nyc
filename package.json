@@ -92,6 +92,7 @@
         "scanner:refresh-cd-zones": "npx tsx scripts/scanner/refresh-cd-zones.ts",
         "scanner:pluto-ingest": "npx tsx scripts/scanner/pluto-ingest.ts",
         "scanner:acris-ingest": "npx tsx scripts/scanner/acris-ingest.ts",
+        "scanner:dos-corp-ingest": "npx tsx scripts/scanner/dos-corp-ingest.ts",
         "test:scanner": "jest --config lib/scanner/jest.config.js",
         "test:corridor": "jest --config lib/geo/jest.config.js",
         "validate:form-rls": "node scripts/validate-form-rls.js",

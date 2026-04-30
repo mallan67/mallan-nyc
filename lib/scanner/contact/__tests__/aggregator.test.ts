@@ -10,6 +10,7 @@ import {
 import type { SourceContactRow } from "@/lib/scanner/contact/types";
 import { plutoRowToContact } from "@/lib/scanner/contact/sources/pluto-mailing";
 import { acrisRowToContact } from "@/lib/scanner/contact/sources/acris-parties";
+import { dosCorpRowToContact } from "@/lib/scanner/contact/sources/dos-corporation";
 
 const NOW = new Date("2026-04-30T12:00:00Z");
 
@@ -284,6 +285,113 @@ describe("acrisRowToContact source adapter", () => {
     expect((contact.addresses ?? [])[0]).toContain("15 GRAMERCY PARK SOUTH");
     expect((contact.addresses ?? [])[0]).toContain("APT 4A");
     expect((contact.addresses ?? [])[0]).toContain("10003");
+  });
+});
+
+describe("dosCorpRowToContact source adapter", () => {
+  test("extracts LLC name + process address + DOS source URL", () => {
+    const row = {
+      dos_id: "1234567",
+      current_entity_name: "400 EAST 90 OWNER LLC",
+      normalized_name: "400 east 90 owner llc",
+      normalized_name_stripped: "400 east 90 owner",
+      entity_type: "DOMESTIC LIMITED LIABILITY COMPANY",
+      status: "ACTIVE",
+      initial_filing_date: "01/15/2018",
+      jurisdiction: "NEW YORK",
+      county: "NEW YORK",
+      process_name: "JOHN A SMITH",
+      process_address_1: "400 EAST 90 STREET",
+      process_address_2: "APT 12A",
+      process_city: "NEW YORK",
+      process_state: "NY",
+      process_zip: "10128",
+    };
+    const contact = dosCorpRowToContact(row);
+    expect(contact.bbl).toBeNull();
+    expect(contact.owner_entity).toBe("400 EAST 90 OWNER LLC");
+    expect(contact.names).toEqual(["JOHN A SMITH"]);
+    expect((contact.addresses ?? [])[0]).toContain("400 EAST 90 STREET");
+    expect((contact.addresses ?? [])[0]).toContain("APT 12A");
+    expect((contact.addresses ?? [])[0]).toContain("10128");
+    expect(contact.source).toBe("dos_corporation");
+    expect(contact.source_url).toContain("apps.dos.ny.gov");
+    expect(contact.source_url).toContain("1234567");
+    expect(contact.source_record_date).toBe("01/15/2018");
+  });
+
+  test("handles dissolved LLC", () => {
+    const row = {
+      dos_id: "9", current_entity_name: "DISSOLVED OWNER LLC",
+      normalized_name: "dissolved owner llc", normalized_name_stripped: "dissolved owner",
+      entity_type: "DOMESTIC LIMITED LIABILITY COMPANY",
+      status: "DISSOLVED",
+      initial_filing_date: "05/12/2008", jurisdiction: "NEW YORK", county: "NEW YORK",
+      process_name: "", process_address_1: "123 EAST 80 STREET", process_address_2: "",
+      process_city: "NEW YORK", process_state: "NY", process_zip: "10075",
+    };
+    const contact = dosCorpRowToContact(row);
+    expect(contact.owner_entity).toBe("DISSOLVED OWNER LLC");
+    expect(contact.names).toEqual([]); // empty process_name
+    expect((contact.addresses ?? [])[0]).toContain("123 EAST 80 STREET");
+  });
+});
+
+describe("end-to-end — PLUTO + ACRIS + DOS Corp triple-source aggregate", () => {
+  test("Three-source agreement on the LLC name → high confidence", () => {
+    const plutoRow = {
+      BBL: "1015730019", BoroCode: "1", Block: "01573", Lot: "0019",
+      Address: "400 EAST 90 STREET", ZipCode: "10128",
+      OwnerName: "400 EAST 90 OWNER LLC", OwnerType: "P",
+      LandUse: "04", BldgClass: "R4", UnitsRes: "20", UnitsTotal: "20",
+      YearBuilt: "1985", YearAlter1: "", YearAlter2: "",
+      AssessLand: "500000", AssessTot: "2500000", ExemptLand: "0", ExemptTot: "0",
+      BuiltFAR: "4.5", ResidFAR: "5.0", CommFAR: "0.0",
+      Latitude: "40.7790", Longitude: "-73.9489", CondoNo: "0",
+      HistDist: "", Landmark: "", LotArea: "5000", BldgArea: "30000",
+      NumFloors: "12", ZoneDist1: "R8B",
+    };
+    const acrisRow = {
+      doc_id: "2026031500900001", doc_type: "LP", category: "lis_pendens",
+      document_date: "03/15/2026", recorded_datetime: "2026-03-15T10:30:00.000", document_amt: "0",
+      bbl: "1015730019",
+      street_number: "400", street_name: "EAST 90 STREET", unit: "12A", property_type: "RC",
+      party_name: "400 East 90 Owner LLC",
+      party_address_1: "400 EAST 90 STREET",
+      party_address_2: "APT 12A",
+      party_city: "NEW YORK", party_state: "NY", party_zip: "10128", party_country: "US",
+    };
+    const dosRow = {
+      dos_id: "1234567",
+      current_entity_name: "400 EAST 90 OWNER, LLC",
+      normalized_name: "400 east 90 owner llc",
+      normalized_name_stripped: "400 east 90 owner",
+      entity_type: "DOMESTIC LIMITED LIABILITY COMPANY",
+      status: "ACTIVE",
+      initial_filing_date: "01/15/2018",
+      jurisdiction: "NEW YORK", county: "NEW YORK",
+      process_name: "JOHN A SMITH",
+      process_address_1: "400 EAST 90 STREET",
+      process_address_2: "APT 12A",
+      process_city: "NEW YORK", process_state: "NY", process_zip: "10128",
+    };
+    const sourceRows = [
+      plutoRowToContact(plutoRow),
+      acrisRowToContact(acrisRow),
+      dosCorpRowToContact(dosRow),
+    ];
+    const r = aggregateContacts(sourceRows, new Map(), NOW);
+    expect(r.bbl).toBe("1015730019");
+    expect(r.source_count).toBe(3);
+    expect(r.sources.sort()).toEqual(["acris_party", "dos_corporation", "pluto_mailing"]);
+    // 3-source agreement on LLC name → high
+    expect(r.owner_entity?.normalized).toBe("400 east 90 owner llc");
+    expect(r.owner_entity?.confidence).toBe("high");
+    expect(r.owner_entity?.verified).toBe(true);
+    // Process name from DOS Corp surfaces a managing-member-or-rep human
+    expect(r.names.length).toBeGreaterThan(0);
+    expect(r.names[0].value).toBe("JOHN A SMITH");
+    expect(r.overall_confidence).toBe("high");
   });
 });
 
