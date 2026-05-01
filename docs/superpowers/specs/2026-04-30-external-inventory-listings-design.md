@@ -659,7 +659,7 @@ Per spec self-review requirements (user-specified 2026-04-30):
 
 > **Are REBNY / RLS / UCBA boundaries preserved?**
 >
-> Yes — §9.5 enumerates each rule (UCBA Art. I §4, §5(D), Art. III §2(C), Art. III §3, Fair Housing, NY DOS §175.25, TCPA, CAN-SPAM, NY SHIELD) and the specific design element that preserves it. The design ALSO preserves the existing IDX Plus pre-filter writer fix (mapper `0309875b`) by leaving `lib/idx/trestle-mapper.ts` and the reader gates untouched — external inventory has its own ingest path.
+> Yes — §9.5 enumerates each rule (UCBA Art. I §4, §5(D), Art. III §2(C), Art. III §3, Fair Housing, NY DOS §175.25, TCPA, CAN-SPAM, NY SHIELD) and the specific design element that preserves it. The design ALSO preserves the existing REBNY-IDX-Plus-pre-filter writer fix (mapper `0309875b`) by leaving `lib/idx/trestle-mapper.ts` and the reader gates untouched — external inventory has its own ingest path. Note (added 2026-05-01): the writer fix's null-handling logic is **specific to REBNY's policy layer applied at Cotality's data-serving boundary**, not universal Trestle behavior. When Phase 2-A subscribes to OneKey or NY State MLS, those feeds carry different MLS-policy layers and runtime payload behavior must be verified per feed. Each new ingest path gets its own coverage-probe + writer-test cycle before promotion to production.
 
 ## 15. Open questions / decisions deferred
 

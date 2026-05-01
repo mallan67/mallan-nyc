@@ -654,29 +654,54 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // live $metadata; docs explicitly state "no separate IDXEntireListingDisplayYN
   // field exists"). Use InternetEntireListingDisplayYN instead.
   //
-  // IDX PLUS PRE-FILTER SEMANTICS (verified 2026-04-30 against live Trestle +
-  // production DB state). REBNY/Cotality pre-filter non-displayable rows out
-  // of the IDX Plus feed at the provider level: every record reaching this
-  // mapper has already passed the upstream gate. Two consequences:
-  //   1. InternetEntireListingDisplayYN and InternetAddressDisplayYN return
-  //      null for the majority of records (the field exists in metadata but
-  //      is intentionally unset because the upstream filter already enforced
-  //      the policy).
-  //   2. These fields are NOT OData-filterable — Trestle returns HTTP 400
-  //      "Results from 'RLS' has been suppressed (provider Level)" for any
-  //      `eq true` / `eq false` filter. Confirmed proof of pre-filter intent.
+  // REBNY IDX PLUS PRE-FILTER SEMANTICS (verified 2026-04-30 against live
+  // Trestle + production DB state; layer distinction clarified 2026-05-01).
   //
-  // Therefore null on these two fields means "upstream already gated this row
-  // in" = displayable. Only an explicit `false` (rare, but valid for the
-  // per-row override case) means "do not display." `affirmPermission` would
-  // collapse null → false and suppress every Trestle-sourced row; that is
-  // the bug fixed here (commit 55803f87 → recovery 2026-04-30).
+  // Three layers to keep separate:
+  //   REBNY  — the MLS/RLS organization, data owner, and policy layer
+  //   Cotality/Trestle — the API/feed platform that implements + serves the data
+  //   RESO   — the certification/data-standard framework (the Property entity
+  //            type, field names, and DD versions all originate here)
+  //
+  // The behavior below is SPECIFIC to mallan.nyc's REBNY IDX Plus feed served
+  // via Cotality/Trestle 5.0 (REBNY's currently-certified provider; verified
+  // in the RESO Desktop Client 2026-05-01: REBNY UOI T00000046 → Cotality/
+  // Trestle 5.0 endorsement on Data Dictionary 2.0, certified Jan 23 2025,
+  // 100% of 251 IDX fields). Other Cotality/Trestle deployments serving
+  // different MLSes (with different policy layers) MAY behave differently for
+  // these fields. Do not generalize this comment to "all Trestle feeds."
+  //
+  // Under REBNY's policy layer, non-displayable rows are filtered out of the
+  // IDX Plus feed BEFORE they reach this mapper. Two consequences:
+  //   1. InternetEntireListingDisplayYN and InternetAddressDisplayYN return
+  //      null for the vast majority of records (the field exists in the RESO
+  //      schema and Cotality exposes it, but REBNY's policy layer leaves it
+  //      unset because the upstream filter already enforced the policy).
+  //   2. These fields are NOT OData-filterable — the feed returns HTTP 400
+  //      "Results from 'RLS' has been suppressed (provider Level)" for any
+  //      `eq true` / `eq false` filter. Confirmed proof of REBNY-policy
+  //      pre-filter intent (provider Level = REBNY policy applied at the
+  //      Cotality data-serving boundary).
+  //
+  // Therefore null on these two fields means "REBNY's upstream filter already
+  // gated this row in" = displayable. Only an explicit `false` (rare, but
+  // valid for the per-row override case) means "do not display." Wrapping
+  // these in `affirmPermission` would collapse null → false and suppress
+  // every REBNY-IDX-Plus-sourced row; that was the bug fixed here (commit
+  // 55803f87 → recovery 2026-04-30).
   //
   // This is INTENTIONALLY DIFFERENT from InternetAutomatedValuationDisplayYN
-  // and InternetConsumerCommentYN below, which are per-listing opt-out flags
-  // populated at row level (~97% true / ~3% false in the live feed). Those
-  // remain fail-CLOSED via affirmPermission. Locked in by the writer-side
-  // gate coercion tests in lib/compliance/__tests__/compliance-gates.test.ts.
+  // and InternetConsumerCommentYN below, which REBNY treats as per-listing
+  // opt-out flags populated at row level (~97% true / ~3% false in the live
+  // feed). Those remain fail-CLOSED via affirmPermission. Locked in by the
+  // writer-side gate coercion tests in
+  // lib/compliance/__tests__/compliance-gates.test.ts.
+  //
+  // Runtime payload behavior must be verified per feed, not assumed from RESO
+  // certification alone. If mallan.nyc later subscribes to OneKey, NY State
+  // MLS, or another non-REBNY MLS (per the parked external-inventory spec
+  // Phase 2-A), the policy layer will be different and this null-handling
+  // logic must be re-evaluated for that feed independently.
   const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
   const internetAddress = raw.InternetAddressDisplayYN !== false;
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per

@@ -53,6 +53,26 @@ Non-compliance exposes the brokerage to immediate suspension and liquidated dama
 
 ---
 
+### Three-layer feed model — REBNY vs Cotality vs RESO (clarified 2026-05-01)
+
+Three distinct layers must stay separate when reasoning about feed behavior, debugging field semantics, or planning future MLS subscriptions:
+
+| Layer | What it is | Who owns it |
+|---|---|---|
+| **REBNY** | The MLS / RLS organization, data owner, and policy layer | Owns the runtime policy that decides which rows reach the feed and which fields are populated/suppressed per row. UOI in RESO Desktop Client: `T00000046`. |
+| **Cotality / Trestle** | The API / feed platform implementing and serving REBNY's data | Cotality is one of multiple RESO-certified providers REBNY uses. mallan.nyc reads from **Cotality / Trestle 5.0**, currently certified on **RESO Data Dictionary 2.0** (Jan 23 2025; 16 resources, 1,436 fields, 65,735 lookups, 100% of 251 IDX fields). REBNY also has Cotality / Matrix Web API and Perchwell certified for other endorsements; Perchwell's older endorsements (DD 1.7, Web API Core 2.0.0) are EXPIRING SOON in 2026 but are not on mallan.nyc's path. |
+| **RESO** | The certification / data-standard framework | Defines the Property entity, field names, enum values, certification levels (Web API Core, Data Dictionary, Add/Edit, etc.). RESO certification tells you which fields a platform CAN expose; it does NOT tell you what each MLS's policy layer will populate at runtime. |
+
+**Practical consequences:**
+
+1. **Field behavior is feed-specific, not RESO-spec-derived.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper at `lib/idx/trestle-mapper.ts:680-681` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
+2. **Other RESO fields behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
+3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME RESO field names with different runtime semantics. New adapters must run their own `npm run reso:coverage` probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from RESO certification alone.**
+
+This distinction was clarified after the 2026-04-30 IDX Plus display-gate incident. Full incident capture in [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](./memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md).
+
+---
+
 ### Allowed Use (REBNY Confirmed 2026-03-27)
 - MLS/IDX data may be accessed **only via authorized server-side connections** using credentials issued through Trestle/Cotality.
 - IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27).
