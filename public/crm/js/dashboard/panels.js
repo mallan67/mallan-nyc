@@ -12712,6 +12712,38 @@ var Panels = (function () {
         '</div>' +
 
       '</form>' +
+
+      // ── Change Password Card (separate from profile form so the profile-form
+      //    'input' listener that drives the preview does NOT fire on every
+      //    keystroke into a password field, and so saveProfile cannot be
+      //    triggered by Enter inside a password input). Posts directly to
+      //    /api/auth/change-password via MallanAPI.auth.changePassword.
+      //    Added 2026-05-01 because broker-admin users had no UI path to
+      //    rotate their password — only DevTools-console workaround. ──
+      UI.card('<i class="fas fa-key text-gold mr-2"></i>Change Password',
+        '<p class="text-xs text-gray-500 mb-4">Choose a new password. Minimum 8 characters; 12+ recommended (mix upper, lower, digits, symbols). Your current password is required to confirm.</p>' +
+        '<div class="grid gap-4 max-w-md">' +
+          '<div>' +
+            '<label for="cpCurrent" class="form-label">Current password</label>' +
+            '<input type="password" id="cpCurrent" autocomplete="current-password" class="form-input">' +
+          '</div>' +
+          '<div>' +
+            '<label for="cpNew" class="form-label">New password</label>' +
+            '<input type="password" id="cpNew" autocomplete="new-password" class="form-input" minlength="8">' +
+            '<p class="text-xs text-gray-400 mt-1">At least 8 characters.</p>' +
+          '</div>' +
+          '<div>' +
+            '<label for="cpConfirm" class="form-label">Confirm new password</label>' +
+            '<input type="password" id="cpConfirm" autocomplete="new-password" class="form-input" minlength="8">' +
+          '</div>' +
+          '<div class="flex items-center gap-3">' +
+            '<button type="button" class="btn btn-gold" onclick="Panels._changePassword()" id="cpSubmitBtn">' +
+              '<i class="fas fa-key mr-1"></i> Change Password' +
+            '</button>' +
+            '<span id="cpStatus" class="text-sm text-gray-500"></span>' +
+          '</div>' +
+        '</div>'
+      ) +
     '</div>';
 
     // Wire up live preview updates
@@ -12864,6 +12896,77 @@ var Panels = (function () {
     }).then(function () {
       // Always re-enable button (finally equivalent)
       if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Changes'; }
+    });
+  }
+
+  // Change Password handler — wired to the Change Password card on /settings/profile.
+  // Reads three local inputs (current / new / confirm), validates client-side,
+  // POSTs through MallanAPI.auth.changePassword which hits /api/auth/change-password.
+  // The session cookie is sent automatically; no token plumbing required.
+  // Added 2026-05-01.
+  function _changePassword() {
+    var btn = document.getElementById('cpSubmitBtn');
+    var statusEl = document.getElementById('cpStatus');
+    var currentEl = document.getElementById('cpCurrent');
+    var newEl = document.getElementById('cpNew');
+    var confirmEl = document.getElementById('cpConfirm');
+    if (!currentEl || !newEl || !confirmEl) return;
+
+    var current = currentEl.value;
+    var next = newEl.value;
+    var confirm = confirmEl.value;
+
+    function setStatus(msg, color) {
+      if (statusEl) {
+        statusEl.textContent = msg;
+        statusEl.className = 'text-sm ' + (color === 'error' ? 'text-red-500' : color === 'success' ? 'text-green-600' : 'text-gray-500');
+      }
+    }
+
+    if (!current || !next || !confirm) {
+      setStatus('Fill all three fields.', 'error');
+      return;
+    }
+    if (next.length < 8) {
+      setStatus('New password must be at least 8 characters.', 'error');
+      return;
+    }
+    if (next !== confirm) {
+      setStatus('New password and confirmation do not match.', 'error');
+      return;
+    }
+    if (next === current) {
+      setStatus('New password cannot be the same as the current password.', 'error');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Changing...';
+    }
+    setStatus('Submitting...', 'info');
+
+    MallanAPI.auth.changePassword(current, next).then(function (res) {
+      if (res && res.success) {
+        // Clear all three fields. Don't keep secrets in the DOM.
+        currentEl.value = '';
+        newEl.value = '';
+        confirmEl.value = '';
+        setStatus('Password changed successfully.', 'success');
+        if (typeof CRM !== 'undefined' && CRM.toast) {
+          CRM.toast('Password changed. Your existing session stays active.', 'success');
+        }
+      } else {
+        setStatus('Unexpected response. Try again.', 'error');
+      }
+    }).catch(function (err) {
+      var msg = (err && err.message) ? err.message : 'Failed to change password.';
+      setStatus(msg, 'error');
+    }).then(function () {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-key mr-1"></i> Change Password';
+      }
     });
   }
 
@@ -13148,6 +13251,7 @@ var Panels = (function () {
     _createTemplate: _createTemplate,
     _submitCreateTemplate: _submitCreateTemplate,
     _saveProfile: _saveProfile,
+    _changePassword: _changePassword,
     _previewProfilePhoto: _previewProfilePhoto,
     _updateProfilePreview: _updateProfilePreview,
     _submitEditAgent: _submitEditAgent,

@@ -26,9 +26,16 @@ var UI = (function () {
   }
 
   // ─── Card ────────────────────────────────────────────────────────────
+  // Title accepts HTML (typically a Font Awesome icon + label) — callers in
+  // panels.js pass strings like
+  //   '<i class="fas fa-user-circle text-gold mr-2"></i>Public Profile'
+  // and expect the icon to render. Earlier this called `E(title)` which
+  // escaped the markup and surfaced the raw HTML on the page. All 10 call
+  // sites across the dashboard (surveyed 2026-05-01) pass developer-authored
+  // constant strings — no user input — so allowing HTML here is safe.
   function card(title, body, actions) {
     return '<div class="card">' +
-      '<div class="card-header"><h3>' + E(title) + '</h3>' +
+      '<div class="card-header"><h3>' + title + '</h3>' +
         (actions ? '<div class="flex gap-2">' + actions + '</div>' : '') +
       '</div>' +
       '<div class="card-body">' + body + '</div>' +
