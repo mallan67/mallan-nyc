@@ -72,10 +72,84 @@ export const defaultMediaSyncDeps: MediaSyncDeps = {
   fetchFn: fetch,
 };
 
+/**
+ * Canonical Trestle media-category values, matching the public/CRM DTO shape.
+ *
+ * `"Photo"` is the default — both for legitimately-uncategorized media (Trestle
+ * leaves MediaCategory null on bare photo rows) and for any string we don't
+ * recognise. This matches the resolver convention at
+ * `lib/media/listing-media-resolver.ts:classifyMediaItem`.
+ */
+export type CanonicalMediaType = "Photo" | "FloorPlan" | "Video" | "VirtualTour";
+
+/**
+ * Classify a Trestle MediaCategory string into a canonical mediaType.
+ *
+ * THE BUG THIS REPLACES (2026-05-01 audit):
+ *   Three sync sites in `lib/idx/sync.ts` previously used `cat.toLowerCase()
+ *   .includes("floor plan")` (with space) to detect floor plans. Trestle's
+ *   actual `MediaCategory` enum value is `"FloorPlan"` (no space). When
+ *   lowercased the value becomes `"floorplan"` — `"floorplan".includes("floor
+ *   plan")` is FALSE. Every floor-plan media item was therefore mis-tagged
+ *   as `"Photo"` on write, then `buildMediaR2Key` (which DOES correctly
+ *   namespace by mediaType) routed the floorplan into `photos/{id}/{order}.jpg`
+ *   where it collided with the actual photo at the same Order. Trestle's
+ *   `Order` field is per-MediaCategory sequential, so Photo Order=1 and
+ *   FloorPlan Order=1 collide on the R2 key. Last-writer-wins meant 5/6
+ *   homepage Featured listings ended up with floorplans visible at /1.jpg.
+ *
+ * This function accepts every MediaCategory variant Trestle has emitted
+ * (verified live 2026-05-01) and returns the canonical mediaType that:
+ *   - downstream `buildMediaR2Key` uses for namespace routing
+ *   - the public DTO and CRM mapper render in the UI
+ *   - the resolver in `lib/media/listing-media-resolver.ts` classifies on
+ *     read
+ *
+ * @param category — raw value from Trestle Media `MediaCategory` field, or
+ *   the DB `mediaType` field on already-mirrored items. Accepts string,
+ *   undefined, null, empty.
+ */
+export function classifyTrestleMediaCategory(
+  category: string | null | undefined,
+): CanonicalMediaType {
+  if (!category) return "Photo";
+  const cat = String(category).toLowerCase().trim();
+
+  // Floor-plan detection — multiple forms because Trestle emits "FloorPlan"
+  // (the actual enum value, no space) but downstream systems and DB rows
+  // sometimes carry "Floor Plan" (with space) or other lowercase variants.
+  if (cat === "floorplan" || cat === "floor plan" || cat.includes("floorplan") || cat.includes("floor plan")) {
+    return "FloorPlan";
+  }
+  // Virtual-tour detection — Trestle uses "VirtualTour" (no space); we accept
+  // "Virtual Tour" (with space) defensively.
+  if (cat === "virtualtour" || cat === "virtual tour" || cat.includes("virtual tour") || cat.includes("virtualtour")) {
+    return "VirtualTour";
+  }
+  // Video detection
+  if (cat === "video" || cat.includes("video")) {
+    return "Video";
+  }
+  // Photo is the explicit value AND the default for any unrecognised string.
+  // Trestle leaves MediaCategory null/empty on bare photo rows, so empty
+  // already returned "Photo" via the early null guard above.
+  return "Photo";
+}
+
 export function buildMediaR2Key(listingId: string, mediaType: string, order: number): string {
   const safeListingId = listingId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const normalizedType = String(mediaType || "Photo");
-  const folder = normalizedType === "FloorPlan" ? "floorplans" : "photos";
+  const canonical = classifyTrestleMediaCategory(mediaType);
+  // Namespace by canonical mediaType. Photo→photos/, FloorPlan→floorplans/,
+  // Video→videos/, VirtualTour→virtualtours/. This guarantees that two media
+  // items with the same listingId + same Order but different mediaType
+  // (which is the common Trestle case — Photo Order=1 and FloorPlan Order=1
+  // both legitimately exist for the same listing) produce distinct R2 keys
+  // and cannot overwrite each other.
+  const folder =
+    canonical === "FloorPlan" ? "floorplans" :
+    canonical === "Video" ? "videos" :
+    canonical === "VirtualTour" ? "virtualtours" :
+    "photos";
   return `${folder}/${safeListingId}/${order}.jpg`;
 }
 
@@ -97,8 +171,13 @@ export function getMediaUrl(item: MediaSyncItem): string {
   return String(item.url || item.MediaURL || "");
 }
 
-export function getMediaType(item: MediaSyncItem): string {
-  return String(item.mediaType || item.MediaCategory || "Photo");
+export function getMediaType(item: MediaSyncItem): CanonicalMediaType {
+  // Use the centralised classifier so both DB-shape items (mediaType field)
+  // and Trestle-shape items (MediaCategory field) are normalised identically.
+  // Defends against the floor-plan-as-photo bug at the read boundary too —
+  // any DB row whose mediaType field carries a non-canonical value gets
+  // re-classified rather than silently passed through as "Photo".
+  return classifyTrestleMediaCategory(item.mediaType ?? item.MediaCategory);
 }
 
 export function getMediaOrder(item: MediaSyncItem, fallback: number): number {

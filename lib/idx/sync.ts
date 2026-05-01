@@ -12,6 +12,7 @@ import {
   buildProjectionUpsertPayload,
   type ListingProjectionSource,
 } from "@/lib/search/listing-search-projection";
+import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -338,11 +339,12 @@ export async function syncListings(
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-              const cat = String(m.MediaCategory || "").toLowerCase();
-              let mediaType: string = "Photo";
-              if (cat.includes("floor plan")) mediaType = "FloorPlan";
-              else if (cat.includes("video")) mediaType = "Video";
-              else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+              // Use shared classifier — replaces the broken
+              // `cat.includes("floor plan")` (with space) check that
+              // mis-classified Trestle's actual "FloorPlan" enum value as
+              // "Photo". See lib/media/media-sync-service.ts for the full
+              // history of this bug.
+              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
               mediaByListing.get(lid)!.push({
                 url: String(m.MediaURL),
@@ -580,11 +582,10 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
         const listingId = keyToId.get(byRRK) || keyToId.get(byRRID);
         if (!listingId || !m.MediaURL) continue;
         if (!mediaByListingId.has(listingId)) mediaByListingId.set(listingId, []);
-        const cat = String(m.MediaCategory || "").toLowerCase();
-        let mediaType: string = "Photo";
-        if (cat.includes("floor plan")) mediaType = "FloorPlan";
-        else if (cat.includes("video")) mediaType = "Video";
-        else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+        // Use shared classifier — see classifyTrestleMediaCategory in
+        // lib/media/media-sync-service.ts for the floor-plan-as-photo bug
+        // this replaces.
+        const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
         const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
         mediaByListingId.get(listingId)!.push({
           url: String(m.MediaURL),
@@ -676,10 +677,21 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
         const rawUrl = String(m.url || m.MediaURL || "");
         if (!rawUrl || !TRESTLE_HOSTS.some(h => rawUrl.includes(h))) return;
 
-        const mediaType = String(m.mediaType || m.MediaCategory || "Photo");
+        // Classify mediaType through shared canonical classifier — handles
+        // both DB-shape (mediaType) and Trestle-shape (MediaCategory) inputs
+        // and recognises every "FloorPlan" variant the writer-side bug had
+        // missed. Combined with buildMediaR2Key-style namespace routing:
+        // Photo→photos/, FloorPlan→floorplans/, Video→videos/,
+        // VirtualTour→virtualtours/. Prevents Photo Order=N and FloorPlan
+        // Order=N from colliding on the same R2 key.
+        const mediaType = classifyTrestleMediaCategory((m.mediaType ?? m.MediaCategory) as string | null | undefined);
         const order = Number(m.order ?? m.Order ?? batchIdx);
         const safe = listing.listing_id.replace(/[^a-zA-Z0-9_-]/g, "_");
-        const folder = mediaType === "FloorPlan" ? "floorplans" : "photos";
+        const folder =
+          mediaType === "FloorPlan" ? "floorplans" :
+          mediaType === "Video" ? "videos" :
+          mediaType === "VirtualTour" ? "virtualtours" :
+          "photos";
         const key = `${folder}/${safe}/${order}.jpg`;
 
         try {
@@ -988,11 +1000,10 @@ export async function syncAgentHistory(
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
-              const cat = String(m.MediaCategory || "").toLowerCase();
-              let mediaType: string = "Photo";
-              if (cat.includes("floor plan")) mediaType = "FloorPlan";
-              else if (cat.includes("video")) mediaType = "Video";
-              else if (cat.includes("virtual tour")) mediaType = "VirtualTour";
+              // Use shared classifier — see classifyTrestleMediaCategory in
+              // lib/media/media-sync-service.ts for the floor-plan-as-photo
+              // bug this replaces.
+              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
               mediaByKey.get(lid)!.push({
                 url: String(m.MediaURL),

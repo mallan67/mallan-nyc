@@ -1,6 +1,7 @@
 import {
   buildMediaR2Key,
   canMirrorListingMedia,
+  classifyTrestleMediaCategory,
   mirrorListingMediaBatch,
   type MediaSyncListing,
 } from "../media-sync-service";
@@ -26,6 +27,86 @@ describe("media sync service", () => {
   it("builds deterministic R2 keys", () => {
     expect(buildMediaR2Key("R-12/34", "FloorPlan", 7)).toBe("floorplans/R-12_34/7.jpg");
     expect(buildMediaR2Key("R-12/34", "Photo", 0)).toBe("photos/R-12_34/0.jpg");
+  });
+
+  // ── classifyTrestleMediaCategory — fixes the floor-plan-as-photo bug ──
+  // Trestle's actual MediaCategory enum value is "FloorPlan" (no space).
+  // The previous string check `cat.includes("floor plan")` (with space) on
+  // a lowercased "floorplan" returned false, causing every FloorPlan media
+  // item to be mis-classified as "Photo". The mis-classified items then
+  // landed in `photos/{id}/{order}.jpg` and collided with real photos at
+  // the same Order, last-writer-wins. Fix: centralise classification with
+  // multi-form pattern matching, mirror the established
+  // `lib/media/listing-media-resolver.ts:classifyMediaItem` heuristics on
+  // the writer side.
+  describe("classifyTrestleMediaCategory", () => {
+    it('returns "FloorPlan" for the actual Trestle enum value "FloorPlan" (no space)', () => {
+      expect(classifyTrestleMediaCategory("FloorPlan")).toBe("FloorPlan");
+    });
+
+    it('returns "FloorPlan" for "Floor Plan" (with space)', () => {
+      expect(classifyTrestleMediaCategory("Floor Plan")).toBe("FloorPlan");
+    });
+
+    it('returns "FloorPlan" for lowercase variants', () => {
+      expect(classifyTrestleMediaCategory("floorplan")).toBe("FloorPlan");
+      expect(classifyTrestleMediaCategory("floor plan")).toBe("FloorPlan");
+      expect(classifyTrestleMediaCategory("FLOORPLAN")).toBe("FloorPlan");
+    });
+
+    it('returns "Photo" for "Photo"', () => {
+      expect(classifyTrestleMediaCategory("Photo")).toBe("Photo");
+    });
+
+    it('returns "Video" for "Video" + variants', () => {
+      expect(classifyTrestleMediaCategory("Video")).toBe("Video");
+      expect(classifyTrestleMediaCategory("video")).toBe("Video");
+    });
+
+    it('returns "VirtualTour" for "VirtualTour" (no space) and "Virtual Tour"', () => {
+      expect(classifyTrestleMediaCategory("VirtualTour")).toBe("VirtualTour");
+      expect(classifyTrestleMediaCategory("Virtual Tour")).toBe("VirtualTour");
+      expect(classifyTrestleMediaCategory("virtualtour")).toBe("VirtualTour");
+    });
+
+    it('defaults to "Photo" for missing / null / undefined / empty', () => {
+      expect(classifyTrestleMediaCategory(undefined)).toBe("Photo");
+      expect(classifyTrestleMediaCategory(null)).toBe("Photo");
+      expect(classifyTrestleMediaCategory("")).toBe("Photo");
+    });
+
+    it('treats any non-recognised string as "Photo" (Trestle default convention)', () => {
+      expect(classifyTrestleMediaCategory("Unknown")).toBe("Photo");
+      expect(classifyTrestleMediaCategory("Other")).toBe("Photo");
+    });
+  });
+
+  describe("buildMediaR2Key — namespace separation prevents Photo/FloorPlan key collision", () => {
+    it("Photo Order=1 and FloorPlan Order=1 produce DISTINCT keys", () => {
+      const photoKey = buildMediaR2Key("RLS123", "Photo", 1);
+      const floorplanKey = buildMediaR2Key("RLS123", "FloorPlan", 1);
+      expect(photoKey).toBe("photos/RLS123/1.jpg");
+      expect(floorplanKey).toBe("floorplans/RLS123/1.jpg");
+      expect(photoKey).not.toBe(floorplanKey);
+    });
+
+    it("FloorPlan never writes into photos/", () => {
+      expect(buildMediaR2Key("RLS123", "FloorPlan", 1)).not.toMatch(/^photos\//);
+      expect(buildMediaR2Key("RLS123", "FloorPlan", 99)).not.toMatch(/^photos\//);
+    });
+
+    it("Photo never writes into floorplans/", () => {
+      expect(buildMediaR2Key("RLS123", "Photo", 1)).not.toMatch(/^floorplans\//);
+      expect(buildMediaR2Key("RLS123", "Photo", 99)).not.toMatch(/^floorplans\//);
+    });
+
+    it("a mixed-media listing (1 Photo + 1 FloorPlan, both Order=1) produces 2 distinct R2 URLs", () => {
+      const keys = new Set([
+        buildMediaR2Key("RLS123", "Photo", 1),
+        buildMediaR2Key("RLS123", "FloorPlan", 1),
+      ]);
+      expect(keys.size).toBe(2);
+    });
   });
 
   it("respects the public display gates", () => {
