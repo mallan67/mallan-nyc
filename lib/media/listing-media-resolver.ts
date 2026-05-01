@@ -1,0 +1,218 @@
+// lib/media/listing-media-resolver.ts
+//
+// Shared media classification + ordering helper used by every surface that
+// renders listing imagery (public DTO, CRM mapper, /api/media/batch, search
+// route inline-media backfill).
+//
+// THE PROBLEM THIS SOLVES
+//
+// Trestle's Media resource interleaves Photos, FloorPlans, Videos, and 3D
+// items in arbitrary provider order. Surfaces that picked `media[0]` as the
+// primary image were occasionally serving a FloorPlan or "placeholder-shaped"
+// document because Trestle returned it first. The /api/media/batch detail
+// mode also used `$orderby=MediaCategory asc,Order asc` — `FloorPlan` sorts
+// alphabetically BEFORE `Photo`, so detail-panel galleries opened on a
+// floor plan instead of a hero shot.
+//
+// THE RULE
+//
+// Every consumer goes through this module. The pipeline is:
+//   1. Classify each item — `photo` | `floorplan` | `video` | `virtualTour` |
+//      `unknown` — using the same heuristics for raw Trestle Media records,
+//      DB JSONB rows, and CRM-mapper output.
+//   2. Sort by class first (photos before floorplans before videos before
+//      virtualTours before unknown), preserving provider order WITHIN each
+//      class.
+//   3. The first photo (real photo, after sort) is the primary. Mark its
+//      `isPrimary` true; everything else false.
+//   4. If no photo exists, fall back to the first floorplan, then video, then
+//      virtual tour, then any remaining item, then null.
+//   5. Trestle URLs are proxied through `/api/media/proxy?url=` so the WAF
+//      doesn't block cross-origin <img> requests.
+//
+// AVM, ConsumerComment, owner_opt_out, participant_only have NOTHING to do
+// with this module — they are gates evaluated separately in
+// lib/compliance/gates.ts. This module deals only with which media item to
+// show first; it does NOT decide whether the listing is displayable at all.
+
+export type MediaClass = 'photo' | 'floorplan' | 'video' | 'virtualTour' | 'unknown';
+
+const CLASS_PRIORITY: Record<MediaClass, number> = {
+  photo: 0,
+  floorplan: 1,
+  video: 2,
+  virtualTour: 3,
+  unknown: 4,
+};
+
+/**
+ * Hostnames whose URLs require server-side Bearer auth and must be proxied.
+ *
+ * We match the second-level domain (cotality.com / corelogic.com) so any
+ * subdomain — `api.cotality.com`, `img.cotality.com`, future CDN hosts —
+ * routes through the proxy. Mirrors the prior substring-matching behavior at
+ * lib/search/crm-idx-mapper.ts and lib/idx/public-dto.ts which the resolver
+ * replaces.
+ */
+const TRESTLE_PROXY_HOST_SUFFIXES = ['cotality.com', 'corelogic.com'];
+
+/**
+ * Normalised media item used by every consumer.
+ *
+ * `providerOrder` is the original numeric Order field (or array index when
+ * Trestle didn't supply one). Used for stable in-class sorting. `class` is
+ * the canonical category; `mediaType` is its display-friendly form for older
+ * consumers.
+ */
+export interface ResolvedMedia {
+  url: string;
+  mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' | 'Unknown';
+  class: MediaClass;
+  providerOrder: number;
+  isPrimary: boolean;
+  /** PreferredPhotoYN was true on the source row (Trestle's hint for hero photo). */
+  preferred?: boolean;
+}
+
+/** Heuristic classification — works against raw Trestle Media records, DB JSONB, or DTO shapes. */
+export function classifyMediaItem(raw: unknown): MediaClass {
+  if (!raw || typeof raw !== 'object') return 'unknown';
+  const m = raw as Record<string, unknown>;
+  const cat = String(m.MediaCategory ?? m.mediaCategory ?? m.category ?? m.mediaType ?? '').toLowerCase();
+  const cls = String(m.MediaClassification ?? m.mediaClassification ?? '').toLowerCase();
+  const desc = String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? '').toLowerCase();
+  const url = String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '').toLowerCase();
+
+  // Floor plan signals (multiple to catch Trestle's inconsistent tagging)
+  if (
+    cat === 'floorplan' || cat.includes('floor plan') || cat === 'floor plan' ||
+    cls === 'document' ||
+    desc.includes('floorplan') || desc.includes('floor plan') ||
+    /\/floorplans?\//i.test(url)
+  ) {
+    return 'floorplan';
+  }
+
+  if (cat === 'video' || cat.includes('video') || /\.(mp4|mov|webm)(\?|$)/i.test(url)) {
+    return 'video';
+  }
+  if (cat === 'virtualtour' || cat.includes('virtual tour') || cat === 'virtual tour') {
+    return 'virtualTour';
+  }
+  if (cat === 'photo' || cat === 'image' || cat === '' /* default Trestle Media is Photo */) {
+    return 'photo';
+  }
+  return 'unknown';
+}
+
+const CLASS_TO_DISPLAY: Record<MediaClass, ResolvedMedia['mediaType']> = {
+  photo: 'Photo',
+  floorplan: 'FloorPlan',
+  video: 'Video',
+  virtualTour: 'VirtualTour',
+  unknown: 'Unknown',
+};
+
+/** Wrap Trestle/CoreLogic media URLs with the bearer-auth proxy. Pass through otherwise. */
+export function proxyTrestleUrl(url: string): string {
+  if (!url) return url;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    const matches = TRESTLE_PROXY_HOST_SUFFIXES.some(
+      (suffix) => host === suffix || host.endsWith('.' + suffix),
+    );
+    if (matches) {
+      return `/api/media/proxy?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
+
+/**
+ * Normalise + sort a media list so consumers can render it directly.
+ *
+ * Input may be: raw Trestle Media records (`MediaURL`, `MediaCategory`, …),
+ * DB JSONB items (`url`, `mediaType`, `order`), or pre-mapped DTO entries.
+ * The function tolerates all three shapes.
+ *
+ * Output is sorted photo-first (then floorplan, video, virtualTour, unknown),
+ * preserving provider order within each class. Exactly one entry has
+ * `isPrimary: true` — the first photo (or first floorplan if no photos
+ * exist, etc.). If the input is empty, returns [].
+ *
+ * URLs are proxied through `/api/media/proxy?url=` when the host is a
+ * Trestle/CoreLogic domain.
+ */
+export function resolveListingMedia(items: unknown): ResolvedMedia[] {
+  if (!Array.isArray(items)) return [];
+  const decorated = items
+    .map((raw, idx) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const m = raw as Record<string, unknown>;
+      const rawUrl = String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '').trim();
+      if (!rawUrl) return null;
+      const klass = classifyMediaItem(raw);
+      const orderRaw = m.Order ?? m.order;
+      const orderNum = orderRaw === '' || orderRaw == null || Number.isNaN(Number(orderRaw))
+        ? idx
+        : Number(orderRaw);
+      const preferred =
+        m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true' ||
+        m.preferred === true || m.isPrimary === true;
+      return {
+        url: proxyTrestleUrl(rawUrl),
+        klass,
+        providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
+        idx,
+        preferred,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
+  decorated.sort((a, b) => {
+    const cp = CLASS_PRIORITY[a.klass] - CLASS_PRIORITY[b.klass];
+    if (cp !== 0) return cp;
+    if (a.providerOrder !== b.providerOrder) return a.providerOrder - b.providerOrder;
+    return a.idx - b.idx;
+  });
+
+  return decorated.map((d, i) => ({
+    url: d.url,
+    mediaType: CLASS_TO_DISPLAY[d.klass],
+    class: d.klass,
+    providerOrder: d.providerOrder,
+    isPrimary: i === 0,
+    preferred: d.preferred,
+  }));
+}
+
+/**
+ * Pick the URL of the primary photo from a media list.
+ *
+ * Returns the first photo, or null if none exist. Use this for surfaces that
+ * MUST show a real photo (e.g., featured carousel hero) and would rather
+ * render a placeholder than a floor plan.
+ *
+ * For surfaces that are happy to fall back to a floor plan or other media
+ * when no photo is available, use `resolveListingMedia(items)[0]?.url`
+ * instead.
+ */
+export function pickPrimaryPhotoUrl(items: unknown): string | null {
+  const resolved = resolveListingMedia(items);
+  const photo = resolved.find(m => m.class === 'photo');
+  return photo?.url ?? null;
+}
+
+/**
+ * Pick the URL of the best available media item for a card thumbnail.
+ *
+ * Photo first, then floor plan, then any other media, then null. Use this
+ * for surfaces that prefer to show SOMETHING (even a floor plan) over a
+ * placeholder.
+ */
+export function pickBestThumbnailUrl(items: unknown): string | null {
+  const resolved = resolveListingMedia(items);
+  return resolved[0]?.url ?? null;
+}

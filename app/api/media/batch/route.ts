@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getAccessToken } from "@/lib/idx/auth";
 import prisma from "@/lib/prisma";
+import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
 
 const TRESTLE_API =
   process.env.TRESTLE_API_URL ||
@@ -17,14 +18,8 @@ const TRESTLE_API =
 
 // Trestle Media has only 2 categories: Photo and FloorPlan.
 // Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media resource.
-// MediaClassification: PHOTO or DOCUMENT. ShortDescription: "FloorPlan" for floor plans.
-function classifyMediaCategory(m: Record<string, unknown>): "Photo" | "FloorPlan" {
-  const cat = String(m.MediaCategory || "").toLowerCase();
-  const cls = String(m.MediaClassification || "").toLowerCase();
-  const desc = String(m.ShortDescription || "").toLowerCase();
-  if (cat === "floorplan" || cat.includes("floor plan") || cls === "document" || desc.includes("floorplan") || desc.includes("floor plan")) return "FloorPlan";
-  return "Photo";
-}
+// Classification + photo-first ordering is centralised in
+// lib/media/listing-media-resolver.ts (used by both `detail` and default modes).
 
 type MediaEntry = { url: string; mediaType: string; order: number };
 
@@ -113,7 +108,11 @@ export async function GET(req: NextRequest) {
         const params = new URLSearchParams();
         params.set("$filter", filter);
         params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription,MediaStatus");
-        params.set("$orderby", "MediaCategory asc,Order asc");
+        // Order by Order only — alphabetical sort on MediaCategory put
+        // 'FloorPlan' BEFORE 'Photo' (alphabetical), causing detail galleries
+        // to open on a floor plan. Photo-first ordering is now applied
+        // post-fetch via resolveListingMedia().
+        params.set("$orderby", "Order asc");
         params.set("$top", String(uncached.length * 40)); // Up to 40 media items per listing
 
         const response = await fetch(`${TRESTLE_API}/odata/Media?${params.toString()}`, {
@@ -122,29 +121,33 @@ export async function GET(req: NextRequest) {
 
         if (response.ok) {
           const data = await response.json();
-          const allByKey = new Map<string, MediaEntry[]>();
+          const rawByKey = new Map<string, Record<string, unknown>[]>();
           for (const m of (data.value || [])) {
             const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
             if (!mkey || !m.MediaURL) continue;
-            const rawUrl = String(m.MediaURL);
-            const proxiedUrl = rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
-              ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
-            const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-            if (!allByKey.has(mkey)) allByKey.set(mkey, []);
-            allByKey.get(mkey)!.push({
-              url: proxiedUrl,
-              mediaType: classifyMediaCategory(m),
-              order: isPreferred ? -1 : Number(m.Order ?? 0),
-            });
+            if (!rawByKey.has(mkey)) rawByKey.set(mkey, []);
+            rawByKey.get(mkey)!.push(m);
           }
           for (const id of uncached) {
             const key = idToKey.get(id) || id;
-            const items = allByKey.get(key) || [];
+            const rawItems = rawByKey.get(key) || [];
+            // Photo-first sort + proxy via shared resolver. Guarantees
+            // mediaResult[id] starts with a Photo whenever one exists, even
+            // if Trestle returned them in mixed order.
+            const resolved = resolveListingMedia(rawItems);
+            const items = resolved.map(r => ({
+              url: r.url,
+              mediaType: r.mediaType,
+              order: r.providerOrder,
+            }));
             mediaResult[id] = items;
             mediaCache.set(id, { items, expiresAt: now + CACHE_TTL });
-            const photo = items.find(m => m.mediaType === "Photo");
-            photoResult[id] = photo?.url || null;
-            photoCache.set(id, { url: photo?.url || null, expiresAt: now + CACHE_TTL });
+            // pickPrimaryPhotoUrl: strict photo only — never returns a
+            // floor-plan URL as the primary thumbnail. If no real photo
+            // exists, returns null and the frontend renders the placeholder.
+            const photo = resolved.find(m => m.class === "photo");
+            photoResult[id] = photo?.url ?? null;
+            photoCache.set(id, { url: photo?.url ?? null, expiresAt: now + CACHE_TTL });
           }
         } else {
           for (const id of uncached) { mediaResult[id] = []; photoResult[id] = null; }

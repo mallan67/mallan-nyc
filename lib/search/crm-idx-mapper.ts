@@ -1,3 +1,5 @@
+import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
 // InternetAddressDisplayYN null on the survivors. Treat null as displayable;
@@ -62,20 +64,19 @@ export function mapTrestleToCrmListing(
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
 
+  // Photo-first media ordering — single source of truth in
+  // lib/media/listing-media-resolver.ts. Replaces the prior
+  // `isPrimary: i === 0` index-based assignment which would mark a FloorPlan
+  // as primary whenever Trestle returned floor-plan rows ahead of photo rows.
   const media = Array.isArray(raw.Media) ? raw.Media : [];
-  const photoCount = Number(raw.PhotosCount) || media.length;
-  const images = media.map((item: Record<string, unknown>, i: number) => {
-    const rawUrl = String(item.MediaURL || "");
-    const url = rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
-      ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`
-      : rawUrl;
-    return {
-      url,
-      isPrimary: i === 0,
-      order: Number(item.Order || i),
-      mediaType: classifyMediaCategory(item),
-    };
-  }).filter((img: { url: string }) => img.url);
+  const resolved = resolveListingMedia(media);
+  const images = resolved.map(m => ({
+    url: m.url,
+    isPrimary: m.isPrimary,
+    order: m.providerOrder,
+    mediaType: m.mediaType,
+  }));
+  const photoCount = Number(raw.PhotosCount) || images.length;
 
   const customProps = Array.isArray(raw.CustomProperty)
     ? raw.CustomProperty[0] as Record<string, unknown> | undefined

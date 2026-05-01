@@ -15,6 +15,7 @@ import type { IDXListing } from './types';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { isComingSoonStatus } from '@/lib/compliance/status';
 import { isAddressDisplayable } from '@/lib/compliance/gates';
+import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
 
 /** Map Trestle property fields to user-friendly property type */
 export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
@@ -43,26 +44,9 @@ export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubTyp
   return fallback || 'Residential';
 }
 
-/**
- * Trestle MediaURLs are publicly accessible (no Bearer auth needed at the
- * HTTP level), but Trestle's Imperva/Incapsula WAF blocks direct browser
- * requests from cross-origin <img> tags. Server-to-server requests pass fine.
- *
- * Until photos are replicated to R2, the proxy is required.
- */
-// Cotality + legacy CoreLogic hosts (old media URLs work through 2026 warranty)
-const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
-
-function proxyMediaUrl(url: string): string {
-  if (!url) return url;
-  try {
-    const parsed = new URL(url);
-    if (TRESTLE_HOSTS.includes(parsed.hostname)) {
-      return `/api/media/proxy?url=${encodeURIComponent(url)}`;
-    }
-  } catch { /* not a valid URL — return as-is */ }
-  return url;
-}
+// Trestle MediaURL proxying + photo-first ordering moved to
+// lib/media/listing-media-resolver.ts (single source of truth shared by
+// public DTO, CRM mapper, /api/media/batch, and /api/idx/search).
 
 /**
  * Coerce an arbitrary value (string | Date | null | undefined) to ISO 8601.
@@ -345,8 +329,16 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     roomsTotal: listing.roomsTotal,
     // Agent: office/broker name only — agent name stripped for public (REBNY attribution = office)
     listOfficeName: listing.listOfficeName,
-    // Media — proxy Trestle URLs through our API (they require Bearer auth)
-    media: listing.media.map(m => ({ ...m, url: proxyMediaUrl(m.url) })),
+    // Media — photo-first ordering via shared resolver. Replaces the prior
+    // pass-through `listing.media.map(...)` which trusted whatever order the
+    // writer (sync.ts) emitted and could surface a FloorPlan as media[0] for
+    // listings that arrived from Trestle with mixed-category ordering.
+    // resolveListingMedia also proxies Trestle URLs (replaces local proxyMediaUrl).
+    media: resolveListingMedia(listing.media).map(m => ({
+      url: m.url,
+      mediaType: m.mediaType,
+      order: m.providerOrder,
+    })),
     photosCount: listing.photosCount,
     virtualTourURL: listing.virtualTourURLUnbranded || listing.virtualTourURLBranded || undefined,
     // Public remarks only — private remarks are NEVER on IDXListing
