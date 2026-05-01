@@ -18,7 +18,16 @@ describe("crm idx mapper", () => {
     expect(classifyMediaCategory({ MediaCategory: "Photo" })).toBe("Photo");
   });
 
-  it("fails closed on address display and keeps internet display affirmative-only", () => {
+  // ── REBNY IDX Plus pre-filter semantics (Phase 0a, 2026-05-01) ────────────
+  // The CRM mapper consumes raw Trestle records on the /api/idx/search live
+  // path. REBNY/Cotality pre-filter non-displayable rows out of the IDX Plus
+  // feed at the provider level, leaving these two booleans null on the
+  // survivors. The mapper must mirror the writer-side convention at
+  // lib/idx/trestle-mapper.ts:705-706 (commit 0309875b): treat null as
+  // displayable, honor explicit false. AVM / ConsumerComment fields are NOT
+  // pre-filtered — those remain fail-closed via affirmPermission elsewhere.
+
+  it("treats null InternetAddressDisplayYN as displayable (IDX Plus pre-filter)", () => {
     const listing = mapTrestleToCrmListing({
       ListingId: "RLS123",
       StreetNumber: "100",
@@ -31,14 +40,69 @@ describe("crm idx mapper", () => {
       StandardStatus: "Active",
     }, 0);
 
-    expect(listing.address).toBe("ADDRESS AVAILABLE UPON REQUEST");
-    expect(listing.addressDisplayYN).toBe(false);
+    expect(listing.address).toBe("100 W 72ND STREET");
+    expect(listing.addressDisplayYN).toBe(true);
     expect(listing.internetDisplayYN).toBe(true);
     expect(listing.permissions).toMatchObject({
       idxDisplay: true,
       internetDisplay: true,
       ownerOptOut: false,
       participantOnly: false,
+    });
+  });
+
+  it("treats null InternetEntireListingDisplayYN as displayable (IDX Plus pre-filter)", () => {
+    const listing = mapTrestleToCrmListing({
+      ListingId: "RLS124",
+      StreetNumber: "200",
+      StreetName: "Broadway",
+      ListPrice: 2200000,
+      InternetEntireListingDisplayYN: null,
+      InternetAddressDisplayYN: null,
+      StandardStatus: "Active",
+    }, 0);
+
+    expect(listing.internetDisplayYN).toBe(true);
+    expect(listing.addressDisplayYN).toBe(true);
+    expect(listing.address).toBe("200 BROADWAY");
+    expect(listing.permissions).toMatchObject({
+      internetDisplay: true,
+      idxDisplay: true,
+    });
+  });
+
+  it("honors explicit false on InternetAddressDisplayYN (per-listing opt-out)", () => {
+    const listing = mapTrestleToCrmListing({
+      ListingId: "RLS125",
+      StreetNumber: "300",
+      StreetName: "5th",
+      StreetSuffix: "Avenue",
+      ListPrice: 3500000,
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: false,
+      StandardStatus: "Active",
+    }, 0);
+
+    expect(listing.address).toBe("ADDRESS AVAILABLE UPON REQUEST");
+    expect(listing.addressDisplayYN).toBe(false);
+    expect(listing.internetDisplayYN).toBe(true);
+  });
+
+  it("honors explicit false on InternetEntireListingDisplayYN", () => {
+    const listing = mapTrestleToCrmListing({
+      ListingId: "RLS126",
+      StreetNumber: "400",
+      StreetName: "Park",
+      StreetSuffix: "Avenue",
+      ListPrice: 4500000,
+      InternetEntireListingDisplayYN: false,
+      InternetAddressDisplayYN: true,
+      StandardStatus: "Active",
+    }, 0);
+
+    expect(listing.internetDisplayYN).toBe(false);
+    expect(listing.permissions).toMatchObject({
+      internetDisplay: false,
     });
   });
 

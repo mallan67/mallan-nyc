@@ -1,4 +1,12 @@
-import { affirmPermission } from "@/lib/compliance/gates";
+// REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
+// the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
+// InternetAddressDisplayYN null on the survivors. Treat null as displayable;
+// honor explicit false. Mirrors the writer-side convention at
+// lib/idx/trestle-mapper.ts:705-706 (commit 0309875b 2026-04-30) and the
+// reader-side gate at lib/compliance/gates.ts (idxPlusPreFiltered option).
+function isIdxPlusDisplayFlagOn(v: unknown): boolean {
+  return v !== false && v !== "false" && v !== "FALSE";
+}
 
 export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
   const ci = raw.CommonInterest ? String(raw.CommonInterest) : "";
@@ -49,7 +57,7 @@ export function mapTrestleToCrmListing(
   const monthlyTax = taxAnnual / 12;
   const maintCC = Number(raw.AssociationFee) || 0;
 
-  const addressDisplayYN = affirmPermission(raw.InternetAddressDisplayYN);
+  const addressDisplayYN = isIdxPlusDisplayFlagOn(raw.InternetAddressDisplayYN);
   const displayAddress = addressDisplayYN
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
@@ -169,7 +177,7 @@ export function mapTrestleToCrmListing(
         ? String(raw.VirtualTourURLBranded)
         : null,
     idxDisplayYN: true,
-    internetDisplayYN: affirmPermission(raw.InternetEntireListingDisplayYN),
+    internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
@@ -181,7 +189,7 @@ export function mapTrestleToCrmListing(
       ownerOptOut: false,
       participantOnly: false,
       idxDisplay: true,
-      internetDisplay: affirmPermission(raw.InternetEntireListingDisplayYN),
+      internetDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
       syndication: true,
     },
     ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,

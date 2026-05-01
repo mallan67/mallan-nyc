@@ -14,6 +14,7 @@ import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma } fr
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { filterDisplayableDbListings } from '@/lib/idx/db-to-public-dto';
 import type { DbListing } from '@/lib/idx/db-to-public-dto';
+import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { assertRlsCompliantPayload } from '@/lib/compliance/rls-enforcement';
 import { escapeHtml } from '@/lib/sanitize';
 import type { IDXListing } from '@/lib/idx/types';
@@ -1131,5 +1132,164 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       expect(mapped.idx_display_yn).toBe(false);
       expect(mapped.owner_opt_out).toBe(true);
     });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 7. READER-SIDE GATE COERCION (checkDistributionGates / evaluateDisplayGate)
+//    IDX Plus reader-side semantics — Phase 0a (2026-05-01).
+//
+//    Locks in the same convention as the writer-side fix at
+//    lib/idx/trestle-mapper.ts:705-706 (commit 0309875b 2026-04-30):
+//      - null/undefined InternetEntireListingDisplayYN → displayable (REBNY
+//        pre-filters non-displayable rows out of the IDX Plus feed)
+//      - null/undefined InternetAddressDisplayYN → displayable (same reason)
+//      - explicit false on either still blocks
+//      - AVM / ConsumerComment / owner_opt_out / participant_only / closed-24h
+//        all unchanged (per-row signals, not pre-filtered)
+//
+//    Trestle-live records pass through `checkDistributionGates()` which
+//    forwards `idxPlusPreFiltered: true` to `evaluateDisplayGate()`. DB-row
+//    callers (db-to-public-dto, sitemap, listing-access-decision) keep the
+//    default fail-closed semantics — covered by the
+//    "filterDisplayableDbListings — fail-closed on null permission flags"
+//    block above.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics', () => {
+  it('passes when InternetEntireListingDisplayYN is null (REBNY/Cotality pre-filter)', () => {
+    const result = checkDistributionGates(
+      buildRawTrestle({ InternetEntireListingDisplayYN: null })
+    );
+    expect(result.displayable).toBe(true);
+    expect(result.reason).toBeUndefined();
+  });
+
+  it('passes when InternetEntireListingDisplayYN is undefined (key absent)', () => {
+    const raw = buildRawTrestle();
+    delete raw.InternetEntireListingDisplayYN;
+    const result = checkDistributionGates(raw);
+    expect(result.displayable).toBe(true);
+  });
+
+  it('passes when InternetAddressDisplayYN is null (sub-gate IDX Plus pre-filter)', () => {
+    const result = checkDistributionGates(
+      buildRawTrestle({ InternetAddressDisplayYN: null })
+    );
+    expect(result.displayable).toBe(true);
+  });
+
+  it('still blocks when InternetEntireListingDisplayYN is explicitly false', () => {
+    const result = checkDistributionGates(
+      buildRawTrestle({ InternetEntireListingDisplayYN: false })
+    );
+    expect(result.displayable).toBe(false);
+    expect(result.reason).toContain('Internet display disabled');
+  });
+
+  it('still blocks when Permission = OwnerOptOut, even with null entire-listing flag', () => {
+    const result = checkDistributionGates(
+      buildRawTrestle({
+        InternetEntireListingDisplayYN: null,
+        Permission: 'OwnerOptOut',
+      })
+    );
+    expect(result.displayable).toBe(false);
+    expect(result.reason).toContain('Owner opted out');
+  });
+
+  it('still blocks when Permission = Private (participant-only), even with null entire-listing flag', () => {
+    const result = checkDistributionGates(
+      buildRawTrestle({
+        InternetEntireListingDisplayYN: null,
+        Permission: 'Private',
+      })
+    );
+    expect(result.displayable).toBe(false);
+    expect(result.reason).toContain('Participant-only');
+  });
+
+  it('still blocks closed listings > 24 hours, even with null entire-listing flag', () => {
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const result = checkDistributionGates(
+      buildRawTrestle({
+        InternetEntireListingDisplayYN: null,
+        StandardStatus: 'Closed',
+        CloseDate: twoDaysAgo,
+      })
+    );
+    expect(result.displayable).toBe(false);
+    expect(result.reason).toContain('Closed listing > 24 hours');
+  });
+});
+
+describe('evaluateDisplayGate — option flag preserves DB-row fail-closed default', () => {
+  // DB-row callers (db-to-public-dto, sitemap, listing-access-decision) call
+  // evaluateDisplayGate WITHOUT the idxPlusPreFiltered flag. Default behavior
+  // must remain fail-closed on null InternetEntireListingDisplayYN. This block
+  // pins that contract so Phase 0a does not regress the existing
+  // filterDisplayableDbListings tests.
+
+  it('default (no options): blocks when InternetEntireListingDisplayYN is null', () => {
+    const result = evaluateDisplayGate(buildRawTrestle({
+      InternetEntireListingDisplayYN: null,
+    }));
+    expect(result.displayable).toBe(false);
+    expect(result.reason).toContain('Internet display disabled');
+  });
+
+  it('idxPlusPreFiltered: false (explicit): blocks when InternetEntireListingDisplayYN is null', () => {
+    const result = evaluateDisplayGate(
+      buildRawTrestle({ InternetEntireListingDisplayYN: null }),
+      { idxPlusPreFiltered: false }
+    );
+    expect(result.displayable).toBe(false);
+  });
+
+  it('idxPlusPreFiltered: true: passes when InternetEntireListingDisplayYN is null', () => {
+    const result = evaluateDisplayGate(
+      buildRawTrestle({ InternetEntireListingDisplayYN: null }),
+      { idxPlusPreFiltered: true }
+    );
+    expect(result.displayable).toBe(true);
+  });
+
+  it('idxPlusPreFiltered: true: passes when InternetAddressDisplayYN is null', () => {
+    const result = evaluateDisplayGate(
+      buildRawTrestle({ InternetAddressDisplayYN: null }),
+      { idxPlusPreFiltered: true }
+    );
+    expect(result.displayable).toBe(true);
+    expect(result.addressDisplayable).toBe(true);
+  });
+
+  it('idxPlusPreFiltered: true: still blocks explicit InternetEntireListingDisplayYN=false', () => {
+    const result = evaluateDisplayGate(
+      buildRawTrestle({ InternetEntireListingDisplayYN: false }),
+      { idxPlusPreFiltered: true }
+    );
+    expect(result.displayable).toBe(false);
+  });
+
+  it('idxPlusPreFiltered: true: still blocks Permission=OwnerOptOut', () => {
+    const result = evaluateDisplayGate(
+      buildRawTrestle({
+        InternetEntireListingDisplayYN: null,
+        Permission: 'OwnerOptOut',
+      }),
+      { idxPlusPreFiltered: true }
+    );
+    expect(result.displayable).toBe(false);
+  });
+
+  it('idxPlusPreFiltered: true: still blocks Permission=Private', () => {
+    const result = evaluateDisplayGate(
+      buildRawTrestle({
+        InternetEntireListingDisplayYN: null,
+        Permission: 'Private',
+      }),
+      { idxPlusPreFiltered: true }
+    );
+    expect(result.displayable).toBe(false);
   });
 });

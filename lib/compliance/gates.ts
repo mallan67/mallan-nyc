@@ -151,27 +151,65 @@ export function isParticipantOnly(input: PermissionInput): boolean {
   return false;
 }
 
-/** Gate 3: Internet entire-listing display. Fail-closed on missing. */
-export function isInternetEntireListingDisplayable(input: PermissionInput): boolean {
-  return affirmPermission(
-    readFirst(input, [
-      "InternetEntireListingDisplayYN",
-      "internet_entire_listing_display_yn",
-      "internetEntireListingDisplayYN",
-    ]),
-  );
+/**
+ * Gate evaluation options.
+ *
+ * `idxPlusPreFiltered`: when true, treat null/undefined
+ * `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` as
+ * DISPLAYABLE per the REBNY IDX Plus pre-filter convention. REBNY/Cotality
+ * removes non-displayable rows from the IDX Plus feed at the provider level
+ * and leaves these two booleans null on the survivors. An explicit `false`
+ * (rare per-row override) still blocks. AVM, ConsumerComment, owner_opt_out,
+ * participant_only, closed-24h are unaffected — those are per-row signals,
+ * not pre-filtered, and remain fail-closed.
+ *
+ * Use `idxPlusPreFiltered: true` ONLY for raw Trestle records on the live
+ * `/api/idx/search` path (via `checkDistributionGates` in
+ * `lib/idx/trestle-mapper.ts`). DB-row callers (db-to-public-dto, sitemap,
+ * listing-access-decision) leave the default `false` so any drift from the
+ * recovered `internet_entire_listing_display_yn=true` baseline still
+ * fails-closed defensively.
+ *
+ * Mirrors the writer-side convention at `lib/idx/trestle-mapper.ts:705-706`
+ * (commit 0309875b 2026-04-30).
+ */
+export interface GateOptions {
+  idxPlusPreFiltered?: boolean;
+}
+
+/** Gate 3: Internet entire-listing display. Fail-closed by default; opt-in IDX Plus pre-filter via options. */
+export function isInternetEntireListingDisplayable(
+  input: PermissionInput,
+  options: GateOptions = {},
+): boolean {
+  const v = readFirst(input, [
+    "InternetEntireListingDisplayYN",
+    "internet_entire_listing_display_yn",
+    "internetEntireListingDisplayYN",
+  ]);
+  if (options.idxPlusPreFiltered) {
+    // null/undefined = upstream pre-filter passed this row through; explicit
+    // false still blocks per per-row override.
+    return v !== false && v !== "false" && v !== "FALSE";
+  }
+  return affirmPermission(v);
 }
 
 /** Gate cascade: address display only when entire-listing display is also true. */
-export function isAddressDisplayable(input: PermissionInput): boolean {
-  if (!isInternetEntireListingDisplayable(input)) return false;
-  return affirmPermission(
-    readFirst(input, [
-      "InternetAddressDisplayYN",
-      "internet_address_display_yn",
-      "internetAddressDisplayYN",
-    ]),
-  );
+export function isAddressDisplayable(
+  input: PermissionInput,
+  options: GateOptions = {},
+): boolean {
+  if (!isInternetEntireListingDisplayable(input, options)) return false;
+  const v = readFirst(input, [
+    "InternetAddressDisplayYN",
+    "internet_address_display_yn",
+    "internetAddressDisplayYN",
+  ]);
+  if (options.idxPlusPreFiltered) {
+    return v !== false && v !== "false" && v !== "FALSE";
+  }
+  return affirmPermission(v);
 }
 
 /** Gate 5: Closed >24h ago → remove per REBNY UCBA Art. I §6. */
@@ -214,17 +252,23 @@ export interface GateResult {
 
 /**
  * Single source-of-truth gate evaluation. Used by:
- *   - lib/idx/trestle-mapper.ts (Trestle ingest)
+ *   - lib/idx/trestle-mapper.ts (Trestle ingest, via checkDistributionGates wrapper)
  *   - lib/idx/public-dto.ts (DTO sanitization)
  *   - lib/idx/mapping.ts (secondary Trestle path)
  *   - app/api/open-houses/route.ts (refactored to use this)
- *   - app/api/idx/search/route.ts (Trestle-direct search path)
+ *   - app/api/idx/search/route.ts (Trestle-direct search path, via checkDistributionGates)
  *   - app/api/idx/ensure-listing/route.ts (agent-backed listing hydration)
  *   - app/sitemap.ts (indexability decision)
  *
- * FAIL-CLOSED semantics: any missing permission flag = deny.
+ * Default semantics: FAIL-CLOSED — any missing permission flag = deny.
+ * Pass `{ idxPlusPreFiltered: true }` for raw Trestle records on the IDX Plus
+ * feed (REBNY pre-filters non-displayable rows upstream, leaving these flags
+ * null). See GateOptions docstring for full doctrine.
  */
-export function evaluateDisplayGate(input: PermissionInput): GateResult {
+export function evaluateDisplayGate(
+  input: PermissionInput,
+  options: GateOptions = {},
+): GateResult {
   // Gate 1 — Owner Opt-Out (UCBA Art. I §5(A))
   if (isOwnerOptOut(input)) {
     return {
@@ -247,8 +291,10 @@ export function evaluateDisplayGate(input: PermissionInput): GateResult {
     };
   }
 
-  // Gate 3 — Internet entire-listing display (fail-closed on missing)
-  if (!isInternetEntireListingDisplayable(input)) {
+  // Gate 3 — Internet entire-listing display
+  // Default: fail-closed on missing. With `idxPlusPreFiltered: true`, null is
+  // treated as displayable (REBNY pre-filter). Explicit false always blocks.
+  if (!isInternetEntireListingDisplayable(input, options)) {
     return {
       displayable: false,
       addressDisplayable: false,
@@ -278,7 +324,8 @@ export function evaluateDisplayGate(input: PermissionInput): GateResult {
 
   return {
     displayable: !terminal || closedWithin24Hours,
-    addressDisplayable: (!terminal || closedWithin24Hours) && isAddressDisplayable(input),
+    addressDisplayable:
+      (!terminal || closedWithin24Hours) && isAddressDisplayable(input, options),
     comingSoon,
     activeStatus,
   };

@@ -878,7 +878,17 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
 
   const { evaluateDisplayGate } = require("@/lib/compliance/gates") as typeof import("@/lib/compliance/gates");
   const normalized = normalizeRenames(raw);
-  const result = evaluateDisplayGate(normalized as Record<string, unknown>);
+  // This wrapper is exclusively for raw Trestle records on the REBNY IDX Plus
+  // feed (sync ingest + /api/idx/search live path). Pass `idxPlusPreFiltered:
+  // true` so null `InternetEntireListingDisplayYN` / `InternetAddressDisplayYN`
+  // are treated as displayable (REBNY pre-filters non-displayable rows out of
+  // the feed; survivors carry null on these two flags). Mirrors the
+  // writer-side convention at lines 705-706 above. AVM, ConsumerComment,
+  // owner_opt_out, participant_only, closed-24h remain fail-closed.
+  const result = evaluateDisplayGate(
+    normalized as Record<string, unknown>,
+    { idxPlusPreFiltered: true },
+  );
   if (result.displayable) return { displayable: true };
   return { displayable: false, reason: result.reason };
 }
