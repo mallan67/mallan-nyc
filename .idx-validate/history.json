@@ -1,47 +1,5 @@
 [
   {
-    "timestamp": "2026-04-07T22:21:51.469Z",
-    "pass": 790,
-    "critical": 0,
-    "warning": 4,
-    "info": 22
-  },
-  {
-    "timestamp": "2026-04-07T22:31:29.177Z",
-    "pass": 790,
-    "critical": 0,
-    "warning": 4,
-    "info": 22
-  },
-  {
-    "timestamp": "2026-04-27T20:36:29.114Z",
-    "pass": 784,
-    "critical": 0,
-    "warning": 6,
-    "info": 24
-  },
-  {
-    "timestamp": "2026-04-27T21:39:14.258Z",
-    "pass": 784,
-    "critical": 0,
-    "warning": 6,
-    "info": 24
-  },
-  {
-    "timestamp": "2026-04-27T22:31:14.514Z",
-    "pass": 784,
-    "critical": 0,
-    "warning": 6,
-    "info": 24
-  },
-  {
-    "timestamp": "2026-04-29T09:16:59.325Z",
-    "pass": 813,
-    "critical": 5,
-    "warning": 5,
-    "info": 25
-  },
-  {
     "timestamp": "2026-04-29T09:17:58.842Z",
     "pass": 817,
     "critical": 0,
@@ -344,6 +302,48 @@
   },
   {
     "timestamp": "2026-04-30T20:43:17.154Z",
+    "pass": 1272,
+    "critical": 0,
+    "warning": 0,
+    "info": 37
+  },
+  {
+    "timestamp": "2026-04-30T20:55:05.256Z",
+    "pass": 1272,
+    "critical": 0,
+    "warning": 0,
+    "info": 37
+  },
+  {
+    "timestamp": "2026-04-30T21:01:00.204Z",
+    "pass": 1272,
+    "critical": 0,
+    "warning": 0,
+    "info": 37
+  },
+  {
+    "timestamp": "2026-04-30T21:11:41.849Z",
+    "pass": 1272,
+    "critical": 0,
+    "warning": 0,
+    "info": 37
+  },
+  {
+    "timestamp": "2026-04-30T21:20:11.697Z",
+    "pass": 1272,
+    "critical": 0,
+    "warning": 0,
+    "info": 37
+  },
+  {
+    "timestamp": "2026-04-30T21:32:07.971Z",
+    "pass": 1272,
+    "critical": 0,
+    "warning": 0,
+    "info": 37
+  },
+  {
+    "timestamp": "2026-05-01T06:42:02.006Z",
     "pass": 1272,
     "critical": 0,
     "warning": 0,
