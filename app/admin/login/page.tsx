@@ -16,6 +16,23 @@ function BrokerLoginContent() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState('');
+  // MFA state — populated when /api/auth/login responds with `mfa_required: true`.
+  // Until then, the password form is shown. Once set, the MFA-code input replaces it.
+  const [mfaSession, setMfaSession] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+
+  function redirectAfterAuth() {
+    const redirectParam = searchParams.get('redirect');
+    const safeRedirect = redirectParam && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(redirectParam)
+      ? redirectParam
+      : null;
+    const destination = safeRedirect || '/crm/dashboard';
+    setTimeout(() => {
+      router.push(destination);
+    }, 1000);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,6 +58,20 @@ function BrokerLoginContent() {
         return;
       }
 
+      // ── MFA required (broker login always triggers this) ──
+      // The server returns `{ mfa_required: true, mfa_session: <token> }` and has
+      // already dispatched a 6-digit code via email and (if Twilio configured) SMS.
+      // Switch to the MFA-code-entry view; password form stays in state but is
+      // hidden until cancel/back.
+      if (data.mfa_required && data.mfa_session) {
+        setMfaSession(data.mfa_session);
+        setMfaError('');
+        setMfaCode('');
+        setLoading(false);
+        return;
+      }
+
+      // ── Direct session (no-MFA path; not expected for brokers) ──
       // Verify this is actually a broker account (case-insensitive)
       if (data.user?.role?.toUpperCase() !== 'BROKER') {
         setError('Access denied. Broker credentials required.');
@@ -49,20 +80,67 @@ function BrokerLoginContent() {
       }
 
       setSuccess(true);
-      // Use redirect param if provided and safe, otherwise default to CRM
-      const redirectParam = searchParams.get('redirect');
-      const safeRedirect = redirectParam && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(redirectParam)
-        ? redirectParam
-        : null;
-      const destination = safeRedirect || '/crm/dashboard';
-      setTimeout(() => {
-        router.push(destination);
-      }, 1000);
+      redirectAfterAuth();
     } catch {
       setError('Network error.');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleMfaVerify(e: React.FormEvent) {
+    e.preventDefault();
+    setMfaError('');
+    setMfaLoading(true);
+
+    try {
+      const trimmed = mfaCode.trim();
+      if (!/^\d{6}$/.test(trimmed)) {
+        setMfaError('Enter the 6-digit code from your email or phone.');
+        setMfaLoading(false);
+        return;
+      }
+      const res = await fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfa_session: mfaSession, code: trimmed }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMfaError(data.error || 'Verification failed.');
+        // 422 with "Invalid or expired" / "Too many failed attempts" / "Code expired"
+        // means the MFA session is dead — drop back to the password form.
+        if (res.status === 422 || res.status === 429) {
+          if (typeof data.error === 'string' && /(expired|too many|log in again)/i.test(data.error)) {
+            setMfaSession('');
+            setMfaCode('');
+          }
+        }
+        setMfaLoading(false);
+        return;
+      }
+
+      if (data.user?.role?.toUpperCase() !== 'BROKER') {
+        setMfaError('Access denied. Broker credentials required.');
+        setMfaLoading(false);
+        return;
+      }
+
+      setSuccess(true);
+      redirectAfterAuth();
+    } catch {
+      setMfaError('Network error.');
+    } finally {
+      setMfaLoading(false);
+    }
+  }
+
+  function handleMfaCancel() {
+    setMfaSession('');
+    setMfaCode('');
+    setMfaError('');
+    setMfaLoading(false);
   }
 
   async function handleForgotPassword(e: React.FormEvent) {
@@ -105,6 +183,60 @@ function BrokerLoginContent() {
             </div>
             <p className="text-white/70 text-sm">Redirecting to CRM...</p>
           </div>
+        ) : mfaSession ? (
+          <form onSubmit={handleMfaVerify} className="bg-[#141B2D] rounded-2xl p-8">
+            <div className="space-y-4">
+              <div>
+                <p className="text-white text-sm font-medium mb-1">Two-factor verification</p>
+                <p className="text-white/60 text-xs">
+                  We sent a 6-digit code to your registered email and phone. Enter it below — it expires in 5 minutes.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="mfaCode" className="block text-xs text-white/70 font-medium mb-1.5">
+                  6-digit code
+                </label>
+                <input
+                  type="text"
+                  id="mfaCode"
+                  required
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full rounded-xl px-4 py-3 bg-white/15 text-white text-base tracking-widest font-mono text-center placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#C4A052]/50"
+                  placeholder="••••••"
+                />
+              </div>
+
+              {mfaError && (
+                <div className="p-3 rounded-xl bg-red-500/10 text-red-400 text-sm text-center">
+                  {mfaError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={mfaLoading || mfaCode.length !== 6}
+                className="w-full bg-[#C4A052] text-[#1a1a1a] py-3 rounded-xl font-medium text-sm hover:bg-[#C4A052]/90 transition-colors disabled:opacity-50"
+              >
+                {mfaLoading ? 'Verifying...' : 'Verify'}
+              </button>
+
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={handleMfaCancel}
+                  className="text-xs text-white/40 hover:text-white/60 transition-colors"
+                >
+                  Cancel and re-enter password
+                </button>
+              </div>
+            </div>
+          </form>
         ) : (
           <form onSubmit={handleSubmit} className="bg-[#141B2D] rounded-2xl p-8">
             <div className="space-y-4">
