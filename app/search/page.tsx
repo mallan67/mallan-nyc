@@ -911,14 +911,21 @@ function SearchClient() {
           </div>
         )}
 
-        {/* Loading skeleton — no spinner, shows layout immediately */}
+        {/* Loading skeleton — no spinner, shows layout immediately.
+            Skeleton aspect ratios MUST match the actual card image aspect ratio
+            (split view → SplitCard → IDXImage aspect="wide" → aspect-[3/2];
+            grid/list view → GridCard/ListCard → IDXImage aspect="card" → aspect-[4/3]).
+            Mismatch causes the grid row to commit a taller height during the
+            loading-to-loaded transition, leaving cards that load slightly
+            later than their row neighbors with visible whitespace above their
+            shorter image (audit 2026-05-01). */}
         {loading && !error && sortedListings.length === 0 && (
           <div className={isFullViewport ? 'flex h-full' : 'py-6'}>
             {viewMode === 'split' && (
               <>
                 <div className="flex-1 lg:w-[55%] p-2 grid grid-cols-2 gap-2">
                   {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="bg-gray-100 rounded-xl animate-pulse" style={{ aspectRatio: '3/2.5' }} />
+                    <div key={i} className="bg-gray-100 rounded-xl animate-pulse" style={{ aspectRatio: '3/2' }} />
                   ))}
                 </div>
                 <div className="hidden lg:block w-[45%] h-full bg-gray-100 animate-pulse" />
@@ -927,7 +934,7 @@ function SearchClient() {
             {viewMode !== 'split' && (
               <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-gray-100 rounded-2xl h-64 animate-pulse" />
+                  <div key={i} className="bg-gray-100 rounded-2xl animate-pulse" style={{ aspectRatio: '4/3' }} />
                 ))}
               </div>
             )}
@@ -946,8 +953,13 @@ function SearchClient() {
         {/* ── SPLIT VIEW (default desktop) ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'split' && (
           <div className="flex h-full">
-            {/* Listings — left 55% */}
-            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto border-r border-black/5">
+            {/* Listings — left 55%.
+                `scrollbar-gutter: stable` reserves the scrollbar's column even
+                when content fits without scrolling, so the grid width does NOT
+                recalculate when listings finish loading and the scrollbar
+                appears. Compounds with the skeleton-aspect fix above to
+                eliminate row-height jumps during the loading transition. */}
+            <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto border-r border-black/5" style={{ scrollbarGutter: 'stable' }}>
               <div className="p-2 grid grid-cols-2 gap-2">
                 {sortedListings.map((listing) => (
                   <div
