@@ -56,10 +56,20 @@ export default function IDXImage({
     return () => io.disconnect();
   }, []);
 
+  // translate="no" + class="notranslate" tell Google Translate (and other
+  // browser-level translators) to skip this subtree. Without this, Translate
+  // wraps text nodes inside the wrapper in <font> tags and forces a reflow
+  // that bumps `aspect-ratio` containers off the parent's pixel grid — cards
+  // that share the same component end up rendering at slightly different
+  // sizes depending on the surrounding text content (price, unit number).
+  // Verified 2026-05-01 via Maya's incognito vs default-browser comparison
+  // on /search?tab=rent-residential. Public-site images only — no effect on
+  // text translation elsewhere on the page.
   if (!src || failed) {
     return (
       <div
-        className={`relative overflow-hidden bg-gray-100 flex items-center justify-center ${ASPECT_CLASSES[aspect]} ${className}`}
+        translate="no"
+        className={`notranslate relative overflow-hidden bg-gray-100 flex items-center justify-center ${ASPECT_CLASSES[aspect]} ${className}`}
         role="img"
         aria-label={alt}
       >
@@ -84,7 +94,11 @@ export default function IDXImage({
   const shouldAnimate = loaded && visible;
 
   return (
-    <div ref={wrapperRef} className={`relative overflow-hidden ${ASPECT_CLASSES[aspect]} ${className}`}>
+    <div
+      ref={wrapperRef}
+      translate="no"
+      className={`notranslate relative overflow-hidden ${ASPECT_CLASSES[aspect]} ${className}`}
+    >
       {/* Shimmer skeleton while loading */}
       {!loaded && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse" />
@@ -97,7 +111,8 @@ export default function IDXImage({
         decoding={priority ? 'sync' : 'async'}
         onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        translate="no"
+        className={`notranslate absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{
           animation: shouldAnimate ? 'liquidMotion 10s ease-in-out infinite' : undefined,
           transformOrigin: '50% 60%',
