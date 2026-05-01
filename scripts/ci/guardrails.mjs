@@ -403,7 +403,22 @@ const DEPRECATED_HOSTS = [
 ];
 
 const hostScanExtensions = /\.(ts|tsx|js|jsx|json|env|env\.local|env\.production)$/;
-const hostScanExcludes = [/node_modules/, /\.next/, /\.git/, /archive\//, /scripts\/trestle-deep-check/, /audit-trestle-report/, /db-to-public-dto\.ts$/, /public-dto\.ts$/, /media\/proxy/];
+// Files that legitimately reference deprecated hosts as data, not as runtime
+// targets. Test fixtures verify the proxy/resolver continues to handle the
+// legacy URLs correctly during the 2026 warranty period; the proxy route
+// itself maintains the allowlist; the DTO modules carry historical comments.
+const hostScanExcludes = [
+  /node_modules/,
+  /\.next/,
+  /\.git/,
+  /archive\//,
+  /scripts\/trestle-deep-check/,
+  /audit-trestle-report/,
+  /db-to-public-dto\.ts$/,
+  /public-dto\.ts$/,
+  /media\/proxy/,
+  /__tests__\//,
+];
 
 const hostScanFiles = allFiles.filter((f) => {
   if (!hostScanExtensions.test(f)) return false;
