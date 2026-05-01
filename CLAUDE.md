@@ -20,20 +20,43 @@ Failing to read `NEON.md` first is how the 2026-04-19 silent-drift incident happ
 
 ---
 
+## 🗂️ MEMORY FILE POLICY — ALWAYS MIRROR TO DESKTOP
+
+Whenever you create or update any file under `memory/` (or move a file to `memory/archive/`), also mirror it to `C:\Users\MayaAllan\Desktop\memory\` so the Desktop copy stays byte-identical to the repo copy. This is a durable rule set by user instruction 2026-04-30 — applies every session, no exceptions.
+
+The `archive/` subdirectory itself is not mirrored (only its parent file moves are reflected by removing the file from the Desktop top level when archived).
+
+Verify after any memory write:
+
+```bash
+cmp memory/<file> "C:/Users/MayaAllan/Desktop/memory/<file>" && echo "synced"
+```
+
+If a file was edited via the `Edit` tool, re-`cp -f` it to Desktop in the same session before reporting completion. Stale Desktop mirrors are the prior failure mode this rule prevents.
+
+---
+
 ## 🔔 ACTIVE FOLLOW-UP — FIRST AGENDA ITEM EVERY SESSION
 
-**Status:** OPEN · **Updated:** 2026-04-25 · **Master plan in flight: 10-PR backend rebuild**
+**Status:** OPEN · **Updated:** 2026-04-30 · **In observation window — PR 4 blocked**
 
-**PRIMARY plan (read first):** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — full 10-PR backend rebuild plan with self-contained resume instructions. Status table inside that file is the source of truth for which PR is next.
+**ACTIVE GATE:** Media PR 3 observation window. Started `2026-04-30T06:00:42-04:00`. Earliest PR 4 eligibility `2026-05-02T06:00:42-04:00`. PR 4 also blocked on §2.05 violations = 0 at formal closeout. Do not start PR 4 until both gates clear.
+
+**ACTIVE HOLD:** External-inventory implementation is parked behind PR 4 closeout AND explicit user approval. Spec at `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md`. Hold record + release conditions in [`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`](memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md). Do NOT invoke `superpowers:writing-plans` against this spec until both release conditions are met.
+
+**TODAY'S INCIDENT (read first if resuming):** [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md) — full sequence of (1) RESO live coverage probe → (2) read-only DB-state confirmation → (3) bounded mapper writer fix `0309875b` → (4) first recovery (7,545 rows) → (5) §2.05 corrective (489 rows) → (6) push → (7) full system audit → (8) second recovery (49 post-push corruptions). Active gate-pass back to 100%. 3 architectural follow-ups (H1 dual-write gap, H2 deploy/cron race, H3 cron observability) and 1 user-requested permanent command (`npm run ops:system-audit`) parked for post-PR-4 work.
+
+**PRIMARY plan (10-PR backend rebuild):** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — status table inside is the source of truth for which PR is next. Master plan PR 4 (`refactor/04-media-batch-rewrite`) is the next eligible PR but is currently blocked by the observation window above.
 
 **SECONDARY (parallel track):** [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — Workstream C (UCBA compliance gaps: Inquiry, Offers, Auction, Ethics) runs in parallel after PR 1 of the master plan lands. Workstream A (Phase 3 schema) is **superseded** by master-plan PR 5. Workstream B (HTTP adapter) is **dropped** per user decision 2026-04-25.
 
 ### Action at next session (regardless of date):
-1. Open `memory/REFACTOR-2026-04-25.md`. Read the "Current state" snapshot, then the "PR sequence overview" status table.
-2. Run the pre-flight checklist at the top of that file (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`).
-3. If all pass, identify the lowest-numbered PR with status `NOT_STARTED` and execute it per the per-PR instructions in that file.
-4. Workstream C (C1–C4 in `FOLLOWUP-2026-05-01.md`) can be picked up in parallel as soon as master-plan PR 1 has merged.
-5. After any PR merges, update its status field in `memory/REFACTOR-2026-04-25.md` to `MERGED — <commit-sha> · <date>`.
+1. **Check the observation window first.** Read `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`. If now is **after `2026-05-02T06:00:42-04:00`**, paste the closeout checklist at the bottom of that file and run it. If the closeout passes (window completed cleanly + §2.05 = 0), PR 4 unblocks. If now is **before** that timestamp, PR 4 is still blocked — do read-only checks only.
+2. Open `memory/REFACTOR-2026-04-25.md`. Read the "Current state" snapshot, then the "PR sequence overview" status table.
+3. Run the pre-flight checklist at the top of that file (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`). **Note:** `ops:health` may report 1 transient §2.05 violation — that is naturally aged terminal listings; clears at next 3am UTC `data-retention` cron.
+4. If all pass and the observation window is closed, identify the lowest-numbered PR with status `NOT_STARTED` and execute it per the per-PR instructions in that file.
+5. Workstream C (C1–C4 in `FOLLOWUP-2026-05-01.md`) can be picked up in parallel as soon as master-plan PR 1 has merged.
+6. After any PR merges, update its status field in `memory/REFACTOR-2026-04-25.md` to `MERGED — <commit-sha> · <date>`.
 
 ### Summary of in-flight workstreams
 - **Master plan (10 PRs)** — backend rebuild: PR 1 compliance fail-closed → PR 2 media schema → PR 3 R2-backed media sync → PR 4 rewrite media batch → PR 5 search projection → PR 6/7 search-core → PR 8 collections+sends → PR 9 lease lifecycle → PR 10 Neon shedding.
@@ -57,6 +80,14 @@ Close this follow-up when both the master-plan completion criteria (in `memory/R
 - PR #58 (`feat(c4b): ethics training auth gate`, replaces auto-closed #54) — merged `276fe3ae` 2026-04-26T10:17:47Z. Pre-merge backfill executed via `scripts/c4-ethics-backfill.ts` (3 active agents → 30-day grace, `would_lock_out=0`).
 
 **Workstream C: 4 of 4 complete (C1, C2, C3a/b, C4a/b).** Deferred: C3c (auction form/UI), C4c (broker admin panel + dev-login catch + commit backfill script to repo).
+
+### Recently landed — IDX Plus display-gate sub-incident (2026-04-30)
+- **`0309875b` `fix(idx): treat IDX Plus display nulls as provider-gated`** — pushed to `origin/main`, deployed Vercel-green. Reverts `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` from `affirmPermission` (fail-closed) back to `!== false` (fail-open) — these two fields are pre-filtered upstream by REBNY/Cotality on IDX Plus and null = displayable. AVM/ConsumerComment remain fail-closed (per-row opt-out flags). +18 writer-side tests, +3 regression guards (compliance-check 87 → 90).
+- **DB recovery 1** (7,545 rows · `listings` + `listing_search_projection`) — flipped `internet_entire_listing_display_yn`, `internet_address_display_yn`, `idx_display_yn` from false → true on rows synced after the buggy commit (2026-04-23) where there was no owner/participant blocker.
+- **§2.05 corrective** (489 rows · both surfaces) — first recovery's WHERE was over-broad and flipped terminal-status rows past 24h to `idx_display_yn=true`; corrective restored `idx_display_yn=false` per REBNY RLS §2.05 / `data-retention` cron's same SQL.
+- **DB recovery 2** (49 rows · both surfaces) — system audit caught 49 active rows re-corrupted by the cron at 21:00 UTC running on the OLD code 1m12s after push (Vercel build still completing). Same recovery shape, narrower scope.
+- **Active suspicious gate-fail count: 0.** Active public gate-pass: **100%** (10,510/10,510). Listing↔projection row parity: 20,075/20,075/0 missing.
+- **Open architectural debt** (post-PR-4): H1 dual-write gap on non-mapper writers (37 rows of legitimate terminal-retention drift visible in `idx_drift`); H2 deploy/cron race detection; H3 cron heartbeat observability; M1 `saved_searches` empty; permanent `npm run ops:system-audit` command (spec in `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`).
 
 ---
 
