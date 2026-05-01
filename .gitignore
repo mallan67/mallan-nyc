@@ -187,3 +187,6 @@ lint.log
 *.log
 nul
 .venv/
+
+# Validator runtime files (chronological run log; consumed only by scripts/idx-validate.js section 32)
+.idx-validate/*.local.json

@@ -1441,7 +1441,13 @@ function section31() {
 function section32() {
   const s = startSection(32, 'Run History & Trends', 'Platform');
   const historyDir = path.join(ROOT, '.idx-validate');
-  const historyFile = path.join(historyDir, 'history.json');
+  // Run history is a local-only chronological log of validator runs (timestamps,
+  // counts). It is consumed solely by section 32's regression detection — never
+  // by external tooling. Tracking it in git would dirty the working tree on
+  // every run because each entry adds a new timestamp. Keeping it local keeps
+  // the tree deterministic per "fix(idx): make validator snapshots deterministic"
+  // (2026-05-01). The .local.json suffix is gitignored.
+  const historyFile = path.join(historyDir, 'run-history.local.json');
 
   let history = [];
   try {
@@ -2260,8 +2266,15 @@ if (validatorHistoryCache) {
 }
 
 try {
-  const crmResult = {
-    timestamp: new Date().toISOString(),
+  // Idempotent write — `validator-results.json` is tracked in git and consumed
+  // by the CRM dashboard (`public/crm/js/dashboard/panels.js:5881` for the
+  // "Last run" display, plus the dedup keying at line 8383). The dashboard
+  // needs the `timestamp` field, so we keep it. But we only rewrite the file
+  // when the actual result content changed — content equality is computed
+  // EXCLUDING `timestamp`. This way a clean validator run on stable code
+  // does NOT dirty the working tree. Per "fix(idx): make validator snapshots
+  // deterministic" (2026-05-01).
+  const newContent = {
     pass: totalPass, critical: totalCritical, warning: totalWarning, info: totalInfo,
     sections: sections.map(sec => ({
       section: sec.num, title: sec.title, category: sec.category,
@@ -2273,7 +2286,26 @@ try {
   };
   const crmDataDir = path.join(ROOT, 'public', 'crm', 'data');
   if (fs.existsSync(crmDataDir)) {
-    fs.writeFileSync(path.join(crmDataDir, 'validator-results.json'), JSON.stringify(crmResult, null, 2));
+    const crmResultPath = path.join(crmDataDir, 'validator-results.json');
+    let existingContent = null;
+    let existingTimestamp = null;
+    if (fs.existsSync(crmResultPath)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(crmResultPath, 'utf8'));
+        existingTimestamp = existing.timestamp;
+        // Strip timestamp from comparison subject
+        const { timestamp: _ignored, ...rest } = existing;
+        existingContent = rest;
+      } catch (e) { /* corrupt or missing — treat as changed */ }
+    }
+    const contentChanged = !existingContent ||
+      JSON.stringify(existingContent) !== JSON.stringify(newContent);
+    if (contentChanged) {
+      // Bump timestamp because the result actually changed
+      const finalResult = { timestamp: new Date().toISOString(), ...newContent };
+      fs.writeFileSync(crmResultPath, JSON.stringify(finalResult, null, 2));
+    }
+    // else: content identical → leave existing file (and existing timestamp) alone
   }
 } catch (e) { /* ignore */ }
 
