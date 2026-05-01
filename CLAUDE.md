@@ -20,6 +20,25 @@ Failing to read `NEON.md` first is how the 2026-04-19 silent-drift incident happ
 
 ---
 
+## 🏛️ STOP — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` BEFORE TOUCHING SEARCH / CRM / FEATURED / NEIGHBORHOODS / MEDIA / LISTINGS
+
+The charter at `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` is the **architecture rulebook** for this repo. It exists because AI sessions repeatedly invented parallel files (`search-v2.ts`, `featured-new.tsx`, `location-stuff.json`, `crm-search-final.js`) instead of using the correct existing source files.
+
+**You MUST read the charter before creating, renaming, moving, or editing any file in:**
+
+- Public search — `/search`, `app/search/page.tsx`, `app/components/Search*.tsx`, `app/api/listings/`
+- CRM search — `/crm/search`, `public/crm/index*.html`, `public/crm/js/search/*`, `app/api/idx/search/`
+- Featured / Exclusives — `app/components/FeaturedListings.tsx`, `app/api/featured-config/`, `panels.js` Featured Properties section
+- Neighborhoods / Locations — `lib/neighborhoods/`, `lib/geo/`, `data/*neighborhoods*`, `public/geo/`
+- Media — `lib/media/`, `lib/images/`, `app/api/media/`, `app/components/IDXImage.tsx`, `app/components/ListingMediaGallery.tsx`
+- Listings / IDX / Trestle — `lib/idx/`, `lib/compliance/gates.ts`, `lib/compliance/rebny-validator.ts`, `data/rebny-rls-property-fields.csv`
+
+The charter lists every canonical file by domain, forbids version-suffixed names (`-v2`, `-new`, `-final`, `-temp`), forbids editing generated files directly (`public/crm/index-built.html` is built via `npm run crm:build`), defines the mandatory cleanup classification (`FRONTEND_CONNECTED` / `PUBLIC_FRONTEND_CONNECTED` / `CRM_FRONTEND_CONNECTED` / `API_CONNECTED` / `GENERATED` / `SAFE_TO_ARCHIVE_NOW`), and pins the active PR priority order.
+
+**If unsure which file owns the change, STOP and report.** Do not create a parallel system. Do not invent a new file name to "make progress." Cite the charter in commit bodies when your change touches a charter boundary.
+
+---
+
 ## 🗂️ MEMORY FILE POLICY — ALWAYS MIRROR TO DESKTOP
 
 Whenever you create or update any file under `memory/` (or move a file to `memory/archive/`), also mirror it to `C:\Users\MayaAllan\Desktop\memory\` so the Desktop copy stays byte-identical to the repo copy. This is a durable rule set by user instruction 2026-04-30 — applies every session, no exceptions.
