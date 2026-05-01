@@ -175,10 +175,14 @@ export async function GET(req: NextRequest) {
     // bypass would only fire if Trestle leaked one — which is exactly the case
     // where we must NOT show it. All 6 gates are now enforced uniformly.
     const displayable: Record<string, unknown>[] = [];
+    const gateBlockedReasons: Record<string, number> = {};
     for (const record of result.records) {
       const gate = checkDistributionGates(record);
       if (gate.displayable) {
         displayable.push(record);
+      } else {
+        const reason = gate.reason || "unknown";
+        gateBlockedReasons[reason] = (gateBlockedReasons[reason] || 0) + 1;
       }
     }
 
@@ -299,6 +303,43 @@ export async function GET(req: NextRequest) {
 
     // Cache the response
     setCache(cacheKey, response);
+
+    // ── Temporary count-only telemetry (Phase 0a/incident triage) ──
+    // No PII, no record content, no tokens. Counts and parameter KEYS only.
+    // Surfaces which layer is dropping records so the matrix bucket falls out
+    // of a single Vercel log line. Remove in a follow-up commit once the
+    // CRM-search 0-results incident is closed.
+    const imagesWithMedia = listings.filter(
+      (l) => Array.isArray((l as { images?: unknown[] }).images) && ((l as { images?: unknown[] }).images?.length ?? 0) > 0,
+    ).length;
+    console.log(
+      JSON.stringify({
+        evt: "idx_search_telemetry",
+        ts: new Date().toISOString(),
+        params_keys: Array.from(params.keys()).sort(),
+        type: params.get("type") || null,
+        status: params.get("status") || null,
+        borough: params.get("borough") || null,
+        has_neighborhood: !!params.get("neighborhood"),
+        has_address: !!params.get("address"),
+        has_keyword: !!params.get("keyword"),
+        has_zip: !!params.get("zip"),
+        has_listing_id: !!params.get("listingId"),
+        limit,
+        skip,
+        filter_length: filter.length,
+        trestle_fetched: result.records.length,
+        trestle_total_count: result.odataCount ?? null,
+        trestle_total_fetched: result.totalFetched,
+        gate_passed: displayable.length,
+        gate_blocked_total: result.records.length - displayable.length,
+        gate_blocked_by_reason: gateBlockedReasons,
+        mapper_returned: listings.length,
+        media_backfilled: mediaBackfilled,
+        listings_with_images: imagesWithMedia,
+        listings_without_images: listings.length - imagesWithMedia,
+      }),
+    );
 
     logger.complete("success");
 
