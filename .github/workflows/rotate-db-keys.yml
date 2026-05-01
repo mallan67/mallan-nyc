@@ -19,7 +19,7 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      PROJECT_ID: ${{ secrets.NEON_PROJECT_ID || vars.NEON_PROJECT_ID || 'morning-bread-68708332' }}
+      PROJECT_ID: ${{ secrets.NEON_PROJECT_ID || vars.NEON_PROJECT_ID }}
       BRANCH_ID: ${{ secrets.NEON_BRANCH_ID || vars.NEON_BRANCH_ID }}
       ROLE: ${{ secrets.NEON_ROLE || vars.NEON_ROLE || 'neondb_owner' }}
       DATABASE_NAME: ${{ secrets.NEON_DATABASE_NAME || vars.NEON_DATABASE_NAME || 'neondb' }}
