@@ -21,6 +21,9 @@ jobs:
       - name: Run guardrails check
         run: node scripts/ci/guardrails.mjs
 
+      - name: CRM static shell drift guard
+        run: node scripts/ci/check-crm-build.mjs
+
       - name: Install dependencies
         run: npm ci
 

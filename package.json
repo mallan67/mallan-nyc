@@ -34,6 +34,7 @@
         "test:prospect-parser": "npx tsx scripts/test-prospect-parser.ts",
         "db:seed": "npx tsx prisma/seed.ts",
         "crm:build": "node public/crm/build.js",
+        "crm:check-build": "node scripts/ci/check-crm-build.mjs",
         "crm:test": "node scripts/crm-test-runner.js",
         "ucba:audit": "node scripts/ucba-compliance-audit.js",
         "ucba:audit:json": "node scripts/ucba-compliance-audit.js --json",
