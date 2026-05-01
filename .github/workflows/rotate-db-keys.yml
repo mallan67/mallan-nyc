@@ -11,76 +11,282 @@ jobs:
     permissions:
       contents: write
       actions: write
-      id-token: write
 
     env:
       GH_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_PROJECT_ID: "prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW"
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      PROJECT_ID: "morning-bread-68708332"
-      BRANCH_ID: "br-old-tree-admdlb9z"
-      ROLE: "authenticator"
-      REPO: "mallan67/mallan-nyc"
+      PROJECT_ID: ${{ secrets.NEON_PROJECT_ID || vars.NEON_PROJECT_ID || 'morning-bread-68708332' }}
+      BRANCH_ID: ${{ secrets.NEON_BRANCH_ID || vars.NEON_BRANCH_ID }}
+      ROLE: ${{ secrets.NEON_ROLE || vars.NEON_ROLE || 'neondb_owner' }}
+      DATABASE_NAME: ${{ secrets.NEON_DATABASE_NAME || vars.NEON_DATABASE_NAME || 'neondb' }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW' }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID || vars.VERCEL_TEAM_ID || 'team_kZQh5NYLyrOKqffK0r9EXf4E' }}
+      VERCEL_TEAM_SLUG: ${{ secrets.VERCEL_TEAM_SLUG || vars.VERCEL_TEAM_SLUG }}
+      REPO: ${{ github.repository }}
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-
-      - name: Rotate Neon password
-        id: rotate
+      - name: Preflight required credentials
         run: |
-          echo "🔄 Rotating Neon DB password..."
-          echo "Generating new Neon password..."
+          set -euo pipefail
 
-          NEW_PASS=$(curl -s -X POST \
-            -H "Authorization: Bearer $NEON_API_KEY" \
-            -H "Content-Type: application/json" \
-            "https://console.neon.tech/api/v2/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" \
-            | jq -r '.role.password')
-
-          if [ -z "$NEW_PASS" ] || [ "$NEW_PASS" = "null" ]; then
-            echo "❌ Neon password rotation failed."
-            echo "$(date -u) ❌ Rotation failed." >> rotation-history.log
+          missing=0
+          for name in GH_TOKEN NEON_API_KEY VERCEL_TOKEN PROJECT_ID ROLE DATABASE_NAME VERCEL_PROJECT_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
             exit 1
           fi
 
-          echo "✅ New password generated."
-          NEW_CONN="postgresql://$ROLE:$NEW_PASS@ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
+          gh api "repos/$REPO" >/dev/null
 
-          echo "🔐 Updating GitHub secrets..."
-          echo "$NEW_CONN" | gh secret set DATABASE_URL --repo "$REPO" --app actions
-          echo "$NEW_CONN" | gh secret set ASSISTANT_DATABASE_URL --repo "$REPO" --app actions
+          vercel_scope=""
+          if [ -n "${VERCEL_TEAM_ID:-}" ]; then
+            vercel_scope="&teamId=$VERCEL_TEAM_ID"
+          elif [ -n "${VERCEL_TEAM_SLUG:-}" ]; then
+            vercel_scope="&slug=$VERCEL_TEAM_SLUG"
+          fi
 
-          echo "✅ Updated secrets successfully."
-          echo "$(date -u) ✅ Rotation successful." >> rotation-history.log
+          vercel_status=$(
+            curl -sS -o /tmp/vercel-preflight.json -w "%{http_code}" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=production&limit=1$vercel_scope"
+          )
+          if [ "$vercel_status" -lt 200 ] || [ "$vercel_status" -ge 300 ]; then
+            message=$(jq -r '.error.message // .message // "Vercel token cannot access project deployments."' /tmp/vercel-preflight.json 2>/dev/null)
+            echo "::error::Vercel preflight failed with HTTP $vercel_status: $message"
+            exit 1
+          fi
 
-      - name: Trigger Vercel redeploy
+          echo "Preflight OK."
+
+      - name: Rotate Neon password and update consumers
+        id: rotate
         run: |
-          echo "🚀 Triggering redeploy..."
-          curl -X POST "https://api.vercel.com/v13/deployments" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"projectId\":\"$VERCEL_PROJECT_ID\"}"
+          set -euo pipefail
+
+          neon_api="https://console.neon.tech/api/v2"
+          vercel_api="https://api.vercel.com"
+
+          vercel_scope_query() {
+            local separator="$1"
+            local encoded
+
+            if [ -n "${VERCEL_TEAM_ID:-}" ]; then
+              encoded=$(jq -rn --arg v "$VERCEL_TEAM_ID" '$v|@uri')
+              printf '%steamId=%s' "$separator" "$encoded"
+            elif [ -n "${VERCEL_TEAM_SLUG:-}" ]; then
+              encoded=$(jq -rn --arg v "$VERCEL_TEAM_SLUG" '$v|@uri')
+              printf '%sslug=%s' "$separator" "$encoded"
+            fi
+          }
+
+          request_json() {
+            local method="$1"
+            local url="$2"
+            local body="${3:-}"
+            local out="$4"
+
+            if [ -n "$body" ]; then
+              curl -sS -X "$method" -o "$out" -w "%{http_code}" \
+                -H "Authorization: Bearer $NEON_API_KEY" \
+                -H "Accept: application/json" \
+                -H "Content-Type: application/json" \
+                --data "$body" \
+                "$url"
+            else
+              curl -sS -X "$method" -o "$out" -w "%{http_code}" \
+                -H "Authorization: Bearer $NEON_API_KEY" \
+                -H "Accept: application/json" \
+                "$url"
+            fi
+          }
+
+          require_status() {
+            local status="$1"
+            local body_file="$2"
+            local label="$3"
+
+            if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+              message=$(jq -r '.message // .error.message // .error // "unrecognized API error"' "$body_file" 2>/dev/null)
+              echo "::error::$label failed with HTTP $status: $message"
+              echo "$(date -u) Rotation failed at $label." >> rotation-history.log
+              exit 1
+            fi
+          }
+
+          if [ -z "${BRANCH_ID:-}" ]; then
+            status=$(request_json GET "$neon_api/projects/$PROJECT_ID/branches" "" /tmp/neon-branches.json)
+            require_status "$status" /tmp/neon-branches.json "Resolve Neon branches"
+            BRANCH_ID=$(jq -r '.branches[] | select(.primary == true) | .id' /tmp/neon-branches.json | head -n 1)
+            if [ -z "$BRANCH_ID" ]; then
+              echo "::error::Could not resolve a primary Neon branch. Set NEON_BRANCH_ID as a GitHub secret or variable."
+              echo "$(date -u) Rotation failed while resolving primary branch." >> rotation-history.log
+              exit 1
+            fi
+          fi
+
+          status=$(request_json GET "$neon_api/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE" "" /tmp/neon-role.json)
+          require_status "$status" /tmp/neon-role.json "Validate Neon role"
+
+          status=$(request_json POST "$neon_api/projects/$PROJECT_ID/branches/$BRANCH_ID/roles/$ROLE/reset_password" "" /tmp/neon-reset.json)
+          require_status "$status" /tmp/neon-reset.json "Reset Neon role password"
+
+          new_pass=$(jq -r '.role.password // empty' /tmp/neon-reset.json)
+          if [ -z "$new_pass" ]; then
+            echo "::error::Neon reset response did not include a role password."
+            echo "$(date -u) Rotation failed: reset response did not include password." >> rotation-history.log
+            exit 1
+          fi
+          echo "::add-mask::$new_pass"
+
+          op_ids=$(jq -r '.operations[]?.id // empty' /tmp/neon-reset.json)
+          for op_id in $op_ids; do
+            terminal=""
+            for _ in $(seq 1 30); do
+              status=$(request_json GET "$neon_api/projects/$PROJECT_ID/operations/$op_id" "" /tmp/neon-operation.json)
+              require_status "$status" /tmp/neon-operation.json "Poll Neon operation"
+              op_status=$(jq -r '.operation.status // empty' /tmp/neon-operation.json)
+
+              if [ "$op_status" = "finished" ] || [ "$op_status" = "skipped" ]; then
+                terminal="$op_status"
+                break
+              fi
+              if [ "$op_status" = "failed" ] || [ "$op_status" = "cancelled" ]; then
+                echo "::error::Neon operation ended with status $op_status."
+                echo "$(date -u) Rotation failed: Neon operation $op_status." >> rotation-history.log
+                exit 1
+              fi
+              sleep 2
+            done
+
+            if [ -z "$terminal" ]; then
+              echo "::error::Timed out waiting for Neon operation to finish."
+              echo "$(date -u) Rotation failed: Neon operation timeout." >> rotation-history.log
+              exit 1
+            fi
+          done
+
+          get_connection_uri() {
+            local pooled="$1"
+            local out="$2"
+            local encoded_database encoded_role encoded_branch status
+
+            encoded_database=$(jq -rn --arg v "$DATABASE_NAME" '$v|@uri')
+            encoded_role=$(jq -rn --arg v "$ROLE" '$v|@uri')
+            encoded_branch=$(jq -rn --arg v "$BRANCH_ID" '$v|@uri')
+
+            status=$(request_json GET "$neon_api/projects/$PROJECT_ID/connection_uri?branch_id=$encoded_branch&database_name=$encoded_database&role_name=$encoded_role&pooled=$pooled" "" "$out")
+            require_status "$status" "$out" "Retrieve Neon connection URI"
+            jq -r '.uri // .connection_uri // empty' "$out"
+          }
+
+          pooled_uri=$(get_connection_uri true /tmp/neon-pooled-uri.json)
+          direct_uri=$(get_connection_uri false /tmp/neon-direct-uri.json)
+
+          if [ -z "$pooled_uri" ] || [ -z "$direct_uri" ]; then
+            echo "::error::Neon connection URI response was empty."
+            echo "$(date -u) Rotation failed: connection URI response was empty." >> rotation-history.log
+            exit 1
+          fi
+          echo "::add-mask::$pooled_uri"
+          echo "::add-mask::$direct_uri"
+
+          printf '%s' "$pooled_uri" | gh secret set DATABASE_URL --repo "$REPO" --app actions
+          printf '%s' "$pooled_uri" | gh secret set ASSISTANT_DATABASE_URL --repo "$REPO" --app actions
+          printf '%s' "$direct_uri" | gh secret set DATABASE_URL_UNPOOLED --repo "$REPO" --app actions
+
+          upsert_vercel_env() {
+            local key="$1"
+            local value="$2"
+            local payload status
+
+            payload=$(jq -n \
+              --arg key "$key" \
+              --arg value "$value" \
+              '{key:$key,value:$value,type:"encrypted",target:["production"],comment:"Rotated by GitHub Actions Neon credential workflow"}')
+
+            status=$(
+              curl -sS -X POST -o "/tmp/vercel-env-$key.json" -w "%{http_code}" \
+                -H "Authorization: Bearer $VERCEL_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data "$payload" \
+                "$vercel_api/v10/projects/$VERCEL_PROJECT_ID/env?upsert=true$(vercel_scope_query '&')"
+            )
+            if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+              message=$(jq -r '.error.message // .message // "Vercel environment update failed."' "/tmp/vercel-env-$key.json" 2>/dev/null)
+              echo "::error::Vercel env update for $key failed with HTTP $status: $message"
+              echo "$(date -u) Rotation failed while updating Vercel $key." >> rotation-history.log
+              exit 1
+            fi
+          }
+
+          upsert_vercel_env DATABASE_URL "$pooled_uri"
+          upsert_vercel_env ASSISTANT_DATABASE_URL "$pooled_uri"
+          upsert_vercel_env DATABASE_URL_UNPOOLED "$direct_uri"
+
+          status=$(
+            curl -sS -o /tmp/vercel-deployments.json -w "%{http_code}" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "$vercel_api/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=production&limit=1$(vercel_scope_query '&')"
+          )
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            message=$(jq -r '.error.message // .message // "Could not list Vercel deployments."' /tmp/vercel-deployments.json 2>/dev/null)
+            echo "::error::Vercel deployment lookup failed with HTTP $status: $message"
+            echo "$(date -u) Rotation failed while looking up latest Vercel deployment." >> rotation-history.log
+            exit 1
+          fi
+
+          latest_deployment=$(jq -r '.deployments[0].uid // .deployments[0].id // empty' /tmp/vercel-deployments.json)
+          if [ -z "$latest_deployment" ]; then
+            echo "::error::No production Vercel deployment found to redeploy."
+            echo "$(date -u) Rotation failed: no Vercel deployment found." >> rotation-history.log
+            exit 1
+          fi
+
+          redeploy_payload=$(jq -n --arg deploymentId "$latest_deployment" '{deploymentId:$deploymentId,target:"production"}')
+          status=$(
+            curl -sS -X POST -o /tmp/vercel-redeploy.json -w "%{http_code}" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$redeploy_payload" \
+              "$vercel_api/v13/deployments?forceNew=1$(vercel_scope_query '&')"
+          )
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            message=$(jq -r '.error.message // .message // "Vercel redeploy failed."' /tmp/vercel-redeploy.json 2>/dev/null)
+            echo "::error::Vercel redeploy failed with HTTP $status: $message"
+            echo "$(date -u) Rotation failed during Vercel redeploy." >> rotation-history.log
+            exit 1
+          fi
+
+          echo "$(date -u) Rotation successful." >> rotation-history.log
+          echo "Rotation completed and production redeploy was triggered."
 
       - name: Send Slack notification
         if: always()
         run: |
-          if [ -n "$SLACK_WEBHOOK_URL" ]; then
-            STATUS="${{ job.status }}"
-            MSG="🌀 *Neon Rotation ($REPO)* completed with status: *$STATUS*"
-            curl -X POST -H 'Content-type: application/json' \
-              --data "{\"text\": \"$MSG\"}" "$SLACK_WEBHOOK_URL"
+          set -euo pipefail
+          if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+            status="${{ job.status }}"
+            msg="Neon credential rotation ($REPO) completed with status: $status"
+            curl -sS -X POST -H 'Content-type: application/json' \
+              --data "$(jq -n --arg text "$msg" '{text:$text}')" \
+              "$SLACK_WEBHOOK_URL" >/dev/null
           else
             echo "No Slack webhook configured."
           fi
 
       - name: Send email notification
-        if: always()
+        if: ${{ always() && env.SMTP_USER != '' && env.SMTP_PASS != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -91,21 +297,21 @@ jobs:
           to: "maya@mallannyhomes.com"
           from: "Neon Rotation Bot <${{ secrets.SMTP_USER }}>"
           body: |
-            Hi Maya 👋,
+            Hi Maya,
 
-            The Neon database credentials for mallan-nyc were rotated on $(date -u).
-            Status: ${{ job.status }}
+            The Neon database credential rotation workflow for mallan-nyc completed with status: ${{ job.status }}.
 
             View logs:
-            https://github.com/mallan67/mallan-nyc/actions
+            https://github.com/${{ github.repository }}/actions
 
       - name: Commit audit log
         if: always()
         run: |
+          set -euo pipefail
+
           git config --global user.name "Rotation Bot"
           git config --global user.email "bot@users.noreply.github.com"
-          
-          # Force-add ignored log file
+
           git add -f rotation-history.log
-          git commit -m "🪵 Rotation log update ($(date -u))" || echo "No changes to commit"
+          git commit -m "chore(neon): update rotation audit log ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
           git push || echo "No push needed"
