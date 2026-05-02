@@ -26,10 +26,26 @@
 //          and repopulate with correct classification.
 //
 // Usage:
-//   npx tsx scripts/audit-media-mediatype-corruption.ts                 # dry-run, all eligible
+//   npx tsx scripts/audit-media-mediatype-corruption.ts                              # dry-run, default (sale Manhattan ≥$500K, take 200)
 //   npx tsx scripts/audit-media-mediatype-corruption.ts --ids RLS123,RLS456
-//   npx tsx scripts/audit-media-mediatype-corruption.ts --execute       # repair
+//   npx tsx scripts/audit-media-mediatype-corruption.ts --execute                    # repair default scope
 //   npx tsx scripts/audit-media-mediatype-corruption.ts --execute --ids RLS123
+//   npx tsx scripts/audit-media-mediatype-corruption.ts --scope active-rentals       # all active rentals
+//   npx tsx scripts/audit-media-mediatype-corruption.ts --scope active-sales         # all active sales
+//   npx tsx scripts/audit-media-mediatype-corruption.ts --scope all-active           # all active listings
+//   npx tsx scripts/audit-media-mediatype-corruption.ts --scope active-rentals --limit 1000
+//   npx tsx scripts/audit-media-mediatype-corruption.ts --scope all-active --execute
+//
+// Scope flags (mutually exclusive with --ids):
+//   active-rentals  — { status: "Active", listing_type: "rent" }
+//   active-sales    — { status: "Active", listing_type: "sale" }
+//   all-active      — { status: "Active" }
+//   (default)       — { status: "Active", listing_type: "sale", borough: "Manhattan", list_price ≥ 500000 }
+//
+// Pagination:
+//   --limit N    — override default Prisma `take` (default 200; raised to 50000
+//                  when --scope is supplied so coverage is complete).
+//   --offset N   — Prisma `skip` for paginated runs (default 0).
 //
 // Exit codes:
 //   0 — audit complete, regardless of how many listings affected
@@ -58,9 +74,10 @@ interface ListingFinding {
 interface AuditReport {
   ran_at: string;
   mode: "dry-run" | "execute";
-  scope: { ids?: string[]; default_query: boolean };
+  scope: { ids?: string[]; named?: Scope; default_query: boolean; limit?: number; offset?: number };
   scanned_listings: number;
   affected_listings: number;
+  affected_by_listing_type?: Record<string, number>;
   total_duplicate_url_entries: number;
   total_type_path_mismatches: number;
   affected_listing_ids: string[];
@@ -72,8 +89,19 @@ interface AuditReport {
   };
 }
 
-function parseArgs(argv: string[]): { execute: boolean; ids: string[] | null } {
-  const out = { execute: false, ids: null as string[] | null };
+type Scope = "default" | "active-rentals" | "active-sales" | "all-active";
+const VALID_SCOPES: Scope[] = ["active-rentals", "active-sales", "all-active"];
+
+interface ParsedArgs {
+  execute: boolean;
+  ids: string[] | null;
+  scope: Scope;
+  limit: number | null;
+  offset: number;
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const out: ParsedArgs = { execute: false, ids: null, scope: "default", limit: null, offset: 0 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--execute") out.execute = true;
@@ -84,10 +112,35 @@ function parseArgs(argv: string[]): { execute: boolean; ids: string[] | null } {
         process.exit(2);
       }
       out.ids = v.split(",").map((x) => x.trim()).filter(Boolean);
+    } else if (a === "--scope") {
+      const v = argv[++i];
+      if (!VALID_SCOPES.includes(v as Scope)) {
+        console.error(`--scope must be one of: ${VALID_SCOPES.join(", ")}`);
+        process.exit(2);
+      }
+      out.scope = v as Scope;
+    } else if (a === "--limit") {
+      const n = Number(argv[++i]);
+      if (!Number.isFinite(n) || n <= 0) {
+        console.error("--limit requires a positive number");
+        process.exit(2);
+      }
+      out.limit = n;
+    } else if (a === "--offset") {
+      const n = Number(argv[++i]);
+      if (!Number.isFinite(n) || n < 0) {
+        console.error("--offset requires a non-negative number");
+        process.exit(2);
+      }
+      out.offset = n;
     } else if (a === "--help" || a === "-h") {
-      console.log("Usage: npx tsx scripts/audit-media-mediatype-corruption.ts [--execute] [--ids RLS123,RLS456]");
+      console.log("Usage: npx tsx scripts/audit-media-mediatype-corruption.ts [--execute] [--ids RLS123,RLS456] [--scope <active-rentals|active-sales|all-active>] [--limit N] [--offset N]");
       process.exit(0);
     }
+  }
+  if (out.ids && out.scope !== "default") {
+    console.error("--ids and --scope are mutually exclusive");
+    process.exit(2);
   }
   return out;
 }
@@ -147,27 +200,43 @@ async function main() {
   const mode = args.execute ? "execute" : "dry-run";
 
   console.log("");
-  console.log(`[audit-media-mediatype-corruption] mode=${mode}  ids=${args.ids ? args.ids.join(",") : "(default scope)"}`);
+  console.log(
+    `[audit-media-mediatype-corruption] mode=${mode}  scope=${args.ids ? "--ids" : args.scope}  limit=${args.limit ?? (args.ids ? args.ids.length : args.scope === "default" ? 200 : 50000)}  offset=${args.offset}`,
+  );
   console.log("");
 
-  // Default scope: active sale Manhattan listings priced >= $500K with media —
-  // i.e. the FeaturedListings query population. Tighten via --ids for targeted
-  // audits.
-  const where: Record<string, unknown> = args.ids
-    ? { listing_id: { in: args.ids } }
-    : {
-        status: "Active",
-        listing_type: "sale",
-        borough: "Manhattan",
-        list_price: { gte: 500000 },
-      };
+  // Build the WHERE clause from the scope flag. Default preserves the original
+  // behavior (sale Manhattan ≥ $500K, take 200) for backward compatibility
+  // with prior audit runs. Named scopes raise the default `take` ceiling so
+  // active-rentals (~868) / active-sales (~9,344) / all-active (~10,212) are
+  // covered without manual pagination — the caller can still pin --limit.
+  let where: Record<string, unknown>;
+  let defaultTake: number;
+  if (args.ids) {
+    where = { listing_id: { in: args.ids } };
+    defaultTake = args.ids.length;
+  } else if (args.scope === "active-rentals") {
+    where = { status: "Active", listing_type: "rent" };
+    defaultTake = 50000;
+  } else if (args.scope === "active-sales") {
+    where = { status: "Active", listing_type: "sale" };
+    defaultTake = 50000;
+  } else if (args.scope === "all-active") {
+    where = { status: "Active" };
+    defaultTake = 50000;
+  } else {
+    where = { status: "Active", listing_type: "sale", borough: "Manhattan", list_price: { gte: 500000 } };
+    defaultTake = 200;
+  }
+  const take = args.limit ?? defaultTake;
 
-  let listings: Array<{ listing_id: string; status: string | null; media: unknown }>;
+  let listings: Array<{ listing_id: string; status: string | null; listing_type: string | null; media: unknown }>;
   try {
     listings = await prisma.listing.findMany({
       where: where as Parameters<typeof prisma.listing.findMany>[0]["where"],
-      select: { listing_id: true, status: true, media: true },
-      take: args.ids ? args.ids.length : 200,
+      select: { listing_id: true, status: true, listing_type: true, media: true },
+      take,
+      skip: args.offset,
     });
   } catch (err) {
     console.error("[audit] DB query failed:", err instanceof Error ? err.message : err);
@@ -175,18 +244,35 @@ async function main() {
   }
 
   const findings: ListingFinding[] = [];
+  const typeByListing = new Map<string, string | null>();
   for (const L of listings) {
     findings.push(analyseListing(L.listing_id, L.status, L.media));
+    typeByListing.set(L.listing_id, L.listing_type);
   }
 
   const affectedFindings = findings.filter((f) => f.recommended_action === "clear_media_for_resync");
 
+  // Tally affected by listing_type so reports can show rent vs sale split
+  // when running --scope all-active.
+  const affectedByType: Record<string, number> = {};
+  for (const f of affectedFindings) {
+    const t = typeByListing.get(f.listing_id) ?? "(unknown)";
+    affectedByType[t] = (affectedByType[t] ?? 0) + 1;
+  }
+
   const report: AuditReport = {
     ran_at: new Date().toISOString(),
     mode,
-    scope: { ids: args.ids ?? undefined, default_query: !args.ids },
+    scope: {
+      ids: args.ids ?? undefined,
+      named: args.ids ? undefined : args.scope,
+      default_query: !args.ids && args.scope === "default",
+      limit: take,
+      offset: args.offset,
+    },
     scanned_listings: listings.length,
     affected_listings: affectedFindings.length,
+    affected_by_listing_type: affectedByType,
     total_duplicate_url_entries: findings.reduce((a, f) => a + f.duplicate_url_count, 0),
     total_type_path_mismatches: findings.reduce((a, f) => a + f.type_path_mismatches.length, 0),
     affected_listing_ids: affectedFindings.map((f) => f.listing_id),
