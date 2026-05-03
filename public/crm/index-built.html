@@ -16516,10 +16516,24 @@ function manageShowToast(msg) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
-                    // Server returned nothing — keep local results but notify user
-                    if (localResults.length === 0) {
-                        showToast('No listings found. Try broadening your search criteria.', 'warning');
+                    // Server returned 0. Trestle is the source of truth for IDX
+                    // search — DO NOT keep the pre-display local fixture
+                    // results visible, because they include cross-borough
+                    // fixture rows that don't match the actual IDX query
+                    // (e.g. Manhattan + 1 bed search briefly showing Bronx/
+                    // Queens fixtures while server loads). Clear the display
+                    // so the empty-state + toast surfaces honestly.
+                    searchResultsState.filteredListings = [];
+                    searchResultsState.currentPage = 1;
+                    try {
+                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                        if (typeof updateResultsCount === 'function') updateResultsCount();
+                        if (typeof refreshResultsMap === 'function') refreshResultsMap();
+                    } catch (renderErr) {
+                        console.error('[Search] Render after zero-result failed:', renderErr);
                     }
+                    _saveSearchState();
+                    showToast('No listings found. Try broadening your search criteria.', 'warning');
                     return;
                 }
 
@@ -16566,17 +16580,19 @@ function manageShowToast(msg) {
                     }
                 });
 
-                // Merge: start with local filtered results, add new server results
-                var merged = localResults.slice();
-                var mergedIds = {};
-                merged.forEach(function(l) { mergedIds[l.id] = true; if (l.lid) mergedIds[l.lid] = true; });
-                serverListings.forEach(function(l) {
-                    if (!mergedIds[l.id] && !(l.lid && mergedIds[l.lid])) {
-                        merged.push(l);
-                        mergedIds[l.id] = true;
-                    }
-                });
-                searchResultsState.filteredListings = merged;
+                // REPLACE the pre-display local fixture results with the
+                // authoritative Trestle server results. Previously this
+                // merged `localResults` (fixture-side filter output) with
+                // `serverListings`, which polluted IDX search results with
+                // cross-borough fixtures — e.g. Manhattan+1bed search would
+                // render Bronx/Queens fixture rows above the actual Manhattan
+                // listings because filterListings(listings, criteria) on the
+                // ~126-row local fixture set is not borough/neighborhood-
+                // strict and IDX search is server-authoritative anyway.
+                // serverListings has been merged into the global `listings`
+                // array above so existing-by-id lookups still work; we just
+                // stop polluting the rendered list.
+                searchResultsState.filteredListings = serverListings;
                 searchResultsState.currentPage = 1;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
