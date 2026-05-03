@@ -16597,31 +16597,19 @@ function manageShowToast(msg) {
             });
         }
 
-        // Quick Search — search by RLS ID, Zip, Address, or Unit from the Quick Search cards
-        function quickSearch(btn) {
-            // Quick Search now uses the full performSearch() pipeline.
-            // Validate that at least one criterion exists (RLS ID, Zip, Address, or Neighborhoods).
-            var rlsInputId = 'searchQuickRls';
-            var zipInputId = 'searchQuickZip';
-            var addrInputId = 'searchAddress';
-
-            var rlsVal = (document.getElementById(rlsInputId) || {}).value || '';
-            var zipVal = (document.getElementById(zipInputId) || {}).value || '';
-            var addrVal = (document.getElementById(addrInputId) || {}).value || '';
-
-            // Check neighborhood tags
-            var hasNeighborhoods = false;
-            if (typeof getSelectedNeighborhoods === 'function') {
-                var tagsId = _resolveActiveNeighborhoodTagsId();
-                hasNeighborhoods = getSelectedNeighborhoods(tagsId).length > 0;
-            }
-
-            if (!rlsVal.trim() && !zipVal.trim() && !addrVal.trim() && !hasNeighborhoods) {
-                showToast('Please enter at least one search criterion (RLS ID, Zip, Address, or Neighborhood).', 'warning');
-                return;
-            }
-
-            // Delegate to the full search pipeline
+        // Quick Search — formerly gated submission on RLS/Zip/Address/
+        // Neighborhood being present. Removed 2026-05-03 after telemetry +
+        // user reports confirmed agents expected the quick-card Search button
+        // to behave like every other Search button on the page (Basic main
+        // and sticky footer both call performSearch with no validation). The
+        // gate was a UX trap: clicking Search with no criterion returned a
+        // blocking toast instead of the active sale listings users expected.
+        // Now a thin alias for performSearch — keeps the named entry point
+        // for debuggability and existing onclick wiring, removes the gate.
+        // The full pipeline (collectSearchCriteria → _serverSearch) defaults
+        // type=sale + status=Active when no other filter is present and
+        // returns active sale listings.
+        function quickSearch(_btn) {
             performSearch();
         }
 
