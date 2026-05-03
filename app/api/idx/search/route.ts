@@ -304,11 +304,26 @@ export async function GET(req: NextRequest) {
     // Cache the response
     setCache(cacheKey, response);
 
-    // ── Temporary count-only telemetry (Phase 0a/incident triage) ──
-    // No PII, no record content, no tokens. Counts and parameter KEYS only.
-    // Surfaces which layer is dropping records so the matrix bucket falls out
-    // of a single Vercel log line. Remove in a follow-up commit once the
-    // CRM-search 0-results incident is closed.
+    // ── Temporary count-only + safe-value telemetry (Phase 0a/incident triage) ──
+    // No PII, no record content, no tokens, no auth. Counts, parameter keys,
+    // and safe picklist/numeric param VALUES only.
+    //
+    // VALUE LOGGING IS WHITELISTED. Only fields whose values are picklist
+    // labels (type, status, borough, neighborhood, ownership, propertySubType)
+    // or bounded numerics (minBeds, maxBeds, minBaths, maxBaths) are logged
+    // by value. Free-text user input (address, keyword, listingId, unit,
+    // building names) is logged as boolean presence ONLY. The full OData
+    // filter is NOT logged because its `address`/`keyword` interpolation
+    // can carry user-typed strings that may be quasi-identifying.
+    //
+    // The 2026-05-03 H1 audit had only 1 telemetry sample with `params_keys`
+    // listing the names of 6 params but no values. That made it impossible
+    // to distinguish whether `ownership=Co-op` (form label) or
+    // `neighborhood=Bed-Stuy` (alias gap) caused trestle_fetched=0. The
+    // additions below close that gap.
+    //
+    // Remove this entire block in a follow-up commit once the CRM-search
+    // 0-results incident is closed.
     const imagesWithMedia = listings.filter(
       (l) => Array.isArray((l as { images?: unknown[] }).images) && ((l as { images?: unknown[] }).images?.length ?? 0) > 0,
     ).length;
@@ -317,14 +332,36 @@ export async function GET(req: NextRequest) {
         evt: "idx_search_telemetry",
         ts: new Date().toISOString(),
         params_keys: Array.from(params.keys()).sort(),
+        // ── Safe picklist/numeric values (whitelisted) ──
+        type_value: params.get("type") || null,
+        status_value: params.get("status") || null,
+        borough_value: params.get("borough") || null,
+        neighborhood_value: params.get("neighborhood") || null,
+        ownership_value: params.get("ownership") || null,
+        propertySubType_value: params.get("propertySubType") || null,
+        minBeds_value: params.get("minBeds") || params.get("beds") || null,
+        maxBeds_value: params.get("maxBeds") || null,
+        minBaths_value: params.get("minBaths") || null,
+        maxBaths_value: params.get("maxBaths") || null,
+        minPrice_value: params.get("minPrice") || null,
+        maxPrice_value: params.get("maxPrice") || null,
+        // ── Backwards-compatible field aliases (so prior log-grep tooling
+        //    that looked for `type` / `status` / `borough` still resolves) ──
         type: params.get("type") || null,
         status: params.get("status") || null,
         borough: params.get("borough") || null,
+        // ── Free-text param presence (booleans only — values not logged) ──
         has_neighborhood: !!params.get("neighborhood"),
         has_address: !!params.get("address"),
         has_keyword: !!params.get("keyword"),
         has_zip: !!params.get("zip"),
         has_listing_id: !!params.get("listingId"),
+        has_buildingName: !!params.get("buildingName"),
+        has_unit: !!params.get("unit"),
+        has_managementCompany: !!params.get("managementCompany"),
+        has_checkboxFilters: !!params.get("checkboxFilters"),
+        has_gridFilter: !!params.get("gridFilter"),
+        // ── Count metrics (unchanged) ──
         limit,
         skip,
         filter_length: filter.length,
