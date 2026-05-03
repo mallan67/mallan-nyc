@@ -228,9 +228,15 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
-        function _serverSearch(criteria, localResults) {
+        // Convert collectSearchCriteria() output -> /api/idx/search query params.
+        // Shared between _serverSearch (the full search pipeline) and the
+        // live "~N match" tracker badge (init-tracker.js) so the badge count
+        // reflects the same Trestle filter the Search button will run. Live
+        // tracker can override `limit: 1` to get a count-only response.
+        // Window-attached so init-tracker.js can call it.
+        window.buildIdxSearchParams = function(criteria) {
             var params = {};
+            if (!criteria) return params;
             if (criteria.searchTab === 'rent') params.type = 'rental';
             else if (criteria.searchTab === 'sale') params.type = 'sale';
             if (criteria.address) params.address = criteria.address;
@@ -249,29 +255,23 @@
             if (criteria.zip) params.zip = criteria.zip;
             if (criteria.unit) params.unit = criteria.unit;
             if (criteria.keyword) params.keyword = criteria.keyword;
-            // Rooms, sqft, year — all OData searchable per REBNY RLS field spec
             if (criteria.roomsMin) params.minRooms = criteria.roomsMin;
             if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
             if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
             if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
             if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
-            // Date range filters
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
             if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
-            // Contract date → ListingContractDate (not CloseDate)
             if (criteria.contractDateFrom) params.contractDateFrom = criteria.contractDateFrom;
             if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
-            // Sold/Rented date → CloseDate
             if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
             if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
             if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
             if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
-            // Ownership (CommonInterest — OData searchable)
             if (criteria.ownership && criteria.ownership.length > 0) {
                 params.ownership = criteria.ownership.join(',');
             }
-            // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
             if (criteria.yearMin) params.minYear = criteria.yearMin;
             if (criteria.yearMax) params.maxYear = criteria.yearMax;
             if (criteria.floorsMin) params.minFloors = criteria.floorsMin;
@@ -279,31 +279,30 @@
             if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
             if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
             if (criteria.buildingName) params.buildingName = criteria.buildingName;
-            // Pass status filters to server (map CRM uppercase back to RESO PascalCase)
+            // Status: CRM uppercase -> RESO PascalCase
             if (criteria.statuses && criteria.statuses.length > 0) {
-                // Map CRM statuses to RESO StandardStatus values per REBNY RLS lookup table
                 var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            // Pass generic checkbox filters to server for OData filtering
-            // Server builds OData eq/contains clauses for fields that support it
             if (criteria.checkboxFilters) {
                 var _cbJson = JSON.stringify(criteria.checkboxFilters);
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
             }
-
-            // Transit proximity → Latitude/Longitude bounding box
             if (criteria._transitBounds && typeof TransitSearch !== 'undefined') {
                 var transitParts = TransitSearch.toODataFilter();
                 if (transitParts.length > 0) params.gridFilter = transitParts.join(' and ');
             }
-            // Manhattan Grid bounding box → Latitude/Longitude OData filters
-            // (grid overrides transit bounds if both set)
             if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
                 var gridParts = ManhattanGrid.toODataFilter(criteria._gridBounds);
                 if (gridParts.length > 0) params.gridFilter = gridParts.join(' and ');
             }
+            return params;
+        };
+
+        // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
+        function _serverSearch(criteria, localResults) {
+            var params = window.buildIdxSearchParams(criteria);
 
             // ≤200: server sends inline photos via $expand=Media (fast, one request)
             // >200: server sends listings without photos, photo-loader.js lazy-loads

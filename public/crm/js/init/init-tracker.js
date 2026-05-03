@@ -62,24 +62,34 @@
             if (ts) ts.textContent = 'Updated ' + new Date().toLocaleTimeString();
         }
 
-        // Live match estimate — count locally loaded listings matching current criteria
+        // Live match estimate — count via the same Trestle filter the Search
+        // button will run. Previously counted locally over the ~126 demo
+        // fixtures (filterListings(listings, criteria)) which produced badge
+        // numbers like "~98 match" that were nowhere near the real Trestle
+        // total of ~2,099 for Manhattan + 1 bed Active sales. The badge now
+        // queries /api/idx/search with limit=1 and reads back trestle's
+        // $count to display the authoritative total.
+        //
+        // Debounce raised to 1000ms (was 200ms) to stay under Trestle's
+        // 180/min rate limit when an agent types rapidly.
+        var _trackerMatchInflight = 0; // increments per query so out-of-order responses are dropped
         function updateTrackerMatchEstimate() {
             if (_trackerMatchDebounce) clearTimeout(_trackerMatchDebounce);
             _trackerMatchDebounce = setTimeout(function() {
                 _computeMatchEstimate();
-            }, 200);
+            }, 1000);
         }
 
         function _computeMatchEstimate() {
-            if (typeof listings === 'undefined' || !listings || listings.length === 0) return;
             if (typeof collectSearchCriteria !== 'function') return;
-            if (typeof filterListings !== 'function') return;
+            if (typeof window.buildIdxSearchParams !== 'function') return;
+            if (typeof MallanAPI === 'undefined' || !MallanAPI || !MallanAPI.idx) return;
 
             try {
                 var criteria = collectSearchCriteria();
-                // Check if any criteria is actually set (beyond defaults)
                 var hasCriteria = criteria.address || criteria.priceMin || criteria.priceMax ||
-                    criteria.bedsMin || criteria.bedsMax || criteria.bathsMin || criteria.bathsMax ||
+                    criteria.bedsMin != null || criteria.bedsMax != null ||
+                    criteria.bathsMin || criteria.bathsMax ||
                     criteria.sqftMin || criteria.sqftMax || criteria.rlsId || criteria.zip ||
                     (criteria.neighborhoods && criteria.neighborhoods.length > 0) ||
                     criteria.borough || criteria.propertySubType ||
@@ -95,10 +105,36 @@
                     return;
                 }
 
-                var matched = filterListings(listings, criteria);
-                countEl.textContent = matched.length.toLocaleString();
+                // Build same params the Search button will use, override limit
+                // to 1 so we only consume one Trestle row to read $count back.
+                var params = window.buildIdxSearchParams(criteria);
+                params.limit = 1;
+                if (!params.type) params.type = 'sale';
+
                 wrapper.classList.remove('hidden');
                 wrapper.classList.add('flex');
+                countEl.textContent = '…';
+
+                var myToken = ++_trackerMatchInflight;
+                MallanAPI.idx.search(params).then(function(result) {
+                    // Drop response if a newer query has been issued.
+                    if (myToken !== _trackerMatchInflight) return;
+                    var count = 0;
+                    if (result && typeof result.totalCount === 'number') {
+                        count = result.totalCount;
+                    } else if (result && result._meta && typeof result._meta.odataCount === 'number') {
+                        count = result._meta.odataCount;
+                    } else if (result && typeof result.total === 'number') {
+                        count = result.total;
+                    } else if (result && result.listings) {
+                        count = result.listings.length;
+                    }
+                    countEl.textContent = count.toLocaleString();
+                }).catch(function() {
+                    if (myToken !== _trackerMatchInflight) return;
+                    // On error, hide rather than show stale count.
+                    countEl.textContent = '?';
+                });
             } catch(e) {
                 // Silently ignore — criteria collection can fail if form not ready
             }
