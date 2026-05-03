@@ -159,9 +159,26 @@
         }).join('');
     }
 
-    // Get selected neighborhoods (for search engine integration)
+    // Get selected neighborhoods (for search engine integration).
+    // Filters out borough-level entries (Manhattan, Brooklyn, Queens, Bronx,
+    // Staten Island) so they do not get serialized as `neighborhood=...` to
+    // the backend — those entries belong on `criteria.borough`. See
+    // getSelectedBoroughs below.
     window.getSelectedNeighborhoods = function(tagsId) {
-        return getSelected(tagsId || 'saleNeighborhoodTags').map(function(s) { return s.name; });
+        return getSelected(tagsId || 'saleNeighborhoodTags')
+            .filter(function(s) { return !s.isBoroughLevel; })
+            .map(function(s) { return s.name; });
+    };
+
+    // Get selected borough-level entries. Borough chips appear in the same
+    // autocomplete list (with a "Borough" badge), but route to a different
+    // backend OData field — `CityRegion` instead of `SubdivisionName`.
+    // collectSearchCriteria() in search-engine.js calls this to populate
+    // criteria.borough.
+    window.getSelectedBoroughs = function(tagsId) {
+        return getSelected(tagsId || 'saleNeighborhoodTags')
+            .filter(function(s) { return s.isBoroughLevel; })
+            .map(function(s) { return s.name; });
     };
 
     // Close dropdowns when clicking outside

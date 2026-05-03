@@ -838,7 +838,14 @@
                 criteria.address = addressInput.value.trim();
             }
 
-            // Neighborhood autocomplete tags — read from active tags container
+            // Neighborhood autocomplete tags — read from active tags container.
+            // The autocomplete dropdown lists every NYC neighborhood AND each
+            // borough as a top-level "Borough" chip. We must split the two so
+            // borough chips drive `criteria.borough` (-> OData CityRegion) and
+            // neighborhood chips drive `criteria.neighborhoods` (-> OData
+            // SubdivisionName). The split happens in
+            // neighborhood-autocomplete.js getSelectedNeighborhoods /
+            // getSelectedBoroughs so the consumer here is unambiguous.
             if (typeof getSelectedNeighborhoods === 'function') {
                 var tagsId = _resolveActiveNeighborhoodTagsId();
                 var selectedNeighborhoods = getSelectedNeighborhoods(tagsId);
@@ -846,14 +853,25 @@
                     criteria.neighborhoods = selectedNeighborhoods;
                 }
 
-                // Borough — derive from selected neighborhoods if all are from one borough
-                if (selectedNeighborhoods.length > 0) {
+                var selectedBoroughs = (typeof getSelectedBoroughs === 'function')
+                    ? getSelectedBoroughs(tagsId)
+                    : [];
+
+                // Borough resolution — explicit borough chip wins; otherwise
+                // derive from neighborhoods only when all are in one borough.
+                if (selectedBoroughs.length === 1) {
+                    criteria.borough = selectedBoroughs[0];
+                } else if (selectedNeighborhoods.length > 0) {
                     var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
                     var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
                     if (uniqueBoroughs.length === 1) {
                         criteria.borough = uniqueBoroughs[0];
                     }
                 }
+                // selectedBoroughs.length > 1 (multi-borough): leave
+                // criteria.borough unset — backend cannot OR multiple
+                // CityRegion values via a single param. User intent is
+                // clearer if they pick neighborhoods in each borough instead.
             }
 
             // Quick Search fields — RLS ID, Zip, Unit (advanced mode has its own IDs)
