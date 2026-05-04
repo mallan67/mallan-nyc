@@ -79,6 +79,13 @@
             _detailCurrentId = listingId;
             _detailPhotoIdx = 0;
             _detailActiveTab = 'overview';
+            // Update Prev/Next listing button state for the current
+            // result-set position. Hides nav controls entirely when
+            // there's <= 1 listing in the current result set; otherwise
+            // shows them and disables (visually) the unreachable
+            // direction (prev at idx 0, next at last idx). Spec: buttons
+            // must be visible AND reliable when more than one result.
+            _updateDetailNavButtons();
 
             // Fetch full media (floor plans, videos, virtual tours) on demand
             if (typeof fetchDetailMedia === 'function' && listing.lid) {
@@ -247,7 +254,7 @@
                             </div>
                             <div class="grid grid-cols-4 gap-3">
                                 ${(listing.images || []).slice(0, 4).map(function(img, idx) {
-                                    return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + ')"><img src="' + img.url.replace('w=800', 'w=400') + '" alt="' + escapeHtml(img.caption || '') + '" loading="lazy"><div class="caption">' + escapeHtml(img.caption || 'Photo ' + (idx+1)) + '</div></div>';
+                                    return '<div class="lux-media-thumb cursor-pointer" onclick="openPhotoLightbox(' + idx + ')"><img src="' + img.url.replace('w=800', 'w=400') + '" alt="' + escapeHtml(img.caption || '') + '" loading="lazy"><div class="caption">' + escapeHtml(img.caption || 'Photo ' + (idx+1)) + '</div></div>';
                                 }).join('')}
                             </div>
                         </div>
@@ -865,7 +872,7 @@
                             </div>
                             <div class="grid grid-cols-3 gap-4" id="detailMediaFullGrid">
                                 ${(listing.images || []).map(function(img, idx) {
-                                    return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + '); detailSwitchTab(\'overview\')"><img src="' + img.url + '" alt="' + (img.caption || '') + '" loading="lazy"><div class="caption"><span>' + (img.caption || 'Photo ' + (idx+1)) + '</span><span class="float-right">' + (idx+1) + '/' + photos.length + '</span></div></div>';
+                                    return '<div class="lux-media-thumb cursor-pointer" onclick="openPhotoLightbox(' + idx + ')"><img src="' + img.url + '" alt="' + (img.caption || '') + '" loading="lazy"><div class="caption"><span>' + (img.caption || 'Photo ' + (idx+1)) + '</span><span class="float-right">' + (idx+1) + '/' + photos.length + '</span></div></div>';
                                 }).join('')}
                             </div>
                         </div>
@@ -1131,7 +1138,7 @@
                 var grid = document.getElementById('detailMediaFullGrid');
                 if (grid) {
                     grid.innerHTML = listing.images.map(function(img, idx) {
-                        return '<div class="lux-media-thumb" onclick="detailSetPhoto(' + idx + '); detailSwitchTab(\'overview\')"><img src="' + img.url + '" alt="' + (img.caption || '') + '" loading="lazy"><div class="caption"><span>' + (img.caption || 'Photo ' + (idx+1)) + '</span><span class="float-right">' + (idx+1) + '/' + listing.images.length + '</span></div></div>';
+                        return '<div class="lux-media-thumb cursor-pointer" onclick="openPhotoLightbox(' + idx + ')"><img src="' + img.url + '" alt="' + (img.caption || '') + '" loading="lazy"><div class="caption"><span>' + (img.caption || 'Photo ' + (idx+1)) + '</span><span class="float-right">' + (idx+1) + '/' + listing.images.length + '</span></div></div>';
                     }).join('');
                 }
                 // Update main photo if still on placeholder
@@ -1455,15 +1462,75 @@
         }
 
         function detailPanelPrev() {
-            var listings = getFilteredListings();
+            var listings = (typeof getFilteredListings === 'function') ? getFilteredListings() : [];
             var idx = listings.findIndex(function(l) { return l.id === _detailCurrentId; });
             if (idx > 0) showListingDetail(listings[idx - 1].id);
         }
 
         function detailPanelNext() {
-            var listings = getFilteredListings();
+            var listings = (typeof getFilteredListings === 'function') ? getFilteredListings() : [];
             var idx = listings.findIndex(function(l) { return l.id === _detailCurrentId; });
             if (idx >= 0 && idx < listings.length - 1) showListingDetail(listings[idx + 1].id);
+        }
+
+        // Toggle Prev/Next listing button visibility + disabled state
+        // based on the current filteredListings position. Called from
+        // showListingDetail (P0-A, 2026-05-04). Spec: buttons must be
+        // visible AND reliable when more than one listing in the
+        // current result set.
+        //
+        //   length <= 1   → hide separator + both buttons (no nav target)
+        //   idx === 0     → show buttons, disable Prev visually
+        //   idx === last  → show buttons, disable Next visually
+        //   middle        → both enabled
+        //
+        // Uses opacity-50 + pointer-events:none for the visually-disabled
+        // state (matches the dead-control pattern from Batch 3 init-
+        // disable-dead-controls.js). Tooltips clarify the disabled cause.
+        function _updateDetailNavButtons() {
+            var sep = document.getElementById('detailNavSep');
+            var prevBtn = document.getElementById('detailPrevBtn');
+            var nextBtn = document.getElementById('detailNextBtn');
+            if (!prevBtn || !nextBtn) return;
+
+            var listings = (typeof getFilteredListings === 'function') ? getFilteredListings() : [];
+            var total = listings.length;
+            var idx = listings.findIndex(function(l) { return l.id === _detailCurrentId; });
+
+            // Single-listing or empty result set — hide entirely.
+            if (total <= 1 || idx < 0) {
+                if (sep) sep.style.display = 'none';
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                return;
+            }
+
+            // Result set has > 1 listing — show buttons.
+            if (sep) sep.style.display = '';
+            prevBtn.style.display = '';
+            nextBtn.style.display = '';
+
+            // Prev — disable visually at the first listing.
+            if (idx === 0) {
+                prevBtn.classList.add('opacity-50', 'pointer-events-none');
+                prevBtn.title = 'No previous listing';
+                prevBtn.setAttribute('aria-disabled', 'true');
+            } else {
+                prevBtn.classList.remove('opacity-50', 'pointer-events-none');
+                prevBtn.title = 'Previous listing (' + idx + ' of ' + total + ')';
+                prevBtn.removeAttribute('aria-disabled');
+            }
+
+            // Next — disable visually at the last listing.
+            if (idx === total - 1) {
+                nextBtn.classList.add('opacity-50', 'pointer-events-none');
+                nextBtn.title = 'No next listing';
+                nextBtn.setAttribute('aria-disabled', 'true');
+            } else {
+                nextBtn.classList.remove('opacity-50', 'pointer-events-none');
+                nextBtn.title = 'Next listing (' + (idx + 2) + ' of ' + total + ')';
+                nextBtn.removeAttribute('aria-disabled');
+            }
         }
 
         function detailSwitchTab(tab) {
