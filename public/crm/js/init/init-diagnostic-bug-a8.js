@@ -70,24 +70,46 @@
                                 return;
                             }
                             // Success — server has already logged full JSON. Show
-                            // condensed counts to the operator so they have visual
-                            // confirmation without needing the console.
+                            // condensed counts to the operator. Round 2 schema:
+                            //   total_count, property_subtype_distribution,
+                            //   mls_status_distribution, common_interest_distribution,
+                            //   internet_entire_listing_display_yn,
+                            //   internet_address_display_yn, listing_contract_date_age_buckets,
+                            //   compliance_gate_aggregate.
                             var b = result.body || {};
-                            var countsLines = Object.keys(b.counts || {}).map(function(k) {
-                                var v = b.counts[k] || {};
-                                return '  ' + k + ': ' + (v.count != null ? v.count : 'n/a') + (v.error ? ' (err: ' + v.error.slice(0, 80) + ')' : '');
-                            }).join('\n');
-                            var ptRows = ((b.distribution_by_property_type || {}).rows || [])
-                                .map(function(r) { return '  ' + (r.PropertyType || '?') + ': ' + r.Count; })
-                                .join('\n');
-                            var pstRows = ((b.distribution_by_property_subtype || {}).rows || [])
-                                .map(function(r) { return '  ' + (r.PropertySubType || '?') + ': ' + r.Count; })
-                                .join('\n');
-                            var msg = 'Bug A8 diagnostic — ' + (b.ts || '') + '\n\n' +
-                                'Inputs: ' + JSON.stringify(b.inputs) + '\n\n' +
-                                'Counts:\n' + countsLines + '\n\n' +
-                                'PropertyType distribution (current filter):\n' + ptRows + '\n\n' +
-                                'PropertySubType distribution (Residential only):\n' + pstRows;
+                            function listFmt(arr, keyName) {
+                                if (!arr || !arr.length) return '  (none)';
+                                return arr.map(function(r) {
+                                    var label = r[keyName] != null ? r[keyName] : (r.bucket != null ? r.bucket : '?');
+                                    return '  ' + label + ': ' + (r.count != null ? r.count : '?') + (r.error ? ' [err]' : '');
+                                }).join('\n');
+                            }
+                            var gate = b.compliance_gate_aggregate || {};
+                            var gateBlockedReasons = Object.keys(gate.blocked_by_reason || {}).map(function(k) {
+                                return '    ' + k + ': ' + gate.blocked_by_reason[k];
+                            }).join('\n') || '    (none)';
+                            var gateIE = ((gate.display_yn_distribution || {}).internet_entire_listing) || {};
+                            var gateIA = ((gate.display_yn_distribution || {}).internet_address) || {};
+                            var msg =
+                                'Bug A8 diagnostic round ' + (b.round || 1) + ' — ' + (b.ts || '') + '\n' +
+                                'Inputs: ' + JSON.stringify(b.inputs) + '\n' +
+                                '─────────────────────────────────────\n' +
+                                'Total count (BASE filter): ' + (b.total_count != null ? b.total_count : '?') + '\n\n' +
+                                'PropertySubType (non-zero):\n' + listFmt(b.property_subtype_distribution, 'value') + '\n\n' +
+                                'MlsStatus (non-zero, within Active=BASE):\n' + listFmt(b.mls_status_distribution, 'value') + '\n\n' +
+                                'CommonInterest (non-zero):\n' + listFmt(b.common_interest_distribution, 'value') + '\n\n' +
+                                'InternetEntireListingDisplayYN:\n' + listFmt(b.internet_entire_listing_display_yn, 'bucket') + '\n\n' +
+                                'InternetAddressDisplayYN:\n' + listFmt(b.internet_address_display_yn, 'bucket') + '\n\n' +
+                                'Days since ListingContractDate:\n' + listFmt(b.listing_contract_date_age_buckets, 'bucket') + '\n\n' +
+                                'Compliance gate (running checkDistributionGates on every record):\n' +
+                                '  records_scanned: ' + (gate.records_scanned || 0) + '\n' +
+                                '  pages_fetched:   ' + (gate.pages_fetched || 0) + '\n' +
+                                '  gate_passed:     ' + (gate.gate_passed || 0) + '\n' +
+                                '  gate_blocked:    ' + (gate.gate_blocked || 0) + '\n' +
+                                '  blocked_by_reason:\n' + gateBlockedReasons + '\n' +
+                                '  IE display YN: t=' + (gateIE.true || 0) + ' f=' + (gateIE.false || 0) + ' null=' + (gateIE.null || 0) + '\n' +
+                                '  IA display YN: t=' + (gateIA.true || 0) + ' f=' + (gateIA.false || 0) + ' null=' + (gateIA.null || 0) + '\n' +
+                                (gate.error ? '  ERROR: ' + gate.error : '');
                             window.alert(msg);
                         })
                         .catch(function(err) {
