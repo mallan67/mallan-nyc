@@ -157,7 +157,32 @@ export async function POST(request: NextRequest) {
         </table>
       `.trim();
 
-      await sendEmail('info@mallan.nyc', subjectLine, emailBody);
+      const brokerEmailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
+      if (!brokerEmailResult.success) {
+        // ── SMTP fail-loud (P0-B compliance gate) ────────────────
+        // Pattern mirrors /api/contact post-Bug A15. Lead/Inquiry/
+        // AuditEvent rows are already saved above; surface 503 to the
+        // caller in production when the broker notification can't go
+        // out due to missing SMTP env vars rather than silently
+        // returning success.
+        const isProd =
+          process.env.NODE_ENV === 'production' ||
+          process.env.VERCEL_ENV === 'production';
+        if (isProd && brokerEmailResult._devMode === true) {
+          return NextResponse.json(
+            {
+              error:
+                'Email service unavailable. Your inquiry has been received (reference: ' +
+                lead.id +
+                '); we will respond directly. Please also feel free to call 646-258-4460.',
+              leadId: String(lead.id),
+              code: 'SMTP_NOT_CONFIGURED',
+            },
+            { status: 503 }
+          );
+        }
+        console.error('[/api/inquiries] Notification email failed: provider error redacted');
+      }
     } catch (emailErr) {
       console.error('[/api/inquiries] [email redacted] notification error (non-fatal):', emailErr);
     }

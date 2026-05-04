@@ -145,6 +145,55 @@ export async function GET(req: NextRequest) {
           }
         } else {
           errored++;
+          // ── SMTP fail-loud (P0-B compliance gate) ──────────────────
+          // When sendEmail returns _devMode=true the entire cron run
+          // is doomed — every saved search will fail the same way.
+          // Bail out early instead of churning through hundreds of
+          // searches with no chance of delivery, write a loud audit
+          // event, and return 503 so Vercel cron logs surface the
+          // misconfiguration in ops dashboards. Lead/SavedSearch rows
+          // are unaffected (cron is read-only on those).
+          if (
+            (result as { _devMode?: boolean })._devMode === true
+          ) {
+            const isProd =
+              process.env.NODE_ENV === "production" ||
+              process.env.VERCEL_ENV === "production";
+            if (isProd) {
+              console.error(
+                "[Search Alerts Cron] SMTP_NOT_CONFIGURED — bailing out after first failed send. " +
+                "Sent=" + sent + " skipped=" + skipped + " errored=" + errored + " of " + searches.length + ". " +
+                "Set SMTP_USER and SMTP_PASS in Vercel production env."
+              );
+              await prisma.auditEvent.create({
+                data: {
+                  action: "search_alerts_cron_smtp_unconfigured",
+                  entity_type: "saved_search",
+                  entity_id: "bulk",
+                  user_type: "system",
+                  user_id: null,
+                  changes: {
+                    total: searches.length,
+                    sent,
+                    skipped,
+                    errored,
+                    code: "SMTP_NOT_CONFIGURED",
+                  },
+                },
+              });
+              return NextResponse.json(
+                {
+                  error: "SMTP not configured — cron bailed out",
+                  code: "SMTP_NOT_CONFIGURED",
+                  total: searches.length,
+                  sent,
+                  skipped,
+                  errored,
+                },
+                { status: 503 }
+              );
+            }
+          }
         }
       } catch (err) {
         console.error(`[Search Alerts] Error processing search ${search.id}:`, err);

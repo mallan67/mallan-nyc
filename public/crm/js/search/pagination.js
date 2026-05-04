@@ -1205,6 +1205,12 @@
         }
 
         // ── Build mailto body with listing thumbnail for agent inquiry ──
+        // P0-B email-pipeline mandate (2026-05-04): minimum body must
+        // include RLS ID, address/unit, price/status, listing link,
+        // sender contact, brokerage identity, REBNY/IDX attribution.
+        // Audit trail (server-side persistence of every send) is a
+        // separate batch — would require new /api/crm/agent-inquiry
+        // route. This function only updates body content.
         function buildAgentMailtoBody(listing) {
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
             var nbhd = listing.neighborhood || '';
@@ -1216,23 +1222,40 @@
             var isSale = listing.listingCategory !== 'rental';
             var slug = addr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             var url = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + slug + '-' + listing.id;
+            // RLS ID = ListingId (REBNY canonical); fall back to internal id
+            var rlsId = listing.lid || listing.id || '';
+            // Status — render the canonical mapped status (post-A14
+            // mapper exhaustiveness guarantees no "OFF MARKET" string).
+            var status = listing.status || 'ACTIVE';
+            var statusLabel = status === 'COMING_SOON' ? 'Coming Soon'
+                : status === 'PENDING' ? 'In Contract'
+                : status.charAt(0) + status.slice(1).toLowerCase();
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var fromName = agent.name || '';
             var fromTitle = agent.licenseTitle || agent.title || 'Licensed Real Estate Broker';
             var fromCompany = agent.company || 'Mallan Real Estate Inc.';
             var fromPhone = agent.phone || '';
+            var fromEmail = agent.email || '';
+            var brokerageLicense = agent.brokerageLicense || '#10991205323';
+            var brokerageAddress = agent.brokerageAddress || '400 East 90th Street, Suite 17C, New York, NY 10128';
 
             return 'Agent Inquiry — ' + addr + '\n' +
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+                'RLS ID: ' + rlsId + '\n' +
                 addr + '\n' +
                 nbhd + ', ' + borough + '\n' +
-                price + '  |  ' + beds + '  |  ' + baths + (sqft ? '  |  ' + sqft : '') + '\n\n' +
+                price + '  |  ' + beds + '  |  ' + baths + (sqft ? '  |  ' + sqft : '') + '\n' +
+                'Status: ' + statusLabel + '\n\n' +
                 'View Listing: ' + url + '\n\n' +
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
                 'From: ' + fromName + '\n' +
                 fromTitle + '\n' +
-                fromCompany + '\n' +
-                fromPhone + '\n';
+                fromCompany + ' · License ' + brokerageLicense + '\n' +
+                brokerageAddress + '\n' +
+                fromPhone + (fromEmail ? ' · ' + fromEmail : '') + '\n\n' +
+                '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+                'Listing data via REBNY RLS / IDX Plus (Cotality/Trestle).\n' +
+                'Mallan Real Estate Inc. is a participating broker.\n';
         }
 
         // ── Share listing link (copy or native share) ──

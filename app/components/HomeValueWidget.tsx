@@ -41,6 +41,11 @@ export default function HomeValueWidget() {
           email: formData.email.trim(),
           phone: formData.phone.trim(),
           address: formData.address.trim(),
+          // TCPA 47 CFR 64.1200(f)(8) — affirmative consent boolean
+          // (not just timestamp) sent for server-side enforcement.
+          // Client-side check at line 26 already gates submission, but
+          // the server validates this independently per Bug A14 pattern.
+          consent: formData.tcpaConsent === true,
         }),
       });
 

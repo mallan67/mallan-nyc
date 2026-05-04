@@ -46,6 +46,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── TCPA affirmative consent (47 CFR 64.1200(f)(8)) ─────────────
+    // P0-B compliance gate. Frontend (app/components/HomeValueWidget.tsx)
+    // sends body.consent = formData.tcpaConsent === true. Reject any
+    // submission missing the literal boolean true. Pattern mirrors the
+    // /api/contact route post-Bug A14.
+    if (body.consent !== true) {
+      return NextResponse.json(
+        { error: 'Affirmative consent (TCPA) is required. Please check the consent box and resubmit.' },
+        { status: 400 }
+      );
+    }
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -156,7 +168,32 @@ export async function POST(request: NextRequest) {
         </table>
       `.trim();
 
-      await sendEmail('info@mallan.nyc', subjectLine, emailBody);
+      const brokerEmailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
+      if (!brokerEmailResult.success) {
+        // ── SMTP fail-loud (P0-B compliance gate) ────────────────
+        // When email send fails specifically because SMTP is not
+        // configured (_devMode flag from sendgrid.ts:93), surface 503
+        // to the caller. The Lead row is already saved above so the
+        // valuation request data isn't lost. Pattern mirrors
+        // /api/contact post-Bug A15.
+        const isProd =
+          process.env.NODE_ENV === 'production' ||
+          process.env.VERCEL_ENV === 'production';
+        if (isProd && brokerEmailResult._devMode === true) {
+          return NextResponse.json(
+            {
+              error:
+                'Email service unavailable. Your CMA request has been received (reference: ' +
+                lead.id +
+                '); we will follow up directly. Please also feel free to call 646-258-4460.',
+              leadId: String(lead.id),
+              code: 'SMTP_NOT_CONFIGURED',
+            },
+            { status: 503 }
+          );
+        }
+        console.error('[/api/cma] Notification email failed: provider error redacted');
+      }
     } catch (emailErr) {
       console.error('[/api/cma] [email redacted] notification error (non-fatal):', emailErr);
     }
