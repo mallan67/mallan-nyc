@@ -174,15 +174,21 @@ const COMMON_INTEREST_NYC = [
   "Other",
 ];
 
+// Fields used by the compliance gate aggregate. NOTE: `Permissions` is in
+// the RESO Data Dictionary 2.0 but is NOT exposed by REBNY's IDX Plus feed
+// — Trestle returns HTTP 400 "Could not find a property named 'Permissions'"
+// when it appears in $select. The remaining gate fields ARE on IDX Plus
+// (verified against artifacts/metadata.xml + lib/idx/trestle-mapper.ts).
+// Removed `Permissions` 2026-05-04 after round 2 diagnostic surfaced the
+// 400 on the paginated fetch. checkDistributionGates() handles the
+// missing field by treating it as undefined — owner-opt-out / participant
+// gates short-circuit on other fields before referring to it.
 const SEARCH_FIELDS_FOR_GATE = [
   "ListingId",
   "StandardStatus",
   "MlsStatus",
-  "Permissions",
   "InternetEntireListingDisplayYN",
   "InternetAddressDisplayYN",
-  "InternetAutomatedValuationDisplayYN",
-  "InternetConsumerCommentYN",
   "CloseDate",
   "ListAgentMlsId",
   "PropertyType",
