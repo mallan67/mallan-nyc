@@ -139,8 +139,42 @@ export function mapTrestleToCrmListing(
     Incomplete: "INCOMPLETE",
     Canceled: "CANCELLED",
     Cancelled: "CANCELLED",
+    // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
+    // Some MLS feeds (or stale data sources) may emit "Off Market" /
+    // "Off-Market" / "OffMarket" in MlsStatus. Map all variants to
+    // "WITHDRAWN", the closest UCBA-compliant canonical status.
+    // Without this mapping, the prior `mlsStatus.toUpperCase()`
+    // fallback would produce "OFF MARKET" — a literal violation.
+    "Off Market": "WITHDRAWN",
+    "Off-Market": "WITHDRAWN",
+    OffMarket: "WITHDRAWN",
+    offMarket: "WITHDRAWN",
+    "off market": "WITHDRAWN",
   };
-  const status = statusMap[mlsStatus] || mlsStatus.toUpperCase();
+  // Unmapped values fall through to "UNKNOWN" — a SAFE default that
+  // never accidentally surfaces non-canonical status text in UCBA-
+  // sensitive contexts. Renderers should treat UNKNOWN as a non-active
+  // sentinel and either suppress badges or show a neutral indicator.
+  // (Was: `mlsStatus.toUpperCase()` which could produce "OFF MARKET",
+  // "FUTURE", or any other vendor-specific string in the UI.)
+  const status = statusMap[mlsStatus] || "UNKNOWN";
+
+  // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
+  // UCBA requires "No Showings or Open House until [date]" disclosure
+  // for Coming Soon listings. The date must be specific. Previously
+  // comingSoonDate was hard-coded to null in the return object, and
+  // the badge renderer fell back to the vague string "until active
+  // date". Pull the actual date from Trestle:
+  //   ActivationDate    — REBNY's "showings begin" timestamp
+  //   OnMarketDate      — RESO standard fallback
+  // Format as ISO YYYY-MM-DD for downstream display.
+  let comingSoonDate: string | null = null;
+  if (status === "COMING_SOON") {
+    const dateRaw = raw.ActivationDate ?? raw.OnMarketDate;
+    if (dateRaw) {
+      comingSoonDate = String(dateRaw).split("T")[0];
+    }
+  }
 
   return {
     id: String(raw.ListingId || raw.SourceSystemKey || index + 1),
@@ -206,7 +240,7 @@ export function mapTrestleToCrmListing(
     listingCategory: isRental ? "rental" : undefined,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
     contractDate: raw.ListingContractDate ? String(raw.ListingContractDate) : null,
-    comingSoonDate: null,
+    comingSoonDate,
     downPaymentAssistanceAmount: dpaAmount,
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,

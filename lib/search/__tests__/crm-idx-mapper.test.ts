@@ -190,4 +190,245 @@ describe("crm idx mapper", () => {
     expect(listing.totalMonthly).toBe(4200);
     expect(listing.listingCategory).toBe("rental");
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // P0 COMPLIANCE — status mapper exhaustiveness (UCBA Art. I §5(D))
+  //
+  // UCBA prohibits "Off-Market" labeling. The prior fallback
+  //   const status = statusMap[mlsStatus] || mlsStatus.toUpperCase()
+  // could produce "OFF MARKET" if Trestle returned that string,
+  // exposing the platform to UCBA fines. Tests below pin the
+  // contract: any unmapped or off-market variant must NEVER produce
+  // an "OFF MARKET" value in the rendered status field.
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe("status mapper — UCBA Art. I §5(D) compliance", () => {
+    const offMarketVariants = ["Off Market", "Off-Market", "OffMarket", "off market"];
+
+    for (const variant of offMarketVariants) {
+      it(`maps MlsStatus "${variant}" to WITHDRAWN, never to "OFF MARKET"`, () => {
+        const listing = mapTrestleToCrmListing({
+          ListingId: "X",
+          MlsStatus: variant,
+          InternetEntireListingDisplayYN: true,
+          InternetAddressDisplayYN: true,
+        }, 0);
+        expect(listing.status).toBe("WITHDRAWN");
+        expect(listing.status).not.toBe("OFF MARKET");
+        expect(listing.status).not.toMatch(/OFF.MARKET/i);
+      });
+    }
+
+    it("falls back unmapped values to UNKNOWN (not raw uppercase)", () => {
+      // Vendor- or feed-specific status that nobody has mapped yet
+      // must NOT surface as raw uppercase text in the UI. UNKNOWN is
+      // a safe sentinel that renderers can suppress or display
+      // neutrally.
+      const listing = mapTrestleToCrmListing({
+        ListingId: "X",
+        MlsStatus: "SomeFutureStatusEnum",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(listing.status).toBe("UNKNOWN");
+      expect(listing.status).not.toBe("SOMEFUTURESTATUSENUM");
+    });
+
+    it("preserves all canonical mappings (regression guard)", () => {
+      const cases: Array<[string, string]> = [
+        ["Active", "ACTIVE"],
+        ["ComingSoon", "COMING_SOON"],
+        ["Coming Soon", "COMING_SOON"],
+        ["ActiveUnderContract", "PENDING"],
+        ["Active Under Contract", "PENDING"],
+        ["Pending", "PENDING"],
+        ["Closed", "CLOSED"],
+        ["Expired", "EXPIRED"],
+        ["Withdrawn", "WITHDRAWN"],
+        ["Hold", "HOLD"],
+        ["Incomplete", "INCOMPLETE"],
+        ["Canceled", "CANCELLED"],
+        ["Cancelled", "CANCELLED"],
+      ];
+      for (const [input, expected] of cases) {
+        const listing = mapTrestleToCrmListing({
+          ListingId: "X",
+          MlsStatus: input,
+          InternetEntireListingDisplayYN: true,
+          InternetAddressDisplayYN: true,
+        }, 0);
+        expect(listing.status).toBe(expected);
+      }
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // P0 COMPLIANCE — Coming Soon date (UCBA Art. I §16(C))
+  //
+  // Coming Soon listings must disclose "No Showings or Open House
+  // until [date]." The date must be specific. Previously
+  // comingSoonDate was hard-coded null, so the badge renderer fell
+  // back to a vague "until active date" string. Now populated from
+  // Trestle ActivationDate (preferred) or OnMarketDate (fallback).
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe("comingSoonDate — UCBA Art. I §16(C)", () => {
+    it("populates from raw.ActivationDate when status is Coming Soon", () => {
+      const listing = mapTrestleToCrmListing({
+        ListingId: "X",
+        MlsStatus: "Coming Soon",
+        ActivationDate: "2026-06-15T00:00:00Z",
+        OnMarketDate: "2026-06-10T00:00:00Z",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(listing.status).toBe("COMING_SOON");
+      expect(listing.comingSoonDate).toBe("2026-06-15");
+    });
+
+    it("falls back to raw.OnMarketDate when ActivationDate is missing", () => {
+      const listing = mapTrestleToCrmListing({
+        ListingId: "X",
+        MlsStatus: "ComingSoon",
+        OnMarketDate: "2026-07-01",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(listing.comingSoonDate).toBe("2026-07-01");
+    });
+
+    it("returns null when neither ActivationDate nor OnMarketDate is provided", () => {
+      // Renderer must treat null as "no specific date" and either
+      // suppress the date phrase or show a neutral indicator —
+      // never invent a vague "until active date" string.
+      const listing = mapTrestleToCrmListing({
+        ListingId: "X",
+        MlsStatus: "Coming Soon",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(listing.comingSoonDate).toBeNull();
+    });
+
+    it("does NOT populate comingSoonDate for non-Coming-Soon statuses", () => {
+      const listing = mapTrestleToCrmListing({
+        ListingId: "X",
+        MlsStatus: "Active",
+        ActivationDate: "2026-06-15T00:00:00Z",
+        OnMarketDate: "2026-06-10T00:00:00Z",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(listing.status).toBe("ACTIVE");
+      expect(listing.comingSoonDate).toBeNull();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SponsorUnit parsing from CustomFields JSON (Bug A11/A12 coverage)
+  //
+  // CustomProperty.CustomFields is a JSON-string field carrying 41
+  // REBNY-specific flags including SponsorUnitYN. The mapper parses
+  // it once and exposes listing.sponsorUnit (true | false | null).
+  // Prior to this test, no unit coverage existed for the parsing
+  // branches — a malformed JSON or missing field could silently turn
+  // a real sponsor listing into "—" in the UI.
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe("sponsorUnit parsing from CustomProperty.CustomFields JSON", () => {
+    function withCustomFields(customFields: unknown): Record<string, unknown> {
+      return {
+        ListingId: "X",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+        CustomProperty: [{ CustomFields: customFields }],
+      };
+    }
+
+    it("returns true for SponsorUnitYN === true (boolean)", () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SponsorUnitYN: true })),
+        0,
+      );
+      expect(l.sponsorUnit).toBe(true);
+    });
+
+    it('returns true for SponsorUnitYN === "true" (string variant)', () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SponsorUnitYN: "true" })),
+        0,
+      );
+      expect(l.sponsorUnit).toBe(true);
+    });
+
+    it('returns true for SponsorUnitYN === "Yes" (REBNY-style)', () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SponsorUnitYN: "Yes" })),
+        0,
+      );
+      expect(l.sponsorUnit).toBe(true);
+    });
+
+    it("returns true for SponsorUnitYN === 1 (numeric)", () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SponsorUnitYN: 1 })),
+        0,
+      );
+      expect(l.sponsorUnit).toBe(true);
+    });
+
+    it("returns false for SponsorUnitYN === false", () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SponsorUnitYN: false })),
+        0,
+      );
+      expect(l.sponsorUnit).toBe(false);
+    });
+
+    it("returns false for SponsorUnitYN === \"No\"", () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SponsorUnitYN: "No" })),
+        0,
+      );
+      expect(l.sponsorUnit).toBe(false);
+    });
+
+    it("returns null when SponsorUnitYN field is absent", () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SomeOtherField: "x" })),
+        0,
+      );
+      expect(l.sponsorUnit).toBeNull();
+    });
+
+    it("returns null when CustomFields is empty string", () => {
+      const l = mapTrestleToCrmListing(withCustomFields(""), 0);
+      expect(l.sponsorUnit).toBeNull();
+    });
+
+    it("returns null when CustomFields is malformed JSON (no log spam)", () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields("{not valid json"),
+        0,
+      );
+      expect(l.sponsorUnit).toBeNull();
+    });
+
+    it("returns null when CustomProperty is entirely absent", () => {
+      const l = mapTrestleToCrmListing({
+        ListingId: "X",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(l.sponsorUnit).toBeNull();
+    });
+
+    it("returns null when SponsorUnitYN is an unrecognized value (defensive)", () => {
+      const l = mapTrestleToCrmListing(
+        withCustomFields(JSON.stringify({ SponsorUnitYN: "maybe" })),
+        0,
+      );
+      expect(l.sponsorUnit).toBeNull();
+    });
+  });
 });
