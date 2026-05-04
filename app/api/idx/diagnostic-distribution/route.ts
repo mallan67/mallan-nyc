@@ -5,7 +5,12 @@
 // counts to identify whether `PropertyType ne 'ResidentialLease'` is too
 // permissive (admits MultiFamily/CommercialSale/Land/etc.).
 //
-// AUTH: broker-only. No public access.
+// AUTH: agent-or-broker session — mirrors /api/idx/search exactly so the
+// same CRM cookie that authorizes the search UI authorizes this diagnostic.
+// Matches the user's CRM session role (broker portal logins resolve as
+// AGENT-tier for the IDX search context; requireBroker would 401 even
+// for the principal broker because the session role does not match).
+// No public access.
 // PII: none. Counts and category breakdowns only — no addresses, no agents,
 // no listing IDs, no media URLs, no tokens, no cookies.
 // SCOPE: this file is removable in a follow-up cleanup commit once the
@@ -30,7 +35,7 @@
 // Vercel logs without screen-scraping the response body.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireBroker, isAuthError } from "@/lib/auth";
+import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getAccessToken, hasCredentials } from "@/lib/idx/auth";
 
 const TRESTLE_API_URL = (
@@ -144,8 +149,9 @@ async function fetchGroupBy(
 }
 
 export async function GET(req: NextRequest) {
-  // Broker-only — agents and clients cannot hit this.
-  const auth = await requireBroker(req);
+  // Same auth helper as /api/idx/search — agent or broker session cookie
+  // required. Clients/portal users cannot hit this.
+  const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
   if (!hasCredentials()) {
