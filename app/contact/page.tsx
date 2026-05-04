@@ -103,6 +103,10 @@ export default function ContactPage() {
           phone: formData.phone.trim() || undefined,
           message: formData.message.trim(),
           sessionId,
+          // Forward the affirmative consent boolean (TCPA 47 CFR 64.1200(f)(8)
+          // requires "prior express written consent"). The timestamp alone is
+          // not sufficient proof — the API must verify the checkbox state.
+          consent: formData.consent === true,
           consentTimestamp: new Date().toISOString(),
         }),
       });

@@ -67,8 +67,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
+    // ── TCPA affirmative consent (47 CFR 64.1200(f)(8)) ─────────────
+    // Bug A14 — prior to 2026-05-04 the route accepted only the
+    // consent timestamp. Frontend sent it on every submit regardless
+    // of whether the user actually checked the consent box, so the
+    // audit trail recorded a timestamp without proof of affirmative
+    // consent. Fix: require body.consent === true literally.
+    if (body.consent !== true) {
+      return NextResponse.json(
+        { error: 'Affirmative consent (TCPA) is required. Please check the consent box and resubmit.' },
+        { status: 400 }
+      );
+    }
+
     if (!body.consentTimestamp || typeof body.consentTimestamp !== 'string') {
-      return NextResponse.json({ error: 'Consent is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Consent timestamp is required' }, { status: 400 });
     }
 
     // Validate consent timestamp is recent (within last 5 minutes)
@@ -165,6 +178,30 @@ export async function POST(request: NextRequest) {
       const emailResult = await sendEmail('info@mallan.nyc', subjectLine, emailBody);
       if (!emailResult.success) {
         console.error('[CONTACT] Notification email failed: provider error redacted');
+        // ── Bug A15 / SMTP fail-loud (P0 compliance) ──────────────
+        // Per the proof-matrix audit (2026-05-04), missing SMTP
+        // config silently dropped emails and returned 200 to the
+        // user — a "success" that hid the broken pipeline. In
+        // production, when the email send fails specifically because
+        // SMTP is not configured (_devMode flag from sendgrid.ts:93),
+        // surface 503 to the user. The Lead row is already saved
+        // above so the inquiry data isn't lost.
+        const isProd =
+          process.env.NODE_ENV === 'production' ||
+          process.env.VERCEL_ENV === 'production';
+        if (isProd && emailResult._devMode === true) {
+          return NextResponse.json(
+            {
+              error:
+                'Email service unavailable. Your inquiry has been received (reference: ' +
+                lead.id +
+                '); we will respond directly. Please also feel free to call 646-258-4460.',
+              leadId: String(lead.id),
+              code: 'SMTP_NOT_CONFIGURED',
+            },
+            { status: 503 }
+          );
+        }
       }
     } catch (emailErr) {
       console.error('[CONTACT] [email redacted] notification error (non-fatal):', emailErr);
