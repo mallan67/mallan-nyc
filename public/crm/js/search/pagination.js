@@ -1146,8 +1146,55 @@
             document.getElementById('listingDetailPage').classList.add('hidden');
             _detailCurrentId = null;
 
-            // Go back to results
-            history.pushState(null, '', '#results');
+            // Restore the results UI. Two arrival paths land here:
+            //   1. In-page nav (click listing in results → showListingDetail).
+            //      searchResultsSection stays in DOM behind the detail layer
+            //      and re-showing it is idempotent.
+            //   2. Direct URL paste of /crm/search#detail/X — init-hash-routing
+            //      explicitly hides searchResultsSection at line 64; we MUST
+            //      re-show it here or the user gets a blank page.
+            //
+            // Also re-render to ensure the cards + count badge are populated:
+            // before this fix closeListingDetail only called pushState('#results')
+            // which does NOT trigger the hashchange handler that would have
+            // restored the UI. Without that the user landed on a hidden-results
+            // section and an unhidden form, looking like the search was lost.
+            var searchResultsSection = document.getElementById('searchResultsSection');
+            var searchFormContainer = document.getElementById('searchFormContainer');
+
+            var hasResults =
+                typeof searchResultsState !== 'undefined' &&
+                searchResultsState &&
+                Array.isArray(searchResultsState.filteredListings) &&
+                searchResultsState.filteredListings.length > 0;
+
+            // Fallback to sessionStorage-cached state if in-memory was cleared.
+            if (!hasResults && typeof _restoreSearchState === 'function') {
+                if (_restoreSearchState()) {
+                    hasResults =
+                        typeof searchResultsState !== 'undefined' &&
+                        searchResultsState &&
+                        Array.isArray(searchResultsState.filteredListings) &&
+                        searchResultsState.filteredListings.length > 0;
+                }
+            }
+
+            if (hasResults) {
+                if (searchResultsSection) {
+                    searchResultsSection.style.display = 'block';
+                    searchResultsSection.classList.remove('hidden');
+                }
+                if (searchFormContainer) searchFormContainer.style.display = 'none';
+                if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                if (typeof updateResultsCount === 'function') updateResultsCount();
+                history.pushState(null, '', '#results');
+            } else {
+                // No results to return to (true standalone detail / cleared state)
+                // — fall back to the search form rather than leave a blank screen.
+                if (searchResultsSection) searchResultsSection.style.display = 'none';
+                if (searchFormContainer) searchFormContainer.style.display = 'block';
+                history.pushState(null, '', '#main');
+            }
         }
 
         // ── Build mailto body with listing thumbnail for agent inquiry ──
