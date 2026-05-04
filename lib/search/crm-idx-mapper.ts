@@ -88,6 +88,29 @@ export function mapTrestleToCrmListing(
     ? Number(customProps.DownPaymentAssistanceCount)
     : null;
 
+  // CustomFields is a REBNY-specific JSON string on CustomProperty that
+  // carries 41 NYC-specific flags (per CLAUDE.md). SponsorUnitYN is the
+  // canonical source-of-truth for "Is this a sponsor sale?" — the prior
+  // CRM rendering (grid-column-defs.js:63) showed a static '--' because
+  // there was no source. Now we parse the JSON once and expose
+  // sponsorUnit: true | false | null on the flat listing shape.
+  // null = unknown (CustomProperty not expanded, or field absent in JSON).
+  // Listing-detail and column renderers can read l.sponsorUnit directly.
+  let sponsorUnit: boolean | null = null;
+  const customFieldsRaw = customProps?.CustomFields;
+  if (typeof customFieldsRaw === "string" && customFieldsRaw.length > 0) {
+    try {
+      const parsed = JSON.parse(customFieldsRaw) as Record<string, unknown>;
+      const v = parsed?.SponsorUnitYN;
+      if (v === true || v === "true" || v === "Yes" || v === 1) sponsorUnit = true;
+      else if (v === false || v === "false" || v === "No" || v === 0) sponsorUnit = false;
+    } catch {
+      // Malformed JSON — leave sponsorUnit as null. No log spam: CustomFields
+      // is provider-controlled and may legitimately be empty / non-JSON
+      // for older listings or non-REBNY MLOs.
+    }
+  }
+
   const originalPrice = Number(raw.OriginalListPrice) || 0;
   let priceChange: string | null = null;
   if (originalPrice > 0 && originalPrice !== price) {
@@ -186,6 +209,7 @@ export function mapTrestleToCrmListing(
     comingSoonDate: null,
     downPaymentAssistanceAmount: dpaAmount,
     downPaymentAssistanceCount: dpaCount,
+    sponsorUnit,
     permissions: {
       ownerOptOut: false,
       participantOnly: false,

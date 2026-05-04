@@ -580,6 +580,7 @@ var MallanAPI = (function () {
       if (params.closeDateFrom) qs.push('closeDateFrom=' + encodeURIComponent(params.closeDateFrom));
       if (params.closeDateTo) qs.push('closeDateTo=' + encodeURIComponent(params.closeDateTo));
       if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
+      if (params.sponsorUnit) qs.push('sponsorUnit=' + encodeURIComponent(params.sponsorUnit));
       // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
       if (params.minYear) qs.push('minYear=' + params.minYear);
       if (params.maxYear) qs.push('maxYear=' + params.maxYear);

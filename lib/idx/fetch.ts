@@ -64,10 +64,15 @@ export async function fetchFromTrestle(
       // Trestle guidance (2026-04-07): include ModificationTimestamp for change tracking
       // MediaStatus filter: exclude tombstoned photos (Trestle retains 'Deleted' rows in the Media resource
       // as historical records; unfiltered, we'd import dead URLs and overwrite good media with stale entries).
-      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
+      // CustomFields is a JSON-string field (Edm.String, MaxLength 100000) on
+      // CustomProperty that holds 41 REBNY-specific fields including
+      // SponsorUnitYN. We pull it here so the mapper can parse the JSON and
+      // expose individual REBNY flags (e.g. sponsorUnit) on the flat listing
+      // shape. Adding ~few KB per record on average — acceptable.
+      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)");
     } else {
-      // Even without media, still expand CustomProperty for DPA fields
-      params.set("$expand", "CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount)");
+      // Even without media, still expand CustomProperty for DPA + REBNY fields
+      params.set("$expand", "CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)");
     }
     if (options.count) params.set("$count", "true");
     params.set("$top", String(options.top || MAX_PAGE_SIZE));

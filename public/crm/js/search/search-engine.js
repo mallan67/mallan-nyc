@@ -285,6 +285,23 @@
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
+            // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
+            // (REBNY-specific JSON-string field), NOT a top-level OData
+            // property. The generic checkboxFilters loop on the backend
+            // (lib/search/crm-idx-filter.ts:239-277) would silently drop
+            // it because "SponsorUnit" is not in the odataSafe whitelist.
+            // Pull it out into a dedicated `sponsorUnit` param so the
+            // route handler can apply a post-fetch filter against the
+            // mapper's parsed listing.sponsorUnit field.
+            if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
+                var _sp = criteria.checkboxFilters.SponsorUnit;
+                if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
+                    params.sponsorUnit = 'true';
+                }
+                // Remove from the JSON payload so the backend doesn't try to
+                // OData-filter on it.
+                delete criteria.checkboxFilters.SponsorUnit;
+            }
             if (criteria.checkboxFilters) {
                 var _cbJson = JSON.stringify(criteria.checkboxFilters);
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;

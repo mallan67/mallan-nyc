@@ -279,10 +279,44 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── Post-fetch sponsor filter (Bug A11) ──
+    //
+    // SponsorUnitYN is REBNY-specific and lives inside
+    // CustomProperty.CustomFields as a JSON string field, NOT a top-level
+    // OData property. There is no way to express "WHERE SponsorUnitYN=true"
+    // in an OData $filter against Trestle 5.0 (the field doesn't exist as
+    // a queryable property — only the containing JSON string does).
+    //
+    // The mapper at lib/search/crm-idx-mapper.ts parses CustomFields and
+    // exposes listing.sponsorUnit (boolean | null). We filter on that
+    // here, after mapping, before building the response. Sponsor labels
+    // in the CRM UI now read from this same source field — fixing the
+    // prior render that showed '--' for all rows because there was no
+    // canonical source.
+    //
+    // Post-fetch filtering means total counts reflect the post-filter
+    // page size, not the unfiltered Trestle total. With limit=200 and a
+    // small sponsor share (~5% historically in NYC), users may see fewer
+    // results than they'd expect from a full-inventory sponsor query.
+    // This is a known limitation; if scaling requires accurate totals
+    // we'd need to fetch all matching records (paginated) and filter
+    // in-memory, or wait for REBNY to expose SponsorUnitYN as a
+    // top-level OData-filterable property.
+    let finalListings = listings;
+    let finalTotal: number = result.odataCount ?? listings.length;
+    let sponsorFiltered = 0;
+    if (params.get("sponsorUnit") === "true") {
+      finalListings = listings.filter(
+        (l) => (l as Record<string, unknown>).sponsorUnit === true,
+      );
+      sponsorFiltered = listings.length - finalListings.length;
+      finalTotal = finalListings.length;
+    }
+
     const response = {
-      listings,
-      total: result.odataCount ?? listings.length,
-      totalCount: result.odataCount ?? listings.length,
+      listings: finalListings,
+      total: finalTotal,
+      totalCount: finalTotal,
       hasMore: result.hasMore,
       skip,
       limit,
@@ -298,6 +332,7 @@ export async function GET(req: NextRequest) {
         gatedOut: result.totalFetched - displayable.length,
         mediaStrategy: useInlineMedia ? "expand" : "lazy",
         mediaBackfilled,
+        sponsorFiltered,
       },
     };
 
