@@ -1937,12 +1937,39 @@
             // Sync back to main form selects so "Full Search" stays consistent
             syncRefineToMainForm(c);
 
-            // Re-filter and re-render
-            if (typeof listings !== 'undefined' && typeof searchResultsState !== 'undefined') {
-                searchResultsState.filteredListings = filterListings(listings, c);
+            // Re-issue search via the server-authoritative path.
+            //
+            // Bug A10 — user-reported 2026-05-04: refining a Queens search
+            // to 1 bed produced results from "all boroughs". Root cause:
+            // applyRefinedSearch previously called
+            //   searchResultsState.filteredListings = filterListings(listings, c)
+            // which had two compounding flaws:
+            //   1) `filterListings` does not enforce criteria.borough — it
+            //      checks address, price, beds, baths, neighborhoods, but
+            //      not the borough field on listings. Even if borough was
+            //      preserved on `c`, local filtering ignored it.
+            //   2) The global `listings` array accumulates server results
+            //      across all searches in the session, so cross-borough
+            //      rows from prior searches leaked into refine output.
+            //
+            // Fix: send the refined criteria to /api/idx/search via
+            // _serverSearch. Borough is forwarded as `params.borough` and
+            // applied as `CityRegion eq 'X'` server-side (verified in
+            // lib/search/__tests__/crm-idx-filter.test.ts). This makes
+            // refine semantically equivalent to running performSearch with
+            // the modified criteria — exactly what the user expects.
+            //
+            // _serverSearch handles its own re-render (post-A5/A6 it
+            // replaces filteredListings with serverListings on success and
+            // clears them on zero-result), so the local initializeSearchResults
+            // / updateResultsCount calls that used to live here are no
+            // longer needed — they would just paint stale local data
+            // before the server response arrives.
+            if (typeof searchResultsState !== 'undefined' && searchResultsState) {
                 searchResultsState.currentPage = 1;
-                if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                if (typeof updateResultsCount === 'function') updateResultsCount();
+            }
+            if (typeof MallanAPI !== 'undefined' && typeof _serverSearch === 'function') {
+                _serverSearch(c, []);
             }
 
             // Update pills
