@@ -76,6 +76,32 @@ describe("buildCrmIdxODataFilter", () => {
     expect(filter).toContain("ListingId eq 'RLS123'");
   });
 
+  it("supports comma-separated RLS IDs and escapes single quotes (Bug A13 / L2)", () => {
+    // Single ID — unchanged from prior behavior. The listingId clause
+    // appears as a bare equality (no parens, no OR around it).
+    const single = buildCrmIdxODataFilter(new URLSearchParams({ listingId: "RLS20078109" }));
+    expect(single).toContain("ListingId eq 'RLS20078109'");
+    expect(single).not.toContain("(ListingId eq 'RLS20078109'");
+
+    // Multiple IDs — OR'd together. Trims whitespace around commas so users
+    // can paste lists with or without spaces.
+    const multi = buildCrmIdxODataFilter(new URLSearchParams({
+      listingId: "RLS20078109, RLS20078110,RLS20078111",
+    }));
+    expect(multi).toContain("(ListingId eq 'RLS20078109' or ListingId eq 'RLS20078110' or ListingId eq 'RLS20078111')");
+    // Per the L2 contract, multi-ID input does NOT collapse to a single
+    // literal containing commas (the prior bug):
+    expect(multi).not.toContain("ListingId eq 'RLS20078109, RLS20078110,RLS20078111'");
+
+    // Empty entries from extra commas / trailing comma are filtered out.
+    const sparse = buildCrmIdxODataFilter(new URLSearchParams({ listingId: "RLS123,,RLS456," }));
+    expect(sparse).toContain("(ListingId eq 'RLS123' or ListingId eq 'RLS456')");
+
+    // Single-quote escaping is preserved through the multi-ID path.
+    const quoted = buildCrmIdxODataFilter(new URLSearchParams({ listingId: "RLS123,RLS'456" }));
+    expect(quoted).toContain("(ListingId eq 'RLS123' or ListingId eq 'RLS''456')");
+  });
+
   it("applies only safe checkbox and grid filters", () => {
     const checkboxFilters = JSON.stringify({
       CoolingYN: ["true"],

@@ -284,7 +284,23 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
 
   const listingId = params.get("listingId");
   if (listingId) {
-    parts.push(`ListingId eq '${escapeOData(listingId)}'`);
+    // Bug A13 (L2 patch) — accept comma-separated RLS IDs.
+    // Trestle/REBNY contract: Property.ListingId is the canonical RLS ID
+    // (e.g. RLS20078109). Single-value input remains the common case.
+    // Comma-separated input lets agents look up multiple listings in one
+    // shot — generates `(ListingId eq 'X' or ListingId eq 'Y')`.
+    // Web ID (SourceSystemKey) and opaque ListingKey are intentionally
+    // not multiplexed here — those would be separate params if added.
+    const ids = listingId
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (ids.length === 1) {
+      parts.push(`ListingId eq '${escapeOData(ids[0])}'`);
+    } else if (ids.length > 1) {
+      const orParts = ids.map((id) => `ListingId eq '${escapeOData(id)}'`);
+      parts.push(`(${orParts.join(" or ")})`);
+    }
   }
 
   return parts.join(" and ");
