@@ -168,6 +168,35 @@
                     return;
                 }
 
+                // ── P1 multi-borough advisory ─────────────────────────────
+                // collectSearchCriteria() at search-engine.js:880-895
+                // intentionally leaves criteria.borough unset when 2+
+                // borough-level chips are selected, because the backend
+                // OData builder cannot OR multiple CityRegion values
+                // through a single param. Without this notice, the user
+                // would see their two borough chips and assume the result
+                // set was constrained to those boroughs — when in fact
+                // the borough constraint was silently dropped, BROADENING
+                // the search to all NYC. Surface the advisory once per
+                // submission so the user can react before paging through.
+                try {
+                    var _activeTagsId = (typeof _resolveActiveNeighborhoodTagsId === 'function')
+                        ? _resolveActiveNeighborhoodTagsId()
+                        : 'saleNeighborhoodTags';
+                    var _selectedBoroughs = (typeof getSelectedBoroughs === 'function')
+                        ? getSelectedBoroughs(_activeTagsId)
+                        : [];
+                    if (_selectedBoroughs.length > 1) {
+                        showToast(
+                            'Multi-borough filter is not supported — borough constraint dropped. ' +
+                            'For precise results, pick neighborhoods in each borough instead.',
+                            'warning'
+                        );
+                    }
+                } catch (_advErr) {
+                    // Non-fatal — advisory failure must not block the search.
+                }
+
                 // Filter locally loaded listings
                 var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
                 var localResults = hasLocalData ? filterListings(listings, activeSearchCriteria) : [];

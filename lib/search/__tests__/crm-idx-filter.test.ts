@@ -438,4 +438,119 @@ describe("buildCrmIdxODataFilter", () => {
     // Verify proper mapping is NOT present:
     expect(f).not.toContain("MlsStatus");
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // P1 — additional dead-pattern coverage. Each frontend control
+  // disabled by public/crm/js/init/init-disable-dead-controls.js
+  // is matched here by an OData-builder regression alarm. If real
+  // backend support lands, change the assertion to the correct
+  // OData output AND remove the corresponding selector from
+  // init-disable-dead-controls.js. Both must move together.
+  // ═══════════════════════════════════════════════════════════════════
+
+  it("DEAD: every visible Trestle sub-status produces a literal OData clause that matches no enum", () => {
+    // Inventory of sub-status values that exist in the CRM HTML
+    // (public/crm/html/search-form-and-results.html, search-engine.js
+    // collectSearchCriteria pushes them to criteria.statuses verbatim).
+    // None map to a real Trestle StandardStatus value.
+    //
+    // When real sub-status routing is added (likely via MlsStatus +
+    // a nested param), this assertion must be updated AND the
+    // corresponding 'input[data-sub-status]' selector must be
+    // removed from public/crm/js/init/init-disable-dead-controls.js.
+    const subStatuses = [
+      "OfferOut",
+      "OfferThruUs",
+      "OfferAccepted",
+      "OfferAcceptedThruUs",
+      "ContractOut",
+      "ContractOutThruUs",
+      "AllContractSigned",
+      "ContractSigned",
+      "ContractSignedThruUs",
+      "BackOnMarket",
+      "BoardApproved",
+      "Sold",
+      "SoldThruUs",
+      "ACRISVerified",
+      "Financed",
+      "NoFinancing",
+      "ApplicationIn",
+      "ApplicationAccepted",
+      "LeaseOut",
+      "LeaseOutThruUs",
+      "AllLeaseSigned",
+      "LeaseSigned",
+      "LeaseSignedThruUs",
+      "Rented",
+      "RentedThruUs",
+    ];
+    // search-engine.js uppercases each sub-status before forwarding,
+    // so simulate the actual wire shape the backend receives.
+    for (const s of subStatuses) {
+      const upper = s.toUpperCase();
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ status: upper }));
+      // Builder emits literal-string equality — no Trestle row matches.
+      expect(f).toContain(`StandardStatus eq '${upper}'`);
+      // Must not have leaked into MlsStatus (correct routing would do that)
+      expect(f).not.toContain("MlsStatus");
+    }
+  });
+
+  it("DEAD: dateType=ListedAndUpdated is NOT a third branch — degrades silently to default Listed", () => {
+    // The HTML option <option value="ListedAndUpdated"> was removed in
+    // the P1 patch because the OData builder at
+    // lib/search/crm-idx-filter.ts:182-188 only branches on
+    // dateType === "Updated". Any other value (including
+    // "ListedAndUpdated") falls through to the default Listed branch.
+    //
+    // This test pins that behavior so a future contributor can't add
+    // the option back without first wiring the OR-clause backend
+    // (ListingContractDate ge X or ModificationTimestamp gt X).
+    //
+    // Compare the produced filter against the default Listed-only
+    // filter — they must be identical.
+    const listedAndUpdated = buildCrmIdxODataFilter(new URLSearchParams({
+      dateType: "ListedAndUpdated",
+      dateFrom: "2026-04-01",
+      dateTo: "2026-04-30",
+    }));
+    const justListed = buildCrmIdxODataFilter(new URLSearchParams({
+      dateType: "Listed",
+      dateFrom: "2026-04-01",
+      dateTo: "2026-04-30",
+    }));
+    expect(listedAndUpdated).toBe(justListed);
+    // Specifically does NOT produce a date-column OR group. The default
+    // status filter contributes a benign ` or ` for status enums; the
+    // equality assertion above is the strong contract — both calls
+    // produce byte-identical filters.
+    expect(listedAndUpdated).not.toContain("ModificationTimestamp");
+    expect(listedAndUpdated).not.toMatch(/ListingContractDate.+or.+ModificationTimestamp/);
+  });
+
+  it("DEAD: transit/grid Lat/Lng filters reach the OData builder unmodified — runtime null-feed yields 0 rows", () => {
+    // The gridFilter param is passthrough-allowed by the regex at
+    // crm-idx-filter.ts:281. That part is correct: when Lat/Lng exist
+    // on the feed (other MLOs served by Cotality), the bbox filter
+    // works. The DEAD aspect is that the REBNY IDX feed does NOT
+    // populate Latitude/Longitude per CLAUDE.md.
+    //
+    // This test pins the BUILDER behavior — it does NOT validate runtime
+    // fitness against the feed. The runtime block is enforced by
+    // public/crm/js/init/init-disable-dead-controls.js disabling the
+    // transit panels and Manhattan grid containers.
+    const f = buildCrmIdxODataFilter(new URLSearchParams({
+      gridFilter: "(Latitude ge 40.7 and Latitude le 40.8 and Longitude ge -74.1 and Longitude le -73.9)",
+    }));
+    // Builder forwards the bbox literally (regex-allowlisted)
+    expect(f).toContain("Latitude ge 40.7");
+    expect(f).toContain("Longitude le -73.9");
+    // ASSERTION FOR FUTURE CONTRIBUTORS:
+    // If this builder behavior changes (e.g., gridFilter is rewritten
+    // to a DB-side spatial query because PR 5+ landed geocoded
+    // coordinates), then the transit + Manhattan-grid selectors in
+    // init-disable-dead-controls.js DEAD_CONTAINERS can be removed.
+    // Both must move together.
+  });
 });

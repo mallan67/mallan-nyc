@@ -3685,11 +3685,16 @@ function toggleSection(header) {
                             <div class="space-y-2">
                                 <!-- Row 1: Activity Type Dropdown + Date Range -->
                                 <div class="flex gap-1 items-center">
+                                    <!-- P1: "Listed and Updated" option removed — backend has no
+                                         third-branch handler in lib/search/crm-idx-filter.ts:182-188;
+                                         it silently degrades to default Listed. Re-add only when
+                                         the OData builder gains an OR-clause for ListingContractDate
+                                         | ModificationTimestamp, AND the corresponding test in
+                                         lib/search/__tests__/crm-idx-filter.test.ts is updated. -->
                                     <select id="saleListingActivityType" class="flex-shrink-0 w-[140px] border rounded px-1 py-1 text-xs truncate">
                                         <option value="">Select Activity</option>
                                         <option value="Listed">Listed</option>
                                         <option value="Updated">Updated</option>
-                                        <option value="ListedAndUpdated">Listed and Updated</option>
                                     </select>
                                     <div class="drp-wrapper flex-1 min-w-0" data-drp="saleListedUpdated">
                                         <div class="drp-trigger" onclick="openDateRangePicker(this)">
@@ -4504,11 +4509,12 @@ function toggleSection(header) {
                             <div class="space-y-2">
                                 <!-- Row 1: Activity Type Dropdown + Date Range -->
                                 <div class="flex gap-1 items-center">
+                                    <!-- P1: "Listed and Updated" option removed (see comment on
+                                         saleListingActivityType above). Same root cause. -->
                                     <select id="rentalListingActivityType" class="flex-shrink-0 w-[140px] border rounded px-1 py-1 text-xs truncate">
                                         <option value="">Select Activity</option>
                                         <option value="Listed">Listed</option>
                                         <option value="Updated">Updated</option>
-                                        <option value="ListedAndUpdated">Listed and Updated</option>
                                     </select>
                                     <div class="drp-wrapper flex-1 min-w-0" data-drp="rentalListedUpdated">
                                         <div class="drp-trigger" onclick="openDateRangePicker(this)">
@@ -16372,6 +16378,35 @@ function manageShowToast(msg) {
                 if (typeof searchResultsState === 'undefined' || !searchResultsState) {
                     showToast('Error: Search state not initialized. Please refresh the page.', 'error');
                     return;
+                }
+
+                // ── P1 multi-borough advisory ─────────────────────────────
+                // collectSearchCriteria() at search-engine.js:880-895
+                // intentionally leaves criteria.borough unset when 2+
+                // borough-level chips are selected, because the backend
+                // OData builder cannot OR multiple CityRegion values
+                // through a single param. Without this notice, the user
+                // would see their two borough chips and assume the result
+                // set was constrained to those boroughs — when in fact
+                // the borough constraint was silently dropped, BROADENING
+                // the search to all NYC. Surface the advisory once per
+                // submission so the user can react before paging through.
+                try {
+                    var _activeTagsId = (typeof _resolveActiveNeighborhoodTagsId === 'function')
+                        ? _resolveActiveNeighborhoodTagsId()
+                        : 'saleNeighborhoodTags';
+                    var _selectedBoroughs = (typeof getSelectedBoroughs === 'function')
+                        ? getSelectedBoroughs(_activeTagsId)
+                        : [];
+                    if (_selectedBoroughs.length > 1) {
+                        showToast(
+                            'Multi-borough filter is not supported — borough constraint dropped. ' +
+                            'For precise results, pick neighborhoods in each borough instead.',
+                            'warning'
+                        );
+                    }
+                } catch (_advErr) {
+                    // Non-fatal — advisory failure must not block the search.
                 }
 
                 // Filter locally loaded listings
@@ -33663,6 +33698,80 @@ function emailCurrentCalc() {
                 // "No Washer/Dryer Install", and "Smoking" (compound
                 // data-value + data-not).
                 'input[data-not]',
+
+                // ── P1: Sub-status checkboxes ──
+                // OfferOut, OfferAccepted, ContractOut, AllContractSigned,
+                // ContractSigned, ContractSignedThruUs, OfferThruUs,
+                // OfferAcceptedThruUs, ContractOutThruUs, BackOnMarket,
+                // Future, BoardApproved, Sold, SoldThruUs, ACRISVerified,
+                // Financed, NoFinancing, NominalSales, OtherACRIS,
+                // ApplicationIn, ApplicationAccepted, LeaseOut,
+                // LeaseOutThruUs, AppAcceptedThruUs, AppInThruUs,
+                // AllLeaseSigned, LeaseSigned, LeaseSignedThruUs,
+                // Rented, RentedThruUs.
+                //
+                // search-engine.js:822 pushes the data-sub-status string
+                // verbatim into criteria.statuses; the OData builder then
+                // emits StandardStatus eq 'OFFEROUT' (etc.) — literal
+                // strings that match no Trestle enum value. Confirmed by
+                // the BATCH 2 dead-pattern test at
+                // lib/search/__tests__/crm-idx-filter.test.ts.
+                'input[data-sub-status]',
+            ];
+
+            // ── P1: Container-level dead controls ──────────────────────
+            // Some traps live on non-input elements: subway-line spans
+            // (.rounded-full), date-range-picker triggers (.drp-trigger
+            // div elements), Manhattan-grid select rows. Disabling them with
+            // the input-only mechanism above would miss the click
+            // surface, so we apply container-level neutralization:
+            //
+            //   - aria-disabled="true"       (a11y hint to screen readers)
+            //   - pointer-events: none       (clicks/taps no-op)
+            //   - opacity 0.6                (visible "off" state)
+            //   - cursor: not-allowed        (cursor on hover)
+            //   - data-dead-container="true" (so JS can early-out)
+            //   - title="Not currently supported" on the container
+            //
+            // Plus a small inline notice prepended to the container so
+            // the agent reads the reason without hovering.
+            //
+            // Targets:
+            //   1. Transit panels — Latitude / Longitude do not exist on
+            //      the REBNY IDX Plus feed. Both transit-search.js
+            //      toODataFilter() and the LIRR/Ferry/Bus checkboxes
+            //      drive Lat/Lng-bounded queries that return zero rows.
+            //   2. Manhattan grid (#adv-grid-* and #bldg-grid-*) — same
+            //      root cause: builds Lat/Lng OData clauses against
+            //      always-null fields.
+            //   3. Open-House DRP wrappers — openHouseDateFrom/To produce
+            //      no clause (DEAD test at crm-idx-filter.test.ts:278).
+            //      The frontend forwards the param; the backend drops it.
+            //
+            // When the underlying engine gains support (PR 5+ projection
+            // adds geocoded Lat/Lng; or a Property $expand=OpenHouse
+            // route is added), REMOVE the corresponding selector here
+            // AND update the DEAD test.
+            var DEAD_CONTAINERS = [
+                // Transit panels — 4 search modes (sale/rent/building/advanced)
+                { selector: '#saleTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                { selector: '#rentalTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                { selector: '#buildingTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                { selector: '#advancedTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                // Manhattan grid — locate the parent of the 4 grid selects
+                // and disable the whole panel. Each grid prefix has 4
+                // selects (north/south/east/west); we disable the immediate
+                // parent of the north select (which holds all 4).
+                { idAnchor: 'adv-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                { idAnchor: 'bldg-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                // Open House DRP wrappers — backend has no OpenHouse expansion
+                { selector: '[data-drp="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
+                { selector: '[data-drp="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
+                // Open House preset buttons next to the DRP wrappers — they
+                // stamp values onto the wrapper that the builder ignores.
+                // Use class selector for all four-per-side preset buttons.
+                { selector: '.oh-preset[data-oh="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
+                { selector: '.oh-preset[data-oh="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
             ];
 
             function disableDeadControls() {
@@ -33682,10 +33791,69 @@ function emailCurrentCalc() {
                         disabledCount++;
                     }
                 });
-                if (disabledCount > 0 && typeof console !== 'undefined') {
+                // Container-level neutralization (P1).
+                var containerCount = 0;
+                DEAD_CONTAINERS.forEach(function (entry) {
+                    var nodes;
+                    if (entry.selector) {
+                        nodes = document.querySelectorAll(entry.selector);
+                    } else if (entry.idAnchor) {
+                        // For Manhattan grid: locate the anchor select then walk
+                        // up to its containing column. The HTML structure is:
+                        //   outer-grid container
+                        //     column container (the parent we disable)
+                        //       select#bldg-grid-north
+                        //       (3 more sibling selects for east/south/west)
+                        var anchor = document.getElementById(entry.idAnchor);
+                        nodes = anchor && anchor.parentElement ? [anchor.parentElement] : [];
+                    } else {
+                        nodes = [];
+                    }
+                    for (var j = 0; j < nodes.length; j++) {
+                        var container = nodes[j];
+                        if (container.dataset && container.dataset.deadContainerMarked === 'true') continue;
+                        container.setAttribute('aria-disabled', 'true');
+                        container.setAttribute('data-dead-container', 'true');
+                        if (!container.title) container.title = TOOLTIP;
+                        // Inline styles are necessary because Tailwind's
+                        // pointer-events-none requires JIT generation that may
+                        // not always pick up our class addition timing. Use
+                        // direct style for guaranteed behavior.
+                        container.style.pointerEvents = 'none';
+                        container.style.opacity = '0.6';
+                        container.style.cursor = 'not-allowed';
+                        // Disable every interactive child so saved-form
+                        // restoration / programmatic checks also no-op.
+                        var children = container.querySelectorAll('input, select, button, textarea, [tabindex]');
+                        for (var k = 0; k < children.length; k++) {
+                            var child = children[k];
+                            try {
+                                child.disabled = true;
+                                child.setAttribute('aria-disabled', 'true');
+                                child.setAttribute('tabindex', '-1');
+                            } catch (e) { /* read-only properties on some elements */ }
+                        }
+                        // Prepend a small notice if not already present.
+                        if (!container.querySelector('[data-dead-container-notice]')) {
+                            var notice = document.createElement('div');
+                            notice.setAttribute('data-dead-container-notice', 'true');
+                            // Keep visual styling minimal; we only need an
+                            // unmistakable text label, not custom Tailwind.
+                            notice.style.cssText =
+                                'pointer-events:auto;font-size:11px;color:#92400e;background:#fef3c7;' +
+                                'border:1px solid #fcd34d;border-radius:4px;padding:4px 8px;margin-bottom:6px;';
+                            notice.textContent = entry.reason || TOOLTIP;
+                            container.insertBefore(notice, container.firstChild);
+                        }
+                        if (container.dataset) container.dataset.deadContainerMarked = 'true';
+                        containerCount++;
+                    }
+                });
+                if ((disabledCount > 0 || containerCount > 0) && typeof console !== 'undefined') {
                     console.log(
                         '[CRM Search] Disabled ' + disabledCount +
-                        ' unsupported control(s) at page load. ' +
+                        ' unsupported control(s) and ' + containerCount +
+                        ' unsupported panel(s) at page load. ' +
                         'See public/crm/js/init/init-disable-dead-controls.js for the full list.'
                     );
                 }
