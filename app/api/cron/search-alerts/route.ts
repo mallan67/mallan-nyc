@@ -9,6 +9,7 @@ import { listingAlertEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
 import { formatSearchAlertAddress, runProjectionListingSearch } from "@/lib/search/core";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
+import { canEnableAlertForCriteria } from "@/lib/search/criteria-to-prisma";
 
 export const maxDuration = 60;
 
@@ -42,9 +43,40 @@ export async function GET(req: NextRequest) {
     let sent = 0;
     let skipped = 0;
     let errored = 0;
+    let skippedUnsupported = 0;
 
     for (const search of searches) {
       try {
+        // P0-3 cron-side alert-gate: defense in depth. The
+        // POST/PATCH gate at app/api/crm/saved-searches blocks NEW
+        // alert-enabled rows whose criteria are projection-unsupported,
+        // but pre-existing rows from before the gate landed may still
+        // be `alert_enabled=true` with unsupported criteria. Skip them
+        // here rather than silently sending mail derived from a strict
+        // subset of the criteria. The savedSearch is left intact (no
+        // last_alert_sent bump) so the agent's UI continues to surface
+        // the alert as configured — the saved-search list-endpoint and
+        // the modal both label these clearly.
+        const criteria = search.criteria as Record<string, unknown>;
+        const gate = canEnableAlertForCriteria(criteria || {});
+        if (!gate.ok) {
+          skippedUnsupported++;
+          await prisma.auditEvent.create({
+            data: {
+              action: "search_alerts_cron_skipped_unsupported",
+              entity_type: "saved_search",
+              entity_id: search.id.toString(),
+              user_type: "system",
+              user_id: null,
+              changes: {
+                code: gate.code,
+                unsupported_criteria: gate.unsupported,
+              },
+            },
+          }).catch(() => {});
+          continue;
+        }
+
         if (search.last_alert_sent) {
           const hoursSinceLastAlert = (now.getTime() - search.last_alert_sent.getTime()) / (1000 * 60 * 60);
           if (search.alert_frequency === "daily" && hoursSinceLastAlert < 23) {
@@ -69,7 +101,6 @@ export async function GET(req: NextRequest) {
             ? `${search.agent.first_name || ""} ${search.agent.last_name || ""}`.trim()
             : "there";
 
-        const criteria = search.criteria as Record<string, unknown>;
         const since = search.last_alert_sent || new Date(now.getTime() - 24 * 60 * 60 * 1000);
         // PR 5E — second reader migrated to listing_search_projection.
         // modifiedSince is supported by the projection runner via the
@@ -177,6 +208,7 @@ export async function GET(req: NextRequest) {
                     sent,
                     skipped,
                     errored,
+                    skippedUnsupported,
                     code: "SMTP_NOT_CONFIGURED",
                   },
                 },
@@ -189,6 +221,7 @@ export async function GET(req: NextRequest) {
                   sent,
                   skipped,
                   errored,
+                  skippedUnsupported,
                 },
                 { status: 503 }
               );
@@ -213,11 +246,19 @@ export async function GET(req: NextRequest) {
           sent,
           skipped,
           errored,
+          skippedUnsupported,
         },
       },
     });
 
-    return NextResponse.json({ success: true, total: searches.length, sent, skipped, errored });
+    return NextResponse.json({
+      success: true,
+      total: searches.length,
+      sent,
+      skipped,
+      errored,
+      skippedUnsupported,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[Search Alerts Cron] Error:", msg);

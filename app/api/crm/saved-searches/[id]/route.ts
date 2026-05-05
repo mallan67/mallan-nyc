@@ -11,6 +11,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
+import { canEnableAlertForCriteria } from "@/lib/search/criteria-to-prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -114,6 +115,33 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
         updates.lead_id = access.leadId;
       } else {
         updates.lead_id = null;
+      }
+    }
+
+    // P0-3 alert-gate: re-evaluate the gate against the EFFECTIVE state —
+    // existing row + the patch. Both `criteria` and the alert-enable
+    // toggles can change in a single PATCH, so we have to combine them
+    // before deciding. If the post-patch row would have alerts enabled
+    // AND criteria is unsupported, refuse the change. Untouched fields
+    // fall back to their existing values.
+    const effectiveCriteria =
+      body.criteria !== undefined ? (body.criteria as Record<string, unknown>) : (existing.criteria as Record<string, unknown>);
+    const effectiveAlertFrequency =
+      body.alert_frequency !== undefined ? (body.alert_frequency as string | null) : existing.alert_frequency ?? null;
+    const effectiveAlertEnabled =
+      body.alert_enabled !== undefined ? Boolean(body.alert_enabled) : Boolean(existing.alert_enabled);
+    const wouldHaveAlertOn = Boolean(effectiveAlertFrequency) && effectiveAlertEnabled !== false;
+    if (wouldHaveAlertOn) {
+      const gate = canEnableAlertForCriteria(effectiveCriteria || {});
+      if (!gate.ok) {
+        return NextResponse.json(
+          {
+            error: gate.message,
+            code: gate.code,
+            unsupported_criteria: gate.unsupported,
+          },
+          { status: 422 },
+        );
       }
     }
 

@@ -175,6 +175,57 @@ export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): stri
   return [...unsupported].sort();
 }
 
+// ── Saved-search alert gate (P0-3) ──────────────────────────────────────
+//
+// Saved searches can be created from the CRM live-Trestle search (Engine A).
+// Alerts replay through the Postgres projection (Engine B) at
+// app/api/cron/search-alerts/route.ts. Engine B's criteria vocabulary is a
+// strict subset of Engine A's — see PROJECTION_SUPPORTED_CRITERIA_KEYS
+// above. If a saved search includes any unsupported key, replaying it via
+// Engine B would silently drop those constraints and email listings the
+// agent never intended to send.
+//
+// This gate is the single source of truth used by:
+//   - POST  /api/crm/saved-searches             (block enable on create)
+//   - PATCH /api/crm/saved-searches/[id]        (block enable on update)
+//   - GET   /api/cron/search-alerts             (skip unsupported searches)
+//   - public/crm/js/search/saved-searches.js    (frontend mirror; refuse
+//                                                to enable in the modal
+//                                                + show inline reason)
+//
+// Returns a structured decision so callers can render the same reason
+// everywhere. The reason carries the unsupported keys verbatim; the
+// frontend uses them to render a tooltip ("Unsupported: address, keyword").
+export interface AlertGateDecision {
+  ok: boolean;
+  /** Always present. Empty array when ok=true. */
+  unsupported: string[];
+  /**
+   * Stable machine code for telemetry / error responses. One of:
+   *   - "ok"                      — alerts may be enabled
+   *   - "unsupported_criteria"    — criteria contains projection-unsupported keys
+   */
+  code: "ok" | "unsupported_criteria";
+  /** Human-readable reason, suitable for surfacing in a tooltip or toast. */
+  message: string;
+}
+
+export function canEnableAlertForCriteria(criteria: SearchCriteria): AlertGateDecision {
+  const unsupported = getUnsupportedProjectionCriteria(criteria);
+  if (unsupported.length === 0) {
+    return { ok: true, unsupported: [], code: "ok", message: "Alerts can be enabled for this search." };
+  }
+  return {
+    ok: false,
+    unsupported,
+    code: "unsupported_criteria",
+    message:
+      "Alerts cannot be enabled because this search uses criteria the alert engine does not support: " +
+      unsupported.join(", ") +
+      ". The live search will still honor these — but alerts replay through a stricter index.",
+  };
+}
+
 export function criteriaToPrismaWhere(
   criteria: SearchCriteria,
   options: SearchWhereOptions = {},

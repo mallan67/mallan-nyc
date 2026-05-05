@@ -23,12 +23,17 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email Alerts</label>
-                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <select id="savedSearchAlertFreq" class="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
                     <option value="">Off</option>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Requires client with TCPA consent on file</p>
+                <!-- P0-3 alert-gate hint: populated by saved-searches.js
+                     _refreshAlertGateUi() when the saved-search criteria
+                     contain keys the projection-backed alert engine does
+                     not support. Hidden by default. -->
+                <p id="savedSearchAlertGateHint" class="text-xs text-amber-700 mt-1 hidden" role="alert" aria-live="polite"></p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>

@@ -33,6 +33,20 @@
                     var clientBadge = search.lead_id
                         ? '<span class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-semibold rounded-full"><i class="fas fa-user text-[7px]"></i></span>'
                         : '';
+                    // ── P0-2 count badge honesty ──────────────────────
+                    // Engine A (live Trestle) and Engine B (DB projection)
+                    // have different criteria vocabularies. The badge here
+                    // sources its count from Engine B. When the saved
+                    // search contains projection-unsupported criteria,
+                    // count_status === 'unsupported_criteria'. In that
+                    // case do NOT render search.result_count as if it
+                    // were live — it is a stored snapshot from the last
+                    // /execute, possibly stale by hours or days.
+                    //
+                    // Show "n/a" with a tooltip explaining which criteria
+                    // are not honored by the alert engine. The agent can
+                    // still LOAD the search and re-run it on Engine A;
+                    // only the count badge is unavailable.
                     var countBadge = '';
                     var hasLiveCount = typeof search.live_result_count === 'number';
                     var hasStoredCount = typeof search.result_count === 'number';
@@ -41,11 +55,9 @@
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-semibold rounded-full"' + storedTitle + '>' + search.live_result_count + '</span>';
                     } else if (search.count_status === 'unsupported_criteria') {
                         var unsupportedTitle = search.unsupported_criteria && search.unsupported_criteria.length
-                            ? 'Unsupported criteria: ' + search.unsupported_criteria.join(', ')
-                            : 'Unsupported criteria';
-                        countBadge = hasStoredCount
-                            ? '<span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[9px] font-semibold rounded-full" title="' + escapeHtml(unsupportedTitle) + '">' + search.result_count + '</span>'
-                            : '<span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-semibold rounded-full" title="' + escapeHtml(unsupportedTitle) + '">stored</span>';
+                            ? 'Live count unavailable — alert engine does not support: ' + search.unsupported_criteria.join(', ') + '. Load the search to see live results.'
+                            : 'Live count unavailable for this search.';
+                        countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-semibold rounded-full" title="' + escapeHtml(unsupportedTitle) + '">n/a</span>';
                     } else if (hasStoredCount) {
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-semibold rounded-full">' + search.result_count + '</span>';
                     }
@@ -75,6 +87,79 @@
 
             // Show criteria summary
             _showCriteriaSummary();
+
+            // P0-3: gate the alert frequency dropdown on supported criteria
+            _refreshAlertGateUi();
+        }
+
+        // ── P0-3 frontend alert gate ────────────────────────────────────
+        // Mirror of lib/search/criteria-to-prisma.ts
+        // PROJECTION_SUPPORTED_CRITERIA_KEYS. Keep in sync.
+        //
+        // Reasoning: the alert cron replays through the projection-backed
+        // Engine B with this strict subset of criteria. Saved searches
+        // whose criteria include any other key cannot have alerts enabled
+        // — silent partial-criteria alerts would email listings the agent
+        // never intended to surface to a client.
+        //
+        // The frontend evaluates this BEFORE the backend POST so the
+        // agent sees the alert dropdown disabled (with reason) before
+        // they tab through the form. The backend POST/PATCH gate at
+        // app/api/crm/saved-searches still enforces the same rule.
+        var _ALERT_SUPPORTED_KEYS = {
+            listing_type: 1, listingType: 1, type: 1, searchTab: 1,
+            statuses: 1, status: 1, standardStatus: 1, standard_status: 1,
+            property_type: 1, property_types: 1, propertyType: 1, propertyTypes: 1,
+            borough: 1, neighborhoods: 1, neighborhood: 1,
+            min_price: 1, max_price: 1, minPrice: 1, maxPrice: 1, priceMin: 1, priceMax: 1,
+            min_beds: 1, max_beds: 1, minBeds: 1, maxBeds: 1, bedsMin: 1, bedsMax: 1, beds: 1,
+            min_baths: 1, max_baths: 1, minBaths: 1, maxBaths: 1, bathsMin: 1, bathsMax: 1, baths: 1,
+            min_sqft: 1, max_sqft: 1, minSqft: 1, maxSqft: 1, sqftMin: 1, sqftMax: 1,
+            // Reserved (skipped, treated as supported)
+            _search_tab: 1
+        };
+
+        function _evaluateAlertGate(apiCriteria) {
+            if (!apiCriteria) return { ok: true, unsupported: [] };
+            var unsupported = [];
+            Object.keys(apiCriteria).forEach(function(key) {
+                var val = apiCriteria[key];
+                if (val === undefined || val === null || val === '') return;
+                if (_ALERT_SUPPORTED_KEYS[key]) return;
+                unsupported.push(key);
+            });
+            unsupported.sort();
+            return {
+                ok: unsupported.length === 0,
+                unsupported: unsupported
+            };
+        }
+
+        function _refreshAlertGateUi() {
+            var sel = document.getElementById('savedSearchAlertFreq');
+            var hint = document.getElementById('savedSearchAlertGateHint');
+            if (!sel) return;
+            var apiCriteria = _criteriaToApiFormat(activeSearchCriteria);
+            var gate = _evaluateAlertGate(apiCriteria);
+            if (gate.ok) {
+                sel.disabled = false;
+                sel.title = '';
+                if (hint) {
+                    hint.textContent = '';
+                    hint.classList.add('hidden');
+                }
+                return;
+            }
+            // Force "Off" and disable. The alert engine cannot honor this
+            // criteria set; refusing here is the safe default.
+            sel.value = '';
+            sel.disabled = true;
+            var msg = 'Alerts unavailable — these criteria are not honored by the alert engine: ' + gate.unsupported.join(', ') + '. The live search still works.';
+            sel.title = msg;
+            if (hint) {
+                hint.textContent = msg;
+                hint.classList.remove('hidden');
+            }
         }
 
         function _populateSaveSearchClientDropdown() {
@@ -127,12 +212,26 @@
                 : '<p class="text-xs text-blue-700"><i class="fas fa-info-circle mr-1"></i> Current search criteria will be saved.</p>';
         }
 
-        /** Map activeSearchCriteria → API criteria format */
+        /** Map activeSearchCriteria → API criteria format
+         *
+         *  P0-1 round-trip parity: this is the saved-record shape persisted
+         *  to SavedSearch.criteria (JSON column). The keys here must
+         *  round-trip through _criteriaToFormFields below so a saved
+         *  search loaded later reproduces the same form state.
+         *
+         *  ALERT-GATE NOTE: any key here that is NOT in
+         *  PROJECTION_SUPPORTED_CRITERIA_KEYS at
+         *  lib/search/criteria-to-prisma.ts will mark the saved search as
+         *  "unsupported_criteria" — count badge will show "n/a", and
+         *  enabling alerts will be refused with a 422 by the backend
+         *  (P0-3). This is by design: live Trestle search supports all of
+         *  these fields; the projection alert engine does not.
+         */
         function _criteriaToApiFormat(c) {
             if (!c) return { listing_type: 'sale' };
             // Building tab doesn't have its own type — default to 'sale' but the _search_tab
             // preserves the original tab so loadSavedSearch restores it correctly
-            return {
+            var out = {
                 listing_type: c.searchTab === 'rent' ? 'rental' : 'sale',
                 min_price: c.priceMin || undefined,
                 max_price: c.priceMax || undefined,
@@ -159,15 +258,31 @@
                 min_units: c.unitsMin || undefined,
                 max_units: c.unitsMax || undefined,
                 building_name: c.buildingName || undefined,
-                // Date ranges
+                // Date ranges (Listed/Updated)
                 date_from: c.dateFrom || undefined,
                 date_to: c.dateTo || undefined,
                 date_type: c.dateActivityType || undefined,
-                close_date_from: c.soldDateFrom || c.contractDateFrom || undefined,
-                close_date_to: c.soldDateTo || c.contractDateTo || undefined,
+                close_date_from: c.soldDateFrom || undefined,
+                close_date_to: c.soldDateTo || undefined,
                 // View state
                 _search_tab: c.searchTab || 'sale',
+                // ── P0-1: Trestle-search inputs that previously dropped on save ──
+                keyword: c.keyword || undefined,
+                management_company: c.managementCompany || undefined,
+                property_sub_type: c.propertySubType || undefined,
+                unit: c.unit || undefined,
+                // Contract date is independent of `date_from/to`. Previously
+                // collapsed onto close_date_from/to which corrupted the meaning.
+                contract_date_from: c.contractDateFrom || undefined,
+                contract_date_to: c.contractDateTo || undefined,
+                // sponsorUnit param round-trip (Bug A11 frontend split)
+                sponsor_unit: c.sponsorUnit || undefined,
+                // checkboxFilters carries the whitelisted Cooling/Garage/View/
+                // BuildingFeatures/etc. set. Stored as a JSON string to
+                // preserve the inner shape unchanged across save/load.
+                checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
             };
+            return out;
         }
 
         /** Restore API criteria → form fields and re-run search */
@@ -288,6 +403,100 @@
                     });
                 }
             }
+
+            // ── P0-1 round-trip parity: restore additional Trestle-search ──
+            // inputs that previously dropped on save. Each block locates
+            // the active input ID per tab/mode (mirrors search-engine.js
+            // collectSearchCriteria input ID resolution exactly).
+
+            // Detect advanced mode for ID prefix selection
+            var _isAdv = (function () {
+                var advMode = document.getElementById('searchAdvancedMode');
+                return advMode && advMode.style.display !== 'none' && !advMode.classList.contains('hidden');
+            })();
+
+            // Keyword (PublicRemarks contains)
+            if (criteria.keyword) {
+                var kwEl = document.getElementById(_isAdv ? 'adv-keyword' : 'searchKeyword');
+                if (kwEl) kwEl.value = criteria.keyword;
+            }
+
+            // Management Company (ListOfficeName contains)
+            if (criteria.management_company) {
+                var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : 'searchManagementCompany');
+                if (mgmtEl) mgmtEl.value = criteria.management_company;
+            }
+
+            // Unit number (mirrors collectSearchCriteria adv vs basic)
+            if (criteria.unit) {
+                var unitInputId = _isAdv ? 'searchQuickUnit' : 'searchQuickUnit';
+                var unitEl = document.getElementById(unitInputId);
+                if (unitEl) unitEl.value = criteria.unit;
+            }
+
+            // Contract date — independent of date_from/to. Stored as
+            // ISO YYYY-MM-DD; the date-range-picker stores MM/DD/YYYY.
+            if (criteria.contract_date_from) {
+                var cdpPrefix = tab === 'rent' ? 'rental' : 'sale';
+                var cdpName = cdpPrefix + (cdpPrefix === 'rental' ? 'LeaseSigned' : 'ContractSigned');
+                _setDrpDates(cdpName, criteria.contract_date_from, criteria.contract_date_to);
+            }
+
+            // PropertySubType — checkboxes (csv string saved). Mirror the
+            // collectSearchCriteria pattern: scan basic OR advanced mode
+            // depending on which is visible.
+            if (criteria.property_sub_type) {
+                var pstValues = String(criteria.property_sub_type).split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                if (pstScope && pstValues.length > 0) {
+                    pstScope.querySelectorAll('input[data-field="PropertySubType"]').forEach(function(cb) { cb.checked = false; });
+                    pstValues.forEach(function(v) {
+                        var cb = pstScope.querySelector('input[data-field="PropertySubType"][data-value="' + v + '"]');
+                        if (cb) cb.checked = true;
+                    });
+                }
+            }
+
+            // SponsorUnit — independent param (Bug A11 split). Restored
+            // by toggling the SponsorUnit/Yes checkbox if it exists.
+            if (criteria.sponsor_unit === 'true' || criteria.sponsor_unit === true) {
+                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                if (spScope) {
+                    var spCb = spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
+                               spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]');
+                    if (spCb) spCb.checked = true;
+                }
+            }
+
+            // checkboxFilters — the whitelisted Cooling/Garage/View/
+            // BuildingFeatures/LaundryFeatures/SecurityFeatures/PoolFeatures/
+            // AccessibilityFeatures/ExteriorFeatures/PetsAllowedYN/etc.
+            // Stored as JSON string. For each (field, [values]) pair, find
+            // and check the matching data-field/data-value checkbox.
+            if (criteria.checkbox_filters) {
+                try {
+                    var cbFilters = typeof criteria.checkbox_filters === 'string'
+                        ? JSON.parse(criteria.checkbox_filters)
+                        : criteria.checkbox_filters;
+                    var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                    if (cbScope && cbFilters && typeof cbFilters === 'object') {
+                        Object.keys(cbFilters).forEach(function(field) {
+                            var values = cbFilters[field];
+                            if (!Array.isArray(values)) return;
+                            // First clear existing checks for this field
+                            cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
+                            values.forEach(function(v) {
+                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(v).replace(/"/g, '\\"') + '"]');
+                                if (cb && !cb.disabled) cb.checked = true;
+                            });
+                        });
+                    }
+                } catch (e) {
+                    // Malformed JSON — silently skip restore. Saved
+                    // search payloads are agent-trusted but defensive
+                    // here against any future migration drift.
+                }
+            }
         }
 
         /** Helper: set a <select> value, trying exact match then closest */
@@ -383,6 +592,23 @@
             }
 
             var criteria = _criteriaToApiFormat(activeSearchCriteria);
+
+            // P0-3 frontend gate (defense in depth — backend will also
+            // refuse). When alertFreq is requested AND the criteria
+            // contains projection-unsupported keys, refuse here rather
+            // than letting the backend surface the 422.
+            if (alertFreq) {
+                var gate = _evaluateAlertGate(criteria);
+                if (!gate.ok) {
+                    showToast(
+                        'Cannot enable alerts for this search — alert engine does not support: ' +
+                        gate.unsupported.join(', ') +
+                        '. Save without alerts, or remove those criteria first.',
+                        'error'
+                    );
+                    return;
+                }
+            }
 
             var payload = {
                 name: name,

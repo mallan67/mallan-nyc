@@ -13,6 +13,7 @@ import { safeJson } from "@/lib/api/safe-json";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
 import {
+  canEnableAlertForCriteria,
   criteriaToProjectionWhere,
   getUnsupportedProjectionCriteria,
 } from "@/lib/search/criteria-to-prisma";
@@ -157,6 +158,27 @@ export async function POST(req: NextRequest) {
     }
     const leadAccess = lead_id ? await assertLeadIdStringAccess(auth, lead_id) : null;
     if (leadAccess?.response) return leadAccess.response;
+
+    // P0-3 alert-gate: refuse to enable an alert when the saved-search
+    // criteria contain keys the projection-backed alert engine does not
+    // support. Without this gate the cron at app/api/cron/search-alerts
+    // would silently send mail derived from a strict subset of the
+    // criteria the agent saw in /crm/search (Engine A vs Engine B
+    // divergence). See lib/search/criteria-to-prisma.ts canEnableAlertForCriteria.
+    const wantAlert = Boolean(alert_frequency) && alert_enabled !== false;
+    if (wantAlert) {
+      const gate = canEnableAlertForCriteria(criteria);
+      if (!gate.ok) {
+        return NextResponse.json(
+          {
+            error: gate.message,
+            code: gate.code,
+            unsupported_criteria: gate.unsupported,
+          },
+          { status: 422 },
+        );
+      }
+    }
 
     const search = await prisma.savedSearch.create({
       data: {
