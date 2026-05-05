@@ -1342,18 +1342,54 @@
                 '</div>' +
             '</div>';
 
-            // Use sendEmailDirect (same system — EmailJS if configured, simulation if not)
-            if (typeof sendEmailDirect === 'function') {
-                sendEmailDirect({
-                    to: listingAgentEmail,
-                    toName: listingAgentName,
-                    subject: subject,
-                    htmlBody: html,
-                    listingIds: [listing.id],
-                    count: 1,
-                    source: 'agent_inquiry'
-                });
-            }
+            // P2 — Server-authoritative path via /api/crm/agent-inquiry.
+            // Replaces the prior client-side mailto / sendEmailDirect path
+            // which had no audit trail and no REBNY attribution. The route:
+            //   - validates body fields server-side
+            //   - builds the email HTML server-side (REBNY footer, brokerage
+            //     identity, RLS ID, status label) — frontend cannot inject
+            //   - sends via lib/email/sendgrid.ts with SMTP fail-loud
+            //   - writes an AuditEvent row regardless of success/failure
+            //   - returns 503 in production when SMTP is not configured
+            // Sender identity comes from the broker session (not the body)
+            // so an agent cannot forge a from_* field.
+            //
+            // We pass listing context fields the server uses to construct the
+            // final HTML. The `html` variable above is no longer used — kept
+            // built so the function still has a stable shape and can be
+            // re-introduced if the operator wants a client-side preview.
+            void html;
+            fetch('/api/crm/agent-inquiry', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    listing_id: listing.lid || listing.id,
+                    listing_address: listing.address || '',
+                    listing_unit: listing.unit || null,
+                    listing_price: Number(listing.price || 0),
+                    listing_status: listing.status || 'ACTIVE',
+                    listing_url: listingUrl,
+                    listing_neighborhood: listing.neighborhood || null,
+                    listing_borough: listing.borough || 'Manhattan',
+                    listing_zip: listing.zip || null,
+                    agent_email: listingAgentEmail,
+                    agent_name: listingAgentName,
+                    message: 'I am writing to request information about the following listing, including availability for showings.',
+                }),
+            }).then(function (res) {
+                return res.json().then(function (data) { return { status: res.status, body: data }; });
+            }).then(function (result) {
+                if (result.status === 200 && result.body.success) {
+                    showToast('Inquiry sent to ' + listingAgentName + '.', 'success');
+                } else if (result.status === 503 && result.body.code === 'SMTP_NOT_CONFIGURED') {
+                    showToast('Email service unavailable. Inquiry recorded — reference ' + result.body.listingId + '.', 'warning');
+                } else {
+                    showToast('Could not send inquiry: ' + (result.body.error || ('HTTP ' + result.status)), 'error');
+                }
+            }).catch(function (err) {
+                showToast('Network error sending inquiry: ' + (err && err.message ? err.message : 'unknown'), 'error');
+            });
         }
 
         function detailSetPhoto(idx) {

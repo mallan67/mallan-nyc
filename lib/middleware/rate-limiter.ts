@@ -59,6 +59,10 @@ const limiterSpecs = {
   alert:        { count: 10, window: "3600 s" },
   identity_capture: { count: 20, window: "3600 s" },
   unsubscribe:  { count: 20, window: "3600 s" },
+  // P2 — broker-initiated agent-to-agent inquiry. Capped at 30/hr/IP
+  // to mirror the public inquiry rate but with its own quota so bursts
+  // on the public form don't lock out broker workflows (and vice versa).
+  agent_inquiry: { count: 30, window: "3600 s" },
 } as const satisfies Record<string, { count: number; window: `${number} s` }>;
 
 export type RouteLimiterName = keyof typeof limiterSpecs;
