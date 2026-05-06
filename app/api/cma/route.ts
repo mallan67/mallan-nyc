@@ -195,7 +195,9 @@ export async function POST(request: NextRequest) {
         console.error('[/api/cma] Notification email failed: provider error redacted');
       }
     } catch (emailErr) {
-      console.error('[/api/cma] [email redacted] notification error (non-fatal):', emailErr);
+      // Codex Risk P0 fix: redact raw provider error.
+      const cat = emailErr instanceof Error ? cmaErrCat(emailErr.message) : 'unknown';
+      console.error(`[/api/cma] notification error (non-fatal) | category=${cat} ref=${lead.id}`);
     }
 
     // Send auto-response to the requester (non-fatal)
@@ -210,7 +212,8 @@ export async function POST(request: NextRequest) {
         { transactional: true }
       );
     } catch (autoErr) {
-      console.error('[/api/cma] Auto-response error (non-fatal):', autoErr);
+      const cat = autoErr instanceof Error ? cmaErrCat(autoErr.message) : 'unknown';
+      console.error(`[/api/cma] auto-response error (non-fatal) | category=${cat} ref=${lead.id}`);
     }
 
     return NextResponse.json({
@@ -218,10 +221,23 @@ export async function POST(request: NextRequest) {
       message: 'CMA request submitted successfully',
     });
   } catch (err) {
-    console.error('[/api/cma] Error:', err);
+    // Codex Risk P0 fix: redact server error log.
+    const cat = err instanceof Error ? cmaErrCat(err.message) : 'unknown';
+    console.error(`[/api/cma] submission error | category=${cat}`);
     return NextResponse.json(
       { error: 'Failed to submit CMA request. Please try again.' },
       { status: 500 }
     );
   }
+}
+
+function cmaErrCat(msg: string): string {
+  const m = (msg || '').toLowerCase();
+  if (m.includes('rate limit') || m.includes('429')) return 'rate_limited';
+  if (m.includes('econn') || m.includes('etimed') || m.includes('timeout')) return 'network_timeout';
+  if (m.includes('auth') || m.includes('535') || m.includes('credentials')) return 'auth_failed';
+  if (m.includes('quota') || m.includes('throttl')) return 'quota';
+  if (m.includes('prisma') || m.includes('database') || m.includes('p2002')) return 'db';
+  if (m.includes('json') || m.includes('parse')) return 'parse';
+  return 'other';
 }

@@ -969,9 +969,18 @@
                             </div>
                             <div class="space-y-1.5">
                                 ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + escapeHtml(listing.agentPhone) + '</a>' : ''}
-                                ${listing.agentEmail ? '<a href="mailto:' + escapeHtml(listing.agentEmail) + '?subject=' + encodeURIComponent('Agent Inquiry - ' + (listing.address || '') + (listing.unit ? ', ' + listing.unit : '')) + '&body=' + encodeURIComponent(buildAgentMailtoBody(listing)) + '" class="sidebar-contact-link"><i class="fas fa-envelope text-[9px]"></i>' + escapeHtml(listing.agentEmail) + '</a>' : ''}
+                                ${listing.agentEmail ? `<button type="button" onclick="sendAgentInquiry('${escapeHtml(String(listing.id || listing.lid || ''))}')" class="sidebar-contact-link" title="Sends an audited inquiry through Mallan Real Estate (REBNY attribution + audit trail)"><i class="fas fa-envelope text-[9px]"></i>${escapeHtml(listing.agentEmail)}</button>` : ''}
                                 ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + escapeHtml(listing.agentLicense) + '</div>' : ''}
                             </div>
+                            <!-- Codex Risk P0 fix: removed direct mailto:
+                                 link to listing-agent email. The link
+                                 bypassed audit trail + REBNY attribution
+                                 enforcement. All listing-agent contact
+                                 actions now route through the audited
+                                 /api/crm/agent-inquiry endpoint via the
+                                 sendAgentInquiry() function (defined
+                                 elsewhere in this file). -->
+
 
                             <!-- Showing Instructions (inline, no separate card) -->
                             <div class="border-t border-gray-100 mt-3 pt-3">

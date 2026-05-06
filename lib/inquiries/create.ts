@@ -74,8 +74,13 @@ export interface CreateInquiryInput {
  *   1. process.env.INQUIRY_IP_SALT  (preferred — operator-controlled)
  *   2. process.env.SESSION_SECRET    (fallback — already exists in env)
  *   3. constant fallback             (better than no hashing)
+ *
+ * Exported so other audit-trail callers (e.g. /api/crm/agent-inquiry)
+ * use the same keyed-hash format instead of inventing their own
+ * (the prior `Buffer.from(ip).toString('base64').slice(0, 16)` was
+ * trivially reversible — base64 of a string is not a hash).
  */
-function hashIp(rawIp: string | null | undefined): string | null {
+export function hashIp(rawIp: string | null | undefined): string | null {
   if (!rawIp) return null;
   const salt =
     process.env.INQUIRY_IP_SALT ||

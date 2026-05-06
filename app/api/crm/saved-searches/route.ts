@@ -136,8 +136,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name is required (non-empty string)" }, { status: 400 });
     }
 
-    if (!criteria || typeof criteria !== "object") {
-      return NextResponse.json({ error: "criteria object is required" }, { status: 400 });
+    // Codex Risk P0 fix: reject null, arrays, and non-objects with a clear
+    // 400 (typeof null === "object" + Array.isArray are JS pitfalls; the
+    // prior `!criteria || typeof !== "object"` guard let arrays through).
+    if (
+      !criteria ||
+      Array.isArray(criteria) ||
+      typeof criteria !== "object"
+    ) {
+      return NextResponse.json(
+        { error: "criteria must be a plain JSON object (not null, not an array)" },
+        { status: 400 },
+      );
     }
 
     const validationError = validateCriteria(criteria);

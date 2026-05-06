@@ -204,14 +204,41 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (emailErr) {
-      console.error('[CONTACT] [email redacted] notification error (non-fatal):', emailErr);
+      // Codex Risk P0 fix: do not pass the raw exception object —
+      // SMTP errors can carry the recipient address, message id, server
+      // banner, or other sensitive fragments. Log a category + lead ref
+      // only. The AuditEvent row above (action=contact_form_submitted)
+      // is the durable record; this console line is operational.
+      const errCategory =
+        emailErr instanceof Error ? errCategory_(emailErr.message) : 'unknown';
+      console.error(`[CONTACT] notification error (non-fatal) | category=${errCategory} ref=${lead.id}`);
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error('[CONTACT] Error processing submission:', error);
+    // Codex Risk P0 fix: redact server error logs. The original
+    // `console.error('[CONTACT] Error processing submission:', error)`
+    // emitted full stack traces including DB error payloads which can
+    // include parameter values. Log a category only.
+    const errCategory =
+      error instanceof Error ? errCategory_(error.message) : 'unknown';
+    console.error(`[CONTACT] submission error | category=${errCategory}`);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
+}
+
+// Map an arbitrary error message to one of a fixed set of categories so
+// the operational console line never emits user-typed data, recipient
+// addresses, or provider banners.
+function errCategory_(msg: string): string {
+  const m = (msg || '').toLowerCase();
+  if (m.includes('rate limit') || m.includes('429')) return 'rate_limited';
+  if (m.includes('econn') || m.includes('etimed') || m.includes('timeout')) return 'network_timeout';
+  if (m.includes('auth') || m.includes('535') || m.includes('credentials')) return 'auth_failed';
+  if (m.includes('quota') || m.includes('throttl')) return 'quota';
+  if (m.includes('prisma') || m.includes('database') || m.includes('p2002')) return 'db';
+  if (m.includes('json') || m.includes('parse')) return 'parse';
+  return 'other';
 }
 
 // GET - Admin endpoint to retrieve submissions (requires agent/broker session)
@@ -231,7 +258,9 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(leads.map(l => ({ ...l, id: String(l.id) })));
   } catch (error) {
-    console.error('[CONTACT] Error reading submissions:', error);
+    // Codex Risk P0 fix: redact raw Prisma error from admin read path.
+    const cat = error instanceof Error ? errCategory_(error.message) : 'unknown';
+    console.error(`[CONTACT] read error | category=${cat}`);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

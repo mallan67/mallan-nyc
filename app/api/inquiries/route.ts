@@ -47,9 +47,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!agreeToTerms) {
+    // Codex Risk P0 fix: strict boolean consent. Pattern parity with
+    // /api/contact (post Bug A14) and /api/cma (post P0-B). Rejects
+    // truthy non-boolean values like "true", "yes", 1 — those are
+    // shapes a buggy frontend or attacker could send to forge consent.
+    // Frontend forms must send the literal boolean true.
+    if (agreeToTerms !== true) {
       return NextResponse.json(
-        { error: 'You must agree to the Terms of Service and Privacy Policy' },
+        { error: 'You must agree to the Terms of Service and Privacy Policy (affirmative consent required)' },
         { status: 400 }
       );
     }
@@ -184,7 +189,11 @@ export async function POST(request: NextRequest) {
         console.error('[/api/inquiries] Notification email failed: provider error redacted');
       }
     } catch (emailErr) {
-      console.error('[/api/inquiries] [email redacted] notification error (non-fatal):', emailErr);
+      // Codex Risk P0 fix: redact raw provider error. AuditEvent row
+      // above (action=inquiry_submitted) is the durable record; this
+      // console line is operational.
+      const cat = emailErr instanceof Error ? inquiriesErrCat(emailErr.message) : 'unknown';
+      console.error(`[/api/inquiries] notification error (non-fatal) | category=${cat} ref=${lead.id}`);
     }
 
     // Send auto-response to the client (non-fatal)
@@ -201,7 +210,8 @@ export async function POST(request: NextRequest) {
         { transactional: true }
       );
     } catch (autoErr) {
-      console.error('[/api/inquiries] Auto-response error (non-fatal):', autoErr);
+      const cat = autoErr instanceof Error ? inquiriesErrCat(autoErr.message) : 'unknown';
+      console.error(`[/api/inquiries] auto-response error (non-fatal) | category=${cat} ref=${lead.id}`);
     }
 
     return NextResponse.json({
@@ -209,10 +219,24 @@ export async function POST(request: NextRequest) {
       message: 'Inquiry submitted successfully',
     });
   } catch (err) {
-    console.error('[/api/inquiries] Error:', err);
+    // Codex Risk P0 fix: redact server error log. Category only — never
+    // the raw error object (may carry DB params, request payload, etc.).
+    const cat = err instanceof Error ? inquiriesErrCat(err.message) : 'unknown';
+    console.error(`[/api/inquiries] submission error | category=${cat}`);
     return NextResponse.json(
       { error: 'Failed to submit inquiry. Please try again.' },
       { status: 500 }
     );
   }
+}
+
+function inquiriesErrCat(msg: string): string {
+  const m = (msg || '').toLowerCase();
+  if (m.includes('rate limit') || m.includes('429')) return 'rate_limited';
+  if (m.includes('econn') || m.includes('etimed') || m.includes('timeout')) return 'network_timeout';
+  if (m.includes('auth') || m.includes('535') || m.includes('credentials')) return 'auth_failed';
+  if (m.includes('quota') || m.includes('throttl')) return 'quota';
+  if (m.includes('prisma') || m.includes('database') || m.includes('p2002')) return 'db';
+  if (m.includes('json') || m.includes('parse')) return 'parse';
+  return 'other';
 }

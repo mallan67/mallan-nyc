@@ -296,8 +296,33 @@
             if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
             if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
             if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
-            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
-            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
+            // ── Codex Risk P0 fix: programmatic block of unsupported params ──
+            // Open House date range and (when reached via programmatic
+            // path) transit/grid bounds do not produce any backend OData
+            // clause — see lib/search/__tests__/crm-idx-filter.test.ts
+            // BATCH 2 dead-pattern tests. The UI controls are disabled
+            // by public/crm/js/init/init-disable-dead-controls.js, but
+            // criteria can still arrive via saved-search reload or a
+            // programmatic call. Strip the keys here and emit a console
+            // warning instead of silently submitting a request whose
+            // narrowing intent the backend will drop. The user-facing
+            // toast on multi-borough advisory at performSearch() also
+            // covers borough-multi; this block covers OH/transit/grid.
+            if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
+                console.warn('[CRM Search] Stripped unsupported openHouseDate criteria — backend has no OpenHouse handler. See init-disable-dead-controls.js.');
+            }
+            // Note: criteria._transitBounds / criteria._gridBounds are
+            // SET by transit-search.js / manhattan-grid.js only when
+            // the user interacts with those panels, which P1 disabled.
+            // Strip defensively in case a future programmatic path
+            // populates them (REBNY IDX feed has no Latitude/Longitude
+            // — Lat/Lng OData clauses match zero rows at runtime).
+            if (criteria._transitBounds) {
+                console.warn('[CRM Search] Stripped _transitBounds — REBNY IDX feed has no Lat/Lng.');
+            }
+            if (criteria._gridBounds) {
+                console.warn('[CRM Search] Stripped _gridBounds — REBNY IDX feed has no Lat/Lng.');
+            }
             if (criteria.ownership && criteria.ownership.length > 0) {
                 params.ownership = criteria.ownership.join(',');
             }
@@ -335,14 +360,18 @@
                 var _cbJson = JSON.stringify(criteria.checkboxFilters);
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
             }
-            if (criteria._transitBounds && typeof TransitSearch !== 'undefined') {
-                var transitParts = TransitSearch.toODataFilter();
-                if (transitParts.length > 0) params.gridFilter = transitParts.join(' and ');
-            }
-            if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
-                var gridParts = ManhattanGrid.toODataFilter(criteria._gridBounds);
-                if (gridParts.length > 0) params.gridFilter = gridParts.join(' and ');
-            }
+            // ── Codex Risk P0 fix: transit/grid panels are disabled at
+            //    container level (init-disable-dead-controls.js) AND
+            //    the underlying REBNY IDX feed does not populate
+            //    Latitude/Longitude per CLAUDE.md. The two blocks below
+            //    previously turned criteria._transitBounds /
+            //    criteria._gridBounds into a `gridFilter` param that
+            //    matched zero Trestle rows at runtime. They are now
+            //    short-circuited; the warning was emitted above. When
+            //    geocoded coordinates land on the projection (master
+            //    plan PR 5), restore both blocks AND remove the
+            //    transit/grid entries from DEAD_CONTAINERS in
+            //    init-disable-dead-controls.js. Both must move together.
             return params;
         };
 

@@ -91,8 +91,21 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     }
 
     if (body.criteria !== undefined) {
-      if (typeof body.criteria !== "object") {
-        return NextResponse.json({ error: "criteria must be an object" }, { status: 400 });
+      // Codex Risk P0 fix: tighten criteria validation. The prior
+      // `typeof body.criteria !== "object"` check incorrectly accepted
+      // null (typeof null === "object" in JS) and arrays (typeof [] ===
+      // "object") and treated them as valid criteria. Both shapes break
+      // every downstream consumer (criteriaToProjectionWhere, alert gate,
+      // _criteriaToFormFields). Reject all three with a clear 400.
+      if (
+        body.criteria === null ||
+        Array.isArray(body.criteria) ||
+        typeof body.criteria !== "object"
+      ) {
+        return NextResponse.json(
+          { error: "criteria must be a plain JSON object (not null, not an array)" },
+          { status: 400 },
+        );
       }
       updates.criteria = body.criteria as Prisma.InputJsonValue;
     }

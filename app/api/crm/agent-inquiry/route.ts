@@ -47,6 +47,7 @@ import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
+import { hashIp } from '@/lib/inquiries/create';
 
 export const dynamic = 'force-dynamic';
 
@@ -269,7 +270,10 @@ export async function POST(req: NextRequest) {
         source: 'crm_detail_page',
         success: emailResult.success,
         error_class: emailResult._devMode === true ? 'smtp_not_configured' : (emailResult.success ? null : 'send_failed'),
-        ip_hash: ip ? Buffer.from(ip).toString('base64').slice(0, 16) : null,
+        // Codex Risk P0 fix: replace base64-of-IP (trivially reversible)
+        // with the keyed SHA-256 hash used by lib/inquiries/create.ts. Same
+        // salt source order: INQUIRY_IP_SALT → SESSION_SECRET → fallback.
+        ip_hash: hashIp(ip),
       },
     },
   });
