@@ -282,6 +282,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (listing.owner_client_id) {
+      // Portals Tier A P0 — REBNY Art. III §2 confidentiality. The seller's
+      // dashboard activity feed reads from PortalEvent.metadata. The offers
+      // GET response masks the buyer to "Buyer (via your agent)" — the
+      // PortalEvent metadata MUST mirror that masking, otherwise the raw
+      // buyer_lead_id leaks to the seller via the side channel even though
+      // the offers list itself is masked.
       await recordPortalEvent({
         leadId: listing.owner_client_id,
         eventType: "offer_view",
@@ -289,7 +295,7 @@ export async function POST(req: NextRequest) {
         listingId: listing.listing_id,
         metadata: {
           offer_action_id: action.id.toString(),
-          buyer_lead_id: auth.userId.toString(),
+          from: "Buyer (via your agent)",
           amount,
         },
       });

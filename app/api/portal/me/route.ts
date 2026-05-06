@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth";
+import { sanitizeLeadForPortal } from "@/lib/compliance/dto";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -24,13 +25,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
+  // Portals Tier A P0 — delegate field-allowlist to the shared sanitizer
+  // so /api/portal/me cannot drift from the central client-self-view rules.
+  // Spread comes first; explicit overrides after handle BigInt/Decimal
+  // serialization that NextResponse.json can't do automatically.
+  const safeLead = sanitizeLeadForPortal(lead as unknown as Record<string, unknown>);
+
   return NextResponse.json({
+    ...safeLead,
     id: lead.id.toString(),
-    first_name: lead.first_name,
-    last_name: lead.last_name,
-    email: lead.email,
-    phone: lead.phone,
-    portal_role: lead.portal_role,
     preferences: lead.preferences
       ? {
           id: lead.preferences.id.toString(),

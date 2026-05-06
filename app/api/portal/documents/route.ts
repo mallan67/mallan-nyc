@@ -1,8 +1,26 @@
 // /api/portal/documents — Seller/Landlord document access
-// GET: List documents shared with this client (disclosures, agreements, etc.)
-// Documents are created by agent via CRM, visible to seller/landlord for review/signature
+//
+// Portals Tier A P0 — fail-loud on unsafe scope.
+//
+// Previous behavior compared `Listing.address` (JSON object) against
+// `Deal.property_address` (free-text string) via Prisma `IN` filter. The
+// type mismatch silently returned 0 rows — so seller portals showed an
+// empty Documents tab even when the agent had uploaded disclosures or
+// contracts. Worse: even if the JSON-vs-string mismatch were fixed, the
+// underlying scope (agent_id + property_address string match) leaks
+// across clients who share an agent and overlapping address strings.
+//
+// Until the schema gains a client-scoped FK on Deal or Document, this
+// route fails loud (HTTP 501) instead of silently returning an empty
+// or unsafe list. The seller knows to ask their agent rather than
+// assume nothing was uploaded; the agent has a clear signal that
+// portal documents are pending the schema fix.
+//
+// TODO(SCHEMA-GAP-001): Add `Deal.client_id BigInt? @map("client_id")` FK
+// to Lead (or `Document.client_id`) so seller/landlord portal documents
+// can be FK-scoped instead of address-matched. Tracked as Tier C item.
+// Once landed, this route resumes returning the document list.
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -16,67 +34,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Get lead's agent to find their documents
-  const lead = await prisma.lead.findUnique({
-    where: { id: auth.userId },
-    select: { agent_id: true, portal_role: true },
-  });
-
-  if (!lead?.agent_id) {
-    return NextResponse.json({ documents: [] });
-  }
-
-  // Find listings owned by this lead to scope documents
-  const ownedListings = await prisma.listing.findMany({
-    where: { owner_client_id: auth.userId },
-    select: { address: true },
-  });
-  const ownedAddresses = ownedListings
-    .map((l) => l.address)
-    .filter(Boolean) as string[];
-
-  // Scope documents to this agent's deals that match the lead's listing addresses
-  const documents = await prisma.document.findMany({
-    where: {
-      agent_id: lead.agent_id,
-      deal: {
-        property_address: ownedAddresses.length > 0
-          ? { in: ownedAddresses }
-          : undefined,
-      },
+  return NextResponse.json(
+    {
+      documents: [],
+      unavailable: true,
+      code: "PORTAL_DOCUMENTS_PENDING_CLIENT_SCOPE",
+      message:
+        "Portal documents require client-scoped deal/document linkage before they can be safely shown.",
     },
-    include: {
-      signatures: {
-        select: {
-          id: true,
-          signer_name: true,
-          signer_email: true,
-          signer_role: true,
-          status: true,
-          signed_at: true,
-        },
-      },
-    },
-    orderBy: { created_at: "desc" },
-    take: 50,
-  });
-
-  const serialized = documents.map((doc) => ({
-    id: doc.id.toString(),
-    name: doc.name,
-    doc_type: doc.doc_type,
-    status: doc.status,
-    requires_signature: doc.requires_signature,
-    file_url: doc.file_url,
-    created_at: doc.created_at,
-    signatures: doc.signatures.map((sig) => ({
-      id: sig.id.toString(),
-      signer_name: sig.signer_name,
-      signer_role: sig.signer_role,
-      status: sig.status,
-      signed_at: sig.signed_at,
-    })),
-  }));
-
-  return NextResponse.json({ documents: serialized });
+    { status: 501 }
+  );
 }
