@@ -67,6 +67,23 @@ export async function POST(req: NextRequest) {
     property_type, bedrooms, bathrooms, living_area, floor,
   });
 
+  // Reports/CMA Tier A P0 — empty-pool fail-loud.
+  // Previously a zero-comp result silently produced a $0 CmaReport
+  // (estimateValue returns {0,0,0}). Sellers receiving such a report
+  // had no signal that the comp pool was empty. Now the route returns
+  // 422 with a clear error and skips the DB write — agent must broaden
+  // criteria or verify Trestle availability before proceeding.
+  if (comps.length === 0) {
+    return NextResponse.json(
+      {
+        error: "Insufficient comparable data — broaden criteria or check Trestle availability.",
+        code: "INSUFFICIENT_COMPS",
+        subject: { property_address, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms },
+      },
+      { status: 422 },
+    );
+  }
+
   const valuation = estimateValue(comps);
 
   const report = await prisma.cmaReport.create({

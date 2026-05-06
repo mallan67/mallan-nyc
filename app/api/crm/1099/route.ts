@@ -11,6 +11,18 @@ interface Agent1099Data {
   paymentCount: number;
   status: "generated" | "no_payments";
   payments: Array<{ amount: number; date: string; dealId: string; type: string }>;
+  /** Reports/CMA Tier A P0: surface a warning when the agent has Deal
+   *  rows in scope but the CommissionPayment query returns zero rows.
+   *  This is the early-detection signal for "the assumed enum values
+   *  (payment_type='agent_split', status='paid') do not match what's
+   *  actually in production data" — without it, brokers see a $0
+   *  1099 for an active agent and may not realize the query missed.
+   */
+  warning?: {
+    code: string;
+    message: string;
+    deal_count: number;
+  };
 }
 
 async function generate1099ForAgent(agentId: bigint, taxYear: number): Promise<Agent1099Data> {
@@ -49,6 +61,26 @@ async function generate1099ForAgent(agentId: bigint, taxYear: number): Promise<A
 
   const total = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
 
+  // Reports/CMA Tier A P0 — enum-mismatch warning.
+  // The CommissionPayment query above filters by
+  //   payment_type: "agent_split"
+  //   status: "paid"
+  // If those enum strings drift from production data (e.g. agent_split
+  // → AGENT_SPLIT, paid → Paid), the query silently returns zero rows
+  // and the broker sees "$0, no payments" for an active agent. Surface
+  // a warning when the agent has Deals (work occurred) but the paid-
+  // agent-split filter found nothing — that's the early-detection
+  // signal for enum drift.
+  const warning =
+    payments.length === 0 && dealIds.length > 0
+      ? {
+          code: "ZERO_PAID_AGENT_SPLIT_FOR_DEALS",
+          message:
+            "Agent has " + dealIds.length + " Deal row(s) in scope but no CommissionPayment rows match payment_type='agent_split' AND status='paid'. Verify those enum values match production data before relying on this 1099 for filing.",
+          deal_count: dealIds.length,
+        }
+      : undefined;
+
   return {
     agentId: agentId.toString(),
     agentName: name,
@@ -62,6 +94,7 @@ async function generate1099ForAgent(agentId: bigint, taxYear: number): Promise<A
       dealId: p.deal_id.toString(),
       type: p.payment_type,
     })),
+    ...(warning ? { warning } : {}),
   };
 }
 
