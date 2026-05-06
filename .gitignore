@@ -190,3 +190,25 @@ nul
 
 # Validator runtime files (chronological run log; consumed only by scripts/idx-validate.js section 32)
 .idx-validate/*.local.json
+
+# ─────────────────────────────────────────────────────────────────────
+# Repo Hygiene Gate — operator-side diagnostic patterns
+#
+# Added 2026-05-06 per the Repo Hygiene Gate directive. These match
+# files written by the Vercel CLI, telemetry pulls, ad-hoc debugging,
+# and one-off scratch dumps. They must NEVER be committed; ignoring
+# them at the source-control boundary closes the "surprise diagnostic
+# in the working tree" failure mode that prior batches hit.
+#
+# If you genuinely need to commit one of these (e.g., a permanent
+# diagnostic report), name it explicitly and add it to /scripts or
+# /docs — do NOT use one of these patterns.
+# ─────────────────────────────────────────────────────────────────────
+.telem-pull*
+.vercel-*
+*.tmp
+debug-*
+scratch-*
+report-*
+out.txt
+dump-*
