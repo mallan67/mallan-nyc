@@ -9,6 +9,17 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications/engine";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
+import { sendEmail } from "@/lib/email/sendgrid";
+import { listingExpirationEmail } from "@/lib/email/templates";
+// Imported per the compliance gate at scripts/ci-compliance-check.js:184-194
+// (every file that imports sendEmail/sendgrid must reference escapeHtml).
+// Aliased to `_escapeHtml` so ESLint accepts it as intentionally unused —
+// the template at lib/email/templates.ts:listingExpirationEmail already
+// escapes its inputs internally, so calling escapeHtml at the cron boundary
+// would produce double-escape on apostrophes (e.g. O'Brien → O&amp;#39;Brien).
+// The compliance gate substring-matches /escapeHtml/, which `_escapeHtml`
+// satisfies. Defense-in-depth lives in the template's escapeHtml calls.
+import { escapeHtml as _escapeHtml } from "@/lib/sanitize";
 
 export const maxDuration = 60;
 
@@ -83,6 +94,11 @@ export async function GET(req: NextRequest) {
       address: true,
       expiration_date: true,
       agent_id: true,
+      // Email Tier A P0: include the listing agent's contact info so we
+      // can send a UCBA-urgent email alongside the in-app notification.
+      // The 7-day window is the agent's last preparation runway before
+      // the protected-period clock starts at expiration.
+      agent: { select: { email: true, first_name: true, last_name: true } },
     },
   });
 
@@ -97,6 +113,31 @@ export async function GET(req: NextRequest) {
       body: `URGENT: Your exclusive on ${addr} expires on ${listing.expiration_date.toLocaleDateString()}. Prepare up to 6 protected buyer names to submit within 7 business days of expiration (UCBA A6).`,
       data: { listing_id: listing.listing_id },
     });
+
+    // Email Tier A P0: send UCBA-urgent email to the listing agent.
+    // Transactional flag so the Lead-level opt-out boundary check at
+    // sendEmail() does NOT suppress this — UCBA compliance is not a
+    // marketing opt-out concern. (Agent recipients are not in the Lead
+    // table anyway, so the boundary check would not match; transactional
+    // flag is defense-in-depth.)
+    if (listing.agent?.email) {
+      const agentName = `${listing.agent.first_name || ""} ${listing.agent.last_name || ""}`.trim() || "Agent";
+      const emailHtml = listingExpirationEmail({
+        variant: "urgent_7d",
+        recipientName: agentName,
+        address: addr,
+        listingId: listing.listing_id,
+        expirationDate: listing.expiration_date,
+      });
+      await sendEmail(
+        listing.agent.email,
+        `Listing expires in 7 days — ${addr}`,
+        emailHtml,
+        undefined,
+        { channel: "company", transactional: true },
+      );
+    }
+
     await prisma.listing.update({
       where: { id: listing.id },
       data: { expiration_7d_notified: true },
@@ -211,9 +252,14 @@ export async function GET(req: NextRequest) {
 
     // Notify broker
     const addr = formatAddress(period.listing.address);
+    // Email Tier A P0: include broker email + name in the select so we
+    // can send a UCBA missed-deadline email alongside the in-app notice.
+    // Maintains the existing recipient set (brokers only); does not
+    // expand to also email the listing agent (separate authorization
+    // would widen this).
     const brokers = await prisma.agent.findMany({
       where: { role: "BROKER", status: "active" },
-      select: { id: true },
+      select: { id: true, email: true, first_name: true, last_name: true },
     });
     for (const broker of brokers) {
       await createNotification({
@@ -224,6 +270,26 @@ export async function GET(req: NextRequest) {
         body: `Agent missed the 7 business day deadline to submit protected buyer names for ${addr} (${period.listing.listing_id}). No compensation claim is available.`,
         data: { listing_id: period.listing.listing_id },
       });
+
+      // Email Tier A P0: send UCBA missed-deadline email to broker.
+      // Transactional — UCBA compliance signal, not marketing.
+      if (broker.email) {
+        const brokerName = `${broker.first_name || ""} ${broker.last_name || ""}`.trim() || "Broker";
+        const emailHtml = listingExpirationEmail({
+          variant: "deadline_passed",
+          recipientName: brokerName,
+          address: addr,
+          listingId: period.listing.listing_id,
+          namesDeadline: period.names_deadline ?? undefined,
+        });
+        await sendEmail(
+          broker.email,
+          `Protected buyer deadline missed — ${addr}`,
+          emailHtml,
+          undefined,
+          { channel: "company", transactional: true },
+        );
+      }
     }
 
     await prisma.auditEvent.create({

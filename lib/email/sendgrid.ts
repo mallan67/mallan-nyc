@@ -87,17 +87,71 @@ export async function sendEmail(
     transactional?: boolean;
   }
 ): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean; _suppressed?: boolean }> {
+  // ─── Lead-level opt-out boundary check (Email Tier A P0) ───────────
+  //
+  // Runs BEFORE the SMTP-configured check so suppression wins regardless
+  // of operational state. Without this ordering, an unsubscribed recipient
+  // would get a stale `_devMode` audit signal in dev/staging instead of
+  // the more accurate `send_suppressed_unsubscribed` audit row, masking
+  // CAN-SPAM compliance evidence.
+  //
+  // CAN-SPAM 15 USC 7704(a)(4)(A) requires honoring opt-out requests
+  // within 10 business days for ALL commercial email. Prior to this
+  // boundary check, the only suppression was per-route (e.g.
+  // `/api/crm/email` filtered by `consent_captured_at`) and per-feature
+  // (saved-search alerts disabled by `/api/unsubscribe`). A CRM agent
+  // could still send a listing or pitch packet to an unsubscribed
+  // recipient — a CAN-SPAM hole.
+  //
+  // This check honors `Lead.last_unsubscribe_at` (an EXISTING column,
+  // populated by `/api/unsubscribe`). When the blocked `email_opt_out`
+  // Neon migration eventually deploys, this lookup can also honor that
+  // column with no contract change.
+  //
+  // Transactional sends (MFA OTP, password reset, portal invite,
+  // family invite, inquiry/CMA auto-response, agent inquiry) bypass
+  // this check — explicit acknowledgment of a user-initiated action.
+  // The CAN-SPAM exception for transactional or relationship messages
+  // (15 USC 7702(2)(B)) covers these.
+  //
+  // Lookup failure (DB unavailable) falls through to send. Suppression
+  // failure under operational outage is preferable to broken sending;
+  // the existing AuditEvent trail still captures every send attempt.
+  if (opts?.transactional !== true) {
+    try {
+      const lead = await prisma.lead.findUnique({
+        where: { email: to.toLowerCase().trim() },
+        select: { last_unsubscribe_at: true },
+      });
+      if (lead?.last_unsubscribe_at) {
+        await logEmailAudit("send_suppressed_unsubscribed", to, subject, user, {
+          unsubscribed_at: lead.last_unsubscribe_at,
+        });
+        return {
+          success: false,
+          _suppressed: true,
+          error: "Recipient has unsubscribed",
+        };
+      }
+    } catch (err) {
+      // Non-fatal — log a category and proceed with send.
+      const cat = err instanceof Error ? err.message.toLowerCase() : "unknown";
+      const category =
+        cat.includes("timeout") || cat.includes("econn") ? "db_unavailable" :
+        cat.includes("prisma") ? "prisma" :
+        "other";
+      console.warn(`[Email] opt-out lookup failed (non-fatal) | category=${category}`);
+    }
+  }
+
   if (!isConfigured) {
     console.error(`[Email:DEV] SMTP not configured — email DROPPED. To: ${to} | Subject: ${subject}`);
     await logEmailAudit("send_dev", to, subject, user);
     return { success: false, error: "SMTP not configured", _devMode: true };
   }
 
-  // CAN-SPAM suppression (Lead.email_opt_out check) is temporarily removed — the
-  // DB column has not been deployed yet (Neon compute quota blocked the migration).
-  // Re-enable once prisma/migrations add email_opt_out + email_opt_out_at.
-  // RFC 8058 List-Unsubscribe headers below still function as the recipient-side
-  // opt-out path (they drive search-alerts cancellation via /unsubscribe page).
+  // RFC 8058 List-Unsubscribe headers below provide the recipient-side
+  // opt-out path. The boundary check above is the sender-side gate.
 
   // Resolve sender identity based on channel
   const channel = opts?.channel || "company";
@@ -162,26 +216,13 @@ export async function sendEmail(
 }
 
 /**
- * Send a templated email. Since we no longer use SendGrid dynamic templates,
- * callers should pass pre-rendered HTML via sendEmail() instead.
- * This function is kept for backwards compatibility — logs a warning.
- */
-export async function sendTemplatedEmail(
-  to: string,
-  templateKey: string,
-  dynamicData: Record<string, unknown>,
-  user?: SessionUser
-): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean }> {
-  console.warn(
-    `[Email] sendTemplatedEmail called with key "${templateKey}". ` +
-    `SendGrid templates are no longer configured — use sendEmail() with pre-rendered HTML.`
-  );
-  await logEmailAudit("template_unsupported", to, `template:${templateKey}`, user);
-  return { success: false, error: `Template "${templateKey}" not supported — use sendEmail() with HTML` };
-}
-
-/**
  * Send bulk emails (e.g., listing alerts). Rate-limited by caller.
+ *
+ * Email Tier A P0 cleanup (2026-05-06): the legacy `sendTemplatedEmail` stub
+ * previously above was a SendGrid-templates dead-code path that always
+ * returned failure. Verified zero callers in app/ lib/ scripts/ tests/
+ * before deletion. Modern callers compose pre-rendered HTML via the named
+ * template helpers below and pass it directly to sendEmail().
  */
 export async function sendBulkEmail(
   recipients: { email: string; name: string }[],

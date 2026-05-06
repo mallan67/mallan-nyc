@@ -476,6 +476,125 @@ export function genericCrmEmail(
 }
 
 /**
+ * Listing expiration email — sent by the listing-expiration cron when an
+ * exclusive agreement is approaching expiration (urgent_7d) or when the
+ * agent has missed the 7-business-day protected-buyer-names deadline
+ * (deadline_passed).
+ *
+ * UCBA Article I §6/§7/§8 background:
+ *   - On expiration, the agent has 7 BUSINESS DAYS to submit up to 6
+ *     protected-buyer names + the notice of expired listing.
+ *   - Failure to submit within 7 business days → no compensation claim
+ *     available on those buyers (financial loss to the agent).
+ *   - Submitting names by deadline → 90 calendar days of protection
+ *     starting from expiration.
+ *
+ * Today these notifications fire only as in-app `Notification` rows.
+ * This template adds an email channel for the two highest-stakes
+ * branches (urgent_7d → listing agent; deadline_passed → broker).
+ *
+ * Sent via the company channel as a transactional system notification
+ * (an urgency-driven operational message tied to a specific UCBA
+ * deadline, not a marketing send). Transactional flag in the calling
+ * cron skips the Lead-level opt-out boundary check at sendEmail().
+ */
+export function listingExpirationEmail(opts: {
+  variant: "urgent_7d" | "deadline_passed";
+  recipientName: string;
+  address: string;
+  listingId: string;
+  expirationDate?: Date;
+  namesDeadline?: Date;
+  protectionEnds?: Date;
+}): string {
+  const fmt = (d?: Date) =>
+    d
+      ? d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+      : "—";
+
+  if (opts.variant === "urgent_7d") {
+    return wrapEmail(`
+      <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;margin:0 0 16px;">
+        <p style="font-size:12px;font-weight:700;color:#92400e;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">UCBA Art. I §6 / §7 — 7-day urgent</p>
+        <p style="font-size:14px;color:#78350f;margin:0;">Action required before expiration.</p>
+      </div>
+      <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Your Exclusive on ${escapeHtml(opts.address)} Expires in 7 Days</h1>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+        Hi ${escapeHtml(opts.recipientName || "Agent")},
+      </p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+        Your exclusive listing agreement for <strong>${escapeHtml(opts.address)}</strong>
+        (RLS&nbsp;ID&nbsp;${escapeHtml(opts.listingId)}) expires on
+        <strong>${fmt(opts.expirationDate)}</strong>.
+      </p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+        Per UCBA Article&nbsp;I §6/§7, you have <strong>7 business days from the expiration
+        date</strong> to submit up to <strong>6 protected-buyer names</strong> plus the notice of
+        expired listing. Submitting on time preserves your right to compensation
+        claims on those buyers for 90 calendar days after expiration.
+        <strong>Missing the deadline forfeits the claim.</strong>
+      </p>
+      <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+        Prepare your protected-buyer list now in the CRM Protected Periods panel,
+        and have the notice of expired listing ready to upload as soon as the
+        agreement expires.
+      </p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${BASE_URL}/crm"
+           style="display:inline-block;padding:14px 32px;background:${BRAND_GOLD};color:#ffffff;
+                  font-size:15px;font-weight:600;text-decoration:none;border-radius:6px;">
+          Open CRM Dashboard
+        </a>
+      </div>
+      <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;line-height:1.5;">
+        This is an automated UCBA-compliance reminder from the listing-expiration cron.
+        It is sent in addition to the in-app notification.
+      </p>
+    `);
+  }
+
+  // variant === "deadline_passed"
+  return wrapEmail(`
+    <div style="background:#fee2e2;border:1px solid #f87171;border-radius:8px;padding:14px 16px;margin:0 0 16px;">
+      <p style="font-size:12px;font-weight:700;color:#991b1b;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">UCBA Art. I §6 / §7 — deadline missed</p>
+      <p style="font-size:14px;color:#7f1d1d;margin:0;">No compensation claim available on this listing.</p>
+    </div>
+    <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Protected-Buyer Deadline Missed: ${escapeHtml(opts.address)}</h1>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Hi ${escapeHtml(opts.recipientName || "Broker")},
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      The 7-business-day deadline to submit protected-buyer names for
+      <strong>${escapeHtml(opts.address)}</strong>
+      (RLS&nbsp;ID&nbsp;${escapeHtml(opts.listingId)}) has passed${
+        opts.namesDeadline ? ` (deadline was ${fmt(opts.namesDeadline)})` : ""
+      }. The protected period status has been updated to
+      <strong>missed_deadline</strong>.
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Per UCBA Article&nbsp;I §6/§7, no compensation claim is available on protected
+      buyers for this listing. Future commission protection requires re-engagement
+      under a new agreement.
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      The CRM Protected Periods panel reflects the updated status. Review with the
+      assigned agent to identify process gaps for future expirations.
+    </p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${BASE_URL}/crm"
+         style="display:inline-block;padding:14px 32px;background:${BRAND_GOLD};color:#ffffff;
+                font-size:15px;font-weight:600;text-decoration:none;border-radius:6px;">
+        Open CRM Dashboard
+      </a>
+    </div>
+    <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;line-height:1.5;">
+      This is an automated UCBA-compliance notification from the listing-expiration cron.
+      It is sent in addition to the in-app notification.
+    </p>
+  `);
+}
+
+/**
  * Password reset email — sent when a user requests a password reset.
  */
 export function passwordResetEmail(
