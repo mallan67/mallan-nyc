@@ -476,6 +476,160 @@ export function genericCrmEmail(
 }
 
 /**
+ * Lifecycle trigger email — sent by lib/lifecycle/engine.ts when a
+ * trigger with action_type='email' fires.
+ *
+ * Recipient: the LEAD (not the agent). Per-trigger consent enforcement
+ * is the target-finder's responsibility (e.g.,
+ * findQuarterlyNurtureTargets filters by consent_captured_at).
+ * `last_unsubscribe_at` is honored at the sendEmail() boundary.
+ *
+ * Body content for Tier A is intentionally generic + safe — a brief
+ * professional touch with a CTA to schedule a call. Trigger-specific
+ * rich content (matched listings, market stats, rent-vs-buy widget)
+ * is Tier B work that needs additional Trestle queries and a richer
+ * action_config schema.
+ */
+export function lifecycleTriggerEmail(opts: {
+  leadName: string;
+  trigger: string;
+  urgency: boolean;
+  context: Record<string, unknown>;
+}): string {
+  const { leadName, trigger, urgency, context } = opts;
+
+  // Per-trigger lead-facing copy. Triggers that originate as
+  // agent-facing (inquiry_stale, momentum_drop) fall through to a
+  // safe generic message — those triggers should normally use
+  // action_type='notification' or 'agent_alert'; if a broker has
+  // configured them as 'email' we still ship a non-embarrassing copy.
+  let opening: string;
+  let body: string;
+  switch (trigger) {
+    case 'lease_expiring_180d': {
+      const days = Number(context.days_to_expiry) || 180;
+      opening = `Your lease comes up for renewal in roughly ${days} days. That feels distant, but in the New York market it’s the right time to start exploring what comes next.`;
+      body = `Whether you’re thinking about renewing, finding a new place to rent, or buying for the first time, we can help you compare. There’s no commitment — just a conversation.`;
+      break;
+    }
+    case 'lease_expiring_90d': {
+      const days = Number(context.days_to_expiry) || 90;
+      opening = `Your lease ends in about ${days} days. That’s the window where most New Yorkers start lining up their next move.`;
+      body = `If you’re leaning toward renting again, we can show you no-fee options. If buying is even a remote possibility, we can sketch what your monthly cost would look like — often closer to your current rent than you’d expect.`;
+      break;
+    }
+    case 'lease_expiring_30d': {
+      const days = Number(context.days_to_expiry) || 30;
+      opening = `Your lease ends in about ${days} days. We don’t want this to sneak up on you.`;
+      body = `Reply with what you’d like to do — renew, look at new rentals, or explore buying — and we can move quickly. NYC inventory shifts week to week and we have a short list of properties that match what you’ve looked at before.`;
+      break;
+    }
+    case 'quarterly_nurture': {
+      opening = `It’s been a few months since we last connected, so I wanted to share a brief update on the New York market.`;
+      body = `Inventory and pricing in your preferred neighborhoods continue to shift, and we have some new listings worth looking at. If you’d like a tailored snapshot — or you’re ready to revisit your search — just reply and we’ll pull together a few options.`;
+      break;
+    }
+    case 'conviction_threshold': {
+      opening = `I noticed you’ve been spending time on listings that fit your search profile closely — that’s usually a sign you’re narrowing in.`;
+      body = `When you’re ready to take the next step, we can put together a quick offer-readiness checklist (financing, comparable sales, building requirements) so you’re positioned to move fast on the right one.`;
+      break;
+    }
+    case 'ghost_detected': {
+      opening = `It’s been a little while since you’ve been by the listings, so I wanted to check in.`;
+      body = `Has anything changed about your timeline or preferences? If you’d like to take a break, that’s fine too — just say the word. Otherwise we’d love to refresh your matches.`;
+      break;
+    }
+    default: {
+      opening = `Your Mallan Real Estate agent has an update for you.`;
+      body = `If you have a few minutes, please reach out and we’ll share the details directly.`;
+    }
+  }
+
+  const urgencyBanner = urgency
+    ? `<div style="background:#fee2e2;border:1px solid #f87171;border-radius:8px;padding:12px 16px;margin:0 0 16px;">
+         <p style="font-size:13px;font-weight:700;color:#991b1b;margin:0;text-transform:uppercase;letter-spacing:0.5px;">Time-sensitive</p>
+       </div>`
+    : '';
+
+  return wrapEmail(`
+    ${urgencyBanner}
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Hi ${escapeHtml(leadName)},
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      ${escapeHtml(opening)}
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">
+      ${escapeHtml(body)}
+    </p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${BASE_URL}"
+         style="display:inline-block;padding:14px 32px;background:${BRAND_GOLD};color:#ffffff;
+                font-size:15px;font-weight:600;text-decoration:none;border-radius:6px;">
+        Schedule a Conversation
+      </a>
+    </div>
+    <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;line-height:1.5;">
+      Or simply reply to this email — we read every reply.
+    </p>
+  `);
+}
+
+/**
+ * Feed-reconcile abort alert — sent by app/api/cron/feed-reconcile when
+ * the GHOST_ABORT_CAP fires (likely Trestle outage). Goes to brokers as
+ * a transactional system notification. Body explicitly cites the count
+ * and the cap so the operator can decide whether to investigate or wait.
+ */
+export function feedReconcileAbortEmail(opts: {
+  recipientName: string;
+  ghostCount: number;
+  cap: number;
+  trestleActiveCount: number;
+  ourActiveCount: number;
+  abortReason: string;
+}): string {
+  return wrapEmail(`
+    <div style="background:#fee2e2;border:1px solid #f87171;border-radius:8px;padding:14px 16px;margin:0 0 16px;">
+      <p style="font-size:12px;font-weight:700;color:#991b1b;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Feed reconcile aborted</p>
+      <p style="font-size:14px;color:#7f1d1d;margin:0;">Trestle anomaly detected. No transitions made.</p>
+    </div>
+    <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Feed Reconcile Aborted — Manual Review Required</h1>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      Hi ${escapeHtml(opts.recipientName || 'Broker')},
+    </p>
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      The daily feed-reconcile cron detected <strong>${opts.ghostCount}</strong> ghost listings
+      (Active in our DB but missing from the Trestle Active feed) — exceeding the safety cap of
+      <strong>${opts.cap}</strong>. The cron aborted before transitioning anything.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e5e7eb;margin:0 0 16px;">
+      <tr>
+        <td style="padding:10px 16px;font-size:13px;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Trestle Active count</td>
+        <td style="padding:10px 16px;font-size:13px;font-weight:600;color:${BRAND_DARK};text-align:right;background:#f9fafb;border-bottom:1px solid #e5e7eb;">${opts.trestleActiveCount.toLocaleString()}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Our DB Active count</td>
+        <td style="padding:10px 16px;font-size:13px;font-weight:600;color:${BRAND_DARK};text-align:right;border-bottom:1px solid #e5e7eb;">${opts.ourActiveCount.toLocaleString()}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 16px;font-size:13px;color:#6b7280;background:#fef2f2;">Ghosts detected</td>
+        <td style="padding:10px 16px;font-size:14px;font-weight:700;color:#dc2626;text-align:right;background:#fef2f2;">${opts.ghostCount.toLocaleString()}</td>
+      </tr>
+    </table>
+    <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px;">
+      A delta this large typically indicates a Trestle fetch failure (partial result) rather than an
+      actual mass-disappearance. The cron will retry on its next schedule. Investigate Trestle status,
+      or run <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;">scripts/feed-reconcile-dry-run</code>
+      to inspect the diff manually.
+    </p>
+    <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;line-height:1.5;">
+      This is an automated alert from the feed-reconcile cron. Reason code: <code>${escapeHtml(opts.abortReason)}</code>.
+    </p>
+  `);
+}
+
+/**
  * Listing expiration email — sent by the listing-expiration cron when an
  * exclusive agreement is approaching expiration (urgent_7d) or when the
  * agent has missed the 7-business-day protected-buyer-names deadline

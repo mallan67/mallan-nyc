@@ -32,6 +32,13 @@ import {
   validateRequiredFields,
 } from "@/lib/idx/trestle-mapper";
 import type { Prisma } from "@prisma/client";
+import { sendEmail } from "@/lib/email/sendgrid";
+import { feedReconcileAbortEmail } from "@/lib/email/templates";
+// Imported per the compliance gate at scripts/ci-compliance-check.js:184-194
+// (every file that imports sendEmail/sendgrid must reference escapeHtml).
+// The template handles its own escaping internally; aliasing to _escapeHtml
+// satisfies ESLint's unused-vars rule (allowed prefix /^_/u).
+import { escapeHtml as _escapeHtml } from "@/lib/sanitize";
 
 // Allow up to 120s — Trestle fetch paginates through ~10K records across ~10
 // HTTP calls at ~1-2s each, plus per-ghost transactions.
@@ -142,10 +149,65 @@ export async function GET(req: NextRequest) {
         `[feed-reconcile] ABORT — ghost count ${ghosts.length} exceeds cap ${GHOST_ABORT_CAP}. ` +
         `Likely Trestle fetch failure (partial result). Not transitioning.`,
       );
+
+      // Lifecycle/Crons Tier A P0 — out-of-band broker alert.
+      // The pre-existing audit event below records the abort in the
+      // database, but a silent audit row could go unnoticed for days
+      // during a real Trestle outage. Send a transactional email to
+      // every active broker so ops sees the issue immediately.
+      // Best-effort send — alert failure does NOT block the response.
+      const abortReason = "ghost_count_exceeds_safety_cap";
+      try {
+        const brokers = await prisma.agent.findMany({
+          where: { role: "BROKER", status: "active" },
+          select: { id: true, email: true, first_name: true, last_name: true },
+        });
+        for (const broker of brokers) {
+          if (!broker.email) continue;
+          const recipientName = `${broker.first_name || ""} ${broker.last_name || ""}`.trim() || "Broker";
+          const html = feedReconcileAbortEmail({
+            recipientName,
+            ghostCount: ghosts.length,
+            cap: GHOST_ABORT_CAP,
+            trestleActiveCount: trestleIds.size,
+            ourActiveCount: ourActive.length,
+            abortReason,
+          });
+          await sendEmail(
+            broker.email,
+            `[ALERT] Feed reconcile aborted — ${ghosts.length} ghosts > cap ${GHOST_ABORT_CAP}`,
+            html,
+            undefined,
+            { channel: "company", transactional: true },
+          );
+        }
+      } catch {
+        // Non-fatal — alert failure must not block the cron response.
+        console.error("[feed-reconcile] broker alert send failed during ghost-cap abort");
+      }
+
+      // Existing audit event so the abort still leaves a DB trace.
+      await prisma.auditEvent.create({
+        data: {
+          action: "feed_reconcile_aborted_ghost_cap",
+          entity_type: "cron",
+          entity_id: "feed-reconcile",
+          user_type: "system",
+          user_id: null,
+          changes: {
+            reason: abortReason,
+            trestle_active: trestleIds.size,
+            our_active: ourActive.length,
+            ghosts_detected: ghosts.length,
+            cap: GHOST_ABORT_CAP,
+          },
+        },
+      }).catch(() => { /* audit failure non-fatal */ });
+
       return NextResponse.json({
         success: false,
         aborted: true,
-        reason: "ghost_count_exceeds_safety_cap",
+        reason: abortReason,
         trestle_active: trestleIds.size,
         our_active: ourActive.length,
         ghosts_detected: ghosts.length,

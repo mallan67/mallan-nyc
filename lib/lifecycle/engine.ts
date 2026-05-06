@@ -7,9 +7,23 @@
  *
  * TCPA compliant: checks notification preferences before sending.
  * Fair Housing safe: no demographic-based triggers.
+ *
+ * Lifecycle/Crons Tier A P0 (2026-05-06):
+ *   - action_type='email' previously created only an in-app agent
+ *     notification — silent no-op vs. its declared name. Now wired
+ *     to send a real email to the LEAD via the company channel,
+ *     honoring the Email Tier A `last_unsubscribe_at` boundary
+ *     check at lib/email/sendgrid.ts. Each fire emits an audit event:
+ *       - lifecycle_email_sent                        (delivered)
+ *       - lifecycle_email_suppressed_unsubscribed     (Tier A boundary)
+ *       - lifecycle_email_send_failed                 (transient SMTP)
+ *       - lifecycle_email_skipped_no_address          (lead has no email)
+ *       - lifecycle_email_skipped_non_lead_target     (target.type !== 'lead')
  */
 
 import prisma from '@/lib/prisma';
+import { sendEmail } from '@/lib/email/sendgrid';
+import { lifecycleTriggerEmail } from '@/lib/email/templates';
 
 // ─── Trigger Types ─────────────────────────────────────────
 export type TriggerType =
@@ -253,11 +267,21 @@ async function findLeaseExpiringTargets(
   const windowEnd = new Date(targetDate);
   windowEnd.setDate(windowEnd.getDate() + 7);
 
+  // Lifecycle/Crons Tier A P0 — uniform consent gate.
+  // The 3 lease-expiring DEFAULT_TRIGGERS use action_type='email'. After
+  // wiring the email executor, target leads must have given affirmative
+  // consent (TCPA/CAN-SPAM column populated by the lead-capture forms)
+  // before they receive a lifecycle nurture email. Matches the existing
+  // `findQuarterlyNurtureTargets` pattern at line 309. Manually-added
+  // leads or family-invite leads without `consent_captured_at` are
+  // excluded — opt-out boundary at sendEmail() is a defense in depth,
+  // not the primary gate.
   const candidates = await prisma.lead.findMany({
     where: {
       lease_end_date: { gte: windowStart, lte: windowEnd },
       pipeline_stage: { in: ['new', 'contacted', 'nurturing', 'active', 'showing'] },
       roles: { hasSome: ['renter', 'tenant'] },
+      consent_captured_at: { not: null },
     },
     select: { id: true, lease_end_date: true, annual_income: true, credit_score_range: true, pre_approved: true },
   });
@@ -328,7 +352,7 @@ async function findQuarterlyNurtureTargets(): Promise<
 // ─── Action Executor ───────────────────────────────────────
 async function executeAction(
   actionType: string,
-  _actionConfig: Record<string, unknown>,
+  actionConfig: Record<string, unknown>,
   target: { type: string; id: string; context: Record<string, unknown> }
 ): Promise<void> {
   switch (actionType) {
@@ -375,25 +399,116 @@ async function executeAction(
       break;
     }
     case 'email': {
-      // Email action — creates agent notification for now.
-      // Full branded email send will be built inside client workspace (Phase 5).
-      if (target.type === 'lead') {
-        const lead = await prisma.lead.findUnique({
-          where: { id: BigInt(target.id) },
-          select: { agent_id: true, first_name: true, last_name: true },
-        });
-        if (lead?.agent_id) {
-          await prisma.notification.create({
-            data: {
-              recipient_type: 'agent',
-              recipient_id: lead.agent_id,
-              type: target.context.trigger as string || 'system',
-              title: generateNotificationTitle(target.context),
-              body: generateNotificationBody(target.context, `${lead.first_name} ${lead.last_name}`),
+      // ── Lifecycle/Crons Tier A P0 — real email send to the lead ──
+      //
+      // Recipient resolution: only `lead` targets get email. Other
+      // target types (e.g. 'listing' from momentum_drop) skip with an
+      // audit signal — the notification path handles those cases.
+      //
+      // Email send goes through lib/email/sendgrid.ts which honors:
+      //   - Lead.last_unsubscribe_at (Email Tier A boundary check —
+      //     non-transactional sends suppressed for unsubscribed leads)
+      //   - SMTP fail-loud (returns _devMode=true if SMTP not configured)
+      //
+      // CAN-SPAM 15 USC 7704: lifecycle nurture emails are commercial.
+      // Per-trigger consent enforcement is the target-finder's job
+      // (e.g., findQuarterlyNurtureTargets already filters by
+      // consent_captured_at: { not: null }). The send-side boundary
+      // check is the safety net.
+      if (target.type !== 'lead') {
+        await prisma.auditEvent.create({
+          data: {
+            action: 'lifecycle_email_skipped_non_lead_target',
+            entity_type: target.type,
+            entity_id: target.id,
+            user_type: 'system',
+            user_id: null,
+            changes: {
+              trigger: target.context.trigger as string ?? null,
+              target_type: target.type,
             },
-          });
-        }
+          },
+        }).catch(() => { /* audit failure must not block engine */ });
+        break;
       }
+
+      const lead = await prisma.lead.findUnique({
+        where: { id: BigInt(target.id) },
+        select: { email: true, first_name: true, last_name: true, agent_id: true },
+      });
+      if (!lead) {
+        // Race: target found a moment ago but lead row is gone now.
+        await prisma.auditEvent.create({
+          data: {
+            action: 'lifecycle_email_skipped_lead_not_found',
+            entity_type: 'lead',
+            entity_id: target.id,
+            user_type: 'system',
+            user_id: null,
+            changes: { trigger: target.context.trigger as string ?? null },
+          },
+        }).catch(() => {});
+        break;
+      }
+
+      const leadName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'there';
+
+      if (!lead.email) {
+        // Skip safely + audit so the operator can see the count.
+        await prisma.auditEvent.create({
+          data: {
+            action: 'lifecycle_email_skipped_no_address',
+            entity_type: 'lead',
+            entity_id: target.id,
+            user_type: 'system',
+            user_id: null,
+            changes: {
+              trigger: target.context.trigger as string ?? null,
+              lead_name: leadName,
+            },
+          },
+        }).catch(() => {});
+        break;
+      }
+
+      const subject = generateEmailSubject(target.context, actionConfig);
+      const html = lifecycleTriggerEmail({
+        leadName,
+        trigger: target.context.trigger as string ?? 'system',
+        urgency: actionConfig?.urgency === true,
+        context: target.context,
+      });
+
+      const result = await sendEmail(
+        lead.email,
+        subject,
+        html,
+        undefined,
+        { channel: 'company' }, // commercial; respects last_unsubscribe_at boundary
+      );
+
+      const action =
+        result.success
+          ? 'lifecycle_email_sent'
+          : (result as { _suppressed?: boolean })._suppressed === true
+            ? 'lifecycle_email_suppressed_unsubscribed'
+            : 'lifecycle_email_send_failed';
+
+      await prisma.auditEvent.create({
+        data: {
+          action,
+          entity_type: 'lead',
+          entity_id: target.id,
+          user_type: 'system',
+          user_id: null,
+          changes: {
+            trigger: target.context.trigger as string ?? null,
+            success: result.success,
+            message_id: result.messageId ?? null,
+            recipient_email_domain: lead.email.split('@')[1] ?? null,
+          },
+        },
+      }).catch(() => {});
       break;
     }
     // crm_task action type can be implemented as needed
@@ -458,6 +573,41 @@ function generateNotificationBody(context: Record<string, unknown>, leadName?: s
       return `${leadName || 'A client'}'s engagement pattern has shifted from their stated preferences. Review their recent activity and update their search criteria.`;
     default:
       return 'Please review and take appropriate action.';
+  }
+}
+
+// ─── Email subject (lead-facing) ───────────────────────────
+//
+// Lifecycle/Crons Tier A P0: agent-facing notification titles
+// (generateNotificationTitle above) are written for the broker's
+// CRM dashboard. The lead-facing email subject must be customer-
+// friendly. Keep these short, professional, and Fair-Housing-safe.
+//
+// `action_config.subject` (when set) takes precedence — brokers
+// configuring custom triggers can override per-trigger.
+function generateEmailSubject(
+  context: Record<string, unknown>,
+  actionConfig: Record<string, unknown>,
+): string {
+  if (typeof actionConfig?.subject === 'string' && actionConfig.subject.trim()) {
+    return actionConfig.subject.trim();
+  }
+  const trigger = context.trigger as string || '';
+  switch (trigger) {
+    case 'lease_expiring_180d':
+      return 'Your lease ends in ~6 months — let’s talk options';
+    case 'lease_expiring_90d':
+      return 'Your lease ends in ~90 days — explore your options';
+    case 'lease_expiring_30d':
+      return 'Your lease ends in ~30 days — let’s move quickly';
+    case 'quarterly_nurture':
+      return 'Quarterly market update from Mallan Real Estate';
+    case 'conviction_threshold':
+      return 'A note from your Mallan Real Estate agent';
+    case 'ghost_detected':
+      return 'Checking in — anything we can help with?';
+    default:
+      return 'An update from your Mallan Real Estate agent';
   }
 }
 
