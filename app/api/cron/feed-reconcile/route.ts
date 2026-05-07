@@ -157,6 +157,8 @@ export async function GET(req: NextRequest) {
       // every active broker so ops sees the issue immediately.
       // Best-effort send — alert failure does NOT block the response.
       const abortReason = "ghost_count_exceeds_safety_cap";
+      let brokerAlertsSent = 0;
+      let brokerAlertsFailed = 0;
       try {
         const brokers = await prisma.agent.findMany({
           where: { role: "BROKER", status: "active" },
@@ -173,17 +175,23 @@ export async function GET(req: NextRequest) {
             ourActiveCount: ourActive.length,
             abortReason,
           });
-          await sendEmail(
+          const alertResult = await sendEmail(
             broker.email,
             `[ALERT] Feed reconcile aborted — ${ghosts.length} ghosts > cap ${GHOST_ABORT_CAP}`,
             html,
             undefined,
             { channel: "company", transactional: true },
           );
+          if (alertResult.success) {
+            brokerAlertsSent++;
+          } else {
+            brokerAlertsFailed++;
+          }
         }
       } catch {
         // Non-fatal — alert failure must not block the cron response.
         console.error("[feed-reconcile] broker alert send failed during ghost-cap abort");
+        brokerAlertsFailed++;
       }
 
       // Existing audit event so the abort still leaves a DB trace.
@@ -200,6 +208,8 @@ export async function GET(req: NextRequest) {
             our_active: ourActive.length,
             ghosts_detected: ghosts.length,
             cap: GHOST_ABORT_CAP,
+            broker_alerts_sent: brokerAlertsSent,
+            broker_alerts_failed: brokerAlertsFailed,
           },
         },
       }).catch(() => { /* audit failure non-fatal */ });
@@ -212,6 +222,8 @@ export async function GET(req: NextRequest) {
         our_active: ourActive.length,
         ghosts_detected: ghosts.length,
         cap: GHOST_ABORT_CAP,
+        broker_alerts_sent: brokerAlertsSent,
+        broker_alerts_failed: brokerAlertsFailed,
         duration_ms: Date.now() - startTime,
       }, { status: 503 });
     }

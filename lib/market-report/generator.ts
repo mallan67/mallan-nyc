@@ -45,6 +45,7 @@ export interface AiNarrativeMeta {
   response_chars: number;
   model: string;
   ai_failed: boolean;
+  data_failed: boolean;
   /** Indicates the response is the local-fallback narrative (Anthropic
    *  call threw or returned no text). The hash still reflects the
    *  fallback string so audit chains stay verifiable. */
@@ -82,6 +83,11 @@ export interface MarketReportSection {
     type: string;
     company: string;
   }[];
+}
+
+interface MarketReportFetchResult {
+  section: MarketReportSection | null;
+  data_failed: boolean;
 }
 
 export interface MarketReport {
@@ -122,9 +128,9 @@ async function fetchTrestleStats(
   propertyType: string,
   borough?: string,
   neighborhoods?: string[]
-): Promise<MarketReportSection | null> {
+): Promise<MarketReportFetchResult> {
   const typeFilter = TYPE_FILTERS[propertyType];
-  if (!typeFilter) return null;
+  if (!typeFilter) return { section: null, data_failed: false };
 
   const statusFilter = listingType === "rent"
     ? "StandardStatus eq 'Active' and PropertyType eq 'Residential Lease'"
@@ -173,14 +179,17 @@ async function fetchTrestleStats(
 
     if (listings.length === 0) {
       return {
-        property_type: propertyType,
-        listing_type: listingType,
-        stats: {
-          active_count: 0, median_price: 0, avg_price: 0,
-          avg_price_per_sqft: 0, avg_dom: 0, new_listings_30d: 0,
-          price_range: { min: 0, max: 0 }, avg_maintenance: 0,
+        section: {
+          property_type: propertyType,
+          listing_type: listingType,
+          stats: {
+            active_count: 0, median_price: 0, avg_price: 0,
+            avg_price_per_sqft: 0, avg_dom: 0, new_listings_30d: 0,
+            price_range: { min: 0, max: 0 }, avg_maintenance: 0,
+          },
+          sample_listings: [],
         },
-        sample_listings: [],
+        data_failed: false,
       };
     }
 
@@ -237,26 +246,34 @@ async function fetchTrestleStats(
     }));
 
     return {
-      property_type: propertyType,
-      listing_type: listingType,
-      stats: {
-        active_count: totalCount,
-        median_price: medianPrice,
-        avg_price: avgPrice,
-        avg_price_per_sqft: avgPpSqft,
-        avg_dom: avgDom,
-        new_listings_30d: newListings,
-        price_range: {
-          min: prices.length > 0 ? prices[0] : 0,
-          max: prices.length > 0 ? prices[prices.length - 1] : 0,
+      section: {
+        property_type: propertyType,
+        listing_type: listingType,
+        stats: {
+          active_count: totalCount,
+          median_price: medianPrice,
+          avg_price: avgPrice,
+          avg_price_per_sqft: avgPpSqft,
+          avg_dom: avgDom,
+          new_listings_30d: newListings,
+          price_range: {
+            min: prices.length > 0 ? prices[0] : 0,
+            max: prices.length > 0 ? prices[prices.length - 1] : 0,
+          },
+          avg_maintenance: avgMaint,
         },
-        avg_maintenance: avgMaint,
+        sample_listings: samples,
       },
-      sample_listings: samples,
+      data_failed: false,
     };
   } catch (err) {
-    console.error(`[market-report] Trestle fetch failed for ${propertyType} ${listingType}:`, err);
-    return null;
+    const cat = err instanceof Error
+      ? (err.message.toLowerCase().includes("auth") ? "auth_failed"
+        : err.message.toLowerCase().includes("timeout") ? "timeout"
+        : "source_unavailable")
+      : "unknown";
+    console.error(`[market-report] Trestle fetch failed | listing_type=${listingType} | property_type=${propertyType} | category=${cat}`);
+    return { section: null, data_failed: true };
   }
 }
 
@@ -279,6 +296,7 @@ async function generateNarrative(
         response_chars: fallback.length,
         model: AI_MODEL,
         ai_failed: false,
+        data_failed: false,
         fallback_used: true,
       },
     };
@@ -353,6 +371,7 @@ Write the narrative now:`;
         response_chars: narrativeText.length,
         model: AI_MODEL,
         ai_failed: false,
+        data_failed: false,
         fallback_used: fallbackUsed,
       },
     };
@@ -381,6 +400,7 @@ Write the narrative now:`;
         response_chars: fallbackText.length,
         model: AI_MODEL,
         ai_failed: true,
+        data_failed: false,
         fallback_used: true,
       },
     };
@@ -399,7 +419,7 @@ export async function generateMarketReport(
   let sections: MarketReportSection[] = [];
 
   // Fetch from Trestle in parallel
-  const promises: Promise<MarketReportSection | null>[] = [];
+  const promises: Promise<MarketReportFetchResult>[] = [];
 
   if (input.report_type === "sale" || input.report_type === "both") {
     for (const pt of propertyTypes) {
@@ -414,7 +434,14 @@ export async function generateMarketReport(
   }
 
   const results = await Promise.all(promises);
-  sections = results.filter(Boolean) as MarketReportSection[];
+  const failedFetches = results.filter((result) => result.data_failed).length;
+  if (failedFetches > 0) {
+    const error = new Error("Market report source data unavailable");
+    (error as Error & { code?: string; data_failed?: boolean }).code = "MARKET_REPORT_DATA_UNAVAILABLE";
+    (error as Error & { code?: string; data_failed?: boolean }).data_failed = true;
+    throw error;
+  }
+  sections = results.map((result) => result.section).filter(Boolean) as MarketReportSection[];
 
   const { narrative, meta: ai_meta } = await generateNarrative(sections, period);
   const totalListings = sections.reduce((s, sec) => s + sec.stats.active_count, 0);

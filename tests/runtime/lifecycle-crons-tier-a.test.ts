@@ -213,10 +213,15 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
     });
 
     const { evaluateAllTriggers } = await import('@/lib/lifecycle/engine');
-    await evaluateAllTriggers();
+    const result = await evaluateAllTriggers();
+
+    expect(result.fired).toBe(0);
+    expect(result.suppressed).toBe(1);
 
     // sendEmail NOT called
     expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(triggerExecutionCreateMock).not.toHaveBeenCalled();
+    expect(lifecycleTriggerUpdateMock).not.toHaveBeenCalled();
 
     // AuditEvent: lifecycle_email_skipped_no_address (NOT lifecycle_email_sent)
     const auditCalls = auditEventCreateMock.mock.calls;
@@ -328,10 +333,15 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
     });
 
     const { evaluateAllTriggers } = await import('@/lib/lifecycle/engine');
-    await evaluateAllTriggers();
+    const result = await evaluateAllTriggers();
+
+    expect(result.fired).toBe(0);
+    expect(result.suppressed).toBe(1);
 
     // sendEmail still called (the lookup is upstream of the boundary)
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(triggerExecutionCreateMock).not.toHaveBeenCalled();
+    expect(lifecycleTriggerUpdateMock).not.toHaveBeenCalled();
 
     // AuditEvent: lifecycle_email_suppressed_unsubscribed
     const auditCalls = auditEventCreateMock.mock.calls;
@@ -340,6 +350,61 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
       return arg?.data?.action === 'lifecycle_email_suppressed_unsubscribed';
     });
     expect(suppressed).toBeDefined();
+  });
+
+  it('does not record trigger execution or cooldown when sendEmail fails', async () => {
+    lifecycleTriggerFindManyMock.mockResolvedValue([
+      {
+        id: 4n,
+        trigger_type: 'quarterly_nurture',
+        conditions: {},
+        action_type: 'email',
+        action_config: {},
+        cooldown_hours: 2016,
+        last_executed_at: null,
+        execution_count: 0,
+        enabled: true,
+      },
+    ]);
+
+    leadFindManyMock.mockResolvedValue([
+      {
+        id: 400n,
+        pipeline_stage: 'nurturing',
+        roles: ['buyer'],
+        last_contacted_at: null,
+        agent_id: 42n,
+        preferences: { neighborhoods: ['Tribeca'] },
+      },
+    ]);
+
+    leadFindUniqueMock.mockResolvedValue({
+      email: 'lead@example.com',
+      first_name: 'Fail',
+      last_name: 'Send',
+      agent_id: 42n,
+    });
+
+    sendEmailMock.mockResolvedValue({
+      success: false,
+      error: 'SMTP send failed',
+    });
+
+    const { evaluateAllTriggers } = await import('@/lib/lifecycle/engine');
+    const result = await evaluateAllTriggers();
+
+    expect(result.fired).toBe(0);
+    expect(result.suppressed).toBe(1);
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(triggerExecutionCreateMock).not.toHaveBeenCalled();
+    expect(lifecycleTriggerUpdateMock).not.toHaveBeenCalled();
+
+    const auditCalls = auditEventCreateMock.mock.calls;
+    const failed = auditCalls.find((c) => {
+      const arg = c[0] as { data?: { action?: string } } | undefined;
+      return arg?.data?.action === 'lifecycle_email_send_failed';
+    });
+    expect(failed).toBeDefined();
   });
 });
 
@@ -403,6 +468,8 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     // IDs (RLS_KEEP_*) so all 2500 rows are ghosts (no overlap).
     expect(body.ghosts_detected).toBe(2500);
     expect(body.cap).toBe(2000);
+    expect(body.broker_alerts_sent).toBe(2);
+    expect(body.broker_alerts_failed).toBe(0);
 
     // Broker alert email sent — once per broker
     expect(sendEmailMock).toHaveBeenCalledTimes(2);
@@ -430,6 +497,10 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
       return arg?.data?.action === 'feed_reconcile_aborted_ghost_cap';
     });
     expect(abortAudit).toBeDefined();
+    const abortArg = abortAudit?.[0] as { data?: { changes?: Record<string, unknown> } } | undefined;
+    expect(abortArg?.data?.changes).toEqual(
+      expect.objectContaining({ broker_alerts_sent: 2, broker_alerts_failed: 0 }),
+    );
 
     // No listing transitions
     expect(listingUpdateMock).not.toHaveBeenCalled();
@@ -468,6 +539,9 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     const cronModule = await import('@/app/api/cron/feed-reconcile/route');
     const res = await cronModule.GET(authedCronRequest());
     expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.broker_alerts_sent).toBe(0);
+    expect(body.broker_alerts_failed).toBe(0);
 
     // No emails sent (broker has no address)
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -481,6 +555,53 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     expect(abortAudit).toBeDefined();
 
     void trestleSmallSet;
+    fetchSpy.mockRestore();
+  });
+
+  it('records broker alert send failure in body and audit', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      return new Response(JSON.stringify({ value: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    jest.doMock('@/lib/idx/auth', () => ({
+      __esModule: true,
+      getAccessToken: jest.fn(async () => 'fake-token'),
+      hasCredentials: jest.fn(() => true),
+    }));
+
+    const ourActive: Array<{ id: bigint; listing_id: string; status: string }> = [];
+    for (let i = 0; i < 2500; i++) {
+      ourActive.push({ id: BigInt(i + 1), listing_id: `RLS_OUR_${i}`, status: 'Active' });
+    }
+    listingFindManyMock.mockImplementation((async (args: { where?: { status?: string } }) => {
+      if (args?.where?.status === 'Active') return ourActive;
+      return ourActive.map((r) => ({ listing_id: r.listing_id }));
+    }) as never);
+
+    agentFindManyMock.mockResolvedValue([
+      { id: 1n, email: 'broker@mallan.nyc', first_name: 'Broker', last_name: 'One' },
+    ]);
+    sendEmailMock.mockResolvedValue({ success: false, error: 'SMTP send failed' });
+
+    const cronModule = await import('@/app/api/cron/feed-reconcile/route');
+    const res = await cronModule.GET(authedCronRequest());
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.broker_alerts_sent).toBe(0);
+    expect(body.broker_alerts_failed).toBe(1);
+
+    const auditCalls = auditEventCreateMock.mock.calls;
+    const abortAudit = auditCalls.find((c) => {
+      const arg = c[0] as { data?: { action?: string } } | undefined;
+      return arg?.data?.action === 'feed_reconcile_aborted_ghost_cap';
+    });
+    const abortArg = abortAudit?.[0] as { data?: { changes?: Record<string, unknown> } } | undefined;
+    expect(abortArg?.data?.changes).toEqual(
+      expect.objectContaining({ broker_alerts_sent: 0, broker_alerts_failed: 1 }),
+    );
+
     fetchSpy.mockRestore();
   });
 });

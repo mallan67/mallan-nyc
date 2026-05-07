@@ -42,6 +42,13 @@ export type TriggerType =
 
 export type ActionType = 'notification' | 'email' | 'agent_alert' | 'crm_task';
 
+type ActionExecutionStatus = 'success' | 'suppressed' | 'skipped' | 'failed';
+
+interface ActionExecutionResult {
+  status: ActionExecutionStatus;
+  result: string;
+}
+
 // ─── Evaluate All Active Triggers ──────────────────────────
 export async function evaluateAllTriggers(): Promise<{
   evaluated: number;
@@ -138,8 +145,13 @@ async function evaluateTrigger(trigger: {
       continue;
     }
 
-    // Execute the action
-    await executeAction(trigger.action_type, trigger.action_config as Record<string, unknown>, target);
+    // Execute the action. Only a real success records triggerExecution and
+    // advances cooldown; skipped/suppressed/failed paths audit separately.
+    const actionResult = await executeAction(trigger.action_type, trigger.action_config as Record<string, unknown>, target);
+    if (actionResult.status !== 'success') {
+      suppressed++;
+      continue;
+    }
 
     // Log execution
     await prisma.triggerExecution.create({
@@ -148,7 +160,7 @@ async function evaluateTrigger(trigger: {
         target_type: target.type,
         target_id: target.id,
         context: target.context as object,
-        result: 'success',
+        result: actionResult.result,
       },
     });
 
@@ -354,7 +366,7 @@ async function executeAction(
   actionType: string,
   actionConfig: Record<string, unknown>,
   target: { type: string; id: string; context: Record<string, unknown> }
-): Promise<void> {
+): Promise<ActionExecutionResult> {
   switch (actionType) {
     case 'notification': {
       // Create in-app notification for the assigned agent
@@ -373,9 +385,10 @@ async function executeAction(
               body: generateNotificationBody(target.context, `${lead.first_name} ${lead.last_name}`),
             },
           });
+          return { status: 'success', result: 'success' };
         }
       }
-      break;
+      return { status: 'skipped', result: 'skipped_no_notification_target' };
     }
     case 'agent_alert': {
       // Same as notification but marked urgent
@@ -394,9 +407,10 @@ async function executeAction(
               body: generateNotificationBody(target.context, `${lead.first_name} ${lead.last_name}`),
             },
           });
+          return { status: 'success', result: 'success' };
         }
       }
-      break;
+      return { status: 'skipped', result: 'skipped_no_notification_target' };
     }
     case 'email': {
       // ── Lifecycle/Crons Tier A P0 — real email send to the lead ──
@@ -429,7 +443,7 @@ async function executeAction(
             },
           },
         }).catch(() => { /* audit failure must not block engine */ });
-        break;
+        return { status: 'skipped', result: 'skipped_non_lead_target' };
       }
 
       const lead = await prisma.lead.findUnique({
@@ -448,7 +462,7 @@ async function executeAction(
             changes: { trigger: target.context.trigger as string ?? null },
           },
         }).catch(() => {});
-        break;
+        return { status: 'skipped', result: 'skipped_lead_not_found' };
       }
 
       const leadName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'there';
@@ -468,7 +482,7 @@ async function executeAction(
             },
           },
         }).catch(() => {});
-        break;
+        return { status: 'skipped', result: 'skipped_no_address' };
       }
 
       const subject = generateEmailSubject(target.context, actionConfig);
@@ -506,14 +520,28 @@ async function executeAction(
             success: result.success,
             message_id: result.messageId ?? null,
             recipient_email_domain: lead.email.split('@')[1] ?? null,
+            error_class: result.success
+              ? null
+              : (result as { _suppressed?: boolean })._suppressed === true
+                ? 'suppressed_unsubscribed'
+                : (result as { _devMode?: boolean })._devMode === true
+                  ? 'smtp_not_configured'
+                  : 'send_failed',
           },
         },
       }).catch(() => {});
-      break;
+      if (result.success) {
+        return { status: 'success', result: 'success' };
+      }
+      if ((result as { _suppressed?: boolean })._suppressed === true) {
+        return { status: 'suppressed', result: 'suppressed_unsubscribed' };
+      }
+      return { status: 'failed', result: (result as { _devMode?: boolean })._devMode === true ? 'smtp_not_configured' : 'send_failed' };
     }
     // crm_task action type can be implemented as needed
     default:
       console.log(`[Lifecycle] Action type '${actionType}' not yet implemented for target ${target.id}`);
+      return { status: 'skipped', result: 'skipped_unsupported_action' };
   }
 }
 

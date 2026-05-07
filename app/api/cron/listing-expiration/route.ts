@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
     periods_created: 0,
     deadlines_missed: 0,
     periods_expired: 0,
+    email_failures: 0,
   };
 
   // --- Task 1: 30-day expiration warning ---
@@ -120,6 +121,7 @@ export async function GET(req: NextRequest) {
     // marketing opt-out concern. (Agent recipients are not in the Lead
     // table anyway, so the boundary check would not match; transactional
     // flag is defense-in-depth.)
+    let emailSendFailed = false;
     if (listing.agent?.email) {
       const agentName = `${listing.agent.first_name || ""} ${listing.agent.last_name || ""}`.trim() || "Agent";
       const emailHtml = listingExpirationEmail({
@@ -129,13 +131,35 @@ export async function GET(req: NextRequest) {
         listingId: listing.listing_id,
         expirationDate: listing.expiration_date,
       });
-      await sendEmail(
+      const emailResult = await sendEmail(
         listing.agent.email,
         `Listing expires in 7 days — ${addr}`,
         emailHtml,
         undefined,
         { channel: "company", transactional: true },
       );
+      if (!emailResult.success) {
+        emailSendFailed = true;
+        results.email_failures++;
+        await prisma.auditEvent.create({
+          data: {
+            action: "listing_expiration_email_failed",
+            entity_type: "listing",
+            entity_id: listing.id.toString(),
+            user_type: "system",
+            user_id: null,
+            changes: {
+              branch: "urgent_7d",
+              listing_id: listing.listing_id,
+              error_class: emailResult._devMode === true ? "smtp_not_configured" : "send_failed",
+            },
+          },
+        }).catch(() => {});
+      }
+    }
+
+    if (emailSendFailed) {
+      continue;
     }
 
     await prisma.listing.update({
@@ -282,13 +306,31 @@ export async function GET(req: NextRequest) {
           listingId: period.listing.listing_id,
           namesDeadline: period.names_deadline ?? undefined,
         });
-        await sendEmail(
+        const emailResult = await sendEmail(
           broker.email,
           `Protected buyer deadline missed — ${addr}`,
           emailHtml,
           undefined,
           { channel: "company", transactional: true },
         );
+        if (!emailResult.success) {
+          results.email_failures++;
+          await prisma.auditEvent.create({
+            data: {
+              action: "listing_expiration_email_failed",
+              entity_type: "protected_period",
+              entity_id: period.id.toString(),
+              user_type: "system",
+              user_id: null,
+              changes: {
+                branch: "deadline_passed",
+                listing_id: period.listing.listing_id,
+                broker_id: broker.id.toString(),
+                error_class: emailResult._devMode === true ? "smtp_not_configured" : "send_failed",
+              },
+            },
+          }).catch(() => {});
+        }
       }
     }
 

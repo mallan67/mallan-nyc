@@ -31,4 +31,24 @@ describe("Codex Risk Cleanup P1 static guards", () => {
     expect(src).not.toMatch(/onclick=["']sendAgentInquiry\(/);
     expect(src).not.toMatch(/void html/);
   });
+
+  it("sendEmail console logging is redacted to categories", () => {
+    const src = readFile("lib/email/sendgrid.ts");
+
+    expect(src).not.toMatch(/To:\s*\$\{to\}/);
+    expect(src).not.toMatch(/Subject:\s*\$\{subject\}/);
+    expect(src).not.toMatch(/console\.error\([^)]*errorMessage/);
+    expect(src).not.toMatch(/error:\s*errorMessage/);
+    expect(src).toMatch(/error_category/);
+    expect(src).toMatch(/classifyEmailProviderError/);
+  });
+
+  it("market report generator distinguishes source-data failure from AI fallback", () => {
+    const src = readFile("lib/market-report/generator.ts");
+
+    expect(src).toMatch(/MARKET_REPORT_DATA_UNAVAILABLE/);
+    expect(src).toMatch(/data_failed:\s*true/);
+    expect(src).toMatch(/throw error/);
+    expect(src).toMatch(/ai_failed:\s*false/);
+  });
 });

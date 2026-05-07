@@ -39,7 +39,17 @@ export type SendChannel = "agent" | "company" | "listings";
 const isConfigured = !!(SMTP_USER && SMTP_PASS);
 
 if (!isConfigured) {
-  console.error("[Email] ⚠ SMTP NOT CONFIGURED — all emails will be dropped silently. Set SMTP_USER and SMTP_PASS env vars.");
+  console.error("[Email] SMTP not configured | category=smtp_not_configured");
+}
+
+function classifyEmailProviderError(err: unknown): string {
+  if (!(err instanceof Error)) return "unknown";
+  const msg = err.message.toLowerCase();
+  if (msg.includes("auth") || msg.includes("login") || msg.includes("credential")) return "auth_failed";
+  if (msg.includes("timeout") || msg.includes("timed out")) return "timeout";
+  if (msg.includes("econn") || msg.includes("network") || msg.includes("dns")) return "network";
+  if (msg.includes("rate") || msg.includes("limit") || msg.includes("throttle")) return "rate_limited";
+  return "provider_error";
 }
 
 // Single transporter — all channels authenticate with SMTP_USER (contact@)
@@ -145,8 +155,8 @@ export async function sendEmail(
   }
 
   if (!isConfigured) {
-    console.error(`[Email:DEV] SMTP not configured — email DROPPED. To: ${to} | Subject: ${subject}`);
-    await logEmailAudit("send_dev", to, subject, user);
+    console.error("[Email] SMTP not configured | category=smtp_not_configured");
+    await logEmailAudit("send_dev", to, subject, user, { error_category: "smtp_not_configured" });
     return { success: false, error: "SMTP not configured", _devMode: true };
   }
 
@@ -208,10 +218,10 @@ export async function sendEmail(
 
     return { success: true, messageId };
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[Email] SMTP error (${channel}):`, errorMessage);
-    await logEmailAudit("send_error", to, subject, user, { error: errorMessage, channel, fromEmail });
-    return { success: false, error: errorMessage };
+    const errorCategory = classifyEmailProviderError(err);
+    console.error(`[Email] SMTP send failed | channel=${channel} | category=${errorCategory}`);
+    await logEmailAudit("send_error", to, subject, user, { error_category: errorCategory, channel, fromEmail });
+    return { success: false, error: "SMTP send failed" };
   }
 }
 
@@ -240,7 +250,7 @@ export async function sendBulkEmail(
       sent++;
     } else {
       failed++;
-      errors.push(`${recipient.email}: ${result.error}`);
+      errors.push(result.error || "send_failed");
     }
   }
 
@@ -270,6 +280,7 @@ async function logEmailAudit(
     });
   } catch (err) {
     // Don't let audit logging failures break email sending
-    console.error("[Email] Audit log error:", err);
+    const category = classifyEmailProviderError(err);
+    console.error(`[Email] Audit log failed | category=${category}`);
   }
 }

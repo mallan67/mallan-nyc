@@ -115,6 +115,7 @@ const generateMarketReportMock = jest.fn<Promise<unknown>, unknown[]>(async () =
     response_chars: 800,
     model: 'claude-sonnet-4-20250514',
     ai_failed: false,
+    data_failed: false,
     fallback_used: false,
   },
 }));
@@ -261,6 +262,7 @@ describe('POST /api/crm/market-report — AI narrative audit', () => {
         response_chars: expect.any(Number),
         model: 'claude-sonnet-4-20250514',
         ai_failed: false,
+        data_failed: false,
         fallback_used: false,
       }),
     );
@@ -298,6 +300,34 @@ describe('POST /api/crm/market-report — AI narrative audit', () => {
     );
     expect(res.status).toBe(400);
     expect(generateMarketReportMock).not.toHaveBeenCalled();
+    expect(auditEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 data_unavailable when source-data fetch fails', async () => {
+    generateMarketReportMock.mockRejectedValueOnce(
+      Object.assign(new Error('Market report source data unavailable'), {
+        code: 'MARKET_REPORT_DATA_UNAVAILABLE',
+        data_failed: true,
+      }),
+    );
+
+    const { POST } = await import('@/app/api/crm/market-report/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/crm/market-report',
+        body: { report_type: 'sale', borough: 'Manhattan' },
+      }),
+    );
+
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body).toEqual(
+      expect.objectContaining({
+        code: 'data_unavailable',
+        data_failed: true,
+        ai_failed: false,
+      }),
+    );
     expect(auditEventCreateMock).not.toHaveBeenCalled();
   });
 });

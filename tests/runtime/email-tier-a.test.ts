@@ -62,7 +62,7 @@ jest.mock('@/lib/email/templates', () => {
   return { __esModule: true, ...actual };
 });
 
-const sendEmailRouteSpy = jest.fn<Promise<{ success: boolean; messageId: string }>, unknown[]>(
+const sendEmailRouteSpy = jest.fn<Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean }>, unknown[]>(
   async () => ({ success: true, messageId: 'm-1' }),
 );
 jest.mock('@/lib/email/sendgrid', () => {
@@ -187,6 +187,50 @@ describe('listing-expiration cron — 7-day urgent branch', () => {
 
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(sendEmailRouteSpy).not.toHaveBeenCalled();
+  });
+
+  it('does NOT mark expiration_7d_notified when the 7-day email send fails', async () => {
+    listingFindManyMock.mockImplementation((async (args: { where?: { expiration_7d_notified?: boolean } }) => {
+      if (args?.where?.expiration_7d_notified === false) {
+        return [
+          {
+            id: 102n,
+            listing_id: 'RLS20078111',
+            address: { StreetNumber: '500', StreetName: 'West End Avenue' },
+            expiration_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+            agent_id: 42n,
+            agent: { email: 'agent@mallan.nyc', first_name: 'Maya', last_name: 'Allan' },
+          },
+        ];
+      }
+      return [];
+    }) as never);
+    sendEmailRouteSpy.mockResolvedValue({ success: false, error: 'SMTP send failed' });
+
+    const { GET } = await import('@/app/api/cron/listing-expiration/route');
+    const res = await GET(authedCronRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.warnings_7d).toBe(0);
+    expect(body.email_failures).toBe(1);
+
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailRouteSpy).toHaveBeenCalledTimes(1);
+    expect(listingUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 102n },
+        data: { expiration_7d_notified: true },
+      }),
+    );
+    expect(auditEventCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'listing_expiration_email_failed',
+          entity_type: 'listing',
+          entity_id: '102',
+        }),
+      }),
+    );
   });
 });
 

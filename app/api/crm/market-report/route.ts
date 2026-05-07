@@ -78,6 +78,23 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ report });
   } catch (e: unknown) {
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      (e as { code?: string }).code === "MARKET_REPORT_DATA_UNAVAILABLE"
+    ) {
+      console.error("[market-report] source data unavailable | category=data_unavailable");
+      return NextResponse.json(
+        {
+          error: "Market report source data is unavailable. No market narrative was generated.",
+          code: "data_unavailable",
+          data_failed: true,
+          ai_failed: false,
+        },
+        { status: 503 },
+      );
+    }
+
     // Redact raw error per Codex Risk P0 pattern.
     const cat = e instanceof Error
       ? (e.message.toLowerCase().includes("rate") ? "rate_limited"
