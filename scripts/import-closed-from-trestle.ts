@@ -15,6 +15,7 @@ dotenv.config({ path: path.resolve(".env.local"), override: true });
 
 import { PrismaClient } from "@prisma/client";
 import { getAccessToken } from "../lib/idx/auth";
+import { dualWriteProjectionForListingId } from "../lib/search/listing-search-projection";
 
 const prisma = new PrismaClient();
 
@@ -326,6 +327,18 @@ async function main() {
             : null,
         },
       });
+
+      // H1 Tier-1 dual-write — projection upsert via canonical builder.
+      // Failure is non-fatal so the import loop continues across the full
+      // closed-listing batch; ops:projection-backfill heals on next run.
+      try {
+        await dualWriteProjectionForListingId(prisma, listingId);
+      } catch (projErr) {
+        console.error(
+          `  ! ${listingId} projection dual-write failed:`,
+          projErr instanceof Error ? projErr.message : projErr,
+        );
+      }
 
       const displayAddr = street + (unitNumber ? ` #${unitNumber}` : "");
       const displayPrice = price

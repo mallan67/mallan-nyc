@@ -34,6 +34,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 // Imported per the compliance gate at scripts/ci-compliance-check.js:184-194
 // (every file that imports sendEmail/sendgrid must reference escapeHtml).
 // The template handles its own escaping internally; aliasing to _escapeHtml
@@ -308,6 +309,20 @@ export async function GET(req: NextRequest) {
                 },
               }),
             ]);
+
+            // H1 Tier-1 dual-write — projection upsert runs OUTSIDE the
+            // listing+audit transaction (matches lib/idx/sync.ts pattern of
+            // sequential dual-write with no transaction). Failure is non-
+            // fatal; ops:projection-backfill heals on next run.
+            try {
+              await dualWriteProjectionForListingId(prisma, String(raw.ListingId));
+            } catch (err) {
+              console.warn(
+                "[feed-reconcile] orphan projection dual-write failed:",
+                err instanceof Error ? err.message : err,
+              );
+            }
+
             orphansCreated++;
           } catch (e) {
             orphansErrored++;

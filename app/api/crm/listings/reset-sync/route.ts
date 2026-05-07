@@ -12,6 +12,7 @@ import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -162,6 +163,18 @@ export async function POST(req: NextRequest) {
             sync_status: mapped.sync_status,
           },
         });
+
+        // H1 Tier-1 dual-write — projection upsert via canonical builder.
+        // Failure is non-fatal so the reset-sync loop continues across the
+        // full Trestle batch; ops:projection-backfill heals on next run.
+        try {
+          await dualWriteProjectionForListingId(prisma, mapped.listing_id);
+        } catch (projErr) {
+          console.warn(
+            `[Reset-Sync] projection dual-write failed for ${mapped.listing_id}:`,
+            projErr instanceof Error ? projErr.message : projErr,
+          );
+        }
 
         upserted++;
       } catch (err) {

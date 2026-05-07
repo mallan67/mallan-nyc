@@ -439,3 +439,124 @@ export function buildProjectionUpsertPayload(
     update: data as unknown as Prisma.ListingSearchProjectionUpdateInput,
   };
 }
+
+// ── H1 Tier-1 dual-write helper ────────────────────────────────────────
+
+/**
+ * Minimal PrismaClient surface this helper needs. Defined as a structural
+ * type rather than `import { PrismaClient }` so callers passing the default
+ * exported singleton (`@/lib/prisma`) work without a generic import dance,
+ * and so the helper can be unit-tested with a small in-memory mock.
+ */
+export interface DualWriteProjectionPrisma {
+  listing: {
+    findUnique: (args: {
+      where: { listing_id: string };
+      select: Record<string, true>;
+    }) => Promise<unknown>;
+  };
+  listingSearchProjection: {
+    upsert: (args: ListingSearchProjectionUpsertPayload) => Promise<unknown>;
+  };
+}
+
+/**
+ * Idempotent dual-write of `listing_search_projection` from an existing
+ * `listings` row.
+ *
+ * Use this AFTER any non-sync `prisma.listing.create` / `prisma.listing.upsert`
+ * that doesn't already share the dual-write pattern in `lib/idx/sync.ts`.
+ *
+ * Behavior:
+ *   - Reads the listing row by `listing_id`, builds the projection via the
+ *     canonical `buildListingSearchProjectionFromListing` + `buildProjectionUpsertPayload`,
+ *     upserts.
+ *   - Idempotent: re-runs against an existing projection row are safe (upsert).
+ *   - Silently no-ops if the listing was deleted between the caller's write
+ *     and this call (returns without throwing).
+ *   - Errors are NOT swallowed — callers wrap with try/catch if projection-
+ *     write failure should not block the parent operation. Matches the same
+ *     per-row failure semantics as `lib/idx/sync.ts`.
+ *
+ * H1 Tier-1 fix — closes the dual-write contract on 5 non-sync writers:
+ *   - app/api/crm/convert/route.ts                (Lead → Listing convert)
+ *   - app/api/cron/feed-reconcile/route.ts        (orphan-recovery cron)
+ *   - app/api/idx/ensure-listing/route.ts         (on-demand listing create)
+ *   - app/api/crm/listings/reset-sync/route.ts    (broker re-sync)
+ *   - scripts/import-closed-from-trestle.ts       (closed-listing import)
+ *
+ * Uses the same canonical projection shape as `npm run ops:projection-backfill`
+ * — never invents partial projection rows.
+ */
+export async function dualWriteProjectionForListingId(
+  prisma: DualWriteProjectionPrisma,
+  listingId: string,
+): Promise<void> {
+  const listing = (await prisma.listing.findUnique({
+    where: { listing_id: listingId },
+    select: {
+      listing_id: true,
+      status: true,
+      listing_type: true,
+      property_type: true,
+      property_sub_type: true,
+      list_price: true,
+      bedrooms_total: true,
+      bathrooms_full: true,
+      bathrooms_half: true,
+      living_area: true,
+      borough: true,
+      neighborhood: true,
+      city: true,
+      postal_code: true,
+      rls_eligible: true,
+      commercial_sub_type: true,
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      internet_address_display_yn: true,
+      participant_only: true,
+      agent_id: true,
+      modification_timestamp: true,
+      address: true,
+      features: true,
+      media: true,
+    },
+  })) as Record<string, unknown> | null;
+
+  if (!listing) return;
+
+  const input: ListingProjectionSource = {
+    listing_id: listing.listing_id as string,
+    status: (listing.status as string | null | undefined) ?? null,
+    listing_type: (listing.listing_type as string | null | undefined) ?? null,
+    property_type: (listing.property_type as string | null | undefined) ?? null,
+    property_sub_type: (listing.property_sub_type as string | null | undefined) ?? null,
+    list_price: (listing.list_price as ListingProjectionSource["list_price"]) ?? null,
+    bedrooms_total: (listing.bedrooms_total as number | null | undefined) ?? null,
+    bathrooms_full: (listing.bathrooms_full as number | null | undefined) ?? null,
+    bathrooms_half: (listing.bathrooms_half as number | null | undefined) ?? null,
+    living_area: (listing.living_area as ListingProjectionSource["living_area"]) ?? null,
+    borough: (listing.borough as string | null | undefined) ?? null,
+    neighborhood: (listing.neighborhood as string | null | undefined) ?? null,
+    city: (listing.city as string | null | undefined) ?? null,
+    postal_code: (listing.postal_code as string | null | undefined) ?? null,
+    rls_eligible: (listing.rls_eligible as boolean | null | undefined) ?? null,
+    commercial_sub_type: (listing.commercial_sub_type as string | null | undefined) ?? null,
+    idx_display_yn: (listing.idx_display_yn as boolean | null | undefined) ?? null,
+    internet_entire_listing_display_yn:
+      (listing.internet_entire_listing_display_yn as boolean | null | undefined) ?? null,
+    internet_address_display_yn:
+      (listing.internet_address_display_yn as boolean | null | undefined) ?? null,
+    participant_only: (listing.participant_only as boolean | null | undefined) ?? null,
+    agent_id: (listing.agent_id as bigint | number | null | undefined) ?? null,
+    modification_timestamp:
+      (listing.modification_timestamp as Date | string | null | undefined) ?? null,
+    address: (listing.address as Record<string, unknown> | null | undefined) ?? {},
+    features: (listing.features as Record<string, unknown> | null | undefined) ?? {},
+    media: Array.isArray(listing.media) ? (listing.media as unknown[]) : [],
+  };
+
+  const projection = buildListingSearchProjectionFromListing(input);
+  const payload = buildProjectionUpsertPayload(projection);
+  await prisma.listingSearchProjection.upsert(payload);
+}

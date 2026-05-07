@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent, type SessionUser } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadAccess } from "@/lib/crm/access";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 
 const VALID_ACTIONS = [
   "promote_to_listing",
@@ -218,6 +219,20 @@ async function handlePromoteToListing(
       internet_address_display_yn: true,
     },
   });
+
+  // H1 Tier-1 dual-write — lib/idx/sync.ts is the only listing-writer that
+  // shares this pattern natively; non-sync writers (this route + 4 others)
+  // must call the canonical projection helper to keep listing_search_projection
+  // in parity. Failure is non-fatal so the convert flow itself still completes;
+  // ops:projection-backfill heals on next run.
+  try {
+    await dualWriteProjectionForListingId(prisma, generatedListingId);
+  } catch (err) {
+    console.warn(
+      "[crm/convert] projection dual-write failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
 
   const newRole = isSale ? "seller" : "landlord";
   const newPipelineStage = isSale ? "active_seller" : "active_landlord";

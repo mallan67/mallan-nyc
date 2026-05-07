@@ -14,6 +14,7 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
 import { affirmPermission } from "@/lib/compliance/gates";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -131,6 +132,18 @@ export async function POST(req: NextRequest) {
       auth,
       { source: "idx_ensure", trestle_id: trimmedId }
     );
+
+    // H1 Tier-1 dual-write — projection upsert via canonical builder.
+    // Failure is non-fatal so the ensure-listing flow still returns 201
+    // to the caller; ops:projection-backfill heals on next run.
+    try {
+      await dualWriteProjectionForListingId(prisma, listing.listing_id);
+    } catch (projErr) {
+      console.warn(
+        "[ensure-listing] projection dual-write failed:",
+        projErr instanceof Error ? projErr.message : projErr,
+      );
+    }
 
     return NextResponse.json({ listing_id: listing.listing_id,
       db_id: listing.id.toString(),
