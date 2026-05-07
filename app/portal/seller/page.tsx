@@ -71,7 +71,7 @@ interface Offer {
   list_price: string | null;
   comment: string | null;
   created_at: string;
-  from: { id: string; name: string; email?: string; phone?: string } | null;
+  from: { name: string; email?: string; phone?: string } | null;
 }
 
 interface PortalDocument {

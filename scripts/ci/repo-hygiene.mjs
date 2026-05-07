@@ -45,6 +45,12 @@ const ALLOW_DIRTY = process.env.ALLOW_DIRTY === "1";
 const ALLOW_SCHEMA_CHANGE = process.env.ALLOW_SCHEMA_CHANGE === "1";
 const ALLOW_PR4_TOUCH = process.env.ALLOW_PR4_TOUCH === "1";
 const ALLOW_TELEMETRY_REMOVE = process.env.ALLOW_TELEMETRY_REMOVE === "1";
+const REPO_HYGIENE_BASE = (process.env.REPO_HYGIENE_BASE || "").trim();
+
+if (REPO_HYGIENE_BASE && !/^[A-Za-z0-9._/@-]+$/.test(REPO_HYGIENE_BASE)) {
+  process.stderr.write("[repo-hygiene] REPO_HYGIENE_BASE contains unsupported characters\n");
+  process.exit(2);
+}
 
 // ─── Paths the gate guards ───────────────────────────────────────────
 const SCHEMA_PATHS = ["prisma/schema.prisma", "prisma/migrations/"];
@@ -136,7 +142,9 @@ function fail(category, message, files, remediation) {
 // ─── Snapshots ───────────────────────────────────────────────────────
 const unstaged = lines(git("diff --name-only"));
 const staged = lines(git("diff --cached --name-only"));
-const allChanged = lines(git("diff HEAD --name-only"));
+const workingChanged = lines(git("diff HEAD --name-only"));
+const baseChanged = REPO_HYGIENE_BASE ? lines(git(`diff --name-only ${REPO_HYGIENE_BASE}...HEAD`)) : [];
+const allChanged = [...new Set([...workingChanged, ...baseChanged])].sort();
 const untracked = lines(git("ls-files --others --exclude-standard"));
 const tracked = lines(git("ls-files"));
 const ignored = lines(git("ls-files --others --ignored --exclude-standard"));
@@ -266,6 +274,9 @@ console.log(`[repo-hygiene] ${passed ? "PASS" : "FAIL"}`);
 console.log("─────────────────────────────────────────────────────────────");
 console.log("");
 console.log(`  tracked files changed:   ${allChanged.length}`);
+console.log(`  base ref:                ${REPO_HYGIENE_BASE || "(not set)"}`);
+console.log(`  working diff files:      ${workingChanged.length}`);
+console.log(`  base diff files:         ${baseChanged.length}`);
 console.log(`  staged files:            ${staged.length}`);
 console.log(`  unstaged tracked files:  ${unstaged.length}`);
 console.log(`  untracked files:         ${untracked.length}`);

@@ -219,7 +219,7 @@ describe("A-1 (regression) — GET /api/portal/offers still masks buyer in respo
       {
         id: 5000n,
         listing_id: 999n,
-        comment: '{"amount":1450000}',
+        comment: '{"amount":1450000,"notes":"REAL_BUYER_NOTE with phone 212-555-0100"}',
         created_at: new Date("2026-05-04"),
         lead: {
           id: 100n,
@@ -239,7 +239,7 @@ describe("A-1 (regression) — GET /api/portal/offers still masks buyer in respo
     const res = await route.GET(req);
     expect(res.status).toBe(200);
 
-    const json = await readJson<{ offers: Array<{ from: { name: string } | null }> }>(res);
+    const json = await readJson<{ offers: Array<{ comment: string | null; from: { name: string; id?: string } | null }> }>(res);
     const responseString = JSON.stringify(json);
 
     // Buyer's real name MUST NOT appear anywhere in the response
@@ -247,9 +247,13 @@ describe("A-1 (regression) — GET /api/portal/offers still masks buyer in respo
     expect(responseString).not.toMatch(/REAL_BUYER_LAST_NAME/);
     expect(responseString).not.toMatch(/buyer@example\.com/);
     expect(responseString).not.toMatch(/212-555-0100/);
+    expect(responseString).not.toMatch(/REAL_BUYER_NOTE/);
+    expect(responseString).not.toMatch(/\{"amount":1450000/);
 
     // Masked wording MUST be present
     expect(json.offers[0].from?.name).toBe("Buyer (via your agent)");
+    expect(json.offers[0].from).not.toHaveProperty("id");
+    expect(json.offers[0].comment).toBe("Offer: $1,450,000");
   });
 });
 

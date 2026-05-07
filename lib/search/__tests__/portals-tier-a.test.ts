@@ -60,6 +60,12 @@ describe("Portals Tier A P0 — A-1 PortalEvent buyer_lead_id masking", () => {
 
   it("offers GET response still masks the buyer (regression guard)", () => {
     expect(src).toMatch(/name:\s*"Buyer \(via your agent\)"/);
+    expect(src).not.toMatch(/\{\s*id:\s*a\.lead\.id\.toString\(\),\s*name:\s*"Buyer \(via your agent\)"/);
+  });
+
+  it("offers GET response formats seller comment instead of returning raw JSON", () => {
+    expect(src).toMatch(/formatSellerOfferComment\(a\.comment\)/);
+    expect(src).not.toMatch(/comment:\s*a\.comment/);
   });
 
   it("buyer-side PortalEvent (offer_submit) still uses raw lead identity (own data, not leaked)", () => {

@@ -62,10 +62,9 @@ interface Application {
   comment: string | null;
   created_at: string;
   from: {
-    id: string;
     name: string;
-    email: string;
-    phone: string;
+    email?: string;
+    phone?: string;
   } | null;
 }
 

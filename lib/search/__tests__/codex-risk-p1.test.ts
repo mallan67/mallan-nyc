@@ -51,4 +51,13 @@ describe("Codex Risk Cleanup P1 static guards", () => {
     expect(src).toMatch(/throw error/);
     expect(src).toMatch(/ai_failed:\s*false/);
   });
+
+  it("repo hygiene supports an optional committed-change base ref", () => {
+    const src = readFile("scripts/ci/repo-hygiene.mjs");
+
+    expect(src).toMatch(/REPO_HYGIENE_BASE/);
+    expect(src).toMatch(/git\(`diff --name-only \$\{REPO_HYGIENE_BASE\}\.\.\.HEAD`\)/);
+    expect(src).toMatch(/workingChanged/);
+    expect(src).toMatch(/baseChanged/);
+  });
 });

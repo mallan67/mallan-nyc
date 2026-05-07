@@ -12,6 +12,40 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { isListingDisplayable } from "@/lib/search/listing-access-decision";
 import { recordPortalEvent } from "@/lib/portal/events";
 
+function formatMoney(value: unknown): string | null {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+function formatSellerOfferComment(comment: string | null): string | null {
+  if (!comment) return null;
+  try {
+    const parsed = JSON.parse(comment) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "Offer details submitted via agent.";
+
+    const parts: string[] = [];
+    const amount = formatMoney(parsed.amount);
+    if (amount) parts.push(`Offer: ${amount}`);
+    if (typeof parsed.financing_type === "string" && parsed.financing_type.trim()) {
+      parts.push(`Financing: ${parsed.financing_type.trim()}`);
+    }
+    if (typeof parsed.closing_date === "string" && parsed.closing_date.trim()) {
+      parts.push(`Closing: ${parsed.closing_date.trim()}`);
+    }
+    if (typeof parsed.move_in_date === "string" && parsed.move_in_date.trim()) {
+      parts.push(`Move-in: ${parsed.move_in_date.trim()}`);
+    }
+    if (typeof parsed.contingencies === "string" && parsed.contingencies.trim()) {
+      parts.push("Contingencies provided via agent");
+    }
+
+    return parts.length > 0 ? parts.join(" | ") : "Offer details submitted via agent.";
+  } catch {
+    return "Offer details submitted via agent.";
+  }
+}
+
 /* ───────────────────────────── GET ───────────────────────────── */
 
 export async function GET(req: NextRequest) {
@@ -102,12 +136,12 @@ export async function GET(req: NextRequest) {
       listing_id: a.listing_id.toString(),
       listing_address: sanitized?.address ?? null,
       list_price: listing?.list_price?.toString() ?? null,
-      comment: a.comment,
+      comment: formatSellerOfferComment(a.comment),
       created_at: a.created_at,
       // REBNY: Buyer PII masked from seller — only show "Buyer via [Agent]"
       // Seller communicates with buyer ONLY through their agent
       from: a.lead
-        ? { id: a.lead.id.toString(), name: "Buyer (via your agent)" }
+        ? { name: "Buyer (via your agent)" }
         : null,
     };
   });
