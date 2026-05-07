@@ -11,6 +11,10 @@ import {
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { runProjectionListingSearch, serializeSearchListing } from "@/lib/search/core";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
+import {
+  getUnsupportedProjectionCriteria,
+  isPlainSearchCriteria,
+} from "@/lib/search/criteria-to-prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -35,7 +39,29 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const criteria = search.criteria as Record<string, unknown>;
+    if (!isPlainSearchCriteria(search.criteria)) {
+      return NextResponse.json(
+        {
+          error: "Saved search criteria is invalid and cannot be executed.",
+          code: "invalid_criteria",
+        },
+        { status: 422 },
+      );
+    }
+
+    const criteria = search.criteria;
+    const unsupportedCriteria = getUnsupportedProjectionCriteria(criteria);
+    if (unsupportedCriteria.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Saved search cannot be executed because these criteria are not supported by the projection search engine.",
+          code: "unsupported_criteria",
+          unsupported_criteria: unsupportedCriteria,
+        },
+        { status: 422 },
+      );
+    }
 
     // Parse optional pagination from request body
     let limit = 100;

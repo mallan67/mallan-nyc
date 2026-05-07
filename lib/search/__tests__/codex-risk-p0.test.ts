@@ -45,11 +45,9 @@ describe("Codex Risk P0 — static frontend source guards", () => {
     });
 
     it("listing-agent contact card uses the audited sendAgentInquiry path", () => {
-      // The fix replaces the mailto: anchor with a button whose onclick
-      // dispatches sendAgentInquiry(listingId). That function (defined
-      // in the same file) POSTs to /api/crm/agent-inquiry with full
-      // server-side validation + AuditEvent.
-      expect(src).toMatch(/onclick="sendAgentInquiry\(/);
+      // The fix replaces the mailto: anchor with a delegated button.
+      expect(src).toMatch(/data-agent-inquiry-listing-id/);
+      expect(src).not.toMatch(/onclick=["']sendAgentInquiry\(/);
       // sendAgentInquiry exists in the file
       expect(src).toMatch(/function\s+sendAgentInquiry\s*\(/);
       // sendAgentInquiry POSTs to the audited route

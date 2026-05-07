@@ -53,10 +53,12 @@
                     if (hasLiveCount) {
                         var storedTitle = hasStoredCount ? ' title="Stored count: ' + escapeHtml(String(search.result_count)) + '"' : '';
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-semibold rounded-full"' + storedTitle + '>' + search.live_result_count + '</span>';
-                    } else if (search.count_status === 'unsupported_criteria') {
+                    } else if (search.count_status === 'unsupported_criteria' || search.count_status === 'invalid_criteria') {
                         var unsupportedTitle = search.unsupported_criteria && search.unsupported_criteria.length
                             ? 'Live count unavailable — alert engine does not support: ' + search.unsupported_criteria.join(', ') + '. Load the search to see live results.'
-                            : 'Live count unavailable for this search.';
+                            : search.count_status === 'invalid_criteria'
+                                ? 'Live count unavailable because this saved search has invalid legacy criteria. Recreate the search before running it.'
+                                : 'Live count unavailable for this search.';
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-semibold rounded-full" title="' + escapeHtml(unsupportedTitle) + '">n/a</span>';
                     } else if (hasStoredCount) {
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-semibold rounded-full">' + search.result_count + '</span>';

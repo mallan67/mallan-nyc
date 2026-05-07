@@ -16,6 +16,7 @@ import {
   canEnableAlertForCriteria,
   criteriaToProjectionWhere,
   getUnsupportedProjectionCriteria,
+  isPlainSearchCriteria,
 } from "@/lib/search/criteria-to-prisma";
 
 function stableStringify(value: unknown): string {
@@ -30,7 +31,7 @@ function stableStringify(value: unknown): string {
   return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
 }
 
-type SavedSearchCountStatus = "projection_live" | "unsupported_criteria";
+type SavedSearchCountStatus = "projection_live" | "unsupported_criteria" | "invalid_criteria";
 
 /** Validate saved search criteria shape. Returns error message or null. */
 function validateCriteria(criteria: Record<string, unknown>): string | null {
@@ -78,16 +79,16 @@ export async function GET(req: NextRequest) {
     const countCache = new Map<string, Promise<number>>();
 
     const serialized = await Promise.all(searches.map(async (s) => {
-      const criteria = (s.criteria && typeof s.criteria === "object" && !Array.isArray(s.criteria))
-        ? (s.criteria as Record<string, unknown>)
-        : {};
-      const unsupportedCriteria = getUnsupportedProjectionCriteria(criteria);
-      const countStatus: SavedSearchCountStatus = unsupportedCriteria.length > 0
-        ? "unsupported_criteria"
-        : "projection_live";
+      const criteria = isPlainSearchCriteria(s.criteria) ? s.criteria : null;
+      const unsupportedCriteria = criteria ? getUnsupportedProjectionCriteria(criteria) : [];
+      const countStatus: SavedSearchCountStatus = !criteria
+        ? "invalid_criteria"
+        : unsupportedCriteria.length > 0
+          ? "unsupported_criteria"
+          : "projection_live";
 
       let projectionCount: number | null = null;
-      if (countStatus === "projection_live") {
+      if (countStatus === "projection_live" && criteria) {
         const cacheKey = stableStringify(criteria);
         let countPromise = countCache.get(cacheKey);
         if (!countPromise) {
@@ -111,6 +112,7 @@ export async function GET(req: NextRequest) {
         live_result_count: projectionCount,
         count_status: countStatus,
         unsupported_criteria: unsupportedCriteria.length > 0 ? unsupportedCriteria : null,
+        invalid_criteria: criteria ? null : true,
       };
     }));
 

@@ -969,7 +969,7 @@
                             </div>
                             <div class="space-y-1.5">
                                 ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + escapeHtml(listing.agentPhone) + '</a>' : ''}
-                                ${listing.agentEmail ? `<button type="button" onclick="sendAgentInquiry('${escapeHtml(String(listing.id || listing.lid || ''))}')" class="sidebar-contact-link" title="Sends an audited inquiry through Mallan Real Estate (REBNY attribution + audit trail)"><i class="fas fa-envelope text-[9px]"></i>${escapeHtml(listing.agentEmail)}</button>` : ''}
+                                ${listing.agentEmail ? `<button type="button" data-agent-inquiry-listing-id="${escapeHtml(String(listing.id || listing.lid || ''))}" class="sidebar-contact-link" title="Sends an audited inquiry through Mallan Real Estate (REBNY attribution + audit trail)"><i class="fas fa-envelope text-[9px]"></i>${escapeHtml(listing.agentEmail)}</button>` : ''}
                                 ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + escapeHtml(listing.agentLicense) + '</div>' : ''}
                             </div>
                             <!-- Codex Risk P0 fix: removed direct mailto:
@@ -1289,20 +1289,14 @@
 
         // ── Send Agent Inquiry — emails the listing agent directly from the system ──
         function sendAgentInquiry(listingId) {
-            var listing = listings.find(function(l) { return l.id === listingId; });
+            listingId = String(listingId || '');
+            var listing = listings.find(function(l) {
+                return String(l.id || '') === listingId || String(l.lid || '') === listingId;
+            });
             if (!listing) { showToast('Listing not found.', 'error'); return; }
-            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
-            var agentName = agent.name || '';
-            var agentEmail = agent.email || '';
-            var agentPhone = agent.phone || '';
-            var agentCompany = agent.company || 'Mallan Real Estate Inc.';
-            var agentLicense = agent.license || '';
-            var agentTitle = agent.licenseTitle || agent.title || 'Licensed Real Estate Broker';
-
             var listingAddr = listing.address + (listing.unit ? ', ' + listing.unit : '');
             var listingAgentName = listing.agentName || 'Listing Agent';
             var listingAgentEmail = listing.agentEmail || '';
-            var listingCompany = listing.company || '';
 
             if (!listingAgentEmail) {
                 showToast('No email address available for the listing agent (' + listingAgentName + '). Contact information may not be provided for this listing.', 'warning');
@@ -1312,45 +1306,6 @@
             var isSale = listing.listingCategory !== 'rental';
             var listingSlug = listingAddr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             var listingUrl = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + listingSlug + '-' + listing.id;
-            var priceStr = '$' + Number(listing.price).toLocaleString();
-            var subject = 'Agent Inquiry: ' + listingAddr;
-
-            // Get listing photo for thumbnail
-            var photoUrl = typeof getListingPhoto === 'function' ? getListingPhoto(listing) : '';
-
-            // Build the inquiry email HTML with property thumbnail
-            var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">' +
-                '<div style="background:#1a1a1a;padding:16px 24px;border-radius:8px 8px 0 0;">' +
-                    '<span style="font-size:18px;font-weight:700;color:#C4A052;letter-spacing:2px;">MALLAN</span>' +
-                    '<span style="font-size:18px;font-weight:300;color:#fff;letter-spacing:2px;margin-left:4px;">NYC</span>' +
-                '</div>' +
-                '<div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 8px 8px;">' +
-                    '<p style="font-size:14px;color:#374151;margin:0 0 16px;">Dear ' + listingAgentName.split(' ')[0] + ',</p>' +
-                    '<p style="font-size:14px;color:#374151;margin:0 0 16px;">I am writing to request information about the following listing:</p>' +
-                    // Listing card with photo thumbnail
-                    '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:0 0 16px;background:#f9fafb;">' +
-                        (photoUrl ? '<a href="' + listingUrl + '" style="display:block;"><img src="' + photoUrl + '" alt="' + listingAddr + '" style="width:100%;height:200px;object-fit:cover;display:block;"></a>' : '') +
-                        '<div style="padding:14px 16px;">' +
-                            '<p style="margin:0 0 2px;font-size:18px;font-weight:700;color:#1a1a1a;">' + priceStr + '</p>' +
-                            '<p style="margin:0 0 4px;font-size:15px;font-weight:600;color:#1a1a1a;">' + listingAddr + '</p>' +
-                            '<p style="margin:0 0 8px;font-size:13px;color:#6b7280;">' + (listing.neighborhood || '') + ', ' + (listing.borough || 'Manhattan') + ' NY ' + (listing.zip || '') + '</p>' +
-                            '<p style="margin:0 0 10px;font-size:13px;color:#374151;">' + (listing.beds === 0 ? 'Studio' : listing.beds + ' Bed') + ' &middot; ' + listing.baths + ' Bath' + (listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' SF' : '') + ' &middot; ' + (listing.ownership || 'Co-op') + '</p>' +
-                            '<a href="' + listingUrl + '" style="display:inline-block;padding:8px 16px;background:#1a1a1a;color:#fff;font-size:12px;font-weight:600;text-decoration:none;border-radius:6px;">View Listing</a>' +
-                        '</div>' +
-                    '</div>' +
-                    '<p style="font-size:14px;color:#374151;margin:0 0 16px;">I would appreciate any additional information you can share regarding this property, including availability for showings.</p>' +
-                    // Sending agent contact card
-                    '<div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:16px;">' +
-                        '<p style="margin:0 0 2px;font-size:9px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">From</p>' +
-                        '<p style="margin:0 0 2px;font-size:15px;font-weight:700;color:#1a1a1a;">' + agentName + '</p>' +
-                        '<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">' + agentTitle + '</p>' +
-                        '<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">' + agentCompany + '</p>' +
-                        '<p style="margin:0 0 2px;font-size:13px;color:#2563eb;">' + agentPhone + '</p>' +
-                        (agentEmail ? '<p style="margin:0;font-size:13px;color:#2563eb;">' + agentEmail + '</p>' : '') +
-                    '</div>' +
-                '</div>' +
-            '</div>';
-
             // P2 — Server-authoritative path via /api/crm/agent-inquiry.
             // Replaces the prior client-side mailto / sendEmailDirect path
             // which had no audit trail and no REBNY attribution. The route:
@@ -1367,7 +1322,6 @@
             // final HTML. The `html` variable above is no longer used — kept
             // built so the function still has a stable shape and can be
             // re-introduced if the operator wants a client-side preview.
-            void html;
             fetch('/api/crm/agent-inquiry', {
                 method: 'POST',
                 credentials: 'include',
@@ -1398,6 +1352,18 @@
                 }
             }).catch(function (err) {
                 showToast('Network error sending inquiry: ' + (err && err.message ? err.message : 'unknown'), 'error');
+            });
+        }
+
+        if (typeof document !== 'undefined' && !window.__mallanAgentInquiryDelegated) {
+            window.__mallanAgentInquiryDelegated = true;
+            document.addEventListener('click', function (event) {
+                var target = event.target && event.target.closest
+                    ? event.target.closest('[data-agent-inquiry-listing-id]')
+                    : null;
+                if (!target) return;
+                event.preventDefault();
+                sendAgentInquiry(target.getAttribute('data-agent-inquiry-listing-id'));
             });
         }
 

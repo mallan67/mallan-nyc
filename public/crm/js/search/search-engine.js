@@ -197,9 +197,15 @@
                     // Non-fatal — advisory failure must not block the search.
                 }
 
-                // Filter locally loaded listings
+                // Filter locally loaded listings only when the criteria set is
+                // fully server-honored. Programmatic callers can still pass old
+                // Open House/transit/grid keys; the server strips those, so a
+                // local pre-render would briefly show a narrower, false result.
                 var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
-                var localResults = hasLocalData ? filterListings(listings, activeSearchCriteria) : [];
+                var hasServerIgnoredCriteria = _hasServerIgnoredCriteria(activeSearchCriteria);
+                var localResults = (hasLocalData && !hasServerIgnoredCriteria)
+                    ? filterListings(listings, activeSearchCriteria)
+                    : [];
 
                 // Show results section (with local results or empty while server loads)
                 searchResultsState.filteredListings = localResults;
@@ -213,6 +219,16 @@
             } catch (err) {
                 showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
             }
+        }
+
+        function _hasServerIgnoredCriteria(criteria) {
+            return Boolean(criteria && (
+                criteria.openHouseDateFrom ||
+                criteria.openHouseDateTo ||
+                criteria._transitLines ||
+                criteria._transitBounds ||
+                criteria._gridBounds
+            ));
         }
 
         // Show search results UI (extracted for reuse by server search)
@@ -1033,16 +1049,6 @@
                 }
             }
 
-            // Open House date range
-            var ohDrpId = (currentSearchTab === 'rent') ? 'rentalOpenHouse' : 'saleOpenHouse';
-            var ohWrapper = document.querySelector('.drp-wrapper[data-drp="' + ohDrpId + '"]');
-            if (ohWrapper) {
-                var ohFrom = ohWrapper.getAttribute('data-from');
-                var ohTo = ohWrapper.getAttribute('data-to');
-                if (ohFrom) criteria.openHouseDateFrom = _mdyToISO(ohFrom);
-                if (ohTo) criteria.openHouseDateTo = _mdyToISO(ohTo);
-            }
-
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
             var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
             if (_isAdvanced) {
@@ -1106,19 +1112,8 @@
             }
 
             // Transit — subway line proximity search via station coordinates
-            if (typeof TransitSearch !== 'undefined' && TransitSearch.hasSelection()) {
-                criteria._transitLines = TransitSearch.getSelectedLines();
-                criteria._transitBounds = TransitSearch.getBounds();
-            }
 
             // Manhattan Grid — bounding box search via lat/lng
-            if (typeof ManhattanGrid !== 'undefined') {
-                var gridPrefix = _isAdvanced ? 'adv-grid' :
-                                 currentSearchTab === 'building' ? 'bldg-grid' : null;
-                if (gridPrefix && ManhattanGrid.hasGridValues(gridPrefix)) {
-                    criteria._gridBounds = ManhattanGrid.getGridBounds(gridPrefix);
-                }
-            }
 
             // ═══════════════════════════════════════════════════════════
             // GENERIC data-field CHECKBOX SCANNER
@@ -1648,25 +1643,6 @@
                 }
 
                 // Transit proximity filter — is listing near a selected subway station?
-                if (criteria._transitLines && typeof TransitSearch !== 'undefined') {
-                    if (!TransitSearch.isNearStation(listing)) return false;
-                }
-
-                // Manhattan Grid bounding box filter
-                if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
-                    if (!ManhattanGrid.isInBounds(listing, criteria._gridBounds)) return false;
-                }
-
-                // Open House date filter
-                if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                    var ohFrom = criteria.openHouseDateFrom ? new Date(criteria.openHouseDateFrom) : null;
-                    var ohTo = criteria.openHouseDateTo ? new Date(criteria.openHouseDateTo) : null;
-                    if (ohTo) ohTo.setHours(23, 59, 59); // include end date
-                    if (!listing.openHouseDate) return false;
-                    var ohDate = new Date(listing.openHouseDate);
-                    if (ohFrom && ohDate < ohFrom) return false;
-                    if (ohTo && ohDate > ohTo) return false;
-                }
 
                 // ═══════════════════════════════════════════════════════════
                 // GENERIC CHECKBOX FILTER

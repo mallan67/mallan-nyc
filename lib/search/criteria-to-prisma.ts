@@ -10,6 +10,10 @@ export interface SearchWhereOptions {
   modifiedSince?: Date;
 }
 
+export function isPlainSearchCriteria(value: unknown): value is SearchCriteria {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
   "listing_type",
   "listingType",

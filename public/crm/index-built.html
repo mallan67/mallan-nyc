@@ -16409,9 +16409,15 @@ function manageShowToast(msg) {
                     // Non-fatal — advisory failure must not block the search.
                 }
 
-                // Filter locally loaded listings
+                // Filter locally loaded listings only when the criteria set is
+                // fully server-honored. Programmatic callers can still pass old
+                // Open House/transit/grid keys; the server strips those, so a
+                // local pre-render would briefly show a narrower, false result.
                 var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
-                var localResults = hasLocalData ? filterListings(listings, activeSearchCriteria) : [];
+                var hasServerIgnoredCriteria = _hasServerIgnoredCriteria(activeSearchCriteria);
+                var localResults = (hasLocalData && !hasServerIgnoredCriteria)
+                    ? filterListings(listings, activeSearchCriteria)
+                    : [];
 
                 // Show results section (with local results or empty while server loads)
                 searchResultsState.filteredListings = localResults;
@@ -16425,6 +16431,16 @@ function manageShowToast(msg) {
             } catch (err) {
                 showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
             }
+        }
+
+        function _hasServerIgnoredCriteria(criteria) {
+            return Boolean(criteria && (
+                criteria.openHouseDateFrom ||
+                criteria.openHouseDateTo ||
+                criteria._transitLines ||
+                criteria._transitBounds ||
+                criteria._gridBounds
+            ));
         }
 
         // Show search results UI (extracted for reuse by server search)
@@ -17245,16 +17261,6 @@ function manageShowToast(msg) {
                 }
             }
 
-            // Open House date range
-            var ohDrpId = (currentSearchTab === 'rent') ? 'rentalOpenHouse' : 'saleOpenHouse';
-            var ohWrapper = document.querySelector('.drp-wrapper[data-drp="' + ohDrpId + '"]');
-            if (ohWrapper) {
-                var ohFrom = ohWrapper.getAttribute('data-from');
-                var ohTo = ohWrapper.getAttribute('data-to');
-                if (ohFrom) criteria.openHouseDateFrom = _mdyToISO(ohFrom);
-                if (ohTo) criteria.openHouseDateTo = _mdyToISO(ohTo);
-            }
-
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
             var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
             if (_isAdvanced) {
@@ -17318,19 +17324,8 @@ function manageShowToast(msg) {
             }
 
             // Transit — subway line proximity search via station coordinates
-            if (typeof TransitSearch !== 'undefined' && TransitSearch.hasSelection()) {
-                criteria._transitLines = TransitSearch.getSelectedLines();
-                criteria._transitBounds = TransitSearch.getBounds();
-            }
 
             // Manhattan Grid — bounding box search via lat/lng
-            if (typeof ManhattanGrid !== 'undefined') {
-                var gridPrefix = _isAdvanced ? 'adv-grid' :
-                                 currentSearchTab === 'building' ? 'bldg-grid' : null;
-                if (gridPrefix && ManhattanGrid.hasGridValues(gridPrefix)) {
-                    criteria._gridBounds = ManhattanGrid.getGridBounds(gridPrefix);
-                }
-            }
 
             // ═══════════════════════════════════════════════════════════
             // GENERIC data-field CHECKBOX SCANNER
@@ -17860,25 +17855,6 @@ function manageShowToast(msg) {
                 }
 
                 // Transit proximity filter — is listing near a selected subway station?
-                if (criteria._transitLines && typeof TransitSearch !== 'undefined') {
-                    if (!TransitSearch.isNearStation(listing)) return false;
-                }
-
-                // Manhattan Grid bounding box filter
-                if (criteria._gridBounds && typeof ManhattanGrid !== 'undefined') {
-                    if (!ManhattanGrid.isInBounds(listing, criteria._gridBounds)) return false;
-                }
-
-                // Open House date filter
-                if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                    var ohFrom = criteria.openHouseDateFrom ? new Date(criteria.openHouseDateFrom) : null;
-                    var ohTo = criteria.openHouseDateTo ? new Date(criteria.openHouseDateTo) : null;
-                    if (ohTo) ohTo.setHours(23, 59, 59); // include end date
-                    if (!listing.openHouseDate) return false;
-                    var ohDate = new Date(listing.openHouseDate);
-                    if (ohFrom && ohDate < ohFrom) return false;
-                    if (ohTo && ohDate > ohTo) return false;
-                }
 
                 // ═══════════════════════════════════════════════════════════
                 // GENERIC CHECKBOX FILTER
@@ -22920,10 +22896,12 @@ function parseBudgetValue(td) {
                     if (hasLiveCount) {
                         var storedTitle = hasStoredCount ? ' title="Stored count: ' + escapeHtml(String(search.result_count)) + '"' : '';
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-semibold rounded-full"' + storedTitle + '>' + search.live_result_count + '</span>';
-                    } else if (search.count_status === 'unsupported_criteria') {
+                    } else if (search.count_status === 'unsupported_criteria' || search.count_status === 'invalid_criteria') {
                         var unsupportedTitle = search.unsupported_criteria && search.unsupported_criteria.length
                             ? 'Live count unavailable — alert engine does not support: ' + search.unsupported_criteria.join(', ') + '. Load the search to see live results.'
-                            : 'Live count unavailable for this search.';
+                            : search.count_status === 'invalid_criteria'
+                                ? 'Live count unavailable because this saved search has invalid legacy criteria. Recreate the search before running it.'
+                                : 'Live count unavailable for this search.';
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-semibold rounded-full" title="' + escapeHtml(unsupportedTitle) + '">n/a</span>';
                     } else if (hasStoredCount) {
                         countBadge = '<span class="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-semibold rounded-full">' + search.result_count + '</span>';
@@ -29991,7 +29969,7 @@ function emailCurrentCalc() {
                             </div>
                             <div class="space-y-1.5">
                                 ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + escapeHtml(listing.agentPhone) + '</a>' : ''}
-                                ${listing.agentEmail ? `<button type="button" onclick="sendAgentInquiry('${escapeHtml(String(listing.id || listing.lid || ''))}')" class="sidebar-contact-link" title="Sends an audited inquiry through Mallan Real Estate (REBNY attribution + audit trail)"><i class="fas fa-envelope text-[9px]"></i>${escapeHtml(listing.agentEmail)}</button>` : ''}
+                                ${listing.agentEmail ? `<button type="button" data-agent-inquiry-listing-id="${escapeHtml(String(listing.id || listing.lid || ''))}" class="sidebar-contact-link" title="Sends an audited inquiry through Mallan Real Estate (REBNY attribution + audit trail)"><i class="fas fa-envelope text-[9px]"></i>${escapeHtml(listing.agentEmail)}</button>` : ''}
                                 ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + escapeHtml(listing.agentLicense) + '</div>' : ''}
                             </div>
                             <!-- Codex Risk P0 fix: removed direct mailto:
@@ -30311,20 +30289,14 @@ function emailCurrentCalc() {
 
         // ── Send Agent Inquiry — emails the listing agent directly from the system ──
         function sendAgentInquiry(listingId) {
-            var listing = listings.find(function(l) { return l.id === listingId; });
+            listingId = String(listingId || '');
+            var listing = listings.find(function(l) {
+                return String(l.id || '') === listingId || String(l.lid || '') === listingId;
+            });
             if (!listing) { showToast('Listing not found.', 'error'); return; }
-            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
-            var agentName = agent.name || '';
-            var agentEmail = agent.email || '';
-            var agentPhone = agent.phone || '';
-            var agentCompany = agent.company || 'Mallan Real Estate Inc.';
-            var agentLicense = agent.license || '';
-            var agentTitle = agent.licenseTitle || agent.title || 'Licensed Real Estate Broker';
-
             var listingAddr = listing.address + (listing.unit ? ', ' + listing.unit : '');
             var listingAgentName = listing.agentName || 'Listing Agent';
             var listingAgentEmail = listing.agentEmail || '';
-            var listingCompany = listing.company || '';
 
             if (!listingAgentEmail) {
                 showToast('No email address available for the listing agent (' + listingAgentName + '). Contact information may not be provided for this listing.', 'warning');
@@ -30334,45 +30306,6 @@ function emailCurrentCalc() {
             var isSale = listing.listingCategory !== 'rental';
             var listingSlug = listingAddr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             var listingUrl = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + listingSlug + '-' + listing.id;
-            var priceStr = '$' + Number(listing.price).toLocaleString();
-            var subject = 'Agent Inquiry: ' + listingAddr;
-
-            // Get listing photo for thumbnail
-            var photoUrl = typeof getListingPhoto === 'function' ? getListingPhoto(listing) : '';
-
-            // Build the inquiry email HTML with property thumbnail
-            var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">' +
-                '<div style="background:#1a1a1a;padding:16px 24px;border-radius:8px 8px 0 0;">' +
-                    '<span style="font-size:18px;font-weight:700;color:#C4A052;letter-spacing:2px;">MALLAN</span>' +
-                    '<span style="font-size:18px;font-weight:300;color:#fff;letter-spacing:2px;margin-left:4px;">NYC</span>' +
-                '</div>' +
-                '<div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 8px 8px;">' +
-                    '<p style="font-size:14px;color:#374151;margin:0 0 16px;">Dear ' + listingAgentName.split(' ')[0] + ',</p>' +
-                    '<p style="font-size:14px;color:#374151;margin:0 0 16px;">I am writing to request information about the following listing:</p>' +
-                    // Listing card with photo thumbnail
-                    '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:0 0 16px;background:#f9fafb;">' +
-                        (photoUrl ? '<a href="' + listingUrl + '" style="display:block;"><img src="' + photoUrl + '" alt="' + listingAddr + '" style="width:100%;height:200px;object-fit:cover;display:block;"></a>' : '') +
-                        '<div style="padding:14px 16px;">' +
-                            '<p style="margin:0 0 2px;font-size:18px;font-weight:700;color:#1a1a1a;">' + priceStr + '</p>' +
-                            '<p style="margin:0 0 4px;font-size:15px;font-weight:600;color:#1a1a1a;">' + listingAddr + '</p>' +
-                            '<p style="margin:0 0 8px;font-size:13px;color:#6b7280;">' + (listing.neighborhood || '') + ', ' + (listing.borough || 'Manhattan') + ' NY ' + (listing.zip || '') + '</p>' +
-                            '<p style="margin:0 0 10px;font-size:13px;color:#374151;">' + (listing.beds === 0 ? 'Studio' : listing.beds + ' Bed') + ' &middot; ' + listing.baths + ' Bath' + (listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' SF' : '') + ' &middot; ' + (listing.ownership || 'Co-op') + '</p>' +
-                            '<a href="' + listingUrl + '" style="display:inline-block;padding:8px 16px;background:#1a1a1a;color:#fff;font-size:12px;font-weight:600;text-decoration:none;border-radius:6px;">View Listing</a>' +
-                        '</div>' +
-                    '</div>' +
-                    '<p style="font-size:14px;color:#374151;margin:0 0 16px;">I would appreciate any additional information you can share regarding this property, including availability for showings.</p>' +
-                    // Sending agent contact card
-                    '<div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:16px;">' +
-                        '<p style="margin:0 0 2px;font-size:9px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">From</p>' +
-                        '<p style="margin:0 0 2px;font-size:15px;font-weight:700;color:#1a1a1a;">' + agentName + '</p>' +
-                        '<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">' + agentTitle + '</p>' +
-                        '<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">' + agentCompany + '</p>' +
-                        '<p style="margin:0 0 2px;font-size:13px;color:#2563eb;">' + agentPhone + '</p>' +
-                        (agentEmail ? '<p style="margin:0;font-size:13px;color:#2563eb;">' + agentEmail + '</p>' : '') +
-                    '</div>' +
-                '</div>' +
-            '</div>';
-
             // P2 — Server-authoritative path via /api/crm/agent-inquiry.
             // Replaces the prior client-side mailto / sendEmailDirect path
             // which had no audit trail and no REBNY attribution. The route:
@@ -30389,7 +30322,6 @@ function emailCurrentCalc() {
             // final HTML. The `html` variable above is no longer used — kept
             // built so the function still has a stable shape and can be
             // re-introduced if the operator wants a client-side preview.
-            void html;
             fetch('/api/crm/agent-inquiry', {
                 method: 'POST',
                 credentials: 'include',
@@ -30420,6 +30352,18 @@ function emailCurrentCalc() {
                 }
             }).catch(function (err) {
                 showToast('Network error sending inquiry: ' + (err && err.message ? err.message : 'unknown'), 'error');
+            });
+        }
+
+        if (typeof document !== 'undefined' && !window.__mallanAgentInquiryDelegated) {
+            window.__mallanAgentInquiryDelegated = true;
+            document.addEventListener('click', function (event) {
+                var target = event.target && event.target.closest
+                    ? event.target.closest('[data-agent-inquiry-listing-id]')
+                    : null;
+                if (!target) return;
+                event.preventDefault();
+                sendAgentInquiry(target.getAttribute('data-agent-inquiry-listing-id'));
             });
         }
 
