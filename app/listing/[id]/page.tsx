@@ -1111,8 +1111,14 @@ export default async function ListingPage({ params, searchParams }: Props) {
             >
               Call
             </a>
+            {/* Featured/Public Tier A P0 — route to the audited InquiryForm
+                instead of opening a mailto. The form posts to /api/inquiries
+                which records consent_captured_at (TCPA/CAN-SPAM), creates an
+                Inquiry row (UCBA C1 workstream), writes an AuditEvent, and
+                wires the lead into the lifecycle pipeline. The previous
+                mailto: bypass produced none of those. */}
             <a
-              href={`mailto:contact@mallan.nyc?subject=${encodeURIComponent(`Inquiry: ${fullAddress}`)}`}
+              href="#inquiry"
               className="btn-liquid px-5 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-full hover:bg-brand-dark/90"
             >
               Inquire

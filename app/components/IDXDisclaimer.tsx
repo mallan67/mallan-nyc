@@ -95,6 +95,12 @@ export default function IDXDisclaimer({
           Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
           {timestamp ? ` Data last updated: ${timestamp}.` : ' Data is updated continuously.'}
         </p>
+        {/* Featured/Public Tier A P0 — NY DOS 19 NYCRR §175.25 requires the
+            licensed brokerage's name to appear with real estate advertising.
+            Featured Properties is real estate advertising. The full + search
+            variants already include this line; the compact variant must too
+            so each MLS-data-bearing surface carries its own attribution. */}
+        <p className="mt-1">Mallan Real Estate Inc. — Licensed Real Estate Broker, New York State.</p>
         <p className="mt-1">Commission rates are not set by law and are fully negotiable.</p>
         <p className="mt-1">
           <span className="inline-flex items-center gap-1">
