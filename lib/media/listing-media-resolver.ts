@@ -57,6 +57,24 @@ const CLASS_PRIORITY: Record<MediaClass, number> = {
 const TRESTLE_PROXY_HOST_SUFFIXES = ['cotality.com', 'corelogic.com'];
 
 /**
+ * Trestle URL convention for FloorPlan media. Trestle stores floor-plan
+ * documents under `/Media/Property/DOCUMENT-Gif/...`, `/DOCUMENT-Jpeg/...`,
+ * `/DOCUMENT-Pdf/...`, `/DOCUMENT-Png/...` paths — distinct from
+ * `/Media/Property/PHOTO-Jpeg/...` for actual photos.
+ *
+ * Some Media records ship from Trestle with `MediaCategory: null` even when
+ * the URL is clearly a DOCUMENT- (FloorPlan). The default-to-Photo fallback
+ * at the bottom of `classifyMediaItem` then misclassifies them, and after
+ * the 2026-05-08 audit we counted 243 active listings rendering a FloorPlan
+ * as the hero photo on cards because of this exact pattern.
+ *
+ * The pattern is anchored to `/Media/Property/DOCUMENT-` so it never matches
+ * other URLs that happen to contain the word "DOCUMENT" — only Trestle's
+ * documented URL shape.
+ */
+const TRESTLE_DOCUMENT_URL_PATTERN = /\/Media\/Property\/DOCUMENT-(Gif|Jpeg|Png|Pdf)\//i;
+
+/**
  * Normalised media item used by every consumer.
  *
  * `providerOrder` is the original numeric Order field (or array index when
@@ -92,7 +110,8 @@ export function classifyMediaItem(raw: unknown): MediaClass {
     cat === 'floorplan' || cat.includes('floor plan') || cat.includes('floor_plan') || cat === 'floor plan' ||
     cls === 'document' ||
     desc.includes('floorplan') || desc.includes('floor plan') ||
-    /\/floorplans?\//i.test(url)
+    /\/floorplans?\//i.test(url) ||
+    TRESTLE_DOCUMENT_URL_PATTERN.test(url)
   ) {
     return 'floorplan';
   }

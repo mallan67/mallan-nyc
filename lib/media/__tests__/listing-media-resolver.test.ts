@@ -60,6 +60,103 @@ describe('classifyMediaItem', () => {
     expect(classifyMediaItem({ mediaType: 'Photo', url: 'x' })).toBe('photo');
     expect(classifyMediaItem({ mediaType: 'FloorPlan', url: 'x' })).toBe('floorplan');
   });
+
+  // ── B1 fix (2026-05-08): Trestle DOCUMENT-* URL convention ──
+  // Trestle stores FloorPlan documents under /Media/Property/DOCUMENT-Gif/,
+  // DOCUMENT-Jpeg/, DOCUMENT-Pdf/, DOCUMENT-Png/ paths (vs. PHOTO-Jpeg/ for
+  // actual photos). The diagnostic on 2026-05-08 found 243 active listings
+  // rendering a FloorPlan as hero because the stored mediaType was empty/Photo
+  // (Trestle sometimes ships FloorPlan media with `MediaCategory: null`) and
+  // the resolver defaulted-to-Photo. The URL itself is the signal Trestle gives
+  // us; the classifier now checks it explicitly.
+
+  it('classifies DOCUMENT-Gif Trestle URL as floorplan (URL takes precedence over empty category)', () => {
+    expect(
+      classifyMediaItem({
+        MediaURL:
+          'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Gif/1156792071/1/abc/def/ghi',
+      })
+    ).toBe('floorplan');
+  });
+
+  it('classifies DOCUMENT-Jpeg Trestle URL as floorplan', () => {
+    expect(
+      classifyMediaItem({
+        MediaURL:
+          'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/1156836474/1/abc/def/ghi',
+      })
+    ).toBe('floorplan');
+  });
+
+  it('classifies DOCUMENT-Pdf Trestle URL as floorplan', () => {
+    expect(
+      classifyMediaItem({
+        MediaURL:
+          'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Pdf/1156836474/1/abc/def/ghi',
+      })
+    ).toBe('floorplan');
+  });
+
+  it('classifies DOCUMENT-Png Trestle URL as floorplan', () => {
+    expect(
+      classifyMediaItem({
+        MediaURL:
+          'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Png/1156836474/1/abc/def/ghi',
+      })
+    ).toBe('floorplan');
+  });
+
+  it('URL takes precedence over mediaType when DOCUMENT- URL is paired with mediaType="Photo"', () => {
+    // The B1 production scenario: stored row has mediaType="Photo" but URL
+    // is a Trestle DOCUMENT-Gif (FloorPlan). URL is the source-of-truth signal.
+    expect(
+      classifyMediaItem({
+        mediaType: 'Photo',
+        url: 'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Gif/1156792071/1/abc/def/ghi',
+      })
+    ).toBe('floorplan');
+  });
+
+  it('classifies PHOTO-Jpeg Trestle URL as photo (regression guard)', () => {
+    expect(
+      classifyMediaItem({
+        MediaURL:
+          'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1156792071/1/abc/def/ghi',
+      })
+    ).toBe('photo');
+  });
+
+  it('classifies normal R2 photo URL as photo (regression guard)', () => {
+    expect(
+      classifyMediaItem({
+        url: 'https://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/photos/RLS20089706/1.jpg',
+        mediaType: 'Photo',
+      })
+    ).toBe('photo');
+  });
+
+  it('classifies R2 floorplan URL as floorplan (regression guard for prior /floorplans/ pattern)', () => {
+    expect(
+      classifyMediaItem({
+        url: 'https://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/floorplans/RLS20089512/1.jpg',
+      })
+    ).toBe('floorplan');
+  });
+
+  it('does not match arbitrary URLs containing the word "DOCUMENT" outside the Trestle path shape', () => {
+    // Defensive: pattern must be anchored to /Media/Property/DOCUMENT-{ext}/
+    // so a benign URL with "document" in path doesn't get misclassified.
+    expect(
+      classifyMediaItem({
+        url: 'https://example.com/documents/floorplan.jpg',
+      })
+    ).toBe('photo'); // default-to-photo path; no DOCUMENT-{ext} signal
+    expect(
+      classifyMediaItem({
+        url: 'https://example.com/some-document-name.jpg',
+      })
+    ).toBe('photo'); // default-to-photo path
+  });
 });
 
 describe('resolveListingMedia — photo-first ordering', () => {
