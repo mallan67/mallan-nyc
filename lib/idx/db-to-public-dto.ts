@@ -19,6 +19,7 @@ import type { PublicListingDTO } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
+import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
 
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
@@ -143,6 +144,21 @@ const STATUS_DISPLAY: Record<string, string> = {
   Rented: 'Rented',
 };
 
+const DB_TRESTLE_PROXY_HOSTS = new Set(['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com']);
+
+function proxyDbMediaUrl(rawUrl: string): string {
+  if (!rawUrl) return rawUrl;
+  try {
+    const parsed = new URL(rawUrl);
+    if (DB_TRESTLE_PROXY_HOSTS.has(parsed.hostname)) {
+      return `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`;
+    }
+  } catch {
+    return rawUrl;
+  }
+  return rawUrl;
+}
+
 /**
  * Filter DB listings to only those eligible for public display.
  * Applies the same 6 REBNY distribution gates as the Trestle path.
@@ -248,7 +264,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     return 'Photo';
   }
 
-  const media = mediaArr
+  const _legacyMedia = mediaArr
     .filter((m) => m.MediaURL || m.url)
     .map((m, i) => {
       const mt = classifyMedia(m);
@@ -266,6 +282,13 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
       const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
       return rankDiff !== 0 ? rankDiff : a.order - b.order;
     });
+
+  const media = resolveListingMedia(mediaArr, { mapUrl: proxyDbMediaUrl }).map(m => ({
+    url: m.url,
+    mediaType: m.mediaType,
+    order: m.providerOrder,
+  }));
+  const photoCount = media.filter(m => m.mediaType === 'Photo').length;
 
   return {
     id: listing.listing_id,
@@ -314,7 +337,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     roomsTotal: features.Rooms ? Number(features.Rooms) : undefined,
     listOfficeName: agentInfo.ListOfficeName || 'Mallan Real Estate Inc.',
     media,
-    photosCount: media.length,
+    photosCount: photoCount,
     publicRemarks: features.PublicRemarks || undefined,
     listingContractDate: listing.listing_contract_date
       ? new Date(listing.listing_contract_date).toISOString()

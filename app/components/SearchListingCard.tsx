@@ -7,6 +7,12 @@ import FavoriteButton from '@/app/components/FavoriteButton';
 import FareActFeeBadge from '@/app/components/FareActFeeBadge';
 import { type DisplayListing, listingHref } from '@/lib/idx/display-adapter';
 import { useSwipe } from '@/lib/hooks/useSwipe';
+import {
+  LISTING_PLACEHOLDER_IMAGE,
+  countPhotoMedia,
+  getHeroPhoto,
+  getValidPhotoMedia,
+} from '@/lib/media/listing-card-media';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -36,14 +42,16 @@ interface CardProps {
   onHover?: (id: string | null) => void;
 }
 
-/** Get the first photo URL (prefers Photo type, never falls back to FloorPlan) */
-function heroPhoto(listing: DisplayListing): string {
-  const photo = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo');
-  return photo?.url || '/images/listing-placeholder.svg';
-}
-
 /** Grid card — standard card with photo on top */
 export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
+  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
+  const heroSrc = getHeroPhoto(listing.media, failedPhotoUrls);
+  const photoCount = countPhotoMedia(listing.media);
+  const handlePhotoError = useCallback(() => {
+    if (heroSrc === LISTING_PLACEHOLDER_IMAGE) return;
+    setFailedPhotoUrls(prev => new Set(prev).add(heroSrc));
+  }, [heroSrc]);
+
   return (
     <Link
       href={listingHref(listing)}
@@ -55,10 +63,11 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
     >
       <div className="relative overflow-hidden">
         <IDXImage
-          src={heroPhoto(listing)}
+          src={heroSrc}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"
+          onError={handlePhotoError}
         />
         {formatComingSoonBadge(listing) ? (
           <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl z-10">
@@ -69,11 +78,11 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
             <FavoriteButton listing={listing} />
           </div>
         )}
-        {listing.media.length > 0 && (
+        {photoCount > 0 && (
           <div className="absolute top-3 right-3 flex gap-1.5 z-10">
             <span className="flex items-center gap-1 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              {listing.photosCount || listing.media.length}
+              {photoCount}
             </span>
           </div>
         )}
@@ -132,6 +141,13 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
 
 /** List card — horizontal layout */
 export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
+  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
+  const heroSrc = getHeroPhoto(listing.media, failedPhotoUrls);
+  const handlePhotoError = useCallback(() => {
+    if (heroSrc === LISTING_PLACEHOLDER_IMAGE) return;
+    setFailedPhotoUrls(prev => new Set(prev).add(heroSrc));
+  }, [heroSrc]);
+
   return (
     <Link
       href={listingHref(listing)}
@@ -143,10 +159,11 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
     >
       <div className="relative w-48 sm:w-64 flex-shrink-0">
         <IDXImage
-          src={heroPhoto(listing)}
+          src={heroSrc}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"
+          onError={handlePhotoError}
         />
         {formatComingSoonBadge(listing) ? (
           <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded-lg z-10">
@@ -223,14 +240,20 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
 export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
   const [photoIdx, setPhotoIdx] = useState(0);
   const [hovered, setHovered] = useState(false);
-  const photos = listing.media
-    .filter(m => !m.mediaType || m.mediaType === 'Photo')
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
+  const photos = getValidPhotoMedia(listing.media).filter((m) => !failedPhotoUrls.has(String(m.url)));
+  const safePhotoIdx = photos.length > 0 ? Math.min(photoIdx, photos.length - 1) : 0;
+  const currentSrc = photos[safePhotoIdx]?.url || LISTING_PLACEHOLDER_IMAGE;
   const hasMultiple = photos.length > 1;
 
-  const goPrev = useCallback(() => setPhotoIdx(i => (i > 0 ? i - 1 : photos.length - 1)), [photos.length]);
-  const goNext = useCallback(() => setPhotoIdx(i => (i < photos.length - 1 ? i + 1 : 0)), [photos.length]);
+  const goPrev = useCallback(() => setPhotoIdx(i => (photos.length > 0 && i > 0 ? i - 1 : Math.max(photos.length - 1, 0))), [photos.length]);
+  const goNext = useCallback(() => setPhotoIdx(i => (photos.length > 0 && i < photos.length - 1 ? i + 1 : 0)), [photos.length]);
   const swipe = useSwipe(goNext, goPrev);
+  const handlePhotoError = useCallback(() => {
+    if (currentSrc === LISTING_PLACEHOLDER_IMAGE) return;
+    setFailedPhotoUrls(prev => new Set(prev).add(currentSrc));
+    setPhotoIdx(0);
+  }, [currentSrc]);
 
   const prev = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -261,10 +284,11 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
       >
         <Link href={listingHref(listing)} className="block w-full" onClick={swipe.cancelIfSwiping}>
           <IDXImage
-            src={photos[photoIdx]?.url || '/images/listing-placeholder.svg'}
+            src={currentSrc}
             alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
             aspect="wide"
             className={`transition-transform duration-500 ${hovered ? 'scale-105' : ''}`}
+            onError={handlePhotoError}
           />
         </Link>
         {formatComingSoonBadge(listing) && (
@@ -278,7 +302,7 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         {/* Photo count badge */}
         {photos.length > 1 && (
           <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-md z-10">
-            {photoIdx + 1}/{photos.length}
+            {safePhotoIdx + 1}/{photos.length}
           </span>
         )}
         {/* Photo nav arrows — visible on hover */}
@@ -304,7 +328,7 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         {hasMultiple && (
           <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-0.5 z-10">
             {photos.slice(0, 5).map((_, i) => (
-              <span key={i} className={`w-1 h-1 rounded-full transition-colors ${i === photoIdx ? 'bg-white' : 'bg-white/40'}`} />
+              <span key={i} className={`w-1 h-1 rounded-full transition-colors ${i === safePhotoIdx ? 'bg-white' : 'bg-white/40'}`} />
             ))}
           </div>
         )}

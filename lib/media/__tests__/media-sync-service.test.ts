@@ -50,6 +50,7 @@ describe("media sync service", () => {
 
     it('returns "FloorPlan" for lowercase variants', () => {
       expect(classifyTrestleMediaCategory("floorplan")).toBe("FloorPlan");
+      expect(classifyTrestleMediaCategory("floor_plan")).toBe("FloorPlan");
       expect(classifyTrestleMediaCategory("floor plan")).toBe("FloorPlan");
       expect(classifyTrestleMediaCategory("FLOORPLAN")).toBe("FloorPlan");
     });

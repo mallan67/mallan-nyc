@@ -30,6 +30,7 @@ interface IDXImageProps {
   aspect?: keyof typeof ASPECT_CLASSES;
   priority?: boolean;
   className?: string;
+  onError?: () => void;
 }
 
 export default function IDXImage({
@@ -38,11 +39,14 @@ export default function IDXImage({
   aspect = 'card',
   priority = false,
   className = '',
+  onError,
 }: IDXImageProps) {
-  const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const failed = failedSrc === src;
+  const loaded = loadedSrc === src;
 
   // Only animate when the card is in the viewport — saves GPU layers for off-screen cards
   useEffect(() => {
@@ -109,8 +113,11 @@ export default function IDXImage({
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding={priority ? 'sync' : 'async'}
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
+        onLoad={() => setLoadedSrc(src)}
+        onError={() => {
+          setFailedSrc(src);
+          onError?.();
+        }}
         translate="no"
         className={`notranslate absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{

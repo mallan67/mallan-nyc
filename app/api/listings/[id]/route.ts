@@ -82,7 +82,7 @@ export async function GET(request: Request, { params }: Props) {
                     ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
                     : m.url,
                 }));
-                publicListing.photosCount = mediaItems.length;
+                publicListing.photosCount = publicListing.media.filter(m => m.mediaType === 'Photo').length;
               }
             } catch (mediaErr) {
               // Non-fatal — listing displays without photos

@@ -19,6 +19,10 @@ describe('classifyMediaItem', () => {
     expect(classifyMediaItem({ MediaCategory: 'Floor Plan' })).toBe('floorplan');
   });
 
+  it('classifies "floor_plan" with underscore via MediaCategory', () => {
+    expect(classifyMediaItem({ MediaCategory: 'floor_plan' })).toBe('floorplan');
+  });
+
   it('classifies as floorplan when MediaClassification is Document', () => {
     expect(classifyMediaItem({ MediaClassification: 'Document' })).toBe('floorplan');
   });

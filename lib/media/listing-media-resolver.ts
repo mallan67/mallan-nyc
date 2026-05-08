@@ -74,6 +74,10 @@ export interface ResolvedMedia {
   preferred?: boolean;
 }
 
+export interface ResolveListingMediaOptions {
+  mapUrl?: (rawUrl: string) => string;
+}
+
 /** Heuristic classification — works against raw Trestle Media records, DB JSONB, or DTO shapes. */
 export function classifyMediaItem(raw: unknown): MediaClass {
   if (!raw || typeof raw !== 'object') return 'unknown';
@@ -85,7 +89,7 @@ export function classifyMediaItem(raw: unknown): MediaClass {
 
   // Floor plan signals (multiple to catch Trestle's inconsistent tagging)
   if (
-    cat === 'floorplan' || cat.includes('floor plan') || cat === 'floor plan' ||
+    cat === 'floorplan' || cat.includes('floor plan') || cat.includes('floor_plan') || cat === 'floor plan' ||
     cls === 'document' ||
     desc.includes('floorplan') || desc.includes('floor plan') ||
     /\/floorplans?\//i.test(url)
@@ -145,7 +149,7 @@ export function proxyTrestleUrl(url: string): string {
  * URLs are proxied through `/api/media/proxy?url=` when the host is a
  * Trestle/CoreLogic domain.
  */
-export function resolveListingMedia(items: unknown): ResolvedMedia[] {
+export function resolveListingMedia(items: unknown, options: ResolveListingMediaOptions = {}): ResolvedMedia[] {
   if (!Array.isArray(items)) return [];
   const decorated = items
     .map((raw, idx) => {
@@ -162,7 +166,7 @@ export function resolveListingMedia(items: unknown): ResolvedMedia[] {
         m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true' ||
         m.preferred === true || m.isPrimary === true;
       return {
-        url: proxyTrestleUrl(rawUrl),
+        url: options.mapUrl ? options.mapUrl(rawUrl) : proxyTrestleUrl(rawUrl),
         klass,
         providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
         idx,

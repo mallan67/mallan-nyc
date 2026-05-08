@@ -118,7 +118,7 @@ export function classifyTrestleMediaCategory(
   // Floor-plan detection — multiple forms because Trestle emits "FloorPlan"
   // (the actual enum value, no space) but downstream systems and DB rows
   // sometimes carry "Floor Plan" (with space) or other lowercase variants.
-  if (cat === "floorplan" || cat === "floor plan" || cat.includes("floorplan") || cat.includes("floor plan")) {
+  if (cat === "floorplan" || cat === "floor plan" || cat === "floor_plan" || cat.includes("floorplan") || cat.includes("floor plan") || cat.includes("floor_plan")) {
     return "FloorPlan";
   }
   // Virtual-tour detection — Trestle uses "VirtualTour" (no space); we accept

@@ -290,6 +290,12 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
   // always canonical (no space) — suppressing the REBNY §16(C) badge on
   // every Coming Soon listing.
   const isComingSoon = isComingSoonStatus(listing.standardStatus);
+  const resolvedMedia = resolveListingMedia(listing.media).map(m => ({
+    url: m.url,
+    mediaType: m.mediaType,
+    order: m.providerOrder,
+  }));
+  const resolvedPhotoCount = resolvedMedia.filter(m => m.mediaType === 'Photo').length;
 
   // Generate address-based slug — respects InternetAddressDisplayYN gate
   const slug = generateListingSlug({
@@ -334,12 +340,8 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     // writer (sync.ts) emitted and could surface a FloorPlan as media[0] for
     // listings that arrived from Trestle with mixed-category ordering.
     // resolveListingMedia also proxies Trestle URLs (replaces local proxyMediaUrl).
-    media: resolveListingMedia(listing.media).map(m => ({
-      url: m.url,
-      mediaType: m.mediaType,
-      order: m.providerOrder,
-    })),
-    photosCount: listing.photosCount,
+    media: resolvedMedia,
+    photosCount: resolvedPhotoCount,
     virtualTourURL: listing.virtualTourURLUnbranded || listing.virtualTourURLBranded || undefined,
     // Public remarks only — private remarks are NEVER on IDXListing
     publicRemarks: listing.publicRemarks,

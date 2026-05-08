@@ -7,6 +7,10 @@ import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import { useSwipe } from '@/lib/hooks/useSwipe';
+import {
+  LISTING_PLACEHOLDER_IMAGE,
+  getValidPhotoMedia,
+} from '@/lib/media/listing-card-media';
 
 interface FeaturedListing {
   id: string;
@@ -73,20 +77,24 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: string }[]; alt: string }) {
+function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: string; order?: number }[]; alt: string }) {
   const [idx, setIdx] = useState(0);
-  // Ensure actual photos always come before floor plans (defensive re-sort)
-  const sorted = photos.length > 0
-    ? [...photos].sort((a, b) => {
-        const rank = (t: string) => t === 'Photo' || !t ? 0 : t === 'FloorPlan' ? 2 : 1;
-        return rank(a.mediaType) - rank(b.mediaType);
-      })
-    : [{ url: '/images/listing-placeholder.svg', mediaType: 'Photo' }];
-  const images = sorted;
+  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
+  const validPhotos = getValidPhotoMedia(photos).filter((m) => !failedPhotoUrls.has(String(m.url)));
+  const images = validPhotos.length > 0
+    ? validPhotos
+    : [{ url: LISTING_PLACEHOLDER_IMAGE, mediaType: 'Photo' }];
+  const safeIdx = Math.min(idx, images.length - 1);
+  const currentSrc = images[safeIdx]?.url || LISTING_PLACEHOLDER_IMAGE;
 
   const goPrev = useCallback(() => setIdx(i => i === 0 ? images.length - 1 : i - 1), [images.length]);
   const goNext = useCallback(() => setIdx(i => i === images.length - 1 ? 0 : i + 1), [images.length]);
   const swipe = useSwipe(goNext, goPrev);
+  const handlePhotoError = useCallback(() => {
+    if (currentSrc === LISTING_PLACEHOLDER_IMAGE) return;
+    setFailedPhotoUrls(prev => new Set(prev).add(currentSrc));
+    setIdx(0);
+  }, [currentSrc]);
 
   return (
     <div
@@ -96,9 +104,10 @@ function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: strin
       onTouchEnd={swipe.onTouchEnd}
     >
       <IDXImage
-        src={images[idx]?.url || '/images/listing-placeholder.svg'}
+        src={currentSrc}
         alt={alt}
         aspect="card"
+        onError={handlePhotoError}
       />
       {images.length > 1 && (
         <>
@@ -117,7 +126,7 @@ function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: strin
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
           <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-20">
-            {idx + 1}/{images.length}
+            {safeIdx + 1}/{images.length}
           </span>
         </>
       )}
@@ -201,7 +210,11 @@ function RentVsBuyCalc({ monthlyRent }: { monthlyRent: number }) {
 
 function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned?: boolean }) {
   const isRental = listing.listingType === 'rent';
-  const photos = listing.media.filter(m => m.mediaType === 'Photo' || !m.mediaType);
+  const photos = getValidPhotoMedia(listing.media).map((m) => ({
+    url: String(m.url),
+    mediaType: m.mediaType || 'Photo',
+    order: m.order ?? undefined,
+  }));
   const [calcOpen, setCalcOpen] = useState(false);
 
   const cc = listing.monthlyCommonCharges || listing.monthlyMaintenance;

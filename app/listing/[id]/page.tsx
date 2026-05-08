@@ -42,10 +42,17 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
+import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
 
 // ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
 export const revalidate = 300;
 export const maxDuration = 60;
+
+function proxyDetailMediaUrl(rawUrl: string): string {
+  return rawUrl.includes('cotality.com') || rawUrl.includes('corelogic.com')
+    ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`
+    : rawUrl;
+}
 
 /** Borough name → ACRIS borough code (1=Manhattan, 2=Bronx, 3=Brooklyn, 4=Queens, 5=SI) */
 const BOROUGH_TO_CODE: Record<string, string> = {
@@ -221,13 +228,12 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
   try {
     const mediaItems = await fetchListingMedia(listingKey);
     if (mediaItems.length > 0) {
-      dto.media = mediaItems.map(m => ({
-        ...m,
-        url: m.url.includes('cotality.com') || m.url.includes('corelogic.com')
-          ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
-          : m.url,
+      dto.media = resolveListingMedia(mediaItems, { mapUrl: proxyDetailMediaUrl }).map(m => ({
+        url: m.url,
+        mediaType: m.mediaType,
+        order: m.providerOrder,
       }));
-      dto.photosCount = mediaItems.length;
+      dto.photosCount = dto.media.filter(m => m.mediaType === 'Photo').length;
     }
   } catch {
     // Non-fatal — listing displays without photos
@@ -344,6 +350,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       return rankDiff !== 0 ? rankDiff : a.order - b.order;
     });
 
+    mediaArr = resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl }).map(m => ({
+      url: m.url,
+      mediaType: m.mediaType,
+      order: m.providerOrder,
+    }));
+
     // Fetch media from Trestle when DB has NO photos (only FloorPlans/Videos/empty).
     // DB photos are refreshed during IDX sync — no need to re-fetch on every page load.
     const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
@@ -421,9 +433,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       listOfficeName: agentInfo.ListOfficeName || agentInfo.company || 'Mallan Real Estate Inc.',
       media: mediaArr.map(m => ({
         ...m,
-        url: m.url && (m.url.includes('cotality.com') || m.url.includes('corelogic.com'))
-          ? `/api/media/proxy?url=${encodeURIComponent(m.url)}`
-          : m.url,
+        url: m.url ? proxyDetailMediaUrl(m.url) : m.url,
       })),
       photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
       publicRemarks: String(features.PublicRemarks || compliance.PublicRemarks || ''),

@@ -5,6 +5,7 @@
 
 import { affirmPermission } from "@/lib/compliance/gates";
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
+import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 
 // ═══════════════════════════════════════════════════════════
 // RESO-to-RLS RENAMES (23 fields)
@@ -781,11 +782,12 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     rawMediaArr.length > 0
       ? rawMediaArr
           .map((m: Record<string, unknown>) => {
-            const cat = String(m.MediaCategory || '').toLowerCase();
-            let mediaType = 'Photo';
-            if (cat.includes('floor plan')) mediaType = 'FloorPlan';
-            else if (cat.includes('video')) mediaType = 'Video';
-            else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
+            const mediaClass = classifyMediaItem(m);
+            const mediaType =
+              mediaClass === 'floorplan' ? 'FloorPlan' :
+              mediaClass === 'video' ? 'Video' :
+              mediaClass === 'virtualTour' ? 'VirtualTour' :
+              'Photo';
             const isPreferred =
               m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
             return {
