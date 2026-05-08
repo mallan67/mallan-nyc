@@ -303,14 +303,26 @@ export async function fetchListingByAddress(address: {
 }
 
 /**
- * Build an OData $filter for incremental sync based on modification timestamp.
+ * Build an OData $filter for incremental sync based on listing or photo
+ * modification timestamps.
+ *
+ * Cotality vendor guidance (2026-04-07): photo-only edits may bump
+ * `Property.PhotosChangeTimestamp` without bumping `Property.ModificationTimestamp`.
+ * Empirical Layer 0 audit (2026-05-08): 18,411 of 21,307 rows in our DB had
+ * raw_data.PhotosChangeTimestamp newer than modification_timestamp; 13,675 of
+ * those were displayable active listings whose new photos were never re-pulled
+ * because the MT-only cursor skipped over them. The OR-cursor here closes that
+ * gap — both timestamp fields are already in IDX_PLUS_SELECT_FIELDS, so no
+ * additional Trestle traffic is required for the change itself.
  */
 export function buildIncrementalFilter(
   since: Date,
   listingType?: "sale" | "rent"
 ): string {
   const timestamp = since.toISOString();
-  const parts = [`ModificationTimestamp gt ${timestamp}`];
+  const parts = [
+    `(ModificationTimestamp gt ${timestamp} or PhotosChangeTimestamp gt ${timestamp})`,
+  ];
 
   if (listingType === "sale") {
     parts.push("PropertyType ne 'ResidentialLease'");

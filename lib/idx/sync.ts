@@ -419,9 +419,17 @@ export async function syncListings(
   try {
     const now = new Date();
     let batchWatermark = now;
+    // Advance the watermark using max(ModificationTimestamp, PhotosChangeTimestamp)
+    // per record. The incremental cursor at buildIncrementalFilter() now ORs the
+    // two fields, so the watermark must reflect both — otherwise the next pass
+    // would re-fetch every row whose PCT advanced past the (MT-only) watermark.
+    // Single-column SyncState.last_watermark; no schema change.
     for (const r of fetchResult.records) {
       const mt = r.ModificationTimestamp ? new Date(String(r.ModificationTimestamp)) : null;
-      if (mt && !Number.isNaN(mt.getTime()) && mt > batchWatermark) batchWatermark = mt;
+      const pct = r.PhotosChangeTimestamp ? new Date(String(r.PhotosChangeTimestamp)) : null;
+      for (const cand of [mt, pct]) {
+        if (cand && !Number.isNaN(cand.getTime()) && cand > batchWatermark) batchWatermark = cand;
+      }
     }
     // On empty batches, advance last_run_at but leave last_watermark alone —
     // the UI surfaces last_watermark as the "data updated" date. Preserving
@@ -480,7 +488,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 
   // Find listings needing media backfill.
   //
-  // Matches:
+  // Matches (eligibility expanded 2026-05-08 — Layer 2 of the
+  // PhotosChangeTimestamp gap fix; see Layer 0 audit results in
+  // memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md):
   //   - NULL media
   //   - empty array `[]`
   //   - empty object `{}`
@@ -488,6 +498,14 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   //     wrote a summary `{PhotosCount: N, ...}` instead of a photo array —
   //     see trestle-mapper.ts line 690 comments for the root-cause story)
   //   - empty-string edge case
+  //   - non-empty media arrays with ZERO Photo entries (FloorPlan-only,
+  //     Video-only, VirtualTour-only — pre-Fix-#1 these rendered the wrong
+  //     hero; post-Fix-#1 they render the placeholder; either way the
+  //     row needs a Photo refetch when the broker uploads)
+  //   - rows where Trestle's PhotosChangeTimestamp is newer than our DB
+  //     modification_timestamp (Cotality routinely bumps PCT without
+  //     bumping MT — empirical 18,411-row drift audit on 2026-05-08).
+  //     The new media array overwrites the stale one in the same upsert.
   //
   // The `jsonb_typeof(media) != 'array'` clause catches the object-shaped
   // malformed data. Without it, 8,082+ production rows with
@@ -499,6 +517,20 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
         media IS NULL
         OR jsonb_typeof(media) != 'array'
         OR jsonb_array_length(media) = 0
+        OR (
+          jsonb_typeof(media) = 'array'
+          AND jsonb_array_length(media) > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(media) elem
+            WHERE LOWER(COALESCE(elem->>'mediaType', '')) IN ('photo', 'image', '')
+          )
+        )
+        OR (
+          raw_data ? 'PhotosChangeTimestamp'
+          AND NULLIF(raw_data->>'PhotosChangeTimestamp', '') IS NOT NULL
+          AND modification_timestamp IS NOT NULL
+          AND (raw_data->>'PhotosChangeTimestamp')::timestamp > modification_timestamp
+        )
       )
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
       AND sync_status IS DISTINCT FROM 'gated:participant_only'

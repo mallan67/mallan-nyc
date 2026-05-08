@@ -10,6 +10,8 @@ module.exports = {
     '<rootDir>/lib/compliance/jest.config.js',
     // lib/search tests (ts-jest)
     '<rootDir>/lib/search/jest.config.js',
+    // lib/idx tests (ts-jest) — sync cursor + backfill eligibility (PCT gap)
+    '<rootDir>/lib/idx/jest.config.js',
     // lib/rls-validator tests (ts-jest) — commented out: config missing
     // '<rootDir>/lib/rls-validator/jest.config.js',
     // tests/runtime — release-truth side-effect proof for high-risk routes
