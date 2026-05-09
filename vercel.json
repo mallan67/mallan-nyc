@@ -12,6 +12,7 @@
     { "path": "/api/cron/dom-reset", "schedule": "0 6 * * *" },
     { "path": "/api/cron/idx-sync", "schedule": "*/10 * * * *" },
     { "path": "/api/cron/media-backfill", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/media-sync", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/listing-expiration", "schedule": "0 7 * * *" },
     { "path": "/api/cron/search-alerts", "schedule": "30 7 * * *" },
     { "path": "/api/cron/seller-scoring", "schedule": "0 8 * * *" },
@@ -33,6 +34,9 @@
       "maxDuration": 30
     },
     "app/api/cron/idx-sync/route.ts": {
+      "maxDuration": 120
+    },
+    "app/api/cron/media-sync/route.ts": {
       "maxDuration": 120
     }
   },

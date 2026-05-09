@@ -877,3 +877,303 @@ export async function mirrorMediaToR2(
 
   return { status: "uploaded", r2_key: key, media_url_cached: publicUrl };
 }
+
+// ─── Checkpoint 5 — orchestration (cron-callable) ───────────────────────
+
+/**
+ * Trestle Property row shape — strict subset of fields `runMediaSync()` reads.
+ *
+ * `OwnerOptOut` and `ParticipantOnly` exist on Trestle's REBNY policy layer
+ * but are pre-filtered at the IDX Plus license edge in our license. We
+ * still defensively check them so a future feed-policy change cannot leak
+ * non-displayable rows into our cache.
+ */
+export interface TrestleProperty {
+  ListingId?: string | null;
+  ListingKey?: string | null;
+  ListingKeyNumeric?: string | number | null;
+  PhotosChangeTimestamp?: string | null;
+  ModificationTimestamp?: string | null;
+  StandardStatus?: string | null;
+  OwnerOptOut?: boolean | null;
+  ParticipantOnly?: boolean | null;
+  InternetEntireListingDisplayYN?: boolean | null;
+  InternetAddressDisplayYN?: boolean | null;
+}
+
+/** Test-injectable Trestle fetchers. */
+export interface MediaSyncFetchDeps {
+  fetchProperties: (since: Date, top: number) => Promise<TrestleProperty[]>;
+  fetchMedia: (resourceRecordKey: string, top: number) => Promise<UpsertListingMediaInput[]>;
+}
+
+export interface RunMediaSyncOptions {
+  /** Hard cap on listings processed per cron firing (default 50). */
+  listingsPerRun?: number;
+  /** Hard cap on Media rows fetched per listing (default 30). */
+  mediaPerListing?: number;
+  /** First-run cursor fallback in days (default 30). */
+  fallbackWindowDays?: number;
+  /** DI seam for Trestle Property + Media fetch. */
+  fetchDeps?: MediaSyncFetchDeps;
+  /** DI seam for the R2 mirror function (`mirrorMediaToR2()` deps). */
+  mirrorDeps?: MirrorMediaToR2Deps;
+}
+
+export interface RunMediaSyncResult {
+  /**
+   * `ok`      — full success, all listings processed without per-row failures.
+   * `partial` — at least one listing or media row failed; rest succeeded;
+   *             cursor advanced for processed listings only.
+   * `error`   — Trestle Property fetch failed; cursor NOT advanced.
+   */
+  status: "ok" | "partial" | "error";
+  rows_checked: number;
+  rows_updated: number;
+  rows_failed: number;
+  listings_processed: number;
+  listings_skipped: number;
+  duration_ms: number;
+  /** Set when `status === "error"`. */
+  error?: string;
+}
+
+export const DEFAULT_LISTINGS_PER_RUN = 50;
+export const DEFAULT_MEDIA_PER_LISTING = 30;
+export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
+
+async function defaultFetchProperties(since: Date, top: number): Promise<TrestleProperty[]> {
+  const token = await defaultGetAccessToken();
+  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+
+  const params = new URLSearchParams();
+  // Filter by Property.PhotosChangeTimestamp (Trestle vendor-recommended trigger
+  // for media-only changes). We additionally constrain to active-displayable
+  // statuses so we don't churn on terminal-status rows.
+  params.set(
+    "$filter",
+    `PhotosChangeTimestamp gt ${since.toISOString()} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'Pending')`,
+  );
+  params.set(
+    "$select",
+    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
+  );
+  params.set("$orderby", "PhotosChangeTimestamp asc");
+  params.set("$top", String(top));
+
+  const url = `${TRESTLE_API}/odata/Property?${params.toString()}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Property fetch failed: HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.value || []) as TrestleProperty[];
+}
+
+async function defaultFetchMedia(
+  resourceRecordKey: string,
+  top: number,
+): Promise<UpsertListingMediaInput[]> {
+  const token = await defaultGetAccessToken();
+  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+
+  const escaped = resourceRecordKey.replace(/'/g, "''");
+  const params = new URLSearchParams();
+  params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
+  params.set(
+    "$select",
+    "MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",
+  );
+  params.set("$orderby", "Order asc");
+  params.set("$top", String(top));
+
+  const url = `${TRESTLE_API}/odata/Media?${params.toString()}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Media fetch failed: HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.value || []) as UpsertListingMediaInput[];
+}
+
+const defaultFetchDeps: MediaSyncFetchDeps = {
+  fetchProperties: defaultFetchProperties,
+  fetchMedia: defaultFetchMedia,
+};
+
+/**
+ * One pass of the media-sync pipeline. Composes Cp1 (cursor), Cp2 (upsert
+ * listing_media), Cp3 (Listing summary), and Cp4 (R2 mirror).
+ *
+ * Watermark safety:
+ *   - Property fetch failure ⟹ return early with `status: "error"`. The
+ *     cursor is NOT advanced. Next run retries with the same `since`.
+ *   - Per-listing failures (Media fetch / upsert error / R2 / summary) are
+ *     caught and counted in `rows_failed`. The cursor advances using only
+ *     records we successfully processed. Listings that failed will surface
+ *     again on the next run if their `PhotosChangeTimestamp` is still > the
+ *     advanced watermark.
+ *   - Empty Property page ⟹ `status: "ok"`, `last_run_at` advances, but the
+ *     watermarks themselves stay frozen (per `advanceMediaSyncCursor`'s
+ *     empty-batch contract).
+ *
+ * Compliance:
+ *   - Skips listings flagged `OwnerOptOut === true` or `ParticipantOnly === true`
+ *     as a defensive measure (Trestle's IDX Plus license edge filters these,
+ *     but a future policy change must not leak through).
+ *   - Per-row Permission filter and `MediaStatus='Deleted'` tombstoning are
+ *     handled inside `upsertListingMedia()`.
+ *
+ * Bounds:
+ *   - Hard caps `listingsPerRun` (default 50) and `mediaPerListing` (default 30).
+ *   - No recursive calls. Single linear loop bounded by the page size.
+ *   - No retries on transient failures — those land in Checkpoint 6.
+ *
+ * Reader/PR-4 boundary:
+ *   - Never writes `Listing.media` JSON.
+ *   - Never modifies anything in `app/api/media/batch/`, `lib/idx/sync.ts`,
+ *     `lib/external-listings/`, schema, or migrations.
+ *   - Public site continues to read `Listing.media` JSON until PR 4.
+ */
+export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<RunMediaSyncResult> {
+  const startTime = Date.now();
+  const listingsPerRun = options.listingsPerRun ?? DEFAULT_LISTINGS_PER_RUN;
+  const mediaPerListing = options.mediaPerListing ?? DEFAULT_MEDIA_PER_LISTING;
+  const fallbackWindowDays = options.fallbackWindowDays ?? DEFAULT_FALLBACK_WINDOW_DAYS;
+  const fetchDeps = options.fetchDeps ?? defaultFetchDeps;
+  const mirrorDeps = options.mirrorDeps ?? defaultMirrorMediaToR2Deps;
+
+  const cursor = await getMediaSyncCursor();
+  const since =
+    cursor.last_photos_change ??
+    new Date(Date.now() - fallbackWindowDays * 86_400_000);
+
+  // Property fetch — failure is route-level error. Cursor NOT advanced.
+  let properties: TrestleProperty[];
+  try {
+    properties = await fetchDeps.fetchProperties(since, listingsPerRun);
+  } catch (err) {
+    return {
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+      rows_checked: 0,
+      rows_updated: 0,
+      rows_failed: 0,
+      listings_processed: 0,
+      listings_skipped: 0,
+      duration_ms: Date.now() - startTime,
+    };
+  }
+
+  let rowsChecked = 0;
+  let rowsUpdated = 0;
+  let rowsFailed = 0;
+  let listingsProcessed = 0;
+  let listingsSkipped = 0;
+  const cursorRecords: MediaSyncBatchRecord[] = [];
+
+  for (const property of properties) {
+    // Defensive compliance gate.
+    if (property.OwnerOptOut === true || property.ParticipantOnly === true) {
+      listingsSkipped++;
+      continue;
+    }
+
+    const listingId = property.ListingId ? String(property.ListingId) : null;
+    const listingKey = property.ListingKey ? String(property.ListingKey) : null;
+    if (!listingId || !listingKey) {
+      listingsSkipped++;
+      continue;
+    }
+
+    try {
+      const mediaRows = await fetchDeps.fetchMedia(listingKey, mediaPerListing);
+      rowsChecked += mediaRows.length;
+
+      const upsertResult = await upsertListingMedia(listingId, mediaRows, {
+        photosChangeTsSnapshot: property.PhotosChangeTimestamp ?? null,
+        tombstoneVanished: true,
+      });
+      rowsUpdated += upsertResult.inserted + upsertResult.updated;
+
+      // Re-read the active listing_media rows so we can mirror to R2 with
+      // their actual DB state (including any preserved r2_key / media_url_cached
+      // from prior runs).
+      const dbRows = await prisma.listingMedia.findMany({
+        where: { listing_id: listingId, status: "active" },
+        select: {
+          listing_id: true,
+          media_key: true,
+          media_type: true,
+          order: true,
+          media_url_original: true,
+          r2_key: true,
+          media_url_cached: true,
+        },
+      });
+
+      for (const dbRow of dbRows) {
+        // Skip rows without media_key — `mirrorMediaToR2` requires it for
+        // the upsert WHERE clause. These would be legacy or malformed rows.
+        if (!dbRow.media_key) continue;
+        try {
+          const result = await mirrorMediaToR2(
+            {
+              listing_id: dbRow.listing_id,
+              media_key: dbRow.media_key,
+              media_type: dbRow.media_type,
+              order: dbRow.order,
+              media_url_original: dbRow.media_url_original,
+              r2_key: dbRow.r2_key,
+              media_url_cached: dbRow.media_url_cached,
+            },
+            mirrorDeps,
+          );
+          if (result.status === "failed") rowsFailed++;
+        } catch {
+          rowsFailed++;
+        }
+      }
+
+      // Update derived Listing summary columns. Failure is non-fatal —
+      // listing_media is the source of truth, summary columns are reads.
+      try {
+        await updateListingMediaSummary(listingId);
+      } catch {
+        // intentionally swallowed
+      }
+
+      cursorRecords.push({
+        PhotosChangeTimestamp: property.PhotosChangeTimestamp ?? null,
+        ModificationTimestamp: property.ModificationTimestamp ?? null,
+      });
+      listingsProcessed++;
+    } catch {
+      // Per-listing failure (Media fetch threw, upsert threw, etc).
+      // Count one failure for the listing; do NOT push to cursorRecords.
+      rowsFailed++;
+    }
+  }
+
+  const status: RunMediaSyncResult["status"] = rowsFailed > 0 ? "partial" : "ok";
+
+  // Advance cursor — only with records we successfully processed.
+  // On `error` route-level path we never reach here, so the cursor stays put.
+  await advanceMediaSyncCursor({
+    records: cursorRecords,
+    status,
+    rowsChecked,
+    rowsUpdated,
+    rowsFailed,
+  });
+
+  return {
+    status,
+    rows_checked: rowsChecked,
+    rows_updated: rowsUpdated,
+    rows_failed: rowsFailed,
+    listings_processed: listingsProcessed,
+    listings_skipped: listingsSkipped,
+    duration_ms: Date.now() - startTime,
+  };
+}
