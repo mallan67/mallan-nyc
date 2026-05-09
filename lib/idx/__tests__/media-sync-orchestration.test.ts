@@ -54,7 +54,12 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { runMediaSync, RESOURCE_MEDIA } from "../media-sync";
+import {
+  buildPropertyQuery,
+  isPropertyComplianceBlocked,
+  runMediaSync,
+  RESOURCE_MEDIA,
+} from "../media-sync";
 
 beforeEach(() => {
   mockMediaSyncFindUnique.mockReset();
@@ -83,8 +88,9 @@ function makeProperty(overrides: Partial<TrestleProperty> = {}): TrestleProperty
     PhotosChangeTimestamp: "2026-05-08T12:00:00Z",
     ModificationTimestamp: "2026-05-08T11:30:00Z",
     StandardStatus: "Active",
-    OwnerOptOut: false,
-    ParticipantOnly: false,
+    Permission: null,
+    Permissions: null,
+    MlsStatus: "Active",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
     ...overrides,
@@ -224,12 +230,12 @@ describe("runMediaSync — empty page", () => {
 // ─── Defensive compliance gates ──────────────────────────────────────────
 
 describe("runMediaSync — defensive compliance gates", () => {
-  it("skips owner_opt_out listings without fetching their Media", async () => {
+  it("skips owner_opt_out listings (Permission='OwnerOptOut') without fetching their Media", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     const fetchMedia = jest.fn();
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ OwnerOptOut: true }),
+        makeProperty({ Permission: "OwnerOptOut" }),
         makeProperty({ ListingId: "RLS-OK", ListingKey: "K-OK" }),
       ]),
       fetchMedia,
@@ -242,12 +248,12 @@ describe("runMediaSync — defensive compliance gates", () => {
     expect((fetchMedia as jest.Mock).mock.calls[0][0]).toBe("K-OK");
   });
 
-  it("skips participant_only listings without fetching their Media", async () => {
+  it("skips participant_only listings (Permission='Private') without fetching their Media", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     const fetchMedia = jest.fn().mockResolvedValue([]);
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ ParticipantOnly: true }),
+        makeProperty({ Permission: "Private" }),
       ]),
       fetchMedia,
     });
@@ -256,6 +262,79 @@ describe("runMediaSync — defensive compliance gates", () => {
     expect(result.listings_skipped).toBe(1);
     expect(result.listings_processed).toBe(0);
     expect(fetchMedia).not.toHaveBeenCalled();
+  });
+
+  it("skips owner_opt_out via legacy plural Permissions enum without fetching Media", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const fetchMedia = jest.fn();
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ Permissions: "OwnerOptOut" }),
+      ]),
+      fetchMedia,
+    });
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+    expect(result.listings_skipped).toBe(1);
+    expect(fetchMedia).not.toHaveBeenCalled();
+  });
+
+  it("skips owner_opt_out via 'Owner Opt-Out' alternate spelling", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const fetchMedia = jest.fn();
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ Permission: "Owner Opt-Out" }),
+      ]),
+      fetchMedia,
+    });
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+    expect(result.listings_skipped).toBe(1);
+    expect(fetchMedia).not.toHaveBeenCalled();
+  });
+
+  it("skips owner_opt_out via MlsStatus='OwnerOptOut'", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const fetchMedia = jest.fn();
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ MlsStatus: "OwnerOptOut" }),
+      ]),
+      fetchMedia,
+    });
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+    expect(result.listings_skipped).toBe(1);
+    expect(fetchMedia).not.toHaveBeenCalled();
+  });
+
+  it("skips when InternetEntireListingDisplayYN === false (master gate)", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const fetchMedia = jest.fn();
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ InternetEntireListingDisplayYN: false }),
+      ]),
+      fetchMedia,
+    });
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+    expect(result.listings_skipped).toBe(1);
+    expect(fetchMedia).not.toHaveBeenCalled();
+  });
+
+  it("does NOT skip when InternetEntireListingDisplayYN is null (provider-gated, treat as displayable)", async () => {
+    // Mirrors `lib/idx/trestle-mapper.ts:706` which uses `!== false` so null
+    // and undefined remain displayable on the IDX Plus feed.
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindMany.mockResolvedValue([]);
+    const fetchMedia = jest.fn().mockResolvedValue([]);
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ InternetEntireListingDisplayYN: null }),
+      ]),
+      fetchMedia,
+    });
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+    expect(result.listings_skipped).toBe(0);
+    expect(fetchMedia).toHaveBeenCalledTimes(1);
   });
 
   it("skips listings missing ListingId or ListingKey without crashing", async () => {
@@ -459,5 +538,237 @@ describe("runMediaSync — boundary preservation", () => {
     const args = mirrorUpdateCalls[0][0] as { data: Record<string, unknown> };
     expect(Object.keys(args.data).sort()).toEqual(["media_url_cached", "r2_key"]);
     expect(args.data).not.toHaveProperty("media_url_original");
+  });
+});
+
+// ─── Review comment 1 — tombstoneVanished safety with capped fetch ───────
+
+describe("runMediaSync — tombstoneVanished is forced false (capped fetch safety)", () => {
+  it("does NOT tombstone DB rows that are absent from a capped Media response", async () => {
+    // Listing has 5 active rows in DB; capped fetch returns only 2. The 3
+    // "missing" rows must NOT be soft-deleted because the input is not proven
+    // complete (review comment 1).
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindUnique.mockResolvedValue(null);
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+    // Existing DB state — 5 active rows for the listing.
+    mockListingMediaFindMany.mockResolvedValue([
+      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-D", media_type: "Photo", order: 4, media_url_original: "u4", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-E", media_type: "Photo", order: 5, media_url_original: "u5", r2_key: null, media_url_cached: null },
+    ]);
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
+      ]),
+      // Capped fetch returns ONLY MK-A and MK-B — MK-C/D/E are not present
+      // in the response (they are simply beyond the page, not deleted).
+      fetchMedia: jest
+        .fn()
+        .mockResolvedValueOnce([
+          makeMediaInput({ MediaKey: "MK-A" }),
+          makeMediaInput({ MediaKey: "MK-B" }),
+        ]),
+    });
+
+    await runMediaSync(makeOptions({ fetchDeps, mediaPerListing: 2 }));
+
+    // No tombstoning updateMany call with the vanished-rows pattern
+    // (`media_key: { notIn: [...] }` — used ONLY when tombstoneVanished is true).
+    const tombstoneCalls = mockListingMediaUpdateMany.mock.calls.filter((call) => {
+      const args = call[0] as { where?: { media_key?: { notIn?: unknown[] } } };
+      return args?.where?.media_key && "notIn" in args.where.media_key;
+    });
+    expect(tombstoneCalls).toHaveLength(0);
+  });
+
+  it("explicit MediaStatus='Deleted' rows are still tombstoned by Cp2 regardless of tombstoneVanished", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindUnique.mockResolvedValue(null);
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+    mockListingMediaFindMany.mockResolvedValue([]);
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
+      ]),
+      // Mixed batch: MK-A active + MK-X is an explicit Trestle delete.
+      fetchMedia: jest.fn().mockResolvedValueOnce([
+        makeMediaInput({ MediaKey: "MK-A" }),
+        makeMediaInput({ MediaKey: "MK-X", MediaStatus: "Deleted" }),
+      ]),
+    });
+
+    await runMediaSync(makeOptions({ fetchDeps }));
+
+    // Cp2's explicit-delete path uses `media_key: { in: [...] }` — separate
+    // from the vanished-rows path. MK-X must be in that list.
+    const explicitDeleteCalls = mockListingMediaUpdateMany.mock.calls.filter((call) => {
+      const args = call[0] as { where?: { media_key?: { in?: string[] } }; data?: { status?: string } };
+      return args?.where?.media_key && "in" in (args.where.media_key as object) && args.data?.status === "deleted";
+    });
+    expect(explicitDeleteCalls).toHaveLength(1);
+    const where = explicitDeleteCalls[0][0] as { where: { media_key: { in: string[] } } };
+    expect(where.where.media_key.in).toContain("MK-X");
+    expect(where.where.media_key.in).not.toContain("MK-A");
+  });
+});
+
+// ─── Review comment 2 — boundary timestamp safety (cursor uses ge) ───────
+
+describe("runMediaSync — boundary timestamp safety", () => {
+  it("passes the cursor's last_photos_change directly to fetchProperties (ge semantics live in buildPropertyQuery)", async () => {
+    const cursorTs = new Date("2026-05-01T12:00:00.000Z");
+    mockMediaSyncFindUnique.mockResolvedValueOnce({
+      last_photos_change: cursorTs,
+      last_media_modified: null,
+    });
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const fetchDeps = makeFetchDeps({ fetchProperties });
+
+    await runMediaSync(makeOptions({ fetchDeps }));
+
+    const sinceArg = (fetchProperties as jest.Mock).mock.calls[0][0] as Date;
+    // Orchestrator does NOT subtract overlap; the ge filter in buildPropertyQuery
+    // re-includes the boundary. Cursor advances only with successfully-processed
+    // records, so re-fetching the boundary on the next run is safe and idempotent.
+    expect(sinceArg.toISOString()).toBe(cursorTs.toISOString());
+  });
+
+  it("re-processing the same boundary listing across two runs is idempotent at the upsert layer", async () => {
+    // Run 1: process listing-A at PCT=T1 → cursor advances to T1.
+    // Run 2: ge T1 returns listing-A again → upsert is keyed on media_key,
+    // produces no inserts, only updates with identical content.
+    const T1 = "2026-05-08T12:00:00.000Z";
+
+    // First run — listing inserted as new.
+    mockMediaSyncFindUnique.mockResolvedValueOnce(null);
+    mockListingMediaFindUnique.mockResolvedValueOnce(null); // create path
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaFindMany.mockResolvedValue([]);
+
+    const propertyA = makeProperty({
+      ListingId: "RLS-A",
+      ListingKey: "K-A",
+      PhotosChangeTimestamp: T1,
+    });
+    const mediaA = [makeMediaInput({ MediaKey: "MK-A", ModificationTimestamp: T1 })];
+
+    const result1 = await runMediaSync(
+      makeOptions({
+        fetchDeps: makeFetchDeps({
+          fetchProperties: jest.fn().mockResolvedValueOnce([propertyA]),
+          fetchMedia: jest.fn().mockResolvedValueOnce(mediaA),
+        }),
+      }),
+    );
+    expect(result1.status).toBe("ok");
+    expect(result1.listings_processed).toBe(1);
+    const insertCount1 = mockListingMediaCreate.mock.calls.length;
+
+    // Reset call counts (cursor and DB state simulated for run 2).
+    mockListingMediaCreate.mockClear();
+    mockListingMediaUpdate.mockClear();
+    mockMediaSyncFindUnique.mockReset();
+    mockListingMediaFindUnique.mockReset();
+
+    // Second run — cursor at T1, ge T1 returns same listing-A. Now the row exists.
+    mockMediaSyncFindUnique.mockResolvedValueOnce({
+      last_photos_change: new Date(T1),
+      last_media_modified: new Date(T1),
+    });
+    mockListingMediaFindUnique.mockResolvedValueOnce({ id: "row-1", listing_id: "RLS-A" });
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const result2 = await runMediaSync(
+      makeOptions({
+        fetchDeps: makeFetchDeps({
+          fetchProperties: jest.fn().mockResolvedValueOnce([propertyA]),
+          fetchMedia: jest.fn().mockResolvedValueOnce(mediaA),
+        }),
+      }),
+    );
+    expect(result2.status).toBe("ok");
+    expect(result2.listings_processed).toBe(1);
+
+    // Run 1 created a new row; run 2 updates the existing row — no duplicate insert.
+    expect(insertCount1).toBe(1);
+    expect(mockListingMediaCreate).not.toHaveBeenCalled();
+    expect(mockListingMediaUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Review comment 3 — buildPropertyQuery ($select + $filter + $orderby) ─
+
+describe("buildPropertyQuery", () => {
+  it("$select includes the canonical compliance fields Permission, Permissions, MlsStatus", () => {
+    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
+    const select = params.get("$select") || "";
+    const fields = select.split(",");
+    expect(fields).toContain("Permission");
+    expect(fields).toContain("Permissions");
+    expect(fields).toContain("MlsStatus");
+    expect(fields).toContain("InternetEntireListingDisplayYN");
+    // Sanity — ListingKey + PhotosChangeTimestamp still selected.
+    expect(fields).toContain("ListingKey");
+    expect(fields).toContain("PhotosChangeTimestamp");
+  });
+
+  it("$filter uses 'ge' (not 'gt') on PhotosChangeTimestamp to preserve boundary rows", () => {
+    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
+    const filter = params.get("$filter") || "";
+    expect(filter).toMatch(/PhotosChangeTimestamp ge /);
+    expect(filter).not.toMatch(/PhotosChangeTimestamp gt /);
+  });
+
+  it("$orderby includes ListingKey as a stable tie-breaker", () => {
+    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
+    expect(params.get("$orderby")).toBe("PhotosChangeTimestamp asc,ListingKey asc");
+  });
+
+  it("$top reflects the requested page size", () => {
+    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 25);
+    expect(params.get("$top")).toBe("25");
+  });
+});
+
+// ─── Review comment 3 — isPropertyComplianceBlocked unit tests ───────────
+
+describe("isPropertyComplianceBlocked", () => {
+  it("returns false for a clean active listing", () => {
+    expect(isPropertyComplianceBlocked(makeProperty())).toBe(false);
+  });
+
+  it("returns true for Permission='OwnerOptOut'", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "OwnerOptOut" }))).toBe(true);
+  });
+
+  it("returns true for Permission='Owner Opt-Out' (alternate spelling)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Owner Opt-Out" }))).toBe(true);
+  });
+
+  it("returns true for Permissions='OwnerOptOut' (legacy plural)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "OwnerOptOut" }))).toBe(true);
+  });
+
+  it("returns true for Permission='Private' (participant-only)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Private" }))).toBe(true);
+  });
+
+  it("returns true for MlsStatus='OwnerOptOut'", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ MlsStatus: "OwnerOptOut" }))).toBe(true);
+  });
+
+  it("returns true for InternetEntireListingDisplayYN === false", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ InternetEntireListingDisplayYN: false }))).toBe(true);
+  });
+
+  it("returns false for InternetEntireListingDisplayYN === null (provider-gated)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ InternetEntireListingDisplayYN: null }))).toBe(false);
   });
 });

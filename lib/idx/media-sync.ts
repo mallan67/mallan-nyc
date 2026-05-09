@@ -883,10 +883,20 @@ export async function mirrorMediaToR2(
 /**
  * Trestle Property row shape — strict subset of fields `runMediaSync()` reads.
  *
- * `OwnerOptOut` and `ParticipantOnly` exist on Trestle's REBNY policy layer
- * but are pre-filtered at the IDX Plus license edge in our license. We
- * still defensively check them so a future feed-policy change cannot leak
- * non-displayable rows into our cache.
+ * Compliance gates use the canonical field names from
+ * `lib/idx/trestle-mapper.ts:706-721`:
+ *   - `Permission` enum (singular, preferred): values `'OwnerOptOut'` /
+ *     `'Owner Opt-Out'` ⟹ owner opt-out gate (REBNY Gate 1); value `'Private'`
+ *     ⟹ participant-only gate (REBNY Gate 2).
+ *   - `Permissions` (plural) is a legacy variant some Trestle feeds still
+ *     return — we accept either.
+ *   - `MlsStatus = 'OwnerOptOut'` is an alternate owner-opt-out signal.
+ *   - `InternetEntireListingDisplayYN` is the master internet display gate
+ *     (REBNY Gate 3); false ⟹ block.
+ *
+ * The shapes `OwnerOptOut: boolean` and `ParticipantOnly: boolean` do NOT
+ * exist on Trestle (were never real Trestle fields — see
+ * `lib/idx/trestle-mapper.ts:710-712`). Do not reintroduce them.
  */
 export interface TrestleProperty {
   ListingId?: string | null;
@@ -895,10 +905,41 @@ export interface TrestleProperty {
   PhotosChangeTimestamp?: string | null;
   ModificationTimestamp?: string | null;
   StandardStatus?: string | null;
-  OwnerOptOut?: boolean | null;
-  ParticipantOnly?: boolean | null;
+  Permission?: string | null;
+  Permissions?: string | null;
+  MlsStatus?: string | null;
   InternetEntireListingDisplayYN?: boolean | null;
   InternetAddressDisplayYN?: boolean | null;
+}
+
+/**
+ * Defensive REBNY compliance gate at orchestrator level. Returns `true` when
+ * the property must be skipped (no Media fetch, no upsert).
+ *
+ * Mirrors `checkDistributionGates()` in `lib/idx/trestle-mapper.ts:706-724`
+ * for the gates that are cheap to evaluate per-listing without further joins:
+ *   - REBNY Gate 1 (Owner Opt-Out): `Permission`/`Permissions` enum
+ *     `'OwnerOptOut'` / `'Owner Opt-Out'` OR `MlsStatus === 'OwnerOptOut'`.
+ *   - REBNY Gate 2 (Participant Only): `Permission`/`Permissions` enum `'Private'`.
+ *   - REBNY Gate 3 (Internet Display): `InternetEntireListingDisplayYN === false`.
+ *
+ * Per-row Permission filtering on the Media resource and `MediaStatus='Deleted'`
+ * tombstoning are handled inside `upsertListingMedia()`.
+ *
+ * Trestle's IDX Plus license edge pre-filters most blocked rows; this is
+ * defense-in-depth so a future feed-policy change cannot leak.
+ */
+export function isPropertyComplianceBlocked(property: TrestleProperty): boolean {
+  const permission =
+    (typeof property.Permission === "string" ? property.Permission : "") ||
+    (typeof property.Permissions === "string" ? property.Permissions : "");
+  const ownerOptOut =
+    permission === "OwnerOptOut" ||
+    permission === "Owner Opt-Out" ||
+    String(property.MlsStatus || "") === "OwnerOptOut";
+  const participantOnly = permission === "Private";
+  const internetDisplayBlocked = property.InternetEntireListingDisplayYN === false;
+  return ownerOptOut || participantOnly || internetDisplayBlocked;
 }
 
 /** Test-injectable Trestle fetchers. */
@@ -942,26 +983,48 @@ export const DEFAULT_LISTINGS_PER_RUN = 50;
 export const DEFAULT_MEDIA_PER_LISTING = 30;
 export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
 
+/**
+ * Build the OData query params for the Property page fetch. Exported for
+ * tests; production callers go through `defaultFetchProperties()`.
+ *
+ * Boundary safety:
+ *   - `$filter` uses `ge` (not `gt`) on `PhotosChangeTimestamp`. Combined
+ *     with idempotent upsert keyed on `media_key`, this re-includes the
+ *     boundary timestamp on each run so no listings sharing the cursor's
+ *     timestamp are permanently skipped between firings (review comment 2).
+ *   - `$orderby` adds `ListingKey asc` as a stable tie-breaker so Trestle
+ *     paging produces a deterministic order within same-PCT clusters.
+ *
+ * Compliance fields:
+ *   - `$select` includes `Permission`, `Permissions`, and `MlsStatus` so the
+ *     orchestrator-level `isPropertyComplianceBlocked()` gate has the data
+ *     it needs (review comment 3). These are the canonical names from
+ *     `lib/idx/trestle-mapper.ts:715-721`.
+ */
+export function buildPropertyQuery(since: Date, top: number): URLSearchParams {
+  const params = new URLSearchParams();
+  // Filter by Property.PhotosChangeTimestamp (Trestle vendor-recommended trigger
+  // for media-only changes). We additionally constrain to active-displayable
+  // statuses so we don't churn on terminal-status rows. `ge` (not `gt`) keeps
+  // boundary rows visible — see review comment 2.
+  params.set(
+    "$filter",
+    `PhotosChangeTimestamp ge ${since.toISOString()} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'Pending')`,
+  );
+  params.set(
+    "$select",
+    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,Permission,Permissions,MlsStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
+  );
+  params.set("$orderby", "PhotosChangeTimestamp asc,ListingKey asc");
+  params.set("$top", String(top));
+  return params;
+}
+
 async function defaultFetchProperties(since: Date, top: number): Promise<TrestleProperty[]> {
   const token = await defaultGetAccessToken();
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-  const params = new URLSearchParams();
-  // Filter by Property.PhotosChangeTimestamp (Trestle vendor-recommended trigger
-  // for media-only changes). We additionally constrain to active-displayable
-  // statuses so we don't churn on terminal-status rows.
-  params.set(
-    "$filter",
-    `PhotosChangeTimestamp gt ${since.toISOString()} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'Pending')`,
-  );
-  params.set(
-    "$select",
-    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
-  );
-  params.set("$orderby", "PhotosChangeTimestamp asc");
-  params.set("$top", String(top));
-
-  const url = `${TRESTLE_API}/odata/Property?${params.toString()}`;
+  const url = `${TRESTLE_API}/odata/Property?${buildPropertyQuery(since, top).toString()}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
@@ -1018,11 +1081,28 @@ const defaultFetchDeps: MediaSyncFetchDeps = {
  *     empty-batch contract).
  *
  * Compliance:
- *   - Skips listings flagged `OwnerOptOut === true` or `ParticipantOnly === true`
- *     as a defensive measure (Trestle's IDX Plus license edge filters these,
- *     but a future policy change must not leak through).
+ *   - Skips listings via `isPropertyComplianceBlocked()` — REBNY Gates 1
+ *     (Owner Opt-Out via `Permission`/`Permissions`/`MlsStatus`), 2
+ *     (Participant Only via `Permission='Private'`), and 3 (master internet
+ *     display via `InternetEntireListingDisplayYN === false`). This mirrors
+ *     `checkDistributionGates()` in `lib/idx/trestle-mapper.ts`.
  *   - Per-row Permission filter and `MediaStatus='Deleted'` tombstoning are
  *     handled inside `upsertListingMedia()`.
+ *
+ * Tombstoning of vanished rows:
+ *   - `tombstoneVanished` is FORCED FALSE when calling `upsertListingMedia()`.
+ *     Because `fetchMedia` is capped at `mediaPerListing` ($top default 30),
+ *     "missing" rows in the response are NOT proven vanished — they may
+ *     simply be beyond the page. Cp2's explicit `MediaStatus='Deleted'`
+ *     tombstoning still runs unconditionally and is the correct mechanism
+ *     for genuine deletions (review comment 1).
+ *
+ * Boundary timestamp safety:
+ *   - The cursor uses `ge` (not `gt`) on `PhotosChangeTimestamp` via
+ *     `buildPropertyQuery()`. Same-timestamp rows that paginated past the
+ *     batch on a prior run will re-surface on subsequent runs (review
+ *     comment 2). Idempotent upsert at `media_key` makes the re-processing
+ *     safe.
  *
  * Bounds:
  *   - Hard caps `listingsPerRun` (default 50) and `mediaPerListing` (default 30).
@@ -1073,8 +1153,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   const cursorRecords: MediaSyncBatchRecord[] = [];
 
   for (const property of properties) {
-    // Defensive compliance gate.
-    if (property.OwnerOptOut === true || property.ParticipantOnly === true) {
+    // Defensive compliance gate (REBNY Gates 1 / 2 / 3 — see
+    // `isPropertyComplianceBlocked` and `checkDistributionGates`).
+    if (isPropertyComplianceBlocked(property)) {
       listingsSkipped++;
       continue;
     }
@@ -1092,7 +1173,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
       const upsertResult = await upsertListingMedia(listingId, mediaRows, {
         photosChangeTsSnapshot: property.PhotosChangeTimestamp ?? null,
-        tombstoneVanished: true,
+        // FORCED FALSE: fetchMedia is capped at mediaPerListing ($top, default
+        // 30). "Missing" rows in a capped response are NOT proven vanished —
+        // they may simply be beyond the page. See review comment 1.
+        // Cp2's explicit MediaStatus='Deleted' tombstoning still runs and is
+        // the correct mechanism for genuine deletions.
+        tombstoneVanished: false,
       });
       rowsUpdated += upsertResult.inserted + upsertResult.updated;
 
