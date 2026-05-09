@@ -959,21 +959,66 @@ export interface RunMediaSyncOptions {
   fetchDeps?: MediaSyncFetchDeps;
   /** DI seam for the R2 mirror function (`mirrorMediaToR2()` deps). */
   mirrorDeps?: MirrorMediaToR2Deps;
+  /**
+   * Total wall-clock time budget for the function (ms). Set BELOW Vercel's
+   * `maxDuration=120s` so we always have headroom to checkpoint + audit
+   * before the platform kills the process. Default 100_000 (100s).
+   */
+  budgetMs?: number;
+  /**
+   * Minimum remaining time when Phase 1 (source ingest) must stop, leaving
+   * headroom for Phase 2 (cursor checkpoint), Phase 3 (R2 enrichment), and
+   * Phase 4 (finalize + audit). Default 55_000 (55s) → Phase 1 gets ~45s.
+   */
+  phase1ReserveMs?: number;
+  /**
+   * Minimum remaining time when Phase 3 (R2 enrichment) must stop, leaving
+   * headroom for Phase 4 (finalize + audit write by the route). Default
+   * 12_000 (12s).
+   */
+  phase2ReserveMs?: number;
+  /**
+   * DI seam for `Date.now()` — lets tests inject a deterministic clock to
+   * exercise budget paths without real timers. Defaults to `Date.now`.
+   */
+  now?: () => number;
 }
 
 export interface RunMediaSyncResult {
   /**
-   * `ok`      — full success, all listings processed without per-row failures.
-   * `partial` — at least one listing or media row failed; rest succeeded;
-   *             cursor advanced for processed listings only.
-   * `error`   — Trestle Property fetch failed; cursor NOT advanced.
+   * `ok`      — Phase 1 completed within budget without per-listing failures
+   *              and Phase 3 had no R2 failures (R2 backlog may still be > 0
+   *              if budget exhausted).
+   * `partial` — at least one Phase 1 listing failed OR at least one Phase 3
+   *              R2 row failed. Cursor advanced for ingested listings only.
+   * `error`   — Trestle Property fetch failed. Cursor NOT advanced. No
+   *              Phase 3 ran.
    */
   status: "ok" | "partial" | "error";
+  /**
+   * Why the function exited:
+   *   `completed`     — all properties ingested AND R2 backlog drained (or empty)
+   *   `budget_phase1` — time budget stopped Phase 1 mid-batch; Phase 2/3 still ran
+   *   `budget_phase2` — time budget stopped Phase 3 mid-backlog; Phase 4 still ran
+   *   `source_error`  — Property fetch failed; no further phases ran
+   */
+  exit_reason: "completed" | "budget_phase1" | "budget_phase2" | "source_error";
   rows_checked: number;
   rows_updated: number;
   rows_failed: number;
   listings_processed: number;
   listings_skipped: number;
+  /** R2 mirror successes (uploaded + reused) in Phase 3. */
+  r2_mirrored: number;
+  /** R2 mirror failures in Phase 3 — row stays in backlog for retry. */
+  r2_failed: number;
+  /** R2 mirror skips in Phase 3 (e.g., row had no `media_url_original`). */
+  r2_skipped: number;
+  /**
+   * Count of `listing_media` rows still missing `r2_key` or `media_url_cached`
+   * after Phase 3 completes (or budget exits). null if the count query failed.
+   */
+  backlog_remaining: number | null;
   duration_ms: number;
   /** Set when `status === "error"`. */
   error?: string;
@@ -982,6 +1027,25 @@ export interface RunMediaSyncResult {
 export const DEFAULT_LISTINGS_PER_RUN = 50;
 export const DEFAULT_MEDIA_PER_LISTING = 30;
 export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
+/**
+ * Time-budget defaults (chosen to fit Vercel `maxDuration=120s` with headroom):
+ *   - DEFAULT_BUDGET_MS = 100s  (20s headroom before Vercel kill)
+ *   - DEFAULT_PHASE1_RESERVE_MS = 55s  → Phase 1 runs at most ~45s
+ *   - DEFAULT_PHASE2_RESERVE_MS = 12s  → Phase 3 runs at most ~43s; Phase 4 has 12s
+ */
+export const DEFAULT_BUDGET_MS = 100_000;
+export const DEFAULT_PHASE1_RESERVE_MS = 55_000;
+export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
+/**
+ * R2 mirror concurrency for Phase 3. Matches the production-tested pattern
+ * in `lib/idx/sync.ts:694` (`MAX_CONCURRENT = 5` inside `migrateMediaToR2`).
+ * Trestle's published Media URL ceiling is 480/min ≈ 8/sec
+ * (per `data/RLS-FIELD-REGISTRY.md:307-310`); concurrency-5 with sequential
+ * batches sustains ~5/sec — comfortably within Trestle's bandwidth budget
+ * and matches the proven-production `migrateMediaToR2` cron that has drained
+ * 128K+ photos without incident.
+ */
+export const R2_MIRROR_CONCURRENCY = 5;
 
 /**
  * Build the OData query params for the Property page fetch. Exported for
@@ -1073,96 +1137,130 @@ const defaultFetchDeps: MediaSyncFetchDeps = {
 };
 
 /**
- * One pass of the media-sync pipeline. Composes Cp1 (cursor), Cp2 (upsert
- * listing_media), Cp3 (Listing summary), and Cp4 (R2 mirror).
+ * One pass of the media-sync pipeline. Phased architecture for durability
+ * under Vercel `maxDuration=120s`:
+ *
+ *   Phase 1 — Source ingest (per-listing, serial):
+ *     fetchProperties → for each listing: fetchMedia → upsertListingMedia
+ *     → updateListingMediaSummary → push cursorRecords. R2 mirror is NOT
+ *     in this phase. Stops when remaining time < `phase1ReserveMs`.
+ *
+ *   Phase 2 — Cursor checkpoint:
+ *     Always runs after Phase 1 (unless Property fetch failed). Calls
+ *     `advanceMediaSyncCursor` with records ingested so far. THIS makes
+ *     forward progress durable BEFORE the slow R2 work runs — a Vercel
+ *     kill during Phase 3 cannot undo Phase 1 progress.
+ *
+ *   Phase 3 — R2 enrichment backlog (parallel-5):
+ *     Queries `listing_media` rows where `r2_key IS NULL OR
+ *     media_url_cached IS NULL` (oldest first). Processes them with
+ *     `Promise.allSettled` and concurrency 5 — matching the proven-
+ *     production pattern in `lib/idx/sync.ts:694-708` (`migrateMediaToR2`),
+ *     and within Trestle's 480/min Media URL ceiling
+ *     (per `data/RLS-FIELD-REGISTRY.md:307-310`). Stops when remaining
+ *     time < `phase2ReserveMs`. R2 failures count in `r2_failed` (separate
+ *     from source `rows_failed`); the row stays in the backlog for retry.
+ *
+ *   Phase 4 — Finalize + return:
+ *     Counts remaining backlog, computes final status, returns the result.
+ *     The route at `app/api/cron/media-sync/route.ts` writes the audit
+ *     row when this function returns.
  *
  * Watermark safety:
- *   - Property fetch failure ⟹ return early with `status: "error"`. The
- *     cursor is NOT advanced. Next run retries with the same `since`.
- *   - Per-listing failures (Media fetch / upsert error / R2 / summary) are
- *     caught and counted in `rows_failed`. The cursor advances using only
- *     records we successfully processed. Listings that failed will surface
- *     again on the next run if their `PhotosChangeTimestamp` is still > the
- *     advanced watermark.
- *   - Empty Property page ⟹ `status: "ok"`, `last_run_at` advances, but the
- *     watermarks themselves stay frozen (per `advanceMediaSyncCursor`'s
- *     empty-batch contract).
+ *   - Property fetch failure ⟹ `status: "error"`, `exit_reason:
+ *     "source_error"`. Cursor NOT advanced. Phase 2/3/4 do not run.
+ *   - Per-listing failure ⟹ `rows_failed++`; listing NOT pushed to
+ *     cursorRecords. Surfaces again next run.
+ *   - Summary-update failure (NEW: fail-loud) ⟹ same as per-listing failure.
+ *   - Empty Property page ⟹ Phase 2 advances `last_run_at` heartbeat only
+ *     (per `advanceMediaSyncCursor`'s empty-batch contract).
+ *   - Time budget exit ⟹ Phase 2/3/4 still run with whatever was ingested.
  *
  * Compliance:
- *   - Skips listings via `isPropertyComplianceBlocked()` — REBNY Gates 1
- *     (Owner Opt-Out via `Permission`/`Permissions`/`MlsStatus`), 2
- *     (Participant Only via `Permission='Private'`), and 3 (master internet
- *     display via `InternetEntireListingDisplayYN === false`). This mirrors
- *     `checkDistributionGates()` in `lib/idx/trestle-mapper.ts`.
+ *   - Skips listings via `isPropertyComplianceBlocked()` — REBNY Gates 1/2/3
+ *     (Owner Opt-Out, Participant Only, Internet Display).
  *   - Per-row Permission filter and `MediaStatus='Deleted'` tombstoning are
  *     handled inside `upsertListingMedia()`.
  *
  * Tombstoning of vanished rows:
- *   - `tombstoneVanished` is FORCED FALSE when calling `upsertListingMedia()`.
- *     Because `fetchMedia` is capped at `mediaPerListing` ($top default 30),
- *     "missing" rows in the response are NOT proven vanished — they may
- *     simply be beyond the page. Cp2's explicit `MediaStatus='Deleted'`
- *     tombstoning still runs unconditionally and is the correct mechanism
- *     for genuine deletions (review comment 1).
+ *   - `tombstoneVanished: false` always — fetchMedia is capped, "missing"
+ *     rows aren't proven vanished. Explicit `MediaStatus='Deleted'` still
+ *     tombstones via Cp2's separate path.
  *
  * Boundary timestamp safety:
- *   - The cursor uses `ge` (not `gt`) on `PhotosChangeTimestamp` via
- *     `buildPropertyQuery()`. Same-timestamp rows that paginated past the
- *     batch on a prior run will re-surface on subsequent runs (review
- *     comment 2). Idempotent upsert at `media_key` makes the re-processing
- *     safe.
+ *   - `buildPropertyQuery()` uses `PhotosChangeTimestamp ge` (not `gt`) and
+ *     adds `ListingKey asc` to `$orderby` for stable boundary paging.
  *
- * Bounds:
- *   - Hard caps `listingsPerRun` (default 50) and `mediaPerListing` (default 30).
- *   - No recursive calls. Single linear loop bounded by the page size.
- *   - No retries on transient failures — those land in Checkpoint 6.
+ * Throughput:
+ *   - Phase 3 R2 mirror uses `Promise.allSettled` with `R2_MIRROR_CONCURRENCY=5`,
+ *     matching the production `migrateMediaToR2` pattern in `lib/idx/sync.ts:694-708`.
  *
  * Reader/PR-4 boundary:
  *   - Never writes `Listing.media` JSON.
- *   - Never modifies anything in `app/api/media/batch/`, `lib/idx/sync.ts`,
- *     `lib/external-listings/`, schema, or migrations.
- *   - Public site continues to read `Listing.media` JSON until PR 4.
+ *   - Never overwrites `media_url_original` on update.
+ *   - Never modifies `app/api/media/batch/`, `lib/idx/sync.ts`,
+ *     `lib/external-listings/`, schema, migrations, or public reader paths.
  */
 export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<RunMediaSyncResult> {
-  const startTime = Date.now();
+  const now = options.now ?? Date.now;
+  const startTime = now();
   const listingsPerRun = options.listingsPerRun ?? DEFAULT_LISTINGS_PER_RUN;
   const mediaPerListing = options.mediaPerListing ?? DEFAULT_MEDIA_PER_LISTING;
   const fallbackWindowDays = options.fallbackWindowDays ?? DEFAULT_FALLBACK_WINDOW_DAYS;
   const fetchDeps = options.fetchDeps ?? defaultFetchDeps;
   const mirrorDeps = options.mirrorDeps ?? defaultMirrorMediaToR2Deps;
+  const budgetMs = options.budgetMs ?? DEFAULT_BUDGET_MS;
+  const phase1ReserveMs = options.phase1ReserveMs ?? DEFAULT_PHASE1_RESERVE_MS;
+  const phase2ReserveMs = options.phase2ReserveMs ?? DEFAULT_PHASE2_RESERVE_MS;
 
-  const cursor = await getMediaSyncCursor();
-  const since =
-    cursor.last_photos_change ??
-    new Date(Date.now() - fallbackWindowDays * 86_400_000);
-
-  // Property fetch — failure is route-level error. Cursor NOT advanced.
-  let properties: TrestleProperty[];
-  try {
-    properties = await fetchDeps.fetchProperties(since, listingsPerRun);
-  } catch (err) {
-    return {
-      status: "error",
-      error: err instanceof Error ? err.message : String(err),
-      rows_checked: 0,
-      rows_updated: 0,
-      rows_failed: 0,
-      listings_processed: 0,
-      listings_skipped: 0,
-      duration_ms: Date.now() - startTime,
-    };
-  }
+  const remainingMs = (): number => budgetMs - (now() - startTime);
 
   let rowsChecked = 0;
   let rowsUpdated = 0;
   let rowsFailed = 0;
   let listingsProcessed = 0;
   let listingsSkipped = 0;
+  let r2Mirrored = 0;
+  let r2Failed = 0;
+  let r2Skipped = 0;
+  let backlogRemaining: number | null = null;
+  let exitReason: RunMediaSyncResult["exit_reason"] = "completed";
   const cursorRecords: MediaSyncBatchRecord[] = [];
 
+  // ── PHASE 1: source ingest ───────────────────────────────────────────
+  const cursor = await getMediaSyncCursor();
+  const since =
+    cursor.last_photos_change ??
+    new Date(now() - fallbackWindowDays * 86_400_000);
+
+  let properties: TrestleProperty[];
+  try {
+    properties = await fetchDeps.fetchProperties(since, listingsPerRun);
+  } catch (err) {
+    // Source-fetch failure: do NOT advance cursor. No Phase 2/3/4.
+    return {
+      status: "error",
+      exit_reason: "source_error",
+      error: err instanceof Error ? err.message : String(err),
+      rows_checked: 0,
+      rows_updated: 0,
+      rows_failed: 0,
+      listings_processed: 0,
+      listings_skipped: 0,
+      r2_mirrored: 0,
+      r2_failed: 0,
+      r2_skipped: 0,
+      backlog_remaining: null,
+      duration_ms: now() - startTime,
+    };
+  }
+
   for (const property of properties) {
-    // Defensive compliance gate (REBNY Gates 1 / 2 / 3 — see
-    // `isPropertyComplianceBlocked` and `checkDistributionGates`).
+    if (remainingMs() < phase1ReserveMs) {
+      exitReason = "budget_phase1";
+      break;
+    }
+
     if (isPropertyComplianceBlocked(property)) {
       listingsSkipped++;
       continue;
@@ -1181,61 +1279,17 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
       const upsertResult = await upsertListingMedia(listingId, mediaRows, {
         photosChangeTsSnapshot: property.PhotosChangeTimestamp ?? null,
-        // FORCED FALSE: fetchMedia is capped at mediaPerListing ($top, default
-        // 30). "Missing" rows in a capped response are NOT proven vanished —
-        // they may simply be beyond the page. See review comment 1.
-        // Cp2's explicit MediaStatus='Deleted' tombstoning still runs and is
-        // the correct mechanism for genuine deletions.
+        // FORCED FALSE — see PR #96 review-comment fix.
         tombstoneVanished: false,
       });
       rowsUpdated += upsertResult.inserted + upsertResult.updated;
 
-      // Re-read the active listing_media rows so we can mirror to R2 with
-      // their actual DB state (including any preserved r2_key / media_url_cached
-      // from prior runs).
-      const dbRows = await prisma.listingMedia.findMany({
-        where: { listing_id: listingId, status: "active" },
-        select: {
-          listing_id: true,
-          media_key: true,
-          media_type: true,
-          order: true,
-          media_url_original: true,
-          r2_key: true,
-          media_url_cached: true,
-        },
-      });
-
-      for (const dbRow of dbRows) {
-        // Skip rows without media_key — `mirrorMediaToR2` requires it for
-        // the upsert WHERE clause. These would be legacy or malformed rows.
-        if (!dbRow.media_key) continue;
-        try {
-          const result = await mirrorMediaToR2(
-            {
-              listing_id: dbRow.listing_id,
-              media_key: dbRow.media_key,
-              media_type: dbRow.media_type,
-              order: dbRow.order,
-              media_url_original: dbRow.media_url_original,
-              r2_key: dbRow.r2_key,
-              media_url_cached: dbRow.media_url_cached,
-            },
-            mirrorDeps,
-          );
-          if (result.status === "failed") rowsFailed++;
-        } catch {
-          rowsFailed++;
-        }
-      }
-
-      // Update derived Listing summary columns. Failure is non-fatal —
-      // listing_media is the source of truth, summary columns are reads.
-      try {
-        await updateListingMediaSummary(listingId);
-      } catch {
-        // intentionally swallowed
-      }
+      // Summary uses media_url_original (R2-independent) per
+      // computeListingMediaSummary() at media-sync.ts:614. primary_photo_r2_key
+      // may legitimately stay null until Phase 3 catches up. NEW: summary
+      // failure is FAIL-LOUD (no longer swallowed) — surfaces in rows_failed
+      // and prevents cursor advance for this listing so it re-tries next run.
+      await updateListingMediaSummary(listingId);
 
       cursorRecords.push({
         PhotosChangeTimestamp: property.PhotosChangeTimestamp ?? null,
@@ -1243,31 +1297,118 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       });
       listingsProcessed++;
     } catch {
-      // Per-listing failure (Media fetch threw, upsert threw, etc).
-      // Count one failure for the listing; do NOT push to cursorRecords.
       rowsFailed++;
+      // Do NOT push to cursorRecords — failed listing re-surfaces next run.
     }
   }
 
-  const status: RunMediaSyncResult["status"] = rowsFailed > 0 ? "partial" : "ok";
-
-  // Advance cursor — only with records we successfully processed.
-  // On `error` route-level path we never reach here, so the cursor stays put.
+  // ── PHASE 2: cursor checkpoint (durable forward progress) ────────────
+  // Runs only when Property fetch succeeded. Empty cursorRecords ⟹
+  // advanceMediaSyncCursor's empty-batch contract advances last_run_at
+  // heartbeat without changing watermarks.
   await advanceMediaSyncCursor({
     records: cursorRecords,
-    status,
+    status: rowsFailed > 0 ? "partial" : "ok",
     rowsChecked,
     rowsUpdated,
     rowsFailed,
   });
 
+  // ── PHASE 3: R2 enrichment backlog (parallel, concurrency = 5) ───────
+  // Pattern matches lib/idx/sync.ts:694-708 (migrateMediaToR2). Trestle's
+  // 480/min Media URL ceiling allows 8/sec sustained; concurrency-5 peaks
+  // ~5/sec → comfortably within bandwidth, regression-safe.
+  while (remainingMs() > phase2ReserveMs) {
+    const backlogRows = await prisma.listingMedia.findMany({
+      where: {
+        status: "active",
+        media_url_original: { not: null },
+        OR: [{ r2_key: null }, { media_url_cached: null }],
+      },
+      orderBy: { created_at: "asc" },
+      take: R2_MIRROR_CONCURRENCY,
+      select: {
+        listing_id: true,
+        media_key: true,
+        media_type: true,
+        order: true,
+        media_url_original: true,
+        r2_key: true,
+        media_url_cached: true,
+      },
+    });
+
+    if (backlogRows.length === 0) break;
+
+    const results = await Promise.allSettled(
+      backlogRows.map((row) => {
+        if (!row.media_key) {
+          return Promise.resolve({
+            status: "skipped" as const,
+            reason: "no_media_url_original" as const,
+          });
+        }
+        return mirrorMediaToR2(
+          {
+            listing_id: row.listing_id,
+            media_key: row.media_key,
+            media_type: row.media_type,
+            order: row.order,
+            media_url_original: row.media_url_original,
+            r2_key: row.r2_key,
+            media_url_cached: row.media_url_cached,
+          },
+          mirrorDeps,
+        );
+      }),
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        const v = r.value;
+        if (v.status === "uploaded" || v.status === "reused") r2Mirrored++;
+        else if (v.status === "skipped") r2Skipped++;
+        else if (v.status === "failed") r2Failed++;
+      } else {
+        // Promise itself rejected (mirrorMediaToR2 contract returns structured
+        // results, but defensive — handle thrown anyway).
+        r2Failed++;
+      }
+    }
+  }
+
+  if (remainingMs() <= phase2ReserveMs && exitReason === "completed") {
+    exitReason = "budget_phase2";
+  }
+
+  // ── PHASE 4: finalize + return ───────────────────────────────────────
+  try {
+    backlogRemaining = await prisma.listingMedia.count({
+      where: {
+        status: "active",
+        media_url_original: { not: null },
+        OR: [{ r2_key: null }, { media_url_cached: null }],
+      },
+    });
+  } catch {
+    backlogRemaining = null;
+  }
+
+  const finalStatus: RunMediaSyncResult["status"] =
+    rowsFailed > 0 || r2Failed > 0 ? "partial" : "ok";
+
   return {
-    status,
+    status: finalStatus,
+    exit_reason: exitReason,
     rows_checked: rowsChecked,
     rows_updated: rowsUpdated,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,
     listings_skipped: listingsSkipped,
-    duration_ms: Date.now() - startTime,
+    r2_mirrored: r2Mirrored,
+    r2_failed: r2Failed,
+    r2_skipped: r2Skipped,
+    backlog_remaining: backlogRemaining,
+    duration_ms: now() - startTime,
   };
 }
