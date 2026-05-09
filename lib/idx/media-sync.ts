@@ -28,7 +28,16 @@
 //   touching this row.
 
 import prisma from "@/lib/prisma";
-import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
+import {
+  buildMediaR2Key,
+  classifyTrestleMediaCategory,
+} from "@/lib/media/media-sync-service";
+import {
+  existsInR2 as defaultExistsInR2,
+  getR2PublicUrl as defaultGetR2PublicUrl,
+  uploadToR2 as defaultUploadToR2,
+} from "@/lib/images/r2";
+import { getAccessToken as defaultGetAccessToken } from "./auth";
 
 /** Resource-key constant for the media-sync state row. */
 export const RESOURCE_MEDIA = "Media" as const;
@@ -654,4 +663,217 @@ export async function updateListingMediaSummary(
   });
 
   return summary;
+}
+
+// ─── Checkpoint 4 — R2 upload + reuse behavior ──────────────────────────
+
+/**
+ * Per-row shape `mirrorMediaToR2()` operates on. This is a strict subset of
+ * the `listing_media` schema — only the fields the function reads.
+ *
+ * The function NEVER writes `media_url_original`. The original Trestle URL
+ * is the source of truth for re-fetching and must remain immutable here.
+ */
+export interface MirrorMediaToR2Row {
+  listing_id: string;
+  media_key: string;
+  media_type: string;
+  order: number;
+  media_url_original: string | null;
+  r2_key: string | null;
+  media_url_cached: string | null;
+}
+
+/**
+ * DI seam for `mirrorMediaToR2()`. All R2 / fetch / token surfaces are
+ * injected so tests can stub them without ever touching the live R2
+ * bucket, the live Trestle endpoint, or the live IDX OAuth token cache.
+ *
+ * The Prisma `listingMedia.update` call is NOT injected — tests use
+ * `jest.mock('@/lib/prisma')` (matching Checkpoints 1-3) and the real
+ * production code path uses the imported singleton. This keeps the DI
+ * surface focused on the network-side dependencies.
+ */
+export interface MirrorMediaToR2Deps {
+  existsInR2: (key: string) => Promise<boolean>;
+  uploadToR2: (key: string, buffer: Buffer, contentType: string) => Promise<string>;
+  getR2PublicUrl: (key: string) => string;
+  getAccessToken: () => Promise<string>;
+  fetchFn: typeof fetch;
+}
+
+/** Production defaults — wired to `lib/images/r2`, `lib/idx/auth`, and global `fetch`. */
+export const defaultMirrorMediaToR2Deps: MirrorMediaToR2Deps = {
+  existsInR2: defaultExistsInR2,
+  uploadToR2: defaultUploadToR2,
+  getR2PublicUrl: defaultGetR2PublicUrl,
+  getAccessToken: defaultGetAccessToken,
+  fetchFn: fetch,
+};
+
+/** Outcome reported back to the caller (the future cron route in Checkpoint 5). */
+export interface MirrorMediaToR2Result {
+  /**
+   * `uploaded`  — fetched from Trestle and written to R2 this run.
+   * `reused`    — already in R2; no fetch, no upload.
+   * `skipped`   — input row had no `media_url_original` (nothing to mirror).
+   * `failed`    — R2 / fetch / upload error; DB row left untouched.
+   */
+  status: "uploaded" | "reused" | "skipped" | "failed";
+  /** R2 key the row was mirrored to (for `uploaded` / `reused`). */
+  r2_key?: string;
+  /** Public R2 URL written to `listing_media.media_url_cached`. */
+  media_url_cached?: string;
+  /** Stable machine-readable failure / skip reason code. */
+  reason?:
+    | "no_media_url_original"
+    | "r2_head_failed"
+    | "token_failed"
+    | "fetch_failed"
+    | "fetch_threw"
+    | "non_image_content_type"
+    | "upload_failed";
+  /** Human-readable error detail (HTTP status, exception message, etc). */
+  error?: string;
+}
+
+/**
+ * Mirror a single Trestle Media row to R2 if it isn't already there.
+ *
+ * Boundary contract:
+ *   - NEVER writes `media_url_original` (it is the immutable source).
+ *   - NEVER writes any field on `Listing` (Checkpoint 3 owns that — call
+ *     `updateListingMediaSummary()` separately afterward).
+ *   - NEVER writes `Listing.media` JSON (PR 4's reader-swap territory).
+ *   - Only the two fields `r2_key` and `media_url_cached` may be written
+ *     by this function on `listing_media`.
+ *
+ * Idempotency:
+ *   - Two calls in a row for the same row produce: 1 upload + 1 reuse.
+ *   - The R2 key is deterministic per `(listing_id, media_type, order)` via
+ *     `buildMediaR2Key()`, so retrying a fresh row computes the same key
+ *     the cron would have produced earlier.
+ *   - DB write is suppressed when the row's `r2_key` and `media_url_cached`
+ *     already match the computed values (prevents `updated_at` churn).
+ *
+ * Failure handling:
+ *   - All failure modes return a structured `MirrorMediaToR2Result` rather
+ *     than throwing. The caller (Checkpoint 5 cron) can aggregate
+ *     per-row outcomes and update `MediaSyncState.rows_failed` without a
+ *     single failure poisoning the batch.
+ *   - DB writes happen ONLY on the success paths (`uploaded` and `reused`
+ *     when there's drift). `failed` and `skipped` never touch the DB.
+ */
+export async function mirrorMediaToR2(
+  row: MirrorMediaToR2Row,
+  deps: MirrorMediaToR2Deps = defaultMirrorMediaToR2Deps,
+): Promise<MirrorMediaToR2Result> {
+  const url = (row.media_url_original ?? "").trim();
+  if (!url) {
+    return { status: "skipped", reason: "no_media_url_original" };
+  }
+
+  // R2 key resolution: prefer existing (stable across retries), else derive.
+  // `buildMediaR2Key` namespaces by canonical mediaType (Photo→photos/,
+  // FloorPlan→floorplans/, Video→videos/, VirtualTour→virtualtours/).
+  const key =
+    row.r2_key && row.r2_key.length > 0
+      ? row.r2_key
+      : buildMediaR2Key(row.listing_id, row.media_type, row.order);
+
+  // Reuse path: object already in R2.
+  let exists = false;
+  try {
+    exists = await deps.existsInR2(key);
+  } catch (e) {
+    return {
+      status: "failed",
+      reason: "r2_head_failed",
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+
+  if (exists) {
+    const publicUrl = deps.getR2PublicUrl(key);
+    // Suppress no-op writes — only persist when something actually drifted.
+    if (row.r2_key !== key || row.media_url_cached !== publicUrl) {
+      await prisma.listingMedia.update({
+        where: { media_key: row.media_key },
+        data: { r2_key: key, media_url_cached: publicUrl },
+      });
+    }
+    return { status: "reused", r2_key: key, media_url_cached: publicUrl };
+  }
+
+  // Upload path: fetch from Trestle, then upload to R2.
+  let token: string;
+  try {
+    token = await deps.getAccessToken();
+  } catch (e) {
+    return {
+      status: "failed",
+      reason: "token_failed",
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+
+  let buffer: Buffer;
+  let contentType: string;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8_000);
+    let response: Response;
+    try {
+      response = await deps.fetchFn(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "image/*" },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      return {
+        status: "failed",
+        reason: "fetch_failed",
+        error: `HTTP ${response.status}`,
+      };
+    }
+
+    contentType = response.headers.get("content-type") || "image/jpeg";
+    if (!contentType.startsWith("image/")) {
+      return {
+        status: "failed",
+        reason: "non_image_content_type",
+        error: contentType,
+      };
+    }
+
+    buffer = Buffer.from(await response.arrayBuffer());
+  } catch (e) {
+    return {
+      status: "failed",
+      reason: "fetch_threw",
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+
+  let publicUrl: string;
+  try {
+    publicUrl = await deps.uploadToR2(key, buffer, contentType);
+  } catch (e) {
+    return {
+      status: "failed",
+      reason: "upload_failed",
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+
+  // Persist r2_key + media_url_cached. NEVER touch media_url_original.
+  await prisma.listingMedia.update({
+    where: { media_key: row.media_key },
+    data: { r2_key: key, media_url_cached: publicUrl },
+  });
+
+  return { status: "uploaded", r2_key: key, media_url_cached: publicUrl };
 }
