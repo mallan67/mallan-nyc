@@ -706,17 +706,29 @@ describe("runMediaSync — boundary timestamp safety", () => {
 // ─── Review comment 3 — buildPropertyQuery ($select + $filter + $orderby) ─
 
 describe("buildPropertyQuery", () => {
-  it("$select includes the canonical compliance fields Permission, Permissions, MlsStatus", () => {
+  it("$select includes the canonical Trestle compliance fields Permission (singular) and MlsStatus", () => {
     const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
     const select = params.get("$select") || "";
     const fields = select.split(",");
     expect(fields).toContain("Permission");
-    expect(fields).toContain("Permissions");
     expect(fields).toContain("MlsStatus");
     expect(fields).toContain("InternetEntireListingDisplayYN");
     // Sanity — ListingKey + PhotosChangeTimestamp still selected.
     expect(fields).toContain("ListingKey");
     expect(fields).toContain("PhotosChangeTimestamp");
+  });
+
+  it("$select does NOT include Permissions (plural) — Trestle returns HTTP 400 for that field", () => {
+    // Regression guard for the 2026-05-09T07:00:25Z first-firing failure.
+    // `Permissions` (plural) does not exist on the Trestle IDX Plus Property
+    // resource — including it in $select causes HTTP 400. The runtime fallback
+    // in `isPropertyComplianceBlocked()` to read `property.Permissions` is
+    // harmless on this feed (always reads undefined) and stays for legacy-feed
+    // defense, but $select MUST request only `Permission` (singular).
+    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
+    const select = params.get("$select") || "";
+    const fields = select.split(",");
+    expect(fields).not.toContain("Permissions");
   });
 
   it("$filter uses 'ge' (not 'gt') on PhotosChangeTimestamp to preserve boundary rows", () => {
