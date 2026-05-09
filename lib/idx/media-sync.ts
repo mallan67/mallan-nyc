@@ -510,3 +510,148 @@ function parseBool(value: boolean | string | null | undefined): boolean {
   if (typeof value === "string") return value.toLowerCase() === "true";
   return false;
 }
+
+// ─── Checkpoint 3 — derived Listing summary columns ─────────────────────
+
+/**
+ * The 4 nullable summary columns on `Listing` that PR 2 added (schema-only,
+ * see `prisma/schema.prisma:488-491`) and PR 3 populates. Reader path does
+ * NOT consume these yet — that swap lands in PR 4. Writing them in PR 3
+ * builds the data warehouse so PR 4's reader swap is a one-line cutover.
+ */
+export interface ListingMediaSummary {
+  /** First active Photo's `media_url_original` (preferred → order ASC). null if none. */
+  primary_photo_url: string | null;
+  /** First active Photo's `r2_key` if mirrored to R2; else null. */
+  primary_photo_r2_key: string | null;
+  /** Count of `media_type='Photo'` rows where `status='active'`. Always ≥0. */
+  photo_count: number;
+  /** Max `media_modification_ts` across all active rows for the listing. null if none. */
+  photos_change_timestamp: Date | null;
+}
+
+/** Per-row shape `computeListingMediaSummary()` needs. */
+export interface SummarySourceRow {
+  media_type: string;
+  status: string;
+  preferred_photo_yn: boolean;
+  order: number;
+  media_url_original: string | null;
+  r2_key: string | null;
+  media_modification_ts: Date | null;
+  modification_ts: Date | null;
+}
+
+/**
+ * Pure-function summary derivation — no DB.
+ *
+ * Hero-photo selection rules:
+ *   1. Only `media_type='Photo'` (case-insensitive) AND `status='active'`
+ *      rows are eligible. FloorPlans/Videos/VirtualTours are NEVER hero.
+ *   2. Among eligible Photos: `preferred_photo_yn=true` wins, then lowest
+ *      `order`, then first-encountered.
+ *   3. If a hero exists: `primary_photo_url = media_url_original` and
+ *      `primary_photo_r2_key = r2_key` (which may be null until Checkpoint 4
+ *      mirrors the photo to R2).
+ *   4. If no eligible Photo: `primary_photo_url = null`, `primary_photo_r2_key
+ *      = null`, `photo_count = 0`.
+ *   5. `photo_count` excludes FloorPlan/Video/VirtualTour and inactive rows
+ *      — matches the public-DTO `photosCount` semantics enforced by
+ *      `lib/media/listing-card-media.ts:countPhotoMedia()`.
+ *   6. `photos_change_timestamp` = max(`media_modification_ts`,
+ *      `modification_ts`) across ALL active rows (regardless of media_type).
+ *      This mirrors the existing `Property.PhotosChangeTimestamp` semantics
+ *      — any media row change should bump the listing-level timestamp.
+ *
+ * Used directly by `updateListingMediaSummary()` and by tests so we can
+ * verify the selection logic without DB round-trips.
+ */
+export function computeListingMediaSummary(
+  rows: readonly SummarySourceRow[],
+): ListingMediaSummary {
+  const photos = rows.filter(
+    (r) =>
+      String(r.status).toLowerCase() === "active" &&
+      String(r.media_type).toLowerCase() === "photo",
+  );
+
+  // Hero selection: preferred → order ASC → first-encountered.
+  // Stable sort with explicit indexed compare so identical rows preserve
+  // input order for the "first-encountered" tiebreak.
+  const indexedPhotos = photos.map((row, idx) => ({ row, idx }));
+  indexedPhotos.sort((a, b) => {
+    if (a.row.preferred_photo_yn !== b.row.preferred_photo_yn) {
+      return a.row.preferred_photo_yn ? -1 : 1;
+    }
+    if (a.row.order !== b.row.order) return a.row.order - b.row.order;
+    return a.idx - b.idx;
+  });
+
+  const hero = indexedPhotos[0]?.row ?? null;
+
+  // photos_change_timestamp = max across ALL active rows, photo or otherwise.
+  const activeRows = rows.filter((r) => String(r.status).toLowerCase() === "active");
+  let pct: Date | null = null;
+  for (const row of activeRows) {
+    const candidates: (Date | null)[] = [row.media_modification_ts, row.modification_ts];
+    for (const c of candidates) {
+      if (c instanceof Date && !Number.isNaN(c.getTime())) {
+        if (pct === null || c > pct) pct = c;
+      }
+    }
+  }
+
+  return {
+    primary_photo_url: hero?.media_url_original ?? null,
+    primary_photo_r2_key: hero?.r2_key ?? null,
+    photo_count: photos.length,
+    photos_change_timestamp: pct,
+  };
+}
+
+/**
+ * Re-derive and persist the 4 Listing summary columns from the current
+ * `listing_media` rows for `listingId`.
+ *
+ * Reads all `listing_media` rows for the listing (active + deleted; the
+ * filter happens in-JS via `computeListingMediaSummary`), computes the
+ * summary, and writes it via a single `Listing.update()` call. Writes only
+ * the 4 columns; never touches the legacy `Listing.media` JSON column or
+ * any other field.
+ *
+ * Idempotent: running twice with no underlying media change writes the
+ * same values both times.
+ *
+ * Returns the summary that was persisted.
+ */
+export async function updateListingMediaSummary(
+  listingId: string,
+): Promise<ListingMediaSummary> {
+  const rows = await prisma.listingMedia.findMany({
+    where: { listing_id: listingId },
+    select: {
+      media_type: true,
+      status: true,
+      preferred_photo_yn: true,
+      order: true,
+      media_url_original: true,
+      r2_key: true,
+      media_modification_ts: true,
+      modification_ts: true,
+    },
+  });
+
+  const summary = computeListingMediaSummary(rows);
+
+  await prisma.listing.update({
+    where: { listing_id: listingId },
+    data: {
+      primary_photo_url: summary.primary_photo_url,
+      primary_photo_r2_key: summary.primary_photo_r2_key,
+      photo_count: summary.photo_count,
+      photos_change_timestamp: summary.photos_change_timestamp,
+    },
+  });
+
+  return summary;
+}
