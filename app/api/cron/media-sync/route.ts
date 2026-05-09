@@ -60,6 +60,17 @@ export async function GET(req: NextRequest) {
   try {
     const result = await runMediaSync();
 
+    // Audit changes payload — explicit field list (NOT a spread of `result`)
+    // so internal fields can never accidentally leak. Includes the Phase 3
+    // observability fields added by the phased-orchestrator refactor (PR #97):
+    //   - exit_reason       — was completed / budget_phase1 / budget_phase2 / source_error
+    //   - r2_mirrored       — successful R2 mirrors in this firing
+    //   - r2_failed         — R2 mirror failures (separate from source rows_failed)
+    //   - r2_skipped        — rows skipped by mirror (e.g., no media_url_original)
+    //   - backlog_remaining — listing_media rows still missing r2_key/cached
+    // Required so external observers (the 48h PR-4 observation clock, ops
+    // dashboards, retro analyses) can verify Phase 1/2/3 health from audit
+    // alone without ad-hoc DB queries.
     await prisma.auditEvent.create({
       data: {
         action: "media_sync_cron",
@@ -69,11 +80,16 @@ export async function GET(req: NextRequest) {
         user_id: null,
         changes: {
           status: result.status,
+          exit_reason: result.exit_reason,
           rows_checked: result.rows_checked,
           rows_updated: result.rows_updated,
           rows_failed: result.rows_failed,
           listings_processed: result.listings_processed,
           listings_skipped: result.listings_skipped,
+          r2_mirrored: result.r2_mirrored,
+          r2_failed: result.r2_failed,
+          r2_skipped: result.r2_skipped,
+          backlog_remaining: result.backlog_remaining,
           duration_ms: result.duration_ms,
           ...(result.error ? { error: result.error } : {}),
         },

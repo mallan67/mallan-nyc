@@ -70,11 +70,16 @@ function authedReq(): NextRequest {
 function makeRunResult(overrides: Record<string, unknown> = {}) {
   return {
     status: "ok",
+    exit_reason: "completed",
     rows_checked: 0,
     rows_updated: 0,
     rows_failed: 0,
     listings_processed: 0,
     listings_skipped: 0,
+    r2_mirrored: 0,
+    r2_failed: 0,
+    r2_skipped: 0,
+    backlog_remaining: 0,
     duration_ms: 100,
     ...overrides,
   };
@@ -221,6 +226,62 @@ describe("GET /api/cron/media-sync — happy path", () => {
     expect(auditArgs.data.action).toBe("media_sync_cron");
     expect(auditArgs.data.changes.status).toBe("partial");
     expect(auditArgs.data.changes.rows_failed).toBe(3);
+  });
+
+  it("audit changes payload includes all Phase 3 observability fields (exit_reason, r2_*, backlog_remaining)", async () => {
+    // Required for the 48h PR-4 observation clock to verify Phase 3 health
+    // from audit log alone, without ad-hoc DB queries.
+    mockRunMediaSync.mockResolvedValueOnce(
+      makeRunResult({
+        status: "partial",
+        exit_reason: "budget_phase2",
+        rows_checked: 806,
+        rows_updated: 806,
+        rows_failed: 0,
+        listings_processed: 50,
+        listings_skipped: 0,
+        r2_mirrored: 11,
+        r2_failed: 4,
+        r2_skipped: 0,
+        backlog_remaining: 1102,
+        duration_ms: 88424,
+      }),
+    );
+    mockAuditCreate.mockResolvedValueOnce(undefined);
+
+    await GET(authedReq());
+
+    const auditArgs = mockAuditCreate.mock.calls[0][0] as {
+      data: { action: string; changes: Record<string, unknown> };
+    };
+    const ch = auditArgs.data.changes;
+
+    // Pre-existing fields preserved.
+    expect(ch.status).toBe("partial");
+    expect(ch.rows_checked).toBe(806);
+    expect(ch.rows_updated).toBe(806);
+    expect(ch.rows_failed).toBe(0);
+    expect(ch.listings_processed).toBe(50);
+    expect(ch.listings_skipped).toBe(0);
+    expect(ch.duration_ms).toBe(88424);
+
+    // NEW: Phase 3 observability fields must be present.
+    expect(ch.exit_reason).toBe("budget_phase2");
+    expect(ch.r2_mirrored).toBe(11);
+    expect(ch.r2_failed).toBe(4);
+    expect(ch.r2_skipped).toBe(0);
+    expect(ch.backlog_remaining).toBe(1102);
+
+    // No accidental field leakage — explicit allowlist only.
+    const allowed = new Set([
+      "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
+      "listings_processed", "listings_skipped",
+      "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
+      "duration_ms", "error",
+    ]);
+    for (const key of Object.keys(ch)) {
+      expect(allowed.has(key)).toBe(true);
+    }
   });
 
   it("logs runMediaSync's status='error' result in the SAME media_sync_cron event (not media_sync_cron_error)", async () => {
