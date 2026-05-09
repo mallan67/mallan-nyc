@@ -1318,16 +1318,40 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // Pattern matches lib/idx/sync.ts:694-708 (migrateMediaToR2). Trestle's
   // 480/min Media URL ceiling allows 8/sec sustained; concurrency-5 peaks
   // ~5/sec → comfortably within bandwidth, regression-safe.
+  //
+  // Per-invocation attempt tracking (PR #97 Codex review fix):
+  //   The backlog query selects rows where `r2_key IS NULL OR
+  //   media_url_cached IS NULL`. If a row's mirror fails (e.g., Trestle
+  //   404 on media_url_original, R2 head/upload error), its DB state is
+  //   unchanged — same row keeps matching the same query. Without
+  //   tracking, a persistent bad row at the head of the queue would be
+  //   re-selected every iteration of this while-loop and starve newer
+  //   backlog rows of any Phase 3 budget.
+  //
+  //   Fix: track every row id we've attempted in this invocation in a
+  //   local Set, and exclude those ids from subsequent backlog queries
+  //   via `id: { notIn: [...attempted] }`. Failed rows still stay in the
+  //   DB backlog — they're eligible on the NEXT cron firing (the Set is
+  //   recreated on each `runMediaSync` call).
+  const attemptedBacklogIds = new Set<bigint>();
+
   while (remainingMs() > phase2ReserveMs) {
     const backlogRows = await prisma.listingMedia.findMany({
       where: {
         status: "active",
         media_url_original: { not: null },
         OR: [{ r2_key: null }, { media_url_cached: null }],
+        // Exclude rows already attempted this invocation. Empty Set is a
+        // no-op via `undefined`; Prisma treats undefined as "no filter".
+        ...(attemptedBacklogIds.size > 0
+          ? { id: { notIn: [...attemptedBacklogIds] } }
+          : {}),
       },
       orderBy: { created_at: "asc" },
       take: R2_MIRROR_CONCURRENCY,
       select: {
+        // `id` is required for attempt tracking — never passed to mirrorMediaToR2.
+        id: true,
         listing_id: true,
         media_key: true,
         media_type: true,
@@ -1339,6 +1363,13 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     });
 
     if (backlogRows.length === 0) break;
+
+    // Mark every selected row as attempted BEFORE the mirror runs. Even
+    // if Promise.allSettled isolates a per-row throw or the mirror returns
+    // `failed`/`skipped`, the row will not be re-selected this invocation.
+    for (const row of backlogRows) {
+      attemptedBacklogIds.add(row.id);
+    }
 
     const results = await Promise.allSettled(
       backlogRows.map((row) => {
