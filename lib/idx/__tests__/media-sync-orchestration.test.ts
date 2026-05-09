@@ -1156,3 +1156,198 @@ describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
     expect(DEFAULT_LISTINGS_PER_RUN).toBe(50);
   });
 });
+
+// ─── Phase 3 attempt tracking — Codex review fix on PR #97 ───────────────
+//
+// Without per-invocation tracking, a failed row's DB state is unchanged
+// (r2_key stays null), so the next while-iteration's findMany would re-select
+// it. A persistent bad row at the head of the queue could starve the entire
+// Phase 3 budget. The fix: track every selected row id in a local Set and
+// exclude those ids from subsequent backlog queries via id: { notIn: [...] }.
+// The Set is local to one runMediaSync invocation — failed rows remain
+// eligible on the NEXT cron firing.
+
+describe("runMediaSync — Phase 3 per-invocation attempt tracking", () => {
+  it("does NOT re-select the same failed rows within a single invocation (excludes via id: { notIn })", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+
+    // Batch 1: 3 rows whose mirror will fail.
+    const failedBatch = [
+      { id: 100n, listing_id: "F-A", media_key: "FK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+      { id: 101n, listing_id: "F-B", media_key: "FK-B", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null },
+      { id: 102n, listing_id: "F-C", media_key: "FK-C", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null },
+    ];
+    // Batch 2: different 2 rows that mirror successfully.
+    const nextBatch = [
+      { id: 200n, listing_id: "N-A", media_key: "NK-A", media_type: "Photo", order: 1, media_url_original: "u4", r2_key: null, media_url_cached: null },
+      { id: 201n, listing_id: "N-B", media_key: "NK-B", media_type: "Photo", order: 1, media_url_original: "u5", r2_key: null, media_url_cached: null },
+    ];
+    mockListingMediaFindMany
+      .mockResolvedValueOnce(failedBatch)
+      .mockResolvedValueOnce(nextBatch)
+      .mockResolvedValue([]);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]); // no Phase 1 work
+    const mirrorDeps = makeMirrorDeps();
+    // Mirror outcome differs by R2 key prefix:
+    //   - failed batch (listing_id "F-*") → mock existsInR2 throws → status='failed'
+    //   - next batch  (listing_id "N-*") → existsInR2 returns true → status='reused'
+    (mirrorDeps.existsInR2 as jest.Mock).mockImplementation(async (key: string) => {
+      if (key.includes("/F-")) throw new Error("R2 head failed");
+      return true;
+    });
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }), mirrorDeps }),
+    );
+
+    expect(result.r2_failed).toBe(3);
+    expect(result.r2_mirrored).toBe(2);
+
+    // CRITICAL: verify the SECOND backlog findMany call carries id: { notIn: [100n, 101n, 102n] }.
+    // Filter to only Phase 3 backlog calls (those with status='active' + OR clause).
+    const backlogCalls = mockListingMediaFindMany.mock.calls.filter((call) => {
+      const args = call[0] as { where?: { status?: string; OR?: unknown[] } };
+      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+    });
+    expect(backlogCalls.length).toBeGreaterThanOrEqual(2);
+
+    // First backlog call has NO `id` filter (Set was empty).
+    const firstWhere = (backlogCalls[0][0] as { where: Record<string, unknown> }).where;
+    expect(firstWhere).not.toHaveProperty("id");
+
+    // Second backlog call HAS `id: { notIn }` containing exactly the 3 failed batch ids.
+    const secondWhere = (backlogCalls[1][0] as { where: { id?: { notIn: bigint[] } } }).where;
+    expect(secondWhere.id).toBeDefined();
+    expect(secondWhere.id!.notIn).toBeDefined();
+    const notInIds = secondWhere.id!.notIn.map(String).sort();
+    expect(notInIds).toEqual(["100", "101", "102"]);
+  });
+
+  it("marks rows as attempted BEFORE mirror runs (a thrown mirror still excludes the row from re-selection)", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const row = {
+      id: 500n,
+      listing_id: "X",
+      media_key: "MK-X",
+      media_type: "Photo",
+      order: 1,
+      media_url_original: "u",
+      r2_key: null,
+      media_url_cached: null,
+    };
+    mockListingMediaFindMany
+      .mockResolvedValueOnce([row])
+      .mockResolvedValue([]);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const mirrorDeps = makeMirrorDeps();
+    // Throw inside mirror. Promise.allSettled still resolves; r2_failed++.
+    (mirrorDeps.existsInR2 as jest.Mock).mockRejectedValue(new Error("explode"));
+
+    await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }), mirrorDeps }),
+    );
+
+    // Row 500 must appear in the next backlog query's notIn set.
+    const backlogCalls = mockListingMediaFindMany.mock.calls.filter((call) => {
+      const args = call[0] as { where?: { status?: string; OR?: unknown[] } };
+      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+    });
+    expect(backlogCalls.length).toBeGreaterThanOrEqual(2);
+    const secondWhere = (backlogCalls[1][0] as { where: { id?: { notIn: bigint[] } } }).where;
+    expect(secondWhere.id?.notIn?.map(String)).toContain("500");
+  });
+
+  it("attempt tracking is per-invocation — failed rows are eligible on the NEXT runMediaSync call (Set is fresh)", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const row = {
+      id: 999n,
+      listing_id: "P",
+      media_key: "MK-P",
+      media_type: "Photo",
+      order: 1,
+      media_url_original: "u",
+      r2_key: null,
+      media_url_cached: null,
+    };
+
+    // First invocation: row is selected, mirror fails, row is added to attemptedBacklogIds.
+    mockListingMediaFindMany
+      .mockResolvedValueOnce([row]) // first run, batch 1
+      .mockResolvedValueOnce([]); // first run, exits
+
+    const fetchProperties1 = jest.fn().mockResolvedValueOnce([]);
+    const mirrorDeps1 = makeMirrorDeps();
+    (mirrorDeps1.existsInR2 as jest.Mock).mockRejectedValue(new Error("fail"));
+
+    await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties: fetchProperties1 }), mirrorDeps: mirrorDeps1 }),
+    );
+
+    // Snapshot: how many findMany calls happened in the first invocation?
+    const callsAfterRun1 = mockListingMediaFindMany.mock.calls.length;
+
+    // Second invocation: same row should be selected again (fresh Set).
+    mockListingMediaFindMany
+      .mockResolvedValueOnce([row]) // second run, batch 1
+      .mockResolvedValueOnce([]); // second run, exits
+
+    const fetchProperties2 = jest.fn().mockResolvedValueOnce([]);
+    const mirrorDeps2 = makeMirrorDeps();
+    (mirrorDeps2.existsInR2 as jest.Mock).mockResolvedValue(true); // success this time
+
+    const result2 = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties: fetchProperties2 }), mirrorDeps: mirrorDeps2 }),
+    );
+
+    // Second invocation processed the row successfully.
+    expect(result2.r2_mirrored).toBe(1);
+
+    // CRITICAL: the second invocation's FIRST backlog query has NO `id` filter
+    // — proving the attempt tracking Set is per-invocation and was reset.
+    const allBacklogCalls = mockListingMediaFindMany.mock.calls.filter((call) => {
+      const args = call[0] as { where?: { status?: string; OR?: unknown[] } };
+      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+    });
+    // Pick the first backlog call from invocation 2 (after the run-1 calls).
+    const invocation2FirstCall = allBacklogCalls.find((_, idx) => idx >= callsAfterRun1);
+    expect(invocation2FirstCall).toBeDefined();
+    const where2 = (invocation2FirstCall![0] as { where: Record<string, unknown> }).where;
+    expect(where2).not.toHaveProperty("id");
+  });
+
+  it("preserves Promise.allSettled with concurrency=5 after attempt-tracking change", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    // 5 rows, all succeed via existsInR2=true.
+    const fiveRows = [
+      { id: 1n, listing_id: "A", media_key: "K1", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+      { id: 2n, listing_id: "B", media_key: "K2", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null },
+      { id: 3n, listing_id: "C", media_key: "K3", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null },
+      { id: 4n, listing_id: "D", media_key: "K4", media_type: "Photo", order: 1, media_url_original: "u4", r2_key: null, media_url_cached: null },
+      { id: 5n, listing_id: "E", media_key: "K5", media_type: "Photo", order: 1, media_url_original: "u5", r2_key: null, media_url_cached: null },
+    ];
+    mockListingMediaFindMany.mockResolvedValueOnce(fiveRows).mockResolvedValue([]);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockResolvedValue(true);
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }), mirrorDeps }),
+    );
+
+    expect(result.r2_mirrored).toBe(5);
+    // 5 existsInR2 calls means concurrency-5 batch ran (verified in earlier test
+    // too); this test pins it for the post-attempt-tracking flow.
+    expect((mirrorDeps.existsInR2 as jest.Mock).mock.calls.length).toBe(5);
+    // Take=5 in the backlog query.
+    const backlogCalls = mockListingMediaFindMany.mock.calls.filter((call) => {
+      const args = call[0] as { where?: { status?: string; OR?: unknown[] }; take?: number };
+      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+    });
+    expect((backlogCalls[0][0] as { take: number }).take).toBe(5);
+  });
+});
