@@ -996,10 +996,16 @@ export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
  *     paging produces a deterministic order within same-PCT clusters.
  *
  * Compliance fields:
- *   - `$select` includes `Permission`, `Permissions`, and `MlsStatus` so the
- *     orchestrator-level `isPropertyComplianceBlocked()` gate has the data
- *     it needs (review comment 3). These are the canonical names from
- *     `lib/idx/trestle-mapper.ts:715-721`.
+ *   - `$select` includes `Permission` (singular) and `MlsStatus`, the canonical
+ *     compliance fields per `lib/idx/trestle-mapper.ts:74` and the IDX Plus CSV.
+ *   - `$select` deliberately does NOT include `Permissions` (plural). Although
+ *     `isPropertyComplianceBlocked()` defensively reads `property.Permissions`
+ *     for legacy-feed safety, the plural form does NOT exist as a Trestle IDX
+ *     Plus Property field — including it in `$select` causes Trestle to return
+ *     HTTP 400 (verified in production 2026-05-09T07:00:25Z, first PR-3 firing).
+ *     `Permission` (singular) is the only Trestle-valid form; the runtime
+ *     fallback to `property.Permissions` simply reads `undefined` on this feed,
+ *     which is harmless.
  */
 export function buildPropertyQuery(since: Date, top: number): URLSearchParams {
   const params = new URLSearchParams();
@@ -1011,9 +1017,11 @@ export function buildPropertyQuery(since: Date, top: number): URLSearchParams {
     "$filter",
     `PhotosChangeTimestamp ge ${since.toISOString()} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'Pending')`,
   );
+  // `Permissions` (plural) is NOT a Trestle IDX Plus Property field — see the
+  // doc comment above. Do NOT add it back. `Permission` (singular) is canonical.
   params.set(
     "$select",
-    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,Permission,Permissions,MlsStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
+    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,Permission,MlsStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
   );
   params.set("$orderby", "PhotosChangeTimestamp asc,ListingKey asc");
   params.set("$top", String(top));
