@@ -31,6 +31,7 @@ const mockListingMediaCreate = jest.fn<Promise<unknown>, [unknown]>();
 const mockListingMediaUpdate = jest.fn<Promise<unknown>, [unknown]>();
 const mockListingMediaUpdateMany = jest.fn<Promise<{ count: number }>, [unknown]>();
 const mockListingMediaFindMany = jest.fn<Promise<unknown[]>, [unknown]>();
+const mockListingMediaCount = jest.fn<Promise<number>, [unknown]>();
 
 const mockListingUpdate = jest.fn<Promise<unknown>, [unknown]>();
 
@@ -47,6 +48,7 @@ jest.mock("@/lib/prisma", () => ({
       update: (args: unknown) => mockListingMediaUpdate(args),
       updateMany: (args: unknown) => mockListingMediaUpdateMany(args),
       findMany: (args: unknown) => mockListingMediaFindMany(args),
+      count: (args: unknown) => mockListingMediaCount(args),
     },
     listing: {
       update: (args: unknown) => mockListingUpdate(args),
@@ -69,11 +71,13 @@ beforeEach(() => {
   mockListingMediaUpdate.mockReset();
   mockListingMediaUpdateMany.mockReset();
   mockListingMediaFindMany.mockReset();
+  mockListingMediaCount.mockReset();
   mockListingUpdate.mockReset();
 
   // Sensible defaults for happy paths.
   mockListingMediaUpdateMany.mockResolvedValue({ count: 0 });
   mockListingMediaFindMany.mockResolvedValue([]);
+  mockListingMediaCount.mockResolvedValue(0);
   mockListingUpdate.mockResolvedValue(undefined);
   mockMediaSyncUpsert.mockResolvedValue(undefined);
 });
@@ -164,13 +168,17 @@ describe("runMediaSync — source-fetch failure (watermark safety)", () => {
     const result = await runMediaSync(opts);
 
     expect(result.status).toBe("error");
+    expect(result.exit_reason).toBe("source_error");
     expect(result.error).toBe("Property fetch failed: HTTP 503");
     expect(result.rows_checked).toBe(0);
     expect(result.rows_updated).toBe(0);
     expect(result.rows_failed).toBe(0);
     expect(result.listings_processed).toBe(0);
+    expect(result.r2_mirrored).toBe(0);
+    expect(result.r2_failed).toBe(0);
+    expect(result.backlog_remaining).toBeNull();
 
-    // CRITICAL: cursor.upsert must NOT be called.
+    // CRITICAL: cursor.upsert must NOT be called — no Phase 2 on source error.
     expect(mockMediaSyncUpsert).not.toHaveBeenCalled();
     // No fetchMedia attempts either.
     expect(fetchDeps.fetchMedia).not.toHaveBeenCalled();
@@ -178,6 +186,9 @@ describe("runMediaSync — source-fetch failure (watermark safety)", () => {
     expect(mockListingMediaCreate).not.toHaveBeenCalled();
     expect(mockListingMediaUpdate).not.toHaveBeenCalled();
     expect(mockListingUpdate).not.toHaveBeenCalled();
+    // No Phase 3 backlog query either.
+    expect(mockListingMediaFindMany).not.toHaveBeenCalled();
+    expect(mockListingMediaCount).not.toHaveBeenCalled();
   });
 
   it("uses fallbackWindowDays when cursor is empty (first run)", async () => {
@@ -388,21 +399,32 @@ describe("runMediaSync — per-listing failure isolation", () => {
     expect(upsertArgs.update.rows_failed).toBe(1);
   });
 
-  it("R2 mirror failure increments rows_failed but does not stop processing later listings", async () => {
+  it("R2 mirror failure increments r2_failed (NOT rows_failed) and does not block source cursor", async () => {
+    // New phased semantics:
+    //   - Phase 1 source ingest succeeds for the listing → rows_failed stays 0
+    //   - Phase 2 cursor advances for the listing
+    //   - Phase 3 R2 mirror fails (Trestle returns 500) → r2_failed=1
+    //   - status='partial' because r2_failed > 0
+    //   - The listing's cursor advance is NOT undone — it stays in cursorRecords.
     mockMediaSyncFindUnique.mockResolvedValue(null);
     mockListingMediaFindUnique.mockResolvedValue(null);
     mockListingMediaCreate.mockResolvedValue(undefined);
-    mockListingMediaFindMany.mockResolvedValue([
-      {
-        listing_id: "RLS-A",
-        media_key: "MK-A",
-        media_type: "Photo",
-        order: 1,
-        media_url_original: "https://api.cotality.com/photo.jpg",
-        r2_key: null,
-        media_url_cached: null,
-      },
-    ]);
+    // findMany is called twice: (1) inside Phase 1's updateListingMediaSummary
+    // for the listing's rows, and (2) by Phase 3's backlog query. Both need
+    // the row; subsequent Phase 3 iterations get empty so the while-loop ends.
+    const row = {
+      listing_id: "RLS-A",
+      media_key: "MK-A",
+      media_type: "Photo",
+      order: 1,
+      media_url_original: "https://api.cotality.com/photo.jpg",
+      r2_key: null,
+      media_url_cached: null,
+    };
+    mockListingMediaFindMany
+      .mockResolvedValueOnce([row])
+      .mockResolvedValueOnce([row])
+      .mockResolvedValue([]);
 
     const fetchProperties = jest.fn().mockResolvedValueOnce([
       makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
@@ -410,7 +432,6 @@ describe("runMediaSync — per-listing failure isolation", () => {
     const fetchMedia = jest.fn().mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-A" })]);
 
     const mirrorDeps = makeMirrorDeps();
-    // Force R2 mirror to fail by making the Trestle download return 500.
     (mirrorDeps.existsInR2 as jest.Mock).mockResolvedValue(false);
     mirrorDeps.fetchFn = jest.fn(async () => new Response(new Uint8Array(0), { status: 500 })) as typeof fetch;
 
@@ -421,10 +442,15 @@ describe("runMediaSync — per-listing failure isolation", () => {
       }),
     );
 
-    // Listing was processed, but the single Photo failed to mirror.
+    // Phase 1 ingest succeeded — listing was fully processed.
     expect(result.listings_processed).toBe(1);
-    expect(result.rows_failed).toBe(1);
+    // R2 failure is bucketed separately from source rows_failed.
+    expect(result.rows_failed).toBe(0);
+    expect(result.r2_failed).toBe(1);
+    // Final status is partial because of Phase 3 R2 failure.
     expect(result.status).toBe("partial");
+    // Phase 2 advanced cursor (with the listing in records).
+    expect(mockMediaSyncUpsert).toHaveBeenCalled();
   });
 });
 
@@ -463,21 +489,25 @@ describe("runMediaSync — boundary preservation", () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     mockListingMediaFindUnique.mockResolvedValue(null);
     mockListingMediaCreate.mockResolvedValue(undefined);
-    mockListingMediaFindMany.mockResolvedValue([
-      {
-        listing_id: "RLS-A",
-        media_key: "MK-A",
-        media_type: "Photo",
-        order: 1,
-        media_url_original: "https://example.com/p.jpg",
-        r2_key: "photos/RLS-A/1.jpg",
-        media_url_cached: "https://r2.example.com/photos/RLS-A/1.jpg",
-        status: "active",
-        preferred_photo_yn: false,
-        media_modification_ts: null,
-        modification_ts: null,
-      },
-    ]);
+    // First findMany call: this listing's read inside updateListingMediaSummary
+    // (Phase 1). Subsequent calls (Phase 3 backlog while-loop): empty.
+    mockListingMediaFindMany
+      .mockResolvedValueOnce([
+        {
+          listing_id: "RLS-A",
+          media_key: "MK-A",
+          media_type: "Photo",
+          order: 1,
+          media_url_original: "https://example.com/p.jpg",
+          r2_key: "photos/RLS-A/1.jpg",
+          media_url_cached: "https://r2.example.com/photos/RLS-A/1.jpg",
+          status: "active",
+          preferred_photo_yn: false,
+          media_modification_ts: null,
+          modification_ts: null,
+        },
+      ])
+      .mockResolvedValue([]);
 
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
@@ -505,17 +535,34 @@ describe("runMediaSync — boundary preservation", () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     mockListingMediaFindUnique.mockResolvedValue(null);
     mockListingMediaCreate.mockResolvedValue(undefined);
-    mockListingMediaFindMany.mockResolvedValue([
-      {
-        listing_id: "RLS-A",
-        media_key: "MK-A",
-        media_type: "Photo",
-        order: 1,
-        media_url_original: "https://example.com/p.jpg",
-        r2_key: null,
-        media_url_cached: null,
-      },
-    ]);
+    // Phase 1 calls findMany inside updateListingMediaSummary; Phase 3 calls
+    // findMany for the backlog. First call returns the row (so summary + Phase
+    // 3 mirror operate on it); subsequent calls return empty so Phase 3
+    // terminates after one mirror batch.
+    mockListingMediaFindMany
+      .mockResolvedValueOnce([
+        {
+          listing_id: "RLS-A",
+          media_key: "MK-A",
+          media_type: "Photo",
+          order: 1,
+          media_url_original: "https://example.com/p.jpg",
+          r2_key: null,
+          media_url_cached: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          listing_id: "RLS-A",
+          media_key: "MK-A",
+          media_type: "Photo",
+          order: 1,
+          media_url_original: "https://example.com/p.jpg",
+          r2_key: null,
+          media_url_cached: null,
+        },
+      ])
+      .mockResolvedValue([]);
 
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
@@ -552,14 +599,19 @@ describe("runMediaSync — tombstoneVanished is forced false (capped fetch safet
     mockListingMediaFindUnique.mockResolvedValue(null);
     mockListingMediaCreate.mockResolvedValue(undefined);
     mockListingMediaUpdate.mockResolvedValue(undefined);
-    // Existing DB state — 5 active rows for the listing.
-    mockListingMediaFindMany.mockResolvedValue([
-      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-D", media_type: "Photo", order: 4, media_url_original: "u4", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-E", media_type: "Photo", order: 5, media_url_original: "u5", r2_key: null, media_url_cached: null },
-    ]);
+    // Existing DB state — 5 active rows for the listing. First call serves
+    // Phase 1's summary read; subsequent calls (Phase 3 backlog while-loop)
+    // return empty so Phase 3 doesn't iterate (this test focuses on Phase 1
+    // tombstone semantics, not Phase 3 mirror behavior).
+    mockListingMediaFindMany
+      .mockResolvedValueOnce([
+        { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+        { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
+        { listing_id: "RLS-A", media_key: "MK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
+        { listing_id: "RLS-A", media_key: "MK-D", media_type: "Photo", order: 4, media_url_original: "u4", r2_key: null, media_url_cached: null },
+        { listing_id: "RLS-A", media_key: "MK-E", media_type: "Photo", order: 5, media_url_original: "u5", r2_key: null, media_url_cached: null },
+      ])
+      .mockResolvedValue([]);
 
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
@@ -782,5 +834,325 @@ describe("isPropertyComplianceBlocked", () => {
 
   it("returns false for InternetEntireListingDisplayYN === null (provider-gated)", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ InternetEntireListingDisplayYN: null }))).toBe(false);
+  });
+});
+
+// ─── Phased architecture — durability + R2 throughput (root fix) ─────────
+
+/**
+ * Inject a deterministic clock so tests can exercise time-budget paths
+ * without real timers. `nowAt(...)` returns a `now` function that walks
+ * through the supplied timestamps in order.
+ */
+function nowAt(...timestamps: number[]): () => number {
+  let i = 0;
+  return () => {
+    const t = timestamps[Math.min(i, timestamps.length - 1)];
+    i++;
+    return t;
+  };
+}
+
+describe("runMediaSync — Phase 2 cursor advances independently of Phase 3 R2", () => {
+  it("ingests N listings in Phase 1 and advances cursor before any R2 work in Phase 3", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindUnique.mockResolvedValue(null);
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaFindMany.mockResolvedValue([]); // no Phase 1 summary rows; no Phase 3 backlog
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([
+      makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
+      makeProperty({ ListingId: "RLS-B", ListingKey: "K-B" }),
+      makeProperty({ ListingId: "RLS-C", ListingKey: "K-C" }),
+    ]);
+    const fetchMedia = jest.fn()
+      .mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-A" })])
+      .mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-B" })])
+      .mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-C" })]);
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties, fetchMedia }) }),
+    );
+
+    expect(result.status).toBe("ok");
+    expect(result.exit_reason).toBe("completed");
+    expect(result.listings_processed).toBe(3);
+    // Phase 2: cursor advance happened with all 3 records.
+    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
+    const upsertArg = mockMediaSyncUpsert.mock.calls[0][0] as {
+      where: { resource: string };
+      update: { rows_checked: number; last_run_status: string };
+    };
+    expect(upsertArg.where).toEqual({ resource: RESOURCE_MEDIA });
+    expect(upsertArg.update.last_run_status).toBe("ok");
+  });
+
+  it("source-fetch failure does NOT call Phase 2 cursor advance", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const fetchProperties = jest.fn().mockRejectedValue(new Error("Property fetch failed: HTTP 400"));
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }) }),
+    );
+
+    expect(result.status).toBe("error");
+    expect(result.exit_reason).toBe("source_error");
+    expect(mockMediaSyncUpsert).not.toHaveBeenCalled();
+    expect(mockListingMediaCount).not.toHaveBeenCalled();
+  });
+
+  it("summary-update failure (NEW: fail-loud) increments rows_failed and does NOT add cursor record", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindUnique.mockResolvedValue(null);
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    // First findMany call (inside updateListingMediaSummary) rejects → throws
+    // up to the per-listing try/catch → rows_failed++ and NO cursorRecord.
+    mockListingMediaFindMany.mockRejectedValueOnce(new Error("DB stalled"));
+    mockListingMediaFindMany.mockResolvedValue([]);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([
+      makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
+    ]);
+    const fetchMedia = jest.fn().mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-A" })]);
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties, fetchMedia }) }),
+    );
+
+    expect(result.rows_failed).toBe(1);
+    expect(result.listings_processed).toBe(0);
+    expect(result.status).toBe("partial");
+    // Phase 2 still ran with empty cursorRecords (just the heartbeat update).
+    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("runMediaSync — Phase 3 R2 enrichment (parallel, concurrency=5)", () => {
+  it("queries the backlog with status='active' AND r2_key/media_url_cached null filter, ordered by created_at asc", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindMany.mockResolvedValue([]); // Phase 1 has nothing; Phase 3 also empty
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+
+    await runMediaSync(makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }) }));
+
+    // At least one findMany call should have been Phase 3's backlog query.
+    expect(mockListingMediaFindMany).toHaveBeenCalled();
+    const backlogCall = mockListingMediaFindMany.mock.calls.find((call) => {
+      const args = call[0] as {
+        where?: { status?: string; OR?: Array<{ r2_key?: null; media_url_cached?: null }> };
+      };
+      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+    });
+    expect(backlogCall).toBeDefined();
+    const args = backlogCall![0] as {
+      where: { status: string; media_url_original?: { not: null }; OR: Array<{ r2_key?: null; media_url_cached?: null }> };
+      orderBy: { created_at: string };
+      take: number;
+    };
+    expect(args.where.status).toBe("active");
+    expect(args.where.media_url_original).toEqual({ not: null });
+    // OR clause includes both r2_key=null and media_url_cached=null.
+    const orFields = args.where.OR.map((c) => Object.keys(c)[0]).sort();
+    expect(orFields).toEqual(["media_url_cached", "r2_key"]);
+    expect(args.orderBy).toEqual({ created_at: "asc" });
+    expect(args.take).toBe(5); // R2_MIRROR_CONCURRENCY
+  });
+
+  it("processes a backlog batch of up to 5 rows in parallel (Promise.allSettled with MAX_CONCURRENT=5)", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const backlog = [
+      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-D", media_type: "Photo", order: 4, media_url_original: "u4", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-E", media_type: "Photo", order: 5, media_url_original: "u5", r2_key: null, media_url_cached: null },
+    ];
+    mockListingMediaFindMany
+      .mockResolvedValueOnce(backlog)
+      .mockResolvedValue([]);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]); // no Phase 1 work
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockResolvedValue(true); // reuse fast-path
+
+    const result = await runMediaSync(
+      makeOptions({
+        fetchDeps: makeFetchDeps({ fetchProperties }),
+        mirrorDeps,
+      }),
+    );
+
+    expect(result.r2_mirrored).toBe(5);
+    expect(result.r2_failed).toBe(0);
+    // existsInR2 was called for ALL 5 rows (proves the parallel batch processed them).
+    expect((mirrorDeps.existsInR2 as jest.Mock).mock.calls.length).toBe(5);
+  });
+
+  it("R2 mirror per-row failure increments r2_failed but does NOT throw or stop other rows in the batch", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const backlog = [
+      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-B", media_key: "MK-B", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-C", media_key: "MK-C", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null },
+    ];
+    mockListingMediaFindMany.mockResolvedValueOnce(backlog).mockResolvedValue([]);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const mirrorDeps = makeMirrorDeps();
+    let n = 0;
+    (mirrorDeps.existsInR2 as jest.Mock).mockImplementation(() => {
+      n++;
+      // Make the 2nd row's existsInR2 reject — Promise.allSettled isolates it.
+      if (n === 2) return Promise.reject(new Error("R2 head error"));
+      return Promise.resolve(true);
+    });
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }), mirrorDeps }),
+    );
+
+    // 1 failure, 2 successful reuses — siblings did not abort.
+    expect(result.r2_failed).toBe(1);
+    expect(result.r2_mirrored).toBe(2);
+    // Source rows_failed is 0 — the R2 failure does not bleed into source counters.
+    expect(result.rows_failed).toBe(0);
+    expect(result.status).toBe("partial");
+  });
+
+  it("Phase 3 picks up backlog rows from prior partial runs (resume semantics)", async () => {
+    // Simulates a prior run that left the listing_media table with 3 rows
+    // having r2_key=null. This run's Phase 1 has no work (empty source page),
+    // but Phase 3 should still drain the leftover backlog.
+    mockMediaSyncFindUnique.mockResolvedValue({
+      last_photos_change: new Date("2026-05-09T07:30:00Z"),
+      last_media_modified: new Date("2026-05-09T07:30:00Z"),
+    });
+    const backlog = [
+      { listing_id: "PRIOR-A", media_key: "PK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+      { listing_id: "PRIOR-A", media_key: "PK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
+      { listing_id: "PRIOR-A", media_key: "PK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
+    ];
+    mockListingMediaFindMany.mockResolvedValueOnce(backlog).mockResolvedValue([]);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockResolvedValue(true); // all reuse
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }), mirrorDeps }),
+    );
+
+    expect(result.listings_processed).toBe(0); // no Phase 1 work
+    expect(result.r2_mirrored).toBe(3); // Phase 3 drained the prior-run backlog
+  });
+});
+
+describe("runMediaSync — time-budget exits", () => {
+  it("Phase 1 stops when remaining time < phase1ReserveMs and reports exit_reason='budget_phase1'", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindUnique.mockResolvedValue(null);
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaFindMany.mockResolvedValue([]); // no rows; Phase 3 stops immediately
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([
+      makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
+      makeProperty({ ListingId: "RLS-B", ListingKey: "K-B" }),
+      makeProperty({ ListingId: "RLS-C", ListingKey: "K-C" }),
+    ]);
+    const fetchMedia = jest.fn().mockResolvedValue([makeMediaInput({ MediaKey: "MK-1" })]);
+
+    // Walk: startTime=0, then evaluate budget at each loop entry.
+    // budgetMs=1000, phase1ReserveMs=500. After 600ms elapsed (now=600),
+    // remainingMs() = 400 < 500 → Phase 1 stops.
+    const now = nowAt(0, 0, 100, 200, 600, 700, 800, 900, 1000, 1100);
+
+    const result = await runMediaSync(
+      makeOptions({
+        fetchDeps: makeFetchDeps({ fetchProperties, fetchMedia }),
+        budgetMs: 1000,
+        phase1ReserveMs: 500,
+        phase2ReserveMs: 100,
+        now,
+      }),
+    );
+
+    expect(result.exit_reason).toBe("budget_phase1");
+    // At least 1 listing processed, but not all 3.
+    expect(result.listings_processed).toBeGreaterThanOrEqual(1);
+    expect(result.listings_processed).toBeLessThan(3);
+    // Phase 2 still advanced cursor for whatever ingested.
+    expect(mockMediaSyncUpsert).toHaveBeenCalled();
+  });
+
+  it("Phase 3 stops between batches when remaining time < phase2ReserveMs and reports exit_reason='budget_phase2'", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]); // no Phase 1 work
+    const backlog = [
+      { listing_id: "X", media_key: "K1", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
+    ];
+    mockListingMediaFindMany.mockResolvedValue(backlog); // always returns 1 row
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockResolvedValue(true);
+
+    // Walk: budgetMs=1000, phase2ReserveMs=200. By second iteration of the
+    // while loop, remainingMs() drops below 200 → Phase 3 stops.
+    const now = nowAt(0, 0, 100, 200, 300, 850, 900, 950, 1000, 1100);
+
+    const result = await runMediaSync(
+      makeOptions({
+        fetchDeps: makeFetchDeps({ fetchProperties }),
+        mirrorDeps,
+        budgetMs: 1000,
+        phase1ReserveMs: 700, // Phase 1 won't have time anyway, but no Phase 1 work
+        phase2ReserveMs: 200,
+        now,
+      }),
+    );
+
+    expect(result.exit_reason).toBe("budget_phase2");
+    // At least one batch was processed in Phase 3.
+    expect(result.r2_mirrored).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
+  it("reports backlog_remaining from a final count after Phase 3", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindMany.mockResolvedValue([]); // empty backlog
+    mockListingMediaCount.mockResolvedValue(42); // 42 rows still need r2 mirroring
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }) }),
+    );
+
+    expect(result.backlog_remaining).toBe(42);
+  });
+
+  it("backlog_remaining is null if the count query throws (defensive)", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindMany.mockResolvedValue([]);
+    mockListingMediaCount.mockRejectedValue(new Error("Count failed"));
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }) }),
+    );
+
+    expect(result.backlog_remaining).toBeNull();
+    // Function still returns cleanly.
+    expect(result.status).toBe("ok");
+  });
+
+  it("DEFAULT_LISTINGS_PER_RUN is NOT used as the primary fix (kept at 50)", async () => {
+    // Regression guard: this fix must address durability + throughput WITHOUT
+    // lowering the per-run cap as the load-bearing change.
+    const { DEFAULT_LISTINGS_PER_RUN } = await import("../media-sync");
+    expect(DEFAULT_LISTINGS_PER_RUN).toBe(50);
   });
 });
