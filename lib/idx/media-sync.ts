@@ -28,6 +28,7 @@
 //   touching this row.
 
 import prisma from "@/lib/prisma";
+import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 
 /** Resource-key constant for the media-sync state row. */
 export const RESOURCE_MEDIA = "Media" as const;
@@ -245,4 +246,267 @@ function maxDate(a: Date | null, b: Date | null): Date | null {
   if (a === null) return b;
   if (b === null) return a;
   return a > b ? a : b;
+}
+
+// ─── Checkpoint 2 — listing_media upsert path ───────────────────────────
+
+/**
+ * Trestle Media row shape — accepts the OData JSON output from
+ * `GET /odata/Media?$filter=ResourceRecordKey eq '...'`.
+ *
+ * Field naming matches Trestle's PascalCase. All fields are optional/loose
+ * because Trestle's response shapes vary slightly across queries.
+ */
+export interface UpsertListingMediaInput {
+  MediaKey?: string | null;
+  ResourceRecordKey?: string | null;
+  ResourceRecordID?: string | null;
+  MediaURL?: string | null;
+  MediaCategory?: string | null;
+  MediaClassification?: string | null;
+  /**
+   * Trestle's row-level lifecycle status. `"Deleted"` rows arrive as
+   * tombstone signals — we mark a matching `listing_media` row as
+   * `status='deleted'` rather than hard-deleting (audit trail).
+   */
+  MediaStatus?: string | null;
+  /**
+   * REBNY/Cotality permission scope on the row. Trestle's IDX Plus license
+   * pre-filters non-Public rows at the edge, but we defensively skip any row
+   * whose `Permission` is set and not `'Public'` so a future feed-policy
+   * change cannot leak restricted media into our cache.
+   */
+  Permission?: string | null;
+  Order?: number | string | null;
+  PreferredPhotoYN?: boolean | string | null;
+  ModificationTimestamp?: Date | string | null;
+  MediaModificationTimestamp?: Date | string | null;
+}
+
+export interface UpsertListingMediaOptions {
+  /**
+   * Snapshot of `Property.PhotosChangeTimestamp` at the time the caller
+   * fetched this Media batch. Persisted on each row so we can later
+   * correlate per-Media changes back to the Property-level event that
+   * caused the cron to re-fetch.
+   */
+  photosChangeTsSnapshot?: Date | string | null;
+  /**
+   * When `true`, rows currently `status='active'` for `listingId` whose
+   * `media_key` is NOT in the input batch are tombstoned (`status='deleted'`).
+   *
+   * The caller MUST guarantee `mediaRows` represents the COMPLETE current
+   * Trestle media set for this listing. The cron route in Checkpoint 5 will
+   * set this `true` after a per-listing Media fetch. Default `false`
+   * because partial inputs would silently kill live rows otherwise.
+   */
+  tombstoneVanished?: boolean;
+}
+
+export interface UpsertListingMediaResult {
+  /** Rows that did not exist in DB and were inserted as active. */
+  inserted: number;
+  /** Rows that already existed in DB and had their fields refreshed. */
+  updated: number;
+  /** Input rows that were rejected before any DB write (no MediaKey, non-Public Permission, no MediaURL). */
+  skipped: number;
+  /** DB rows whose `status` flipped from active to deleted (explicit MediaStatus='Deleted' OR vanished from input when tombstoneVanished=true). */
+  tombstoned: number;
+}
+
+/**
+ * Internal row-shape we hand to Prisma — every field nullable except the
+ * NOT NULL columns the schema enforces.
+ */
+interface MappedMediaRow {
+  mediaKey: string;
+  resourceRecordKey: string | null;
+  resourceRecordID: string | null;
+  mediaUrlOriginal: string;
+  mediaType: ReturnType<typeof classifyTrestleMediaCategory>;
+  mediaCategory: string | null;
+  mediaClassification: string | null;
+  order: number;
+  preferredPhotoYN: boolean;
+  mediaModificationTs: Date | null;
+  modificationTs: Date | null;
+  photosChangeTsSnapshot: Date | null;
+}
+
+/**
+ * Upsert a complete Trestle Media batch for a single listing.
+ *
+ * Behavior per row:
+ *   - No `MediaKey` ⟹ skipped (we cannot dedupe).
+ *   - `MediaStatus === "Deleted"` ⟹ tombstone any matching active row by
+ *     `media_key` (mark `status='deleted'`); never insert.
+ *   - `Permission` set and not `"Public"` ⟹ skipped (defensive — Trestle's
+ *     IDX Plus license pre-filters at the edge but we double-check).
+ *   - No `MediaURL` ⟹ skipped (we have nothing to mirror).
+ *   - Otherwise: upsert by `media_key`. Inserts seed `created_at`; updates
+ *     refresh all source-provenance fields (URL, type, order, preferred,
+ *     timestamps). The `r2_key` and `media_url_cached` fields are NEVER
+ *     touched here — those land in Checkpoint 4 (R2 upload path).
+ *
+ * `tombstoneVanished` (default false): when true, rows currently
+ * `status='active'` for `listingId` that aren't in the input batch are
+ * also tombstoned. Caller must guarantee the input batch is complete.
+ *
+ * Idempotent: running this twice with identical input produces no DB
+ * churn beyond `updated_at` bumps (which Prisma's `@updatedAt` enforces).
+ */
+export async function upsertListingMedia(
+  listingId: string,
+  mediaRows: UpsertListingMediaInput[],
+  options: UpsertListingMediaOptions = {},
+): Promise<UpsertListingMediaResult> {
+  const photosChangeTsSnapshot = parseDate(options.photosChangeTsSnapshot ?? null);
+
+  let skipped = 0;
+  const explicitDeleteKeys = new Set<string>();
+  const mapped: MappedMediaRow[] = [];
+
+  for (const raw of mediaRows) {
+    const mediaKey = raw.MediaKey ? String(raw.MediaKey) : null;
+    if (!mediaKey) {
+      skipped++;
+      continue;
+    }
+
+    if (raw.MediaStatus === "Deleted") {
+      explicitDeleteKeys.add(mediaKey);
+      continue;
+    }
+
+    if (raw.Permission != null && String(raw.Permission) !== "Public") {
+      skipped++;
+      continue;
+    }
+
+    const url = raw.MediaURL ? String(raw.MediaURL) : null;
+    if (!url) {
+      skipped++;
+      continue;
+    }
+
+    mapped.push({
+      mediaKey,
+      resourceRecordKey: raw.ResourceRecordKey ? String(raw.ResourceRecordKey) : null,
+      resourceRecordID: raw.ResourceRecordID ? String(raw.ResourceRecordID) : null,
+      mediaUrlOriginal: url,
+      mediaType: classifyTrestleMediaCategory(raw.MediaCategory),
+      mediaCategory: raw.MediaCategory ? String(raw.MediaCategory) : null,
+      mediaClassification: raw.MediaClassification ? String(raw.MediaClassification) : null,
+      order: parseOrder(raw.Order),
+      preferredPhotoYN: parseBool(raw.PreferredPhotoYN),
+      mediaModificationTs: parseDate(raw.MediaModificationTimestamp ?? null),
+      modificationTs: parseDate(raw.ModificationTimestamp ?? null),
+      photosChangeTsSnapshot,
+    });
+  }
+
+  let inserted = 0;
+  let updated = 0;
+
+  // Upsert each surviving row. We use findUnique + create/update rather than
+  // Prisma's upsert() so we can return precise inserted/updated counts.
+  for (const row of mapped) {
+    const existing = await prisma.listingMedia.findUnique({
+      where: { media_key: row.mediaKey },
+      select: { id: true, listing_id: true },
+    });
+    if (existing) {
+      await prisma.listingMedia.update({
+        where: { media_key: row.mediaKey },
+        data: {
+          listing_id: listingId,
+          resource_record_key: row.resourceRecordKey,
+          resource_record_id: row.resourceRecordID,
+          media_url_original: row.mediaUrlOriginal,
+          media_type: row.mediaType,
+          media_category: row.mediaCategory,
+          media_classification: row.mediaClassification,
+          order: row.order,
+          preferred_photo_yn: row.preferredPhotoYN,
+          media_modification_ts: row.mediaModificationTs,
+          modification_ts: row.modificationTs,
+          photos_change_ts_snapshot: row.photosChangeTsSnapshot,
+          status: "active",
+        },
+      });
+      updated++;
+    } else {
+      await prisma.listingMedia.create({
+        data: {
+          listing_id: listingId,
+          media_key: row.mediaKey,
+          resource_record_key: row.resourceRecordKey,
+          resource_record_id: row.resourceRecordID,
+          media_url_original: row.mediaUrlOriginal,
+          media_type: row.mediaType,
+          media_category: row.mediaCategory,
+          media_classification: row.mediaClassification,
+          order: row.order,
+          preferred_photo_yn: row.preferredPhotoYN,
+          media_modification_ts: row.mediaModificationTs,
+          modification_ts: row.modificationTs,
+          photos_change_ts_snapshot: row.photosChangeTsSnapshot,
+          status: "active",
+        },
+      });
+      inserted++;
+    }
+  }
+
+  let tombstoned = 0;
+
+  if (explicitDeleteKeys.size > 0) {
+    const res = await prisma.listingMedia.updateMany({
+      where: {
+        listing_id: listingId,
+        status: "active",
+        media_key: { in: [...explicitDeleteKeys] },
+      },
+      data: { status: "deleted" },
+    });
+    tombstoned += res.count;
+  }
+
+  if (options.tombstoneVanished === true) {
+    const seenKeys = new Set<string>([
+      ...mapped.map((r) => r.mediaKey),
+      ...explicitDeleteKeys,
+    ]);
+    // Empty-input case: tombstone every active row for the listing.
+    const where =
+      seenKeys.size === 0
+        ? { listing_id: listingId, status: "active" }
+        : {
+            listing_id: listingId,
+            status: "active",
+            media_key: { notIn: [...seenKeys] },
+          };
+    const res = await prisma.listingMedia.updateMany({
+      where,
+      data: { status: "deleted" },
+    });
+    tombstoned += res.count;
+  }
+
+  return { inserted, updated, skipped, tombstoned };
+}
+
+/** Coerce Trestle's `Order` field (number | string | null) to a finite int, default 0. */
+function parseOrder(value: number | string | null | undefined): number {
+  if (value == null) return 0;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.trunc(n);
+}
+
+/** Coerce Trestle's boolean-ish flags ('true' string, true, etc.) to a real boolean. */
+function parseBool(value: boolean | string | null | undefined): boolean {
+  if (value === true) return true;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return false;
 }
