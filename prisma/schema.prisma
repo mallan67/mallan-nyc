@@ -490,6 +490,22 @@ model Listing {
   photos_change_timestamp DateTime? @map("photos_change_timestamp")
   photo_count             Int?      @map("photo_count")
 
+  // --- Agent attribution typed columns (JSON-drop Phase A.5, 2026-05-10) ---
+  // Promoted from `agent_info` JSON for the two display-relevant keys
+  // (ListAgentFullName + ListOfficeName). All other agent_info keys are
+  // REBNY-private (email, direct phone, MLS IDs) and INTENTIONALLY remain
+  // in the JSON column until Phase D drops it entirely.
+  //
+  // ALL nullable per NEON.md §4 (additive on populated table). No
+  // NOT NULL DEFAULT. Backfilled separately from `agent_info` JSON during
+  // a 3-5am ET maintenance window (see migration runbook).
+  //
+  // Readers continue to use the `agent_info` JSON column until Phase B
+  // swaps them with a fallback pattern. See
+  // memory/JSON-DROP-AUDIT-agent-info.md for the full audit and plan.
+  list_agent_full_name String? @map("list_agent_full_name")
+  list_office_name     String? @map("list_office_name")
+
   // --- Auction listing fields (UCBA Art. I exception path — Workstream C3) ---
   // Closes C15 [low] in compliance/rules/ucba-audit-checklist.json:
   //   "Auction Listing Requirements — Must include: minimum bid, date/time/

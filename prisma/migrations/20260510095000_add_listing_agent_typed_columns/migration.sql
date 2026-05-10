@@ -1,0 +1,46 @@
+-- listings: agent attribution typed columns (NEON-safe additive)
+--
+-- Phase A.5 of the agent_info JSON-drop track per
+-- memory/JSON-DROP-AUDIT-agent-info.md.
+--
+-- Root cause: schema/DB drift discovered 2026-05-10 09:38Z. The plan in
+-- memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md assumed these typed columns
+-- were already on `listings` (the columns ARE declared on
+-- `listings_archive` at schema.prisma lines 663-664, but they were
+-- never migrated onto `listings` itself). This migration closes the gap
+-- so Phase B (reader migration) can begin.
+--
+-- NEON.md §3 / §4 conformance:
+--   - Both columns nullable. No NOT NULL DEFAULT (Trap §3 forbidden
+--     pattern).
+--   - Single ALTER TABLE statement covers both columns to minimize the
+--     metadata-lock acquisition window. Postgres ALTER TABLE ADD COLUMN
+--     of a nullable text without default is metadata-only — does NOT
+--     rewrite existing rows. Operation completes in tens of milliseconds
+--     even on a 21K-row table.
+--   - No index in this migration. The schema declaration on
+--     `listings_archive` shows an index pattern; if Phase B profiling
+--     reveals contention, a follow-up CONCURRENTLY index migration can
+--     run during a 3-5am ET window without re-applying this one.
+--
+-- Backfill (DO NOT INCLUDE IN THIS MIGRATION — runs separately):
+--   The two columns will populate from existing `agent_info` JSON via a
+--   separate operator-run UPDATE during a 3-5am ET window per NEON.md §6.
+--   The expected backfill SQL is documented in the PR body for
+--   reviewer audit; per the audit doc's open-question 3, long-running
+--   data updates inside Prisma's migration runner can timeout on Neon
+--   Free, so they belong outside the migration boundary.
+--
+-- Boundaries this migration explicitly does NOT cross:
+--   - The `agent_info` JSON column is UNCHANGED (still NOT NULL with
+--     default '{}'::jsonb). Writers continue dual-writing into JSON
+--     after this migration; reader migration is Phase B (separate PR);
+--     write removal is Phase C; column drop is Phase D.
+--   - No other JSON column on Listing is touched (`compliance`,
+--     `media`, `address`, `features`).
+--   - No reader path is changed; production traffic shape is identical
+--     before/after this migration.
+--   - The `listings_archive` table is unchanged.
+ALTER TABLE "listings"
+  ADD COLUMN "list_agent_full_name" TEXT,
+  ADD COLUMN "list_office_name"     TEXT;
