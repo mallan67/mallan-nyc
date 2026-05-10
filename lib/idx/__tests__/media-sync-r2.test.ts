@@ -510,7 +510,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; HTTP 4xx after 3 attem
     });
     // r2_attempts undefined (existing schema rows pre-migration)
     const row = makeRow();
-    delete (row as Record<string, unknown>).r2_attempts;
+    delete row.r2_attempts;
     await mirrorMediaToR2(row, deps);
     expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
       expectedAttempts: 1,
