@@ -218,6 +218,27 @@ describe('neon-branch-prune cron route — observability contract', () => {
     expect(body.examined).toBe(3);
   });
 
+  it('case 9: pruneBranches throws → 500 + audit event status=error with truncated message', async () => {
+    pruneBranchesMock.mockRejectedValueOnce(
+      new Error('Neon listBranches failed: HTTP 500 Internal Server Error — upstream timeout')
+    );
+    const route = await import('@/app/api/cron/neon-branch-prune/route');
+    const res = await route.GET(makeAuthedRequest());
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(typeof body.error).toBe('string');
+
+    expect(auditEventCreateMock).toHaveBeenCalledTimes(1);
+    const auditArgs = auditEventCreateMock.mock.calls[0][0] as { data: { changes: Record<string, unknown> } };
+    expect(auditArgs.data.changes.status).toBe('error');
+    expect(auditArgs.data.changes.reason).toBe('exception');
+    // The error message is recorded so ops:health can flag it as critical.
+    expect(typeof auditArgs.data.changes.error).toBe('string');
+    expect((auditArgs.data.changes.error as string)).toContain('Neon listBranches failed');
+  });
+
   it('case 8: wrong CRON_SECRET → 401 + NO audit event written', async () => {
     const route = await import('@/app/api/cron/neon-branch-prune/route');
     const res = await route.GET(makeAuthedRequest('wrong-secret'));

@@ -239,6 +239,14 @@ async function run() {
         pruned_count: lastPrune.changes?.pruned_count,
         errors_count: lastPrune.changes?.errors_count,
         missing: lastPrune.changes?.missing,
+        // Defensive: cap error string at 200 chars in the report payload.
+        // Neon API errors built by lib/neon/branches.ts already truncate
+        // the response body to 200, but a different exception class
+        // could carry a larger message. Truncating here makes ops:health
+        // output bounded regardless of source.
+        error: typeof lastPrune.changes?.error === 'string'
+          ? lastPrune.changes.error.slice(0, 200)
+          : undefined,
       };
       if (status === 'skipped') {
         const missingList = Array.isArray(lastPrune.changes?.missing) ? lastPrune.changes.missing.join(',') : 'unknown';
@@ -246,6 +254,21 @@ async function run() {
           level: 'critical',
           category: 'neon-prune',
           msg: `neon-branch-prune cron is skipping due to missing env: ${missingList} — provision in Vercel Production env`,
+        });
+      } else if (status === 'error') {
+        // The route's exception path (catch block in route.ts) writes
+        // status:"error" when pruneBranches throws (Neon API outage,
+        // network error, malformed response, etc.). Without flagging
+        // this branch, an exception-thrown cron would land an audit
+        // event but ops:health would still report green — the same
+        // silent-failure shape this PR was built to eliminate.
+        const errMsg = typeof lastPrune.changes?.error === 'string'
+          ? lastPrune.changes.error.slice(0, 200)
+          : 'unknown';
+        report.issues.push({
+          level: 'critical',
+          category: 'neon-prune',
+          msg: `neon-branch-prune cron threw on last run: ${errMsg}`,
         });
       } else if (ageH !== null && ageH > 25) {
         report.issues.push({
@@ -366,6 +389,8 @@ function renderHuman(r) {
       if (r.branch_prune.status === 'skipped') {
         const missingList = Array.isArray(r.branch_prune.missing) ? r.branch_prune.missing.join(', ') : 'unknown';
         console.log(`  ❌ Skipped — missing env: ${missingList}`);
+      } else if (r.branch_prune.status === 'error') {
+        console.log(`  ❌ Threw exception — error: ${r.branch_prune.error ?? 'unknown'}`);
       } else if (r.branch_prune.examined !== undefined) {
         console.log(`  Examined: ${r.branch_prune.examined} · pruned: ${r.branch_prune.pruned_count ?? 0} · errors: ${r.branch_prune.errors_count ?? 0}`);
       }
