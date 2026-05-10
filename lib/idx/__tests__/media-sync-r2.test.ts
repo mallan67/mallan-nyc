@@ -322,8 +322,10 @@ describe("mirrorMediaToR2 — R2 key namespace per media_type", () => {
 // New contract (added 2026-05-10): EVERY failure path writes a cooldown
 // update setting `r2_last_attempt_at = NOW()` and incrementing `r2_attempts`.
 // 5xx, network, R2-side, token-side, and non-image-content-type failures
-// increment the counter but NEVER tombstone. Only HTTP 4xx with reason
-// `fetch_failed` AND attempts >= 3 sets `status='deleted'`.
+// increment the counter but NEVER tombstone. Only **permanent** HTTP 4xx
+// (404 or 410) with reason `fetch_failed` AND attempts >= 3 sets
+// `status='deleted'`. Transient/ambiguous 4xx (403/408/425/429 etc.) are
+// cooldown-only — see Codex review on PR #100.
 //
 // Helper: assert the failure-path DB update has the cooldown shape.
 function expectFailureDbUpdate(
@@ -345,7 +347,7 @@ function expectFailureDbUpdate(
   expect(args.data).not.toHaveProperty("media_url_original");
 }
 
-describe("mirrorMediaToR2 — failure paths set cooldown; HTTP 4xx after 3 attempts tombstones", () => {
+describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410) after 3 attempts tombstones", () => {
   it("Trestle 404 (1st attempt) → fetch_failed, sets cooldown, increments attempts to 1, NO tombstone", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
@@ -380,7 +382,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; HTTP 4xx after 3 attem
     });
   });
 
-  it("Trestle 403 (3rd attempt) → tombstones (any 4xx after 3 attempts)", async () => {
+  it("Trestle 403 (3rd attempt) → cooldown only, does NOT tombstone (403 is ambiguous, not permanent)", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 403 }),
@@ -389,7 +391,33 @@ describe("mirrorMediaToR2 — failure paths set cooldown; HTTP 4xx after 3 attem
     await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
     expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
       expectedAttempts: 3,
+      expectTombstone: false,
+    });
+  });
+
+  it("Trestle 410 (3rd attempt) → tombstones (Gone is RFC-correct permanent)", async () => {
+    const deps = makeDeps({
+      fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
+        makeFetchResponse({ status: 410 }),
+      ),
+    });
+    await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
       expectTombstone: true,
+    });
+  });
+
+  it("Trestle 429 (3rd attempt) → cooldown only, does NOT tombstone (rate-limit is transient — Trestle 480/min ceiling regression guard)", async () => {
+    const deps = makeDeps({
+      fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
+        makeFetchResponse({ status: 429 }),
+      ),
+    });
+    await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
     });
   });
 

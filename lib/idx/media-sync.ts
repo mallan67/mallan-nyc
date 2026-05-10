@@ -687,19 +687,24 @@ export interface MirrorMediaToR2Row {
    * - `r2_attempts` is the consecutive-failure counter; null means "no failed
    *   attempts pending" (treated as 0 by code). Reset to 0 on successful
    *   upload/reuse. Incremented on every failure mode.
-   * - On the 3rd consecutive HTTP 4xx (`fetch_failed` with `error` matching
-   *   `HTTP 4\d{2}`), Cp4 sets `status='deleted'` to break the retry loop.
-   *   See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` E8 probe — Trestle
-   *   confirmed stale URLs return HTTP 404 with body
+   * - On the 3rd consecutive **permanent** HTTP 4xx (`fetch_failed` with
+   *   `error` matching `HTTP (404|410)`), Cp4 sets `status='deleted'` to
+   *   break the retry loop. See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md`
+   *   E8 probe — Trestle confirmed stale URLs return HTTP 404 with body
    *   `{"code":"404","message":"ERROR - External media was not downloaded."}`.
+   *   Other 4xx (401/403/408/425/429 etc.) are NOT tombstone-eligible —
+   *   they're transient, system-wide, or ambiguous and cooldown alone is
+   *   the right response.
    */
   r2_attempts?: number | null;
 }
 
 /**
- * Number of consecutive HTTP 4xx failures after which a `listing_media` row
- * is soft-deleted to stop the retry loop. Tied to the cooldown design — see
- * NEON.md §4 and the E8 probe evidence.
+ * Number of consecutive permanent HTTP 4xx failures (404 or 410) after
+ * which a `listing_media` row is soft-deleted to stop the retry loop.
+ * Tied to the cooldown design — see NEON.md §4 and the E8 probe evidence.
+ * Only 404 and 410 qualify; transient/ambiguous 4xx (403/408/425/429 etc.)
+ * are NOT tombstone-eligible.
  */
 const R2_TOMBSTONE_4XX_THRESHOLD = 3;
 /**
@@ -788,10 +793,12 @@ export interface MirrorMediaToR2Result {
  *     single failure poisoning the batch.
  *   - On `failed`: writes `r2_last_attempt_at = NOW()` and increments
  *     `r2_attempts` so Phase 3 can skip the row for the cooldown window.
- *     If the failure is HTTP 4xx (`reason: 'fetch_failed'` with
- *     `error: 'HTTP 4xx'`) AND this is the 3rd consecutive failure,
- *     also sets `status='deleted'` to break the retry loop. 5xx, network,
- *     R2-side, and token failures increment the counter but NEVER tombstone.
+ *     If the failure is a permanent HTTP 4xx (`reason: 'fetch_failed'`
+ *     with `error` matching `HTTP (404|410)`) AND this is the 3rd
+ *     consecutive failure, also sets `status='deleted'` to break the
+ *     retry loop. Other 4xx (401/403/408/425/429 etc.), 5xx, network,
+ *     R2-side, and token failures increment the counter but NEVER
+ *     tombstone — they are transient, system-wide, or ambiguous.
  *   - On `uploaded` / `reused` (with DB write): clears `r2_last_attempt_at`
  *     and resets `r2_attempts` to 0 alongside the r2_key/media_url_cached
  *     write.
@@ -827,10 +834,20 @@ export async function mirrorMediaToR2(
       return result;
     }
     const newAttempts = (row.r2_attempts ?? 0) + 1;
-    const isHttp4xx =
+    // Tombstone-eligible only when the HTTP status proves the binary is
+    // permanently unfetchable:
+    //   - 404 — E8-confirmed: Trestle CDN body
+    //     `{"code":"404","message":"ERROR - External media was not downloaded."}`
+    //   - 410 — RFC-correct "intentionally retired" response (defensive
+    //     coverage; not yet observed but semantically equivalent to 404)
+    // All other 4xx (401/403/408/425/429 in particular) are either
+    // system-wide, transient, or ambiguous — cooldown alone is the right
+    // response. 429 is the most important to NOT tombstone given Trestle's
+    // documented 480/min media URL ceiling.
+    const isPermanent4xx =
       result.reason === "fetch_failed" &&
       typeof result.error === "string" &&
-      /^HTTP 4\d{2}$/.test(result.error);
+      /^HTTP (404|410)$/.test(result.error);
     const data: {
       r2_last_attempt_at: Date;
       r2_attempts: number;
@@ -839,9 +856,10 @@ export async function mirrorMediaToR2(
       r2_last_attempt_at: new Date(),
       r2_attempts: newAttempts,
     };
-    // Tombstone ONLY on 3 consecutive HTTP 4xx. 5xx / network / R2-side
-    // / token errors are likely transient — keep retrying after cooldown.
-    if (isHttp4xx && newAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
+    // Tombstone ONLY on 3 consecutive permanent 4xx (404 / 410). 5xx,
+    // network, R2-side, token, and other 4xx errors are transient or
+    // ambiguous — keep retrying after cooldown.
+    if (isPermanent4xx && newAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
       data.status = "deleted";
     }
     await prisma.listingMedia.update({
