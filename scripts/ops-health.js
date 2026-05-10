@@ -204,6 +204,100 @@ async function run() {
     if (!e.message?.includes('does not exist')) throw e;
   }
 
+  // ─── Neon Branch Prune (Vercel-Neon integration health) ──────────
+  // Reads the most recent `neon_branch_prune_cron` audit event written
+  // by app/api/cron/neon-branch-prune/route.ts. Surfaces:
+  //   - critical if no audit event ever (cron has never run)
+  //   - critical if last status is `skipped` (env-var misconfig)
+  //   - warning  if last successful run >25h ago (cron stopped firing)
+  //   - warning  if last run had errors_count > 0 (some deletes failed)
+  //   - warning  if examined branch count >= 8 (within 2 of free-tier 10 cap)
+  // The prior silent-skip behavior (return 200 + no audit event) was
+  // invisible to every observation surface; this section closes that
+  // gap so a future env-var misconfiguration cannot persist for 2+ weeks.
+  try {
+    const lastPrune = await prisma.auditEvent.findFirst({
+      where: { action: 'neon_branch_prune_cron' },
+      orderBy: { created_at: 'desc' },
+      select: { created_at: true, changes: true },
+    });
+    if (!lastPrune) {
+      report.branch_prune = { last_run_at: null, status: 'never_run' };
+      report.issues.push({
+        level: 'critical',
+        category: 'neon-prune',
+        msg: 'neon-branch-prune cron has never written an audit event — cron may not be reaching the route or env vars (NEON_API_KEY/NEON_PROJECT_ID) are missing in Vercel Production',
+      });
+    } else {
+      const ageH = hoursAgo(lastPrune.created_at);
+      const status = lastPrune.changes?.status;
+      report.branch_prune = {
+        last_run_at: lastPrune.created_at,
+        last_run_hours_ago: ageH !== null ? Number(ageH.toFixed(1)) : null,
+        status,
+        examined: lastPrune.changes?.examined,
+        pruned_count: lastPrune.changes?.pruned_count,
+        errors_count: lastPrune.changes?.errors_count,
+        missing: lastPrune.changes?.missing,
+        // Defensive: cap error string at 200 chars in the report payload.
+        // Neon API errors built by lib/neon/branches.ts already truncate
+        // the response body to 200, but a different exception class
+        // could carry a larger message. Truncating here makes ops:health
+        // output bounded regardless of source.
+        error: typeof lastPrune.changes?.error === 'string'
+          ? lastPrune.changes.error.slice(0, 200)
+          : undefined,
+      };
+      if (status === 'skipped') {
+        const missingList = Array.isArray(lastPrune.changes?.missing) ? lastPrune.changes.missing.join(',') : 'unknown';
+        report.issues.push({
+          level: 'critical',
+          category: 'neon-prune',
+          msg: `neon-branch-prune cron is skipping due to missing env: ${missingList} — provision in Vercel Production env`,
+        });
+      } else if (status === 'error') {
+        // The route's exception path (catch block in route.ts) writes
+        // status:"error" when pruneBranches throws (Neon API outage,
+        // network error, malformed response, etc.). Without flagging
+        // this branch, an exception-thrown cron would land an audit
+        // event but ops:health would still report green — the same
+        // silent-failure shape this PR was built to eliminate.
+        const errMsg = typeof lastPrune.changes?.error === 'string'
+          ? lastPrune.changes.error.slice(0, 200)
+          : 'unknown';
+        report.issues.push({
+          level: 'critical',
+          category: 'neon-prune',
+          msg: `neon-branch-prune cron threw on last run: ${errMsg}`,
+        });
+      } else if (ageH !== null && ageH > 25) {
+        report.issues.push({
+          level: 'warning',
+          category: 'neon-prune',
+          msg: `neon-branch-prune cron last fired ${ageH.toFixed(1)}h ago — schedule is daily, expected <25h`,
+        });
+      } else if (status === 'partial' || (typeof lastPrune.changes?.errors_count === 'number' && lastPrune.changes.errors_count > 0)) {
+        report.issues.push({
+          level: 'warning',
+          category: 'neon-prune',
+          msg: `neon-branch-prune last run had ${lastPrune.changes.errors_count ?? '?'} per-branch delete failures`,
+        });
+      }
+      if (typeof lastPrune.changes?.examined === 'number' && lastPrune.changes.examined >= 8) {
+        report.issues.push({
+          level: 'warning',
+          category: 'neon-prune',
+          msg: `${lastPrune.changes.examined} Neon branches examined — within 2 of free-tier 10-branch cap`,
+        });
+      }
+    }
+  } catch (e) {
+    // Don't let audit-event read failures break the rest of ops:health.
+    if (!e.message?.includes('does not exist')) {
+      report.branch_prune = { error: e.message };
+    }
+  }
+
   // ─── Phase 6 Upgrade Triggers ─────────────────────────────────────
   report.triggers.storage_upgrade_needed = report.storage.pct_of_free >= THRESHOLDS.storage_upgrade_pct * 100;
   report.triggers.storage_warning = report.storage.pct_of_free >= THRESHOLDS.storage_warning_pct * 100;
@@ -279,6 +373,28 @@ function renderHuman(r) {
   console.log(`  T+180d archive backlog: ${r.retention.archive_backlog ?? 0}`);
   if (r.retention.listings_archived_total !== undefined) {
     console.log(`  Archived total: ${r.retention.listings_archived_total}`);
+  }
+
+  if (r.branch_prune) {
+    console.log('\n── BRANCH PRUNE ──────────────────────────────────');
+    if (r.branch_prune.status === 'never_run') {
+      console.log('  ❌ No neon-branch-prune audit event ever recorded');
+    } else if (r.branch_prune.error) {
+      console.log(`  (audit-event read failed: ${r.branch_prune.error})`);
+    } else {
+      const ageStr = r.branch_prune.last_run_hours_ago !== null && r.branch_prune.last_run_hours_ago !== undefined
+        ? `${r.branch_prune.last_run_hours_ago}h ago`
+        : '?h ago';
+      console.log(`  Last run: ${r.branch_prune.last_run_at} (${ageStr}) · status=${r.branch_prune.status}`);
+      if (r.branch_prune.status === 'skipped') {
+        const missingList = Array.isArray(r.branch_prune.missing) ? r.branch_prune.missing.join(', ') : 'unknown';
+        console.log(`  ❌ Skipped — missing env: ${missingList}`);
+      } else if (r.branch_prune.status === 'error') {
+        console.log(`  ❌ Threw exception — error: ${r.branch_prune.error ?? 'unknown'}`);
+      } else if (r.branch_prune.examined !== undefined) {
+        console.log(`  Examined: ${r.branch_prune.examined} · pruned: ${r.branch_prune.pruned_count ?? 0} · errors: ${r.branch_prune.errors_count ?? 0}`);
+      }
+    }
   }
 
   console.log('\n── PHASE 6 TRIGGERS ─────────────────────────────');
