@@ -682,7 +682,37 @@ export interface MirrorMediaToR2Row {
   media_url_original: string | null;
   r2_key: string | null;
   media_url_cached: string | null;
+  /**
+   * Persistent-failure tracking (added 2026-05-10).
+   * - `r2_attempts` is the consecutive-failure counter; null means "no failed
+   *   attempts pending" (treated as 0 by code). Reset to 0 on successful
+   *   upload/reuse. Incremented on every failure mode.
+   * - On the 3rd consecutive **permanent** HTTP 4xx (`fetch_failed` with
+   *   `error` matching `HTTP (404|410)`), Cp4 sets `status='deleted'` to
+   *   break the retry loop. See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md`
+   *   E8 probe — Trestle confirmed stale URLs return HTTP 404 with body
+   *   `{"code":"404","message":"ERROR - External media was not downloaded."}`.
+   *   Other 4xx (401/403/408/425/429 etc.) are NOT tombstone-eligible —
+   *   they're transient, system-wide, or ambiguous and cooldown alone is
+   *   the right response.
+   */
+  r2_attempts?: number | null;
 }
+
+/**
+ * Number of consecutive permanent HTTP 4xx failures (404 or 410) after
+ * which a `listing_media` row is soft-deleted to stop the retry loop.
+ * Tied to the cooldown design — see NEON.md §4 and the E8 probe evidence.
+ * Only 404 and 410 qualify; transient/ambiguous 4xx (403/408/425/429 etc.)
+ * are NOT tombstone-eligible.
+ */
+const R2_TOMBSTONE_4XX_THRESHOLD = 3;
+/**
+ * Minimum time (ms) after a failed mirror attempt before Phase 3 will retry
+ * the same row. Prevents the persistent-failure population from consuming
+ * the entire Phase 3 budget every cron firing.
+ */
+export const R2_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /**
  * DI seam for `mirrorMediaToR2()`. All R2 / fetch / token surfaces are
@@ -761,8 +791,18 @@ export interface MirrorMediaToR2Result {
  *     than throwing. The caller (Checkpoint 5 cron) can aggregate
  *     per-row outcomes and update `MediaSyncState.rows_failed` without a
  *     single failure poisoning the batch.
- *   - DB writes happen ONLY on the success paths (`uploaded` and `reused`
- *     when there's drift). `failed` and `skipped` never touch the DB.
+ *   - On `failed`: writes `r2_last_attempt_at = NOW()` and increments
+ *     `r2_attempts` so Phase 3 can skip the row for the cooldown window.
+ *     If the failure is a permanent HTTP 4xx (`reason: 'fetch_failed'`
+ *     with `error` matching `HTTP (404|410)`) AND this is the 3rd
+ *     consecutive failure, also sets `status='deleted'` to break the
+ *     retry loop. Other 4xx (401/403/408/425/429 etc.), 5xx, network,
+ *     R2-side, and token failures increment the counter but NEVER
+ *     tombstone — they are transient, system-wide, or ambiguous.
+ *   - On `uploaded` / `reused` (with DB write): clears `r2_last_attempt_at`
+ *     and resets `r2_attempts` to 0 alongside the r2_key/media_url_cached
+ *     write.
+ *   - On `skipped` (no `media_url_original`): no DB write.
  */
 export async function mirrorMediaToR2(
   row: MirrorMediaToR2Row,
@@ -770,6 +810,7 @@ export async function mirrorMediaToR2(
 ): Promise<MirrorMediaToR2Result> {
   const url = (row.media_url_original ?? "").trim();
   if (!url) {
+    // Skipped — no media to mirror. No DB write (cooldown not relevant).
     return { status: "skipped", reason: "no_media_url_original" };
   }
 
@@ -781,25 +822,80 @@ export async function mirrorMediaToR2(
       ? row.r2_key
       : buildMediaR2Key(row.listing_id, row.media_type, row.order);
 
+  // Failure path emits cooldown + attempts increment (and possibly tombstone)
+  // before returning the structured result. Centralized so every `failed`
+  // exit goes through the same DB-write path.
+  const emitFailure = async (
+    result: MirrorMediaToR2Result,
+  ): Promise<MirrorMediaToR2Result> => {
+    if (!row.media_key) {
+      // Defensive — without media_key we can't update by unique key.
+      // Should never happen since callers select rows where media_key is set.
+      return result;
+    }
+    const newAttempts = (row.r2_attempts ?? 0) + 1;
+    // Tombstone-eligible only when the HTTP status proves the binary is
+    // permanently unfetchable:
+    //   - 404 — E8-confirmed: Trestle CDN body
+    //     `{"code":"404","message":"ERROR - External media was not downloaded."}`
+    //   - 410 — RFC-correct "intentionally retired" response (defensive
+    //     coverage; not yet observed but semantically equivalent to 404)
+    // All other 4xx (401/403/408/425/429 in particular) are either
+    // system-wide, transient, or ambiguous — cooldown alone is the right
+    // response. 429 is the most important to NOT tombstone given Trestle's
+    // documented 480/min media URL ceiling.
+    const isPermanent4xx =
+      result.reason === "fetch_failed" &&
+      typeof result.error === "string" &&
+      /^HTTP (404|410)$/.test(result.error);
+    const data: {
+      r2_last_attempt_at: Date;
+      r2_attempts: number;
+      status?: string;
+    } = {
+      r2_last_attempt_at: new Date(),
+      r2_attempts: newAttempts,
+    };
+    // Tombstone ONLY on 3 consecutive permanent 4xx (404 / 410). 5xx,
+    // network, R2-side, token, and other 4xx errors are transient or
+    // ambiguous — keep retrying after cooldown.
+    if (isPermanent4xx && newAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
+      data.status = "deleted";
+    }
+    await prisma.listingMedia.update({
+      where: { media_key: row.media_key },
+      data,
+    });
+    return result;
+  };
+
   // Reuse path: object already in R2.
   let exists = false;
   try {
     exists = await deps.existsInR2(key);
   } catch (e) {
-    return {
+    return emitFailure({
       status: "failed",
       reason: "r2_head_failed",
       error: e instanceof Error ? e.message : String(e),
-    };
+    });
   }
 
   if (exists) {
     const publicUrl = deps.getR2PublicUrl(key);
     // Suppress no-op writes — only persist when something actually drifted.
+    // (The drift case includes "first time we discover the existing R2 object",
+    // which is precisely when we want to clear any stale cooldown state.)
     if (row.r2_key !== key || row.media_url_cached !== publicUrl) {
       await prisma.listingMedia.update({
         where: { media_key: row.media_key },
-        data: { r2_key: key, media_url_cached: publicUrl },
+        data: {
+          r2_key: key,
+          media_url_cached: publicUrl,
+          // Success clears cooldown state.
+          r2_last_attempt_at: null,
+          r2_attempts: 0,
+        },
       });
     }
     return { status: "reused", r2_key: key, media_url_cached: publicUrl };
@@ -810,11 +906,11 @@ export async function mirrorMediaToR2(
   try {
     token = await deps.getAccessToken();
   } catch (e) {
-    return {
+    return emitFailure({
       status: "failed",
       reason: "token_failed",
       error: e instanceof Error ? e.message : String(e),
-    };
+    });
   }
 
   let buffer: Buffer;
@@ -833,46 +929,52 @@ export async function mirrorMediaToR2(
     }
 
     if (!response.ok) {
-      return {
+      return emitFailure({
         status: "failed",
         reason: "fetch_failed",
         error: `HTTP ${response.status}`,
-      };
+      });
     }
 
     contentType = response.headers.get("content-type") || "image/jpeg";
     if (!contentType.startsWith("image/")) {
-      return {
+      return emitFailure({
         status: "failed",
         reason: "non_image_content_type",
         error: contentType,
-      };
+      });
     }
 
     buffer = Buffer.from(await response.arrayBuffer());
   } catch (e) {
-    return {
+    return emitFailure({
       status: "failed",
       reason: "fetch_threw",
       error: e instanceof Error ? e.message : String(e),
-    };
+    });
   }
 
   let publicUrl: string;
   try {
     publicUrl = await deps.uploadToR2(key, buffer, contentType);
   } catch (e) {
-    return {
+    return emitFailure({
       status: "failed",
       reason: "upload_failed",
       error: e instanceof Error ? e.message : String(e),
-    };
+    });
   }
 
   // Persist r2_key + media_url_cached. NEVER touch media_url_original.
+  // Success also clears any cooldown state from prior failures.
   await prisma.listingMedia.update({
     where: { media_key: row.media_key },
-    data: { r2_key: key, media_url_cached: publicUrl },
+    data: {
+      r2_key: key,
+      media_url_cached: publicUrl,
+      r2_last_attempt_at: null,
+      r2_attempts: 0,
+    },
   });
 
   return { status: "uploaded", r2_key: key, media_url_cached: publicUrl };
@@ -1333,7 +1435,17 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   //   via `id: { notIn: [...attempted] }`. Failed rows still stay in the
   //   DB backlog — they're eligible on the NEXT cron firing (the Set is
   //   recreated on each `runMediaSync` call).
+  //
+  // Cross-invocation cooldown (added 2026-05-10):
+  //   The per-invocation Set above stops re-selection within ONE cron
+  //   firing, but every subsequent firing's Set is fresh — meaning a row
+  //   whose Trestle URL is permanently 404 still gets retried 96×/day.
+  //   The cooldown filter (`r2_last_attempt_at IS NULL OR < NOW() - 6h`)
+  //   throttles those retries to 4×/day. Cp4 sets `r2_last_attempt_at`
+  //   on every failure path; success paths clear it back to NULL.
+  //   See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` E8 probe.
   const attemptedBacklogIds = new Set<bigint>();
+  const cooldownThreshold = new Date(now() - R2_RETRY_COOLDOWN_MS);
 
   while (remainingMs() > phase2ReserveMs) {
     const backlogRows = await prisma.listingMedia.findMany({
@@ -1346,6 +1458,16 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
         ...(attemptedBacklogIds.size > 0
           ? { id: { notIn: [...attemptedBacklogIds] } }
           : {}),
+        // Cross-invocation cooldown: never-attempted rows OR rows whose
+        // last failure is older than the cooldown window are eligible.
+        AND: [
+          {
+            OR: [
+              { r2_last_attempt_at: null },
+              { r2_last_attempt_at: { lt: cooldownThreshold } },
+            ],
+          },
+        ],
       },
       orderBy: { created_at: "asc" },
       take: R2_MIRROR_CONCURRENCY,
@@ -1359,6 +1481,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
         media_url_original: true,
         r2_key: true,
         media_url_cached: true,
+        // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
+        r2_attempts: true,
       },
     });
 
@@ -1388,6 +1512,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
             media_url_original: row.media_url_original,
             r2_key: row.r2_key,
             media_url_cached: row.media_url_cached,
+            r2_attempts: row.r2_attempts,
           },
           mirrorDeps,
         );

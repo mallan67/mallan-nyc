@@ -576,14 +576,20 @@ describe("runMediaSync — boundary preservation", () => {
     await runMediaSync(makeOptions({ fetchDeps, mirrorDeps }));
 
     // Find the listingMedia.update call from mirrorMediaToR2 (reuse drift path).
-    // It sets r2_key + media_url_cached only.
+    // Post 2026-05-10 cooldown change: success-path update writes
+    // r2_key + media_url_cached + r2_last_attempt_at (null) + r2_attempts (0).
     const mirrorUpdateCalls = mockListingMediaUpdate.mock.calls.filter((call) => {
       const args = call[0] as { data: Record<string, unknown> };
-      return Object.keys(args.data).every((k) => ["r2_key", "media_url_cached"].includes(k));
+      return Object.keys(args.data).every((k) =>
+        ["r2_key", "media_url_cached", "r2_last_attempt_at", "r2_attempts"].includes(k),
+      );
     });
     expect(mirrorUpdateCalls.length).toBeGreaterThan(0);
     const args = mirrorUpdateCalls[0][0] as { data: Record<string, unknown> };
-    expect(Object.keys(args.data).sort()).toEqual(["media_url_cached", "r2_key"]);
+    expect(Object.keys(args.data).sort()).toEqual(
+      ["media_url_cached", "r2_attempts", "r2_key", "r2_last_attempt_at"],
+    );
+    // Boundary preservation — never overwrite the immutable source URL.
     expect(args.data).not.toHaveProperty("media_url_original");
   });
 });
@@ -1349,5 +1355,122 @@ describe("runMediaSync — Phase 3 per-invocation attempt tracking", () => {
       return args?.where?.status === "active" && Array.isArray(args.where.OR);
     });
     expect((backlogCalls[0][0] as { take: number }).take).toBe(5);
+  });
+});
+
+// ─── Phase 3 cross-invocation cooldown (added 2026-05-10) ────────────────
+//
+// Stale Trestle URLs (HTTP 404 forever) used to be retried 96×/day. Cooldown
+// throttles them to 4×/day by adding a `r2_last_attempt_at >= NOW() - 6h`
+// filter to the Phase 3 backlog query.
+
+describe("runMediaSync — Phase 3 cross-invocation cooldown filter", () => {
+  it("backlog query includes a 6-hour cooldown filter (r2_last_attempt_at IS NULL OR < NOW() - 6h)", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindMany.mockResolvedValue([]);
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+
+    // Fixed clock so we can verify the cooldown threshold computation.
+    const now = jest.fn(() => new Date("2026-05-10T12:00:00.000Z").getTime());
+
+    await runMediaSync(makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }), now }));
+
+    const backlogCall = mockListingMediaFindMany.mock.calls.find((call) => {
+      const args = call[0] as { where?: { status?: string; OR?: unknown[] } };
+      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+    });
+    expect(backlogCall).toBeDefined();
+    const args = backlogCall![0] as {
+      where: {
+        AND?: Array<{
+          OR?: Array<
+            { r2_last_attempt_at?: null } | { r2_last_attempt_at?: { lt?: Date } }
+          >;
+        }>;
+      };
+    };
+    // The cooldown filter is in the AND[0].OR clause.
+    const andClauses = args.where.AND || [];
+    expect(andClauses.length).toBeGreaterThanOrEqual(1);
+    const cooldownClause = andClauses.find((c) => Array.isArray(c.OR));
+    expect(cooldownClause).toBeDefined();
+    const orClauses = cooldownClause!.OR!;
+    expect(orClauses).toHaveLength(2);
+    // First branch: r2_last_attempt_at IS NULL
+    expect(
+      orClauses.some((c) => "r2_last_attempt_at" in c && (c as { r2_last_attempt_at: null }).r2_last_attempt_at === null),
+    ).toBe(true);
+    // Second branch: r2_last_attempt_at < NOW() - 6h
+    const ltClause = orClauses.find((c) => {
+      const v = (c as { r2_last_attempt_at?: { lt?: Date } }).r2_last_attempt_at;
+      return v && typeof v === "object" && v.lt instanceof Date;
+    });
+    expect(ltClause).toBeDefined();
+    const ltDate = (ltClause as { r2_last_attempt_at: { lt: Date } }).r2_last_attempt_at.lt;
+    // 12:00:00Z minus 6h = 06:00:00Z
+    expect(ltDate.toISOString()).toBe("2026-05-10T06:00:00.000Z");
+  });
+
+  it("backlog query select includes r2_attempts (passed through to mirrorMediaToR2 for tombstone decisioning)", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindMany.mockResolvedValue([]);
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+
+    await runMediaSync(makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }) }));
+
+    const backlogCall = mockListingMediaFindMany.mock.calls.find((call) => {
+      const args = call[0] as { where?: { status?: string; OR?: unknown[] } };
+      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+    });
+    const args = backlogCall![0] as { select: Record<string, boolean> };
+    expect(args.select.r2_attempts).toBe(true);
+    expect(args.select.id).toBe(true);
+    expect(args.select.media_key).toBe(true);
+    expect(args.select.media_url_original).toBe(true);
+  });
+
+  it("Phase 3 forwards r2_attempts from the row to mirrorMediaToR2", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    const backlogRow = {
+      id: 7n,
+      listing_id: "RLS-X",
+      media_key: "MK-X",
+      media_type: "Photo",
+      order: 1,
+      media_url_original: "https://api.cotality.com/photo.jpg",
+      r2_key: null,
+      media_url_cached: null,
+      r2_attempts: 2, // 2 prior failures; this attempt is the 3rd
+    };
+    mockListingMediaFindMany.mockResolvedValueOnce([backlogRow]).mockResolvedValue([]);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const fetchProperties = jest.fn().mockResolvedValueOnce([]);
+    const mirrorDeps = makeMirrorDeps();
+    // Force a 404 so we can verify the tombstone-on-3rd-4xx behavior.
+    (mirrorDeps.existsInR2 as jest.Mock).mockResolvedValue(false);
+    mirrorDeps.fetchFn = jest
+      .fn(async () => new Response(new Uint8Array(0), { status: 404 })) as typeof fetch;
+
+    const result = await runMediaSync(
+      makeOptions({ fetchDeps: makeFetchDeps({ fetchProperties }), mirrorDeps }),
+    );
+
+    expect(result.r2_failed).toBe(1);
+    // mirrorMediaToR2's failure-emit helper should have written status='deleted'
+    // because r2_attempts was 2 going in, +1 = 3, and the failure is HTTP 404.
+    const tombstoneCall = mockListingMediaUpdate.mock.calls.find((call) => {
+      const args = call[0] as { data: Record<string, unknown> };
+      return args.data.status === "deleted";
+    });
+    expect(tombstoneCall).toBeDefined();
+    const tombstoneArgs = tombstoneCall![0] as {
+      where: { media_key: string };
+      data: { status: string; r2_attempts: number; r2_last_attempt_at: Date };
+    };
+    expect(tombstoneArgs.where.media_key).toBe("MK-X");
+    expect(tombstoneArgs.data.status).toBe("deleted");
+    expect(tombstoneArgs.data.r2_attempts).toBe(3);
+    expect(tombstoneArgs.data.r2_last_attempt_at).toBeInstanceOf(Date);
   });
 });

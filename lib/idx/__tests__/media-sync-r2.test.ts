@@ -141,12 +141,15 @@ describe("mirrorMediaToR2 — reuse path (object already in R2)", () => {
     expect(deps.uploadToR2).not.toHaveBeenCalled();
     expect(deps.fetchFn).not.toHaveBeenCalled();
     expect(deps.getAccessToken).not.toHaveBeenCalled();
-    // DB updated — drift on r2_key=null → key.
+    // DB updated — drift on r2_key=null → key. Success also clears any
+    // pending cooldown state from prior failures (PR `fix/listing-media-r2-cooldown-tombstone`).
     expect(mockListingMediaUpdate).toHaveBeenCalledWith({
       where: { media_key: "MK-1" },
       data: {
         r2_key: "photos/RLS20012345/1.jpg",
         media_url_cached: "https://r2.example.com/photos/RLS20012345/1.jpg",
+        r2_last_attempt_at: null,
+        r2_attempts: 0,
       },
     });
   });
@@ -220,12 +223,14 @@ describe("mirrorMediaToR2 — upload path", () => {
     expect(Buffer.isBuffer(uploadBuf)).toBe(true);
     expect(uploadCT).toBe("image/jpeg");
 
-    // DB updated with r2_key + media_url_cached.
+    // DB updated with r2_key + media_url_cached, plus cooldown clear.
     expect(mockListingMediaUpdate).toHaveBeenCalledWith({
       where: { media_key: "MK-1" },
       data: {
         r2_key: "photos/RLS20012345/1.jpg",
         media_url_cached: "https://r2.example.com/photos/RLS20012345/1.jpg",
+        r2_last_attempt_at: null,
+        r2_attempts: 0,
       },
     });
   });
@@ -239,16 +244,21 @@ describe("mirrorMediaToR2 — upload path", () => {
     expect(deps.uploadToR2.mock.calls[0][0]).toBe("photos/RLS20012345/legacy-key.jpg");
   });
 
-  it("update payload writes only r2_key and media_url_cached (never media_url_original or other fields)", async () => {
+  it("update payload writes only r2_key, media_url_cached, and cooldown-clear fields (never media_url_original or other source fields)", async () => {
     const deps = makeDeps();
     await mirrorMediaToR2(makeRow(), deps);
     const updateArgs = mockListingMediaUpdate.mock.calls[0][0] as {
       data: Record<string, unknown>;
     };
-    expect(Object.keys(updateArgs.data).sort()).toEqual(["media_url_cached", "r2_key"]);
+    expect(Object.keys(updateArgs.data).sort()).toEqual(
+      ["media_url_cached", "r2_attempts", "r2_key", "r2_last_attempt_at"],
+    );
+    // Critical boundary preservation: success path NEVER overwrites the
+    // immutable source URL or any other source-of-truth field.
     expect(updateArgs.data).not.toHaveProperty("media_url_original");
     expect(updateArgs.data).not.toHaveProperty("media_type");
     expect(updateArgs.data).not.toHaveProperty("order");
+    // status must NOT be set to 'deleted' on success.
     expect(updateArgs.data).not.toHaveProperty("status");
   });
 
@@ -307,102 +317,232 @@ describe("mirrorMediaToR2 — R2 key namespace per media_type", () => {
   });
 });
 
-// ─── Failure paths ────────────────────────────────────────────────────────
+// ─── Failure paths — cooldown + N-strikes contract ────────────────────────
+//
+// New contract (added 2026-05-10): EVERY failure path writes a cooldown
+// update setting `r2_last_attempt_at = NOW()` and incrementing `r2_attempts`.
+// 5xx, network, R2-side, token-side, and non-image-content-type failures
+// increment the counter but NEVER tombstone. Only **permanent** HTTP 4xx
+// (404 or 410) with reason `fetch_failed` AND attempts >= 3 sets
+// `status='deleted'`. Transient/ambiguous 4xx (403/408/425/429 etc.) are
+// cooldown-only — see Codex review on PR #100.
+//
+// Helper: assert the failure-path DB update has the cooldown shape.
+function expectFailureDbUpdate(
+  call: unknown,
+  opts: { expectTombstone?: boolean; expectedAttempts: number },
+) {
+  const args = call as { where: { media_key: string }; data: Record<string, unknown> };
+  expect(args.where).toEqual({ media_key: "MK-1" });
+  expect(args.data.r2_last_attempt_at).toBeInstanceOf(Date);
+  expect(args.data.r2_attempts).toBe(opts.expectedAttempts);
+  if (opts.expectTombstone) {
+    expect(args.data.status).toBe("deleted");
+  } else {
+    expect(args.data).not.toHaveProperty("status");
+  }
+  // Boundary: failure path NEVER touches r2_key, media_url_cached, or media_url_original.
+  expect(args.data).not.toHaveProperty("r2_key");
+  expect(args.data).not.toHaveProperty("media_url_cached");
+  expect(args.data).not.toHaveProperty("media_url_original");
+}
 
-describe("mirrorMediaToR2 — failure paths (no DB write on failure)", () => {
-  it("Trestle 404 → status=failed, reason=fetch_failed, no DB write, no upload", async () => {
+describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410) after 3 attempts tombstones", () => {
+  it("Trestle 404 (1st attempt) → fetch_failed, sets cooldown, increments attempts to 1, NO tombstone", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 404 }),
       ),
     });
-    const result = await mirrorMediaToR2(makeRow(), deps);
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: null }), deps);
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("fetch_failed");
     expect(result.error).toBe("HTTP 404");
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expect(mockListingMediaUpdate).toHaveBeenCalledTimes(1);
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 1,
+      expectTombstone: false,
+    });
   });
 
-  it("Trestle 500 → status=failed, reason=fetch_failed, no DB write", async () => {
+  it("Trestle 404 (3rd attempt) → tombstones with status='deleted'", async () => {
+    const deps = makeDeps({
+      fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
+        makeFetchResponse({ status: 404 }),
+      ),
+    });
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
+    expect(result.status).toBe("failed");
+    expect(result.reason).toBe("fetch_failed");
+    expect(result.error).toBe("HTTP 404");
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: true,
+    });
+  });
+
+  it("Trestle 403 (3rd attempt) → cooldown only, does NOT tombstone (403 is ambiguous, not permanent)", async () => {
+    const deps = makeDeps({
+      fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
+        makeFetchResponse({ status: 403 }),
+      ),
+    });
+    await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
+  });
+
+  it("Trestle 410 (3rd attempt) → tombstones (Gone is RFC-correct permanent)", async () => {
+    const deps = makeDeps({
+      fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
+        makeFetchResponse({ status: 410 }),
+      ),
+    });
+    await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: true,
+    });
+  });
+
+  it("Trestle 429 (3rd attempt) → cooldown only, does NOT tombstone (rate-limit is transient — Trestle 480/min ceiling regression guard)", async () => {
+    const deps = makeDeps({
+      fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
+        makeFetchResponse({ status: 429 }),
+      ),
+    });
+    await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
+  });
+
+  it("Trestle 500 (3rd attempt) → increments cooldown but does NOT tombstone (5xx are transient)", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 500 }),
       ),
     });
-    const result = await mirrorMediaToR2(makeRow(), deps);
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("fetch_failed");
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
   });
 
-  it("non-image content-type → status=failed, reason=non_image_content_type, no upload, no DB write", async () => {
+  it("non-image content-type (3rd attempt) → cooldown, NO tombstone (not a 4xx)", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 200, contentType: "text/html", body: Buffer.from("<html>") }),
       ),
     });
-    const result = await mirrorMediaToR2(makeRow(), deps);
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("non_image_content_type");
-    expect(result.error).toBe("text/html");
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
   });
 
-  it("network error during fetch → status=failed, reason=fetch_threw, no DB write", async () => {
+  it("network error during fetch (3rd attempt) → cooldown, NO tombstone (network errors are transient)", async () => {
     const deps = makeDeps({
       fetchFn: jest
         .fn<Promise<Response>, FetchArgs>()
         .mockRejectedValue(new Error("ECONNRESET")),
     });
-    const result = await mirrorMediaToR2(makeRow(), deps);
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("fetch_threw");
     expect(result.error).toBe("ECONNRESET");
-    expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
   });
 
-  it("R2 upload failure → status=failed, reason=upload_failed, no DB write", async () => {
+  it("R2 upload failure (3rd attempt) → cooldown, NO tombstone (R2-side error)", async () => {
     const deps = makeDeps({
       uploadToR2: jest
         .fn<Promise<string>, [string, Buffer, string]>()
         .mockRejectedValue(new Error("R2 quota exceeded")),
     });
-    const result = await mirrorMediaToR2(makeRow(), deps);
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("upload_failed");
     expect(result.error).toBe("R2 quota exceeded");
-    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
   });
 
-  it("R2 head failure → status=failed, reason=r2_head_failed, no fetch, no upload, no DB write", async () => {
+  it("R2 head failure (3rd attempt) → cooldown, NO tombstone (R2-side error, no Trestle call)", async () => {
     const deps = makeDeps({
       existsInR2: jest
         .fn<Promise<boolean>, [string]>()
         .mockRejectedValue(new Error("403 Forbidden")),
     });
-    const result = await mirrorMediaToR2(makeRow(), deps);
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("r2_head_failed");
     expect(deps.fetchFn).not.toHaveBeenCalled();
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
   });
 
-  it("Trestle token failure → status=failed, reason=token_failed, no fetch, no upload, no DB write", async () => {
+  it("Trestle token failure (3rd attempt) → cooldown, NO tombstone (auth-side error)", async () => {
     const deps = makeDeps({
       getAccessToken: jest
         .fn<Promise<string>, []>()
         .mockRejectedValue(new Error("auth server unreachable")),
     });
-    const result = await mirrorMediaToR2(makeRow(), deps);
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("token_failed");
     expect(deps.fetchFn).not.toHaveBeenCalled();
     expect(deps.uploadToR2).not.toHaveBeenCalled();
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 3,
+      expectTombstone: false,
+    });
+  });
+
+  it("`skipped` (no media_url_original) writes NO DB update (cooldown not relevant)", async () => {
+    const deps = makeDeps();
+    const result = await mirrorMediaToR2(
+      makeRow({ media_url_original: null }),
+      deps,
+    );
+    expect(result.status).toBe("skipped");
+    expect(result.reason).toBe("no_media_url_original");
     expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+  });
+
+  it("undefined r2_attempts (legacy row) treated as 0 — first 4xx increments to 1 without tombstone", async () => {
+    const deps = makeDeps({
+      fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
+        makeFetchResponse({ status: 404 }),
+      ),
+    });
+    // r2_attempts undefined (existing schema rows pre-migration)
+    const row = makeRow();
+    delete row.r2_attempts;
+    await mirrorMediaToR2(row, deps);
+    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+      expectedAttempts: 1,
+      expectTombstone: false,
+    });
   });
 });

@@ -2338,6 +2338,20 @@ model ListingMedia {
   r2_key                    String?   @map("r2_key")
   width                     Int?
   height                    Int?
+  // R2 mirror cooldown / N-strikes (added 2026-05-10 to break the persistent
+  // retry loop on stale Trestle media URLs that return HTTP 404 with body
+  // "ERROR - External media was not downloaded"; root-cause confirmed by E8
+  // probe in `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md`).
+  //   - r2_last_attempt_at: NULL means "never attempted"; non-null is the
+  //     wall-clock timestamp of the last failed mirror attempt. Phase 3
+  //     skips rows where this is < 6 hours old.
+  //   - r2_attempts: NULL or 0 means "no failed attempts pending"; >0 is
+  //     the consecutive-failure counter. After 3 confirmed HTTP 404
+  //     responses, Cp4 soft-deletes the row (status='deleted').
+  // Both nullable per NEON.md §4 — never NOT NULL DEFAULT on a populated
+  // table. Code reads with `?? 0` / `?? null` defaults.
+  r2_last_attempt_at        DateTime? @map("r2_last_attempt_at")
+  r2_attempts               Int?      @map("r2_attempts")
   // Status: 'active' | 'deleted' (soft-delete for audit) | 'replaced'.
   // We never hard-delete a media row so the audit trail stays intact.
   status                    String    @default("active")
