@@ -42,7 +42,8 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, resolveListingMediaFromRows } from '@/lib/media/listing-media-resolver';
+import type { Prisma } from '@prisma/client';
 
 // ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
 export const revalidate = 300;
@@ -261,6 +262,27 @@ interface ListingFetchResult {
  * DB-first lookup: check Prisma DB for listing before hitting Trestle.
  * Converts DB record to PublicListingDTO. Returns null if not found.
  */
+// PR 4 reader swap: pull the relational `listing_media` rows alongside every
+// detail-page DB lookup so the resolver can prefer them over the legacy
+// `Listing.media` JSON. Selected columns mirror ListingMediaTableRow exactly
+// so we don't over-fetch R2 timestamps, retry counters, or audit fields.
+const LISTING_MEDIA_INCLUDE = {
+  listing_media: {
+    where: { status: 'active' },
+    orderBy: [{ order: 'asc' as const }, { id: 'asc' as const }],
+    select: {
+      media_url_original: true,
+      media_url_cached: true,
+      media_type: true,
+      media_category: true,
+      media_classification: true,
+      order: true,
+      preferred_photo_yn: true,
+      status: true,
+    },
+  },
+} satisfies Prisma.ListingInclude;
+
 async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
   try {
     let dbListing = null;
@@ -270,6 +292,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     if (lookupId) {
       dbListing = await prisma.listing.findUnique({
         where: { listing_id: lookupId },
+        include: LISTING_MEDIA_INCLUDE,
       });
     }
 
@@ -285,12 +308,14 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
               equals: parsed.streetNumber,
             },
           },
+          include: LISTING_MEDIA_INCLUDE,
         });
         // Narrow by street name if multiple matches
         if (!dbListing && parsed.streetName) {
           const candidates = await prisma.listing.findMany({
             where: { postal_code: parsed.postalCode },
             take: 50,
+            include: LISTING_MEDIA_INCLUDE,
           });
           dbListing = candidates.find(c => {
             const addr = c.address as Record<string, string> | null;
@@ -308,6 +333,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     if (!dbListing) {
       dbListing = await prisma.listing.findUnique({
         where: { listing_id: slug },
+        include: LISTING_MEDIA_INCLUDE,
       }).catch(() => null);
     }
 
@@ -323,36 +349,22 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // Convert DB record to PublicListingDTO
     const addr = (dbListing.address as Record<string, string>) || {};
     const features = (dbListing.features as Record<string, unknown>) || {};
-    // DB media can be in two formats:
-    //   Raw Trestle: { MediaURL, MediaCategory, Order }
-    //   Mapped:      { url, mediaType, order }
-    // Normalize to the mapped format.
-    // DB stores raw Trestle format { MediaURL, MediaCategory, Order } — MediaCategory is the
-    // content type ("Photo", "Floor Plan"), not MediaType (file format like "jpeg").
+    // PR 4 reader swap: prefer the relational `listing_media` rows fetched
+    // alongside this listing. When present, R2-cached URLs are used
+    // directly (faster, no Trestle proxy). When absent (un-synced row or
+    // mid-sync race), fall back to the legacy `Listing.media` JSON so no
+    // detail page renders blank. Both paths flow through the same
+    // classify→sort pipeline in `listing-media-resolver`.
+    const listingMediaRows = Array.isArray(dbListing.listing_media) ? dbListing.listing_media : [];
     const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
-    let mediaArr = rawMedia.map((m) => {
-      const cat = String(m.MediaCategory || m.mediaType || 'Photo').toLowerCase();
-      let mediaType = 'Photo';
-      if (cat.includes('floor plan') || cat.includes('floorplan') || cat === 'FloorPlan') mediaType = 'FloorPlan';
-      else if (cat.includes('video')) mediaType = 'Video';
-      else if (cat.includes('virtual tour') || cat.includes('virtualtour') || cat === '3d') mediaType = 'VirtualTour';
-      else if (String(m.mediaType || '') === 'FloorPlan') mediaType = 'FloorPlan';
-      return {
-        url: String(m.url || m.MediaURL || ''),
-        mediaType,
-        order: Number(m.order ?? m.Order ?? 0),
-      };
-    }).filter(m => m.url)
-    // Sort: Photos first, then Videos/Tours, FloorPlans last
-    .sort((a, b) => {
-      const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
-      const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
-      return rankDiff !== 0 ? rankDiff : a.order - b.order;
-    });
-
-    mediaArr = resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl }).map(m => ({
+    // Widen `mediaType` to string here because the Trestle merge below mixes
+    // in rows from `fetchListingMedia` which use the wider type.
+    let mediaArr: { url: string; mediaType: string; order: number }[] = (listingMediaRows.length > 0
+      ? resolveListingMediaFromRows(listingMediaRows)
+      : resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl })
+    ).map(m => ({
       url: m.url,
-      mediaType: m.mediaType,
+      mediaType: m.mediaType as string,
       order: m.providerOrder,
     }));
 

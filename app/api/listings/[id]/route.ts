@@ -6,6 +6,8 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { geocodeListings } from '@/lib/geo/geocode';
+import prisma from '@/lib/prisma';
+import { resolveListingMediaFromRows, resolveListingMedia } from '@/lib/media/listing-media-resolver';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -70,7 +72,60 @@ export async function GET(request: Request, { params }: Props) {
           // Step 3: Convert to public DTO (strips private data, suppresses address)
           const publicListing = toPublicDTO(listing);
 
-          // Step 4: Fetch media if empty (Trestle Media resource, separate from Property)
+          // Step 4: Resolve media if empty (Trestle Media resource).
+          //
+          // PR 4 reader swap: try the relational `listing_media` table first
+          // (preferred — R2 URLs bypass the Trestle proxy and load faster
+          // for the 99.67% of listings already mirrored), then fall back to
+          // the legacy `Listing.media` JSON, then fall back to a live
+          // Trestle Media fetch. Compliance gates already ran on the raw
+          // Trestle payload above; this block only sources image URLs.
+          if (!publicListing.media || publicListing.media.length === 0) {
+            const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
+            try {
+              const dbRow = await prisma.listing.findUnique({
+                where: { listing_id: listingKey },
+                select: {
+                  media: true,
+                  listing_media: {
+                    where: { status: 'active' },
+                    orderBy: [{ order: 'asc' }, { id: 'asc' }],
+                    select: {
+                      media_url_original: true,
+                      media_url_cached: true,
+                      media_type: true,
+                      media_category: true,
+                      media_classification: true,
+                      order: true,
+                      preferred_photo_yn: true,
+                      status: true,
+                    },
+                  },
+                },
+              });
+              if (dbRow) {
+                const tableRows = Array.isArray(dbRow.listing_media) ? dbRow.listing_media : [];
+                const resolved = tableRows.length > 0
+                  ? resolveListingMediaFromRows(tableRows)
+                  : resolveListingMedia(
+                      Array.isArray(dbRow.media) ? (dbRow.media as Record<string, unknown>[]) : [],
+                    );
+                if (resolved.length > 0) {
+                  publicListing.media = resolved.map((m) => ({
+                    url: m.url,
+                    mediaType: m.mediaType,
+                    order: m.providerOrder,
+                  }));
+                  publicListing.photosCount = publicListing.media.filter(
+                    (m) => m.mediaType === 'Photo',
+                  ).length;
+                }
+              }
+            } catch {
+              // Non-fatal — DB lookup is best-effort; we still fall back to
+              // a live Trestle Media fetch below.
+            }
+          }
           if (!publicListing.media || publicListing.media.length === 0) {
             try {
               const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
