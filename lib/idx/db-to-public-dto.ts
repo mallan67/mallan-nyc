@@ -311,7 +311,14 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
     storiesTotal: features.StoriesTotal ? Number(features.StoriesTotal) : undefined,
     roomsTotal: features.Rooms ? Number(features.Rooms) : undefined,
-    listOfficeName: agentInfo.ListOfficeName || 'Mallan Real Estate Inc.',
+    // UCBA Art. III §2(C) — listing attribution must identify the ACTUAL listing
+    // broker, never the displaying broker. Falling back to "Mallan Real Estate
+    // Inc." when the source data omits `ListOfficeName` would falsely attribute
+    // every IDX listing to us. When the source data is silent, fall back to the
+    // neutral "REBNY RLS" string (matches the pattern in `BuildingUnits.tsx`
+    // and `SearchMap.tsx`). Mallan attribution is preserved only when the source
+    // row's `agent_info.ListOfficeName` actually carries it.
+    listOfficeName: agentInfo.ListOfficeName?.trim() || 'REBNY RLS',
     media,
     photosCount: photoCount,
     publicRemarks: features.PublicRemarks || undefined,
@@ -371,7 +378,13 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     _source: 'exclusive',
     _displayCompliance: {
       requiresAttribution: true,
-      attributionText: `Exclusive listing by ${agentInfo.ListOfficeName || 'Mallan Real Estate Inc.'}`,
+      // UCBA Art. III §2(C) — the literal phrasing required by REBNY:
+      // "Listing Courtesy of [Exclusive Broker]". The prior "Exclusive
+      // listing by Mallan Real Estate Inc." default falsely attributed
+      // every IDX-sourced row to us and implied exclusivity that the data
+      // doesn't support. Pull the office name straight from the source
+      // (already neutralised to "REBNY RLS" when missing, above).
+      attributionText: `Listing courtesy of ${agentInfo.ListOfficeName?.trim() || 'REBNY RLS'}`,
       disclaimerRequired: false,
       comingSoon: isComingSoon || undefined,
       comingSoonDate,

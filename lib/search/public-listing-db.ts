@@ -103,25 +103,46 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
     .replace(/\s+/g, " ")
     .trim();
 
+  // Defensive dual-key matching. As of 2026-05-12 the entire production DB
+  // (21,983/21,983 rows) stores `address` JSON with PascalCase keys
+  // (`StreetNumber`, `StreetName`) — produced by `lib/idx/trestle-mapper.ts`
+  // and the CRM convert endpoint. The audit at `memory/AUDIT-2026-05-12.md`
+  // §2a flagged a hypothetical camelCase writer that doesn't actually
+  // persist rows today; nevertheless, mirroring both key cases here costs
+  // nothing extra at query time (a single JSON-path nullable lookup) and
+  // prevents the audit's failure mode if a future writer ever skews shape.
+  //
+  // `Prisma.ListingWhereInput` allows nested OR inside an AND member, so we
+  // emit a single condition per address segment that ORs both shapes.
   const conditions: Prisma.ListingWhereInput[] = [];
   const numMatch = cleaned.match(/^(\d+[-\w]*)\s+(.*)/);
   if (numMatch) {
-    conditions.push({ address: { path: ["StreetNumber"], equals: numMatch[1] } });
-    const streetPart = numMatch[2].replace(/\b[ensw]\b/gi, "").trim();
+    const num = numMatch[1];
+    conditions.push({
+      OR: [
+        { address: { path: ["StreetNumber"], equals: num } },
+        { address: { path: ["streetNumber"], equals: num } },
+      ],
+    });
+    const streetPart = numMatch[2]
+      .replace(/\b[ensw]\b/gi, "")
+      .trim()
+      .replace(/(\d+)(st|nd|rd|th)/gi, "$1");
     if (streetPart) {
       conditions.push({
-        address: {
-          path: ["StreetName"],
-          string_contains: streetPart.replace(/(\d+)(st|nd|rd|th)/gi, "$1"),
-        },
+        OR: [
+          { address: { path: ["StreetName"], string_contains: streetPart } },
+          { address: { path: ["streetName"], string_contains: streetPart } },
+        ],
       });
     }
   } else if (cleaned) {
+    const streetPart = cleaned.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
     conditions.push({
-      address: {
-        path: ["StreetName"],
-        string_contains: cleaned.replace(/(\d+)(st|nd|rd|th)/gi, "$1"),
-      },
+      OR: [
+        { address: { path: ["StreetName"], string_contains: streetPart } },
+        { address: { path: ["streetName"], string_contains: streetPart } },
+      ],
     });
   }
 
@@ -153,6 +174,16 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
         { commercial_sub_type: { not: null } },
       ],
     });
+  }
+
+  // `exclusive=mallan` is sourced from the `/exclusives` redirect
+  // (vercel.json:55-58). UCBA Art. III §2(A) + 19 NYCRR §175.25 forbid
+  // surfacing other brokers' listings as if they were ours, so the filter
+  // restricts to rows authored through our CRM (`agent_id != null`).
+  // Currently 0 production rows match; the page legitimately renders empty
+  // until Mallan exclusives are added.
+  if (params.get("exclusive") === "mallan") {
+    where.agent_id = { not: null };
   }
 
   const minPrice = intParam(params, "minPrice");

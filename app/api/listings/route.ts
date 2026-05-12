@@ -165,6 +165,14 @@ export async function GET(request: Request) {
     const amenitiesParam = searchParams.get('amenities'); // route-side pet-friendly RAW post-filter on the Trestle path
     const openHouseParam = searchParams.get('openHouse') === 'true';
     const openHouseDateParam = searchParams.get('openHouseDate'); // 'weekend' | ISO date | undefined
+    // `/exclusives` redirect (vercel.json:55-58) → `/buy?exclusive=mallan`.
+    // When set, the response MUST contain only Mallan-authored listings —
+    // returning other brokers' rows would violate UCBA Art. III §2(A) (no
+    // unauthorized advertising) and 19 NYCRR §175.25 (no misleading
+    // advertising). The DB filter is applied in `buildPublicListingDbSearch`;
+    // here we additionally short-circuit the Trestle fallback so external
+    // listings can never reach the response on this path.
+    const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan';
 
     // Min > Max price validation
     if (minPrice && maxPrice && parseInt(minPrice, 10) > parseInt(maxPrice, 10)) {
@@ -365,10 +373,58 @@ export async function GET(request: Request) {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
           }
+
+          // `exclusive=mallan` short-circuit. The DB filter
+          // (`buildPublicListingDbSearch` → `where.agent_id = { not: null }`)
+          // returned 0 rows — meaning no Mallan-authored listings currently
+          // exist. UCBA Art. III §2(A) + 19 NYCRR §175.25 require the page to
+          // truthfully reflect this; falling through to the Trestle merge
+          // would surface other brokers' rows under our "exclusives" label.
+          if (isMallanExclusiveOnly) {
+            const responseBody = {
+              success: true,
+              count: 0,
+              total: 0,
+              skip,
+              limit,
+              hasMore: false,
+              listings: [],
+              _compliance: {
+                source: 'db+exclusive',
+                idxEnabled: true,
+                attribution: generateAttributionText(),
+                disclaimer: 'No exclusive Mallan listings currently available.',
+              },
+            };
+            setCache(cacheKey, responseBody);
+            return NextResponse.json(responseBody, {
+              headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+            });
+          }
         }
       } catch (dbErr) {
-        // DB query failed — fall through to live Trestle
+        // DB query failed — fall through to live Trestle (unless this is an
+        // exclusive=mallan request, which must never serve external rows).
         console.warn('[/api/listings] DB-first query failed, falling back to Trestle:', dbErr instanceof Error ? dbErr.message : dbErr);
+        if (isMallanExclusiveOnly) {
+          return NextResponse.json(
+            {
+              success: true,
+              count: 0,
+              total: 0,
+              skip,
+              limit,
+              hasMore: false,
+              listings: [],
+              _compliance: {
+                source: 'db+exclusive',
+                idxEnabled: true,
+                disclaimer: 'No exclusive Mallan listings currently available.',
+              },
+            },
+            { headers: { 'Cache-Control': 'private, no-store' } },
+          );
+        }
       }
 
       // ═══════════════════════════════════════════════════════════

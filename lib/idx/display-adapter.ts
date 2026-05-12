@@ -205,7 +205,11 @@ export function toDisplayListing(raw: any): DisplayListing {
     _displayCompliance: {
       comingSoon: raw.status === 'coming-soon' || raw.compliance?.comingSoonDate ? true : undefined,
       comingSoonDate: raw.compliance?.comingSoonDate || raw.activationDate || undefined,
-      attributionText: `Courtesy of ${raw.agent?.listOfficeName || 'Mallan Real Estate Inc.'}`,
+      // UCBA Art. III §2(C) — must identify the actual listing broker, never
+      // the displaying broker. Default to neutral "REBNY RLS" when the local
+      // fallback data omits `agent.listOfficeName`. Falling back to
+      // "Mallan Real Estate Inc." would falsely attribute every listing to us.
+      attributionText: `Listing courtesy of ${raw.agent?.listOfficeName?.trim() || 'REBNY RLS'}`,
       requiresAttribution: true,
     },
   };
