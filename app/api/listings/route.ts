@@ -173,17 +173,29 @@ export async function GET(request: Request) {
     // here we additionally short-circuit the Trestle fallback so external
     // listings can never reach the response on this path.
     const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan';
-    // Address search short-circuit. When the user types an address (via
-    // /search?q=... → useListings passes `address=...`), the response must
-    // truthfully reflect the address match. The DB-first path applies
-    // `addressConditions()` and returns matching rows. If 0 rows match, the
-    // prior behavior fell through to the Trestle fallback — which often
-    // returns a generic feed of unrelated listings because Trestle's address
-    // filter doesn't carry through. Surfacing 50 unrelated listings under a
-    // specific-address query violates UCBA Art. III §2(A) and 19 NYCRR
-    // §175.25. We short-circuit below so an address miss returns an honest
-    // empty result.
-    const isAddressSearch = !!(searchParams.get('address') || '').trim();
+    // Numbered-address short-circuit (PR #107 + Codex follow-up).
+    //
+    // The search UI routes ALL plain free-text input through `address` (see
+    // `app/search/page.tsx` plain-text branch). That includes numbered street
+    // addresses ("425 park avenue south") AND building / neighborhood text
+    // ("Carnegie Hall", "Hudson Yards", "central park"). The DB-first
+    // `addressConditions()` only queries `StreetNumber` + `StreetName`, but
+    // the Trestle fallback at `lib/search/public-listing-trestle.ts:138`
+    // also searches `BuildingName` on its text-only path — that's where
+    // building-name queries find their matches.
+    //
+    // For NUMBERED queries an unfiltered Trestle fallback returns garbage
+    // (UCBA Art. III §2(A) / 19 NYCRR §175.25 violation surfaced as the
+    // 425 Park bug Maya filed). For TEXT-ONLY queries the Trestle fallback
+    // is the only place a building-name search works.
+    //
+    // Heuristic: a leading digit (after trim) reliably marks a numbered
+    // street address. Everything else is treated as text and allowed to
+    // fall through to Trestle. Codex P1 feedback on PR #107 — narrowing
+    // the original `isAddressSearch` so building-name queries still find
+    // their listings.
+    const addressInput = (searchParams.get('address') || '').trim();
+    const isNumberedAddressSearch = /^\d/.test(addressInput);
 
     // Min > Max price validation
     if (minPrice && maxPrice && parseInt(minPrice, 10) > parseInt(maxPrice, 10)) {
@@ -412,12 +424,13 @@ export async function GET(request: Request) {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
           }
-          // Address search short-circuit. See the comment alongside
-          // `isAddressSearch` (top of route) for the compliance rationale —
-          // an address miss must return an honest empty state, not a
-          // generic Trestle feed.
-          if (isAddressSearch) {
-            const addressTyped = (searchParams.get('address') || '').trim();
+          // Numbered-address miss short-circuit. See the
+          // `isNumberedAddressSearch` comment at the top of the route for
+          // the compliance rationale and the leading-digit heuristic.
+          // Text-only queries (building names, neighborhood fragments) are
+          // intentionally NOT caught here — they need the Trestle
+          // BuildingName fallback to find their matches.
+          if (isNumberedAddressSearch) {
             const responseBody = {
               success: true,
               count: 0,
@@ -430,7 +443,7 @@ export async function GET(request: Request) {
                 source: 'db+exclusive',
                 idxEnabled: true,
                 attribution: generateAttributionText(),
-                disclaimer: `No listings found matching "${addressTyped}". Try a different address or broaden your search.`,
+                disclaimer: `No listings found matching "${addressInput}". Try a different address or broaden your search.`,
               },
             };
             setCache(cacheKey, responseBody);
@@ -441,8 +454,10 @@ export async function GET(request: Request) {
         }
       } catch (dbErr) {
         // DB query failed — fall through to live Trestle (unless this is an
-        // exclusive=mallan or address-search request; those must never
-        // silently serve unrelated external rows).
+        // exclusive=mallan or numbered-address search; those must never
+        // silently serve unrelated external rows). Text-only address
+        // queries still fall through so the Trestle BuildingName search
+        // can find building-name matches.
         console.warn('[/api/listings] DB-first query failed, falling back to Trestle:', dbErr instanceof Error ? dbErr.message : dbErr);
         if (isMallanExclusiveOnly) {
           return NextResponse.json(
@@ -463,8 +478,7 @@ export async function GET(request: Request) {
             { headers: { 'Cache-Control': 'private, no-store' } },
           );
         }
-        if (isAddressSearch) {
-          const addressTyped = (searchParams.get('address') || '').trim();
+        if (isNumberedAddressSearch) {
           return NextResponse.json(
             {
               success: true,
@@ -477,7 +491,7 @@ export async function GET(request: Request) {
               _compliance: {
                 source: 'db+exclusive',
                 idxEnabled: true,
-                disclaimer: `No listings found matching "${addressTyped}". Try a different address or broaden your search.`,
+                disclaimer: `No listings found matching "${addressInput}". Try a different address or broaden your search.`,
               },
             },
             { headers: { 'Cache-Control': 'private, no-store' } },

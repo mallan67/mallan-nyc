@@ -315,6 +315,57 @@ describe('Search-fix · Fix 4 — case-insensitive address search', () => {
   });
 });
 
+// ─── Fix 5 (search-fix Codex follow-up) — numbered-vs-text classification ─
+
+describe('Search-fix · Fix 5 — numbered-address short-circuit classification', () => {
+  // The route's `isNumberedAddressSearch` guard uses the regex `/^\d/`
+  // (after trim) to decide whether an address miss should return an honest
+  // empty state (numbered, true) or fall through to Trestle's BuildingName
+  // search (text-only, false). Codex P1 feedback on PR #107 flagged that
+  // the original `isAddressSearch` caught both classes and broke
+  // building-name searches. This test pins the classifier so a future
+  // refactor doesn't silently re-broaden it.
+  //
+  // The route code is heavily mocked-dependency-laden; rather than mock
+  // the whole module we test the heuristic directly. The route uses the
+  // exact same expression: `/^\d/.test(addressInput)` after `.trim()`.
+  function isNumberedAddressSearch(addressInput: string): boolean {
+    const trimmed = addressInput.trim();
+    return /^\d/.test(trimmed);
+  }
+
+  it('numbered street addresses are classified as numbered', () => {
+    expect(isNumberedAddressSearch('425 park avenue south')).toBe(true);
+    expect(isNumberedAddressSearch('400 East 90th Street')).toBe(true);
+    expect(isNumberedAddressSearch('1 Central Park West')).toBe(true);
+    expect(isNumberedAddressSearch('116-49 97th Street')).toBe(true);
+    expect(isNumberedAddressSearch('  425 Park  ')).toBe(true); // tolerates whitespace
+  });
+
+  it('building names and text fragments are NOT classified as numbered', () => {
+    expect(isNumberedAddressSearch('Carnegie Hall')).toBe(false);
+    expect(isNumberedAddressSearch('Empire State Building')).toBe(false);
+    expect(isNumberedAddressSearch('central park')).toBe(false);
+    expect(isNumberedAddressSearch('Hudson Yards')).toBe(false);
+    expect(isNumberedAddressSearch('tribeca loft')).toBe(false);
+    expect(isNumberedAddressSearch('the dakota')).toBe(false);
+  });
+
+  it('empty / whitespace-only inputs are NOT numbered (no short-circuit)', () => {
+    expect(isNumberedAddressSearch('')).toBe(false);
+    expect(isNumberedAddressSearch('   ')).toBe(false);
+  });
+
+  it('edge: text-only inputs starting with a non-digit character pass through', () => {
+    // These reach the DB filter (StreetName containment, case-insensitive)
+    // and then, on miss, the Trestle text-only fallback which also probes
+    // BuildingName. Documents that the classifier is intentionally narrow.
+    for (const q of ['Soho loft', 'park slope', '"425 park"', '#425 park']) {
+      expect(isNumberedAddressSearch(q)).toBe(false);
+    }
+  });
+});
+
 // ─── Fix 6 (search-fix) — DTO lat/lng propagation ────────────────────────
 
 describe('Search-fix · Fix 6 — DTO propagates Latitude/Longitude', () => {
