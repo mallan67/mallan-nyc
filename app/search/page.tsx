@@ -178,6 +178,10 @@ function SearchClient() {
   const neighborhoodParam = searchParams?.get('neighborhood') || '';
   const boroughParam = searchParams?.get('borough') || '';
   const zipParam = searchParams?.get('zip') || '';
+  // `/exclusives` (vercel.json redirect) routes to `/buy?exclusive=mallan`.
+  // Only the literal value `mallan` activates the filter; anything else is
+  // ignored so a typo can't accidentally surface a different subset.
+  const exclusiveParam = searchParams?.get('exclusive') === 'mallan' ? 'mallan' as const : undefined;
 
   // ── State ──
   const [activeTab, setActiveTab] = useState<SearchTab>(resolveTab(typeParam));
@@ -357,6 +361,7 @@ function SearchClient() {
     zipCodes: zipParam || (/^\d{5}$/.test(searchQuery?.trim() || '') ? searchQuery.trim() : undefined),
     address: resolvedSearch.address || undefined,
     keywords: nl?.keywords,
+    exclusive: exclusiveParam,
     limit: 50,
   });
 

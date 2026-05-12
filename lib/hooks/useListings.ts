@@ -34,6 +34,18 @@ export interface UseListingsParams {
   zipCodes?: string;
   address?: string;
   keywords?: string[];
+  /**
+   * Restrict to Mallan-authored exclusive listings only. Sourced from the
+   * `/exclusives` redirect (vercel.json) → `/buy?exclusive=mallan`.
+   *
+   * Backend filters by `agent_id != null` (CRM-created listings) and skips
+   * the Trestle IDX merge so the page does not surface other brokers' rows
+   * — UCBA Art. III §2(A) (no unauthorized advertising) and 19 NYCRR §175.25
+   * (no misleading advertising) require the surface to truthfully reflect
+   * what the data carries. Currently 0 production rows match, so the page
+   * legitimately renders empty until Mallan exclusives are added.
+   */
+  exclusive?: 'mallan';
   /** Pre-fetched listings from server (ISR) — skips initial client fetch */
   initialListings?: DisplayListing[];
   initialTotal?: number;
@@ -119,6 +131,7 @@ function buildQueryString(params: UseListingsParams): string {
   if (params.zipCodes) qs.set('zipCodes', params.zipCodes);
   if (params.address) qs.set('address', params.address);
   if (params.keywords?.length) qs.set('keywords', params.keywords.join(','));
+  if (params.exclusive) qs.set('exclusive', params.exclusive);
 
   qs.set('limit', String(params.limit || 50));
 
@@ -153,6 +166,7 @@ function hasActiveFilters(params: UseListingsParams): boolean {
     params.zipCodes ||
     params.address ||
     params.keywords?.length ||
+    params.exclusive ||
     (params.sort && params.sort !== 'newest')
   );
 }
