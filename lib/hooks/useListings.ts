@@ -359,6 +359,16 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     params.address,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     params.keywords?.join(','),
+    // Codex feedback on PR #106: client-side transitions in/out of
+    // `?exclusive=mallan` (e.g., user toggles between /buy and
+    // /buy?exclusive=mallan, or follows the /exclusives 307 via soft
+    // routing) must re-fetch. Without this dep the effect skipped on the
+    // transition and the prior fetch's listings stayed visible, which on
+    // the OUT direction would leave the page empty and on the IN direction
+    // would show the full RLS feed under the exclusives label. The
+    // backend filter is correct (verified via curl); this closes the
+    // client-side refresh path.
+    params.exclusive,
     fetchListings,
     hasInitial,
   ]);

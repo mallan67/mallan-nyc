@@ -58,9 +58,25 @@ describe("buildPublicListingDbSearch", () => {
   it("pushes address search into JSON conditions so pagination remains DB-backed", () => {
     const { where } = buildPublicListingDbSearch(new URLSearchParams("address=400 East 90th Street"));
 
+    // PR #106 (audit-fix A · Fix 2) wrapped each address segment in an
+    // OR-of-{PascalCase, camelCase} for defensive dual-key support. The
+    // production DB stores PascalCase (21,983/21,983 rows verified); the
+    // camelCase branch is inert today but prevents the audit's claimed
+    // failure mode if a future writer ever skews shape. The assertion
+    // checks both branches survive in each OR member.
     expect(where.AND).toEqual(expect.arrayContaining([
-      { address: { path: ["StreetNumber"], equals: "400" } },
-      { address: { path: ["StreetName"], string_contains: "90" } },
+      {
+        OR: expect.arrayContaining([
+          { address: { path: ["StreetNumber"], equals: "400" } },
+          { address: { path: ["streetNumber"], equals: "400" } },
+        ]),
+      },
+      {
+        OR: expect.arrayContaining([
+          { address: { path: ["StreetName"], string_contains: "90" } },
+          { address: { path: ["streetName"], string_contains: "90" } },
+        ]),
+      },
     ]));
   });
 
