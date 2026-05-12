@@ -19,7 +19,11 @@ import type { PublicListingDTO } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
-import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
+import {
+  resolveListingMedia,
+  resolveListingMediaFromRows,
+  type ListingMediaTableRow,
+} from '@/lib/media/listing-media-resolver';
 
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
@@ -129,6 +133,14 @@ export interface DbListing {
   auction_start_date?: Date | string | null;
   auction_end_date?: Date | string | null;
   auction_terms_url?: string | null;
+  // PR 4 reader swap — relational media table.
+  //
+  // When the caller's Prisma query includes `listing_media: { ... }`, this
+  // field carries the typed media rows. When it doesn't, the field is
+  // undefined and the mapper falls back to the legacy `media` JSON column.
+  // Both paths flow through the same classify→sort pipeline so the public
+  // DTO shape is identical.
+  listing_media?: ListingMediaTableRow[];
 }
 
 /** RESO StandardStatus values that are publicly displayable */
@@ -234,61 +246,25 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
 
   const listPrice = parseFloat(listing.list_price) || 0;
 
-  // Map media items — proxy Trestle URLs through /api/media/proxy
-  // (Trestle WAF blocks direct browser <img> requests)
-  // Cotality + legacy CoreLogic hosts (old media URLs work through 2026 warranty)
-  const TRESTLE_HOSTS = ['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com'];
-  function proxyUrl(rawUrl: string): string {
-    if (!rawUrl) return rawUrl;
-    try {
-      const parsed = new URL(rawUrl);
-      if (TRESTLE_HOSTS.includes(parsed.hostname)) {
-        return `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`;
-      }
-    } catch { /* not a valid URL */ }
-    return rawUrl;
-  }
-  // Classify media type: DB stores raw Trestle format { MediaURL, MediaCategory, Order }
-  // MediaCategory = content type (Photo, Floor Plan), MediaType = file format (jpeg) — NOT content type.
-  // Must check MediaCategory first, then mediaType (mapped format), then default to Photo.
-  function classifyMedia(m: DbMediaItem): string {
-    const cat = String(m.MediaCategory || '').toLowerCase();
-    const desc = String(m.ShortDescription || m.shortDescription || '').toLowerCase();
-    if (cat.includes('floor plan') || cat.includes('floorplan') || desc.includes('floor plan') || desc.includes('floorplan')) return 'FloorPlan';
-    if (cat.includes('video')) return 'Video';
-    if (cat.includes('virtual tour') || cat.includes('virtualtour') || cat === '3d') return 'VirtualTour';
-    if (cat && cat !== 'photo') return cat; // pass through other categories
-    // Mapped format (from fetchListingMedia)
-    const mapped = String(m.mediaType || '');
-    if (mapped === 'FloorPlan' || mapped === 'Video' || mapped === 'VirtualTour') return mapped;
-    return 'Photo';
-  }
-
-  const _legacyMedia = mediaArr
-    .filter((m) => m.MediaURL || m.url)
-    .map((m, i) => {
-      const mt = classifyMedia(m);
-      const isPreferred = (m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true');
-      return {
-        url: proxyUrl((m.MediaURL || m.url || '') as string),
-        mediaType: mt,
-        // PreferredPhotoYN only boosts actual Photos — FloorPlans always sort last
-        order: (isPreferred && mt === 'Photo') ? -1 : (m.Order ?? m.order ?? i),
-      };
-    })
-    // Sort: Photos first (rank 0), Videos/Tours (rank 1), FloorPlans last (rank 2)
-    .sort((a, b) => {
-      const typeRank = (t: string) => t === 'Photo' ? 0 : t === 'FloorPlan' ? 2 : 1;
-      const rankDiff = typeRank(a.mediaType) - typeRank(b.mediaType);
-      return rankDiff !== 0 ? rankDiff : a.order - b.order;
-    });
-
-  const media = resolveListingMedia(mediaArr, { mapUrl: proxyDbMediaUrl }).map(m => ({
+  // PR 4 reader swap (2026-05-11): prefer the relational `listing_media`
+  // table when the caller's Prisma query included it. The 99.67% of listings
+  // already mirrored to R2 serve directly from R2 URLs (no Trestle proxy),
+  // and ordering / FloorPlan classification stay identical because both
+  // paths flow through the same `listing-media-resolver` pipeline.
+  //
+  // Fallback: when `listing_media` is empty (un-synced listing, mid-sync
+  // race, or caller didn't include the relation), read the legacy
+  // `Listing.media` JSON column so no listing renders blank.
+  const tableRows = Array.isArray(listing.listing_media) ? listing.listing_media : [];
+  const resolved = tableRows.length > 0
+    ? resolveListingMediaFromRows(tableRows)
+    : resolveListingMedia(mediaArr, { mapUrl: proxyDbMediaUrl });
+  const media = resolved.map((m) => ({
     url: m.url,
     mediaType: m.mediaType,
     order: m.providerOrder,
   }));
-  const photoCount = media.filter(m => m.mediaType === 'Photo').length;
+  const photoCount = media.filter((m) => m.mediaType === 'Photo').length;
 
   return {
     id: listing.listing_id,

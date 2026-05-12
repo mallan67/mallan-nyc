@@ -232,6 +232,8 @@ export async function GET(request: Request) {
                 postal_code: true,
                 address: true,
                 features: true,
+                // PR 4: keep reading `media` JSON as the fallback source for
+                // the 0.3% of listings not yet mirrored into listing_media.
                 media: true,
                 agent_info: true,
                 idx_display_yn: true,
@@ -243,6 +245,24 @@ export async function GET(request: Request) {
                 modification_timestamp: true,
                 created_at: true,
                 updated_at: true,
+                // PR 4 reader swap — relational media table. Filtered to
+                // active rows and ordered by (order, id) so the resolver
+                // receives a stable input. Selected columns mirror
+                // ListingMediaTableRow exactly so we don't over-fetch.
+                listing_media: {
+                  where: { status: 'active' },
+                  orderBy: [{ order: 'asc' }, { id: 'asc' }],
+                  select: {
+                    media_url_original: true,
+                    media_url_cached: true,
+                    media_type: true,
+                    media_category: true,
+                    media_classification: true,
+                    order: true,
+                    preferred_photo_yn: true,
+                    status: true,
+                  },
+                },
               },
             }),
             prisma.listing.count({ where: dbWhere }),
@@ -620,39 +640,53 @@ export async function GET(request: Request) {
           } catch (e) { console.warn('[Photos] Phase 1 error:', e instanceof Error ? e.message : e); }
           // Remaining empty listings fall through to DB phase
 
-          // Phase 2: For listings STILL empty, check DB (photos from sync/backfill)
+          // Phase 2: For listings STILL empty, check DB. PR 4 reads from the
+          // relational `listing_media` table first (preferred — R2 URLs
+          // bypass the Trestle proxy entirely) and falls back to the legacy
+          // `media` JSON for un-synced rows.
           const stillEmpty = pageListings.filter(l => l.media.length === 0);
           if (stillEmpty.length > 0) {
             try {
+              const { resolveListingMediaFromRows, resolveListingMedia } = await import('@/lib/media/listing-media-resolver');
               const dbListings = await prisma.listing.findMany({
                 where: {
                   listing_id: { in: stillEmpty.map(l => l.listingId) },
                 },
-                select: { listing_id: true, media: true },
+                select: {
+                  listing_id: true,
+                  media: true,
+                  listing_media: {
+                    where: { status: 'active' },
+                    orderBy: [{ order: 'asc' }, { id: 'asc' }],
+                    select: {
+                      media_url_original: true,
+                      media_url_cached: true,
+                      media_type: true,
+                      media_category: true,
+                      media_classification: true,
+                      order: true,
+                      preferred_photo_yn: true,
+                      status: true,
+                    },
+                  },
+                },
               });
               for (const dbL of dbListings) {
-                const mediaArr = Array.isArray(dbL.media) ? (dbL.media as Record<string, unknown>[]) : [];
-                if (mediaArr.length === 0) continue;
                 const listing = stillEmpty.find(l => l.listingId === dbL.listing_id);
                 if (!listing) continue;
-                // Normalize DB media (handles both raw Trestle and mapped formats)
-                const normalized = mediaArr
-                  .map((m) => {
-                    const cat = String(m.MediaCategory || m.mediaType || 'Photo').toLowerCase();
-                    let mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' = 'Photo';
-                    if (cat.includes('floor plan') || cat.includes('floorplan')) mediaType = 'FloorPlan';
-                    else if (cat.includes('video')) mediaType = 'Video';
-                    else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
-                    return {
-                      url: String(m.url || m.MediaURL || ''),
-                      mediaType,
-                      order: Number(m.order ?? m.Order ?? 0),
-                    };
-                  })
-                  .filter((m) => m.url);
-                if (normalized.length > 0) {
-                  listing.media = normalized as typeof listing.media;
-                }
+                // Prefer relational listing_media; fall back to JSON.
+                const tableRows = Array.isArray(dbL.listing_media) ? dbL.listing_media : [];
+                const resolved = tableRows.length > 0
+                  ? resolveListingMediaFromRows(tableRows)
+                  : resolveListingMedia(
+                      Array.isArray(dbL.media) ? (dbL.media as Record<string, unknown>[]) : [],
+                    );
+                if (resolved.length === 0) continue;
+                listing.media = resolved.map((m) => ({
+                  url: m.url,
+                  mediaType: m.mediaType,
+                  order: m.providerOrder,
+                })) as typeof listing.media;
               }
             } catch { /* non-fatal — DB fallback is best-effort */ }
           }
@@ -873,6 +907,7 @@ async function fetchExclusiveListings(
         neighborhood: true,
         address: true,
         features: true,
+        // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
         agent_info: true,
         idx_display_yn: true,
@@ -884,6 +919,21 @@ async function fetchExclusiveListings(
         modification_timestamp: true,
         created_at: true,
         updated_at: true,
+        // PR 4 reader swap — relational media table (preferred path).
+        listing_media: {
+          where: { status: 'active' },
+          orderBy: [{ order: 'asc' }, { id: 'asc' }],
+          select: {
+            media_url_original: true,
+            media_url_cached: true,
+            media_type: true,
+            media_category: true,
+            media_classification: true,
+            order: true,
+            preferred_photo_yn: true,
+            status: true,
+          },
+        },
       },
     });
 

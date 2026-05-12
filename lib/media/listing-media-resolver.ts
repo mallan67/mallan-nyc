@@ -239,3 +239,70 @@ export function pickBestThumbnailUrl(items: unknown): string | null {
   const resolved = resolveListingMedia(items);
   return resolved[0]?.url ?? null;
 }
+
+/**
+ * Shape of a `listing_media` table row as read from Prisma.
+ *
+ * Decoupled from the generated Prisma client type so this module stays usable
+ * from environments that don't bundle Prisma (tests, isolated mappers). The
+ * field set is the subset the public reader needs — the resolver does NOT
+ * read R2 timestamps, retry counters, dimensions, or audit fields.
+ *
+ * `media_url_cached` is the R2-mirrored public URL (preferred when present);
+ * `media_url_original` is the Trestle source URL (used as fallback and as the
+ * canonical reference for the proxy). When both are null the row is skipped.
+ *
+ * `status` is one of `'active' | 'deleted' | 'replaced'` per the schema's
+ * soft-delete convention. Only `'active'` rows reach the public surface.
+ */
+export interface ListingMediaTableRow {
+  media_url_original: string | null;
+  media_url_cached: string | null;
+  media_type: string;
+  media_category: string | null;
+  media_classification: string | null;
+  order: number;
+  preferred_photo_yn: boolean;
+  status: string;
+}
+
+/**
+ * Resolve a listing's media list from `listing_media` table rows.
+ *
+ * Prefers the R2-cached URL when populated — R2 URLs are public, already on a
+ * CDN, and don't need bearer-auth proxying. Falls back to the Trestle
+ * original URL when R2 isn't ready yet; the resolver then wraps Trestle hosts
+ * with `/api/media/proxy` via {@link proxyTrestleUrl}.
+ *
+ * Only rows with `status === 'active'` are considered. The remaining rows
+ * flow through the same classify→sort pipeline as raw Trestle / JSON inputs,
+ * so FloorPlan, Video, VirtualTour, and Photo ordering match the legacy
+ * surface exactly.
+ *
+ * PR 4 reader-swap path. Public consumers should call this first and fall
+ * back to {@link resolveListingMedia} against the legacy `Listing.media` JSON
+ * only when the table returns empty.
+ */
+export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): ResolvedMedia[] {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  const active = rows.filter((r) => r && r.status === 'active');
+  if (active.length === 0) return [];
+  const items = active
+    .map((r) => {
+      const url = (r.media_url_cached || r.media_url_original || '').trim();
+      if (!url) return null;
+      return {
+        MediaURL: url,
+        // Pass both signals so classifyMediaItem can prefer MediaCategory when
+        // present (Trestle's content-type tag) but still recognise FloorPlan /
+        // Video / VirtualTour from media_type when category is null.
+        MediaCategory: r.media_category ?? r.media_type,
+        MediaClassification: r.media_classification,
+        mediaType: r.media_type,
+        Order: r.order,
+        PreferredPhotoYN: r.preferred_photo_yn,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+  return resolveListingMedia(items);
+}
