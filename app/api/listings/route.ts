@@ -173,6 +173,17 @@ export async function GET(request: Request) {
     // here we additionally short-circuit the Trestle fallback so external
     // listings can never reach the response on this path.
     const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan';
+    // Address search short-circuit. When the user types an address (via
+    // /search?q=... → useListings passes `address=...`), the response must
+    // truthfully reflect the address match. The DB-first path applies
+    // `addressConditions()` and returns matching rows. If 0 rows match, the
+    // prior behavior fell through to the Trestle fallback — which often
+    // returns a generic feed of unrelated listings because Trestle's address
+    // filter doesn't carry through. Surfacing 50 unrelated listings under a
+    // specific-address query violates UCBA Art. III §2(A) and 19 NYCRR
+    // §175.25. We short-circuit below so an address miss returns an honest
+    // empty result.
+    const isAddressSearch = !!(searchParams.get('address') || '').trim();
 
     // Min > Max price validation
     if (minPrice && maxPrice && parseInt(minPrice, 10) > parseInt(maxPrice, 10)) {
@@ -401,10 +412,37 @@ export async function GET(request: Request) {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
           }
+          // Address search short-circuit. See the comment alongside
+          // `isAddressSearch` (top of route) for the compliance rationale —
+          // an address miss must return an honest empty state, not a
+          // generic Trestle feed.
+          if (isAddressSearch) {
+            const addressTyped = (searchParams.get('address') || '').trim();
+            const responseBody = {
+              success: true,
+              count: 0,
+              total: 0,
+              skip,
+              limit,
+              hasMore: false,
+              listings: [],
+              _compliance: {
+                source: 'db+exclusive',
+                idxEnabled: true,
+                attribution: generateAttributionText(),
+                disclaimer: `No listings found matching "${addressTyped}". Try a different address or broaden your search.`,
+              },
+            };
+            setCache(cacheKey, responseBody);
+            return NextResponse.json(responseBody, {
+              headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+            });
+          }
         }
       } catch (dbErr) {
         // DB query failed — fall through to live Trestle (unless this is an
-        // exclusive=mallan request, which must never serve external rows).
+        // exclusive=mallan or address-search request; those must never
+        // silently serve unrelated external rows).
         console.warn('[/api/listings] DB-first query failed, falling back to Trestle:', dbErr instanceof Error ? dbErr.message : dbErr);
         if (isMallanExclusiveOnly) {
           return NextResponse.json(
@@ -420,6 +458,26 @@ export async function GET(request: Request) {
                 source: 'db+exclusive',
                 idxEnabled: true,
                 disclaimer: 'No exclusive Mallan listings currently available.',
+              },
+            },
+            { headers: { 'Cache-Control': 'private, no-store' } },
+          );
+        }
+        if (isAddressSearch) {
+          const addressTyped = (searchParams.get('address') || '').trim();
+          return NextResponse.json(
+            {
+              success: true,
+              count: 0,
+              total: 0,
+              skip,
+              limit,
+              hasMore: false,
+              listings: [],
+              _compliance: {
+                source: 'db+exclusive',
+                idxEnabled: true,
+                disclaimer: `No listings found matching "${addressTyped}". Try a different address or broaden your search.`,
               },
             },
             { headers: { 'Cache-Control': 'private, no-store' } },

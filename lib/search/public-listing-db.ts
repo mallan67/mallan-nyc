@@ -87,6 +87,32 @@ function mapPropertySubTypes(value: string | null): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Produce case-variant search strings for a cleaned address segment.
+ *
+ * Prisma's JSON `string_contains` is case-sensitive — there is no
+ * `mode: 'insensitive'` option for JSONB filters (only standard string
+ * fields). The production DB stores `address.StreetName` in mixed cases:
+ * 'PARK' / 'Park', 'MAIN' / 'Main', 'Riverside', 'PROSPECT', etc. A
+ * lowercase user query (from `addressConditions` cleaning) matches none
+ * of these literally, which is the systemic root cause Maya hit on the
+ * "425 park avenue south" search.
+ *
+ * Generating up to 3 case variants (as-is, UPPER, Title-Case) and ORing
+ * them covers every mixed-case shape observed in the live data. The
+ * variants are de-duped with a Set so single-case strings (e.g., a
+ * lowercase "park") only emit the necessary distinct values.
+ */
+function streetNameCaseVariants(s: string): string[] {
+  // Proper Title Case: lowercase first, then capitalise each word's first
+  // character. Without the initial `toLowerCase()` an uppercase input like
+  // "PARK" passes the inner regex unchanged (the leading `P` is already
+  // uppercase) and we'd never emit the Title-Case "Park" variant. That gap
+  // would re-introduce the case-sensitivity miss for users typing all-caps.
+  const title = s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return [...new Set([s, s.toUpperCase(), title])].filter(Boolean);
+}
+
 function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
   if (!address) return [];
 
@@ -103,17 +129,13 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
     .replace(/\s+/g, " ")
     .trim();
 
-  // Defensive dual-key matching. As of 2026-05-12 the entire production DB
-  // (21,983/21,983 rows) stores `address` JSON with PascalCase keys
-  // (`StreetNumber`, `StreetName`) — produced by `lib/idx/trestle-mapper.ts`
-  // and the CRM convert endpoint. The audit at `memory/AUDIT-2026-05-12.md`
-  // §2a flagged a hypothetical camelCase writer that doesn't actually
-  // persist rows today; nevertheless, mirroring both key cases here costs
-  // nothing extra at query time (a single JSON-path nullable lookup) and
-  // prevents the audit's failure mode if a future writer ever skews shape.
-  //
-  // `Prisma.ListingWhereInput` allows nested OR inside an AND member, so we
-  // emit a single condition per address segment that ORs both shapes.
+  // Two layers of defensive ORing:
+  //   1. PascalCase + camelCase key paths (`StreetNumber` / `streetNumber`,
+  //      `StreetName` / `streetName`). Carried forward from PR #106 audit-fix.
+  //   2. Case variants of the search value. Production DB stores mixed-case
+  //      values (PARK, Park, Riverside, MAIN, etc.); a single
+  //      case-sensitive `string_contains` against a lowercase user query
+  //      returned 0 rows — that's the live "425 park avenue south" bug.
   const conditions: Prisma.ListingWhereInput[] = [];
   const numMatch = cleaned.match(/^(\d+[-\w]*)\s+(.*)/);
   if (numMatch) {
@@ -129,21 +151,23 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
       .trim()
       .replace(/(\d+)(st|nd|rd|th)/gi, "$1");
     if (streetPart) {
-      conditions.push({
-        OR: [
-          { address: { path: ["StreetName"], string_contains: streetPart } },
-          { address: { path: ["streetName"], string_contains: streetPart } },
-        ],
-      });
+      const variants = streetNameCaseVariants(streetPart);
+      const orClauses: Prisma.ListingWhereInput[] = [];
+      for (const variant of variants) {
+        orClauses.push({ address: { path: ["StreetName"], string_contains: variant } });
+        orClauses.push({ address: { path: ["streetName"], string_contains: variant } });
+      }
+      conditions.push({ OR: orClauses });
     }
   } else if (cleaned) {
     const streetPart = cleaned.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-    conditions.push({
-      OR: [
-        { address: { path: ["StreetName"], string_contains: streetPart } },
-        { address: { path: ["streetName"], string_contains: streetPart } },
-      ],
-    });
+    const variants = streetNameCaseVariants(streetPart);
+    const orClauses: Prisma.ListingWhereInput[] = [];
+    for (const variant of variants) {
+      orClauses.push({ address: { path: ["StreetName"], string_contains: variant } });
+      orClauses.push({ address: { path: ["streetName"], string_contains: variant } });
+    }
+    conditions.push({ OR: orClauses });
   }
 
   return conditions;

@@ -222,6 +222,185 @@ describe('Audit-fix PR A · Fix 2 — address search PascalCase + camelCase supp
   });
 });
 
+// ─── Fix 4 (search-fix) — case-insensitive address search ───────────────
+//
+// Live bug on 2026-05-12: typing "425 park avenue south" returned 50
+// unrelated listings + "location data not available" map. Root cause:
+// Prisma's JSON `string_contains` is case-sensitive, so the lowercase
+// cleaned query value ("park") didn't match the production DB's mixed-case
+// values (`PARK`, `Park`, `MAIN`, `Riverside`, etc.). Patch ORs three case
+// variants (as-is, UPPER, Title-Case) for each PascalCase/camelCase path,
+// giving up to 6 clauses per StreetName segment.
+
+describe('Search-fix · Fix 4 — case-insensitive address search', () => {
+  function buildWhereWithAddress(addr: string) {
+    const params = new URLSearchParams();
+    params.set('type', 'sale');
+    params.set('address', addr);
+    return buildPublicListingDbSearch(params).where;
+  }
+
+  function flattenAnd(where: unknown): unknown[] {
+    const w = (where as { AND?: unknown }).AND;
+    if (Array.isArray(w)) return w;
+    if (w) return [w];
+    return [];
+  }
+
+  function collectStreetNameVariants(where: unknown): { paths: string[]; values: string[] } {
+    const andClauses = flattenAnd(where);
+    const streetClause = andClauses.find((c: unknown) => {
+      const inner = (c as { OR?: { address?: { path?: string[] } }[] }).OR;
+      return Array.isArray(inner) && inner.some((o) => {
+        const pathKey = o.address?.path?.[0];
+        return pathKey === 'StreetName' || pathKey === 'streetName';
+      });
+    }) as { OR: { address: { path: string[]; string_contains?: string } }[] } | undefined;
+    if (!streetClause) return { paths: [], values: [] };
+    return {
+      paths: streetClause.OR.map((o) => o.address.path[0]),
+      values: streetClause.OR.map((o) => o.address.string_contains ?? ''),
+    };
+  }
+
+  it('lowercase "park" generates all 3 case variants (park, PARK, Park) × both paths', () => {
+    const { paths, values } = collectStreetNameVariants(buildWhereWithAddress('425 park avenue south'));
+    // Cleaning strips "avenue", "south" → "s", standalone "s" stripped.
+    // streetPart becomes "park" (lowercase).
+    expect(values).toEqual(expect.arrayContaining(['park', 'PARK', 'Park']));
+    expect(paths.filter((p) => p === 'StreetName')).toHaveLength(3);
+    expect(paths.filter((p) => p === 'streetName')).toHaveLength(3);
+  });
+
+  it('uppercase "PARK" still generates the same 3 case variants', () => {
+    const { values } = collectStreetNameVariants(buildWhereWithAddress('425 PARK AVENUE SOUTH'));
+    // Cleaning preserves case after stripping suffixes; streetPart="PARK"
+    // and variants are de-duped to ["PARK", "Park"].
+    expect(values).toEqual(expect.arrayContaining(['PARK', 'Park']));
+  });
+
+  it('Title-Case "Park" already deduplicates Title-Case and as-is', () => {
+    const { values } = collectStreetNameVariants(buildWhereWithAddress('425 Park Avenue South'));
+    expect(values).toEqual(expect.arrayContaining(['Park', 'PARK']));
+  });
+
+  it('numeric ordinal "5th" is stripped to "5" by existing cleaning (pre-existing behavior)', () => {
+    const { values } = collectStreetNameVariants(buildWhereWithAddress('100 5th Avenue'));
+    // The ordinal-stripping regex `(\d+)(st|nd|rd|th)` collapses "5th" → "5"
+    // BEFORE case-variant expansion. "5" upper/title/as-is all dedupe to a
+    // single string, so we just see two OR clauses (StreetName + streetName)
+    // both equal to "5". This is broader than ideal but it's the existing
+    // pre-PR-A behavior; this test pins it so a future refactor doesn't
+    // silently change it. Tracked as a follow-up usability concern in
+    // memory/AUDIT-2026-05-12.md if Maya wants a tighter ordinal match later.
+    expect(values).toEqual(expect.arrayContaining(['5']));
+  });
+
+  it('compound street "central park west" still emits case variants', () => {
+    const { values } = collectStreetNameVariants(buildWhereWithAddress('1 central park west'));
+    // Cleaning: "west" → "w", suffix-strip is a no-op (no "ave"/"street"/
+    // etc. tokens). After numMatch, streetPart = "central park w" →
+    // standalone "w" stripped → "central park".
+    expect(values).toEqual(expect.arrayContaining(['central park', 'CENTRAL PARK', 'Central Park']));
+  });
+
+  it('blank address still emits no address-typed AND members (no regression)', () => {
+    const where = buildWhereWithAddress('');
+    const andClauses = flattenAnd(where);
+    const addressClauses = andClauses.filter((c: unknown) => {
+      const inner = (c as { OR?: { address?: unknown }[] }).OR;
+      return Array.isArray(inner) && inner.some((o) => 'address' in (o as object));
+    });
+    expect(addressClauses).toHaveLength(0);
+  });
+});
+
+// ─── Fix 6 (search-fix) — DTO lat/lng propagation ────────────────────────
+
+describe('Search-fix · Fix 6 — DTO propagates Latitude/Longitude', () => {
+  function baseListing(overrides: Partial<DbListing> = {}): DbListing {
+    return {
+      id: '1',
+      listing_id: 'RBNY-LL-1',
+      status: 'Active',
+      listing_type: 'sale',
+      property_type: 'Residential',
+      property_sub_type: 'Condominium',
+      list_price: '2500000',
+      bedrooms_total: 2,
+      bathrooms_full: 2,
+      bathrooms_half: 0,
+      living_area: '1200',
+      borough: 'manhattan',
+      neighborhood: 'NoMad',
+      address: {
+        StreetNumber: '425',
+        StreetName: 'PARK',
+        UnitNumber: '14CD',
+        City: 'New York',
+        PostalCode: '10016',
+        Latitude: 40.7438,
+        Longitude: -73.9844,
+      },
+      features: {},
+      media: [],
+      agent_info: { ListOfficeName: 'Corcoran Group' },
+      rls_eligible: true,
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: true,
+      internet_address_display_yn: true,
+      owner_opt_out: false,
+      participant_only: false,
+      listing_contract_date: null,
+      modification_timestamp: new Date('2026-05-01T00:00:00Z').toISOString(),
+      created_at: new Date('2026-04-01T00:00:00Z').toISOString(),
+      updated_at: new Date('2026-05-01T00:00:00Z').toISOString(),
+      ...overrides,
+    };
+  }
+
+  it('non-suppressed listing propagates numeric Latitude/Longitude to DTO', () => {
+    const dto = dbListingToPublicDTO(baseListing());
+    expect(dto.address.latitude).toBeCloseTo(40.7438, 4);
+    expect(dto.address.longitude).toBeCloseTo(-73.9844, 4);
+  });
+
+  it('Latitude/Longitude stored as strings (JSON-text form) still coerce to numbers', () => {
+    const dto = dbListingToPublicDTO(baseListing({
+      address: {
+        StreetNumber: '425', StreetName: 'PARK',
+        Latitude: '40.7438' as unknown as number,
+        Longitude: '-73.9844' as unknown as number,
+      },
+    }));
+    expect(dto.address.latitude).toBeCloseTo(40.7438, 4);
+    expect(dto.address.longitude).toBeCloseTo(-73.9844, 4);
+  });
+
+  it('null Latitude/Longitude (the common Trestle case) → DTO has undefined', () => {
+    const dto = dbListingToPublicDTO(baseListing({
+      address: {
+        StreetNumber: '425', StreetName: 'PARK',
+        Latitude: null,
+        Longitude: null,
+      },
+    }));
+    expect(dto.address.latitude).toBeUndefined();
+    expect(dto.address.longitude).toBeUndefined();
+  });
+
+  it('suppressed address (UCBA §2C) does NOT propagate coords (would defeat suppression)', () => {
+    const dto = dbListingToPublicDTO(baseListing({
+      internet_address_display_yn: false,
+    }));
+    expect(dto.address.streetName).toBe('Address Undisclosed');
+    // Coords intentionally absent — exposing lat/lng would let consumers
+    // reverse-look-up the suppressed address.
+    expect((dto.address as { latitude?: number }).latitude).toBeUndefined();
+    expect((dto.address as { longitude?: number }).longitude).toBeUndefined();
+  });
+});
+
 // ─── Fix 3 — /buy?exclusive=mallan ───────────────────────────────────────
 
 describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
