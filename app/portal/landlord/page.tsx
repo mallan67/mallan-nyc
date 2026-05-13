@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePortalSession } from '@/lib/portal/use-portal-session';
+import { PortalSessionExpiredError } from '@/lib/portal/portal-fetch';
 
 /* ──────────────────────────────────────────────────────────────────────── *
  *  Types                                                                  *
@@ -279,6 +281,10 @@ function TabIcon({ d, className }: { d: string; className?: string }) {
 
 export default function LandlordPortalPage() {
   const router = useRouter();
+  // Hotfix 2: portalFetch auto-redirects to /sign-in on 401 instead of
+  // letting `.then(r => r.json())` swallow the auth error into the
+  // default empty state. Audit B2.
+  const { portalFetch } = usePortalSession();
 
   // ── Auth & profile ──
   const [user, setUser] = useState<PortalUser | null>(null);
@@ -353,89 +359,97 @@ export default function LandlordPortalPage() {
   }, [router]);
 
   /* ── Fetch profile ── */
+  // Hotfix 2: every landlord data fetch now routes through portalFetch,
+  // which throws PortalSessionExpiredError on 401 and triggers the
+  // /sign-in redirect via the hook. The local `catch (err)` keeps the
+  // empty-state on transient API errors (4xx/5xx other than 401) so
+  // the dashboard degrades gracefully when one endpoint flakes.
   useEffect(() => {
     if (loading) return;
-    fetch('/api/portal/me')
-      .then((r) => r.json())
-      .then((data) => {
+    (async () => {
+      try {
+        const data = await portalFetch<PortalUser>('/api/portal/me');
         if (data.id) setUser(data);
-      })
-      .catch(() => {});
-  }, [loading]);
+      } catch (err) {
+        if (err instanceof PortalSessionExpiredError) return;
+        // non-401 errors keep the default profile state
+      }
+    })();
+  }, [loading, portalFetch]);
 
   /* ── Fetch listings ── */
-  const fetchListings = useCallback(() => {
-    fetch('/api/portal/listings')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.listings) {
-          // Filter to rental listings
-          const rentals = data.listings.filter((l: RentalListing) =>
-            l.listing_type?.toLowerCase() === 'rental' || l.listing_type?.toLowerCase() === 'lease'
-          );
-          setListings(rentals.length > 0 ? rentals : data.listings);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const fetchListings = useCallback(async () => {
+    try {
+      const data = await portalFetch<{ listings?: RentalListing[] }>('/api/portal/listings');
+      if (data.listings) {
+        // Filter to rental listings
+        const rentals = data.listings.filter((l: RentalListing) =>
+          l.listing_type?.toLowerCase() === 'rental' || l.listing_type?.toLowerCase() === 'lease'
+        );
+        setListings(rentals.length > 0 ? rentals : data.listings);
+      }
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
+    }
+  }, [portalFetch]);
 
   /* ── Fetch showings ── */
-  const fetchShowings = useCallback(() => {
-    fetch('/api/portal/showings')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.showings) setShowings(data.showings);
-      })
-      .catch(() => {});
-  }, []);
+  const fetchShowings = useCallback(async () => {
+    try {
+      const data = await portalFetch<{ showings?: unknown[] }>('/api/portal/showings');
+      if (data.showings) setShowings(data.showings as Parameters<typeof setShowings>[0]);
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
+    }
+  }, [portalFetch]);
 
   /* ── Fetch applications (offers endpoint) ── */
-  const fetchApplications = useCallback(() => {
-    fetch('/api/portal/offers')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.offers) setApplications(data.offers);
-      })
-      .catch(() => {});
-  }, []);
+  const fetchApplications = useCallback(async () => {
+    try {
+      const data = await portalFetch<{ offers?: unknown[] }>('/api/portal/offers');
+      if (data.offers) setApplications(data.offers as Parameters<typeof setApplications>[0]);
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
+    }
+  }, [portalFetch]);
 
   /* ── Fetch documents ── */
-  const fetchDocuments = useCallback(() => {
-    fetch('/api/portal/documents')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.documents) setDocuments(data.documents);
-      })
-      .catch(() => {});
-  }, []);
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const data = await portalFetch<{ documents?: unknown[] }>('/api/portal/documents');
+      if (data.documents) setDocuments(data.documents as Parameters<typeof setDocuments>[0]);
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
+    }
+  }, [portalFetch]);
 
   /* ── Fetch family ── */
-  const fetchFamily = useCallback(() => {
-    fetch('/api/portal/family')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.family) setFamily(data.family);
-      })
-      .catch(() => {});
-  }, []);
+  const fetchFamily = useCallback(async () => {
+    try {
+      const data = await portalFetch<{ family?: unknown[] }>('/api/portal/family');
+      if (data.family) setFamily(data.family as Parameters<typeof setFamily>[0]);
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
+    }
+  }, [portalFetch]);
 
   /* ── Fetch attorney ── */
-  const fetchAttorney = useCallback(() => {
-    fetch('/api/portal/attorney')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.attorney) {
-          setAttorney(data.attorney);
-          setAttorneyForm({
-            name: data.attorney.name || '',
-            email: data.attorney.email || '',
-            phone: data.attorney.phone || '',
-            firm: data.attorney.firm || '',
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const fetchAttorney = useCallback(async () => {
+    try {
+      const data = await portalFetch<{ attorney?: { name?: string; email?: string; phone?: string; firm?: string } }>('/api/portal/attorney');
+      if (data.attorney) {
+        setAttorney(data.attorney as Parameters<typeof setAttorney>[0]);
+        setAttorneyForm({
+          name: data.attorney.name || '',
+          email: data.attorney.email || '',
+          phone: data.attorney.phone || '',
+          firm: data.attorney.firm || '',
+        });
+      }
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
+    }
+  }, [portalFetch]);
 
   /* ── Fetch FOMO dashboard for a listing ── */
   const fetchFomo = useCallback((listingId: string) => {

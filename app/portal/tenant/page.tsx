@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePortalSession } from '@/lib/portal/use-portal-session';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -180,6 +181,9 @@ function showingStatusBadge(status: string): { bg: string; text: string; label: 
 
 export default function TenantPortalPage() {
   const router = useRouter();
+  // Hotfix 2: portalFetch auto-redirects to /sign-in on 401 instead of
+  // letting tenant fetchers swallow the response into `[]`. Audit B2.
+  const { portalFetch } = usePortalSession();
 
   /* ── Auth state ────────────────────────────────────────────────── */
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -201,43 +205,44 @@ export default function TenantPortalPage() {
     days_remaining: number | null;
   };
 
+  // Hotfix 2: each fetcher routes through `portalFetch` so a 401
+  // throws PortalSessionExpiredError and triggers the redirect. The
+  // useAsyncResource wrapper catches the error into state.error, and
+  // the redirect lands via the hook before the user sees the error UI.
+  // Genuine 4xx/5xx errors still surface through resource.error so
+  // the page can render error state separately from empty state.
   const fetchListingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Listing[]> => {
-    const r = await fetch('/api/portal/listings', { signal });
-    const d = await r.json();
+    const d = await portalFetch<{ listings: Listing[] }>('/api/portal/listings', { signal });
     return d.listings || [];
-  }, []);
+  }, [portalFetch]);
   const listingsRes = useAsyncResource(ready && tab === 'listings' ? 'listings' : null, fetchListingsResource);
   const listings: Listing[] = listingsRes.data ?? [];
 
   const fetchShowingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Showing[]> => {
-    const r = await fetch('/api/portal/showings', { signal });
-    const d = await r.json();
+    const d = await portalFetch<{ showings: Showing[] }>('/api/portal/showings', { signal });
     return d.showings || [];
-  }, []);
+  }, [portalFetch]);
   const showingsRes = useAsyncResource(ready && tab === 'showings' ? 'showings' : null, fetchShowingsResource);
   const showings: Showing[] = showingsRes.data ?? [];
 
   const fetchPreferencesResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Preferences | null> => {
-    const r = await fetch('/api/portal/preferences', { signal });
-    const d = await r.json();
+    const d = await portalFetch<{ preferences: Preferences | null }>('/api/portal/preferences', { signal });
     return d.preferences ?? null;
-  }, []);
+  }, [portalFetch]);
   const preferencesRes = useAsyncResource(ready && tab === 'preferences' ? 'preferences' : null, fetchPreferencesResource);
   const preferences: Preferences | null = preferencesRes.data ?? null;
 
   const fetchFamilyResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<FamilyMember[]> => {
-    const r = await fetch('/api/portal/family', { signal });
-    const d = await r.json();
+    const d = await portalFetch<{ family: FamilyMember[] }>('/api/portal/family', { signal });
     return d.family || [];
-  }, []);
+  }, [portalFetch]);
   const familyRes = useAsyncResource(ready && tab === 'family' ? 'family' : null, fetchFamilyResource);
   const family: FamilyMember[] = familyRes.data ?? [];
 
   const fetchLeaseResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<LeaseData | null> => {
-    const r = await fetch('/api/portal/tenant/lease', { signal });
-    const d = await r.json();
-    return d as LeaseData;
-  }, []);
+    const d = await portalFetch<LeaseData>('/api/portal/tenant/lease', { signal });
+    return d;
+  }, [portalFetch]);
   const leaseRes = useAsyncResource(ready && tab === 'lease' ? 'lease' : null, fetchLeaseResource);
   const leaseData = leaseRes.data;
 

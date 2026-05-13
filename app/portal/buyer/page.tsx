@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePortalSession } from '@/lib/portal/use-portal-session';
+import { PortalSessionExpiredError } from '@/lib/portal/portal-fetch';
 
 /* ───────── Types ───────── */
 
@@ -198,6 +200,9 @@ function showingStatusBadge(status: string): { text: string; cls: string } {
 
 export default function BuyerPortalPage() {
   const router = useRouter();
+  // Hotfix 2: portal-fetch wrapper that redirects to /sign-in on 401
+  // instead of silently collapsing into `setState([])`. Audit B2.
+  const { portalFetch } = usePortalSession();
 
   /* ── Auth state ── */
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -308,72 +313,67 @@ export default function BuyerPortalPage() {
   const fetchListings = useCallback(async () => {
     setListingsLoading(true);
     try {
-      const res = await fetch('/api/portal/listings');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await portalFetch<{ listings: PortalListing[] }>('/api/portal/listings');
       setListings(data.listings || []);
-    } catch {
-      setListings([]);
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return; // redirect handled by hook
+      setListings([]); // genuine empty / transient API error
     } finally {
       setListingsLoading(false);
     }
-  }, []);
+  }, [portalFetch]);
 
   const fetchExternalListings = useCallback(async () => {
     setExternalListingsLoading(true);
     try {
-      const res = await fetch('/api/portal/external-listings');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await portalFetch<{ external_listings: ExternalPortalListing[] }>('/api/portal/external-listings');
       setExternalListings(data.external_listings || []);
-    } catch {
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
       setExternalListings([]);
     } finally {
       setExternalListingsLoading(false);
     }
-  }, []);
+  }, [portalFetch]);
 
   const fetchShowings = useCallback(async () => {
     setShowingsLoading(true);
     try {
-      const res = await fetch('/api/portal/showings');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await portalFetch<{ showings: Showing[] }>('/api/portal/showings');
       setShowings(data.showings || []);
-    } catch {
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
       setShowings([]);
     } finally {
       setShowingsLoading(false);
     }
-  }, []);
+  }, [portalFetch]);
 
   const fetchPreferences = useCallback(async () => {
     setPrefsLoading(true);
     try {
-      const res = await fetch('/api/portal/preferences');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await portalFetch<{ preferences: Preferences | null }>('/api/portal/preferences');
       setPreferences(data.preferences || null);
-    } catch {
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
       setPreferences(null);
     } finally {
       setPrefsLoading(false);
     }
-  }, []);
+  }, [portalFetch]);
 
   const fetchFamily = useCallback(async () => {
     setFamilyLoading(true);
     try {
-      const res = await fetch('/api/portal/family');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await portalFetch<{ family: FamilyMember[] }>('/api/portal/family');
       setFamily(data.family || []);
-    } catch {
+    } catch (err) {
+      if (err instanceof PortalSessionExpiredError) return;
       setFamily([]);
     } finally {
       setFamilyLoading(false);
     }
-  }, []);
+  }, [portalFetch]);
 
   useEffect(() => {
     if (!ready) return;
