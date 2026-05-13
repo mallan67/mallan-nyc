@@ -1,0 +1,354 @@
+name: Repo Audit Bot (report-only)
+
+# STRICT REPORT-ONLY recurring auditor for mallan.nyc.
+#
+# Absolute restrictions (also enforced in .claude/agents/repo-audit-bot.md):
+#   - Do not patch code. Do not auto-fix anything.
+#   - Do not edit any file except the dated audit report under memory/audits/.
+#   - Do not open / merge / close / reopen PRs except the draft audit PR this
+#     workflow itself creates. Specifically: do not reopen PR #104.
+#   - Do not trigger production crons. Do not run `prisma migrate deploy`.
+#   - Do not delete R2 objects. Do not change schema/migrations.
+#   - Do not change Neon / Vercel / Cloudflare / REBNY / Trestle / Cotality settings.
+#   - Do not release the external-inventory hold. Do not remove `media-backfill`.
+#   - Do not start JSON-drop work. Do not alter production data.
+#   - Do not merge any PR — including the audit PR. Maya merges manually.
+
+on:
+  schedule:
+    # 8:00 AM America/New_York fires twice (DST gate inside the job picks the
+    # right one). GitHub cron is UTC and does not follow DST.
+    - cron: '0 12 * * *'   # 12:00 UTC = 08:00 EDT (Mar–Nov)
+    - cron: '0 13 * * *'   # 13:00 UTC = 08:00 EST (Nov–Mar)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Bypass DST/cadence gate (manual run only)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write       # write only to audits/auto-* branch
+  pull-requests: write  # open the draft audit PR (cannot merge)
+  issues: write         # fallback alert if email send fails
+  id-token: write       # required by anthropics/claude-code-action
+
+concurrency:
+  group: repo-audit-bot-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. DST + cadence gate. Both schedule fires arrive every day; only the one
+  #    that matches 08:00 America/New_York proceeds. Cadence is controlled by
+  #    repo variable AUDIT_CADENCE ('daily' default | 'weekly' = Mon only).
+  # ---------------------------------------------------------------------------
+  dst-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+      cadence: ${{ steps.check.outputs.cadence }}
+    steps:
+      - name: Decide whether this fire proceeds
+        id: check
+        env:
+          AUDIT_CADENCE: ${{ vars.AUDIT_CADENCE }}
+          EVENT: ${{ github.event_name }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          set -euo pipefail
+          cadence="${AUDIT_CADENCE:-daily}"
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$FORCE" = "true" ]; then
+            echo "Manual dispatch with force=true. Bypassing gate."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "cadence=manual" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ny_hour=$(TZ=America/New_York date +%H)
+          ny_dow=$(TZ=America/New_York date +%u)   # 1=Mon..7=Sun
+          if [ "$ny_hour" != "08" ]; then
+            echo "DST gate: NY hour is $ny_hour (need 08). Exiting cleanly."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$cadence" = "weekly" ] && [ "$ny_dow" != "1" ]; then
+            echo "Weekly cadence: today dow=$ny_dow (need 1=Mon). Exiting cleanly."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Proceeding. cadence=$cadence ny_hour=$ny_hour ny_dow=$ny_dow"
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+          echo "cadence=$cadence" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # 2. Run repo-audit-bot under Claude Code Action with a strict tool allow-list.
+  #    Claude can ONLY write under memory/audits/. All other Edit/Write paths
+  #    are denied by --allowed-tools. Push, commit, merge, prisma migrate,
+  #    destructive scripts are not in the allow-list → cannot be invoked.
+  # ---------------------------------------------------------------------------
+  audit:
+    needs: dst-gate
+    if: needs.dst-gate.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      report_path: ${{ steps.paths.outputs.report_path }}
+      branch:      ${{ steps.paths.outputs.branch }}
+      report_date: ${{ steps.paths.outputs.report_date }}
+      no_report:   ${{ steps.guard.outputs.no_report }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Compute branch + report path (Eastern date)
+        id: paths
+        run: |
+          set -euo pipefail
+          ny_date=$(TZ=America/New_York date +%Y-%m-%d)
+          ny_hhmm=$(TZ=America/New_York date +%H%M)
+          branch="audits/auto-${ny_date}"
+          base_path="memory/audits/AUDIT-${ny_date}.md"
+          if [ -e "$base_path" ]; then
+            report_path="memory/audits/AUDIT-${ny_date}-${ny_hhmm}.md"
+          else
+            report_path="$base_path"
+          fi
+          echo "branch=$branch"             >> "$GITHUB_OUTPUT"
+          echo "report_path=$report_path"   >> "$GITHUB_OUTPUT"
+          echo "report_date=$ny_date"       >> "$GITHUB_OUTPUT"
+
+      - name: Create or check out audit branch
+        run: |
+          set -euo pipefail
+          git config user.name  "mallan-audit-bot"
+          git config user.email "audit-bot@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "${{ steps.paths.outputs.branch }}" >/dev/null 2>&1; then
+            git fetch origin "${{ steps.paths.outputs.branch }}":"${{ steps.paths.outputs.branch }}"
+            git checkout "${{ steps.paths.outputs.branch }}"
+          else
+            git checkout -b "${{ steps.paths.outputs.branch }}"
+          fi
+          mkdir -p memory/audits
+
+      - name: Install dependencies (read-only validators only)
+        run: npm ci
+
+      - name: Invoke Claude repo-audit-bot
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Allow-list: Claude can read freely, run npm validators / curl / read-only
+          # scripts, and write ONLY under memory/audits/. No Edit, no general Write,
+          # no Bash for git/gh/prisma/destructive commands.
+          claude_args: >-
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(npx jest --ci --forceExit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**)"
+          prompt: |
+            STRICT REPORT-ONLY MODE.
+
+            Follow `.claude/agents/repo-audit-bot.md` exactly. All 21 absolute
+            restrictions in that file apply, plus these extra workflow-level rules:
+
+              - You may NOT push, commit, merge, open/close/reopen PRs, run
+                `prisma migrate`, trigger crons, delete media, change Neon/Vercel/
+                Cloudflare/REBNY/Trestle settings, release the external-inventory
+                hold, remove media-backfill, reopen PR #104, start JSON-drop work,
+                or alter production data.
+              - You may write EXACTLY ONE file: ${{ steps.paths.outputs.report_path }}
+              - The workflow handles git + PR creation. Do not attempt either.
+
+            Run the full audit covering all 21 areas listed in the agent definition.
+            Compare findings against the most recent prior `memory/audits/AUDIT-*.md`,
+            and against pre-existing `memory/AUDIT-*.md`, `memory/BACKEND-AUDIT-*.md`,
+            and `memory/RESO-COMPLIANCE-AUDIT-*.md`.
+
+            Use the A–S section format from the agent definition. Cite file paths,
+            line numbers, command excerpts, and external URLs as evidence for every
+            finding. End with the literal line:
+
+              Report-only: no changes made.
+
+            If a finding requires action, record it as a recommendation in section P.
+            Never auto-fix anything. Never invent commands not in your allow-list.
+
+      - name: Verify only the audit report changed
+        id: guard
+        run: |
+          set -euo pipefail
+          changed=$(git status --porcelain | awk '{print $2}')
+          allowed="${{ steps.paths.outputs.report_path }}"
+          if [ -z "$changed" ]; then
+            echo "::warning::Claude produced no report. Skipping commit + PR."
+            echo "no_report=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          unexpected=$(echo "$changed" | grep -v -E "^${allowed}$" || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::Audit bot modified unexpected files (guardrail violation):"
+            echo "$unexpected"
+            exit 1
+          fi
+          echo "no_report=false" >> "$GITHUB_OUTPUT"
+
+      - name: Commit + push audit report
+        if: steps.guard.outputs.no_report == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git add "${{ steps.paths.outputs.report_path }}"
+          git commit -m "audit: report-only run ${{ steps.paths.outputs.report_date }}" \
+                     -m "Generated by .github/workflows/repo-audit-bot.yml. Report-only — no other files changed."
+          git push --set-upstream origin "${{ steps.paths.outputs.branch }}"
+
+      - name: Open draft PR (never merge)
+        if: steps.guard.outputs.no_report == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          existing=$(gh pr list --head "${{ steps.paths.outputs.branch }}" --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$existing" ]; then
+            echo "PR already exists for ${{ steps.paths.outputs.branch }}: #$existing — appending commit instead."
+            exit 0
+          fi
+          gh pr create \
+            --draft \
+            --base main \
+            --head "${{ steps.paths.outputs.branch }}" \
+            --title "audit(report-only): ${{ steps.paths.outputs.report_date }}" \
+            --body "$(cat <<EOF
+          Auto-generated by \`.github/workflows/repo-audit-bot.yml\`.
+
+          - Branch: \`${{ steps.paths.outputs.branch }}\`
+          - Report: \`${{ steps.paths.outputs.report_path }}\`
+          - Run:    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          **Report-only.** This PR exists for review history. **Do not merge.**
+          EOF
+          )"
+
+      - name: Upload report artifact for alert job
+        if: steps.guard.outputs.no_report == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-report-${{ steps.paths.outputs.report_date }}
+          path: ${{ steps.paths.outputs.report_path }}
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 3. Email Maya only when the report contains a trigger phrase. This job has
+  #    NO repo checkout — it only sees the report artifact + SMTP creds.
+  # ---------------------------------------------------------------------------
+  alert:
+    needs: audit
+    if: needs.audit.result == 'success' && needs.audit.outputs.no_report == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: none
+      issues: write
+    steps:
+      - name: Download report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: audit-report-${{ needs.audit.outputs.report_date }}
+          path: report
+
+      - name: Scan for severity trigger
+        id: scan
+        run: |
+          set -euo pipefail
+          file=$(find report -type f -name '*.md' | head -1)
+          if [ -z "$file" ]; then
+            echo "No report file found. Skipping alert."
+            echo "should_alert=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sev=""
+          if   grep -Eqi '^Overall status:[[:space:]]*Red'    "$file"; then sev="RED"
+          elif grep -Eqi '^Overall status:[[:space:]]*Yellow' "$file"; then sev="YELLOW"
+          elif grep -Eqi '\bCritical:'                         "$file"; then sev="CRITICAL"
+          elif grep -Eqi '\bHigh:'                             "$file"; then sev="HIGH"
+          elif grep -Eqi '\bRegression:'                       "$file"; then sev="REGRESSION"
+          elif grep -Eqi '\bCompliance risk:'                  "$file"; then sev="COMPLIANCE"
+          elif grep -Eqi '\bSecurity risk:'                    "$file"; then sev="SECURITY"
+          elif grep -Eqi '\bProduction failure:'               "$file"; then sev="PRODUCTION"
+          fi
+          if [ -z "$sev" ]; then
+            echo "Clean Green report — no email."
+            echo "should_alert=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Trigger matched: $sev"
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "severity=$sev"     >> "$GITHUB_OUTPUT"
+            echo "report_file=$file" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build email body from report sections
+        if: steps.scan.outputs.should_alert == 'true'
+        run: |
+          set -euo pipefail
+          file="${{ steps.scan.outputs.report_file }}"
+          {
+            echo "Run:    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "Report: ${{ needs.audit.outputs.report_path }}"
+            echo "Branch: ${{ needs.audit.outputs.branch }}"
+            echo "PRs:    ${{ github.server_url }}/${{ github.repository }}/pulls?q=head%3A${{ needs.audit.outputs.branch }}"
+            echo
+            echo "=== A. Date / Time ==="
+            awk '/^A\./,/^B\./'   "$file" | sed '$d' || true
+            echo
+            echo "=== B. Overall Status ==="
+            awk '/^B\./,/^C\./'   "$file" | sed '$d' || true
+            echo
+            echo "=== C. Top 5 Risks ==="
+            awk '/^C\./,/^D\./'   "$file" | sed '$d' || true
+            echo
+            echo "=== P. Recommended Fix Order ==="
+            awk '/^P\./,/^Q\./'   "$file" | sed '$d' || true
+            echo
+            echo "=== R. Guardrail Confirmation ==="
+            awk '/^R\./,/^S\./'   "$file" | sed '$d' || true
+          } > body.txt
+          # Cap at 60 KB so we stay well under M365's per-message size sanity bound.
+          head -c 61440 body.txt > body.trimmed.txt
+          mv body.trimmed.txt body.txt
+          echo "--- email preview (head) ---"
+          head -40 body.txt
+
+      - name: Send email alert
+        if: steps.scan.outputs.should_alert == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ vars.AUDIT_SMTP_HOST }}
+          server_port:    ${{ vars.AUDIT_SMTP_PORT }}
+          secure:         false
+          username:       ${{ secrets.SMTP_USER }}
+          password:       ${{ secrets.SMTP_PASS }}
+          subject: "mallan.nyc audit alert — ${{ steps.scan.outputs.severity }} — ${{ needs.audit.outputs.report_date }}"
+          to:   ${{ vars.AUDIT_ALERT_EMAIL }}
+          from: "mallan.nyc audit bot <${{ secrets.SMTP_USER }}>"
+          body: file://body.txt
+
+      - name: Fallback issue if email send failed
+        if: failure() && steps.scan.outputs.should_alert == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh label create audit-alert --color B60205 \
+            --description "Auto-opened by repo-audit-bot when email failed" 2>/dev/null || true
+          gh issue create \
+            --title "Audit alert ${{ steps.scan.outputs.severity }} — ${{ needs.audit.outputs.report_date }} (email send failed)" \
+            --label audit-alert \
+            --body "Email delivery failed. Report at \`${{ needs.audit.outputs.report_path }}\`. See run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
