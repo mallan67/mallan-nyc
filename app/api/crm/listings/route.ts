@@ -9,6 +9,7 @@ import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
+import { TERMINAL_STATUSES } from "@/lib/idx/trestle-mapper";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -319,8 +320,19 @@ export async function POST(req: NextRequest) {
         auction_terms_url: typeof body.auction_terms_url === "string" && body.auction_terms_url.length > 0
           ? body.auction_terms_url
           : null,
-        // Distribution gates from persistenceMap
-        idx_display_yn: rlsEligible ? (persistence.topLevel.idx_display_yn !== false) : false,
+        // Distribution gates from persistenceMap.
+        //
+        // H1 fix (2026-05-13): defence-in-depth terminal-status guard.
+        // STATUS_INITIAL is "Draft" today, which is not in TERMINAL_STATUSES,
+        // so the guard is a no-op at present. But CRM listing creation paths
+        // are a known H1 surface — if a future refactor allows the create
+        // status to come from the request body, this guard prevents a
+        // terminal listing from being born with idx_display_yn=true. Single
+        // source of truth: lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES.
+        idx_display_yn:
+          rlsEligible &&
+          !TERMINAL_STATUSES.has(STATUS_INITIAL) &&
+          persistence.topLevel.idx_display_yn !== false,
         internet_entire_listing_display_yn: persistence.topLevel.internet_entire_listing_display_yn !== false,
         internet_address_display_yn: persistence.topLevel.internet_address_display_yn !== false,
         // Permission booleans derived from Permissions enum (not hardcoded from body)

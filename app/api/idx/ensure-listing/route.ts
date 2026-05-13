@@ -15,6 +15,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
 import { affirmPermission } from "@/lib/compliance/gates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { TERMINAL_STATUSES } from "@/lib/idx/trestle-mapper";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -110,7 +111,13 @@ export async function POST(req: NextRequest) {
         property_type: (body.property_type as string) || null,
         property_sub_type: (body.property_sub_type as string) || null,
         rls_eligible: false, // External IDX listing, not our exclusive
-        idx_display_yn: true,
+        // H1 fix (2026-05-13): close the secondary-writer §2.05 gap. body.status
+        // is user-controlled POST input — an agent sharing a Closed/Sold/Leased
+        // listing as a comp would otherwise create a row with status=terminal
+        // AND idx_display_yn=true, an immediate REBNY §2.05 violation. The
+        // guard reuses the C2 canonical TERMINAL_STATUSES set so writer and
+        // cron stay aligned (lib/idx/trestle-mapper.ts is the source of truth).
+        idx_display_yn: !TERMINAL_STATUSES.has(String(body.status || "Active")),
         // Fail-CLOSED coercion — body is untrusted POST input. Was `!== false`
         // which let missing/null fields become displayable.
         internet_entire_listing_display_yn: affirmPermission(body.internet_display_yn),
