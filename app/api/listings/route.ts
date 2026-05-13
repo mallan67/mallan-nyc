@@ -7,7 +7,7 @@ import { toPublicDTO } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
-import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
+import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 import {
   applyPublicListingPostFilters,
@@ -55,6 +55,38 @@ function getNextWeekend(): { sat: string; mon: string } {
     sat: sat.toISOString().split('T')[0],
     mon: mon.toISOString().split('T')[0],
   };
+}
+
+/**
+ * Compute the envelope `_compliance.source` for a DB-first response.
+ *
+ * C1 fix (2026-05-13): replaces the prior hard-coded `db+exclusive`. The
+ * label now reflects the actual provenance composition of the result set:
+ *
+ *   - `db+idx`       → every row is a third-party RLS sync (no Mallan
+ *                       attribution); the envelope-level RLS disclaimer is
+ *                       authoritative.
+ *   - `db+exclusive` → every row is Mallan-authored or website-only
+ *                       commercial (no RLS provenance).
+ *   - `db+mixed`     → at least one row of each kind. The disclaimer still
+ *                       applies because at least one row needs it.
+ *
+ * Empty result sets default to `db+exclusive` to match the legacy short-
+ * circuit at the `isMallanExclusiveOnly` and `isNumberedAddressSearch`
+ * branches below, which already emit that label.
+ */
+export function computeDbEnvelopeSource(
+  listings: ReadonlyArray<Pick<DbListing, 'agent_id' | 'owner_client_id' | 'rls_eligible'>>,
+): 'db+idx' | 'db+exclusive' | 'db+mixed' {
+  if (listings.length === 0) return 'db+exclusive';
+  let hasThirdParty = false;
+  let hasMallan = false;
+  for (const l of listings) {
+    if (classifyDbListing(l) === 'third-party-idx') hasThirdParty = true;
+    else hasMallan = true; // mallan-exclusive OR website-only
+    if (hasThirdParty && hasMallan) return 'db+mixed';
+  }
+  return hasThirdParty ? 'db+idx' : 'db+exclusive';
 }
 
 // Vercel serverless: allow up to 60s for Trestle API calls + media fetch
@@ -267,6 +299,14 @@ export async function GET(request: Request) {
                 // the 0.3% of listings not yet mirrored into listing_media.
                 media: true,
                 agent_info: true,
+                // C1 fix (2026-05-13): provenance signals needed by the DTO
+                // to distinguish Mallan exclusives (agent_id / owner_client_id)
+                // from website-only commercial (rls_eligible=false) from
+                // third-party IDX/RLS (everything else). Without these the DTO
+                // hard-codes `_source: "exclusive"` for every row.
+                agent_id: true,
+                owner_client_id: true,
+                rls_eligible: true,
                 idx_display_yn: true,
                 internet_entire_listing_display_yn: true,
                 internet_address_display_yn: true,
@@ -305,6 +345,11 @@ export async function GET(request: Request) {
               id: l.id.toString(),
               list_price: l.list_price.toString(),
               living_area: l.living_area?.toString() ?? null,
+              // C1 fix: stringify BigInt FKs for JSON safety; the classifier
+              // only checks `!= null` so the value shape doesn't matter, but
+              // mixing BigInts into JSON.stringify throws at serialization.
+              agent_id: l.agent_id != null ? l.agent_id.toString() : null,
+              owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
             }));
 
             const displayable = filterDisplayableDbListings(serialized);
@@ -374,6 +419,17 @@ export async function GET(request: Request) {
             // Wait for geocoding (with tight 1.5s timeout set above)
             await geocodePromise;
 
+            // C1 fix (2026-05-13): envelope source reflects the actual
+            // composition of the response. Before this fix, every DB-first
+            // response was labeled `db+exclusive` regardless of whether the
+            // listings were Mallan-authored, third-party RLS, or both. Now:
+            //   - `db+idx`       → all rows are third-party Trestle/RLS syncs
+            //   - `db+exclusive` → all rows are Mallan-authored or website-only
+            //   - `db+mixed`     → mixed result set
+            // The full RLS disclaimer text stays in the envelope for ALL three
+            // cases so the user-visible attribution never regresses.
+            const envelopeSource = computeDbEnvelopeSource(displayable);
+
             const responseBody = {
               success: true,
               count: publicListings.length,
@@ -383,7 +439,7 @@ export async function GET(request: Request) {
               hasMore: skip + limit < dbTotal,
               listings: publicListings,
               _compliance: {
-                source: 'db+exclusive',
+                source: envelopeSource,
                 idxEnabled: true,
                 attribution: generateAttributionText(),
                 disclaimer: 'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
@@ -1038,6 +1094,11 @@ async function fetchExclusiveListings(
         // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
         agent_info: true,
+        // C1 fix (2026-05-13): provenance signals for the DTO classifier.
+        // Mirrors the main DB-first select above.
+        agent_id: true,
+        owner_client_id: true,
+        rls_eligible: true,
         idx_display_yn: true,
         internet_entire_listing_display_yn: true,
         internet_address_display_yn: true,
@@ -1071,6 +1132,10 @@ async function fetchExclusiveListings(
       id: l.id.toString(),
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
+      // C1 fix: stringify BigInt FKs for JSON safety; see the main DB-first
+      // path above for the same shape.
+      agent_id: l.agent_id != null ? l.agent_id.toString() : null,
+      owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
     }));
 
     const displayable = filterDisplayableDbListings(serialized);
