@@ -7,6 +7,7 @@ import FavoriteButton from '@/app/components/FavoriteButton';
 import FareActFeeBadge from '@/app/components/FareActFeeBadge';
 import { type DisplayListing, listingHref } from '@/lib/idx/display-adapter';
 import { useSwipe } from '@/lib/hooks/useSwipe';
+import { formatBathrooms } from '@/lib/format/bathrooms';
 import {
   LISTING_PLACEHOLDER_IMAGE,
   countPhotoMedia,
@@ -94,7 +95,7 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
         <div className="flex gap-3 text-[15px] text-brand-dark/90 mt-1.5">
           <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
           <span className="text-brand-dark/30">&middot;</span>
-          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} Bath</span>
+          <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
           {listing.livingArea && listing.livingArea > 0 && (
             <>
               <span className="text-brand-dark/30">&middot;</span>
@@ -184,7 +185,7 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
             <div className="flex gap-3 text-[15px] text-brand-dark/90 mt-1">
               <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
               <span className="text-brand-dark/30">&middot;</span>
-              <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} Bath</span>
+              <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
               {listing.livingArea && listing.livingArea > 0 && (
                 <>
                   <span className="text-brand-dark/30">&middot;</span>
@@ -341,7 +342,7 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         <div className="flex gap-2 text-sm text-brand-dark/90 mt-1">
           <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
           <span className="text-brand-dark/30">&middot;</span>
-          <span>{listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} Bath</span>
+          <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
           {listing.livingArea && listing.livingArea > 0 && (
             <>
               <span className="text-brand-dark/30">&middot;</span>

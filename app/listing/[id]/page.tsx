@@ -44,6 +44,7 @@ import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { resolveListingMedia, resolveListingMediaFromRows } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
+import { formatBathrooms } from '@/lib/format/bathrooms';
 
 // ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
 export const revalidate = 300;
@@ -1249,7 +1250,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4 4m4-4v12" /></svg>
                     <div>
                       <span className="text-lg font-display font-bold text-brand-dark">
-                        {listing.bathroomsFull}{listing.bathroomsHalf > 0 && `.${listing.bathroomsHalf}`}
+                        {formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)}
                       </span>
                       <span className="text-brand-dark/80 text-[13px] ml-1">Baths</span>
                     </div>

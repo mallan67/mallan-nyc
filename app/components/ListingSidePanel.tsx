@@ -6,6 +6,7 @@ import { useSidePanel } from '@/lib/contexts/ListingSidePanelContext';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import InquiryModal from '@/app/components/InquiryModal';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
+import { formatBathrooms } from '@/lib/format/bathrooms';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -222,7 +223,7 @@ export default function ListingSidePanel() {
             </div>
             <div className="glass-card rounded-2xl p-4">
               <p className="text-brand-dark/85 text-[11px] font-medium mb-1">Baths</p>
-              <p className="font-display font-bold text-lg text-brand-dark">{baths}{halfBaths > 0 ? `.${halfBaths}` : ''}</p>
+              <p className="font-display font-bold text-lg text-brand-dark">{formatBathrooms(baths, halfBaths)}</p>
             </div>
             <div className="glass-card rounded-2xl p-4">
               <p className="text-brand-dark/85 text-[11px] font-medium mb-1">Size</p>

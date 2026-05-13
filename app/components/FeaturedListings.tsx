@@ -11,6 +11,7 @@ import {
   LISTING_PLACEHOLDER_IMAGE,
   getValidPhotoMedia,
 } from '@/lib/media/listing-card-media';
+import { formatBathrooms } from '@/lib/format/bathrooms';
 
 interface FeaturedListing {
   id: string;
@@ -256,7 +257,7 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
             </p>
           </div>
           <p className="text-brand-dark/90 text-[13px] font-light">
-            {listing.bedroomsTotal} bd &middot; {listing.bathroomsFull}{listing.bathroomsHalf > 0 ? `.${listing.bathroomsHalf}` : ''} ba
+            {listing.bedroomsTotal} bd &middot; {formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} ba
             {listing.livingArea && listing.livingArea > 0 && ` \u00B7 ${listing.livingArea.toLocaleString()} sf`}
           </p>
           {!isRental && cc && cc > 0 && (
