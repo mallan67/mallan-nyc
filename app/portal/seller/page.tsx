@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
+import { usePortalSession } from '@/lib/portal/use-portal-session';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 
 /* ───────────── Interfaces ───────────── */
@@ -162,6 +163,9 @@ function momentumGaugeColor(tier: string): string {
 
 export default function SellerPortalPage() {
   const router = useRouter();
+  // Hotfix 2: portalFetch auto-redirects to /sign-in on 401 instead of
+  // letting `if (!res.ok) return []` silently swallow into empty state.
+  const { portalFetch } = usePortalSession();
   const [user, setUser] = useState<PortalUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -174,52 +178,47 @@ export default function SellerPortalPage() {
   // to force a refresh after a mutation.
   const userId = user?.id ?? null;
 
+  // Hotfix 2: each fetcher routes through portalFetch so 401 throws
+  // PortalSessionExpiredError → useAsyncResource sets state.error +
+  // the hook's redirect lands. The fetcher still returns [] from the
+  // catch only when the error was NOT a session expiry, so genuine
+  // empty-state and transient API errors still degrade gracefully.
   const fetchListingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<PortalListing[]> => {
-    const res = await fetch('/api/portal/listings', { signal });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await portalFetch<{ listings: PortalListing[] }>('/api/portal/listings', { signal });
     return data.listings || [];
-  }, []);
+  }, [portalFetch]);
   const listingsRes = useAsyncResource(userId, fetchListingsResource);
   const listings: PortalListing[] = listingsRes.data ?? [];
   const listingsLoading = listingsRes.loading;
 
   const fetchShowingsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<PortalShowing[]> => {
-    const res = await fetch('/api/portal/showings', { signal });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await portalFetch<{ showings: PortalShowing[] }>('/api/portal/showings', { signal });
     return data.showings || [];
-  }, []);
+  }, [portalFetch]);
   const showingsRes = useAsyncResource(userId, fetchShowingsResource);
   const showings: PortalShowing[] = showingsRes.data ?? [];
   const showingsLoading = showingsRes.loading;
 
   const fetchOffersResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<Offer[]> => {
-    const res = await fetch('/api/portal/offers', { signal });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await portalFetch<{ offers: Offer[] }>('/api/portal/offers', { signal });
     return data.offers || [];
-  }, []);
+  }, [portalFetch]);
   const offersRes = useAsyncResource(userId, fetchOffersResource);
   const offers: Offer[] = offersRes.data ?? [];
   const offersLoading = offersRes.loading;
 
   const fetchDocumentsResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<PortalDocument[]> => {
-    const res = await fetch('/api/portal/documents', { signal });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await portalFetch<{ documents: PortalDocument[] }>('/api/portal/documents', { signal });
     return data.documents || [];
-  }, []);
+  }, [portalFetch]);
   const documentsRes = useAsyncResource(userId, fetchDocumentsResource);
   const documents: PortalDocument[] = documentsRes.data ?? [];
   const documentsLoading = documentsRes.loading;
 
   const fetchFamilyResource = useCallback(async (_: string | number, signal: AbortSignal): Promise<FamilyMember[]> => {
-    const res = await fetch('/api/portal/family', { signal });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await portalFetch<{ family: FamilyMember[] }>('/api/portal/family', { signal });
     return data.family || [];
-  }, []);
+  }, [portalFetch]);
   const familyRes = useAsyncResource(userId, fetchFamilyResource);
   const family: FamilyMember[] = familyRes.data ?? [];
   const familyLoading = familyRes.loading;
