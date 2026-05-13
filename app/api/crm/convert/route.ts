@@ -5,6 +5,7 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent, type SessionUser } fr
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadAccess } from "@/lib/crm/access";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 
 const VALID_ACTIONS = [
   "promote_to_listing",
@@ -200,12 +201,22 @@ async function handlePromoteToListing(
     };
   }
 
+  // H1 fix (2026-05-13) + amend: defence-in-depth terminal-status guard
+  // routed through the canonical normalizer. Status is hardcoded "Draft"
+  // below (non-terminal canonical), so the guard is a no-op today. Kept
+  // for symmetry with the other CRM writers (listings POST/PATCH) — if a
+  // future refactor lets convert produce a non-Draft initial status, the
+  // SAME guard (normalize → check TERMINAL_STATUSES) prevents a terminal
+  // listing from being born with idx_display_yn=true. Single source of
+  // truth: lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
+  // normalizeStandardStatus.
+  const convertInitialStatus = normalizeStandardStatus("Draft");
   await prisma.listing.create({
     data: {
       listing_id: generatedListingId,
       agent_id: agentId,
       owner_client_id: lead.id,
-      status: "Draft",
+      status: convertInitialStatus,
       listing_type: listingType,
       list_price: price || 0,
       property_type: listingDraft.propertyType || listingDraft.property_type || null,
@@ -214,7 +225,7 @@ async function handlePromoteToListing(
       listing_contract_date: exclusiveStart ? new Date(exclusiveStart) : null,
       expiration_date: exclusiveExpires ? new Date(exclusiveExpires) : null,
       rls_eligible: true,
-      idx_display_yn: true,
+      idx_display_yn: !TERMINAL_STATUSES.has(convertInitialStatus),
       internet_entire_listing_display_yn: true,
       internet_address_display_yn: true,
     },

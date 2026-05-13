@@ -9,6 +9,7 @@ import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
+import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -275,7 +276,12 @@ export async function POST(req: NextRequest) {
         listing_id: listingId,
         mls_id: (normalized.mls_id as string) ?? null,
         agent_id: auth.userId,
-        status: STATUS_INITIAL,
+        // H1 amend (2026-05-13): normalize the initial status through the
+        // canonical helper even though STATUS_INITIAL is a hardcoded literal
+        // today. Pattern-uniform with the body-driven writers; if a future
+        // refactor lets STATUS_INITIAL come from request input, the same
+        // case/whitespace/alias guard applies for free.
+        status: normalizeStandardStatus(STATUS_INITIAL),
         listing_type: listingType,
         // Top-level columns derived from persistenceMap
         property_type: (persistence.topLevel.property_type as string) ?? null,
@@ -319,8 +325,22 @@ export async function POST(req: NextRequest) {
         auction_terms_url: typeof body.auction_terms_url === "string" && body.auction_terms_url.length > 0
           ? body.auction_terms_url
           : null,
-        // Distribution gates from persistenceMap
-        idx_display_yn: rlsEligible ? (persistence.topLevel.idx_display_yn !== false) : false,
+        // Distribution gates from persistenceMap.
+        //
+        // H1 fix (2026-05-13) + amend: defence-in-depth terminal-status
+        // guard using the canonical normalizer. STATUS_INITIAL is "Draft"
+        // today (non-terminal canonical), so the guard is a no-op at
+        // present. But CRM listing creation paths are a known H1 surface —
+        // if a future refactor allows the create status to come from the
+        // request body, the SAME guard (normalize → check TERMINAL_STATUSES)
+        // prevents a terminal listing from being born with
+        // idx_display_yn=true. Single source of truth:
+        // lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
+        // normalizeStandardStatus.
+        idx_display_yn:
+          rlsEligible &&
+          !TERMINAL_STATUSES.has(normalizeStandardStatus(STATUS_INITIAL)) &&
+          persistence.topLevel.idx_display_yn !== false,
         internet_entire_listing_display_yn: persistence.topLevel.internet_entire_listing_display_yn !== false,
         internet_address_display_yn: persistence.topLevel.internet_address_display_yn !== false,
         // Permission booleans derived from Permissions enum (not hardcoded from body)
