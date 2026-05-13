@@ -15,7 +15,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
 import { affirmPermission } from "@/lib/compliance/gates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
-import { TERMINAL_STATUSES } from "@/lib/idx/trestle-mapper";
+import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -92,13 +92,21 @@ export async function POST(req: NextRequest) {
     company: (body.company as string) || "",
   };
 
+  // H1 amend (2026-05-13): normalize body.status BEFORE the terminal guard
+  // and BEFORE the DB write so case/whitespace/alias variants ("closed",
+  // "Closed ", "CLOSED", "canceled") cannot bypass the guard AND cannot
+  // create stealth audit anomalies invisible to the exact-case
+  // data-retention cron + ops:health predicates. The same canonical value
+  // is used for both `status` and `idx_display_yn` below.
+  const canonicalStatus = normalizeStandardStatus(body.status);
+
   try {
     const listing = await prisma.listing.create({
       data: {
         listing_id: trimmedId,
         mls_id: trimmedId,
         listing_type: isRental ? "rent" : "sale",
-        status: (body.status as string) || "Active",
+        status: canonicalStatus,
         address: addressJson as Prisma.InputJsonValue,
         list_price: body.price != null ? Number(body.price) : 0,
         bedrooms_total: body.beds != null ? Number(body.beds) : null,
@@ -111,13 +119,14 @@ export async function POST(req: NextRequest) {
         property_type: (body.property_type as string) || null,
         property_sub_type: (body.property_sub_type as string) || null,
         rls_eligible: false, // External IDX listing, not our exclusive
-        // H1 fix (2026-05-13): close the secondary-writer §2.05 gap. body.status
-        // is user-controlled POST input — an agent sharing a Closed/Sold/Leased
-        // listing as a comp would otherwise create a row with status=terminal
-        // AND idx_display_yn=true, an immediate REBNY §2.05 violation. The
-        // guard reuses the C2 canonical TERMINAL_STATUSES set so writer and
-        // cron stay aligned (lib/idx/trestle-mapper.ts is the source of truth).
-        idx_display_yn: !TERMINAL_STATUSES.has(String(body.status || "Active")),
+        // H1 fix (2026-05-13): close the secondary-writer §2.05 gap.
+        // `canonicalStatus` is the normalized form of body.status (see the
+        // declaration above). Using the SAME canonical value for both the
+        // DB `status` column and this guard means the writer, the
+        // data-retention cron, and ops:health cannot disagree on whether
+        // the row is terminal. Reuses the C2 canonical TERMINAL_STATUSES
+        // set (lib/idx/trestle-mapper.ts is the source of truth).
+        idx_display_yn: !TERMINAL_STATUSES.has(canonicalStatus),
         // Fail-CLOSED coercion — body is untrusted POST input. Was `!== false`
         // which let missing/null fields become displayable.
         internet_entire_listing_display_yn: affirmPermission(body.internet_display_yn),

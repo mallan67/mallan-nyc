@@ -15,7 +15,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
 import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { coerceStrictBool } from "@/lib/compliance/gates";
-import { TERMINAL_STATUSES } from "@/lib/idx/trestle-mapper";
+import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -163,14 +163,23 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // anything else (including null, "false", typos, malformed JSON) stores as
   // false. This matches the compliance gate doctrine in lib/compliance/gates.ts.
   if (body.IDXEntireListingDisplayYN !== undefined) {
-    // H1 fix (2026-05-13): close the secondary-writer §2.05 gap. An agent
-    // editing a listing whose effective status is terminal MUST NOT be able
-    // to set `idx_display_yn=true`. Effective status = the merged update's
-    // MlsStatus if the body changes it, else the existing listing's status —
-    // identical to the resolution the RLS enforcement gate already uses at
-    // line 112 above (`merged.MlsStatus || listing.status`). Reuses the C2
-    // canonical TERMINAL_STATUSES set so writer and cron stay aligned.
-    const effectiveStatus = String((merged.MlsStatus as string | undefined) || listing.status || "");
+    // H1 fix (2026-05-13) + amend: close the secondary-writer §2.05 gap with
+    // canonical-status normalization. An agent editing a listing whose
+    // effective status is terminal MUST NOT be able to set
+    // `idx_display_yn=true`. Effective status = the merged update's
+    // MlsStatus if the body changes it, else the existing listing's status
+    // — identical to the resolution the RLS enforcement gate already uses
+    // at line 112 above (`merged.MlsStatus || listing.status`).
+    //
+    // Normalization here covers the case where an agent's client lowercases
+    // the status before submitting (`merged.MlsStatus === "closed"`); the
+    // pre-amend guard treated that as non-terminal and let display through.
+    // After normalization the guard sees the canonical "Closed" and refuses.
+    // Reuses the C2 canonical TERMINAL_STATUSES set so writer and cron stay
+    // aligned (lib/idx/trestle-mapper.ts is the source of truth).
+    const effectiveStatus = normalizeStandardStatus(
+      (merged.MlsStatus as string | undefined) ?? listing.status,
+    );
     update.idx_display_yn =
       !TERMINAL_STATUSES.has(effectiveStatus) &&
       coerceStrictBool(body.IDXEntireListingDisplayYN);

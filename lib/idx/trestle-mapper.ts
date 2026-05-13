@@ -618,6 +618,108 @@ export const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * RESO StandardStatus values that are publicly displayable on IDX.
+ *
+ * Mirrors `DISPLAYABLE_STATUSES` in `lib/idx/db-to-public-dto.ts:155`. Kept
+ * here so callers of `normalizeStandardStatus` can fold input strings like
+ * `"active"` / `"ACTIVE"` / `"Active "` back to the canonical `"Active"`.
+ */
+const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
+  'Active',
+  'ComingSoon',
+  'ActiveUnderContract',
+]);
+
+/**
+ * CRM lifecycle statuses that exist outside the public IDX displayable set
+ * but are still legitimate inputs from CRM forms (Mallan exclusives). Folding
+ * non-canonical variants like `"draft"` / `"pending"` back to canonical keeps
+ * CRM rows queryable by exact-case predicates and prevents the stealth-audit-
+ * anomaly class (row stored with non-canonical status, invisible to every
+ * exact-case counter).
+ */
+const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
+  'Draft',
+  'Incomplete',
+  'Pending',
+]);
+
+/**
+ * Alias map for known non-canonical spellings of terminal statuses that the
+ * normalizer rewrites to the canonical REBNY/Trestle form. Limited to
+ * canonical-equivalent spellings — never coerces an arbitrary unknown string
+ * into a terminal value. Examples:
+ *   - "canceled" (US English single-L) → "Cancelled" (RESO canonical double-L)
+ *
+ * Add a new entry here only when a real-world client has been observed
+ * submitting that variant. The alias map is the only place where one status
+ * string is rewritten into a different status string; everywhere else the
+ * normalizer is a case-fold + trim operation that preserves identity.
+ */
+const STATUS_ALIASES: Record<string, string> = {
+  canceled: 'Cancelled', // single-L → double-L
+};
+
+/**
+ * Normalize an untrusted status string (POST body, CRM form, etc.) to the
+ * canonical REBNY/Trestle spelling so the terminal-status guard and every
+ * downstream exact-case predicate (data-retention cron, ops:health,
+ * `DISPLAYABLE_STATUSES`) all see the same value.
+ *
+ * H1 amend (2026-05-13) — closes a normalization gap raised by Maya on
+ * PR #113: `body.status = "closed"` previously bypassed the terminal-status
+ * guard because the set is case-sensitive. The fix is to normalize once at
+ * the route boundary, then use the normalized value for BOTH the DB write
+ * and the guard so they cannot disagree.
+ *
+ * Behavior:
+ *   - Empty / null / non-string input              → "Active"
+ *   - Exact-case canonical hit                      → returned as-is
+ *   - Trim + case-fold match against a known set    → canonical form
+ *   - Known alias (e.g., "canceled" → "Cancelled")  → canonical form
+ *   - Anything else                                 → trimmed input (preserved)
+ *
+ * Unknown statuses are NOT silently rewritten to a known value. If a new
+ * RESO status emerges, add it to the right set (TERMINAL_STATUSES,
+ * ACTIVE_STATUSES, CRM_LIFECYCLE_STATUSES) and the normalizer picks it up
+ * automatically.
+ */
+export function normalizeStandardStatus(input: unknown): string {
+  if (typeof input !== 'string') return 'Active';
+  const trimmed = input.trim();
+  if (!trimmed) return 'Active';
+
+  // Fast path — exact-case canonical.
+  if (
+    TERMINAL_STATUSES.has(trimmed) ||
+    ACTIVE_STATUSES.has(trimmed) ||
+    CRM_LIFECYCLE_STATUSES.has(trimmed)
+  ) {
+    return trimmed;
+  }
+
+  // Lowercase alias hit (e.g., "canceled" → "Cancelled").
+  const lower = trimmed.toLowerCase();
+  if (STATUS_ALIASES[lower]) return STATUS_ALIASES[lower];
+
+  // Case-insensitive match against the known canonical sets.
+  for (const s of TERMINAL_STATUSES) {
+    if (s.toLowerCase() === lower) return s;
+  }
+  for (const s of ACTIVE_STATUSES) {
+    if (s.toLowerCase() === lower) return s;
+  }
+  for (const s of CRM_LIFECYCLE_STATUSES) {
+    if (s.toLowerCase() === lower) return s;
+  }
+
+  // Unknown — preserve trimmed form. Never silently coerce an unknown
+  // value to a known status; new statuses must be added to the relevant
+  // set above before they round-trip through the normalizer.
+  return trimmed;
+}
+
+/**
  * Map a raw Trestle record to our Prisma Listing shape.
  * Returns the data object ready for prisma.listing.upsert().
  */
