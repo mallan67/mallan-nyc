@@ -150,7 +150,14 @@ vite.config.ts.timestamp-*
 .vercel/*
 !.vercel/project.json
 
-.claude/
+# Local Claude Code config + agent definitions are personal per-machine.
+# EXCEPTION: ship the Mallan Sentinel agent spec so the GitHub Actions
+# repo-audit-bot workflow can read it on the runner.
+.claude/*
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/repo-audit-bot.md
+
 # Backup files
 *.bak
 *.backup
