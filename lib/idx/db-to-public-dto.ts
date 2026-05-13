@@ -50,6 +50,14 @@ interface DbAddress {
   SubdivisionName?: string;
   BuildingName?: string;
   UnparsedAddress?: string;
+  // Trestle stores Latitude/Longitude on the Property resource. Per the
+  // 2026-03-04 CLAUDE.md note REBNY's IDX Plus feed returns these as null
+  // for the vast majority of records and our `geocodeListings()` fills the
+  // gap. When they ARE populated by Trestle (or by our geocode-cache
+  // backfill), propagate them so the map can render without paying for an
+  // online geocode round-trip on every request.
+  Latitude?: number | string | null;
+  Longitude?: number | string | null;
 }
 
 interface DbFeatures {
@@ -274,6 +282,11 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {
+          // UCBA Art. III §2(C) — when InternetAddressDisplayYN is not
+          // affirmed, the address text AND map pin both must be suppressed.
+          // Revealing exact lat/lng on a map would defeat the address
+          // suppression by allowing reverse-lookup, so coords are intentionally
+          // omitted on this branch.
           streetNumber: '',
           streetName: 'Address Undisclosed',
           unitNumber: null,
@@ -292,6 +305,21 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
           postalCode,
           county,
           neighborhood,
+          // PR (search-fix): propagate Latitude/Longitude from the DB's
+          // address JSON so the map can render without depending on
+          // geocodeListings() winning a 1.5s timeout race. When Trestle
+          // didn't supply coords (the common case on this REBNY feed) the
+          // values are null/undefined — geocodeListings will then attempt
+          // to fill them. Numeric coercion handles both number and string
+          // JSON shapes; `null` and `undefined` cascade to `undefined`.
+          latitude:
+            addr.Latitude != null && !Number.isNaN(Number(addr.Latitude))
+              ? Number(addr.Latitude)
+              : undefined,
+          longitude:
+            addr.Longitude != null && !Number.isNaN(Number(addr.Longitude))
+              ? Number(addr.Longitude)
+              : undefined,
         },
     listPrice,
     originalListPrice: rawData.OriginalListPrice != null ? Number(rawData.OriginalListPrice) : listPrice,

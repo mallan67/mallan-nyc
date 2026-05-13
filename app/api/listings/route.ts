@@ -173,6 +173,29 @@ export async function GET(request: Request) {
     // here we additionally short-circuit the Trestle fallback so external
     // listings can never reach the response on this path.
     const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan';
+    // Numbered-address short-circuit (PR #107 + Codex follow-up).
+    //
+    // The search UI routes ALL plain free-text input through `address` (see
+    // `app/search/page.tsx` plain-text branch). That includes numbered street
+    // addresses ("425 park avenue south") AND building / neighborhood text
+    // ("Carnegie Hall", "Hudson Yards", "central park"). The DB-first
+    // `addressConditions()` only queries `StreetNumber` + `StreetName`, but
+    // the Trestle fallback at `lib/search/public-listing-trestle.ts:138`
+    // also searches `BuildingName` on its text-only path — that's where
+    // building-name queries find their matches.
+    //
+    // For NUMBERED queries an unfiltered Trestle fallback returns garbage
+    // (UCBA Art. III §2(A) / 19 NYCRR §175.25 violation surfaced as the
+    // 425 Park bug Maya filed). For TEXT-ONLY queries the Trestle fallback
+    // is the only place a building-name search works.
+    //
+    // Heuristic: a leading digit (after trim) reliably marks a numbered
+    // street address. Everything else is treated as text and allowed to
+    // fall through to Trestle. Codex P1 feedback on PR #107 — narrowing
+    // the original `isAddressSearch` so building-name queries still find
+    // their listings.
+    const addressInput = (searchParams.get('address') || '').trim();
+    const isNumberedAddressSearch = /^\d/.test(addressInput);
 
     // Min > Max price validation
     if (minPrice && maxPrice && parseInt(minPrice, 10) > parseInt(maxPrice, 10)) {
@@ -401,10 +424,40 @@ export async function GET(request: Request) {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
           }
+          // Numbered-address miss short-circuit. See the
+          // `isNumberedAddressSearch` comment at the top of the route for
+          // the compliance rationale and the leading-digit heuristic.
+          // Text-only queries (building names, neighborhood fragments) are
+          // intentionally NOT caught here — they need the Trestle
+          // BuildingName fallback to find their matches.
+          if (isNumberedAddressSearch) {
+            const responseBody = {
+              success: true,
+              count: 0,
+              total: 0,
+              skip,
+              limit,
+              hasMore: false,
+              listings: [],
+              _compliance: {
+                source: 'db+exclusive',
+                idxEnabled: true,
+                attribution: generateAttributionText(),
+                disclaimer: `No listings found matching "${addressInput}". Try a different address or broaden your search.`,
+              },
+            };
+            setCache(cacheKey, responseBody);
+            return NextResponse.json(responseBody, {
+              headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+            });
+          }
         }
       } catch (dbErr) {
         // DB query failed — fall through to live Trestle (unless this is an
-        // exclusive=mallan request, which must never serve external rows).
+        // exclusive=mallan or numbered-address search; those must never
+        // silently serve unrelated external rows). Text-only address
+        // queries still fall through so the Trestle BuildingName search
+        // can find building-name matches.
         console.warn('[/api/listings] DB-first query failed, falling back to Trestle:', dbErr instanceof Error ? dbErr.message : dbErr);
         if (isMallanExclusiveOnly) {
           return NextResponse.json(
@@ -420,6 +473,25 @@ export async function GET(request: Request) {
                 source: 'db+exclusive',
                 idxEnabled: true,
                 disclaimer: 'No exclusive Mallan listings currently available.',
+              },
+            },
+            { headers: { 'Cache-Control': 'private, no-store' } },
+          );
+        }
+        if (isNumberedAddressSearch) {
+          return NextResponse.json(
+            {
+              success: true,
+              count: 0,
+              total: 0,
+              skip,
+              limit,
+              hasMore: false,
+              listings: [],
+              _compliance: {
+                source: 'db+exclusive',
+                idxEnabled: true,
+                disclaimer: `No listings found matching "${addressInput}". Try a different address or broaden your search.`,
               },
             },
             { headers: { 'Cache-Control': 'private, no-store' } },
