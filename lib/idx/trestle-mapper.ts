@@ -593,6 +593,31 @@ function inferBorough(raw: Record<string, unknown>): string | null {
 }
 
 /**
+ * RESO StandardStatus values that mean "no longer publicly displayable on IDX."
+ *
+ * Mirrors the data-retention cron predicate at
+ * `app/api/cron/data-retention/route.ts:79`. Cron and writer agree on the
+ * same closed set so the H1 dual-write gap (C2 fix, 2026-05-13) cannot
+ * reopen: every time the mapper recomputes `idx_display_yn` for a terminal
+ * row, the result is forced to `false` and the cron's §2.05 cleanup is no
+ * longer over-written by the next idx-sync pass.
+ *
+ * Exported for symmetry with the cron and for direct test access. New code
+ * that needs to evaluate "is this listing past-its-life" should import this
+ * set instead of redeclaring its own copy — a third copy would re-open the
+ * dual-write gap on a different axis.
+ */
+export const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
+  'Closed',
+  'Sold',
+  'Leased',
+  'Rented',
+  'Withdrawn',
+  'Expired',
+  'Cancelled',
+]);
+
+/**
  * Map a raw Trestle record to our Prisma Listing shape.
  * Returns the data object ready for prisma.listing.upsert().
  */
@@ -720,8 +745,27 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     permissions === 'Owner Opt-Out' ||
     String(raw.MlsStatus || '') === 'OwnerOptOut';
   // Legacy local flag kept for backward compat with DB schema's idx_display_yn column.
-  // Evaluates true iff all the above gates pass AND internet display is enabled.
-  const idxDisplayYn = internetEntireListing && !participantOnly && !ownerOptOut;
+  // Evaluates true iff all the above gates pass AND internet display is enabled
+  // AND the listing is in a non-terminal status.
+  //
+  // C2 fix (2026-05-13) — close the H1 dual-write gap. Before this fix the
+  // writer omitted the status check, so every time Trestle re-emitted an
+  // already-terminal listing (price update, photo edit, modification
+  // timestamp tick) the next idx-sync recomputed idx_display_yn=true and
+  // overrode the data-retention cron's 03:00 UTC §2.05 cleanup. Audit-event
+  // join proved 15 of 21 current violators were cron-disabled then sync-
+  // re-enabled — same listing, same row, ping-ponging.
+  //
+  // Mirrors the data-retention cron predicate at
+  // app/api/cron/data-retention/route.ts:79 so writer and cron agree on the
+  // terminal-status set. Single source of truth lives here in the writer;
+  // the cron remains in place as belt-and-suspenders for any DB-direct
+  // mutation paths (CRM edits, manual SQL fixes) that bypass the mapper.
+  const idxDisplayYn =
+    !TERMINAL_STATUSES.has(String(raw.StandardStatus || '')) &&
+    internetEntireListing &&
+    !participantOnly &&
+    !ownerOptOut;
 
   // JSONB columns — pick fields by category
   const address = pick(raw, B1_ADDRESS);
