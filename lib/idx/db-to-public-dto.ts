@@ -120,6 +120,17 @@ export interface DbListing {
   features: unknown;
   media: unknown;
   agent_info: unknown;
+  // C1 fix (2026-05-13): ownership signals required to classify each row as
+  // Mallan-authored (`agent_id` or `owner_client_id` non-null), website-only
+  // commercial (`rls_eligible === false`), or third-party IDX/RLS. Without
+  // these, every DB row was hard-coded as `_source: 'exclusive'` regardless
+  // of provenance — see the per-row classifier below.
+  //
+  // Prisma exposes both as `bigint | null`; the route's serialize step
+  // stringifies for JSON safety and the classifier only checks `!= null`,
+  // so accepting either shape keeps callers flexible.
+  agent_id?: bigint | string | null;
+  owner_client_id?: bigint | string | null;
   rls_eligible?: boolean;
   commercial_sub_type?: string | null;
   commercial_ownership?: string | null;
@@ -177,6 +188,42 @@ function proxyDbMediaUrl(rawUrl: string): string {
     return rawUrl;
   }
   return rawUrl;
+}
+
+/**
+ * Provenance of a DB-cached listing row.
+ *
+ * - `mallan-exclusive`: owned by a Mallan client (`owner_client_id` non-null)
+ *   or carried by a Mallan agent (`agent_id` non-null). True Mallan exclusive.
+ * - `website-only`: commercial / off-RLS listing (`rls_eligible === false`).
+ *   Bypasses REBNY distribution gates; surfaced only on mallan.nyc.
+ * - `third-party-idx`: synced from REBNY RLS via Trestle/IDX Plus with no
+ *   Mallan attribution. Must carry the full REBNY disclaimer and
+ *   `_source: "db+idx"`.
+ */
+export type DbListingProvenance =
+  | 'mallan-exclusive'
+  | 'website-only'
+  | 'third-party-idx';
+
+/**
+ * Classify a DB row by provenance. C1 fix (2026-05-13).
+ *
+ * Before this helper existed, `dbListingToPublicDTO` hard-coded every row as
+ * `_source: 'exclusive'` and `disclaimerRequired: false`, mis-labeling every
+ * Trestle-synced third-party row as a Mallan exclusive (10,484 / 10,484 rows
+ * affected). The classifier is exported so tests, sitemap, and any downstream
+ * consumer can reuse the same predicate.
+ */
+export function classifyDbListing(listing: Pick<DbListing,
+  'agent_id' | 'owner_client_id' | 'rls_eligible'>): DbListingProvenance {
+  // Website-only check first: commercial rows opt out of RLS entirely and
+  // are tagged exclusive (Mallan-owned) by definition.
+  if (listing.rls_eligible === false) return 'website-only';
+  if (listing.agent_id != null || listing.owner_client_id != null) {
+    return 'mallan-exclusive';
+  }
+  return 'third-party-idx';
 }
 
 /**
@@ -403,16 +450,58 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     // buildAuctionPublic() reads the snake_case columns from the DB row and
     // returns null unless auction_yn === true AND type/endDate are present.
     auction: buildAuctionPublic(listing),
+    // C1 fix (2026-05-13): _source + _displayCompliance are now derived from
+    // provenance instead of hard-coded. Before this fix every DB row was
+    // labeled `_source: 'exclusive'` / `disclaimerRequired: false` regardless
+    // of whether it was Mallan-authored or a 3rd-party Trestle sync. See
+    // `classifyDbListing` above for the predicate.
+    ...buildSourceAndCompliance(listing, agentInfo, isComingSoon, comingSoonDate),
+  };
+}
+
+/**
+ * Derive `_source` + `_displayCompliance` from listing provenance.
+ *
+ * - `third-party-idx` → `_source: 'db+idx'`, full REBNY disclaimer required,
+ *   attribution courtesy of the actual listing brokerage (or "REBNY RLS" when
+ *   the source row omits ListOfficeName).
+ * - `mallan-exclusive` → `_source: 'exclusive'`, no RLS disclaimer (this is
+ *   our own listing), attribution = "Exclusive listing by Mallan Real Estate
+ *   Inc.".
+ * - `website-only` → same as mallan-exclusive but for commercial rows that
+ *   bypass RLS entirely; no RLS disclaimer because the data is not RLS-sourced.
+ */
+function buildSourceAndCompliance(
+  listing: DbListing,
+  agentInfo: DbAgentInfo,
+  isComingSoon: boolean,
+  comingSoonDate: string | undefined,
+): Pick<PublicListingDTO, '_source' | '_displayCompliance'> {
+  const provenance = classifyDbListing(listing);
+  const officeName = agentInfo.ListOfficeName?.trim() || 'REBNY RLS';
+
+  if (provenance === 'third-party-idx') {
+    return {
+      _source: 'db+idx',
+      _displayCompliance: {
+        requiresAttribution: true,
+        // UCBA Art. III §2(C) — listing attribution must identify the ACTUAL
+        // listing broker, never the displaying broker.
+        attributionText: `Listing courtesy of ${officeName}`,
+        disclaimerRequired: true,
+        comingSoon: isComingSoon || undefined,
+        comingSoonDate,
+      },
+    };
+  }
+
+  // mallan-exclusive or website-only — same attribution shape, no RLS
+  // disclaimer required (Mallan-owned data, not third-party IDX content).
+  return {
     _source: 'exclusive',
     _displayCompliance: {
       requiresAttribution: true,
-      // UCBA Art. III §2(C) — the literal phrasing required by REBNY:
-      // "Listing Courtesy of [Exclusive Broker]". The prior "Exclusive
-      // listing by Mallan Real Estate Inc." default falsely attributed
-      // every IDX-sourced row to us and implied exclusivity that the data
-      // doesn't support. Pull the office name straight from the source
-      // (already neutralised to "REBNY RLS" when missing, above).
-      attributionText: `Listing courtesy of ${agentInfo.ListOfficeName?.trim() || 'REBNY RLS'}`,
+      attributionText: 'Exclusive listing by Mallan Real Estate Inc.',
       disclaimerRequired: false,
       comingSoon: isComingSoon || undefined,
       comingSoonDate,

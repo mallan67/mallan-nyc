@@ -10,7 +10,6 @@
 
 import type { IDXListing } from './types';
 import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
-import { affirmPermission } from '@/lib/compliance/gates';
 
 /**
  * RESO Data Dictionary field names — complete set.
@@ -350,26 +349,31 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     }) : [],
     // Remarks — public only (private remarks NEVER mapped to IDXListing)
     publicRemarks: normalized.PublicRemarks ? String(normalized.PublicRemarks) : undefined,
-    // Distribution gate flags — fail-CLOSED coercion via affirmPermission.
-    // Previous `!== false` pattern mis-classified missing flags as displayable.
+    // Distribution gate flags — IDX Plus pre-filter convention (`!== false`).
     //
-    // Legacy DTO field migration (2026-04-27):
-    //   - idxEntireListingDisplayYN: the source field IDXEntireListingDisplayYN
-    //     does NOT exist on live Trestle (verified 2026-04-19). Without a
-    //     fallback, this DTO field would always be false for every listing,
-    //     silently breaking any consumer still gating on it. Mirror the
-    //     canonical InternetEntireListingDisplayYN value so legacy consumers
-    //     see correct, accurate display permission.
-    //   - participantOnlyYN: ParticipantOnlyYN was replaced by Permission='Private'
-    //     on the live $metadata. Mirror that mapping so legacy consumers
-    //     reading dto.participantOnlyYN see the right value.
+    // C1 fix (2026-05-13): mapRESOToInternal is called exclusively on raw
+    // Trestle records pulled from the REBNY IDX Plus feed. Per CLAUDE.md
+    // 2026-04-30 (commit 0309875b), REBNY/Cotality removes non-displayable
+    // rows upstream and leaves the two display flags as null on the
+    // survivors — an explicit `false` is the rare per-row override.
     //
-    // New code should use evaluateDisplayGate() from lib/compliance/gates.ts.
-    idxEntireListingDisplayYN: affirmPermission(
-      normalized.IDXEntireListingDisplayYN ?? normalized.InternetEntireListingDisplayYN
-    ),
-    internetEntireListingDisplayYN: affirmPermission(normalized.InternetEntireListingDisplayYN),
-    internetAddressDisplayYN: affirmPermission(normalized.InternetAddressDisplayYN),
+    // The writer side (`lib/idx/trestle-mapper.ts:706-707`) already encodes
+    // `!== false` here. Mirroring that same semantics on the reader side
+    // closes the list/detail address-display divergence: both paths now
+    // agree that null upstream = displayable, explicit false = suppress.
+    //
+    // Per-row opt-out flags (AVM, ConsumerComment) remain fail-closed via
+    // affirmPermission elsewhere — only InternetEntireListingDisplayYN /
+    // InternetAddressDisplayYN are IDX-Plus pre-filtered. Legacy callers
+    // gating on `idxEntireListingDisplayYN` inherit the same convention via
+    // the canonical InternetEntireListingDisplayYN fallback.
+    //
+    // New code should still use evaluateDisplayGate() from lib/compliance/
+    // gates.ts; for raw Trestle records, pass `{ idxPlusPreFiltered: true }`.
+    idxEntireListingDisplayYN:
+      (normalized.IDXEntireListingDisplayYN ?? normalized.InternetEntireListingDisplayYN) !== false,
+    internetEntireListingDisplayYN: normalized.InternetEntireListingDisplayYN !== false,
+    internetAddressDisplayYN: normalized.InternetAddressDisplayYN !== false,
     participantOnlyYN:
       normalized.ParticipantOnlyYN === true ||
       normalized.Permission === 'Private',
