@@ -346,19 +346,31 @@ describe('sanitizeForPortal', () => {
   });
 
   describe('seller role', () => {
-    it('preserves full agent_info (their own agent)', () => {
+    // Hotfix 3 (2026-05-13) — seller role used to receive the full raw
+    // `agent_info` including `full_name`, `ListAgentEmail`, etc. That was
+    // an M2 audit PII leak: a seller favoriting another broker's listing
+    // would see that broker's contact info. Now all portal roles get the
+    // same `{ company }` mask. UCBA §2(C) attribution preserved via the
+    // brokerage name.
+    it('masks agent_info to { company } only — no PII leak (Hotfix 3)', () => {
       const result = sanitizeForPortal(buildRawListing(), 'seller');
+      expect(result.agent_info).toEqual({ company: 'Mallan Real Estate Inc.' });
       const agentInfo = result.agent_info as Record<string, unknown>;
-      expect(agentInfo.full_name).toBe('Jane Broker');
-      expect(agentInfo.company).toBe('Mallan Real Estate Inc.');
+      // Regression guard against the prior leak shape.
+      expect(agentInfo).not.toHaveProperty('full_name');
+      expect(agentInfo).not.toHaveProperty('ListAgentEmail');
+      expect(agentInfo).not.toHaveProperty('ListAgentDirectPhone');
+      expect(agentInfo).not.toHaveProperty('ListAgentKey');
     });
   });
 
   describe('landlord role', () => {
-    it('preserves full agent_info (their own agent)', () => {
+    it('masks agent_info to { company } only — no PII leak (Hotfix 3)', () => {
       const result = sanitizeForPortal(buildRawListing(), 'landlord');
+      expect(result.agent_info).toEqual({ company: 'Mallan Real Estate Inc.' });
       const agentInfo = result.agent_info as Record<string, unknown>;
-      expect(agentInfo.full_name).toBe('Jane Broker');
+      expect(agentInfo).not.toHaveProperty('full_name');
+      expect(agentInfo).not.toHaveProperty('ListAgentEmail');
     });
   });
 
@@ -382,11 +394,13 @@ describe('sanitizeListingForPortal', () => {
     expect(result!.agent_info).toEqual({ company: 'Mallan Real Estate Inc.' });
   });
 
-  it('returns sanitized listing for seller with full agent_info', () => {
+  it('returns sanitized listing for seller — agent_info masked to { company } (Hotfix 3)', () => {
+    // Was: "preserves full agent_info" — pinned the M2 audit leak path.
+    // Now: every role gets the same masked shape so cross-listing
+    // favorites can't leak another broker's contact PII.
     const result = sanitizeListingForPortal(buildPortalListing(), 'seller');
     expect(result).not.toBeNull();
-    const agentInfo = result!.agent_info as Record<string, unknown>;
-    expect(agentInfo.full_name).toBe('Jane Broker');
+    expect(result!.agent_info).toEqual({ company: 'Mallan Real Estate Inc.' });
   });
 
   it('converts bigint id to string', () => {

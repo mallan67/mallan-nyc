@@ -235,29 +235,53 @@ export function sanitizeForVOW(listing: Record<string, unknown>): Record<string,
 
 /**
  * Sanitize a listing for PORTAL (client) display.
- * Like public, but additionally:
- *   - Buyer/Tenant: agent name masked (only company shown)
- *   - Seller/Landlord: agent info visible (it's their agent)
+ *
+ * Hotfix 3 (2026-05-13) — closed the M2 audit finding where seller and
+ * landlord roles received the full raw `agent_info` object, including
+ * `ListAgentEmail`, `ListAgentDirectPhone`, `ListAgentKey`, `full_name`,
+ * etc. A seller who favorited another seller's listing (or any non-own
+ * row) would receive THAT other broker's PII.
+ *
+ * The prior comment claimed seller/landlord "see their agent's info" —
+ * but the function had no way to distinguish "their own agent" from
+ * "another broker's agent." Verified during the fix: the seller and
+ * landlord UIs do NOT consume `agent_info` at all, so the leak path was
+ * producing data nothing rendered.
+ *
+ * Current policy (uniform across ALL portal roles):
+ *   `agent_info` → `{ company: <ListOfficeName or company string> | null }`
+ *
+ * UCBA Art. III §2(C) attribution is preserved (the brokerage name IS
+ * the listing broker). Everything else is stripped at the DTO boundary.
+ * If a future product requirement legitimately needs an authenticated
+ * seller/landlord to see THEIR OWN agent's contact, that should be a
+ * separate explicit endpoint scoped to the viewer's linked agent_id —
+ * NOT a wide DTO-wide unmask.
  */
 export function sanitizeForPortal(
   listing: Record<string, unknown>,
-  portalRole: string
+  // portalRole retained on the signature for API compatibility with
+  // callers (favorites + listings endpoints), but no longer branches the
+  // agent_info shape — the leak path is closed for all roles uniformly.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  portalRole: string,
 ): Record<string, unknown> {
   // Capture agent_info before public sanitization strips it
   const agentInfo = listing.agent_info as Record<string, unknown> | null | undefined;
-  const isBuyerOrTenant = portalRole === "buyer" || portalRole === "tenant";
 
   // Portal users are authenticated → use VOW-tier sanitization (enriched data)
   const result = sanitizeForVOW(listing);
 
-  // Re-add agent_info in appropriate shape
-  if (isBuyerOrTenant) {
-    result.agent_info = agentInfo
-      ? { company: agentInfo.company ?? agentInfo.ListOfficeName ?? null }
-      : null;
+  // Re-add agent_info as the strict allow-listed shape. Everything that
+  // isn't the brokerage attribution name is dropped here.
+  if (agentInfo) {
+    const company =
+      (agentInfo.company as string | undefined) ??
+      (agentInfo.ListOfficeName as string | undefined) ??
+      null;
+    result.agent_info = { company };
   } else {
-    // Seller/landlord sees their agent's info
-    result.agent_info = agentInfo ?? null;
+    result.agent_info = null;
   }
 
   return result;
