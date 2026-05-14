@@ -57,23 +57,23 @@ If a file was edited via the `Edit` tool, re-`cp -f` it to Desktop in the same s
 
 ## 🔔 ACTIVE FOLLOW-UP — FIRST AGENDA ITEM EVERY SESSION
 
-**Status:** OPEN · **Updated:** 2026-04-30 · **In observation window — PR 4 blocked**
+**Status:** OPEN · **Updated:** 2026-05-14 · **PR 4 merged · §2.05 = 0 violations · H1 dual-write closed**
 
-**ACTIVE GATE:** Media PR 3 observation window. Started `2026-04-30T06:00:42-04:00`. Earliest PR 4 eligibility `2026-05-02T06:00:42-04:00`. PR 4 also blocked on §2.05 violations = 0 at formal closeout. Do not start PR 4 until both gates clear.
+**GATE CLEARED 2026-05-14:** Media PR 3 observation window (started `2026-04-30T06:00:42-04:00`, eligibility `2026-05-02T06:00:42-04:00`) completed cleanly. Master plan PR 4 merged 2026-05-12 (PR #105, `daa6c44c`). §2.05 violations = 0 verified via `npm run ops:health` at 2026-05-14T15:04 ET (also: listings missing `status_changed_at` = 0, T+180d archive backlog = 0). H1 dual-write gap mechanically closed by PR #112 + PR #113. Source: progress audit 2026-05-14 (report-only).
 
 **ACTIVE HOLD:** External-inventory implementation is parked behind PR 4 closeout AND explicit user approval. Spec at `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md`. Hold record + release conditions in [`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`](memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md). Do NOT invoke `superpowers:writing-plans` against this spec until both release conditions are met.
 
-**TODAY'S INCIDENT (read first if resuming):** [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md) — full sequence of (1) RESO live coverage probe → (2) read-only DB-state confirmation → (3) bounded mapper writer fix `0309875b` → (4) first recovery (7,545 rows) → (5) §2.05 corrective (489 rows) → (6) push → (7) full system audit → (8) second recovery (49 post-push corruptions). Active gate-pass back to 100%. 3 architectural follow-ups (H1 dual-write gap, H2 deploy/cron race, H3 cron observability) and 1 user-requested permanent command (`npm run ops:system-audit`) parked for post-PR-4 work.
+**2026-04-30 INCIDENT (background for new sessions):** [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md) — full sequence of (1) RESO live coverage probe → (2) read-only DB-state confirmation → (3) bounded mapper writer fix `0309875b` → (4) first recovery (7,545 rows) → (5) §2.05 corrective (489 rows) → (6) push → (7) full system audit → (8) second recovery (49 post-push corruptions). Active gate-pass back to 100%. Architectural follow-ups status (2026-05-14): **H1 dual-write gap CLOSED by PR #112 (`df6791d`) + PR #113 (`e939073e`)** — primary + secondary writer guards and `normalizeStandardStatus()` now in place. Still open: H2 deploy/cron race detection; H3 cron heartbeat observability. The user-requested permanent command (`npm run ops:system-audit`) remains parked.
 
-**PRIMARY plan (10-PR backend rebuild):** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — status table inside is the source of truth for which PR is next. Master plan PR 4 (`refactor/04-media-batch-rewrite`) is the next eligible PR but is currently blocked by the observation window above.
+**PRIMARY plan (10-PR backend rebuild):** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — status table inside is the source of truth for which PR is next. **Master plan PR 4 merged 2026-05-12 (PR #105, `daa6c44c`)** — `refactor(media): swap public reader from Listing.media JSON to listing_media table`. Next eligible master-plan step is **PR 5 (search projection)** per `memory/REFACTOR-2026-04-25.md`.
 
 **SECONDARY (parallel track):** [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — Workstream C (UCBA compliance gaps: Inquiry, Offers, Auction, Ethics) runs in parallel after PR 1 of the master plan lands. Workstream A (Phase 3 schema) is **superseded** by master-plan PR 5. Workstream B (HTTP adapter) is **dropped** per user decision 2026-04-25.
 
 ### Action at next session (regardless of date):
-1. **Check the observation window first.** Read `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`. If now is **after `2026-05-02T06:00:42-04:00`**, paste the closeout checklist at the bottom of that file and run it. If the closeout passes (window completed cleanly + §2.05 = 0), PR 4 unblocks. If now is **before** that timestamp, PR 4 is still blocked — do read-only checks only.
-2. Open `memory/REFACTOR-2026-04-25.md`. Read the "Current state" snapshot, then the "PR sequence overview" status table.
-3. Run the pre-flight checklist at the top of that file (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`). **Note:** `ops:health` may report 1 transient §2.05 violation — that is naturally aged terminal listings; clears at next 3am UTC `data-retention` cron.
-4. If all pass and the observation window is closed, identify the lowest-numbered PR with status `NOT_STARTED` and execute it per the per-PR instructions in that file.
+1. **Check current state.** Observation window closed 2026-05-02; Master plan PR 4 merged 2026-05-12. Verify §2.05 still = 0 violations via `npm run ops:health` before starting PR 5 work. If `ops:health` shows §2.05 > 0, investigate before continuing — post-PR-#113 any non-zero reading is a real regression, not transient drift.
+2. Open `memory/REFACTOR-2026-04-25.md`. Read the "Current state" snapshot, then the "PR sequence overview" status table. **Next eligible PR is PR 5 (search projection).**
+3. Run the pre-flight checklist at the top of that file (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`). **Current state baseline (2026-05-14): §2.05 violations = 0, UCBA 46/46 PASS with 0 regressions, IDX validator 1,278 pass / 0 critical, compliance-check 93/93 BLOCKER+STRICT pass.** Any drop below baseline = regression to investigate before continuing.
+4. If all pass, identify the lowest-numbered PR with status `NOT_STARTED` and execute it per the per-PR instructions in that file.
 5. Workstream C (C1–C4 in `FOLLOWUP-2026-05-01.md`) can be picked up in parallel as soon as master-plan PR 1 has merged.
 6. After any PR merges, update its status field in `memory/REFACTOR-2026-04-25.md` to `MERGED — <commit-sha> · <date>`.
 
@@ -106,7 +106,7 @@ Close this follow-up when both the master-plan completion criteria (in `memory/R
 - **§2.05 corrective** (489 rows · both surfaces) — first recovery's WHERE was over-broad and flipped terminal-status rows past 24h to `idx_display_yn=true`; corrective restored `idx_display_yn=false` per REBNY RLS §2.05 / `data-retention` cron's same SQL.
 - **DB recovery 2** (49 rows · both surfaces) — system audit caught 49 active rows re-corrupted by the cron at 21:00 UTC running on the OLD code 1m12s after push (Vercel build still completing). Same recovery shape, narrower scope.
 - **Active suspicious gate-fail count: 0.** Active public gate-pass: **100%** (10,510/10,510). Listing↔projection row parity: 20,075/20,075/0 missing.
-- **Open architectural debt** (post-PR-4): H1 dual-write gap on non-mapper writers (37 rows of legitimate terminal-retention drift visible in `idx_drift`); H2 deploy/cron race detection; H3 cron heartbeat observability; M1 `saved_searches` empty; permanent `npm run ops:system-audit` command (spec in `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`).
+- **Architectural debt status (updated 2026-05-14):** H1 dual-write gap on non-mapper writers **CLOSED by PR #112 (`df6791d`) + PR #113 (`e939073e`)** — primary writer terminal-status guard + secondary-writer guard + `normalizeStandardStatus()` exported from `lib/idx/trestle-mapper.ts`. §2.05 violations confirmed = 0 in 2026-05-14T15:04 ET `ops:health` snapshot. Still OPEN: H2 deploy/cron race detection; H3 cron heartbeat observability; M1 `saved_searches` empty; permanent `npm run ops:system-audit` command (spec in `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`).
 
 ---
 
@@ -227,7 +227,7 @@ The backend CRM supports 6 portal types, each with different access levels:
 > - **Database** — PostgreSQL on Neon (Prisma ORM, 60 models)
 > - **Outlook integration** — Microsoft Graph OAuth for email scanning (StreetEasy lead import, folder browser)
 > - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
-> - **Cron** — 19 scheduled jobs via `vercel.json`: db-keepalive (*/15), data-retention (daily 3am), dom-reset (daily 6am), idx-sync (*/12), media-backfill (*/8), listing-expiration (daily 7am), search-alerts (daily 7:30am), tenant-nurture (daily 8:30am), prospect-triggers (daily 9am), seller-scoring (daily 8am), demand-signals (daily 10am), intent-profiles (daily 11am), agent-metrics (weekly Mon), lead-scoring (daily 1pm), conviction-scores (daily 2pm), listing-momentum (daily 3pm), social-proof (daily 4pm), experiment-metrics (weekly Sun), market-snapshots (monthly 1st), neon-branch-prune (daily 04:00 UTC).
+> - **Cron** — 23 scheduled jobs via `vercel.json` (updated 2026-05-14): db-keepalive (*/15), data-retention (daily 3am UTC), feed-reconcile (daily 3:30am UTC), neon-branch-prune (daily 4am UTC), dom-reset (daily 6am), idx-sync (*/10), media-backfill (*/15), media-sync (*/15), listing-expiration (daily 7am), search-alerts (daily 7:30am), seller-scoring (daily 8am), tenant-nurture (daily 8:30am), prospect-triggers (daily 9am), demand-signals (daily 10am), intent-profiles (daily 11am), agent-metrics (weekly Mon noon), lead-scoring (daily 1pm), conviction-scores (daily 2pm), listing-momentum (daily 3pm), social-proof (daily 4pm), lifecycle-triggers (daily 5pm), experiment-metrics (weekly Sun 2am), market-snapshots (monthly 1st 6am).
 >
 > **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure). Per-role TTL: Broker 24h, Agent 8h, Client 30d. Bearer fully removed.
 >
@@ -518,7 +518,7 @@ Every UI change should work seamlessly across all screen sizes and device types.
 
 All deployments and CI/CD workflows must maintain compliance with the above standards.
 
-**Cron jobs (vercel.json):** 19 scheduled tasks — db-keepalive (every 15min), data retention (daily 3am), DOM reset (daily 6am), IDX sync (every 12min), media backfill (every 8min), listing expiration (daily 7am), search alerts (daily 7:30am), neon-branch-prune (daily 04:00 UTC) + 11 more scheduled. 19 cron route handlers total.
+**Cron jobs (vercel.json):** 23 scheduled tasks (updated 2026-05-14) — db-keepalive (every 15min), data retention (daily 3am UTC), feed-reconcile (daily 3:30am UTC), neon-branch-prune (daily 4am UTC), DOM reset (daily 6am), IDX sync (every 10min), media backfill (every 15min), media-sync (every 15min), listing expiration (daily 7am), search alerts (daily 7:30am) + 13 more scheduled. 23 cron route handlers total.
 
 **Validation (CI):** `npm run ci` runs: lint → type-check → compliance-check → **idx:validate (32-section validator)** → build. The IDX Plus Validator (`scripts/idx-validate.js`) blocks builds on critical issues. Results saved to `public/crm/data/validator-results.json` for the CRM System Health dashboard. Run history stored in `.idx-validate/history.json`.
 
