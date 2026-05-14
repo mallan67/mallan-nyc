@@ -412,12 +412,48 @@ export async function GET(request: Request) {
               }
             }
 
-            // Media backfill removed from search path — the /api/cron/media-backfill
-            // cron (every 8min) handles this. Fetching photos per-listing during search
-            // added 3-10s latency. Listings without photos show a placeholder.
+            // PR-E.1.a (2026-05-14) — bounded live media fallback for the
+            // DB-first path.
+            //
+            // The 2026-05-14 PR-E.1 investigation found 1,286 listings (12.2%
+            // of all active+displayable) had ZERO media in both the relational
+            // `listing_media` table AND the legacy `media` JSON column. Those
+            // rendered as blank search cards. The `/api/listings/[id]` detail
+            // endpoint already fetches media live from Trestle for the same
+            // listings successfully (HEAD returns 200 image/jpeg on 90%+ of
+            // them). This brings the same fallback into the list endpoint,
+            // strictly bounded to never add more than 1.5s to the response.
+            //
+            // What this does NOT change (verified by the test suite):
+            //   - No DB writes. listing_media + media JSON untouched.
+            //   - No R2 mutations.
+            //   - No change to _source, attribution, disclaimer, address
+            //     suppression, or any compliance/distribution-gate flag.
+            //   - No change to media-sync or media-backfill cron.
+            // The earlier "Fetching photos per-listing during search added
+            // 3-10s latency" comment referred to an unbounded fallback. This
+            // one is hard-capped at 1.5s total via Promise.race in
+            // `fillEmptyMediaWithLiveFallback`.
+            //
+            // PR-E.1.b will investigate why listing_media's `last_photos_change`
+            // watermark is stuck at 2026-04-30 (the underlying cron issue).
+            // PR-E.1.c may add a one-shot backfill script if needed. Neither
+            // is in scope here.
+            const { fillEmptyMediaWithLiveFallback } = await import('@/lib/media/photo-fallback');
+            const { fetchListingMedia } = await import('@/lib/idx/fetch');
+            const photoFallbackPromise = fillEmptyMediaWithLiveFallback(
+              publicListings,
+              {
+                fetcher: (id) => fetchListingMedia(id),
+                concurrency: 5,
+                timeoutMs: 1500,
+              },
+            ).catch(() => publicListings);
 
-            // Wait for geocoding (with tight 1.5s timeout set above)
-            await geocodePromise;
+            // Wait for both geocoding and photo fallback — each carries its
+            // own 1.5s top-level timeout, so the response is never delayed
+            // more than ~1.5s by these two background tasks combined.
+            await Promise.allSettled([geocodePromise, photoFallbackPromise]);
 
             // C1 fix (2026-05-13): envelope source reflects the actual
             // composition of the response. Before this fix, every DB-first
