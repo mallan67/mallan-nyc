@@ -114,17 +114,31 @@ report's Appendix.
 - `npm run rls:validate`
 - `npm run ucba:audit`
 - `npm run crm:check-build`
-- `npm run build`
 - `npm run repo:hygiene`
 - `npm run ops:health`
 - `npm run ops:system-audit` (if present)
-- `npx jest --ci --forceExit` (only if scheduled runtime budget allows)
 - `curl` against production health endpoints, `/api/listings` sample,
   `/api/listings/[id]` sample, `/sitemap.xml`, `/robots.txt`
 - Inspect recent `audit_events` only through read-only / report scripts already in repo
 
 If a command is missing, record it as a finding and continue — do not invent
 replacement commands that touch state.
+
+### Commands explicitly NOT in the audit allow-list
+
+The following are **already gated by `pr-check.yml` and `guardrails.yml` on every
+PR** and are duplicative inside the scheduled audit. They were removed from the
+Claude tool allow-list to keep Mallan Sentinel inside its 35-minute job budget so
+it has time to actually write the report:
+
+- `npm run build` — covered by PR CI build step.
+- `npx jest --ci --forceExit` — covered by PR CI test step.
+
+If you (Claude) need a build- or test-correctness signal, treat the most recent
+`pr-check` workflow run on `main` as the source of truth — do not attempt to
+re-run them inside the audit. The audit's job is to **find, prove, rank, and
+report** compliance / mapping / production-behavior risks, not to re-run unit
+tests or compile the app.
 
 ## Report Format (every section A–S required, in order)
 
