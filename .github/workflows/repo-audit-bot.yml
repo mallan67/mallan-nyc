@@ -150,8 +150,14 @@ jobs:
           # Allow-list: Claude can read freely, run npm validators / curl / read-only
           # scripts, and write ONLY under memory/audits/. No Edit, no general Write,
           # no Bash for git/gh/prisma/destructive commands.
+          # NOTE: `npm run build` and `npx jest --ci --forceExit` are intentionally
+          # NOT in this allow-list. Those are already gated by `pr-check.yml` and
+          # `guardrails.yml` on every PR; running them inside the scheduled audit
+          # is duplicative and burns the 35-minute Claude job budget. The audit
+          # focuses on compliance, RESO/IDX mapping, production behavior, and
+          # report synthesis — not build/test correctness.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(npx jest --ci --forceExit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
