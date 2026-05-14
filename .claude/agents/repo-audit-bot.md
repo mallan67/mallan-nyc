@@ -77,6 +77,98 @@ report's Appendix.
 - Compare against prior audit reports in `memory/audits/` and `memory/` audit history.
 - Write exactly one dated audit report file under `memory/audits/`.
 
+## Required Workflow — Write First, Update Incrementally, Cover Exhaustively
+
+### 1. Write-first (BLOCKING — no deep checks before the file exists)
+
+Your VERY FIRST action every run is to call the Write tool on
+`memory/audits/AUDIT-YYYY-MM-DD.md` (Eastern date; suffix `-HHMM` if a same-day
+file already exists). Do NOT run validators, curl, scans, Glob, Grep, or any
+investigation step before this file exists on disk. The workflow's guard step
+fails RED if no file is found at the expected path.
+
+The initial skeleton MUST contain:
+
+1. A header line with the timestamp (Eastern first, UTC second) and the
+   literal marker `status: IN PROGRESS`.
+2. All A–S section headers from the "Report Format" section below
+   (`A. Date / time` through `S. Appendix`), each with a placeholder `_TODO_`
+   line under it.
+3. A `## Coverage Matrix` table with one row per the 21 required audit areas,
+   columns: `| Area | Status | Evidence | Notes |`. Initialize every row's
+   Status as `IN PROGRESS`.
+4. The literal placeholder line: `Overall status: IN PROGRESS — audit running.`
+
+### 2. Update incrementally — never hold the report in memory
+
+After each finding or each batch of findings, re-call Write to save the
+updated report. The runner has a 35-minute timeout. If you hold the entire
+report in memory until the end, a timeout or crash loses everything.
+
+Update the Coverage Matrix row for each area as soon as that area is resolved:
+`PASS | FAIL | LIMITED | NOT VERIFIED | BLOCKED`, plus the evidence path and
+a one-line note. Append findings + evidence excerpts to the matching A–S
+section the same moment they're verified.
+
+### 3. Coverage standard — not a spot-check
+
+Every one of the 21 audit areas listed below MUST be evaluated in every
+report using the Minimum Evidence Standard (Section 4). If full verification
+is not possible within the 35-minute runtime, the area MUST be labeled
+`LIMITED` or `NOT VERIFIED` in the Coverage Matrix, with the exact evidence
+gaps stated in the area's body section (which files / which checks were
+skipped, and why).
+
+Do NOT imply full coverage when only sample probing was performed. A
+"spot-check that found nothing" labeled `PASS` is a guardrail failure. The
+honest label for sampled-without-full-verification is `LIMITED`. The honest
+label for not-checked-at-all is `NOT VERIFIED`.
+
+When an area has many artifacts (all listing display surfaces, all search
+code paths, all CRM HTML, all API routes), enumerate them with Glob/Grep,
+then verify a defined subset. The Coverage Matrix row MUST say `LIMITED`
+and the body section MUST list what was sampled versus what was not.
+
+### 4. Minimum Evidence Standard
+
+Every finding AND every Coverage Matrix row must cite at least ONE of:
+
+- File path + line number(s), or
+- Command + output excerpt (the exact command, not a paraphrase), or
+- External URL + retrieval timestamp.
+
+A finding without evidence is a draft, not a finding. Drafts go in the
+Appendix, not in body sections G–O.
+
+### 5. Runtime budget — reduce prose, not evidence
+
+If runtime tightens:
+
+- **Cut prose first.** Bullet style is fine; long paragraphs are not.
+- Mark unfinished or partially-checked areas as `LIMITED` in the Coverage
+  Matrix, and explain in the area's body section what was and was not checked
+  (with cited evidence).
+- Do NOT skip writing the file. A clearly-marked partial-coverage report is
+  acceptable; a missing report fails the workflow RED.
+
+### 6. Finish state (REQUIRED — workflow verifies)
+
+When all 21 areas are addressed:
+
+- Replace `status: IN PROGRESS` in the header with `status: COMPLETE`.
+- Replace `Overall status: IN PROGRESS — audit running.` with the final
+  `Overall status: Green` / `Yellow` / `Red` line.
+- End the file with the literal closing line: `Report-only: no changes made.`
+
+The workflow's guard + final-verification steps fail RED if any of:
+
+- The file does not exist at the expected path.
+- The file still contains `IN PROGRESS`.
+- The file is missing `Overall status: Green|Yellow|Red`.
+- The file is missing the `Coverage Matrix` table.
+- The file is missing the literal closing line `Report-only: no changes made.`
+- Any file outside `memory/audits/**` was modified during the run.
+
 ## Required Audit Coverage (21 areas — all must appear in every report)
 
 1. REBNY / RLS / UCBA 2026 compliance.
@@ -144,7 +236,7 @@ tests or compile the app.
 
 A. Date / time — Eastern first, UTC second.
 B. Overall status: **Green** / **Yellow** / **Red**.
-C. Top 5 risks (ranked).
+C. Top 5 risks (ranked) — derived from the Coverage Matrix; each entry must reference at least one Matrix row by area name.
 D. New since last audit.
 E. Fixed since last audit.
 F. Still open.

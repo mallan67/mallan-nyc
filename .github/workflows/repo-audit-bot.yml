@@ -172,10 +172,89 @@ jobs:
               - You may write EXACTLY ONE file: ${{ steps.paths.outputs.report_path }}
               - The workflow handles git + PR creation. Do not attempt either.
 
-            Run the full audit covering all 21 areas listed in the agent definition.
+            ### WRITE-FIRST RULE (BLOCKING — no deep checks before file exists)
+
+            Your VERY FIRST action MUST be to call the Write tool on
+            ${{ steps.paths.outputs.report_path }} with a SKELETON. Do NOT
+            run validators, curl, or scans before this file exists on disk.
+            The skeleton must contain:
+
+              1. A header line with the timestamp (Eastern first, UTC second)
+                 and the literal marker `status: IN PROGRESS`.
+              2. All A–S section headers from the agent definition (`A. Date /
+                 time` through `S. Appendix`), each with a placeholder `_TODO_`
+                 line under it.
+              3. A `## Coverage Matrix` table with one row per the 21 required
+                 audit areas, columns: `| Area | Status | Evidence | Notes |`.
+                 Every row's Status starts as `IN PROGRESS`.
+              4. The literal placeholder line:
+                 `Overall status: IN PROGRESS — audit running.`
+
+            After each batch of findings, re-call Write to save the updated
+            report. Do not hold the report in memory until the end — a runner
+            timeout would lose everything. Update each Coverage Matrix row as
+            soon as that area is addressed
+            (`PASS | FAIL | LIMITED | NOT VERIFIED | BLOCKED`).
+
+            ### COVERAGE STANDARD — NOT A SPOT-CHECK
+
+            Every one of the 21 audit areas listed in the agent definition
+            MUST be evaluated in every report using the Minimum Evidence
+            Standard (next section). If full verification is not possible
+            within the 35-minute runtime, the area MUST be labeled `LIMITED`
+            or `NOT VERIFIED` in the Coverage Matrix, with the exact evidence
+            gaps stated in the area's body section (which files / which
+            checks were skipped, and why).
+
+            Do NOT imply full coverage when only sample probing was performed.
+            A "spot-check that found nothing" labeled `PASS` is a guardrail
+            failure. The honest label for sampled-without-full-verification
+            is `LIMITED`. The honest label for not-checked-at-all is
+            `NOT VERIFIED`.
+
+            When an area has many artifacts (all listing display surfaces,
+            all search code paths, all CRM HTML, all API routes), enumerate
+            them with Glob/Grep, then verify a defined subset. The Coverage
+            Matrix row MUST say `LIMITED` and the body section MUST list what
+            was sampled versus what was not.
+
+            ### MINIMUM EVIDENCE STANDARD
+
+            Every finding AND every Coverage Matrix row must cite at least ONE
+            of: file path + line number(s), command + output excerpt (exact
+            command, not a paraphrase), or external URL + retrieval timestamp.
+            A finding without evidence is a draft, not a finding.
+
+            ### RUNTIME BUDGET POLICY (35-minute job timeout)
+
+            If runtime tightens:
+              - **Reduce prose first**, not evidence. Bullets > paragraphs.
+              - Mark unfinished areas as `LIMITED` in the Coverage Matrix and
+                explain in the area's section what was and was not checked.
+              - Do NOT skip writing the file. A partial-coverage report with
+                clearly marked LIMITED rows is acceptable; a missing report
+                is a fail-red workflow outcome.
+
+            ### COMPARE AGAINST PRIORS
+
             Compare findings against the most recent prior `memory/audits/AUDIT-*.md`,
             and against pre-existing `memory/AUDIT-*.md`, `memory/BACKEND-AUDIT-*.md`,
-            and `memory/RESO-COMPLIANCE-AUDIT-*.md`.
+            and `memory/RESO-COMPLIANCE-AUDIT-*.md`. Cite deltas in section D (New
+            since last audit) and section E (Fixed since last audit).
+
+            ### FINISH STATE (REQUIRED — workflow verifies)
+
+            When all 21 areas are addressed:
+              - Replace `status: IN PROGRESS` with `status: COMPLETE`.
+              - Replace `Overall status: IN PROGRESS — audit running.` with the
+                final `Overall status: Green` / `Yellow` / `Red` line.
+              - End the file with the literal line:
+                `Report-only: no changes made.`
+
+            The workflow's guard + final-verification steps fail red if any of:
+            file missing, IN PROGRESS still present, missing `Overall status:
+            Green|Yellow|Red`, missing `Coverage Matrix`, or missing the
+            `Report-only: no changes made.` closing line.
 
             Use the A–S section format from the agent definition. Cite file paths,
             line numbers, command excerpts, and external URLs as evidence for every
@@ -202,23 +281,53 @@ jobs:
           set -e
           echo "Reverted any validator-output side effects (if present)."
 
-      - name: Verify only the audit report changed
+      - name: Verify audit report exists, is in scope, and is complete
         id: guard
         run: |
           set -euo pipefail
-          changed=$(git status --porcelain | awk '{print $2}')
-          allowed="${{ steps.paths.outputs.report_path }}"
-          if [ -z "$changed" ]; then
-            echo "::warning::Claude produced no report. Skipping commit + PR."
+          report="${{ steps.paths.outputs.report_path }}"
+
+          # ---------------------------------------------------------------
+          # GATE 1 — Report file MUST exist on disk. Missing report = FAIL RED.
+          # No more silent green runs.
+          # ---------------------------------------------------------------
+          if [ ! -f "$report" ]; then
+            echo "::error::Claude produced no audit report at $report."
+            echo "::error::Sentinel must produce a durable report file every run."
+            echo "::error::Check the workflow's Claude invocation log for why Write was never called."
             echo "no_report=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            exit 1
           fi
-          unexpected=$(echo "$changed" | grep -v -E "^${allowed}$" || true)
+
+          # ---------------------------------------------------------------
+          # GATE 2 — Working-tree changes MUST be limited to memory/audits/**.
+          # Anything outside that path is a guardrail violation = FAIL RED.
+          # ---------------------------------------------------------------
+          changed=$(git status --porcelain | awk '{print $2}')
+          if [ -z "$changed" ]; then
+            echo "::error::Report file exists at $report but git sees no working-tree change."
+            echo "::error::Either the file is identical to HEAD or staging failed."
+            exit 1
+          fi
+          unexpected=$(echo "$changed" | grep -v -E "^memory/audits/" || true)
           if [ -n "$unexpected" ]; then
-            echo "::error::Audit bot modified unexpected files (guardrail violation):"
+            echo "::error::Audit bot modified files outside memory/audits/** (guardrail violation):"
             echo "$unexpected"
             exit 1
           fi
+
+          # ---------------------------------------------------------------
+          # GATE 3 — Report must NOT still be marked IN PROGRESS.
+          # An unfinished audit = FAIL RED. We do not commit/PR partial drafts.
+          # ---------------------------------------------------------------
+          if grep -q 'IN PROGRESS' "$report"; then
+            echo "::error::Report still contains 'IN PROGRESS' marker — audit did not finish cleanly."
+            echo "::error::Either Claude ran out of turns mid-audit or the finish-state step was skipped."
+            grep -n 'IN PROGRESS' "$report" | head -10 || true
+            exit 1
+          fi
+
+          echo "All 3 gates passed. Proceeding to commit + PR."
           echo "no_report=false" >> "$GITHUB_OUTPUT"
 
       - name: Commit + push audit report
@@ -258,6 +367,54 @@ jobs:
           **Report-only.** This PR exists for review history. **Do not merge.**
           EOF
           )"
+
+      # -----------------------------------------------------------------------
+      # FINAL VERIFICATION — structural fingerprint of the committed report.
+      # The guard above already enforced existence + scope + no-IN-PROGRESS.
+      # This step is a defense-in-depth check that the report is structurally
+      # complete (has Overall status / Coverage Matrix / required closing line).
+      # If anything is missing, fail the run RED so the draft PR is visibly
+      # broken and Maya knows not to trust it.
+      # -----------------------------------------------------------------------
+      - name: Final report verification
+        if: steps.guard.outputs.no_report == 'false'
+        run: |
+          set -euo pipefail
+          report="${{ steps.paths.outputs.report_path }}"
+          missing=0
+
+          if [ ! -f "$report" ]; then
+            echo "::error::Report file disappeared between guard and final verification: $report"
+            exit 1
+          fi
+
+          if ! grep -Eqi '^Overall status:[[:space:]]*(Green|Yellow|Red)' "$report"; then
+            echo "::error::Report missing 'Overall status: Green|Yellow|Red' line."
+            missing=1
+          fi
+
+          if ! grep -Eq 'Coverage Matrix' "$report"; then
+            echo "::error::Report missing 'Coverage Matrix' section."
+            missing=1
+          fi
+
+          if ! grep -Eq '^Report-only: no changes made\.$' "$report"; then
+            echo "::error::Report missing literal closing line 'Report-only: no changes made.'"
+            missing=1
+          fi
+
+          if grep -q 'IN PROGRESS' "$report"; then
+            echo "::error::Report still contains 'IN PROGRESS' — audit incomplete."
+            missing=1
+          fi
+
+          if [ "$missing" = "1" ]; then
+            echo "::error::Final verification failed — report is structurally incomplete."
+            echo "::error::See errors above. The draft PR exists but should be treated as broken."
+            exit 1
+          fi
+
+          echo "Final verification passed: report has all required structural markers."
 
       - name: Upload report artifact (always, when report exists)
         # Run even when an earlier step (e.g. the guardrail) failed, so the
