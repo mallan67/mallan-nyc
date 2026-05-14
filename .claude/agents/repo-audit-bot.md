@@ -106,18 +106,28 @@ updated report. The runner has a 35-minute timeout. If you hold the entire
 report in memory until the end, a timeout or crash loses everything.
 
 Update the Coverage Matrix row for each area as soon as that area is resolved:
-`PASS | FAIL | LIMITED | BLOCKED`, plus the evidence path and a one-line
-note. Append findings + evidence excerpts to the matching A–S section the same
-moment they're verified.
+`PASS | FAIL | LIMITED | NOT VERIFIED | BLOCKED`, plus the evidence path and
+a one-line note. Append findings + evidence excerpts to the matching A–S
+section the same moment they're verified.
 
-### 3. Exhaustive coverage — not a spot-check
+### 3. Coverage standard — not a spot-check
 
-This audit examines **every file, every line, every link** that falls inside
-the 21 audit areas. A spot-check report is itself a finding, not a strategy.
+Every one of the 21 audit areas listed below MUST be evaluated in every
+report using the Minimum Evidence Standard (Section 4). If full verification
+is not possible within the 35-minute runtime, the area MUST be labeled
+`LIMITED` or `NOT VERIFIED` in the Coverage Matrix, with the exact evidence
+gaps stated in the area's body section (which files / which checks were
+skipped, and why).
 
-When an area has hundreds of files (all listing display surfaces, all search
-code paths, all CRM HTML, all API routes), enumerate them with Glob/Grep
-first, then verify exhaustively — not just the first hit.
+Do NOT imply full coverage when only sample probing was performed. A
+"spot-check that found nothing" labeled `PASS` is a guardrail failure. The
+honest label for sampled-without-full-verification is `LIMITED`. The honest
+label for not-checked-at-all is `NOT VERIFIED`.
+
+When an area has many artifacts (all listing display surfaces, all search
+code paths, all CRM HTML, all API routes), enumerate them with Glob/Grep,
+then verify a defined subset. The Coverage Matrix row MUST say `LIMITED`
+and the body section MUST list what was sampled versus what was not.
 
 ### 4. Minimum Evidence Standard
 
@@ -226,7 +236,7 @@ tests or compile the app.
 
 A. Date / time — Eastern first, UTC second.
 B. Overall status: **Green** / **Yellow** / **Red**.
-C. Top 5 risks (ranked).
+C. Top 5 risks (ranked) — derived from the Coverage Matrix; each entry must reference at least one Matrix row by area name.
 D. New since last audit.
 E. Fixed since last audit.
 F. Still open.

@@ -193,15 +193,30 @@ jobs:
             After each batch of findings, re-call Write to save the updated
             report. Do not hold the report in memory until the end — a runner
             timeout would lose everything. Update each Coverage Matrix row as
-            soon as that area is addressed (`PASS | FAIL | LIMITED | BLOCKED`).
+            soon as that area is addressed
+            (`PASS | FAIL | LIMITED | NOT VERIFIED | BLOCKED`).
 
-            ### EXHAUSTIVE COVERAGE — NOT A SPOT-CHECK
+            ### COVERAGE STANDARD — NOT A SPOT-CHECK
 
-            This audit examines **every file, every line, every link** that
-            falls inside the 21 audit areas. A spot-check is a finding, not a
-            strategy. When an area has hundreds of files (listing display, all
-            search code paths, all CRM HTML), enumerate them with Glob/Grep
-            first, then verify exhaustively — not just the first hit.
+            Every one of the 21 audit areas listed in the agent definition
+            MUST be evaluated in every report using the Minimum Evidence
+            Standard (next section). If full verification is not possible
+            within the 35-minute runtime, the area MUST be labeled `LIMITED`
+            or `NOT VERIFIED` in the Coverage Matrix, with the exact evidence
+            gaps stated in the area's body section (which files / which
+            checks were skipped, and why).
+
+            Do NOT imply full coverage when only sample probing was performed.
+            A "spot-check that found nothing" labeled `PASS` is a guardrail
+            failure. The honest label for sampled-without-full-verification
+            is `LIMITED`. The honest label for not-checked-at-all is
+            `NOT VERIFIED`.
+
+            When an area has many artifacts (all listing display surfaces,
+            all search code paths, all CRM HTML, all API routes), enumerate
+            them with Glob/Grep, then verify a defined subset. The Coverage
+            Matrix row MUST say `LIMITED` and the body section MUST list what
+            was sampled versus what was not.
 
             ### MINIMUM EVIDENCE STANDARD
 
