@@ -4,7 +4,7 @@
 **Date authored:** 2026-05-14
 **Authoring authority:** Maya Allan, Principal Broker, Mallan Real Estate Inc. (REBNY License #10311201806; brokerage License #10991205323)
 **Companion charter:** `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md`
-**Compliance source of truth:** `.claude/skills/rebny-compliance/SKILL.md`
+**Compliance source of truth:** `CLAUDE.md` and `compliance/README.md` (entry point to the tracked `compliance/` directory)
 **Companion design (separate repo):** `mallan-marketing-plans/2026-05-14-public-records-intelligence-design.md`
 **Hold record this charter does NOT release:** `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`
 
@@ -282,9 +282,9 @@ These audit rows are retained for the 2-year audit-event retention window alread
 
 This charter does not modify the source-of-truth charter. The public-records database is a new, distinct domain — not a parallel system within an existing domain. Per the source-of-truth charter, distinct domains may have their own files and stores; what is forbidden is parallel files within a domain (e.g., `search-v2.ts` next to `search.ts`).
 
-### 7.2 — Relationship to the REBNY compliance skill
+### 7.2 — Relationship to tracked project compliance docs
 
-This charter operates within the rules in `.claude/skills/rebny-compliance/SKILL.md`. Where this charter is stricter (e.g., extending the "Off-Market" prohibition to internal code identifiers), the stricter rule wins.
+This charter operates within the rules in `CLAUDE.md` and the tracked `compliance/` directory (entry point: `compliance/README.md`, with topic-specific files including `compliance/UCBA-2026.md`, `compliance/IDX-VOW-DISPLAY-RULES.md`, `compliance/NYC-NYS-REQUIREMENTS.md`, `compliance/RLS-VALIDATOR-V2.md`, `compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `compliance/FIELD-AUTHORITY.md`, and `REBNY-RLS-RESO-COMPLETE-REFERENCE.md` at the repo root). Where this charter is stricter (e.g., extending the "Off-Market" prohibition to internal code identifiers), the stricter rule wins.
 
 ### 7.3 — Relationship to the external-inventory hold
 
@@ -302,7 +302,7 @@ This charter may be amended only by a PR that:
 1. Modifies this file (`docs/architecture/PUBLIC-RECORDS-DB-CHARTER.md`) directly,
 2. Records the amendment date and rationale in an "Amendment History" appendix below,
 3. Carries Maya Allan's explicit approval as the licensed broker of record,
-4. Is reviewed against the REBNY compliance skill for any regression on UCBA, §175.25, or Trestle isolation rules.
+4. Is reviewed against the tracked project compliance docs (`CLAUDE.md` and the `compliance/` directory, entry point `compliance/README.md`) for any regression on UCBA, §175.25, or Trestle isolation rules.
 
 Implementation PRs that conflict with this charter must either be rejected or paired with an amendment PR that lands first.
 
@@ -398,7 +398,7 @@ _None yet. This is the initial charter._
 
 | Topic | Path |
 |---|---|
-| REBNY UCBA + Trestle + Fair Housing + Advertising compliance | `.claude/skills/rebny-compliance/SKILL.md` |
+| REBNY UCBA + Trestle + Fair Housing + Advertising compliance | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `RLS-VALIDATOR-V2.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `FIELD-AUTHORITY.md`) + `REBNY-RLS-RESO-COMPLETE-REFERENCE.md` |
 | Source-of-truth charter (architecture) | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
 | Companion design (cross-repo) | `mallan-marketing-plans/2026-05-14-public-records-intelligence-design.md` |
 | Phase B 13-scanner system (extended to 15) | `mallan-marketing-plans/2026-05-12-townhouse-hunter-completion-plan.md` |
