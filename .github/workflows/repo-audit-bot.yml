@@ -143,6 +143,159 @@ jobs:
       - name: Install dependencies (read-only validators only)
         run: npm ci
 
+      # -----------------------------------------------------------------------
+      # PRE-CREATE the audit report skeleton.
+      #
+      # Why this exists: the post-PR-#118 smoke test (run 25871550958) failed
+      # red because Claude finished its 20-minute investigation without ever
+      # calling the Write tool on memory/audits/AUDIT-YYYY-MM-DD.md. The
+      # fail-red guard correctly turned the workflow red, but no audit content
+      # was produced.
+      #
+      # The fix is to remove the "create the file" requirement from Claude
+      # entirely. The workflow now guarantees the file exists with the right
+      # structure before Claude starts. Claude only has to UPDATE the
+      # existing file as findings are collected, then replace every
+      # `IN PROGRESS` marker and add the literal closing line at the end.
+      #
+      # If Claude fails to update the file (same failure mode as before),
+      # the guard fires on Gate 3 (IN PROGRESS still present) instead of
+      # Gate 1 (no file). Either way the run turns red — but now a skeleton
+      # always exists, which makes the failure auditable and the draft PR
+      # creatable on partial-completion runs.
+      # -----------------------------------------------------------------------
+      - name: Create audit report skeleton
+        run: |
+          set -euo pipefail
+          report="${{ steps.paths.outputs.report_path }}"
+          ny_iso=$(TZ=America/New_York date +"%Y-%m-%dT%H:%M:%S%z")
+          utc_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          mkdir -p "$(dirname "$report")"
+          cat > "$report" <<EOF
+          # Mallan Sentinel Audit — ${{ steps.paths.outputs.report_date }}
+
+          timestamp_eastern: $ny_iso
+          timestamp_utc:     $utc_iso
+          run_url:           ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          status:            IN PROGRESS
+
+          Overall status: IN PROGRESS — audit running.
+
+          ---
+
+          ## Coverage Matrix
+
+          | #  | Area                                                                 | Status      | Evidence | Notes |
+          |----|----------------------------------------------------------------------|-------------|----------|-------|
+          | 1  | REBNY / RLS / UCBA 2026 compliance                                   | IN PROGRESS | —        | —     |
+          | 2  | Trestle / Cotality IDX Plus requirements                             | IN PROGRESS | —        | —     |
+          | 3  | RESO mapping and field parity                                        | IN PROGRESS | —        | —     |
+          | 4  | IDX display permissions and suppression                              | IN PROGRESS | —        | —     |
+          | 5  | REBNY attribution on public listing surfaces                         | IN PROGRESS | —        | —     |
+          | 6  | Fair Housing / protected-class language                              | IN PROGRESS | —        | —     |
+          | 7  | NY real estate advertising compliance (19 NYCRR 175.25, RPL)         | IN PROGRESS | —        | —     |
+          | 8  | NYC rental disclosures (FARE Act, lead paint, bedbug, sprinkler)     | IN PROGRESS | —        | —     |
+          | 9  | Search functionality (public IDX + 6 CRM search modes)               | IN PROGRESS | —        | —     |
+          | 10 | Listing detail functionality (sale + rental + commercial paths)      | IN PROGRESS | —        | —     |
+          | 11 | Photos / media / R2 / listing_media parity                           | IN PROGRESS | —        | —     |
+          | 12 | Map / geolocation / address display + suppression                    | IN PROGRESS | —        | —     |
+          | 13 | Portal flows (buyer / tenant / seller / landlord)                    | IN PROGRESS | —        | —     |
+          | 14 | CRM and agent workflows (broker admin, agent admin, deal forms)      | IN PROGRESS | —        | —     |
+          | 15 | Forms and lead capture + consent_captured_at (TCPA/CAN-SPAM)         | IN PROGRESS | —        | —     |
+          | 16 | UI/UX/accessibility (WCAG 2.1 AA, responsive across breakpoints)     | IN PROGRESS | —        | —     |
+          | 17 | SEO / sitemap / robots / canonical / structured data (JSON-LD)       | IN PROGRESS | —        | —     |
+          | 18 | Security / privacy / PII / auth / session (cookie-only, MFA, TTLs)   | IN PROGRESS | —        | —     |
+          | 19 | Vercel / Neon / cron / build / deploy / storage health               | IN PROGRESS | —        | —     |
+          | 20 | Open PRs / stale branches / repo drift                               | IN PROGRESS | —        | —     |
+          | 21 | External rule changes (REBNY / RLS / Trestle / Cotality / FH / NY)   | IN PROGRESS | —        | —     |
+
+          ---
+
+          ## A. Date / time
+
+          _TODO_
+
+          ## B. Overall status: Green / Yellow / Red
+
+          _TODO_
+
+          ## C. Top 5 risks (ranked) — derived from Coverage Matrix
+
+          _TODO_
+
+          ## D. New since last audit
+
+          _TODO_
+
+          ## E. Fixed since last audit
+
+          _TODO_
+
+          ## F. Still open
+
+          _TODO_
+
+          ## G. Compliance findings (REBNY / RLS / UCBA / Trestle / RESO / Fair Housing / NY DOS / FARE)
+
+          _TODO_
+
+          ## H. Functionality findings
+
+          _TODO_
+
+          ## I. UI/UX findings
+
+          _TODO_
+
+          ## J. Media / photo findings
+
+          _TODO_
+
+          ## K. Search / listing / map findings
+
+          _TODO_
+
+          ## L. Portal / CRM findings
+
+          _TODO_
+
+          ## M. Security / privacy findings
+
+          _TODO_
+
+          ## N. Infra / cron / DB findings
+
+          _TODO_
+
+          ## O. External rule-change findings
+
+          _TODO_
+
+          ## P. Recommended fix order
+
+          _TODO_
+
+          ## Q. Blockers
+
+          _TODO_
+
+          ## R. Do-not-touch guardrail confirmation
+
+          _TODO_
+
+          ## S. Appendix — commands run, evidence excerpts, URLs consulted, file paths, line numbers, counts
+
+          _TODO_
+          EOF
+          echo "Created skeleton at $report ($(wc -l < "$report") lines, $(grep -c 'IN PROGRESS' "$report") IN PROGRESS markers)"
+          # Sanity check — the literal closing line MUST NOT be in the skeleton.
+          # Claude is responsible for adding it when the report is complete.
+          if grep -Fq 'Report-only: no changes made.' "$report"; then
+            echo "::error::Skeleton accidentally contains the literal closing line — this is a workflow bug."
+            exit 1
+          fi
+          echo "Skeleton OK — Claude will update IN PROGRESS markers and add the closing line."
+
       - name: Invoke Claude repo-audit-bot
         uses: anthropics/claude-code-action@v1
         with:
@@ -172,29 +325,37 @@ jobs:
               - You may write EXACTLY ONE file: ${{ steps.paths.outputs.report_path }}
               - The workflow handles git + PR creation. Do not attempt either.
 
-            ### WRITE-FIRST RULE (BLOCKING — no deep checks before file exists)
+            ### UPDATE-SKELETON RULE (NO Write-to-create — skeleton already exists)
 
-            Your VERY FIRST action MUST be to call the Write tool on
-            ${{ steps.paths.outputs.report_path }} with a SKELETON. Do NOT
-            run validators, curl, or scans before this file exists on disk.
-            The skeleton must contain:
+            The workflow has ALREADY created the report file at
+            ${{ steps.paths.outputs.report_path }} BEFORE invoking you. The
+            skeleton contains: the timestamp header, `status: IN PROGRESS`,
+            the literal placeholder line `Overall status: IN PROGRESS — audit
+            running.`, the `## Coverage Matrix` table with all 21 audit-area
+            rows initialized to `IN PROGRESS`, and all A–S section headers
+            each with a `_TODO_` placeholder. The literal closing line
+            `Report-only: no changes made.` is intentionally NOT in the
+            skeleton — you add it last.
 
-              1. A header line with the timestamp (Eastern first, UTC second)
-                 and the literal marker `status: IN PROGRESS`.
-              2. All A–S section headers from the agent definition (`A. Date /
-                 time` through `S. Appendix`), each with a placeholder `_TODO_`
-                 line under it.
-              3. A `## Coverage Matrix` table with one row per the 21 required
-                 audit areas, columns: `| Area | Status | Evidence | Notes |`.
-                 Every row's Status starts as `IN PROGRESS`.
-              4. The literal placeholder line:
-                 `Overall status: IN PROGRESS — audit running.`
+            Your job is to UPDATE this existing file as you investigate. The
+            workflow tools allow-list grants you `Write(memory/audits/**)`.
+            Each Write call overwrites the whole file with the new content;
+            do NOT lose the structural elements the skeleton already set up.
 
-            After each batch of findings, re-call Write to save the updated
-            report. Do not hold the report in memory until the end — a runner
-            timeout would lose everything. Update each Coverage Matrix row as
-            soon as that area is addressed
-            (`PASS | FAIL | LIMITED | NOT VERIFIED | BLOCKED`).
+            First action: call Read on the skeleton path so you have the
+            exact structure (headers, table layout, area names) loaded.
+            Then begin investigation.
+
+            After each batch of findings:
+              - Call Write with the file's updated full contents.
+              - Replace the Coverage Matrix row's `IN PROGRESS` for the area
+                you just addressed with `PASS / FAIL / LIMITED / NOT VERIFIED
+                / BLOCKED`, plus the cited evidence path and a one-line note.
+              - Replace the matching A–S section's `_TODO_` with the actual
+                findings + evidence excerpts.
+              - Save often. Do not hold the full report in memory until the
+                end — a runner timeout would lose progress, and the guard
+                will still fire on any remaining `IN PROGRESS` markers.
 
             ### COVERAGE STANDARD — NOT A SPOT-CHECK
 
@@ -244,15 +405,21 @@ jobs:
 
             ### FINISH STATE (REQUIRED — workflow verifies)
 
-            When all 21 areas are addressed:
-              - Replace `status: IN PROGRESS` with `status: COMPLETE`.
-              - Replace `Overall status: IN PROGRESS — audit running.` with the
-                final `Overall status: Green` / `Yellow` / `Red` line.
-              - End the file with the literal line:
+            Before your final Write call:
+              - Replace the header line `status: IN PROGRESS` with
+                `status: COMPLETE`.
+              - Replace `Overall status: IN PROGRESS — audit running.` with
+                the final `Overall status: Green` / `Yellow` / `Red` line.
+              - Confirm NO `IN PROGRESS` strings remain anywhere in the file
+                (Coverage Matrix included). If an area genuinely could not be
+                verified, change that row's status to `LIMITED` or
+                `NOT VERIFIED` — never leave it as `IN PROGRESS`.
+              - Append the literal closing line at the very end:
                 `Report-only: no changes made.`
 
-            The workflow's guard + final-verification steps fail red if any of:
-            file missing, IN PROGRESS still present, missing `Overall status:
+            The workflow's guard + final-verification steps fail RED if any of:
+            file missing (should not happen — skeleton was pre-created), any
+            `IN PROGRESS` string still present, missing `Overall status:
             Green|Yellow|Red`, missing `Coverage Matrix`, or missing the
             `Report-only: no changes made.` closing line.
 
