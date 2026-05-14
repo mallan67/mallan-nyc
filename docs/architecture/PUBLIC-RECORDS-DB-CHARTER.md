@@ -308,6 +308,86 @@ Implementation PRs that conflict with this charter must either be rejected or pa
 
 ---
 
+## Article 9 — Priority Geography for V1
+
+This article fixes the v1 geographic scope of the Public Records Intelligence database. It exists for two reasons: (1) Maya has an active buyer client looking at Brooklyn new development, so the scanner must cover those specific neighborhoods in the first build; and (2) targeted scope is the principal control keeping the public-records Neon database lean within the free-tier 500 MB / 100 CU-hr budget.
+
+### 9.1 — V1 in-scope geography
+
+The v1 build covers exactly the following neighborhoods. No other neighborhoods may be ingested in v1.
+
+**Manhattan — core and new-development corridors:**
+- 102nd Street south through the Financial District (matches the Townhouse-Hunter Phase B scope in `mallan-marketing-plans/2026-05-12-townhouse-hunter-completion-plan.md`)
+
+**Brooklyn — priority neighborhoods for V1:**
+- DUMBO
+- Boerum Hill
+- Clinton Hill
+- Cobble Hill
+- Williamsburg
+- Fort Greene
+
+### 9.2 — Coverage commitment per source
+
+All seven initial searchable sources defined in Article 1.18 ingest data for buildings located in the V1 geography above. Specifically:
+
+| Source | V1 coverage commitment |
+|---|---|
+| NY AG Schedule A / offering plans | All NYC condo offering plans whose primary building address falls in the v1 geography |
+| ACRIS deeds and mortgages | All deeds and mortgages whose property BBL maps to a building in the v1 geography |
+| DOB Certificates of Occupancy (TCO + Final CO) | All CO records for buildings in the v1 geography |
+| DOB / HPD violations | Open violations for buildings in the v1 geography |
+| DOF tax / BBL / condo apportionment | Tax, BBL, and apportionment records for buildings in the v1 geography |
+| NY DOS Corporations | Sponsor entities + principals for any sponsor whose buildings include at least one v1-geography building |
+| 421-a / J-51 abatements | All abatements applied to buildings in the v1 geography |
+
+Buildings outside the v1 geography are explicitly excluded from ingestion in v1, even when they fall in the same source dataset.
+
+### 9.3 — Rationale: free-tier discipline
+
+This article reflects a deliberate engineering decision to operate the public-records database on Neon's free tier for v1, in line with `NEON.md` discipline. Targeted scope is the principal compute and storage control:
+
+- A second Neon free project (separate from the mallan-nyc primary project, per Article 1.9) provides 500 MB of storage and 100 CU-hr/month of compute at zero cost.
+- V1 geography is sized to fit comfortably within that budget. Conservative estimate: under 200 MB at year 1 for the scope above, leaving meaningful headroom.
+- Year-2 expansion will reassess capacity via a Neon `ops:health`-equivalent script against the public-records project specifically. Expansion to additional neighborhoods triggers a charter amendment per Article 8.
+- Choosing a different free Postgres provider (Supabase, CockroachDB Serverless, Xata, Tembo, self-hosted) is not permitted in v1 without a charter amendment per Article 8. This article fixes "Neon free tier" as the v1 hosting decision.
+
+### 9.4 — Deferred expansion
+
+The following geographies are explicitly **out of scope for v1**, to be reconsidered only after Maya completes solo beta (Article 1.19, step 7) and the system has demonstrated stable read/write performance within the free-tier budget:
+
+- **Brooklyn (deferred):** Park Slope, Carroll Gardens, Brooklyn Heights, Crown Heights, Prospect Heights, Bedford-Stuyvesant, Greenpoint, Bushwick, Gowanus, Red Hook, Sunset Park, Bay Ridge, Bensonhurst, Sheepshead Bay, Coney Island, and any Brooklyn neighborhood not enumerated in Article 9.1
+- **Manhattan (deferred):** Any Manhattan neighborhood above 102nd Street (Inwood, Washington Heights, Hamilton Heights, Marble Hill, etc.)
+- **Queens:** all neighborhoods
+- **Bronx:** all neighborhoods
+- **Staten Island:** all neighborhoods
+- **Outside NYC:** Long Island (Nassau, Suffolk), Westchester, Rockland, Hudson Valley, upstate New York
+
+### 9.5 — Internal-only language preserved
+
+This geography article does **not** alter any of the internal-only, no-public-exposure, non-listing rules elsewhere in this charter. Specifically:
+
+- Article 1.1 (internal CRM-only) — unchanged
+- Article 1.5 (never on public mallan.nyc website) — unchanged
+- Article 1.6 (never in buyer/tenant/seller/landlord portals) — unchanged
+- Article 1.7 (never via sanitizeForPublic or sanitizeForVOW) — unchanged
+- Article 1.15 (forbidden labels: off-market, exclusive, available, hidden inventory, shadow inventory, pre-market, coming soon) — unchanged
+- Article 4 (DTO surface rules) — unchanged
+- Article 10 (no persistent commingling with Trestle/RLS) — unchanged
+
+The geography expansion is a scope addition, not a posture change. Brooklyn buildings are ingested under exactly the same internal-only, non-listing, audit-logged constraints as Manhattan buildings.
+
+### 9.6 — Amendment path for v1 geography changes
+
+Adding a neighborhood to the v1 in-scope list before solo beta completes, or removing a v1 neighborhood, requires a charter amendment PR per Article 8. Such an amendment must:
+1. State the neighborhood being added/removed
+2. State the projected storage impact in MB
+3. State the projected compute impact in CU-hr/month
+4. Demonstrate the change still fits within the public-records Neon free-tier budget (or trigger Article 9.3's upgrade reconsideration)
+5. Carry Maya's explicit approval
+
+---
+
 ## Amendment history
 
 _None yet. This is the initial charter._
