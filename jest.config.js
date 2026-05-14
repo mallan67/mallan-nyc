@@ -12,6 +12,13 @@ module.exports = {
     '<rootDir>/lib/search/jest.config.js',
     // lib/idx tests (ts-jest) — sync cursor + backfill eligibility (PCT gap)
     '<rootDir>/lib/idx/jest.config.js',
+    // lib/media tests (ts-jest) — photo fallback (PR-E.1.a, 2026-05-14),
+    // listing-media resolver, and media-sync service. The per-directory
+    // jest.config.js existed but was previously NOT wired into the root
+    // projects list, so listing-media-resolver.test.ts and
+    // media-sync-service.test.ts had been orphaned from CI. Wiring it in
+    // here as part of PR-E.1.a fixes that gap.
+    '<rootDir>/lib/media/jest.config.js',
     // lib/rls-validator tests (ts-jest) — commented out: config missing
     // '<rootDir>/lib/rls-validator/jest.config.js',
     // tests/runtime — release-truth side-effect proof for high-risk routes
