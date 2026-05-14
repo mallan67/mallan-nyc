@@ -79,25 +79,28 @@ report's Appendix.
 
 ## Required Workflow — Write First, Update Incrementally, Cover Exhaustively
 
-### 1. Write-first (BLOCKING — no deep checks before the file exists)
+### 1. Skeleton pre-created — you UPDATE, never CREATE
 
-Your VERY FIRST action every run is to call the Write tool on
-`memory/audits/AUDIT-YYYY-MM-DD.md` (Eastern date; suffix `-HHMM` if a same-day
-file already exists). Do NOT run validators, curl, scans, Glob, Grep, or any
-investigation step before this file exists on disk. The workflow's guard step
-fails RED if no file is found at the expected path.
+The workflow at `.github/workflows/repo-audit-bot.yml` step
+"Create audit report skeleton" pre-creates the report file at
+`memory/audits/AUDIT-YYYY-MM-DD.md` (Eastern date; `-HHMM` suffix on same-day
+reruns) BEFORE invoking you. The skeleton already contains:
 
-The initial skeleton MUST contain:
+1. A header block with the timestamp (Eastern + UTC) and the literal marker
+   `status: IN PROGRESS`.
+2. The placeholder line `Overall status: IN PROGRESS — audit running.`
+3. The `## Coverage Matrix` table with one row per the 21 required audit
+   areas, every row's Status initialized to `IN PROGRESS`.
+4. All A–S section headers from the "Report Format" section below
+   (`A. Date / time` through `S. Appendix`), each with a `_TODO_` placeholder.
+5. The literal closing line `Report-only: no changes made.` is intentionally
+   NOT in the skeleton — you add it last.
 
-1. A header line with the timestamp (Eastern first, UTC second) and the
-   literal marker `status: IN PROGRESS`.
-2. All A–S section headers from the "Report Format" section below
-   (`A. Date / time` through `S. Appendix`), each with a placeholder `_TODO_`
-   line under it.
-3. A `## Coverage Matrix` table with one row per the 21 required audit areas,
-   columns: `| Area | Status | Evidence | Notes |`. Initialize every row's
-   Status as `IN PROGRESS`.
-4. The literal placeholder line: `Overall status: IN PROGRESS — audit running.`
+Your first action is to call `Read` on the skeleton so you have the exact
+structure loaded. Then begin investigation. Use `Write` to save the file's
+updated full contents after each batch of findings — the runner has a
+35-minute timeout, so holding the report in memory is a recipe for losing
+progress on a timeout.
 
 ### 2. Update incrementally — never hold the report in memory
 
@@ -153,17 +156,22 @@ If runtime tightens:
 
 ### 6. Finish state (REQUIRED — workflow verifies)
 
-When all 21 areas are addressed:
+Before your final `Write` call:
 
-- Replace `status: IN PROGRESS` in the header with `status: COMPLETE`.
+- Replace the header line `status: IN PROGRESS` with `status: COMPLETE`.
 - Replace `Overall status: IN PROGRESS — audit running.` with the final
   `Overall status: Green` / `Yellow` / `Red` line.
-- End the file with the literal closing line: `Report-only: no changes made.`
+- Confirm NO `IN PROGRESS` strings remain anywhere in the file (including
+  every Coverage Matrix row). An area that could not be verified must be
+  changed to `LIMITED` or `NOT VERIFIED` — never left as `IN PROGRESS`.
+- Append the literal closing line at the very end: `Report-only: no changes
+  made.`
 
 The workflow's guard + final-verification steps fail RED if any of:
 
-- The file does not exist at the expected path.
-- The file still contains `IN PROGRESS`.
+- The file does not exist (should not happen — the workflow pre-creates it,
+  but Gate 1 stays in place as a sanity check).
+- The file still contains any `IN PROGRESS` string.
 - The file is missing `Overall status: Green|Yellow|Red`.
 - The file is missing the `Coverage Matrix` table.
 - The file is missing the literal closing line `Report-only: no changes made.`
