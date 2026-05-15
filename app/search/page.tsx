@@ -93,6 +93,34 @@ export function resolveTab(typeParam: string): SearchTab {
   }
 }
 
+/**
+ * Resolves URL `?q=…` and `?neighborhood=…` params into the canonical
+ * `searchQuery` state value for SearchClient. Used in BOTH directions of
+ * the searchQuery sync:
+ *   - useState initializer on mount
+ *   - useEffect after mount when the URL changes (re-fires this resolver
+ *     against the new params so the toolbar input + resolvedSearch memo
+ *     stay aligned with `?q=…` / `?neighborhood=…` after browser back/
+ *     forward, header navigation, or programmatic `router.replace` from
+ *     outside the search page)
+ *
+ * Precedence: `q` wins over `neighborhood`. The toolbar input is the
+ * single bound value, so when both URL params are present the explicit
+ * `q` text is what the user typed last; `neighborhood` is the fallback
+ * used by header-nav clicks and saved-search links that pre-populate the
+ * input with a neighborhood name.
+ *
+ * Pure / referentially transparent — same input → same output, no side
+ * effects, safe to call inside render and effects.
+ *
+ * Next.js App Router ignores non-page exports from page.tsx files at
+ * runtime, so exporting this for tests is safe (same convention as
+ * `resolveTab` above, established by PR #131).
+ */
+export function resolveSearchQuery(queryParam: string, neighborhoodParam: string): string {
+  return queryParam || neighborhoodParam;
+}
+
 function formatPriceShort(price: number): string {
   if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(1)}M`;
   if (price >= 1_000) return `$${(price / 1_000).toFixed(0)}K`;
@@ -232,7 +260,31 @@ function SearchClient() {
   useEffect(() => {
     setActiveTab(resolveTab(typeParam));
   }, [typeParam]);
-  const [searchQuery, setSearchQuery] = useState(queryParam || neighborhoodParam);
+  const [searchQuery, setSearchQuery] = useState(resolveSearchQuery(queryParam, neighborhoodParam));
+  // PR-S.2b (2026-05-15) — URL → searchQuery sync. Mirrors the activeTab
+  // effect immediately above. Without this, browser back/forward,
+  // programmatic navigation, or any header/saved-search link that pushes
+  // `?q=…` or `?neighborhood=…` updates the URL but leaves `searchQuery`
+  // stale — the toolbar input shows the old value and the `resolvedSearch`
+  // memo (line ~346) returns stale API params, so listing results don't
+  // match the URL the user just navigated to.
+  //
+  // The reverse direction (`searchQuery` → URL) is wired further down via
+  // a single state→URL effect that writes via `window.history.replaceState`
+  // (NOT `router.replace`). Per Next.js App Router behavior,
+  // `useSearchParams()` only re-fires on framework-mediated navigation, not
+  // on `history.replaceState`, so this effect and that one cannot loop:
+  //   1. User typing → setSearchQuery → state→URL effect → history.replaceState
+  //      → `useSearchParams()` does NOT re-fire → queryParam stays the same
+  //      → this effect is a no-op.
+  //   2. Framework navigation (header `<Link>`, browser back/forward) →
+  //      `useSearchParams()` re-fires → queryParam changes → this effect
+  //      fires → setSearchQuery(newValue) → React bails out if value is
+  //      referentially equal; otherwise state→URL effect runs but uses
+  //      replaceState so `useSearchParams()` does not re-fire → terminates.
+  useEffect(() => {
+    setSearchQuery(resolveSearchQuery(queryParam, neighborhoodParam));
+  }, [queryParam, neighborhoodParam]);
   const viewParam = searchParams?.get('view') as ViewMode | null;
   // Initial view is SSR-stable: respect a valid URL param, otherwise 'split'.
   // Reading window.innerWidth in the lazy initializer was diverging server
