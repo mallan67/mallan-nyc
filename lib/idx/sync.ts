@@ -816,25 +816,47 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
  * `raw.ModificationTimestamp` (the Trestle row clock).
  *
  * `last_synced_from_trestle` is retained on the Listing model and
- * still populated at upsert time — it remains a useful "when did we
- * last touch this row from Trestle" audit signal, just not a safe
- * incremental-sync cursor.
+ * still populated at upsert time on Trestle-sourced rows. It is now
+ * ALSO used as the FILTER predicate to restrict the cursor query to
+ * Trestle-synced rows only — see PR-S.7 follow-up below.
  *
- * No `where: { modification_timestamp: { not: null } }` clause —
- * `Listing.modification_timestamp` is declared `DateTime` (non-nullable)
- * in `prisma/schema.prisma:550`, so the field is guaranteed populated
- * on every row. Adding the filter would be a TypeScript error
- * (`Type 'null' is not assignable to type DateTimeFilter`) because the
- * Prisma client's generated types know the column can never be null.
- * The original `getLastSyncTimestamp` used the filter on
- * `last_synced_from_trestle` because THAT column IS nullable
- * (`DateTime?` at schema.prisma:546).
+ * PR-S.7 (2026-05-15 follow-up to PR-S.6):
  *
- * `findFirst` with only `orderBy` + `select` returns `null` when the
- * Listing table is empty — the caller handles that via `?? null`.
+ * PR #140 (PR-S.6) switched the cursor from MAX(last_synced_from_trestle)
+ * to MAX(modification_timestamp) to fix the Codex-identified local-clock
+ * drift on capped runs. But that fix alone is incomplete: the Listing
+ * table contains rows from MULTIPLE writers, not just the Trestle sync
+ * path. Specifically, `app/api/crm/convert/route.ts:224` creates
+ * CRM-only listings with `modification_timestamp: new Date()` and
+ * leaves `last_synced_from_trestle` NULL (they were never synced from
+ * Trestle — they're website-only listings). If any such row is the
+ * newest by modification_timestamp, MAX(modification_timestamp) over
+ * the full table picks up local NOW and the Trestle incremental
+ * filter (MT gt SINCE) skips legitimate Trestle records.
+ *
+ * Fix: restrict the cursor query to rows where
+ * `last_synced_from_trestle IS NOT NULL`. That filter selects ONLY
+ * Trestle-sync writers (sync.ts:223 and sync.ts:925 both set
+ * `last_synced_from_trestle: mapped.last_synced_from_trestle`, which
+ * mapTrestleToPrisma always populates from `new Date()` at the time
+ * of the Trestle fetch). CRM-only writers like
+ * app/api/crm/convert/route.ts NEVER set the column, so their rows
+ * are excluded from the MAX.
+ *
+ * The where clause IS valid here because `last_synced_from_trestle`
+ * is `DateTime?` (nullable) at schema.prisma:546 — Prisma accepts
+ * `{ not: null }` on nullable columns. `modification_timestamp` is
+ * `DateTime` (non-nullable) at schema.prisma:550 — that's where a
+ * `{ not: null }` filter would be a TypeScript error and is omitted.
+ *
+ * `findFirst` returns `null` when no row matches (e.g. a fresh DB
+ * with no Trestle sync yet) — the caller handles that via `?? null`.
  */
 export async function getLastSyncTimestamp(): Promise<Date | null> {
   const latest = await prisma.listing.findFirst({
+    where: {
+      last_synced_from_trestle: { not: null },
+    },
     orderBy: { modification_timestamp: "desc" },
     select: { modification_timestamp: true },
   });
