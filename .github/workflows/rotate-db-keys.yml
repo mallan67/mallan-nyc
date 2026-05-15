@@ -103,10 +103,15 @@ jobs:
 
           # clean_optional <human-label> <raw-value> <output-env-name>
           # - Same byte-cleaning behavior as clean_required.
-          # - If raw is empty OR empty after strip, return silently. The env
-          #   stays at its job-level value (which is also empty when the
-          #   secret is unset), and downstream steps that depend on this
-          #   value MUST self-skip via their own `if:` guard.
+          # - If raw is empty OR empty after strip, EXPLICITLY clear the env
+          #   var by writing `<output-env-name>=` to $GITHUB_ENV. This is
+          #   important when the job-level env entry holds a non-empty but
+          #   semantically-empty value (e.g. a whitespace-only paste that
+          #   sanitizes to nothing). Without the explicit clear, the email
+          #   step's `if: env.SMTP_USER != ''` guard would evaluate true on
+          #   the whitespace string and the step would run with garbage
+          #   credentials. The explicit clear normalizes env.<name> to the
+          #   strict empty string `""` so the guard self-skips correctly.
           # - No ::add-mask:: for empty values (would be a no-op anyway).
           # - Does NOT echo the raw or cleaned value at any point.
           clean_optional() {
@@ -116,12 +121,14 @@ jobs:
             local cleaned
 
             if [ -z "${raw:-}" ]; then
-              echo "$label is not configured — leaving blank, downstream step will self-skip."
+              echo "$label is not configured — clearing env, downstream step will self-skip."
+              echo "$out_name=" >> "$GITHUB_ENV"
               return 0
             fi
             cleaned="$(printf '%s' "$raw" | tr -d '\r\n')"
             if [ -z "$cleaned" ]; then
-              echo "$label was whitespace-only after CR/LF strip — treating as not configured."
+              echo "$label was whitespace-only after CR/LF strip — clearing env, treating as not configured."
+              echo "$out_name=" >> "$GITHUB_ENV"
               return 0
             fi
             echo "::add-mask::$cleaned"
