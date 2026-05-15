@@ -44,9 +44,38 @@ export async function GET(req: NextRequest) {
   try {
     const since = forceFull ? null : await getLastSyncTimestamp();
 
+    // 2026-05-15 (PR-S.5): hard-cap scheduled cron batch at 500 records.
+    //
+    // Why: this route's `maxDuration` is 120 s (set both in `vercel.json`
+    // and on `export const maxDuration` above). `syncListings` does:
+    //   1. Paginated Trestle fetch (filter = ModificationTimestamp gt since),
+    //   2. Per-record sequential DB findUnique + DOM compute + upsert
+    //      (~80 ms per record on a warm Neon pooled connection),
+    //   3. Post-loop batch media fetch (15 listings per batch, ~700 ms each)
+    //      + per-listing updateMany to write media JSON back to DB.
+    // The previous cap of 12,000 records is mathematically incompatible
+    // with the 120 s window: even just the per-record loop alone is
+    // 12,000 × 80 ms = 16 min, before accounting for Trestle pagination
+    // or media batch follow-up. Production cron has been timing out
+    // (504) for several hours — `ops:health` showed the sync watermark
+    // 2.6 h stale at the time of this patch.
+    //
+    // 500 records / run at ~80 ms each = 40 s in the loop + ~25 s media
+    // batches = ~65 s, comfortably under 120 s. The cron fires every 10
+    // minutes, so a backlog of any realistic size drains in a handful
+    // of runs (e.g. 2.6 h backlog ≈ 800 records ≈ 2 runs).
+    //
+    // Manual `?full=true` triggers also use this cap. To drain a very
+    // large backlog manually, invoke the cron repeatedly; do NOT raise
+    // the cap inline — escalate via a follow-up PR if needed (the
+    // proposal in PR-S.5's design is Option 3: bulk findMany + chunked
+    // $transaction upserts, which closes the per-record DB roundtrip
+    // cost so a higher cap becomes safe).
+    const SCHEDULED_MAX_RECORDS = 500;
+
     const result = await syncListings({
       since: since || undefined,
-      maxRecords: 12000,
+      maxRecords: SCHEDULED_MAX_RECORDS,
       fullSync: forceFull || !since, // Full sync if forced or no previous sync
     });
 
