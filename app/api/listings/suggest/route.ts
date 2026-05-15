@@ -44,7 +44,7 @@ function checkRateLimit(ip: string): boolean {
 }
 
 /**
- * PR-S.1c (2026-05-15) — minimal `$select` for suggest's Trestle calls.
+ * PR-S.1c + PR-S.1d (2026-05-15) — minimal `$select` for suggest's Trestle calls.
  *
  * Default `fetchFromTrestle()` pulls all 902 `IDX_PLUS_SELECT_FIELDS`. For
  * autocomplete that's wasteful (latency + payload bloat). We only need:
@@ -53,19 +53,39 @@ function checkRateLimit(ip: string): boolean {
  *   - Identifier fields (`ListingId`, `ListingKey`)
  *   - Address components used to build the suggestion label
  *
- * Keeping this list aligned with `lib/idx/trestle-mapper.ts` gate inputs +
- * the route's display construction in §3 + §4 below.
+ * Gate-input audit (vs `lib/compliance/gates.ts` `evaluateDisplayGate`,
+ * via `checkDistributionGates` wrapper in `lib/idx/trestle-mapper.ts`):
+ *
+ *   - `Permission`                       → `isOwnerOptOut`, `isParticipantOnly`
+ *   - `StandardStatus`                   → `readStatus`, terminal-status gate
+ *   - `MlsStatus`                        → `readStatus` + `OwnerOptOut` sentinel
+ *   - `InternetEntireListingDisplayYN`   → Gate 3 (entire-listing display)
+ *   - `InternetAddressDisplayYN`         → Gate 4 (address display)
+ *   - `CloseDate`                        → Gate 5 (closed past 24h) +
+ *                                          `isClosedWithin24Hours` 24h grace
+ *   - `ActivationDate`                   → Coming Soon badge (status path)
+ *
+ * PR-S.1d (2026-05-15): Codex review on PR #127 caught the missing
+ * `CloseDate`. Without it, terminal-status listing-id suggestions could
+ * either over-display past-24h closes OR under-display within-24h closes
+ * because `evaluateDisplayGate` would see `rawDate === undefined` and treat
+ * the row as "not closed at all" — silently mis-classifying §2.05 windows.
+ *
+ * Exported so tests can pin the gate-field coverage as a hard guarantee
+ * against future drift. Next.js App Router ignores non-handler exports
+ * from route files at runtime.
  */
-const SUGGEST_SELECT_FIELDS = [
+export const SUGGEST_SELECT_FIELDS = [
   // Identifiers
   'ListingId',
   'ListingKey',
-  // Distribution-gate inputs (see REBNY compliance §2)
+  // Distribution-gate inputs (see REBNY compliance §2 + gates.ts above)
   'StandardStatus',
   'MlsStatus',
   'Permission',
   'InternetEntireListingDisplayYN',
   'InternetAddressDisplayYN',
+  'CloseDate',
   'ActivationDate',
   // Address components used in suggestion labels
   'StreetNumber',
