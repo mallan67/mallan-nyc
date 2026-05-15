@@ -362,7 +362,18 @@ jobs:
             exit 1
           fi
 
-          redeploy_payload=$(jq -n --arg deploymentId "$latest_deployment" '{deploymentId:$deploymentId,target:"production"}')
+          # `name` is required by Vercel `POST /v13/deployments`. Run
+          # 25910701936 (2026-05-15) failed here with:
+          #   HTTP 400: Invalid request: missing required property `name`.
+          # The project name `mallan-nyc` matches the Vercel project slug for
+          # `VERCEL_PROJECT_ID prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW` (see the
+          # Vercel deployment URL https://vercel.com/mallan/mallan-nyc/...).
+          # Passed via `--arg` so the value never appears inline in a jq filter
+          # string (consistent with how `deploymentId` is passed).
+          redeploy_payload=$(jq -n \
+            --arg deploymentId "$latest_deployment" \
+            --arg name "mallan-nyc" \
+            '{deploymentId:$deploymentId,name:$name,target:"production"}')
           status=$(
             curl -sS -X POST -o /tmp/vercel-redeploy.json -w "%{http_code}" \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
