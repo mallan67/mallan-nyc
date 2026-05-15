@@ -44,6 +44,13 @@ interface FeaturedListing {
   activationDate?: string | null;
   _attribution?: string;
   _lastUpdated?: string;
+  /**
+   * PR-FE.2 Option C (2026-05-15) — co-listed siblings annotation
+   * propagated through the API. See lib/idx/public-dto.ts for the
+   * field semantics. Optional; absent on single-source listings.
+   */
+  _coListedCount?: number;
+  _coListedBrokerages?: string[];
 }
 
 interface FeaturedConfig {
@@ -269,6 +276,25 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
           <p className="text-base text-brand-dark/80 mt-2">
             RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
           </p>
+          {/* PR-FE.2 Option C — co-listed siblings badge, kept in sync
+              with SearchListingCard's formatCoListedBadge variants. */}
+          {listing._coListedCount && listing._coListedCount > 0 && (
+            <p className="mt-1.5">
+              <span className="inline-block text-[11px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full bg-brand-gold/10 text-brand-gold-deep ring-1 ring-brand-gold/30">
+                {/* Copy aligned with formatCoListedBadge() in
+                    SearchListingCard.tsx — "Additional listing source"
+                    chosen for legal neutrality (no implication of
+                    co-brokerage / partnership). */}
+                {listing._coListedBrokerages && listing._coListedBrokerages.length > 0
+                  ? (listing._coListedCount === 1
+                      ? `Additional listing source: ${listing._coListedBrokerages[0]}`
+                      : listing._coListedCount === 2
+                        ? `Additional listing source: ${listing._coListedBrokerages[0]} + 1 other`
+                        : `Additional listing source: ${listing._coListedBrokerages[0]} + ${listing._coListedCount - 1} others`)
+                  : 'Multiple listing sources'}
+              </span>
+            </p>
+          )}
         </Link>
 
         <div className="mt-3 pt-3 border-t border-black/5">

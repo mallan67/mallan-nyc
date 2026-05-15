@@ -16,6 +16,27 @@
 /**
  * Generate a URL-safe slug from listing address fields.
  * Returns an MLS-ID-based fallback when address must be suppressed.
+ *
+ * 2026-05-15 (Option D, PR-FE.2) — Address-based slugs now ALSO include
+ * a `-{slugified-listing-id}` suffix when a listing id is provided AND
+ * the address slug was successfully generated. This makes URLs unique per
+ * distinct REBNY listing_id, fixing the NYC luxury new-development case
+ * where 3 brokerages co-list the same physical apartment and all 3 cards
+ * resolved to the same `/listing/{address-slug}` URL (so clicking any of
+ * them landed on the same first-match detail page).
+ *
+ * Slug examples:
+ *   address-only fallback (no id):
+ *     400-east-90th-street-apt-17c-new-york-ny-10128
+ *   address + id (new default for displayable listings):
+ *     400-east-90th-street-apt-17c-new-york-ny-10128-rls20061539
+ *   id-only (when address is suppressed by InternetAddressDisplayYN):
+ *     listing-rls20061539
+ *
+ * Backward compatibility: address-only slugs (no `-rlsXXX` suffix)
+ * generated BEFORE this change remain resolvable via `parseAddressSlug`
+ * and the detail route's Strategy 2 (address lookup). Indexed URLs do
+ * not 404 after the upgrade.
  */
 export function generateListingSlug(listing: {
   address: {
@@ -26,7 +47,8 @@ export function generateListingSlug(listing: {
     stateOrProvince?: string;
     postalCode?: string;
   };
-  /** MLS ListingId — used as fallback when address is suppressed */
+  /** MLS ListingId — used as fallback when address is suppressed AND
+   *  as a uniqueness suffix on address-based slugs (Option D). */
   id?: string;
   mlsId?: string;
   /** If false, address MUST NOT appear in the URL (REBNY compliance). */
@@ -60,10 +82,72 @@ export function generateListingSlug(listing: {
   if (stateOrProvince) parts.push(stateOrProvince);
   if (postalCode) parts.push(postalCode);
 
-  const slug = slugify(parts.join(' '));
+  const addressSlug = slugify(parts.join(' '));
+
+  // Append `-{slugified-id}` when an id is available. The slugified id is
+  // lowercased and stripped of any non-alphanumerics, so `RLS20061539`
+  // becomes `rls20061539`. `extractListingIdFromSlug` recognizes this
+  // pattern (`/-rls\d+$/i`) to round-trip the listing_id.
+  const idSuffix = listing.id ? `-${slugify(listing.id)}` : '';
 
   // Ensure slug is non-empty after sanitization
-  return slug || mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+  return addressSlug ? `${addressSlug}${idSuffix}` : mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+}
+
+/**
+ * Extract the listing_id from an address-based slug that was generated
+ * with the Option D suffix. Returns null if the slug is the legacy
+ * address-only format (no `-rlsXXX` suffix) so callers can fall back to
+ * `parseAddressSlug` + address-component lookup.
+ *
+ * Recognized id patterns (case-insensitive on the slug, returned upper-
+ * cased to match Prisma's stored listing_id verbatim — the original
+ * hyphen, if any, is preserved):
+ *   - `-rls{digits}`       e.g. `-rls20061539`   → `RLS20061539`
+ *   - `-rbny{digits}`      e.g. `-rbny12345678`  → `RBNY12345678`
+ *   - `-rls-{digits}`      e.g. `-rls-20061539`  → `RLS-20061539`
+ *   - `-rbny-{digits}`     e.g. `-rbny-12345678` → `RBNY-12345678`
+ *
+ * The hyphenated forms exist because `slugify()` collapses any
+ * non-alphanumeric character (including the original hyphen in a
+ * legacy listing_id like `RBNY-12345678`) into a `-` separator. After
+ * slugification:
+ *   slugify('RBNY-12345678') → 'rbny-12345678'
+ *   slugify('RLS20061539')   → 'rls20061539'
+ * Without supporting BOTH forms in the extractor regex, the detail
+ * route's Strategy 1b would miss legacy hyphenated listing_ids and
+ * fall through to the address-only lookup — which on a co-listed
+ * physical address could return the wrong specific listing.
+ *
+ * The function does NOT match the MLS-ID fallback slug `listing-rlsXXX`
+ * (that is handled by `extractMlsIdFromSlug` instead — keep the two code
+ * paths separate to avoid silent cross-format leakage).
+ */
+export function extractListingIdFromSlug(slug: string): string | null {
+  // MLS-ID fallback slug handled by a different helper.
+  if (isMlsIdSlug(slug)) return null;
+
+  const match = slug.match(/-(rls-?\d+|rbny-?\d+)$/i);
+  if (!match) return null;
+  return match[1].toUpperCase();
+}
+
+/**
+ * Strip the Option D listing_id suffix off an address-based slug.
+ * Returns the slug unchanged when no suffix is present.
+ *
+ * Matches the same set of patterns as `extractListingIdFromSlug` —
+ * both the digits-immediately-after-prefix form (`-rls20061539`) and
+ * the hyphenated form (`-rbny-12345678`) produced when `slugify()`
+ * splits a hyphenated listing_id.
+ *
+ * Used by the search-result post-processor to compute co-listed counts:
+ * we group listings by the address-portion of the slug so distinct
+ * listing_ids at the same address surface as siblings.
+ */
+export function stripListingIdSuffix(slug: string): string {
+  if (isMlsIdSlug(slug)) return slug;
+  return slug.replace(/-(?:rls-?\d+|rbny-?\d+)$/i, '');
 }
 
 /**
@@ -104,7 +188,12 @@ export function parseAddressSlug(slug: string): {
 } | null {
   if (isMlsIdSlug(slug)) return null;
 
-  const parts = slug.split('-');
+  // Strip any Option D `-rlsXXX` listing-id suffix before parsing so
+  // address components remain recoverable from the slug's leading parts.
+  // Without this, the trailing `rls20061539` token leaks into the city /
+  // street parse loop and produces wrong addresses on new-style slugs.
+  const addressOnly = stripListingIdSuffix(slug);
+  const parts = addressOnly.split('-');
   if (parts.length < 4) return null;
 
   // Extract postal code (last part, 5 digits)

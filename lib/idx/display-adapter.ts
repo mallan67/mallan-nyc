@@ -90,6 +90,16 @@ export interface DisplayListing {
     attributionText: string;
     requiresAttribution: boolean;
   };
+  /**
+   * PR-FE.2 Option C (2026-05-15) — co-listed siblings annotation.
+   * Set by the API route's `annotateCoListedSiblings` post-processor on
+   * listings that share their canonical address slug with at least one
+   * other listing on the same response page. Optional; absent / 0 on
+   * single-source listings. See `lib/idx/public-dto.ts` for the field
+   * definition and badge-text shape decisions.
+   */
+  _coListedCount?: number;
+  _coListedBrokerages?: string[];
 }
 
 /** Convert a PublicListingDTO (from IDX/Trestle path) to DisplayListing */
@@ -133,6 +143,9 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     ongoingFees: dto.ongoingFees,
     tenantPaysDescription: dto.tenantPaysDescription,
     _displayCompliance: dto._displayCompliance,
+    // PR-FE.2 Option C — pass-through the API-layer annotation when present.
+    _coListedCount: dto._coListedCount,
+    _coListedBrokerages: dto._coListedBrokerages,
   };
 }
 

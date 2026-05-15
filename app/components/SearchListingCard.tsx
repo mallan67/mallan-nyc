@@ -24,6 +24,47 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
+/**
+ * PR-FE.2 Option C (2026-05-15) — "Also listed by …" badge text.
+ *
+ * Returns null when this listing has no co-listed siblings on the
+ * current response page. Otherwise returns a short string for the
+ * supplementary badge rendered immediately below the primary REBNY
+ * attribution line.
+ *
+ * The badge is INFORMATIONAL only — REBNY UCBA Art. III §2(C)
+ * compliance is satisfied by the existing "RLS · Listing Courtesy of
+ * {listOfficeName}" attribution above. The badge merely tells the
+ * user that this physical property is co-listed by additional
+ * brokerages — preventing the "looks like a duplicate / glitch"
+ * confusion when the same apartment appears 3 times in search results
+ * (typical NYC luxury new-development pattern).
+ *
+ * Format (Maya copy decision, 2026-05-15):
+ *   - 1 sibling : "Additional listing source: {brokerage}"
+ *   - 2 siblings: "Additional listing source: {brokerage} + 1 other"
+ *   - N siblings: "Additional listing source: {brokerage} + {N-1} others"
+ *   - count > 0 but no brokerage names: "Multiple listing sources"
+ *
+ * "Additional listing source" was preferred over "Also listed by" to
+ * stay legally neutral — it explains the visual duplication without
+ * implying co-brokerage, partnership, or any agency relationship
+ * between the listing brokerages. Each row's primary attribution
+ * ("RLS · Listing Courtesy of {brokerage}") remains the
+ * UCBA Art. III §2(C) compliant attribution; this badge is
+ * supplementary context only.
+ */
+function formatCoListedBadge(listing: DisplayListing): string | null {
+  const count = listing._coListedCount;
+  if (!count || count <= 0) return null;
+  const brokerages = listing._coListedBrokerages ?? [];
+  if (brokerages.length === 0) return 'Multiple listing sources';
+  const first = brokerages[0];
+  if (count === 1) return `Additional listing source: ${first}`;
+  if (count === 2) return `Additional listing source: ${first} + 1 other`;
+  return `Additional listing source: ${first} + ${count - 1} others`;
+}
+
 function formatComingSoonBadge(listing: DisplayListing): string | null {
   if (!listing._displayCompliance.comingSoon) return null;
   const date = listing._displayCompliance.comingSoonDate;
@@ -135,6 +176,21 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
         <p className="text-sm text-brand-dark/80 mt-2">
           RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
+        {formatCoListedBadge(listing) && (
+          // PR-FE.2 Option C — co-listed siblings badge. See
+          // formatCoListedBadge at the top of this file for the text
+          // rules. Rendered as a small pill below the REBNY attribution
+          // so the primary "Listing Courtesy of {brokerage}" text stays
+          // dominant (UCBA Art. III §2(C) compliance preserved). The
+          // span is inline-block + gold accent so it visually reads
+          // as supplementary info, not as another listing's
+          // attribution.
+          <p className="mt-1.5">
+            <span className="inline-block text-[11px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full bg-brand-gold/10 text-brand-gold-deep ring-1 ring-brand-gold/30">
+              {formatCoListedBadge(listing)}
+            </span>
+          </p>
+        )}
       </div>
     </Link>
   );
@@ -232,6 +288,21 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         <p className="text-sm text-brand-dark/80 mt-2">
           RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
+        {formatCoListedBadge(listing) && (
+          // PR-FE.2 Option C — co-listed siblings badge. See
+          // formatCoListedBadge at the top of this file for the text
+          // rules. Rendered as a small pill below the REBNY attribution
+          // so the primary "Listing Courtesy of {brokerage}" text stays
+          // dominant (UCBA Art. III §2(C) compliance preserved). The
+          // span is inline-block + gold accent so it visually reads
+          // as supplementary info, not as another listing's
+          // attribution.
+          <p className="mt-1.5">
+            <span className="inline-block text-[11px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full bg-brand-gold/10 text-brand-gold-deep ring-1 ring-brand-gold/30">
+              {formatCoListedBadge(listing)}
+            </span>
+          </p>
+        )}
       </div>
     </Link>
   );
@@ -373,6 +444,21 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         <p className="text-sm text-brand-dark/80 mt-2">
           RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
         </p>
+        {formatCoListedBadge(listing) && (
+          // PR-FE.2 Option C — co-listed siblings badge. See
+          // formatCoListedBadge at the top of this file for the text
+          // rules. Rendered as a small pill below the REBNY attribution
+          // so the primary "Listing Courtesy of {brokerage}" text stays
+          // dominant (UCBA Art. III §2(C) compliance preserved). The
+          // span is inline-block + gold accent so it visually reads
+          // as supplementary info, not as another listing's
+          // attribution.
+          <p className="mt-1.5">
+            <span className="inline-block text-[11px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full bg-brand-gold/10 text-brand-gold-deep ring-1 ring-brand-gold/30">
+              {formatCoListedBadge(listing)}
+            </span>
+          </p>
+        )}
       </Link>
     </div>
   );
