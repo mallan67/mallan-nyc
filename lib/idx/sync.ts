@@ -783,19 +783,63 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
 }
 
 /**
- * Get the timestamp of the most recently synced listing.
- * Used for incremental sync.
+ * Get the cursor timestamp for the next incremental sync.
+ *
+ * Returns MAX(Listing.modification_timestamp) — the row's Trestle
+ * `ModificationTimestamp` (mapped in `trestle-mapper.ts:949-951`),
+ * NOT `last_synced_from_trestle` (which is set to `new Date()` at
+ * upsert time — local clock, not the Trestle row clock).
+ *
+ * Why this matters (2026-05-15 — Codex review of PR #138):
+ *
+ * The cron route passes this value as `since` to `syncListings`,
+ * which builds a Trestle OData filter `ModificationTimestamp gt SINCE`.
+ * If SINCE is the local clock at the last upsert, a CAPPED batch
+ * (PR-S.5 capped scheduled runs at 500 records) silently advances
+ * SINCE to local NOW after processing only 500 records, and any
+ * records 501..N in the same backlog window — whose actual Trestle
+ * `ModificationTimestamp` is older than NOW — are then EXCLUDED by
+ * the next run's `MT gt SINCE` filter. Permanent data loss for the
+ * unprocessed tail of every capped catch-up.
+ *
+ * Using `modification_timestamp` instead means the cursor advances
+ * only as far as the newest Trestle MT we actually processed in
+ * this run. The next run picks up from there — records with MTs
+ * strictly between the previous cursor and that high-water mark
+ * have been upserted; records with MTs above the high-water mark
+ * remain visible to the next run. Lossless catch-up.
+ *
+ * Pre-existing field — no schema change. `Listing.modification_timestamp`
+ * is populated on every upsert in this file (sync.ts:221) and on every
+ * agent-history upsert (sync.ts:923) from `mapped.modification_timestamp`,
+ * which `mapTrestleToPrisma` (trestle-mapper.ts:949-951) sets from
+ * `raw.ModificationTimestamp` (the Trestle row clock).
+ *
+ * `last_synced_from_trestle` is retained on the Listing model and
+ * still populated at upsert time — it remains a useful "when did we
+ * last touch this row from Trestle" audit signal, just not a safe
+ * incremental-sync cursor.
+ *
+ * No `where: { modification_timestamp: { not: null } }` clause —
+ * `Listing.modification_timestamp` is declared `DateTime` (non-nullable)
+ * in `prisma/schema.prisma:550`, so the field is guaranteed populated
+ * on every row. Adding the filter would be a TypeScript error
+ * (`Type 'null' is not assignable to type DateTimeFilter`) because the
+ * Prisma client's generated types know the column can never be null.
+ * The original `getLastSyncTimestamp` used the filter on
+ * `last_synced_from_trestle` because THAT column IS nullable
+ * (`DateTime?` at schema.prisma:546).
+ *
+ * `findFirst` with only `orderBy` + `select` returns `null` when the
+ * Listing table is empty — the caller handles that via `?? null`.
  */
 export async function getLastSyncTimestamp(): Promise<Date | null> {
   const latest = await prisma.listing.findFirst({
-    where: {
-      last_synced_from_trestle: { not: null },
-    },
-    orderBy: { last_synced_from_trestle: "desc" },
-    select: { last_synced_from_trestle: true },
+    orderBy: { modification_timestamp: "desc" },
+    select: { modification_timestamp: true },
   });
 
-  return latest?.last_synced_from_trestle ?? null;
+  return latest?.modification_timestamp ?? null;
 }
 
 // ═══════════════════════════════════════════════════════════
