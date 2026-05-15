@@ -34,42 +34,69 @@ jobs:
 
       # 2026-05-15: GitHub Actions' "Add secret" UI preserves whatever bytes
       # are pasted into the textarea — including a trailing newline, which is
-      # easy to introduce accidentally when copy-pasting a PAT from a terminal,
-      # password manager, or another browser tab. The `gh` CLI then constructs
-      # `Authorization: Bearer $GH_TOKEN` and Go's net/http runs
-      # `httpguts.ValidHeaderFieldValue()` on the value, which rejects any
-      # string containing `\r` or `\n`. The result is the cryptic error
-      #   `net/http: invalid header field value for "Authorization"`
-      # observed on runs 25903348530 (2026-05-15 06:11) and 25905817923
-      # (2026-05-15 07:22), both at the `gh api repos/$REPO` line in preflight.
+      # easy to introduce accidentally when copy-pasting a secret from a
+      # terminal, password manager, or another browser tab. Downstream auth
+      # libraries reject Authorization header values containing `\r` or `\n`
+      # with these cryptic errors:
+      #   gh   (Go net/http):  `net/http: invalid header field value for "Authorization"`
+      #   curl (libcurl):      `curl: (43) Failed sending HTTP request` (CURLE_BAD_FUNCTION_ARGUMENT)
       #
-      # This step strips CR/LF from MY_GITHUB_PAT and writes the cleaned value
-      # to $GITHUB_ENV as GH_TOKEN — overriding the job-level env entry for all
-      # subsequent steps (preflight, rotate, audit log). Trimming is restricted
-      # to `\r\n` because real PAT bytes are always `[A-Za-z0-9_]` — no real
-      # PAT byte is removed. If the secret was contaminated by a different
-      # invisible char (BOM, zero-width space, etc.) the subsequent gh call
-      # will surface the same error so the operator knows to re-paste.
-      - name: Normalize PAT (strip CR/LF that breaks net/http Authorization validation)
+      # Observed regressions:
+      #   - 25903348530 (06:11 UTC) and 25905817923 (07:22 UTC) — gh api
+      #     preflight failed against `repos/$REPO` because MY_GITHUB_PAT had a
+      #     trailing newline. PR #133 normalized MY_GITHUB_PAT only.
+      #   - 25908079420 (08:26 UTC) — Vercel curl preflight failed at exit 43
+      #     because VERCEL_TOKEN had the same kind of contamination. Proof
+      #     that normalizing one secret is not enough.
+      #
+      # This step strips CR/LF from every secret used in an Authorization
+      # header or auth/login context and writes the cleaned values to
+      # $GITHUB_ENV, overriding the job-level env entries for all subsequent
+      # steps. Trimming is restricted to `\r\n` only — real secret bytes are
+      # never affected because tokens are restricted to `[A-Za-z0-9_./=+~-]`
+      # charsets. If a secret was contaminated by a different invisible byte
+      # (BOM, zero-width space, etc.) the subsequent gh/curl call will
+      # surface the same error so the operator knows to re-paste.
+      - name: Normalize auth secrets (strip CR/LF that breaks Authorization header validation)
         env:
           GH_TOKEN_RAW: ${{ secrets.MY_GITHUB_PAT }}
+          VERCEL_TOKEN_RAW: ${{ secrets.VERCEL_TOKEN }}
+          NEON_API_KEY_RAW: ${{ secrets.NEON_API_KEY }}
+          SMTP_USER_RAW: ${{ secrets.SMTP_USER }}
+          SMTP_PASS_RAW: ${{ secrets.SMTP_PASS }}
         run: |
           set -euo pipefail
-          if [ -z "${GH_TOKEN_RAW:-}" ]; then
-            echo "::error::MY_GITHUB_PAT secret is missing."
-            exit 1
-          fi
-          cleaned="$(printf '%s' "$GH_TOKEN_RAW" | tr -d '\r\n')"
-          if [ -z "$cleaned" ]; then
-            echo "::error::MY_GITHUB_PAT contained only whitespace after CR/LF strip."
-            exit 1
-          fi
-          # Re-mask the cleaned value so it never leaks into a log if a later
-          # step happens to echo it. The raw value was already auto-masked by
-          # GitHub Actions; the cleaned value is a different string and needs
-          # its own mask registration.
-          echo "::add-mask::$cleaned"
-          echo "GH_TOKEN=$cleaned" >> "$GITHUB_ENV"
+
+          # clean_required <human-label> <raw-value> <output-env-name>
+          # - Strips CR/LF only.
+          # - Errors if missing or empty after strip.
+          # - Registers ::add-mask:: for the cleaned value so it cannot leak.
+          # - Writes the cleaned value to $GITHUB_ENV under <output-env-name>,
+          #   overriding the job-level env entry for subsequent steps.
+          clean_required() {
+            local label="$1"
+            local raw="$2"
+            local out_name="$3"
+            local cleaned
+
+            if [ -z "${raw:-}" ]; then
+              echo "::error::$label secret is missing."
+              exit 1
+            fi
+            cleaned="$(printf '%s' "$raw" | tr -d '\r\n')"
+            if [ -z "$cleaned" ]; then
+              echo "::error::$label contained only whitespace after CR/LF strip."
+              exit 1
+            fi
+            echo "::add-mask::$cleaned"
+            echo "$out_name=$cleaned" >> "$GITHUB_ENV"
+          }
+
+          clean_required "MY_GITHUB_PAT" "$GH_TOKEN_RAW"     "GH_TOKEN"
+          clean_required "VERCEL_TOKEN"  "$VERCEL_TOKEN_RAW" "VERCEL_TOKEN"
+          clean_required "NEON_API_KEY"  "$NEON_API_KEY_RAW" "NEON_API_KEY"
+          clean_required "SMTP_USER"     "$SMTP_USER_RAW"    "SMTP_USER"
+          clean_required "SMTP_PASS"     "$SMTP_PASS_RAW"    "SMTP_PASS"
 
       - name: Preflight required credentials
         run: |
@@ -325,16 +352,20 @@ jobs:
           fi
 
       - name: Send email notification
+        # `env.SMTP_USER` / `env.SMTP_PASS` here read the CLEANED values written
+        # to $GITHUB_ENV by the "Normalize auth secrets" step above, NOT the
+        # raw `secrets.*` values. Using `secrets.SMTP_*` directly would
+        # reintroduce any CR/LF contamination at the SMTP AUTH login step.
         if: ${{ always() && env.SMTP_USER != '' && env.SMTP_PASS != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          username: ${{ secrets.SMTP_USER }}
-          password: ${{ secrets.SMTP_PASS }}
+          username: ${{ env.SMTP_USER }}
+          password: ${{ env.SMTP_PASS }}
           subject: "Neon DB Rotation (${{ job.status }})"
           to: "maya@mallannyhomes.com"
-          from: "Neon Rotation Bot <${{ secrets.SMTP_USER }}>"
+          from: "Neon Rotation Bot <${{ env.SMTP_USER }}>"
           body: |
             Hi Maya,
 
