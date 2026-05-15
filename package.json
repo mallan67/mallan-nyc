@@ -150,6 +150,7 @@
         "ws": "^8.20.0"
     },
     "devDependencies": {
+        "@playwright/test": "^1.60.0",
         "@types/bcryptjs": "^2.4.6",
         "@types/jest": "^30.0.0",
         "@types/node": "^20.11.30",
