@@ -165,6 +165,41 @@ function checkRateLimit(ip: string): boolean {
  * - exclusive: boolean - Only show exclusive listings (local path only)
  * - limit: number - Max results (default 50)
  */
+/**
+ * PR-S.3 (2026-05-15) — q/address alias for public listing search.
+ *
+ * Public search URLs from `app/search/page.tsx` and `SearchAutocomplete`
+ * route plain typed/selected queries through `?q=…`, but every downstream
+ * consumer of `/api/listings` (the DB filter `buildPublicListingDbSearch`,
+ * the Trestle fallback `buildPublicListingTrestleFilter`, and the numbered-
+ * address heuristic below) reads `?address=…`. Without aliasing, a user
+ * typing or selecting an address on the results page sees the query
+ * silently dropped — fixed autocomplete (PR-S.1c–e) suggested the address,
+ * the user picked it, and then results pretended no filter was set.
+ *
+ * Mutates `searchParams` in place by setting `address` to a trimmed `q`
+ * when `address` is not already populated:
+ *   - If `address` (trimmed) is non-empty → kept as-is; `q` is ignored.
+ *     ("address wins" — preserves explicit callers and avoids redirect loops.)
+ *   - Else if `q` (trimmed) is non-empty → `address` is set to trimmed `q`.
+ *   - Else → no change.
+ *
+ * Idempotent. Safe to call multiple times. The cache key at the DB-first
+ * path is built from `searchParams.toString()` AFTER this call, so
+ * `?q=425` and `?address=425` collapse to the same cache key — better
+ * hit rate and no cache-poisoning surprise.
+ *
+ * Exported for unit testing. Next.js App Router ignores non-handler
+ * exports from route files at runtime.
+ */
+export function resolveAddressAlias(searchParams: URLSearchParams): void {
+  const existingAddress = (searchParams.get('address') || '').trim();
+  if (existingAddress) return; // address wins
+  const qParam = (searchParams.get('q') || '').trim();
+  if (!qParam) return; // empty / whitespace-only q ignored
+  searchParams.set('address', qParam);
+}
+
 export async function GET(request: Request) {
   // Rate limiting — prevent bulk scraping
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -177,6 +212,10 @@ export async function GET(request: Request) {
 
   try {
     const { searchParams } = new URL(request.url);
+    // PR-S.3 (2026-05-15): collapse `?q=…` into `?address=…` BEFORE any
+    // downstream reader (cache key, DB filter, Trestle fallback). See the
+    // resolveAddressAlias JSDoc above for the contract.
+    resolveAddressAlias(searchParams);
     const useIDX = process.env.IDX_ENABLED === 'true';
 
     // Parse query params used directly by this route handler.
