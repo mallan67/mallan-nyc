@@ -131,44 +131,99 @@ describe('getLastSyncTimestamp · cursor uses modification_timestamp (PR-S.6)', 
     });
   });
 
-  describe('does NOT use last_synced_from_trestle in the cursor', () => {
-    it("the function body has zero references to last_synced_from_trestle", () => {
-      // Anti-revert. The pre-fix code referenced it 4 times (where,
-      // orderBy, select, return). After the fix the body must have
-      // none.
-      expect(functionBody).not.toMatch(/last_synced_from_trestle/);
+  describe('PR-S.7 — restricts cursor to Trestle-synced rows only', () => {
+    it("filters by `where: { last_synced_from_trestle: { not: null } }`", () => {
+      // Without this filter the MAX(modification_timestamp) could pick
+      // up a CRM-only listing's local-clock modification_timestamp
+      // (e.g. app/api/crm/convert/route.ts:224 sets
+      // `modification_timestamp: new Date()` and leaves
+      // `last_synced_from_trestle` NULL). With the filter, only
+      // Trestle-sync writers (sync.ts:223, sync.ts:925, both setting
+      // `last_synced_from_trestle: mapped.last_synced_from_trestle`)
+      // contribute to the MAX.
+      expect(functionBody).toMatch(
+        /where\s*:\s*\{[\s\S]*?last_synced_from_trestle\s*:\s*\{\s*not\s*:\s*null\s*\}[\s\S]*?\}/
+      );
+    });
+
+    it("uses last_synced_from_trestle ONLY in the where clause, never in orderBy/select/return", () => {
+      // The cursor VALUE must still be modification_timestamp (the
+      // Trestle row clock from raw.ModificationTimestamp, mapped at
+      // trestle-mapper.ts:949-951). last_synced_from_trestle is local
+      // sync clock — using it for ordering/return would re-introduce
+      // the local-clock-drift bug Codex identified on PR #138.
+      //
+      // Pin: orderBy/select/return must all reference
+      // modification_timestamp; last_synced_from_trestle appears only
+      // as a where-clause predicate.
+      expect(functionBody).toMatch(/orderBy\s*:\s*\{\s*modification_timestamp/);
+      expect(functionBody).toMatch(/select\s*:\s*\{\s*modification_timestamp/);
+      expect(functionBody).toMatch(/return\s+latest\??\.\s*modification_timestamp/);
+      expect(functionBody).not.toMatch(/orderBy\s*:\s*\{\s*last_synced_from_trestle/);
+      expect(functionBody).not.toMatch(/select\s*:\s*\{\s*last_synced_from_trestle/);
+      expect(functionBody).not.toMatch(/return\s+latest\??\.\s*last_synced_from_trestle/);
+    });
+
+    it("Listing.last_synced_from_trestle is declared nullable in the Prisma schema (so the `not: null` filter is type-valid)", () => {
+      // This filter only works because the column is nullable. If a
+      // future migration ever makes the column NOT NULL, the filter
+      // becomes a TypeScript error (same shape as the
+      // `modification_timestamp { not: null }` filter that was
+      // dropped in PR-S.6). Pin the schema-level nullability here so
+      // such a migration fails the test before the build does.
+      const prismaSchema = readFileSync(PRISMA_SCHEMA_PATH, 'utf8');
+      const listingModel = prismaSchema.match(/model\s+Listing\s*\{([\s\S]*?)^\}/m);
+      expect(listingModel).not.toBeNull();
+      expect(listingModel![1]).toMatch(/last_synced_from_trestle\s+DateTime\s*\?/);
     });
   });
 
-  describe('null records are ignored (by schema, not by filter)', () => {
+  describe('null records are ignored (by schema for the cursor field)', () => {
     it("Listing.modification_timestamp is declared non-nullable in the Prisma schema", () => {
-      // The original `getLastSyncTimestamp` filtered `not: null` on
-      // `last_synced_from_trestle` because THAT column is nullable
-      // (`DateTime?` at schema.prisma:546). `modification_timestamp`
-      // is `DateTime` (non-nullable) at schema.prisma:550, so it is
-      // GUARANTEED populated on every Listing row by the schema
-      // itself. No runtime filter is needed; adding one would be a
-      // TypeScript error against the Prisma-generated types.
+      // No runtime `not: null` filter is needed on the cursor field
+      // because the schema enforces non-null. If a future migration
+      // makes the column nullable, the safe behavior would be either
+      // to add the runtime filter back OR to reject the migration —
+      // this test forces an explicit decision.
       //
-      // Pin the schema-level guarantee here so that if a future
-      // migration ever makes the column nullable, this test fails
-      // and the maintainer knows to either restore the runtime
-      // `not: null` filter or reject the schema change.
+      // Note: PR-S.7's where clause IS allowed to mention
+      // `modification_timestamp` indirectly (e.g. via a
+      // `last_synced_from_trestle` predicate that lives in the same
+      // brace-balanced `where: { … }` block). The OLD defensive
+      // regex test that asserted "no where clause near
+      // modification_timestamp" was removed because it false-flagged
+      // the legitimate PR-S.7 shape (`where: { last_synced_from_trestle: { not: null } }`
+      // immediately followed by `orderBy: { modification_timestamp: "desc" }`).
+      // Static-type protection against the bad shape
+      // (`modification_timestamp: { not: null }` directly as a where
+      // predicate) is now provided by the Prisma generated types
+      // alone — TS rejects the bad shape at compile time, which
+      // `npm run type-check` enforces in CI.
       const prismaSchema = readFileSync(PRISMA_SCHEMA_PATH, 'utf8');
       const listingModel = prismaSchema.match(/model\s+Listing\s*\{([\s\S]*?)^\}/m);
       expect(listingModel).not.toBeNull();
       expect(listingModel![1]).toMatch(/modification_timestamp\s+DateTime\b(?!\s*\?)/);
     });
+  });
 
-    it("function body does NOT include a where clause filtering modification_timestamp", () => {
-      // Defensive companion to the schema check above. If a future
-      // edit re-introduces `where: { modification_timestamp: ... }`
-      // without first making the column nullable, TypeScript will
-      // reject the build, but this test gives a more semantic
-      // failure message at the test layer first.
-      expect(functionBody).not.toMatch(
-        /where\s*:\s*\{[\s\S]*?modification_timestamp[\s\S]*?\}/
-      );
+  describe('PR-S.7 — local CRM-only writers cannot advance the cursor', () => {
+    it("app/api/crm/convert/route.ts sets modification_timestamp without setting last_synced_from_trestle", () => {
+      // This is the writer Codex identified as the drift source. Pin
+      // that it still has the original (CRM-only) shape: it sets
+      // modification_timestamp locally and leaves
+      // last_synced_from_trestle null. The PR-S.7 cursor filter
+      // depends on this writer NEVER setting
+      // last_synced_from_trestle on CRM-created rows; if a future
+      // change accidentally adds the column write, those rows would
+      // start feeding the Trestle cursor (data loss class).
+      const crmConvertPath = path.resolve(__dirname, '../../app/api/crm/convert/route.ts');
+      const crmConvertSource = readFileSync(crmConvertPath, 'utf8');
+      expect(crmConvertSource).toMatch(/modification_timestamp\s*:\s*new\s+Date\(\)/);
+      // The `last_synced_from_trestle` field must NOT be set by this
+      // route. Use a tight regex that matches the field as a Prisma
+      // input key (i.e. followed by a colon), to avoid false-matching
+      // an incidental mention in a comment.
+      expect(crmConvertSource).not.toMatch(/^\s*last_synced_from_trestle\s*:/m);
     });
   });
 
