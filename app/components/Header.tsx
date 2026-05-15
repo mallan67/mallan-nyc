@@ -147,7 +147,24 @@ export default function Header() {
 
   const buyItems = [
     { title: 'Residential', href: '/search?tab=buy-residential' },
-    { title: 'Townhouses', href: '/search?tab=buy-residential&propertyType=Townhouse' },
+    // PR-S.4 (2026-05-15): canonical NYC townhouse filter.
+    // - Header previously used `?propertyType=Townhouse` — both the param name
+    //   AND the value are absent from the live data path:
+    //     • `/api/listings` accepts `?subTypes=` / `?propertySubTypes=` only
+    //       (route.ts:235 reads `searchParams.get('propertySubTypes') || searchParams.get('subTypes')`).
+    //       The `propertyType` URL param is silently ignored — verified by
+    //       `?propertyType=Townhouse` returning the full unfiltered sale catalog
+    //       (9,517 results) on 2026-05-15.
+    //     • `'Townhouse'` is not a value in the current `propertyType` /
+    //       `propertySubType` distribution. Sample of 200 sale listings:
+    //       Condo (118), SingleFamilyResidence (43), Co-op (25), Multi-Family (6),
+    //       Condop (3), MixedUse (2), Retail (1), Duplex (1), Residential (1).
+    //       NYC townhouses are classified `SingleFamilyResidence` per RESO
+    //       (verified: 4 E 79th St, 25 Riverside Dr, 18 E 80th St — all marked
+    //       propertyType=SingleFamilyResidence).
+    // - `?subTypes=SingleFamilyResidence` returns 483 active sale listings,
+    //   matching the canonical NYC townhouse inventory class.
+    { title: 'Townhouses', href: '/search?tab=buy-residential&subTypes=SingleFamilyResidence' },
     { title: 'Commercial', href: '/search?tab=buy-commercial' },
   ];
 
