@@ -57,6 +57,15 @@ jobs:
       # charsets. If a secret was contaminated by a different invisible byte
       # (BOM, zero-width space, etc.) the subsequent gh/curl call will
       # surface the same error so the operator knows to re-paste.
+      #
+      # Required vs. optional:
+      #   - MY_GITHUB_PAT / VERCEL_TOKEN / NEON_API_KEY are REQUIRED — they are
+      #     on the rotation critical path. Missing or whitespace-only =
+      #     fail-closed exit 1.
+      #   - SMTP_USER / SMTP_PASS are OPTIONAL — they only feed the email
+      #     notification step. Missing/empty must NOT block Neon rotation. If
+      #     blank, this step simply leaves the env value blank and the email
+      #     step's `if:` guard self-skips downstream.
       - name: Normalize auth secrets (strip CR/LF that breaks Authorization header validation)
         env:
           GH_TOKEN_RAW: ${{ secrets.MY_GITHUB_PAT }}
@@ -69,7 +78,7 @@ jobs:
 
           # clean_required <human-label> <raw-value> <output-env-name>
           # - Strips CR/LF only.
-          # - Errors if missing or empty after strip.
+          # - Errors if missing or empty after strip — rotation cannot proceed.
           # - Registers ::add-mask:: for the cleaned value so it cannot leak.
           # - Writes the cleaned value to $GITHUB_ENV under <output-env-name>,
           #   overriding the job-level env entry for subsequent steps.
@@ -92,11 +101,38 @@ jobs:
             echo "$out_name=$cleaned" >> "$GITHUB_ENV"
           }
 
+          # clean_optional <human-label> <raw-value> <output-env-name>
+          # - Same byte-cleaning behavior as clean_required.
+          # - If raw is empty OR empty after strip, return silently. The env
+          #   stays at its job-level value (which is also empty when the
+          #   secret is unset), and downstream steps that depend on this
+          #   value MUST self-skip via their own `if:` guard.
+          # - No ::add-mask:: for empty values (would be a no-op anyway).
+          # - Does NOT echo the raw or cleaned value at any point.
+          clean_optional() {
+            local label="$1"
+            local raw="$2"
+            local out_name="$3"
+            local cleaned
+
+            if [ -z "${raw:-}" ]; then
+              echo "$label is not configured — leaving blank, downstream step will self-skip."
+              return 0
+            fi
+            cleaned="$(printf '%s' "$raw" | tr -d '\r\n')"
+            if [ -z "$cleaned" ]; then
+              echo "$label was whitespace-only after CR/LF strip — treating as not configured."
+              return 0
+            fi
+            echo "::add-mask::$cleaned"
+            echo "$out_name=$cleaned" >> "$GITHUB_ENV"
+          }
+
           clean_required "MY_GITHUB_PAT" "$GH_TOKEN_RAW"     "GH_TOKEN"
           clean_required "VERCEL_TOKEN"  "$VERCEL_TOKEN_RAW" "VERCEL_TOKEN"
           clean_required "NEON_API_KEY"  "$NEON_API_KEY_RAW" "NEON_API_KEY"
-          clean_required "SMTP_USER"     "$SMTP_USER_RAW"    "SMTP_USER"
-          clean_required "SMTP_PASS"     "$SMTP_PASS_RAW"    "SMTP_PASS"
+          clean_optional "SMTP_USER"     "$SMTP_USER_RAW"    "SMTP_USER"
+          clean_optional "SMTP_PASS"     "$SMTP_PASS_RAW"    "SMTP_PASS"
 
       - name: Preflight required credentials
         run: |
@@ -356,7 +392,14 @@ jobs:
         # to $GITHUB_ENV by the "Normalize auth secrets" step above, NOT the
         # raw `secrets.*` values. Using `secrets.SMTP_*` directly would
         # reintroduce any CR/LF contamination at the SMTP AUTH login step.
+        #
+        # `continue-on-error: true` ensures that an SMTP failure (auth
+        # rejection, network blip, Gmail rate-limit, account locked, etc.)
+        # does NOT mark the job as failed. Email is notification-only;
+        # Neon rotation is the critical path. Observability of email
+        # failures stays via the step's own log + the Slack notification.
         if: ${{ always() && env.SMTP_USER != '' && env.SMTP_PASS != '' }}
+        continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
