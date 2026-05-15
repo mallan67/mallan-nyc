@@ -491,8 +491,16 @@ jobs:
           fi
 
           # ---------------------------------------------------------------
-          # GATE 2 — Working-tree changes MUST be limited to memory/audits/**.
-          # Anything outside that path is a guardrail violation = FAIL RED.
+          # GATE 2 — Working-tree changes MUST be limited to:
+          #   - memory/audits/**       (Sentinel daily report)
+          #   - memory/site-map/**     (Search Cartographer knowledge files)
+          #
+          # Anything outside those two paths is a guardrail violation =
+          # FAIL RED. Examples that must trigger this gate:
+          #   app/**, lib/**, components/**, prisma/**, .github/**,
+          #   vercel.json, package.json, package-lock.json, .env*,
+          #   public/**, scripts/**, compliance/**, docs/**, .claude/**,
+          #   anywhere else not in the two allow-listed paths.
           # ---------------------------------------------------------------
           changed=$(git status --porcelain | awk '{print $2}')
           if [ -z "$changed" ]; then
@@ -500,9 +508,11 @@ jobs:
             echo "::error::Either the file is identical to HEAD or staging failed."
             exit 1
           fi
-          unexpected=$(echo "$changed" | grep -v -E "^memory/audits/" || true)
+          unexpected=$(echo "$changed" | grep -v -E "^memory/(audits|site-map)/" || true)
           if [ -n "$unexpected" ]; then
-            echo "::error::Audit bot modified files outside memory/audits/** (guardrail violation):"
+            echo "::error::Audit bot modified files outside the allow-listed paths."
+            echo "::error::Only memory/audits/** and memory/site-map/** are permitted."
+            echo "::error::Offending files:"
             echo "$unexpected"
             exit 1
           fi

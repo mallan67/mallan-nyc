@@ -39,7 +39,71 @@ All of Sentinel's 21 restrictions apply (`.claude/agents/repo-audit-bot.md` ABSO
 - `memory/site-map/**` (workflow allow-list updated in tandem with this spec).
 - `memory/audits/**` (inherited from Sentinel).
 
-Cannot write anywhere else. Cannot mutate app code, schema, R2, Neon, Vercel, Cloudflare, REBNY/Trestle/Cotality settings, or PR state. Cannot reopen PR #104, remove media-backfill, release external-inventory hold, or start JSON-drop work.
+**Cannot write to ANY other path.** The workflow's Gate 2 guard enforces this with a fail-red regex:
+`^memory/(audits|site-map)/` — anything else triggers `exit 1`. Explicitly forbidden (a non-exhaustive list of the paths the guard will reject):
+
+- `app/**` — application code
+- `lib/**` — shared libraries
+- `components/**` / any UI directory
+- `prisma/**` — schema and migrations
+- `.github/**` — workflows, CODEOWNERS, issue templates
+- `vercel.json` — cron + redirect + header config
+- `package.json` / `package-lock.json` — dependency manifests
+- `.env*` — environment variables
+- `public/**` — static assets, CRM HTML, JSON drops
+- `scripts/**` — ops scripts
+- `compliance/**` — compliance rule files
+- `docs/**` — architecture docs
+- `.claude/**` — agent specs, skills, settings
+- any other top-level file or directory
+
+Cannot mutate app code, schema, R2, Neon, Vercel, Cloudflare, REBNY/Trestle/Cotality settings, or PR state. Cannot reopen PR #104, remove media-backfill, release external-inventory hold, or start JSON-drop work.
+
+## MEMORY POSTURE — Audit Memory, Not Source of Truth
+
+`memory/site-map/**` is **audit memory**, not source of truth. Every claim recorded in any of the 8 site-map files must be re-verified against:
+
+1. **Current repo code** (file path + line number — cited via `Read`/`Grep`).
+2. **Production endpoints** (HTTP call + response excerpt — cited via `curl`).
+3. **Tracked compliance docs** (`.claude/skills/rebny-compliance/SKILL.md`, `compliance/**`, `CLAUDE.md`, `NEON.md`, `data/RLS-FIELD-REGISTRY.md`, `data/UCBA-2026-Requirements.md`, `memory/REFACTOR-2026-04-25.md`).
+
+**If memory conflicts with code or production, code/production wins.** Memory must be updated to match — never the other way around.
+
+### Minimum Evidence Standard for site-map claims
+
+Every assertion in `memory/site-map/*.md` (route, component, endpoint, defect, conversion-risk, compliance-surface) must cite ONE OR MORE of:
+
+- **File path + line number** — e.g., `app/api/listings/route.ts:230` for the numbered-address heuristic.
+- **Command + output excerpt** — e.g., the exact `curl 'https://mallan.nyc/api/listings/suggest?q=425'` and its `{"success":true,"suggestions":[]}` response.
+- **Production URL + retrieval timestamp** — e.g., `https://mallan.nyc/search?tab=buy-residential` retrieved 2026-05-14T17:30Z.
+- **API response excerpt** — JSON shape proving the claim.
+- **Prior audit link** — `memory/audits/AUDIT-YYYY-MM-DD.md#section-X` for findings that originated in an earlier audit.
+
+A site-map row with no citation is a draft, not a finding. Drafts go into the Appendix of the day's audit report, NOT into the site-map files.
+
+### Re-verification cadence
+
+On every cartographer run:
+
+1. Read the prior site-map file from `origin/main` via `git show`.
+2. For each row/section/claim, re-verify the citation:
+   - File:line — still there? Re-read.
+   - Command — re-run, compare output.
+   - URL — re-probe, compare response.
+3. If citation no longer matches reality:
+   - **Update the site-map** to match current reality, AND
+   - Add a `KNOWN-REGRESSIONS.md` entry explaining the drift (a delta is itself a finding).
+4. Never carry forward a stale claim. The git history is the audit trail; an out-of-date site-map file is a regression in itself.
+
+### Compliance-critical sub-rule
+
+Compliance claims (REBNY attribution, IDX disclaimer, address suppression, distribution gates, §2.05 terminal-status, agent PII masking, Fair Housing, FARE Act, NY DOS advertising, TCPA/CAN-SPAM consent, NY SHIELD) must additionally cite:
+
+- The relevant section of `.claude/skills/rebny-compliance/SKILL.md`.
+- The current source-code line that enforces it.
+- A production probe demonstrating the rule is currently active OR a documented regression entry if it's currently broken.
+
+If a compliance claim cannot be triply-cited (skill section + source line + production proof), it MUST NOT appear in `COMPLIANCE-SURFACES.md` — log it as `LIMITED` or `NOT VERIFIED` in the day's audit report and recommend a follow-up investigation PR.
 
 ## THE SEARCH INVARIANT (single most important rule)
 
