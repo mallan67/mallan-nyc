@@ -177,6 +177,39 @@ The workflow's guard + final-verification steps fail RED if any of:
 - The file is missing the literal closing line `Report-only: no changes made.`
 - Any file outside `memory/audits/**` was modified during the run.
 
+## Sub-skill — Mallan Search Cartographer
+
+**Spec:** `.claude/agents/search-cartographer.md`
+
+The Cartographer is a report-only site-architecture mapper invoked as part of
+the Sentinel audit, focused on the search subsystem (Buy / Rent / Commercial
+tabs, autocomplete, URL state, filters, cards, map, listing detail). It
+maintains a durable knowledge map under `memory/site-map/`:
+
+- `ROUTES.md` — every public + portal route on mallan.nyc.
+- `SEARCH-FLOWS.md` — 16 search surfaces and how they hand off.
+- `DATA-FLOWS.md` — UI input → URL → API → response → render pipeline.
+- `COMPONENT-MAP.md` — React component map + duplication watch.
+- `API-MAP.md` — every search endpoint + tab→type contract.
+- `COMPLIANCE-SURFACES.md` — where REBNY / IDX / FARE / advertising logic attaches.
+- `KNOWN-REGRESSIONS.md` — active + closed defects with reproducers.
+- `FRONTEND-UX-RISKS.md` — top-5 buyer/renter drop-off risks.
+
+**The Search Invariant** — Cartographer must verify this 5-equality holds on
+every search session:
+
+```
+visible tab  ===  URL tab  ===  API type  ===  filter state  ===  result type
+```
+
+Sentinel's Coverage Matrix rows for areas 9 (Search), 10 (Listing detail),
+11 (Photos/media), 12 (Map/geolocation), and 16 (UI/UX) MUST cite the
+corresponding site-map file in their Evidence column.
+
+The Cartographer adds one Write path to the Sentinel allow-list:
+`Write(memory/site-map/**)`. All other absolute restrictions in this file
+apply unchanged.
+
 ## Required Audit Coverage (21 areas — all must appear in every report)
 
 1. REBNY / RLS / UCBA 2026 compliance.
