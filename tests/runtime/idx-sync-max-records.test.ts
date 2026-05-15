@@ -98,11 +98,23 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
       expect(idxSyncFnConfig!.maxDuration).toBe(120);
     });
 
-    it("keeps idx-sync cron schedule at '*/10 * * * *' in vercel.json", () => {
+    it("keeps idx-sync cron schedule at '*/10 * * * *' in vercel.json (when present)", () => {
       const crons = vercelJson.crons ?? [];
       const idxSyncCron = crons.find(c => c.path === '/api/cron/idx-sync');
-      expect(idxSyncCron).toBeDefined();
-      expect(idxSyncCron!.schedule).toBe('*/10 * * * *');
+      // The /api/cron/idx-sync entry may be INTENTIONALLY ABSENT from
+      // the crons array during an emergency disable window (e.g. PR #139
+      // — Path C step 1 — while the getLastSyncTimestamp() cursor bug
+      // is being hot-fixed). That absence is an ops decision tracked
+      // in the PR + commit log, NOT a regression.
+      //
+      // When the entry IS present, its schedule MUST remain the
+      // canonical `*/10 * * * *`. Any other schedule would either
+      // exceed the 120 s function window with a different cap math
+      // or break the concurrency-guard 10-minute lookback in
+      // app/api/cron/idx-sync/route.ts:32-42.
+      if (idxSyncCron) {
+        expect(idxSyncCron.schedule).toBe('*/10 * * * *');
+      }
     });
 
     it("keeps useExpandMedia = false in lib/idx/sync.ts (Trestle $expand=Media disabled by PR #127)", () => {
