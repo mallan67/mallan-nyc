@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { affirmPermission } from '@/lib/compliance/gates';
+import {
+  classifySuggestQuery,
+  isAddressDisplayablePerSuggest,
+} from '@/lib/search/suggest-classify';
 import prisma from '@/lib/prisma';
 
 // Neighborhood data for local matching (loaded once at module level)
@@ -142,8 +145,12 @@ export async function GET(request: Request) {
     }
 
     // ── 3. Listing ID matches (Web #, RLS #, Listing #) ──
-    // RLS numbers look like "RLS20059088", Web/Listing # can be numeric or alphanumeric
-    const isListingId = /^(RLS|rls)?\d{3,}$/.test(query) || /^[A-Z]{2,}\d+$/i.test(query);
+    // PR-S.1 (2026-05-14): listing-ID detection moved to lib/search/suggest-classify.ts.
+    // Previously `/^(RLS|rls)?\d{3,}$/` over-matched: any 3+ digit pure numeric
+    // (e.g., "425") was classified as a listing ID and skipped the address-search
+    // branch. Now requires explicit RLS prefix OR alphanumeric form.
+    const classification = classifySuggestQuery(query);
+    const isListingId = classification.isListingId;
 
     const useIDX = process.env.IDX_ENABLED === 'true';
 
@@ -160,9 +167,11 @@ export async function GET(request: Request) {
         for (const raw of result.records) {
           const gates = checkDistributionGates(raw);
           if (!gates.displayable) continue;
-          // Fail-closed: only include the address suggestion if InternetAddressDisplayYN
-          // is affirmatively true. null / undefined / missing / "false" → skip.
-          if (!affirmPermission(raw.InternetAddressDisplayYN)) continue;
+          // PR-S.1 (2026-05-14): InternetAddressDisplayYN is provider-gated by REBNY.
+          // Null = REBNY pre-filter passed = displayable. Only explicit false
+          // suppresses. See lib/search/suggest-classify.ts and the
+          // 2026-04-30 IDX-Plus pre-filter learning in REBNY skill §2.1.1.
+          if (!isAddressDisplayablePerSuggest(raw.InternetAddressDisplayYN)) continue;
 
           const streetNumber = String(raw.StreetNumber || '');
           const streetName = [raw.StreetDirPrefix, raw.StreetName, raw.StreetSuffix, raw.StreetDirSuffix]
@@ -192,7 +201,12 @@ export async function GET(request: Request) {
 
     // ── 4. Address / Zip search (Trestle IDX) ──
     if (useIDX && suggestions.length < 8) {
-      const isZip = /^\d{3,5}$/.test(query);
+      // PR-S.1: ZIP detection moved to lib/search/suggest-classify.ts.
+      // Previously `/^\d{3,5}$/` matched "425" (3 digits) and routed it to
+      // a ZIP-prefix search that returned 0 (no NYC ZIP starts with "425").
+      // Now restricted to exactly 5 digits.
+      const isZip = classification.isZip;
+      const isPureNumeric = classification.isPureNumeric;
       const escapedQuery = query.replace(/'/g, "''");
 
       const filterParts = [
@@ -242,6 +256,12 @@ export async function GET(request: Request) {
           } else {
             filterParts.push(`startswith(StreetNumber,'${streetNum}')`);
           }
+        } else if (isPureNumeric) {
+          // PR-S.1: standalone numeric (e.g., "425", "4259") — search by
+          // StreetNumber prefix. Previously fell through to the text-only
+          // branch which searched StreetName for the digits (always missed
+          // because StreetName never contains the street number).
+          filterParts.push(`startswith(StreetNumber,'${escapedQuery}')`);
         } else {
           // Text only — street name or building name
           const cleaned = odataSafe(stripSuffix(rawAddr));
@@ -275,8 +295,10 @@ export async function GET(request: Request) {
               .filter(Boolean).map(String).join(' ');
             const fullAddress = `${streetNumber} ${streetName}`.trim();
 
-            // Fail-closed: only include if InternetAddressDisplayYN affirmatively true.
-            if (!affirmPermission(raw.InternetAddressDisplayYN)) continue;
+            // PR-S.1 (2026-05-14): provider-gated. Null = REBNY pre-filter
+            // passed = displayable; only explicit false suppresses. Mirrors
+            // the writer policy at lib/idx/trestle-mapper.ts:834.
+            if (!isAddressDisplayablePerSuggest(raw.InternetAddressDisplayYN)) continue;
 
             const key = `${fullAddress}-${raw.PostalCode}`;
             if (seen.has(key)) continue;
