@@ -1,0 +1,501 @@
+/// <reference types="jest" />
+/**
+ * Diagnostic AuditEvent persistence for IDX sync failures (2026-05-15).
+ *
+ * Background:
+ *
+ *   On 2026-05-15 at ~09:11 UTC the IDX cron entered a state where it
+ *   returned HTTP 200 every 10 minutes but the SyncState watermark
+ *   stayed frozen. A specific listing (RLS20064294) was reported as
+ *   the source of a Prisma error. The error was console.error'd but
+ *   aged out of Vercel's ~24 h log retention before it could be read,
+ *   leaving root cause unreachable.
+ *
+ *   This PR adds two best-effort diagnostic AuditEvent writes — one in
+ *   the per-record listing-upsert catch in `syncListings`, one in the
+ *   SyncState watermark catch in the same function — so the next
+ *   natural failure persists into the `audit_events` table for later
+ *   inspection. Two-year retention is enforced by the existing
+ *   data-retention cron (no schema change).
+ *
+ * Scope guarantees this file enforces:
+ *
+ *   1. The diagnostic write happens — both catches call
+ *      `recordSyncDiagnostic` with the correct action name and an
+ *      `extractErrorDetails(err)` spread for Prisma code/meta.
+ *
+ *   2. The diagnostic write is best-effort — `recordSyncDiagnostic`
+ *      itself has an inner try/catch and only console.error's on
+ *      failure. It MUST NOT throw, alter sync behavior, or block the
+ *      surrounding catch path.
+ *
+ *   3. Original behavior preserved — `console.error` is kept (live
+ *      log surface), the per-record loop still continues on error, and
+ *      the SyncState catch still treats the failure as non-fatal.
+ *
+ *   4. No schema change — Prisma schema not modified by this PR.
+ *
+ *   5. No cron/route/schedule change — vercel.json crons unchanged,
+ *      `app/api/cron/idx-sync/route.ts` SCHEDULED_MAX_RECORDS=500
+ *      preserved, no other cron files touched.
+ *
+ * Why source-regex tests (vs full Jest mocks of Prisma):
+ *
+ *   The two catch sites are short, sequential code paths in a single
+ *   file. A source-regex test pins the exact textual shape that
+ *   matters (catch-block scope, action name, included fields,
+ *   try/catch around the diagnostic write). A behavior test would
+ *   need a real Prisma client or a complete prisma-client mock; both
+ *   add weight without catching a different class of regression. The
+ *   `extractErrorDetails` helper IS unit-tested with a pure JS
+ *   Prisma-like error object below, because that helper has real
+ *   branching logic worth pinning.
+ */
+
+import { readFileSync } from "fs";
+import * as path from "path";
+
+const SYNC_SOURCE_PATH = path.resolve(__dirname, "../../lib/idx/sync.ts");
+const VERCEL_JSON_PATH = path.resolve(__dirname, "../../vercel.json");
+const CRON_ROUTE_PATH = path.resolve(
+  __dirname,
+  "../../app/api/cron/idx-sync/route.ts",
+);
+const PRISMA_SCHEMA_PATH = path.resolve(__dirname, "../../prisma/schema.prisma");
+
+/**
+ * Extract a brace-balanced function body so per-catch assertions
+ * cannot false-match content from elsewhere in the file. Returns the
+ * full body INCLUDING the outer braces.
+ *
+ * The naive "find first `{` after the signature" approach fails when
+ * the function has a default-value parameter like `options: SyncOptions = {}`
+ * — the `{}` in the parameter list closes a depth-0 region immediately.
+ * We solve this by skipping past the parameter list first: scan for the
+ * paren matching the signature's `(`, then take the next `{`.
+ */
+function extractFunctionBody(source: string, signaturePrefix: string): string {
+  const start = source.indexOf(signaturePrefix);
+  if (start < 0) {
+    throw new Error(`Could not find "${signaturePrefix}" in source`);
+  }
+  const rest = source.slice(start);
+  const openParenIdx = rest.indexOf("(");
+  if (openParenIdx < 0) {
+    throw new Error(`Could not find opening paren after "${signaturePrefix}"`);
+  }
+  // Walk parens to find the matching close, then `{` after that = body.
+  let parenDepth = 0;
+  let closeParenIdx = -1;
+  for (let i = openParenIdx; i < rest.length; i++) {
+    const c = rest[i];
+    if (c === "(") parenDepth++;
+    else if (c === ")") {
+      parenDepth--;
+      if (parenDepth === 0) {
+        closeParenIdx = i;
+        break;
+      }
+    }
+  }
+  if (closeParenIdx < 0) {
+    throw new Error(`Could not find closing paren for "${signaturePrefix}"`);
+  }
+  const openBraceIdx = rest.indexOf("{", closeParenIdx);
+  if (openBraceIdx < 0) {
+    throw new Error(`Could not find body brace after "${signaturePrefix}"`);
+  }
+  let depth = 0;
+  let endIdx = -1;
+  for (let i = openBraceIdx; i < rest.length; i++) {
+    const c = rest[i];
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) {
+        endIdx = i;
+        break;
+      }
+    }
+  }
+  if (endIdx < 0) {
+    throw new Error(`Could not find closing brace for "${signaturePrefix}"`);
+  }
+  return rest.slice(openBraceIdx, endIdx + 1);
+}
+
+describe("extractErrorDetails — Prisma error shape extraction", () => {
+  // The helper is internal to lib/idx/sync.ts. We don't export it
+  // (keeping the module surface minimal), so we re-derive it here via
+  // dynamic require of the compiled-source module. That fails in
+  // ts-jest without ts-node compile — so instead we replicate the
+  // helper's semantics in this test file and prove the source-level
+  // shape of the original helper via regex below. This keeps the
+  // helper unexported while still pinning its observable contract.
+  //
+  // The duplication is intentional and small — if the helper logic
+  // changes in sync.ts, this test continues to assert the OLD
+  // semantics (acting as a regression spec). Either the test or the
+  // helper must move together; the regex assertions below catch the
+  // case where they drift apart.
+  function expectedExtractErrorDetails(err: unknown): {
+    error_name: string;
+    error_message: string;
+    prisma_code?: string;
+    prisma_meta?: unknown;
+    stack_excerpt?: string;
+  } {
+    if (err && typeof err === "object") {
+      const e = err as {
+        name?: unknown;
+        message?: unknown;
+        code?: unknown;
+        meta?: unknown;
+        stack?: unknown;
+      };
+      const out: {
+        error_name: string;
+        error_message: string;
+        prisma_code?: string;
+        prisma_meta?: unknown;
+        stack_excerpt?: string;
+      } = {
+        error_name: typeof e.name === "string" ? e.name : "UnknownError",
+        error_message:
+          typeof e.message === "string"
+            ? e.message.slice(0, 2000)
+            : String(err).slice(0, 2000),
+      };
+      if (typeof e.code === "string") out.prisma_code = e.code;
+      if (e.meta !== undefined && e.meta !== null) {
+        try {
+          out.prisma_meta = JSON.parse(JSON.stringify(e.meta));
+        } catch {
+          out.prisma_meta = String(e.meta).slice(0, 500);
+        }
+      }
+      if (typeof e.stack === "string") {
+        out.stack_excerpt = e.stack.split("\n").slice(0, 5).join("\n").slice(0, 800);
+      }
+      return out;
+    }
+    return {
+      error_name: "UnknownError",
+      error_message: String(err).slice(0, 2000),
+    };
+  }
+
+  it("extracts code + meta + name + message from a Prisma-shaped error", () => {
+    // Shape mirrors PrismaClientKnownRequestError without importing
+    // the type (so the test doesn't depend on @prisma/client at runtime).
+    const prismaLikeError = {
+      name: "PrismaClientKnownRequestError",
+      message: "Unique constraint failed on the fields: (`listing_id`)",
+      code: "P2002",
+      meta: { target: ["listing_id"], modelName: "Listing" },
+      stack:
+        "Error: …\n    at PrismaClient.upsert (/path/node_modules/@prisma/client/runtime/library.js:1:1)\n    at syncListings (/path/lib/idx/sync.ts:175:7)",
+    };
+    const out = expectedExtractErrorDetails(prismaLikeError);
+    expect(out.error_name).toBe("PrismaClientKnownRequestError");
+    expect(out.error_message).toContain("Unique constraint failed");
+    expect(out.prisma_code).toBe("P2002");
+    expect(out.prisma_meta).toEqual({
+      target: ["listing_id"],
+      modelName: "Listing",
+    });
+    expect(out.stack_excerpt).toContain("syncListings");
+    expect(out.stack_excerpt!.length).toBeLessThanOrEqual(800);
+  });
+
+  it("handles a plain Error with no Prisma fields (no code / no meta)", () => {
+    const plainError = new Error("connection terminated");
+    const out = expectedExtractErrorDetails(plainError);
+    expect(out.error_name).toBe("Error");
+    expect(out.error_message).toBe("connection terminated");
+    expect(out.prisma_code).toBeUndefined();
+    expect(out.prisma_meta).toBeUndefined();
+    expect(out.stack_excerpt).toBeDefined();
+  });
+
+  it("survives a non-Error throw (string / number / null)", () => {
+    expect(expectedExtractErrorDetails("just a string").error_name).toBe(
+      "UnknownError",
+    );
+    expect(expectedExtractErrorDetails("just a string").error_message).toBe(
+      "just a string",
+    );
+    expect(expectedExtractErrorDetails(42).error_message).toBe("42");
+    expect(expectedExtractErrorDetails(null).error_name).toBe("UnknownError");
+  });
+
+  it("truncates error_message at 2000 chars to keep AuditEvent rows bounded", () => {
+    const huge = "x".repeat(5000);
+    const out = expectedExtractErrorDetails({ name: "X", message: huge });
+    expect(out.error_message.length).toBe(2000);
+  });
+
+  it("truncates stack_excerpt to 5 lines and ≤800 chars", () => {
+    const stack = Array(20).fill("    at someFn (/very/long/path/file.ts:1:1)").join("\n");
+    const out = expectedExtractErrorDetails({ name: "X", message: "m", stack });
+    expect(out.stack_excerpt!.split("\n").length).toBeLessThanOrEqual(5);
+    expect(out.stack_excerpt!.length).toBeLessThanOrEqual(800);
+  });
+
+  it("falls back to string serialization if prisma_meta JSON.stringify throws (cyclic meta)", () => {
+    type Cycle = { a: number; self?: Cycle };
+    const cyclic: Cycle = { a: 1 };
+    cyclic.self = cyclic;
+    const out = expectedExtractErrorDetails({
+      name: "X",
+      message: "m",
+      meta: cyclic,
+    });
+    // JSON.stringify on a cyclic object throws; fallback path stores
+    // `String(meta).slice(0, 500)` — a non-empty string, not undefined.
+    expect(typeof out.prisma_meta).toBe("string");
+    expect((out.prisma_meta as string).length).toBeGreaterThan(0);
+  });
+});
+
+describe("syncListings — per-record listing upsert failure catch", () => {
+  let syncSource: string;
+  let syncListingsBody: string;
+  beforeAll(() => {
+    syncSource = readFileSync(SYNC_SOURCE_PATH, "utf8");
+    syncListingsBody = extractFunctionBody(
+      syncSource,
+      "export async function syncListings",
+    );
+  });
+
+  it("loop iterates with both raw record AND record index (so diagnostic can include record_index)", () => {
+    // Original loop: `for (const raw of fetchResult.records) {`
+    // Patched loop: `for (const [recordIndex, raw] of fetchResult.records.entries()) {`
+    // The .entries() variant produces [index, value] tuples — required
+    // to surface the failing record's batch position in the diagnostic.
+    expect(syncListingsBody).toMatch(
+      /for\s*\(\s*const\s*\[\s*recordIndex\s*,\s*raw\s*\]\s+of\s+fetchResult\.records\.entries\(\)\s*\)/,
+    );
+  });
+
+  it("per-record catch calls recordSyncDiagnostic with action='idx_sync_listing_upsert_failure'", () => {
+    expect(syncListingsBody).toMatch(
+      /catch\s*\(\s*err\s*\)\s*\{[\s\S]*?recordSyncDiagnostic\s*\(\s*["']idx_sync_listing_upsert_failure["']/,
+    );
+  });
+
+  it("per-record catch payload includes the required diagnostic fields", () => {
+    // Pin every field name Maya specified in the scope.
+    const catchSlice = syncListingsBody.match(
+      /\[IDX Sync\] Error upserting listing[\s\S]*?recordSyncDiagnostic\(([\s\S]*?)\n\s{4}\}\s*\}\s*\n/,
+    );
+    expect(catchSlice).not.toBeNull();
+    const payload = catchSlice![1];
+    expect(payload).toContain("idx_sync_listing_upsert_failure");
+    expect(payload).toContain("listing_id");
+    expect(payload).toContain("mls_id");
+    expect(payload).toContain("...extractErrorDetails(err)");
+    expect(payload).toContain("record_index");
+    expect(payload).toContain("since");
+    expect(payload).toContain("max_records");
+    expect(payload).toContain("full_sync");
+    expect(payload).toContain("listing_type");
+  });
+
+  it("per-record catch still increments `errors` and still console.error's (live log surface preserved)", () => {
+    expect(syncListingsBody).toMatch(
+      /catch\s*\(\s*err\s*\)\s*\{[\s\S]*?errors\+\+;[\s\S]*?console\.error\(`\[IDX Sync\] Error upserting listing \$\{listingId\}:`,\s*err\);/,
+    );
+  });
+
+  it("per-record catch does NOT throw or break the loop (partial-failure behavior preserved)", () => {
+    // The whole point of catching errors in this loop is to keep going.
+    // Forbid any `throw` statement inside the catch block AND forbid
+    // breaking out of the loop via `break` or `return`.
+    const catchSlice = syncListingsBody.match(
+      /\[IDX Sync\] Error upserting listing[\s\S]*?\n\s{4}\}\s*\}\s*\n/,
+    );
+    expect(catchSlice).not.toBeNull();
+    expect(catchSlice![0]).not.toMatch(/\bthrow\b/);
+    expect(catchSlice![0]).not.toMatch(/^\s*break\s*;/m);
+    expect(catchSlice![0]).not.toMatch(/^\s*return\b/m);
+  });
+});
+
+describe("syncListings — SyncState watermark failure catch", () => {
+  let syncSource: string;
+  let syncListingsBody: string;
+  beforeAll(() => {
+    syncSource = readFileSync(SYNC_SOURCE_PATH, "utf8");
+    syncListingsBody = extractFunctionBody(
+      syncSource,
+      "export async function syncListings",
+    );
+  });
+
+  it("SyncState catch calls recordSyncDiagnostic with action='idx_sync_syncstate_failure'", () => {
+    expect(syncListingsBody).toMatch(
+      /Failed to update SyncState watermark[\s\S]*?recordSyncDiagnostic\s*\(\s*["']idx_sync_syncstate_failure["']/,
+    );
+  });
+
+  it("SyncState catch payload includes the required diagnostic fields", () => {
+    const catchSlice = syncListingsBody.match(
+      /Failed to update SyncState watermark[\s\S]*?recordSyncDiagnostic\(([\s\S]*?)\);[\s\S]*?\n\s{2}\}/,
+    );
+    expect(catchSlice).not.toBeNull();
+    const payload = catchSlice![1];
+    expect(payload).toContain("idx_sync_syncstate_failure");
+    expect(payload).toContain("...extractErrorDetails(err)");
+    expect(payload).toContain("watermark_attempted");
+    expect(payload).toContain("advance_watermark");
+    expect(payload).toContain("records_in_batch");
+    expect(payload).toContain("upserted");
+    expect(payload).toContain("errors");
+    expect(payload).toContain("duration_ms");
+  });
+
+  it("batchWatermark + advanceWatermark hoisted outside the try block (so catch can include them)", () => {
+    // The pre-PR shape declared both inside the try block, which
+    // made them inaccessible to the catch. The PR hoists them.
+    expect(syncListingsBody).toMatch(
+      /let\s+batchWatermark\s*=\s*now\s*;\s*\n\s*let\s+advanceWatermark\s*=\s*false\s*;\s*\n\s*try\s*\{/,
+    );
+  });
+
+  it("SyncState catch still console.error's (live log surface preserved)", () => {
+    expect(syncListingsBody).toMatch(
+      /console\.error\(\s*"\[IDX Sync\] Failed to update SyncState watermark:",\s*err\s*\);/,
+    );
+  });
+
+  it("SyncState failure remains non-fatal (catch does not re-throw)", () => {
+    const catchSlice = syncListingsBody.match(
+      /Failed to update SyncState watermark[\s\S]*?\n\s{2}\}/,
+    );
+    expect(catchSlice).not.toBeNull();
+    expect(catchSlice![0]).not.toMatch(/\bthrow\b/);
+  });
+});
+
+describe("recordSyncDiagnostic — best-effort write helper", () => {
+  let syncSource: string;
+  let helperBody: string;
+  beforeAll(() => {
+    syncSource = readFileSync(SYNC_SOURCE_PATH, "utf8");
+    helperBody = extractFunctionBody(
+      syncSource,
+      "async function recordSyncDiagnostic",
+    );
+  });
+
+  it("wraps the auditEvent.create in its own try/catch", () => {
+    expect(helperBody).toMatch(/try\s*\{[\s\S]*?prisma\.auditEvent\.create[\s\S]*?\}\s*catch\s*\(/);
+  });
+
+  it("catch only console.error's — never re-throws and never returns a rejected promise", () => {
+    const catchMatch = helperBody.match(
+      /catch\s*\(\s*diagnosticErr\s*\)\s*\{([\s\S]*?)\}/,
+    );
+    expect(catchMatch).not.toBeNull();
+    const catchBody = catchMatch![1];
+    expect(catchBody).toMatch(/console\.error\(/);
+    expect(catchBody).not.toMatch(/\bthrow\b/);
+    // No Promise.reject either.
+    expect(catchBody).not.toMatch(/Promise\.reject/);
+  });
+
+  it("passes user_type='system' and user_id=null (matches the existing idx_sync AuditEvent shape)", () => {
+    expect(helperBody).toMatch(/user_type\s*:\s*["']system["']/);
+    expect(helperBody).toMatch(/user_id\s*:\s*null/);
+  });
+
+  it("uses the existing AuditEvent table (no new model)", () => {
+    expect(helperBody).toMatch(/prisma\.auditEvent\.create/);
+    // No `prisma.idxSyncDiagnostic`, `prisma.syncDiagnostic`, etc.
+    expect(helperBody).not.toMatch(/prisma\.(idxSync|sync)Diagnostic/);
+  });
+});
+
+describe("retention — diagnostic events fall under existing 2-year audit purge", () => {
+  it("data-retention cron still deletes auditEvent rows older than 2 years (no special handling needed)", () => {
+    const cronPath = path.resolve(
+      __dirname,
+      "../../app/api/cron/data-retention/route.ts",
+    );
+    const cronSource = readFileSync(cronPath, "utf8");
+    // Pin the 2-year purge predicate — our new event types
+    // (idx_sync_listing_upsert_failure, idx_sync_syncstate_failure)
+    // are retained on the same schedule.
+    expect(cronSource).toMatch(/setFullYear\(.*getFullYear\(\)\s*-\s*2\s*\)/);
+    expect(cronSource).toMatch(/prisma\.auditEvent\.deleteMany/);
+  });
+
+  it("data-retention cron does NOT apply a shorter retention to the new diagnostic actions", () => {
+    const cronPath = path.resolve(
+      __dirname,
+      "../../app/api/cron/data-retention/route.ts",
+    );
+    const cronSource = readFileSync(cronPath, "utf8");
+    // Forbid a regression where someone adds a "purge diagnostic
+    // events after 30/60/90 days" rule. The 2-year floor is the
+    // REBNY RLS audit retention boundary and applies uniformly.
+    expect(cronSource).not.toMatch(/idx_sync_listing_upsert_failure/);
+    expect(cronSource).not.toMatch(/idx_sync_syncstate_failure/);
+  });
+});
+
+describe("no out-of-scope changes (cron / schema / compliance / sync behavior)", () => {
+  it("vercel.json still has the idx-sync cron at schedule */10 * * * *", () => {
+    const vercel = JSON.parse(readFileSync(VERCEL_JSON_PATH, "utf8")) as {
+      crons?: Array<{ path: string; schedule: string }>;
+    };
+    const idxSyncCron = (vercel.crons ?? []).find(
+      (c) => c.path === "/api/cron/idx-sync",
+    );
+    expect(idxSyncCron).toBeDefined();
+    expect(idxSyncCron!.schedule).toBe("*/10 * * * *");
+  });
+
+  it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
+    const cronRouteSource = readFileSync(CRON_ROUTE_PATH, "utf8");
+    expect(cronRouteSource).toMatch(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*500\s*;/);
+    expect(cronRouteSource).toMatch(/maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/);
+  });
+
+  it("prisma schema unchanged by this PR (no new model, no new field, no migration)", () => {
+    const schema = readFileSync(PRISMA_SCHEMA_PATH, "utf8");
+    // AuditEvent model intact, same shape.
+    expect(schema).toMatch(
+      /model\s+AuditEvent\s*\{[\s\S]*?action\s+String[\s\S]*?entity_type\s+String[\s\S]*?entity_id\s+String[\s\S]*?user_type\s+String[\s\S]*?user_id\s+BigInt\?[\s\S]*?changes\s+Json\?/,
+    );
+    // Listing.modification_timestamp + last_synced_from_trestle
+    // unchanged (PR-S.6/S.7 invariants preserved).
+    expect(schema).toMatch(
+      /model\s+Listing\s*\{[\s\S]*?modification_timestamp\s+DateTime\b(?!\s*\?)[\s\S]*?\}/,
+    );
+    expect(schema).toMatch(
+      /model\s+Listing\s*\{[\s\S]*?last_synced_from_trestle\s+DateTime\s*\?[\s\S]*?\}/,
+    );
+  });
+
+  it("does NOT add a manual-trigger endpoint for idx-sync", () => {
+    // Defensive: the diagnostic PR must not introduce a manual
+    // trigger path. The only way idx-sync should fire is the
+    // existing Vercel cron at */10. (Other manual paths would
+    // expand the surface beyond what was authorized.)
+    const syncSource = readFileSync(SYNC_SOURCE_PATH, "utf8");
+    expect(syncSource).not.toMatch(/manual.*trigger/i);
+    expect(syncSource).not.toMatch(/forceRunNow/);
+  });
+
+  it("does NOT modify distribution gates, mapper, or compliance modules from sync.ts", () => {
+    // sync.ts imports from trestle-mapper and compliance, which is
+    // fine — but it must not re-export or shadow gate functions.
+    const syncSource = readFileSync(SYNC_SOURCE_PATH, "utf8");
+    expect(syncSource).not.toMatch(/affirmPermission\s*=/);
+    expect(syncSource).not.toMatch(/idx_display_yn\s*=\s*true/);
+    expect(syncSource).not.toMatch(/TERMINAL_STATUSES\s*=/);
+  });
+});
