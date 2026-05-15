@@ -788,9 +788,27 @@ function SearchClient() {
             </div>
           </div>
 
-          {/* Row 2: Price + Filters + Views + Sort + Count */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3">
-            <div className="flex items-center gap-1.5">
+          {/* Row 2: Price + Filters + Views + Sort + Count
+              F2 (2026-05-15) — at < sm (640px) this row crammed 9 controls
+              into a single `flex-wrap` and exploded into 5-7 vertical rows
+              (245px tall at 390px). Switched to horizontal-scroll on mobile:
+              `flex-nowrap` + `overflow-x-auto` lets the controls stay on
+              one line and lets the user swipe to access lower-priority
+              ones (Sort, SaveSearch, Count, Reset). At `sm` (640px+) the
+              row reverts to the original `flex-wrap` behavior. The
+              `[scrollbar-width:none] [&::-webkit-scrollbar]:hidden` rules
+              hide the horizontal scrollbar UI on iOS/Android while
+              keeping swipe-scroll functional. The negative `-mx-*` plus
+              matching `px-*` make the scroll edge bleed to the viewport
+              boundary so the last visible control isn't clipped against
+              a hard container edge. */}
+          <div className="flex flex-nowrap items-center gap-2 sm:gap-3 mt-3 overflow-x-auto sm:flex-wrap sm:overflow-x-visible [&::-webkit-scrollbar]:hidden [scrollbar-width:none] -mx-4 px-4 sm:mx-0 sm:px-0">
+            {/* F2 child overrides: shrink-0 keeps each control at its
+                intrinsic width inside the horizontal-scroll container so
+                nothing gets squished. The `ml-auto` on the count below
+                still works — flex-nowrap honors auto margins and pushes
+                the count to the far end of the (now wider) row. */}
+            <div className="flex items-center gap-1.5 shrink-0">
               {(() => {
                 const presets = isRental ? RENT_PRICE_PRESETS : PRICE_PRESETS;
                 return (
@@ -901,11 +919,16 @@ function SearchClient() {
               </select>
             </div>
 
-            {/* Neighborhood selector */}
-            <NeighborhoodSelector
-              selected={selectedNeighborhoods}
-              onChange={setSelectedNeighborhoods}
-            />
+            {/* Neighborhood selector — wrapped in shrink-0 so it keeps its
+                intrinsic width inside the F2 horizontal-scroll toolbar. The
+                child component owns its own button width; we just guard
+                against flex squish. */}
+            <div className="shrink-0">
+              <NeighborhoodSelector
+                selected={selectedNeighborhoods}
+                onChange={setSelectedNeighborhoods}
+              />
+            </div>
 
             <button
               onClick={() => setShowFilters(true)}
@@ -926,7 +949,7 @@ function SearchClient() {
             <select
               value={filters.sort || 'price-desc'}
               onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value }))}
-              className="rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
+              className="rounded-lg px-2 sm:px-3 py-2 bg-white ring-1 ring-black/10 text-xs sm:text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold/30 shrink-0"
               aria-label="Sort order"
             >
               <option value="price-desc">Price: High → Low</option>
@@ -951,24 +974,27 @@ function SearchClient() {
               ))}
             </div>
 
-            <SaveSearchButton
-              type={isRental ? 'rent' : 'buy'}
-              filters={{
-                minPrice: filters.minPrice,
-                maxPrice: filters.maxPrice,
-                beds: filters.beds ?? undefined,
-                baths: filters.baths ?? undefined,
-                neighborhood: neighborhoodParam || undefined,
-              }}
-            />
+            {/* Same shrink-0 wrap pattern as NeighborhoodSelector above. */}
+            <div className="shrink-0">
+              <SaveSearchButton
+                type={isRental ? 'rent' : 'buy'}
+                filters={{
+                  minPrice: filters.minPrice,
+                  maxPrice: filters.maxPrice,
+                  beds: filters.beds ?? undefined,
+                  baths: filters.baths ?? undefined,
+                  neighborhood: neighborhoodParam || undefined,
+                }}
+              />
+            </div>
 
             {/* Count */}
-            <p className="text-xs sm:text-sm text-brand-dark/70 ml-auto whitespace-nowrap font-medium" aria-live="polite">
+            <p className="text-xs sm:text-sm text-brand-dark/70 ml-auto whitespace-nowrap font-medium shrink-0" aria-live="polite">
               {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
             </p>
 
             {(activeFilterPills.length > 0 || searchQuery) && (
-              <button onClick={clearFilters} className="text-xs bg-gray-100 hover:bg-gray-200 text-brand-dark/70 hover:text-brand-dark px-3 py-1.5 rounded-full whitespace-nowrap font-medium transition-colors">
+              <button onClick={clearFilters} className="text-xs bg-gray-100 hover:bg-gray-200 text-brand-dark/70 hover:text-brand-dark px-3 py-1.5 rounded-full whitespace-nowrap font-medium transition-colors shrink-0">
                 Reset Search
               </button>
             )}
@@ -1027,7 +1053,17 @@ function SearchClient() {
           <div className={isFullViewport ? 'flex h-full' : 'py-6'}>
             {viewMode === 'split' && (
               <>
-                <div className="flex-1 lg:w-[55%] p-2 grid grid-cols-2 gap-2">
+                {/* F1 follow-up (PR-FE.1 Codex review, 2026-05-15) — skeleton
+                    grid must use the SAME `grid-cols-1 lg:grid-cols-2`
+                    responsive class as the loaded-state grid at line ~1103.
+                    Pre-fix this skeleton was `grid grid-cols-2` unconditional,
+                    which (a) overflowed the 390px viewport during the loading
+                    state and (b) caused a visible 2→1 column CLS jump when
+                    the data arrived and the loaded grid (already collapsing
+                    to 1 col on mobile) replaced the skeleton. Same responsive
+                    shape keeps skeleton and loaded paint widths identical at
+                    every breakpoint. */}
+                <div className="flex-1 lg:w-[55%] p-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
                   {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="bg-gray-100 rounded-xl animate-pulse" style={{ aspectRatio: '3/2' }} />
                   ))}
@@ -1064,7 +1100,17 @@ function SearchClient() {
                 appears. Compounds with the skeleton-aspect fix above to
                 eliminate row-height jumps during the loading transition. */}
             <div ref={listingsRef} className="flex-1 lg:w-[55%] overflow-y-auto border-r border-black/5" style={{ scrollbarGutter: 'stable' }}>
-              <div className="p-2 grid grid-cols-2 gap-2">
+              {/* F1 (2026-05-15) — split-view grid must collapse to 1 column
+                  below `lg` (1024px). The previous unconditional `grid-cols-2`
+                  rendered ~583px-wide cards inside a 390px mobile viewport,
+                  clipping them via the parent `overflow-y-auto` and producing
+                  the "wrap / overflow" symptom Maya flagged. The map column
+                  is already `hidden lg:block` (line ~1094) so on mobile the
+                  listings panel owns the full width; a 1-col grid here yields
+                  clean full-width cards with no horizontal overflow. The
+                  `lg:grid-cols-2` restores the desktop 2-col layout that
+                  pairs with the 45% map column. */}
+              <div className="p-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {sortedListings.map((listing) => (
                   <div
                     key={listing.id}
