@@ -53,6 +53,51 @@ export interface Suggestion {
 }
 
 /**
+ * PR-S.1b (2026-05-15) — observability for the suggest endpoint's Trestle
+ * fetch failures.
+ *
+ * Logs ONLY safe diagnostic fields: branch label, truncated query, error
+ * name/message, HTTP status (parsed from the error message when fetch.ts
+ * formats it as "(NNN)"), and the Trestle endpoint host (parsed via URL —
+ * never the full tokenized URL).
+ *
+ * NEVER logs: access tokens, client secrets, full Authorization headers,
+ * env-var values, or user PII.
+ *
+ * Pure observability — does not change response behavior. Replaces the two
+ * previously-silent inner catch blocks in the route. Output goes to
+ * console.error → Vercel Function logs.
+ */
+function logSuggestTrestleError(
+  branch: 'listing-id' | 'zip' | 'address' | 'text',
+  query: string,
+  error: unknown,
+): void {
+  const err = error instanceof Error ? error : new Error(String(error));
+  // fetch.ts formats upstream errors as e.g. "[IDX Fetch] Trestle API error after token refresh (401)".
+  // Best-effort status extraction; null when no parenthesized 3-digit code present.
+  const statusMatch = err.message.match(/\((\d{3})\)/);
+  const trestleBase =
+    process.env.TRESTLE_API_URL ||
+    process.env.IDX_ENDPOINT ||
+    'https://api.cotality.com/trestle';
+  let host = 'trestle';
+  try {
+    host = new URL(trestleBase).host;
+  } catch {
+    // Keep the safe default if env value is malformed.
+  }
+  console.error('[suggest] Trestle fetch failed', {
+    branch,
+    query: query.slice(0, 80),
+    errorName: err.name,
+    errorMessage: err.message.slice(0, 240),
+    httpStatus: statusMatch ? Number(statusMatch[1]) : null,
+    host,
+  });
+}
+
+/**
  * GET /api/listings/suggest?q=...
  *
  * Unified autocomplete for frontend search.
@@ -194,8 +239,10 @@ export async function GET(request: Request) {
             value: listingId,
           });
         }
-      } catch {
-        // Trestle error — skip listing ID results
+      } catch (error) {
+        // PR-S.1b: was silently swallowed; now logged for diagnosis.
+        // Response continues — listing-id results are skipped, other branches remain.
+        logSuggestTrestleError('listing-id', query, error);
       }
     }
 
@@ -332,8 +379,12 @@ export async function GET(request: Request) {
               });
             }
           }
-        } catch {
-          // Trestle error — return what we have
+        } catch (error) {
+          // PR-S.1b: was silently swallowed; now logged for diagnosis.
+          // Response continues — local/dictionary suggestions remain in the array.
+          const branch: 'zip' | 'address' | 'text' =
+            isZip ? 'zip' : /^\d/.test(query) ? 'address' : 'text';
+          logSuggestTrestleError(branch, query, error);
         }
       }
     }
