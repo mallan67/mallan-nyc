@@ -43,6 +43,44 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+/**
+ * PR-S.1c (2026-05-15) — minimal `$select` for suggest's Trestle calls.
+ *
+ * Default `fetchFromTrestle()` pulls all 902 `IDX_PLUS_SELECT_FIELDS`. For
+ * autocomplete that's wasteful (latency + payload bloat). We only need:
+ *   - Gate fields (so `checkDistributionGates(raw)` and the secondary
+ *     address-suppression check can evaluate correctly)
+ *   - Identifier fields (`ListingId`, `ListingKey`)
+ *   - Address components used to build the suggestion label
+ *
+ * Keeping this list aligned with `lib/idx/trestle-mapper.ts` gate inputs +
+ * the route's display construction in §3 + §4 below.
+ */
+const SUGGEST_SELECT_FIELDS = [
+  // Identifiers
+  'ListingId',
+  'ListingKey',
+  // Distribution-gate inputs (see REBNY compliance §2)
+  'StandardStatus',
+  'MlsStatus',
+  'Permission',
+  'InternetEntireListingDisplayYN',
+  'InternetAddressDisplayYN',
+  'ActivationDate',
+  // Address components used in suggestion labels
+  'StreetNumber',
+  'StreetDirPrefix',
+  'StreetName',
+  'StreetSuffix',
+  'StreetDirSuffix',
+  'PostalCode',
+  'CountyOrParish',
+  'CityRegion',
+  // Used by the text-search OData filter (BuildingName) — kept in select so
+  // future label use does not break.
+  'BuildingName',
+];
+
 export type SuggestionType = 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing';
 
 export interface Suggestion {
@@ -202,9 +240,11 @@ export async function GET(request: Request) {
     if (isListingId && useIDX) {
       try {
         const escapedQuery = query.replace(/'/g, "''");
-        // Search by ListingId (Web #) or ListingKey (RLS/SourceSystemKey)
+        // Search by ListingId (Web #) or ListingKey (RLS/SourceSystemKey).
+        // PR-S.1c (2026-05-15): explicit minimal $select; default expandMedia=false.
         const result = await fetchFromTrestle({
           filter: `(ListingId eq '${escapedQuery}' or ListingKey eq '${escapedQuery}')`,
+          select: SUGGEST_SELECT_FIELDS,
           top: 3,
           maxTotal: 3,
         });
@@ -322,8 +362,10 @@ export async function GET(request: Request) {
 
       if (!isListingId || isZip) {
         try {
+          // PR-S.1c (2026-05-15): explicit minimal $select; default expandMedia=false.
           const result = await fetchFromTrestle({
             filter: filterParts.join(' and '),
+            select: SUGGEST_SELECT_FIELDS,
             top: 20,
             maxTotal: 20,
           });

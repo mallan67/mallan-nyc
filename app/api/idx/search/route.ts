@@ -155,7 +155,12 @@ export async function GET(req: NextRequest) {
     // fetch properties without media and let the frontend lazy-load photos via
     // /api/media/batch + IntersectionObserver (photo-loader.js).
     // Trestle tokens refresh every ~12 min; auth.ts handles this with a 5-min buffer.
-    const useInlineMedia = limit <= 200;
+    //
+    // PR-S.1c (2026-05-15): Trestle CONSISTENTLY rejects `$expand=Media` with
+    // HTTP 400. The previous `limit <= 200` conditional was a workaround that
+    // production logs show does not work — even small searches 400 the same
+    // way. All searches now lazy-load media via /api/media/batch.
+    const useInlineMedia = false;
     const result = await fetchFromTrestle({
       filter,
       select: SEARCH_SELECT_FIELDS,

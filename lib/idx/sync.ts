@@ -74,9 +74,13 @@ export async function syncListings(
   console.log(`[IDX Sync] Starting sync with filter: ${filter}`);
 
   const maxRecords = options.maxRecords || 1000;
-  // Disable $expand=Media for large syncs (>200 records) to avoid Trestle timeouts.
-  // Media will be batch-fetched separately after property sync.
-  const useExpandMedia = maxRecords <= 200;
+  // PR-S.1c (2026-05-15): Trestle CONSISTENTLY rejects `$expand=Media` with
+  // HTTP 400 regardless of result-set size. The previous conditional
+  // (`maxRecords <= 200`) was a workaround for what was originally framed
+  // as a "timeout for large batches" issue, but production logs show even
+  // small batches 400 the same way. Media is fetched separately by the
+  // `if (!useExpandMedia && upserted > 0)` batch-media block further down.
+  const useExpandMedia = false;
 
   const fetchResult = await fetchFromTrestle({
     filter,
@@ -831,7 +835,9 @@ export async function syncAgentHistory(
   console.log(`[IDX Agent History] Starting sync for agent ${options.agentMlsId} with filter: ${filter}`);
 
   const maxRecords = options.maxRecords || 2000;
-  const useExpandMedia = maxRecords <= 200;
+  // PR-S.1c (2026-05-15): see `syncListings()` above — `$expand=Media` is
+  // consistently rejected by Trestle. Media is fetched separately.
+  const useExpandMedia = false;
 
   const fetchResult = await fetchFromTrestle({
     filter,
