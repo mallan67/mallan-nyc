@@ -12,7 +12,7 @@
  */
 
 import type { IDXListing } from './types';
-import { generateListingSlug } from '@/lib/listing-slug';
+import { generateListingSlug, stripListingIdSuffix } from '@/lib/listing-slug';
 import { isComingSoonStatus } from '@/lib/compliance/status';
 import { isAddressDisplayable } from '@/lib/compliance/gates';
 import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
@@ -244,6 +244,33 @@ export interface PublicListingDTO {
     comingSoon?: boolean;
     comingSoonDate?: string;
   };
+  /**
+   * Option C (PR-FE.2, 2026-05-15) — siblings annotation.
+   *
+   * `_coListedCount` is the number of OTHER distinct REBNY listings
+   * (different listing_id) on the same response page that share this
+   * listing's physical address (streetNumber + streetName + unitNumber +
+   * postalCode). It is 0 (or undefined) when this listing is the only
+   * row for its address in the current result set.
+   *
+   * `_coListedBrokerages` is the list of `listOfficeName` values for
+   * those sibling listings — used by the search card to render a small
+   * "Also listed by Corcoran, Douglas Elliman" badge that visually
+   * differentiates 3 cards which would otherwise look identical to the
+   * user (same address, same price, same photos, different brokerage).
+   *
+   * REBNY UCBA Art. III §2(C) compliance is preserved: each card still
+   * attributes to its own actual listing broker via
+   * `_displayCompliance.attributionText`. The badge is supplementary
+   * information about co-listings, NOT a substitution for attribution.
+   *
+   * Both fields are OPTIONAL. They are populated only at the API-route
+   * level after publicListings is assembled, NOT at the per-row DTO
+   * conversion level (per-row conversion can't see siblings). Single-
+   * card consumers (`/api/listings/[id]`) leave them undefined.
+   */
+  _coListedCount?: number;
+  _coListedBrokerages?: string[];
 }
 
 /**
@@ -403,4 +430,70 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
       comingSoonDate: isComingSoon ? listing.activationDate : undefined,
     },
   };
+}
+
+/**
+ * Option C (PR-FE.2, 2026-05-15) — annotate co-listed siblings.
+ *
+ * Walks the array once, groups listings by their canonical address slug
+ * (= the listing.slug stripped of any Option D `-rlsXXX` listing_id
+ * suffix), and for every listing in a group of size > 1 sets:
+ *
+ *   _coListedCount: <N - 1>     // number of OTHER listings at this address
+ *   _coListedBrokerages: [...]  // their listOfficeName values (deduped, NOT including self)
+ *
+ * Pure function: returns a NEW array, does not mutate inputs.
+ *
+ * Skips entries whose slug is an MLS-ID fallback (`listing-rlsXXX`) — those
+ * are address-suppressed listings and cannot meaningfully share an
+ * address with another row. Also skips entries with an empty slug.
+ *
+ * Designed for per-page annotation in the /api/listings route. Does NOT
+ * make any DB query — siblings outside the current page are not counted.
+ * That's intentional: the badge surfaces what's visually duplicated on
+ * the page the user is currently looking at. Cross-page sibling
+ * detection would require a separate query and is out of scope.
+ */
+export function annotateCoListedSiblings(listings: PublicListingDTO[]): PublicListingDTO[] {
+  // Build the address-slug → indices map in one pass.
+  const groups = new Map<string, number[]>();
+  for (let i = 0; i < listings.length; i++) {
+    const slug = listings[i]?.slug;
+    if (!slug || slug.startsWith('listing-')) continue;
+    const addressKey = stripListingIdSuffix(slug);
+    if (!addressKey) continue;
+    const bucket = groups.get(addressKey);
+    if (bucket) bucket.push(i);
+    else groups.set(addressKey, [i]);
+  }
+
+  // Default annotation: 0 / undefined for listings with no siblings.
+  // Return a new array; do not mutate the inputs.
+  const out = listings.slice();
+
+  for (const indices of groups.values()) {
+    if (indices.length <= 1) continue;
+    // For each member, the other members are its siblings. Collect
+    // their listOfficeName for the badge text (dedup so a brokerage
+    // that co-lists twice isn't double-counted, though that's unlikely).
+    for (const idx of indices) {
+      const self = listings[idx];
+      const siblingOffices = new Set<string>();
+      for (const otherIdx of indices) {
+        if (otherIdx === idx) continue;
+        const other = listings[otherIdx];
+        const office = other?.listOfficeName?.trim();
+        if (office && office.toLowerCase() !== 'rebny rls') {
+          siblingOffices.add(office);
+        }
+      }
+      out[idx] = {
+        ...self,
+        _coListedCount: indices.length - 1,
+        _coListedBrokerages: Array.from(siblingOffices),
+      };
+    }
+  }
+
+  return out;
 }

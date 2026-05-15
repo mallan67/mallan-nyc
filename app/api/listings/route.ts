@@ -3,7 +3,7 @@ import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
-import { toPublicDTO } from '@/lib/idx/public-dto';
+import { toPublicDTO, annotateCoListedSiblings } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
@@ -505,14 +505,25 @@ export async function GET(request: Request) {
             // cases so the user-visible attribution never regresses.
             const envelopeSource = computeDbEnvelopeSource(displayable);
 
+            // PR-FE.2 Option C (2026-05-15): annotate cards whose slug
+            // shares an address with another listing on the same page
+            // (NYC luxury new-development co-listing case: 3 brokerages
+            // listing the same physical apartment). Each annotated card
+            // gets `_coListedCount` + `_coListedBrokerages` so the
+            // SearchListingCard can render a small "Also listed by …"
+            // badge that visually differentiates 3 otherwise-identical
+            // cards. Pure post-processing — does NOT remove or merge
+            // any rows. Single pass over the array; O(N) work.
+            const annotatedListings = annotateCoListedSiblings(publicListings);
+
             const responseBody = {
               success: true,
-              count: publicListings.length,
+              count: annotatedListings.length,
               total: dbTotal,
               skip,
               limit,
               hasMore: skip + limit < dbTotal,
-              listings: publicListings,
+              listings: annotatedListings,
               _compliance: {
                 source: envelopeSource,
                 idxEnabled: true,
@@ -977,14 +988,20 @@ export async function GET(request: Request) {
           minBeds ? parseInt(minBeds, 10) : undefined,
         );
 
+        // PR-FE.2 Option C (2026-05-15) — annotate co-listed siblings in
+        // the Trestle-direct + exclusive-merged path too. Same shape and
+        // semantics as the DB-first branch above. Pure post-processing,
+        // does not remove or merge rows.
+        const annotatedMerged = annotateCoListedSiblings(mergedListings);
+
         const responseBody = {
           success: true,
-          count: mergedListings.length,
-          total: totalCount + mergedListings.length - publicListings.length,
+          count: annotatedMerged.length,
+          total: totalCount + annotatedMerged.length - publicListings.length,
           skip,
           limit,
           hasMore: skip + limit < totalCount || result.hasMore,
-          listings: mergedListings,
+          listings: annotatedMerged,
           _compliance: {
             source: 'idx+exclusive',
             idxEnabled: true,

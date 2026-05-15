@@ -28,7 +28,7 @@ import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal } from '@/lib/idx/mapping';
 import { toPublicDTO, buildAuctionPublic, type PublicListingDTO } from '@/lib/idx/public-dto';
-import { isMlsIdSlug, extractMlsIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
+import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
@@ -297,6 +297,27 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       });
     }
 
+    // Strategy 1b (PR-FE.2 Option D, 2026-05-15): listing_id appended to
+    // address slug (e.g. `400-east-90th-street-...-rls20061539`). When the
+    // address-suffixed listing_id resolves to a real DB row, use it
+    // directly — this is the path that disambiguates the 3-brokerage
+    // co-listing case where every card on Buy search uses an
+    // address-derived path but each card needs to open its own
+    // distinct listing's detail page.
+    //
+    // Falls through to Strategy 2 (address parse) when the extracted id
+    // isn't in the DB — guards against typos in shared URLs and
+    // preserves the existing address-fallback semantics.
+    if (!dbListing && !isMlsIdSlug(slug)) {
+      const embeddedId = extractListingIdFromSlug(slug);
+      if (embeddedId) {
+        dbListing = await prisma.listing.findUnique({
+          where: { listing_id: embeddedId },
+          include: LISTING_MEDIA_INCLUDE,
+        }).catch(() => null);
+      }
+    }
+
     // Strategy 2: Address slug → query by address components
     if (!dbListing && !isMlsIdSlug(slug)) {
       const parsed = parseAddressSlug(slug);
@@ -519,6 +540,22 @@ async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promi
       }
     }
     return null;
+  }
+
+  // Strategy 2b (PR-FE.2 Option D, 2026-05-15): listing_id appended to
+  // an address slug. See `fetchFromDB` Strategy 1b above for full
+  // context — same idea here on the Trestle-direct path for the case
+  // where DB lookup missed and we fall through to live Trestle.
+  const embeddedId = extractListingIdFromSlug(slug);
+  if (embeddedId) {
+    const raw = await fetchSingleListing(embeddedId);
+    if (raw) {
+      const result = await rawToDTO(raw, embeddedId);
+      if (result) return { listing: result.dto, tax: result.tax };
+    }
+    // Intentional fall-through to Strategy 3 (address parse) if the
+    // exact id isn't found upstream — keeps old indexed URLs
+    // resolvable on shared/saved links.
   }
 
   // Strategy 3: Address slug → parse and search by address components
