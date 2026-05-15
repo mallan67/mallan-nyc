@@ -79,4 +79,57 @@ test.describe('F1 — mobile search cards (390 px)', () => {
       expect(box.width).toBeLessThanOrEqual(innerWidth + 1);
     }
   });
+
+  /**
+   * Codex review of PR-FE.1 (2026-05-15) — the original F1 patch fixed
+   * the LOADED grid (line ~1113) but missed the SKELETON grid (line ~1066)
+   * which was still `grid grid-cols-2` unconditional. That caused:
+   *   (a) Mobile overflow during the loading state — skeleton tiles at
+   *       2 cols × ~290 px = ~580 px inside a 390 px viewport
+   *   (b) A 2→1 column CLS jump when the data arrived and replaced the
+   *       skeleton with the (already-fixed) responsive loaded grid
+   *
+   * This spec proves the skeleton state also has no overflow at 390 px.
+   * We intercept `/api/listings` to delay it by 5 s, which keeps the
+   * skeleton visible long enough to measure. The skeleton tiles share the
+   * same `animate-pulse` class on `.bg-gray-100.rounded-xl`.
+   */
+  test('skeleton state has no horizontal overflow at 390 px', async ({ page }) => {
+    // Delay the listings fetch so the skeleton state stays visible long
+    // enough to measure. 5 s is plenty for Playwright to take the
+    // measurement; the test still completes within the 30 s default
+    // timeout.
+    await page.route('**/api/listings?*', async (route) => {
+      await new Promise((r) => setTimeout(r, 5000));
+      await route.continue();
+    });
+
+    // Don't `waitForLoadState('networkidle')` — that would wait for the
+    // delayed fetch to settle. We want to observe DURING the skeleton.
+    await page.goto('/search?tab=rent-residential', { waitUntil: 'domcontentloaded' });
+
+    // Wait for at least one skeleton tile to render. The skeleton tiles
+    // are unique to the loading state and have the `animate-pulse` +
+    // `aspect-[3/2]` shape.
+    const skeleton = page.locator('.animate-pulse.bg-gray-100.rounded-xl').first();
+    await skeleton.waitFor({ state: 'visible', timeout: 10_000 });
+
+    // No horizontal overflow on the document during skeleton paint.
+    const { scrollWidth, clientWidth } = await page.evaluate(() => {
+      const el = document.scrollingElement ?? document.documentElement;
+      return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+    });
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+
+    // Every visible skeleton tile fits within the 390 px viewport.
+    const tiles = page.locator('.animate-pulse.bg-gray-100.rounded-xl');
+    const tileCount = await tiles.count();
+    expect(tileCount).toBeGreaterThan(0);
+    const innerWidth = await page.evaluate(() => window.innerWidth);
+    for (let i = 0; i < Math.min(tileCount, 8); i++) {
+      const box = await tiles.nth(i).boundingBox();
+      if (!box) continue;
+      expect(box.width).toBeLessThanOrEqual(innerWidth + 1);
+    }
+  });
 });

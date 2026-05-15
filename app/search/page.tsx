@@ -1053,7 +1053,17 @@ function SearchClient() {
           <div className={isFullViewport ? 'flex h-full' : 'py-6'}>
             {viewMode === 'split' && (
               <>
-                <div className="flex-1 lg:w-[55%] p-2 grid grid-cols-2 gap-2">
+                {/* F1 follow-up (PR-FE.1 Codex review, 2026-05-15) — skeleton
+                    grid must use the SAME `grid-cols-1 lg:grid-cols-2`
+                    responsive class as the loaded-state grid at line ~1103.
+                    Pre-fix this skeleton was `grid grid-cols-2` unconditional,
+                    which (a) overflowed the 390px viewport during the loading
+                    state and (b) caused a visible 2→1 column CLS jump when
+                    the data arrived and the loaded grid (already collapsing
+                    to 1 col on mobile) replaced the skeleton. Same responsive
+                    shape keeps skeleton and loaded paint widths identical at
+                    every breakpoint. */}
+                <div className="flex-1 lg:w-[55%] p-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
                   {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="bg-gray-100 rounded-xl animate-pulse" style={{ aspectRatio: '3/2' }} />
                   ))}
