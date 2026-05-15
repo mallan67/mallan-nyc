@@ -31,7 +31,7 @@ export interface TrestleFetchOptions {
   /**
    * Whether to include `$expand=Media` in the OData request.
    *
-   * **Default is now `false` (PR-S.1c, 2026-05-15).** Trestle consistently
+   * **Default is `false` (PR-S.1c, 2026-05-15).** Trestle consistently
    * rejects requests carrying `$expand=Media` with HTTP 400 — verified via
    * production Vercel logs after PR-S.1b. The existing `fetchSingleListing`
    * function already documents this (see comment in this file). Callers that
@@ -41,6 +41,26 @@ export interface TrestleFetchOptions {
    * For most callers, prefer `fetchListingMedia()` for separate media fetch.
    */
   expandMedia?: boolean;
+  /**
+   * Whether to include `$expand=CustomProperty` in the OData request.
+   *
+   * **Default is `false` (PR-S.1e, 2026-05-15).** Production Vercel logs
+   * showed Trestle rejects the previously-default
+   * `$expand=CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)`
+   * with HTTP 400 — the OData server cannot resolve one or more of those
+   * field names on the current CustomProperty schema. Until that schema is
+   * audited via Trestle `$metadata`, CustomProperty expansion is opt-in
+   * only.
+   *
+   * When this option is `true`, the expand is included as bare
+   * `CustomProperty` (no inner `$select`) so Trestle returns whatever
+   * fields currently exist on that entity. Callers reading
+   * `raw.CustomProperty` should be defensive about missing fields.
+   *
+   * Most callers do not need this — DPA / FARE Act / REBNY-flag access can
+   * be added later via a dedicated, schema-audited fetch helper.
+   */
+  expandCustomProperty?: boolean;
 }
 
 export interface TrestleFetchResult {
@@ -68,30 +88,34 @@ export async function fetchFromTrestle(
     const params = new URLSearchParams();
     if (options.filter) params.set("$filter", options.filter);
     params.set("$select", selectFields);
-    // PR-S.1c (2026-05-15): Trestle CONSISTENTLY rejects `$expand=Media` with
-    // HTTP 400 — verified in production Vercel logs after PR-S.1b enabled
-    // structured logging on the previously-silent suggest catches, AND
-    // documented for over a year in `fetchSingleListing()` below. Default is
-    // therefore `expandMedia: false`. Callers that genuinely need inline
-    // media MUST opt in explicitly with `expandMedia: true` AND have
-    // verified it works against current Trestle behavior. Prefer
-    // `fetchListingMedia()` for a separate media fetch in almost all cases.
+    // PR-S.1c (2026-05-15) + PR-S.1e (2026-05-15): `$expand` is fully
+    // opt-in. Trestle's IDX Plus endpoint rejects both `$expand=Media` and
+    // `$expand=CustomProperty($select=DownPaymentAssistance…,CustomFields)`
+    // with HTTP 400 — Media's rejection was documented for over a year in
+    // `fetchSingleListing()` below; CustomProperty's was confirmed via
+    // PR-S.1b production logs (error text contains "CustomProperty",
+    // "DownPaymentAssistance", "Could not find"). Default is therefore
+    // NO `$expand` at all. Callers that genuinely need expansion MUST opt
+    // in explicitly (strict `=== true`) AND verify it works against
+    // current Trestle behavior. Prefer `fetchListingMedia()` for separate
+    // media fetch in almost all cases.
+    const expandParts: string[] = [];
     if (options.expandMedia === true) {
       // Caller has explicitly opted in despite Trestle's known rejection
-      // pattern. They are responsible for verifying current behavior. If a
-      // 400 fires here, fall back to `fetchListingMedia()` rather than
-      // re-enabling this by default.
-      // CustomFields is a JSON-string field (Edm.String, MaxLength 100000) on
-      // CustomProperty that holds 41 REBNY-specific fields including
-      // SponsorUnitYN. We pull it alongside Media so the mapper can parse it.
-      params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)");
-    } else {
-      // Default path. Trestle accepts `$expand=CustomProperty` (verified
-      // against production traffic via `lib/comps/fetch-comps.ts` and other
-      // long-standing `expandMedia: false` callers), so we keep that here
-      // for DPA + REBNY-flag access. Media is fetched separately via
-      // `fetchListingMedia()` or the batch media endpoints.
-      params.set("$expand", "CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)");
+      // pattern. If a 400 fires here, fall back to `fetchListingMedia()`
+      // rather than re-enabling this by default.
+      expandParts.push("Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)");
+    }
+    if (options.expandCustomProperty === true) {
+      // Bare expand only — the previous inner `$select` (with
+      // `DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields`)
+      // is the exact payload Trestle rejected with 400. Until the
+      // CustomProperty schema is audited via Trestle `$metadata`, callers
+      // get whatever fields Trestle currently includes on the entity.
+      expandParts.push("CustomProperty");
+    }
+    if (expandParts.length > 0) {
+      params.set("$expand", expandParts.join(","));
     }
     if (options.count) params.set("$count", "true");
     params.set("$top", String(options.top || MAX_PAGE_SIZE));
