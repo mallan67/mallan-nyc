@@ -168,3 +168,62 @@ describe('annotateCoListedSiblings (PR-FE.2 Option C)', () => {
     expect(JSON.stringify(input)).toBe(snapshot);
   });
 });
+
+/**
+ * PR-FE.2 Option C badge copy regression — Maya's 2026-05-15 decision
+ * to use "Additional listing source" wording instead of "Also listed
+ * by" for legal neutrality (avoids implying co-brokerage / partnership
+ * between distinct REBNY listing brokerages).
+ *
+ * Source-level guard. If a future refactor or copy edit reverts the
+ * wording back to "Also listed by" without explicit policy review,
+ * this test fails and surfaces it before merge.
+ */
+describe('Co-listed badge copy (PR-FE.2 Option C, post-Codex copy review)', () => {
+  let searchCardSrc: string;
+  let featuredSrc: string;
+  beforeAll(() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path');
+    searchCardSrc = fs.readFileSync(
+      path.resolve(__dirname, '../../app/components/SearchListingCard.tsx'),
+      'utf8'
+    );
+    featuredSrc = fs.readFileSync(
+      path.resolve(__dirname, '../../app/components/FeaturedListings.tsx'),
+      'utf8'
+    );
+  });
+
+  it('SearchListingCard uses "Additional listing source" template (all 3 count branches)', () => {
+    // 1-sibling
+    expect(searchCardSrc).toMatch(/Additional listing source:\s*\$\{first\}/);
+    // 2-siblings
+    expect(searchCardSrc).toMatch(/Additional listing source:\s*\$\{first\}\s*\+\s*1\s*other/);
+    // N-siblings
+    expect(searchCardSrc).toMatch(/Additional listing source:\s*\$\{first\}\s*\+\s*\$\{count\s*-\s*1\}\s*others/);
+  });
+
+  it('SearchListingCard does NOT use the legally-ambiguous "Also listed by" wording', () => {
+    // The phrase may appear in JSDoc explaining the history; the regex
+    // matches the actual `formatCoListedBadge` template-literal pattern
+    // (`Also listed by ${first}`), not the prose. Specifically: an
+    // occurrence INSIDE a template literal with a `${first}` interpolation.
+    expect(searchCardSrc).not.toMatch(/`Also listed by\s*\$\{first\}/);
+  });
+
+  it('FeaturedListings uses "Additional listing source" template', () => {
+    expect(featuredSrc).toMatch(/Additional listing source:\s*\$\{listing\._coListedBrokerages\[0\]\}/);
+  });
+
+  it('FeaturedListings does NOT use the legally-ambiguous "Also listed by" wording', () => {
+    expect(featuredSrc).not.toMatch(/`Also listed by\s*\$\{listing\._coListedBrokerages/);
+  });
+
+  it('Both files preserve the "Multiple listing sources" fallback for nameless siblings', () => {
+    expect(searchCardSrc).toMatch(/'Multiple listing sources'/);
+    expect(featuredSrc).toMatch(/'Multiple listing sources'/);
+  });
+});

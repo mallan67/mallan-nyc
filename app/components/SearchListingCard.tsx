@@ -40,11 +40,19 @@ function formatPrice(price: number, isRental: boolean): string {
  * confusion when the same apartment appears 3 times in search results
  * (typical NYC luxury new-development pattern).
  *
- * Format:
- *   - 1 sibling : "Also listed by {brokerage}"
- *   - 2 siblings: "Also listed by {brokerage} + 1 other"
- *   - N siblings: "Also listed by {brokerage} + {N-1} others"
+ * Format (Maya copy decision, 2026-05-15):
+ *   - 1 sibling : "Additional listing source: {brokerage}"
+ *   - 2 siblings: "Additional listing source: {brokerage} + 1 other"
+ *   - N siblings: "Additional listing source: {brokerage} + {N-1} others"
  *   - count > 0 but no brokerage names: "Multiple listing sources"
+ *
+ * "Additional listing source" was preferred over "Also listed by" to
+ * stay legally neutral — it explains the visual duplication without
+ * implying co-brokerage, partnership, or any agency relationship
+ * between the listing brokerages. Each row's primary attribution
+ * ("RLS · Listing Courtesy of {brokerage}") remains the
+ * UCBA Art. III §2(C) compliant attribution; this badge is
+ * supplementary context only.
  */
 function formatCoListedBadge(listing: DisplayListing): string | null {
   const count = listing._coListedCount;
@@ -52,9 +60,9 @@ function formatCoListedBadge(listing: DisplayListing): string | null {
   const brokerages = listing._coListedBrokerages ?? [];
   if (brokerages.length === 0) return 'Multiple listing sources';
   const first = brokerages[0];
-  if (count === 1) return `Also listed by ${first}`;
-  if (count === 2) return `Also listed by ${first} + 1 other`;
-  return `Also listed by ${first} + ${count - 1} others`;
+  if (count === 1) return `Additional listing source: ${first}`;
+  if (count === 2) return `Additional listing source: ${first} + 1 other`;
+  return `Additional listing source: ${first} + ${count - 1} others`;
 }
 
 function formatComingSoonBadge(listing: DisplayListing): string | null {

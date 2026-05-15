@@ -281,12 +281,16 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
           {listing._coListedCount && listing._coListedCount > 0 && (
             <p className="mt-1.5">
               <span className="inline-block text-[11px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full bg-brand-gold/10 text-brand-gold-deep ring-1 ring-brand-gold/30">
+                {/* Copy aligned with formatCoListedBadge() in
+                    SearchListingCard.tsx — "Additional listing source"
+                    chosen for legal neutrality (no implication of
+                    co-brokerage / partnership). */}
                 {listing._coListedBrokerages && listing._coListedBrokerages.length > 0
                   ? (listing._coListedCount === 1
-                      ? `Also listed by ${listing._coListedBrokerages[0]}`
+                      ? `Additional listing source: ${listing._coListedBrokerages[0]}`
                       : listing._coListedCount === 2
-                        ? `Also listed by ${listing._coListedBrokerages[0]} + 1 other`
-                        : `Also listed by ${listing._coListedBrokerages[0]} + ${listing._coListedCount - 1} others`)
+                        ? `Additional listing source: ${listing._coListedBrokerages[0]} + 1 other`
+                        : `Additional listing source: ${listing._coListedBrokerages[0]} + ${listing._coListedCount - 1} others`)
                   : 'Multiple listing sources'}
               </span>
             </p>
