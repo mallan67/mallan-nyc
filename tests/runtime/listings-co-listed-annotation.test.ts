@@ -183,9 +183,7 @@ describe('Co-listed badge copy (PR-FE.2 Option C, post-Codex copy review)', () =
   let searchCardSrc: string;
   let featuredSrc: string;
   beforeAll(() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const path = require('path');
     searchCardSrc = fs.readFileSync(
       path.resolve(__dirname, '../../app/components/SearchListingCard.tsx'),

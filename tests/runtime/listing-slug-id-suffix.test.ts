@@ -123,9 +123,52 @@ describe('extractListingIdFromSlug (PR-FE.2)', () => {
       .toBe('RLS20061539');
   });
 
-  it('extracts RBNY-prefixed legacy listing_id', () => {
+  it('extracts RBNY-prefixed legacy listing_id (no hyphen)', () => {
     expect(extractListingIdFromSlug('foo-bar-rbny12345678'))
       .toBe('RBNY12345678');
+  });
+
+  /**
+   * Codex review of PR #143 (2026-05-15): `slugify()` collapses
+   * non-alphanumerics in the input id into `-` separators. A legacy
+   * listing_id like `RBNY-12345678` therefore slugifies to
+   * `rbny-12345678` (note the hyphen between `rbny` and the digits).
+   * Without the optional-hyphen branch in the extractor regex, that
+   * form falls through to the address-only fallback path — which on a
+   * co-listed physical address can return the wrong specific listing.
+   * These 4 tests pin all 4 slugified-id forms.
+   */
+  it('extracts RLS-prefixed id with hyphen between prefix and digits', () => {
+    expect(extractListingIdFromSlug('address-rls-20061539')).toBe('RLS-20061539');
+    expect(extractListingIdFromSlug('50-w-66th-street-apt-62-new-york-city-ny-10023-rls-20061539'))
+      .toBe('RLS-20061539');
+  });
+
+  it('extracts RBNY-prefixed id with hyphen between prefix and digits', () => {
+    expect(extractListingIdFromSlug('address-rbny-12345678')).toBe('RBNY-12345678');
+    expect(extractListingIdFromSlug('400-east-90th-street-new-york-ny-10128-rbny-12345678'))
+      .toBe('RBNY-12345678');
+  });
+
+  it('preserves uppercase + hyphen exactly as stored in Prisma listing_id column', () => {
+    // Round-trip: the extracted value should be usable as the
+    // `where: { listing_id: ... }` clause in Strategy 1b. Prisma stores
+    // ids verbatim, so the hyphen-preserving toUpperCase() is required
+    // for findUnique to hit the canonical row.
+    const extracted = extractListingIdFromSlug('foo-rbny-12345678');
+    expect(extracted).toBe('RBNY-12345678');
+    expect(extracted).not.toBe('RBNY12345678'); // hyphen-stripped form would miss the row
+  });
+
+  it('does NOT collide with mid-slug rls/rbny tokens (regex is $-anchored)', () => {
+    // Codex follow-up edge cases that MUST still return null because
+    // the listing_id-shaped token isn't at the END of the slug — the
+    // regex anchor is `$` so only the trailing position is recognized.
+    expect(extractListingIdFromSlug('50-w-66th-street-apt-rls5-new-york-ny-10023')).toBeNull();
+    expect(extractListingIdFromSlug('1-rls-avenue-apt-1a-new-york-ny-10001')).toBeNull();
+    // postal code 10128 is digits-only with no `rls`/`rbny` prefix —
+    // canonical "no-suffix" slug, must return null.
+    expect(extractListingIdFromSlug('400-east-90th-street-apt-17c-new-york-ny-10128')).toBeNull();
   });
 
   it('returns null for legacy address-only slug (no id suffix) — callers should fall back to address parse', () => {
@@ -167,6 +210,35 @@ describe('stripListingIdSuffix (PR-FE.2)', () => {
       '50-w-66th-street-apt-62-new-york-city-ny-10023-rls20061539',
       '50-w-66th-street-apt-62-new-york-city-ny-10023-rls10956475',
       '50-w-66th-street-apt-62-new-york-city-ny-10023-rls10971329',
+    ];
+    const stripped = new Set(slugs.map(stripListingIdSuffix));
+    expect(stripped.size).toBe(1);
+    expect(stripped.has('50-w-66th-street-apt-62-new-york-city-ny-10023')).toBe(true);
+  });
+
+  /**
+   * Codex review of PR #143 follow-up — stripListingIdSuffix MUST
+   * mirror the extractor's pattern set. Otherwise a slug ending in the
+   * hyphenated form `-rbny-12345678` would NOT have its suffix
+   * stripped during co-listed-grouping, leaking the id token into the
+   * canonical address key and breaking the sibling-grouping count.
+   */
+  it('strips RLS id with hyphen between prefix and digits', () => {
+    expect(stripListingIdSuffix('400-east-90th-street-new-york-ny-10128-rls-20061539'))
+      .toBe('400-east-90th-street-new-york-ny-10128');
+  });
+
+  it('strips RBNY id with hyphen between prefix and digits', () => {
+    expect(stripListingIdSuffix('400-east-90th-street-new-york-ny-10128-rbny-12345678'))
+      .toBe('400-east-90th-street-new-york-ny-10128');
+  });
+
+  it('mixed-form slugs (some hyphenated, some not) strip to the same address key', () => {
+    const slugs = [
+      '50-w-66th-street-apt-62-new-york-city-ny-10023-rls20061539',     // no hyphen
+      '50-w-66th-street-apt-62-new-york-city-ny-10023-rls-10956475',    // hyphen variant
+      '50-w-66th-street-apt-62-new-york-city-ny-10023-rbny-12345678',   // hyphenated legacy
+      '50-w-66th-street-apt-62-new-york-city-ny-10023-rbny99887766',    // no hyphen legacy
     ];
     const stripped = new Set(slugs.map(stripListingIdSuffix));
     expect(stripped.size).toBe(1);

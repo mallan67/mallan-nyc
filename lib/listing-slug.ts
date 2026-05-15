@@ -101,9 +101,23 @@ export function generateListingSlug(listing: {
  * `parseAddressSlug` + address-component lookup.
  *
  * Recognized id patterns (case-insensitive on the slug, returned upper-
- * cased to match Prisma's stored listing_id):
- *   - `-rls{digits}` — REBNY RLS listing IDs (current format)
- *   - `-rbny{digits}` — legacy REBNY listing IDs (kept for safety)
+ * cased to match Prisma's stored listing_id verbatim — the original
+ * hyphen, if any, is preserved):
+ *   - `-rls{digits}`       e.g. `-rls20061539`   → `RLS20061539`
+ *   - `-rbny{digits}`      e.g. `-rbny12345678`  → `RBNY12345678`
+ *   - `-rls-{digits}`      e.g. `-rls-20061539`  → `RLS-20061539`
+ *   - `-rbny-{digits}`     e.g. `-rbny-12345678` → `RBNY-12345678`
+ *
+ * The hyphenated forms exist because `slugify()` collapses any
+ * non-alphanumeric character (including the original hyphen in a
+ * legacy listing_id like `RBNY-12345678`) into a `-` separator. After
+ * slugification:
+ *   slugify('RBNY-12345678') → 'rbny-12345678'
+ *   slugify('RLS20061539')   → 'rls20061539'
+ * Without supporting BOTH forms in the extractor regex, the detail
+ * route's Strategy 1b would miss legacy hyphenated listing_ids and
+ * fall through to the address-only lookup — which on a co-listed
+ * physical address could return the wrong specific listing.
  *
  * The function does NOT match the MLS-ID fallback slug `listing-rlsXXX`
  * (that is handled by `extractMlsIdFromSlug` instead — keep the two code
@@ -113,7 +127,7 @@ export function extractListingIdFromSlug(slug: string): string | null {
   // MLS-ID fallback slug handled by a different helper.
   if (isMlsIdSlug(slug)) return null;
 
-  const match = slug.match(/-(rls\d+|rbny\d+)$/i);
+  const match = slug.match(/-(rls-?\d+|rbny-?\d+)$/i);
   if (!match) return null;
   return match[1].toUpperCase();
 }
@@ -122,13 +136,18 @@ export function extractListingIdFromSlug(slug: string): string | null {
  * Strip the Option D listing_id suffix off an address-based slug.
  * Returns the slug unchanged when no suffix is present.
  *
+ * Matches the same set of patterns as `extractListingIdFromSlug` —
+ * both the digits-immediately-after-prefix form (`-rls20061539`) and
+ * the hyphenated form (`-rbny-12345678`) produced when `slugify()`
+ * splits a hyphenated listing_id.
+ *
  * Used by the search-result post-processor to compute co-listed counts:
  * we group listings by the address-portion of the slug so distinct
  * listing_ids at the same address surface as siblings.
  */
 export function stripListingIdSuffix(slug: string): string {
   if (isMlsIdSlug(slug)) return slug;
-  return slug.replace(/-(?:rls\d+|rbny\d+)$/i, '');
+  return slug.replace(/-(?:rls-?\d+|rbny-?\d+)$/i, '');
 }
 
 /**
