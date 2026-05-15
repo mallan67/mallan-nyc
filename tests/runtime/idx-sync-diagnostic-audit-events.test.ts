@@ -287,8 +287,14 @@ describe("syncListings — per-record listing upsert failure catch", () => {
 
   it("per-record catch payload includes the required diagnostic fields", () => {
     // Pin every field name Maya specified in the scope.
+    //
+    // The capture group ends at `).catch(` because the per-record call
+    // is fire-and-forget (Codex review of PR #144) — the trailing chain
+    // is `void recordSyncDiagnostic(...).catch(...)`. Anchoring on the
+    // chained `.catch(` reliably bounds the payload region without
+    // false-matching nested braces inside the payload object.
     const catchSlice = syncListingsBody.match(
-      /\[IDX Sync\] Error upserting listing[\s\S]*?recordSyncDiagnostic\(([\s\S]*?)\n\s{4}\}\s*\}\s*\n/,
+      /\[IDX Sync\] Error upserting listing[\s\S]*?recordSyncDiagnostic\(([\s\S]*?)\)\.catch\(/,
     );
     expect(catchSlice).not.toBeNull();
     const payload = catchSlice![1];
@@ -309,17 +315,87 @@ describe("syncListings — per-record listing upsert failure catch", () => {
     );
   });
 
+  // ── Codex review of PR #144 — fire-and-forget diagnostic ───────────
+  // The per-record catch sits inside the hot upsert loop. Awaiting an
+  // AuditEvent insert here would add one DB round-trip to every failed
+  // record. On a 500-record cron run with a non-trivial failure rate,
+  // that latency compounds into a real timeout risk against the
+  // function's 120 s budget. The four tests below pin the
+  // fire-and-forget pattern.
+
+  it("per-record catch uses `void recordSyncDiagnostic(...)` — NOT `await` (Codex review of PR #144)", () => {
+    // The diagnostic call MUST be fire-and-forget. Awaiting it inside
+    // the hot loop is the regression class Codex flagged.
+    const perRecordCatchSlice = syncListingsBody.match(
+      /\[IDX Sync\] Error upserting listing[\s\S]*?recordSyncDiagnostic\([\s\S]*?\}\);\s*\n\s*\}/,
+    );
+    expect(perRecordCatchSlice).not.toBeNull();
+    const slice = perRecordCatchSlice![0];
+    // Positive: `void recordSyncDiagnostic(` must appear.
+    expect(slice).toMatch(/void\s+recordSyncDiagnostic\(/);
+    // Negative: `await recordSyncDiagnostic(` must NOT appear in this
+    // per-record catch slice. (The SyncState catch may legitimately
+    // await — its test is in the next describe block and operates on
+    // a different slice of the same syncListings body.)
+    expect(slice).not.toMatch(/await\s+recordSyncDiagnostic\(/);
+  });
+
+  it("per-record catch chains `.catch((diagnosticError) => …)` so a rejected diagnostic cannot become an unhandled rejection (defense-in-depth)", () => {
+    // recordSyncDiagnostic itself already swallows errors internally,
+    // but the per-record call site MUST also swallow defensively. If a
+    // future change made the helper throw synchronously or forward a
+    // rejection, the `void`-discarded promise would become an
+    // unhandled-promise-rejection process event without this guard.
+    expect(syncListingsBody).toMatch(
+      /void\s+recordSyncDiagnostic\([\s\S]*?\)\.catch\(\s*\(\s*diagnosticError\s*\)\s*=>/,
+    );
+  });
+
+  it("per-record `.catch` callback only console.error's — never re-throws", () => {
+    const catchCallback = syncListingsBody.match(
+      /void\s+recordSyncDiagnostic\([\s\S]*?\)\.catch\(\s*\(\s*diagnosticError\s*\)\s*=>\s*\{([\s\S]*?)\}\s*\);/,
+    );
+    expect(catchCallback).not.toBeNull();
+    const body = catchCallback![1];
+    expect(body).toMatch(/console\.error\(/);
+    expect(body).not.toMatch(/\bthrow\b/);
+    expect(body).not.toMatch(/Promise\.reject/);
+  });
+
+  it("per-record diagnostic call returns a void expression (the loop does NOT block on its resolution)", () => {
+    // The TypeScript `void` operator forces the expression value to be
+    // discarded, which signals "this is intentionally fire-and-forget"
+    // both to readers and to eslint's no-floating-promises rule. This
+    // pattern is the contract for keeping the per-record loop non-
+    // blocking.
+    expect(syncListingsBody).toMatch(
+      /void\s+recordSyncDiagnostic\(\s*\n\s*["']idx_sync_listing_upsert_failure["']/,
+    );
+  });
+
   it("per-record catch does NOT throw or break the loop (partial-failure behavior preserved)", () => {
     // The whole point of catching errors in this loop is to keep going.
-    // Forbid any `throw` statement inside the catch block AND forbid
-    // breaking out of the loop via `break` or `return`.
+    // Forbid any `throw` statement, `break`, or top-level `return`
+    // inside the per-record catch block.
+    //
+    // Capture from the catch's opening sentinel down to the closing
+    // brace of the per-record `.catch` callback + its trailing `});`.
+    // Then strip JS comments so prose containing the words "throw" /
+    // "break" / "return" doesn't false-fail this regression guard.
     const catchSlice = syncListingsBody.match(
-      /\[IDX Sync\] Error upserting listing[\s\S]*?\n\s{4}\}\s*\}\s*\n/,
+      /\[IDX Sync\] Error upserting listing[\s\S]*?\}\);\s*\n\s*\}/,
     );
     expect(catchSlice).not.toBeNull();
-    expect(catchSlice![0]).not.toMatch(/\bthrow\b/);
-    expect(catchSlice![0]).not.toMatch(/^\s*break\s*;/m);
-    expect(catchSlice![0]).not.toMatch(/^\s*return\b/m);
+    const codeOnly = catchSlice![0]
+      .replace(/\/\*[\s\S]*?\*\//g, "") // /* … */ block comments
+      .replace(/(^|[^:])\/\/.*$/gm, "$1"); // // line comments (skip URLs)
+    expect(codeOnly).not.toMatch(/\bthrow\b/);
+    expect(codeOnly).not.toMatch(/^\s*break\s*;/m);
+    // The per-record catch body itself must not `return`. The arrow
+    // callback inside `.catch` is permitted to have an implicit return,
+    // but a bare `return` statement at indentation 6 (inside the
+    // per-record catch) would short-circuit the loop.
+    expect(codeOnly).not.toMatch(/^\s{6}return\b/m);
   });
 });
 
@@ -337,6 +413,24 @@ describe("syncListings — SyncState watermark failure catch", () => {
   it("SyncState catch calls recordSyncDiagnostic with action='idx_sync_syncstate_failure'", () => {
     expect(syncListingsBody).toMatch(
       /Failed to update SyncState watermark[\s\S]*?recordSyncDiagnostic\s*\(\s*["']idx_sync_syncstate_failure["']/,
+    );
+  });
+
+  it("SyncState catch DOES await recordSyncDiagnostic (Codex allowance — outside the per-record hot loop)", () => {
+    // The SyncState catch runs at most once per sync invocation,
+    // outside the per-record loop, so the latency cost of awaiting
+    // an AuditEvent insert here is bounded and the value (clean
+    // sequencing before the function returns) outweighs the cost.
+    // This test pins the intentional asymmetry with the per-record
+    // catch so a future refactor "for consistency" doesn't
+    // accidentally convert this to fire-and-forget too.
+    expect(syncListingsBody).toMatch(
+      /Failed to update SyncState watermark[\s\S]*?await\s+recordSyncDiagnostic\(\s*["']idx_sync_syncstate_failure["']/,
+    );
+    // And confirm the per-record fire-and-forget shape is NOT used
+    // here (no `void recordSyncDiagnostic(... idx_sync_syncstate_failure`).
+    expect(syncListingsBody).not.toMatch(
+      /void\s+recordSyncDiagnostic\(\s*["']idx_sync_syncstate_failure["']/,
     );
   });
 

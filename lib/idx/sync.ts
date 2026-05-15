@@ -368,8 +368,22 @@ export async function syncListings(
       const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
       console.error(`[IDX Sync] Error upserting listing ${listingId}:`, err);
       // Best-effort diagnostic persist (see helper comment near top of file).
-      // Loop behavior is unchanged: errors are counted and the loop continues.
-      await recordSyncDiagnostic(
+      //
+      // Codex review of PR #144: this catch sits inside the hot per-record
+      // loop. Awaiting an AuditEvent insert here would add one DB
+      // round-trip to every failed record and, on a large-batch run with
+      // many failures, materially slow sync — eating into the cron's
+      // 120 s budget. We fire-and-forget instead.
+      //
+      // `recordSyncDiagnostic` itself already has an inner try/catch that
+      // swallows errors (it's best-effort). The trailing `.catch` here is
+      // defense-in-depth so that ANY future change which makes the helper
+      // throw synchronously OR forward a rejection cannot turn into an
+      // unhandled-promise-rejection process event.
+      //
+      // Loop behavior is unchanged: errors are counted and the loop
+      // continues immediately to the next record.
+      void recordSyncDiagnostic(
         "idx_sync_listing_upsert_failure",
         "listing",
         listingId,
@@ -383,7 +397,12 @@ export async function syncListings(
           full_sync: options.fullSync || false,
           listing_type: options.type || "all",
         },
-      );
+      ).catch((diagnosticError) => {
+        console.error(
+          "[IDX Sync] Failed to persist listing-upsert diagnostic:",
+          diagnosticError,
+        );
+      });
     }
   }
 
