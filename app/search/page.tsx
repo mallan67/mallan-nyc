@@ -54,7 +54,32 @@ function SearchMap(props: React.ComponentProps<typeof SearchMapLazy>) {
 // RecentlyViewed strip removed — shown on listing pages only, not search
 
 // ── Tab backward-compat mapping ──
-function resolveTab(typeParam: string): SearchTab {
+/**
+ * PR-S.2 (2026-05-15) — exported for unit testing.
+ *
+ * Resolves any URL `?tab=…` or `?type=…` value into a canonical
+ * `SearchTab`. Used in BOTH directions of the activeTab sync:
+ *   - useState initializer on mount (`resolveTab(typeParam)`)
+ *   - useEffect after mount when the URL changes (re-fires this resolver
+ *     against the new `typeParam` so the visible tab stays aligned with
+ *     `tab=…` / `type=…` after browser back/forward, header navigation,
+ *     or programmatic `router.replace` from outside the search page)
+ *
+ * Pure / referentially transparent — same input → same output, no side
+ * effects, safe to call inside render and effects.
+ *
+ * Maps:
+ *   - `'buy'`              → `'buy-residential'`
+ *   - `'rent'`             → `'rent-residential'`
+ *   - `'commercial'`       → `'buy-commercial'`
+ *   - `'sell'`             → `'buy-residential'` (legacy redirect)
+ *   - any canonical `SearchTab` value → itself (identity)
+ *   - anything else (empty, unknown, malformed) → `'buy-residential'`
+ *
+ * Next.js App Router ignores non-page exports from page.tsx files at
+ * runtime, so exporting this for tests is safe.
+ */
+export function resolveTab(typeParam: string): SearchTab {
   switch (typeParam) {
     case 'buy': return 'buy-residential';
     case 'rent': return 'rent-residential';
@@ -185,6 +210,28 @@ function SearchClient() {
 
   // ── State ──
   const [activeTab, setActiveTab] = useState<SearchTab>(resolveTab(typeParam));
+  // PR-S.2 (2026-05-15) — URL → activeTab sync.
+  //
+  // The useState initializer above fires only on mount. Without this
+  // effect, subsequent URL changes (header navigation to `/buy` or
+  // `/rent`, browser back/forward between two `?tab=…` URLs, programmatic
+  // `router.replace` from outside this component, etc.) updated the URL
+  // but left `activeTab` stale — Maya saw "Buy" highlighted while the URL
+  // showed `?tab=rent-residential`, and the API request went to whichever
+  // tabConfig matched the stale `activeTab`.
+  //
+  // The reverse direction (`activeTab` → URL) is already wired further
+  // down via `router.replace(`/search?tab=${activeTab}`)`. That effect
+  // and this one cannot loop because:
+  //   1. React `setActiveTab(x)` bails out when x is referentially equal
+  //      to current state, AND
+  //   2. `resolveTab` is deterministic, AND
+  //   3. our state→URL effect uses the same `?tab=${activeTab}` string,
+  //      so once the two are in sync the next render reads `typeParam`
+  //      identical to `activeTab` and this effect is a no-op.
+  useEffect(() => {
+    setActiveTab(resolveTab(typeParam));
+  }, [typeParam]);
   const [searchQuery, setSearchQuery] = useState(queryParam || neighborhoodParam);
   const viewParam = searchParams?.get('view') as ViewMode | null;
   // Initial view is SSR-stable: respect a valid URL param, otherwise 'split'.
