@@ -32,6 +32,45 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      # 2026-05-15: GitHub Actions' "Add secret" UI preserves whatever bytes
+      # are pasted into the textarea — including a trailing newline, which is
+      # easy to introduce accidentally when copy-pasting a PAT from a terminal,
+      # password manager, or another browser tab. The `gh` CLI then constructs
+      # `Authorization: Bearer $GH_TOKEN` and Go's net/http runs
+      # `httpguts.ValidHeaderFieldValue()` on the value, which rejects any
+      # string containing `\r` or `\n`. The result is the cryptic error
+      #   `net/http: invalid header field value for "Authorization"`
+      # observed on runs 25903348530 (2026-05-15 06:11) and 25905817923
+      # (2026-05-15 07:22), both at the `gh api repos/$REPO` line in preflight.
+      #
+      # This step strips CR/LF from MY_GITHUB_PAT and writes the cleaned value
+      # to $GITHUB_ENV as GH_TOKEN — overriding the job-level env entry for all
+      # subsequent steps (preflight, rotate, audit log). Trimming is restricted
+      # to `\r\n` because real PAT bytes are always `[A-Za-z0-9_]` — no real
+      # PAT byte is removed. If the secret was contaminated by a different
+      # invisible char (BOM, zero-width space, etc.) the subsequent gh call
+      # will surface the same error so the operator knows to re-paste.
+      - name: Normalize PAT (strip CR/LF that breaks net/http Authorization validation)
+        env:
+          GH_TOKEN_RAW: ${{ secrets.MY_GITHUB_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN_RAW:-}" ]; then
+            echo "::error::MY_GITHUB_PAT secret is missing."
+            exit 1
+          fi
+          cleaned="$(printf '%s' "$GH_TOKEN_RAW" | tr -d '\r\n')"
+          if [ -z "$cleaned" ]; then
+            echo "::error::MY_GITHUB_PAT contained only whitespace after CR/LF strip."
+            exit 1
+          fi
+          # Re-mask the cleaned value so it never leaks into a log if a later
+          # step happens to echo it. The raw value was already auto-masked by
+          # GitHub Actions; the cleaned value is a different string and needs
+          # its own mask registration.
+          echo "::add-mask::$cleaned"
+          echo "GH_TOKEN=$cleaned" >> "$GITHUB_ENV"
+
       - name: Preflight required credentials
         run: |
           set -euo pipefail
