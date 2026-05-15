@@ -91,10 +91,13 @@ export async function POST(req: NextRequest) {
   const errorDetails: string[] = [];
 
   try {
+    // PR-S.1c (2026-05-15): `expandMedia: true` was rejected by Trestle with
+    // HTTP 400 in production. CRM reset-sync now pulls structured data only;
+    // media is backfilled by the media-sync / media-backfill crons after upsert.
     const result = await fetchFromTrestle({
       filter,
       maxTotal: 2000,
-      expandMedia: true,
+      expandMedia: false,
       orderby: "ModificationTimestamp desc",
     });
 

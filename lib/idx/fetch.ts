@@ -28,7 +28,18 @@ export interface TrestleFetchOptions {
   maxTotal?: number;
   /** Include $count=true to get total count from OData */
   count?: boolean;
-  /** Whether to try $expand=Media (default true). Set false for bulk queries to avoid slow responses. */
+  /**
+   * Whether to include `$expand=Media` in the OData request.
+   *
+   * **Default is now `false` (PR-S.1c, 2026-05-15).** Trestle consistently
+   * rejects requests carrying `$expand=Media` with HTTP 400 — verified via
+   * production Vercel logs after PR-S.1b. The existing `fetchSingleListing`
+   * function already documents this (see comment in this file). Callers that
+   * genuinely need inline media MUST opt in explicitly with
+   * `expandMedia: true` AND verify it works against current Trestle behavior.
+   *
+   * For most callers, prefer `fetchListingMedia()` for separate media fetch.
+   */
   expandMedia?: boolean;
 }
 
@@ -57,21 +68,29 @@ export async function fetchFromTrestle(
     const params = new URLSearchParams();
     if (options.filter) params.set("$filter", options.filter);
     params.set("$select", selectFields);
-    // $expand=Media works for result sets under ~200 records (verified against Trestle docs).
-    // For bulk queries (500+), set expandMedia: false and batch-fetch photos separately.
-    if (options.expandMedia !== false) {
-      // $expand=Media for photos + CustomProperty for DPA fields (Trestle 6.17)
-      // Trestle guidance (2026-04-07): include ModificationTimestamp for change tracking
-      // MediaStatus filter: exclude tombstoned photos (Trestle retains 'Deleted' rows in the Media resource
-      // as historical records; unfiltered, we'd import dead URLs and overwrite good media with stale entries).
+    // PR-S.1c (2026-05-15): Trestle CONSISTENTLY rejects `$expand=Media` with
+    // HTTP 400 — verified in production Vercel logs after PR-S.1b enabled
+    // structured logging on the previously-silent suggest catches, AND
+    // documented for over a year in `fetchSingleListing()` below. Default is
+    // therefore `expandMedia: false`. Callers that genuinely need inline
+    // media MUST opt in explicitly with `expandMedia: true` AND have
+    // verified it works against current Trestle behavior. Prefer
+    // `fetchListingMedia()` for a separate media fetch in almost all cases.
+    if (options.expandMedia === true) {
+      // Caller has explicitly opted in despite Trestle's known rejection
+      // pattern. They are responsible for verifying current behavior. If a
+      // 400 fires here, fall back to `fetchListingMedia()` rather than
+      // re-enabling this by default.
       // CustomFields is a JSON-string field (Edm.String, MaxLength 100000) on
       // CustomProperty that holds 41 REBNY-specific fields including
-      // SponsorUnitYN. We pull it here so the mapper can parse the JSON and
-      // expose individual REBNY flags (e.g. sponsorUnit) on the flat listing
-      // shape. Adding ~few KB per record on average — acceptable.
+      // SponsorUnitYN. We pull it alongside Media so the mapper can parse it.
       params.set("$expand", "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order),CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)");
     } else {
-      // Even without media, still expand CustomProperty for DPA + REBNY fields
+      // Default path. Trestle accepts `$expand=CustomProperty` (verified
+      // against production traffic via `lib/comps/fetch-comps.ts` and other
+      // long-standing `expandMedia: false` callers), so we keep that here
+      // for DPA + REBNY-flag access. Media is fetched separately via
+      // `fetchListingMedia()` or the batch media endpoints.
       params.set("$expand", "CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)");
     }
     if (options.count) params.set("$count", "true");
