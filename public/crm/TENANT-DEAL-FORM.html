@@ -1377,12 +1377,125 @@ window.alert = function(msg) { showToast(String(msg)); };
 
 function manualSaveDraft() { showToast('Draft saved successfully'); }
 
+// PR-CRM.1 (2026-05-16) — wire TENANT-DEAL-FORM header-submit to /api/crm/deals.
+//
+// Mirror of the BUYER-DEAL-FORM patch. See that file for the design
+// rationale + audit reference. Differences here:
+//   - representation_code = "tenant"
+//   - price_usd = monthly rent × 12 (matches existing tenant
+//     commission handler at line ~1209 which uses the same formula)
+//   - contract_signed = lease start date
+//   - commission basis is months / percent / flat (commTenantBasis)
+//   - the separate, in-tab `submitTenantCommissionRequest()` already
+//     wires to the backend for the Commission tab and is untouched
 function submitTenantDeal() {
     var addr = (document.getElementById('tenantStreetAddress') || {}).value;
     var client = (document.getElementById('tenantClientName') || {}).value;
     if (!addr) { alert('Please search for a listing or enter a property address.'); return; }
     if (!client) { alert('Please enter the tenant client name.'); showTenantMainTab(3); return; }
-    showToast('Tenant deal submitted successfully');
+
+    var buttons = document.querySelectorAll('button[onclick="submitTenantDeal()"]');
+    var anyInFlight = false;
+    buttons.forEach(function(b) { if (b.dataset && b.dataset.submitting === 'true') anyInFlight = true; });
+    if (anyInFlight) return; // double-submit guard
+    buttons.forEach(function(b) { b.dataset.submitting = 'true'; b.disabled = true; });
+
+    function release() {
+        buttons.forEach(function(b) { b.dataset.submitting = 'false'; b.disabled = false; });
+    }
+
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.deals || typeof MallanAPI.deals.create !== 'function') {
+        showToast('Cannot submit: CRM API client unavailable. Reload the page and try again.', 'error');
+        release();
+        return;
+    }
+
+    var val = function(id) { return (document.getElementById(id) || {}).value || ''; };
+    var unit = val('tenantUnitNumber');
+    var propertyAddress = unit ? (addr + ', Unit ' + unit) : addr;
+
+    // Prefer the most-recent priced rent field: final > offer > listed.
+    var rentRaw = val('tenantFinalRent') || val('tenantOfferRent') || val('tenantListRent');
+    var monthlyRent = parseFloat(rentRaw) || null;
+    var annualRentUsd = monthlyRent ? monthlyRent * 12 : null;
+
+    // Commission tab fields (basis can be months | percent | flat).
+    var commBasis = val('commTenantBasis') || 'months';
+    var commValueRaw = parseFloat(val('commTenantCommValue')) || null;
+    var ourSidePct = parseFloat(val('commTenantOurSidePct')) || null;
+    var agentSplitPct = parseFloat(val('commTenantAgentSplitPct')) || null;
+
+    // Replicate the gross-commission formula from
+    // submitTenantCommissionRequest (line ~1184) so the header
+    // submit produces the same gross_commission_usd the canonical
+    // commission submit would produce.
+    var grossUsd = null;
+    if (monthlyRent && commValueRaw !== null) {
+        if (commBasis === 'months') grossUsd = monthlyRent * commValueRaw;
+        else if (commBasis === 'percent') grossUsd = (monthlyRent * 12) * (commValueRaw / 100);
+        else if (commBasis === 'flat') grossUsd = commValueRaw;
+    }
+
+    // commission_rate_percent expressed as % of annual rent (matches
+    // the existing handler's `commRatePct` definition at line ~1187).
+    var commRatePct = (annualRentUsd && grossUsd) ? (grossUsd / annualRentUsd) * 100 : null;
+
+    var agentFeeUsd = null;
+    var companyFeeUsd = null;
+    if (grossUsd && ourSidePct !== null && agentSplitPct !== null) {
+        var ourSideAmt = grossUsd * (ourSidePct / 100);
+        agentFeeUsd = ourSideAmt * (agentSplitPct / 100);
+        companyFeeUsd = ourSideAmt - agentFeeUsd;
+    }
+
+    var leaseStart = val('tenantLeaseStartDate');
+
+    var payload = {
+        representation_code: 'tenant',
+        property_address: propertyAddress
+    };
+    if (annualRentUsd !== null && annualRentUsd > 0) payload.price_usd = annualRentUsd;
+    if (commRatePct !== null && commRatePct >= 0 && commRatePct <= 100) payload.commission_rate_percent = commRatePct;
+    if (agentSplitPct !== null) payload.split_percent = agentSplitPct;
+    if (agentFeeUsd !== null && agentFeeUsd >= 0) payload.agent_fee_usd = agentFeeUsd;
+    if (companyFeeUsd !== null && companyFeeUsd >= 0) payload.company_fee_usd = companyFeeUsd;
+    if (grossUsd !== null && grossUsd >= 0) payload.gross_commission_usd = grossUsd;
+    if (leaseStart) {
+        try { payload.contract_signed = new Date(leaseStart + 'T00:00:00').toISOString(); }
+        catch (e) { /* ignore unparseable date */ }
+    }
+
+    // Upsert on second click: PATCH if dbId stored, else POST.
+    var stored = {};
+    try { stored = JSON.parse(sessionStorage.getItem('tenantDealRecord') || '{}'); } catch (e) { stored = {}; }
+    var existingId = stored.dbId;
+
+    var promise = existingId
+        ? MallanAPI.deals.update(existingId, payload)
+        : MallanAPI.deals.create(payload);
+
+    promise.then(function(data) {
+        var dealId = (data && data.id) || existingId || null;
+        var dealStatus = (data && data.status) || stored.status || 'draft';
+        try {
+            sessionStorage.setItem('tenantDealRecord', JSON.stringify({
+                dbId: dealId,
+                status: dealStatus,
+                updatedAt: new Date().toISOString()
+            }));
+        } catch (e) { /* sessionStorage may be unavailable */ }
+        var label = existingId ? 'Tenant deal updated' : 'Tenant deal saved as draft';
+        showToast(label + (dealId ? ' (#' + dealId + ')' : ''), 'success');
+        if (typeof addTenantHistoryEntry === 'function') {
+            addTenantHistoryEntry(label, 'Deal id ' + (dealId || '?') + ' · status ' + dealStatus, 'fa-save', 'green');
+        }
+        release();
+    }).catch(function(err) {
+        console.error('[TenantDeal] submit failed:', err);
+        var msg = (err && err.message) ? err.message : 'unknown error';
+        showToast('Submit failed: ' + msg + '. Nothing was saved.', 'error');
+        release();
+    });
 }
 
 // ═══════ INIT ═══════
