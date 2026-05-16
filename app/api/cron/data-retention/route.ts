@@ -11,6 +11,7 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 
 export const maxDuration = 60;
 
@@ -83,6 +84,7 @@ export async function GET(req: NextRequest) {
     select: { id: true, listing_id: true, status: true, status_changed_at: true },
   });
 
+  let closedProjectionFailures = 0;
   if (staleClosedListings.length > 0) {
     await prisma.listing.updateMany({
       where: { id: { in: staleClosedListings.map((l) => l.id) } },
@@ -103,8 +105,28 @@ export async function GET(req: NextRequest) {
         },
       })),
     });
+
+    // H1 Tier-2 dual-write — keep ListingSearchProjection.idx_display_yn in
+    // lockstep with the Listing flip above. Without this, the projection
+    // retains `idx_display_yn=true` for terminal listings, which would
+    // leak publicly once PR 5B swaps the reader from Listing to the
+    // projection. Sequential (post-batch) sync matches the lib/idx/sync.ts
+    // pattern. Per-row try/catch so a single bad row doesn't abort the
+    // batch; failures are surfaced in the response for ops monitoring.
+    for (const l of staleClosedListings) {
+      try {
+        await dualWriteProjectionForListingId(prisma, l.listing_id);
+      } catch (projErr) {
+        closedProjectionFailures++;
+        console.warn(
+          `[data-retention] projection dual-write failed for ${l.listing_id}:`,
+          projErr instanceof Error ? projErr.message : projErr,
+        );
+      }
+    }
   }
   results.closed_listings_removed_from_idx = staleClosedListings.length;
+  results.closed_listings_projection_failures = closedProjectionFailures;
 
   // 3b. T+30d: Null media array on terminal listings past 30 days.
   // R2 holds the actual image bytes; the listings.media JSON is just a pointer array.

@@ -344,6 +344,7 @@ export async function GET(req: NextRequest) {
     // 5b. Transition each ghost
     let updated = 0;
     let errors = 0;
+    let projectionFailures = 0;
     for (const g of ghosts) {
       try {
         await prisma.$transaction([
@@ -373,6 +374,25 @@ export async function GET(req: NextRequest) {
             },
           }),
         ]);
+
+        // H1 Tier-2 dual-write — projection upsert runs OUTSIDE the
+        // listing+audit transaction (matches the orphan path above and the
+        // lib/idx/sync.ts pattern: sequential dual-write with no
+        // transaction). Without this, the projection table keeps stale
+        // `idx_display_yn=true` for ghost-transitioned listings, which
+        // would leak publicly once PR 5B swaps the reader to the
+        // projection. Failure is non-fatal; the listing row is already
+        // correct so /api/listings stays gated.
+        try {
+          await dualWriteProjectionForListingId(prisma, g.listing_id);
+        } catch (projErr) {
+          projectionFailures++;
+          console.warn(
+            `[feed-reconcile] ghost projection dual-write failed for ${g.listing_id}:`,
+            projErr instanceof Error ? projErr.message : projErr,
+          );
+        }
+
         updated++;
       } catch (e) {
         errors++;
@@ -390,6 +410,7 @@ export async function GET(req: NextRequest) {
       ghosts_detected: ghosts.length,
       ghosts_transitioned: updated,
       ghosts_errored: errors,
+      ghosts_projection_failures: projectionFailures,
       orphans_detected: orphans.length,
       orphans_created: orphansCreated,
       orphans_errored: orphansErrored,
