@@ -127,6 +127,15 @@ export default function IDXImage({
           // Tag THIS src as bordered. The derived `hasWhiteBorder`
           // flag (computed against `src` in the render body) auto-
           // invalidates when src later changes — no separate reset.
+          //
+          // Note: the detector returns false (silently) for cross-
+          // origin images served WITHOUT CORS headers — getImageData()
+          // throws a SecurityError on a tainted canvas, which our
+          // wrapper catches. Cloudflare R2 public buckets without a
+          // CORS policy fall into this bucket. Same-origin images
+          // (`/api/media/proxy?url=…`) work correctly. See
+          // `lib/media/white-border-detector.ts` for the per-failure
+          // mode documentation.
           setBorderedSrc(src);
         }
       } catch {
@@ -136,6 +145,27 @@ export default function IDXImage({
       }
     });
   }, [src, autoCropWhiteBorder]);
+
+  // SSR-load race fix (2026-05-16): the <img> ships in the SSR HTML with
+  // `src` set, so the browser starts loading it before React hydrates.
+  // For images that finish loading BEFORE the onLoad handler is attached
+  // during hydration, the handler never fires — and our detector never
+  // runs, leaving baked-white-border photos un-cropped.
+  //
+  // After mount, check whether the <img> is already complete. If so,
+  // synthesize the same load behavior (mark loaded + run detector for
+  // opt-in cards). Idempotent — the regular onLoad path remains the
+  // primary trigger for images that load after hydration.
+  useEffect(() => {
+    const el = imgRef.current;
+    if (!el) return;
+    if (el.complete && el.naturalWidth > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-shot post-mount catch-up for the SSR-load race (img.onLoad never fires when the bytes finish before hydration). The setState inside handleLoad runs at most once per src, not on a continuous external signal.
+      handleLoad();
+    }
+    // Re-run when src or the opt-in flag changes so a SplitCard
+    // carousel advance is re-evaluated on the new src.
+  }, [src, autoCropWhiteBorder, handleLoad]);
 
   // translate="no" + class="notranslate" tell Google Translate (and other
   // browser-level translators) to skip this subtree. Without this, Translate

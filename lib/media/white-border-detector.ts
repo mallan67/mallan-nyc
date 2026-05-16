@@ -172,6 +172,33 @@ export function detectWhiteBorderFromImageData(
  * This function is the ONLY canvas-touching code. The IDXImage
  * onLoad handler calls it inside a try/catch as defense in depth.
  *
+ * Same-origin / CORS contract (2026-05-16)
+ * ----------------------------------------
+ * `getImageData()` throws `SecurityError` when the canvas has been
+ * tainted by a cross-origin image drawn WITHOUT a valid CORS opt-in.
+ * The wrapper catches the throw and returns false — so cross-origin
+ * sources without CORS headers degrade gracefully into "no border
+ * detected" (no scale, no transform, image renders unchanged).
+ *
+ * Coverage by source on mallan.nyc:
+ *
+ *   - `/api/media/proxy?url=…` (Trestle live, server-side Bearer
+ *     auth, response is same-origin from the browser) → detector
+ *     WORKS. Verified 2026-05-16 against 433 E 74TH GARDEN listing
+ *     with rendered `matrix(1.1, 0, 0, 1.1, 0, 0)` and animation
+ *     disabled.
+ *
+ *   - `https://pub-<hash>.r2.dev/photos/…` (Cloudflare R2 cached
+ *     copies) → detector NO-OPS. R2 bucket does not emit
+ *     `Access-Control-Allow-Origin`, so canvas reads are blocked.
+ *     The IMG renders normally; just the scale crop is not applied.
+ *
+ * Closing the R2 gap requires a one-time R2 bucket CORS policy
+ * (`AllowedOrigins: ["https://mallan.nyc"]`, `AllowedMethods: ["GET"]`)
+ * which is a Cloudflare-side configuration outside the code surface
+ * of this PR. Once configured, this detector starts working on R2
+ * images automatically — no code change required.
+ *
  * @param img  The loaded <img> element. Must have non-zero
  *             naturalWidth / naturalHeight.
  * @returns    `true` when a baked-in white canvas border is detected
