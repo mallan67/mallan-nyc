@@ -110,6 +110,7 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"
           onError={handlePhotoError}
+          autoCropWhiteBorder
         />
         {formatComingSoonBadge(listing) ? (
           <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl z-10">
@@ -221,6 +222,7 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
           aspect="card"
           className="group-hover:scale-105 transition-transform duration-700"
           onError={handlePhotoError}
+          autoCropWhiteBorder
         />
         {formatComingSoonBadge(listing) ? (
           <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded-lg z-10">
@@ -361,6 +363,7 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
             aspect="wide"
             className={`transition-transform duration-500 ${hovered ? 'scale-105' : ''}`}
             onError={handlePhotoError}
+            autoCropWhiteBorder
           />
         </Link>
         {formatComingSoonBadge(listing) && (

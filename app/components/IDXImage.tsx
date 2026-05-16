@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { detectWhiteBorder } from '@/lib/media/white-border-detector';
 
 /**
  * IDXImage — native <img> for all listing photos (IDX + R2).
@@ -15,6 +16,16 @@ import { useState, useRef, useEffect } from 'react';
  *
  * Both sources serve pre-optimized images, so Vercel re-optimization
  * is unnecessary. R2 images are Sharp-processed WebP at upload time.
+ *
+ * Optional `autoCropWhiteBorder` (added 2026-05-16): when true, the
+ * loaded image is analyzed for baked-in white canvas borders. If
+ * detected, a `transform: scale(1.10)` is applied to the existing
+ * <img> element to crop the border via `object-fit: cover`. Clean
+ * photos are NOT scaled — the transform stays `undefined`. Detection
+ * is fully synchronous post-load and guarded against canvas/CORS
+ * failures (no-op on any error). See
+ * `lib/media/white-border-detector.ts` for the detection thresholds
+ * and false-positive guards.
  */
 
 const ASPECT_CLASSES = {
@@ -24,6 +35,17 @@ const ASPECT_CLASSES = {
   thumb: 'aspect-square',
 } as const;
 
+/**
+ * Static-scale value applied to images detected as having baked-in
+ * white canvas borders. 1.10 = 10% extra crop on each axis. This is
+ * enough to absorb most observed Trestle white-canvas borders
+ * (~9–10% of image width) without dramatically zooming clean photos
+ * that might still trigger detection on a borderline ratio.
+ *
+ * Exported so tests can pin the value and a future audit can find it.
+ */
+export const WHITE_BORDER_CROP_SCALE = 1.1;
+
 interface IDXImageProps {
   src: string;
   alt: string;
@@ -31,6 +53,23 @@ interface IDXImageProps {
   priority?: boolean;
   className?: string;
   onError?: () => void;
+  /**
+   * Opt-in white-border detection (default: false).
+   *
+   * When true, after the image successfully loads, IDXImage samples
+   * the four edge bands of the loaded image data via canvas and
+   * checks them against the thresholds in
+   * `lib/media/white-border-detector.ts`. If a baked-in white canvas
+   * border is detected, IDXImage applies `transform: scale(1.10)` to
+   * the existing <img> element to crop the border. Clean images are
+   * unaffected — no scale is applied.
+   *
+   * Pass `true` ONLY on hero/card photos where the extra crop
+   * improves visual quality. The detail-page gallery and other
+   * inline photos should keep the default `false` so the operator
+   * sees the original framing.
+   */
+  autoCropWhiteBorder?: boolean;
 }
 
 export default function IDXImage({
@@ -40,13 +79,24 @@ export default function IDXImage({
   priority = false,
   className = '',
   onError,
+  autoCropWhiteBorder = false,
 }: IDXImageProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  // White-border verdict is keyed on the src it was computed for, not
+  // a bare boolean. When `src` changes (e.g. SplitCard carousel
+  // advance), `borderedSrc` continues to point at the OLD src and the
+  // derived `hasWhiteBorder` flips to false automatically — no reset
+  // useEffect required, which avoids the
+  // `react-hooks/set-state-in-effect` lint rule and keeps the state
+  // model purely derived from load events.
+  const [borderedSrc, setBorderedSrc] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const failed = failedSrc === src;
   const loaded = loadedSrc === src;
+  const hasWhiteBorder = borderedSrc === src;
 
   // Only animate when the card is in the viewport — saves GPU layers for off-screen cards
   useEffect(() => {
@@ -59,6 +109,33 @@ export default function IDXImage({
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  // Load handler: mark loaded + (opt-in) run the white-border detector.
+  // The detector is fully guarded — any failure (canvas tainted, no 2D
+  // context, OOM, detached image) returns false and we no-op.
+  const handleLoad = useCallback(() => {
+    setLoadedSrc(src);
+    if (!autoCropWhiteBorder) return;
+    const el = imgRef.current;
+    if (!el || el.naturalWidth === 0) return;
+    // Defer to the next frame so we don't block paint with canvas work.
+    // requestAnimationFrame keeps the detector off the load tick while
+    // still running before the user sees the final pixels.
+    requestAnimationFrame(() => {
+      try {
+        if (detectWhiteBorder(el)) {
+          // Tag THIS src as bordered. The derived `hasWhiteBorder`
+          // flag (computed against `src` in the render body) auto-
+          // invalidates when src later changes — no separate reset.
+          setBorderedSrc(src);
+        }
+      } catch {
+        // Detector itself wraps in try/catch; defensive double-wrap so
+        // a rare React-tree edge case can't surface as an unhandled
+        // promise rejection or render error.
+      }
+    });
+  }, [src, autoCropWhiteBorder]);
 
   // translate="no" + class="notranslate" tell Google Translate (and other
   // browser-level translators) to skip this subtree. Without this, Translate
@@ -109,11 +186,12 @@ export default function IDXImage({
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={imgRef}
         src={src}
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding={priority ? 'sync' : 'async'}
-        onLoad={() => setLoadedSrc(src)}
+        onLoad={handleLoad}
         onError={() => {
           setFailedSrc(src);
           onError?.();
@@ -121,8 +199,17 @@ export default function IDXImage({
         translate="no"
         className={`notranslate absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{
-          animation: shouldAnimate ? 'liquidMotion 10s ease-in-out infinite' : undefined,
-          transformOrigin: '50% 60%',
+          // When a baked-in white canvas border is detected we apply a
+          // static scale crop and DISABLE the liquidMotion animation —
+          // the animation would otherwise override the static scale
+          // during keyframes, intermittently re-exposing the border.
+          // Clean photos keep their normal animation and unscaled
+          // transform-origin (50% 60%, Ken Burns sweet spot).
+          animation: shouldAnimate && !hasWhiteBorder
+            ? 'liquidMotion 10s ease-in-out infinite'
+            : undefined,
+          transformOrigin: hasWhiteBorder ? '50% 50%' : '50% 60%',
+          transform: hasWhiteBorder ? `scale(${WHITE_BORDER_CROP_SCALE})` : undefined,
         }}
       />
     </div>
