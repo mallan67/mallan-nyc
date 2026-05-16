@@ -29,6 +29,99 @@ function readTrestlePermissions(raw: Record<string, unknown>): string | null {
   return null;
 }
 
+// ── IDX-sync diagnostic AuditEvent helpers ──────────────────────────
+//
+// Why this exists (2026-05-15): on 2026-05-15 the IDX cron entered a
+// state where it returned HTTP 200 every 10 min but the SyncState
+// watermark stayed frozen at 09:11:45 UTC. The original Prisma error
+// that triggered this drift was logged to stderr (`console.error`) but
+// aged out of Vercel's ~24h log retention before it could be captured.
+// Without a persistent record of error code / Prisma meta / failing
+// table, the root cause was unreachable.
+//
+// These two helpers (`extractErrorDetails`, `recordSyncDiagnostic`)
+// persist the next natural failure into the existing `audit_events`
+// table so the same error becomes inspectable via Prisma queries long
+// after the Vercel log buffer rotates. Two-year retention is enforced
+// by the existing data-retention cron — no schema change, no new table.
+//
+// Both helpers are diagnostic-only and best-effort. They MUST NEVER
+// throw, alter sync behavior, or block the surrounding catch path.
+function extractErrorDetails(err: unknown): {
+  error_name: string;
+  error_message: string;
+  prisma_code?: string;
+  prisma_meta?: unknown;
+  stack_excerpt?: string;
+} {
+  if (err && typeof err === "object") {
+    const e = err as {
+      name?: unknown;
+      message?: unknown;
+      code?: unknown;
+      meta?: unknown;
+      stack?: unknown;
+    };
+    const out: {
+      error_name: string;
+      error_message: string;
+      prisma_code?: string;
+      prisma_meta?: unknown;
+      stack_excerpt?: string;
+    } = {
+      error_name: typeof e.name === "string" ? e.name : "UnknownError",
+      error_message:
+        typeof e.message === "string"
+          ? e.message.slice(0, 2000)
+          : String(err).slice(0, 2000),
+    };
+    if (typeof e.code === "string") out.prisma_code = e.code;
+    if (e.meta !== undefined && e.meta !== null) {
+      try {
+        out.prisma_meta = JSON.parse(JSON.stringify(e.meta));
+      } catch {
+        out.prisma_meta = String(e.meta).slice(0, 500);
+      }
+    }
+    if (typeof e.stack === "string") {
+      out.stack_excerpt = e.stack.split("\n").slice(0, 5).join("\n").slice(0, 800);
+    }
+    return out;
+  }
+  return {
+    error_name: "UnknownError",
+    error_message: String(err).slice(0, 2000),
+  };
+}
+
+async function recordSyncDiagnostic(
+  action: string,
+  entity_type: string,
+  entity_id: string,
+  changes: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await prisma.auditEvent.create({
+      data: {
+        action,
+        entity_type,
+        entity_id,
+        user_type: "system",
+        user_id: null,
+        changes: changes as Prisma.InputJsonValue,
+      },
+    });
+  } catch (diagnosticErr) {
+    // Best-effort only. A diagnostic-write failure must never crash
+    // the sync. We still console.error so the failure is at least
+    // visible in the live log stream even if the audit row didn't land.
+    console.error(
+      `[IDX Sync] Failed to write diagnostic AuditEvent (${action}):`,
+      diagnosticErr,
+    );
+  }
+}
+
 export interface SyncOptions {
   /** Listing type to sync ("sale" | "rent" | undefined for both) */
   type?: "sale" | "rent";
@@ -95,7 +188,7 @@ export async function syncListings(
   let skippedValidation = 0;
   let errors = 0;
 
-  for (const raw of fetchResult.records) {
+  for (const [recordIndex, raw] of fetchResult.records.entries()) {
     try {
       // 1. Validate required fields
       const validation = validateRequiredFields(raw);
@@ -272,7 +365,44 @@ export async function syncListings(
     } catch (err) {
       errors++;
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
+      const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
       console.error(`[IDX Sync] Error upserting listing ${listingId}:`, err);
+      // Best-effort diagnostic persist (see helper comment near top of file).
+      //
+      // Codex review of PR #144: this catch sits inside the hot per-record
+      // loop. Awaiting an AuditEvent insert here would add one DB
+      // round-trip to every failed record and, on a large-batch run with
+      // many failures, materially slow sync — eating into the cron's
+      // 120 s budget. We fire-and-forget instead.
+      //
+      // `recordSyncDiagnostic` itself already has an inner try/catch that
+      // swallows errors (it's best-effort). The trailing `.catch` here is
+      // defense-in-depth so that ANY future change which makes the helper
+      // throw synchronously OR forward a rejection cannot turn into an
+      // unhandled-promise-rejection process event.
+      //
+      // Loop behavior is unchanged: errors are counted and the loop
+      // continues immediately to the next record.
+      void recordSyncDiagnostic(
+        "idx_sync_listing_upsert_failure",
+        "listing",
+        listingId,
+        {
+          listing_id: listingId,
+          mls_id: mlsId,
+          ...extractErrorDetails(err),
+          record_index: recordIndex,
+          since: options.since ? options.since.toISOString() : null,
+          max_records: maxRecords,
+          full_sync: options.fullSync || false,
+          listing_type: options.type || "all",
+        },
+      ).catch((diagnosticError) => {
+        console.error(
+          "[IDX Sync] Failed to persist listing-upsert diagnostic:",
+          diagnosticError,
+        );
+      });
     }
   }
 
@@ -420,9 +550,15 @@ export async function syncListings(
   // Every successful sync run now upserts SyncState. Watermark = the
   // highest ModificationTimestamp we actually saw in this batch; falls
   // back to now() if the batch was empty.
+  //
+  // `batchWatermark` and `advanceWatermark` are hoisted out of the try
+  // block so the catch can include them in the diagnostic AuditEvent
+  // payload (we want to know exactly which watermark value the failing
+  // upsert was attempting to write).
+  const now = new Date();
+  let batchWatermark = now;
+  let advanceWatermark = false;
   try {
-    const now = new Date();
-    let batchWatermark = now;
     // Advance the watermark using max(ModificationTimestamp, PhotosChangeTimestamp)
     // per record. The incremental cursor at buildIncrementalFilter() now ORs the
     // two fields, so the watermark must reflect both — otherwise the next pass
@@ -438,7 +574,7 @@ export async function syncListings(
     // On empty batches, advance last_run_at but leave last_watermark alone —
     // the UI surfaces last_watermark as the "data updated" date. Preserving
     // it on empty runs avoids jumping forward when nothing actually changed.
-    const advanceWatermark = fetchResult.records.length > 0;
+    advanceWatermark = fetchResult.records.length > 0;
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
@@ -465,6 +601,26 @@ export async function syncListings(
     console.error("[IDX Sync] Failed to update SyncState watermark:", err);
     // Non-fatal — sync already succeeded; watermark-write failure degrades
     // UI freshness display only.
+    //
+    // Best-effort diagnostic persist (see helper comment near top of file).
+    // This is the catch that was silently swallowing the SyncState
+    // failure during the 2026-05-15 frozen-watermark incident.
+    await recordSyncDiagnostic(
+      "idx_sync_syncstate_failure",
+      "sync_state",
+      "Property",
+      {
+        ...extractErrorDetails(err),
+        watermark_attempted: batchWatermark.toISOString(),
+        advance_watermark: advanceWatermark,
+        records_in_batch: fetchResult.records.length,
+        upserted,
+        errors,
+        skipped_gates: skippedGates,
+        skipped_validation: skippedValidation,
+        duration_ms: durationMs,
+      },
+    );
   }
 
   const result: SyncResult = {
