@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { detectWhiteBorder } from '@/lib/media/white-border-detector';
+import {
+  detectWhiteBorder,
+  computeAdaptiveCropScale,
+  WHITE_BORDER_THRESHOLDS,
+} from '@/lib/media/white-border-detector';
 
 /**
  * IDXImage — native <img> for all listing photos (IDX + R2).
@@ -36,15 +40,31 @@ const ASPECT_CLASSES = {
 } as const;
 
 /**
- * Static-scale value applied to images detected as having baked-in
- * white canvas borders. 1.10 = 10% extra crop on each axis. This is
- * enough to absorb most observed Trestle white-canvas borders
- * (~9–10% of image width) without dramatically zooming clean photos
- * that might still trigger detection on a borderline ratio.
+ * Hard floor for the adaptive crop scale when the detector says
+ * `hasBorder=true`. Even if the math computes a scale below this
+ * (e.g. a borderline detection where the depth ratio rounds near
+ * zero), we apply at least this much extra crop — otherwise the
+ * detector firing would be a no-op and the user would see no change.
  *
- * Exported so tests can pin the value and a future audit can find it.
+ * Hard ceiling lives in `WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax`
+ * (currently 1.5) and is enforced inside `computeAdaptiveCropScale`.
+ *
+ * 2026-05-17 — raised 1.05 → 1.20 after the live e2e on PR #149's
+ * preview proved the adaptive math under-reports L/R-only letterbox
+ * borders (401 WEST PH stayed at 26 px white because cover absorbs
+ * ~7.8 % of source width before the math sees the rest, and the
+ * downsampled-canvas depth walk further under-measures the
+ * anti-aliased border edge). The detector's hasBorder verdict is
+ * the trusted gate; the floor guarantees that "hasBorder=true"
+ * always produces a visible improvement instead of bottoming out
+ * at 1.022 → 1.05. Heavy 4-sided borders compute above 1.20 anyway
+ * (401 WEST #6 = 1.26) so the math still differentiates between
+ * thicknesses above the floor. The 1.5 ceiling protects against
+ * runaway over-crop on any hypothetical false positive.
+ *
+ * Exported so tests can pin the floor + a future audit can find it.
  */
-export const WHITE_BORDER_CROP_SCALE = 1.1;
+export const WHITE_BORDER_MIN_CROP_SCALE = 1.20;
 
 interface IDXImageProps {
   src: string;
@@ -84,19 +104,28 @@ export default function IDXImage({
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
-  // White-border verdict is keyed on the src it was computed for, not
-  // a bare boolean. When `src` changes (e.g. SplitCard carousel
-  // advance), `borderedSrc` continues to point at the OLD src and the
-  // derived `hasWhiteBorder` flips to false automatically — no reset
-  // useEffect required, which avoids the
-  // `react-hooks/set-state-in-effect` lint rule and keeps the state
-  // model purely derived from load events.
-  const [borderedSrc, setBorderedSrc] = useState<string | null>(null);
+  // White-border verdict + ADAPTIVE crop scale are stored together,
+  // keyed on the src they were computed for. When `src` changes (e.g.
+  // SplitCard carousel advance), `borderedState.src` continues to
+  // point at the OLD src and the derived `hasWhiteBorder` flips to
+  // false automatically — no reset useEffect required, which avoids
+  // the `react-hooks/set-state-in-effect` lint rule and keeps the
+  // state model purely derived from load events.
+  //
+  // `scale` is the per-image crop factor computed from the detector's
+  // depth-ratio output + the current wrapper + source dimensions via
+  // `computeAdaptiveCropScale`. Clamped to
+  // `[WHITE_BORDER_MIN_CROP_SCALE, WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax]`.
+  const [borderedState, setBorderedState] = useState<{
+    src: string;
+    scale: number;
+  } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const failed = failedSrc === src;
   const loaded = loadedSrc === src;
-  const hasWhiteBorder = borderedSrc === src;
+  const hasWhiteBorder = borderedState?.src === src;
+  const cropScale = hasWhiteBorder ? borderedState.scale : 1;
 
   // Only animate when the card is in the viewport — saves GPU layers for off-screen cards
   useEffect(() => {
@@ -123,28 +152,58 @@ export default function IDXImage({
     // still running before the user sees the final pixels.
     requestAnimationFrame(() => {
       try {
-        if (detectWhiteBorder(el)) {
-          // Tag THIS src as bordered. The derived `hasWhiteBorder`
-          // flag (computed against `src` in the render body) auto-
-          // invalidates when src later changes — no separate reset.
-          //
-          // Cross-origin contract (R2 CORS policy live since 2026-05-16):
-          //   - Cloudflare R2 public bucket emits
-          //     `Access-Control-Allow-Origin: https://mallan.nyc` (+ www +
-          //     `*.mallan.vercel.app`). Combined with the `crossOrigin=
-          //     "anonymous"` attribute we set on the <img> below when
-          //     `autoCropWhiteBorder=true`, the browser fetches the image
-          //     under CORS rules, the canvas stays untainted, and
-          //     `getImageData()` succeeds — detector works on R2 photos.
-          //   - Same-origin images (`/api/media/proxy?url=…`) keep
-          //     working as before.
-          //   - Foreign origins (any host NOT in the R2 CORS policy)
-          //     would still taint the canvas; the detector's inner
-          //     try/catch swallows that and returns false (no-op).
-          // See `lib/media/white-border-detector.ts` for the per-failure
-          // mode documentation.
-          setBorderedSrc(src);
-        }
+        const result = detectWhiteBorder(el);
+        if (!result.hasBorder) return;
+
+        // Adaptive scale: compute the exact crop factor needed to push
+        // this image's measured white-border off-screen, given the
+        // wrapper's current rendered dimensions. The math lives in
+        // `computeAdaptiveCropScale` (same module, fully unit-tested).
+        //
+        // We floor at WHITE_BORDER_MIN_CROP_SCALE so a borderline
+        // depth doesn't compute to ~1.0 and visually no-op when the
+        // detector firing told the user we SHOULD do something. The
+        // ceiling lives in WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax
+        // (1.5×) and is enforced inside computeAdaptiveCropScale.
+        //
+        // Cross-origin contract (R2 CORS policy live since 2026-05-16):
+        //   - Cloudflare R2 public bucket emits
+        //     `Access-Control-Allow-Origin: https://mallan.nyc` (+ www +
+        //     `*.mallan.vercel.app`). Combined with the `crossOrigin=
+        //     "anonymous"` attribute we set on the <img> below when
+        //     `autoCropWhiteBorder=true`, the browser fetches the image
+        //     under CORS rules, the canvas stays untainted, and
+        //     `getImageData()` succeeds — detector works on R2 photos.
+        //   - Same-origin images (`/api/media/proxy?url=…`) keep
+        //     working as before.
+        //   - Foreign origins (any host NOT in the R2 CORS policy)
+        //     would still taint the canvas; the detector's inner
+        //     try/catch swallows that and returns false (no-op).
+        // See `lib/media/white-border-detector.ts` for the per-failure
+        // mode documentation.
+        const wrapper = wrapperRef.current;
+        const wrapperRect = wrapper?.getBoundingClientRect();
+        const wrapperWidth = wrapperRect?.width ?? 0;
+        const wrapperHeight = wrapperRect?.height ?? 0;
+        const computed = computeAdaptiveCropScale({
+          depthRatios: result.depthRatios,
+          sourceWidth: el.naturalWidth,
+          sourceHeight: el.naturalHeight,
+          wrapperWidth,
+          wrapperHeight,
+        });
+        // Apply the floor + the upstream clamp. computeAdaptiveCropScale
+        // already enforces WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax
+        // as the ceiling and 1 as the floor; we tighten the floor for
+        // the "detector fired but math barely budged" case.
+        const scale = Math.min(
+          WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax,
+          Math.max(WHITE_BORDER_MIN_CROP_SCALE, computed),
+        );
+        // Tag THIS src as bordered + remember the per-image scale.
+        // The derived `hasWhiteBorder` flag (computed against `src` in
+        // the render body) auto-invalidates when src later changes.
+        setBorderedState({ src, scale });
       } catch {
         // Detector itself wraps in try/catch; defensive double-wrap so
         // a rare React-tree edge case can't surface as an unhandled
@@ -270,7 +329,7 @@ export default function IDXImage({
             ? 'liquidMotion 10s ease-in-out infinite'
             : undefined,
           transformOrigin: hasWhiteBorder ? '50% 50%' : '50% 60%',
-          transform: hasWhiteBorder ? `scale(${WHITE_BORDER_CROP_SCALE})` : undefined,
+          transform: hasWhiteBorder ? `scale(${cropScale})` : undefined,
         }}
       />
     </div>

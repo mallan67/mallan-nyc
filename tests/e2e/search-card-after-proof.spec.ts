@@ -276,6 +276,132 @@ test.describe('After-proof @ Vercel preview (PR #145)', () => {
     expect(blockingConsole).toEqual([]);
   });
 
+  // ── Adaptive crop proof (PR #149+) ────────────────────────────────
+  //
+  // After the F2 adaptive-scale follow-up, the visible white band that
+  // survived the old fixed scale(1.10) should now be <= 5 px on the
+  // two bordered cards, while the clean control card stays at 0.
+  //
+  // Method: walk inward from each edge of the wrapper's canvas in 1-px
+  // steps; stop at the first row/column that drops below 85% near-white.
+  // The first-drop depth is what the user perceives as the residual
+  // white margin. Pre-PR-#149 measured 20 px on every edge of 401 WEST
+  // #6 and 18 px on L/R of 401 WEST PH.
+  test('adaptive crop reduces visible white band <= 5px (401 WEST #6 + PH); 15 W 68TH stays clean', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'chromium-only proof');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/search?tab=rent-residential&sort=price-desc', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => {
+      const imgs = document.querySelectorAll('.glass-card img');
+      return Array.from(imgs).some((img) => (img as HTMLImageElement).naturalWidth > 0);
+    }, { timeout: 45_000 });
+    await page.waitForTimeout(2500);
+
+    interface EdgeWalk {
+      top: number | null;
+      bottom: number | null;
+      left: number | null;
+      right: number | null;
+    }
+
+    async function visibleWhiteBandDepths(addrPattern: RegExp): Promise<EdgeWalk | null> {
+      // Codex review (PR #149): pass BOTH source and flags so the
+      // reconstructed RegExp preserves /i, /m, etc. Earlier
+      // `new RegExp(pattern.source)` silently dropped the case-
+      // insensitive flag, making /401 WEST Street.*PH/i fall back to
+      // case-sensitive matching inside page.evaluate — which still
+      // happened to find the cards because production rendered the
+      // addresses in matching case, but the test was effectively
+      // unguarded against any rendering change.
+      return page.evaluate(({ source, flags }) => {
+        const re = new RegExp(source, flags);
+        const cards = Array.from(document.querySelectorAll('.glass-card')) as HTMLElement[];
+        const cardIdx = cards.findIndex((c) => re.test(c.textContent ?? ''));
+        if (cardIdx < 0) return null;
+        const card = cards[cardIdx];
+        const img = card.querySelector('img') as HTMLImageElement | null;
+        const wrapper = img?.parentElement as HTMLElement | null;
+        if (!img || !wrapper || img.naturalWidth === 0) return null;
+
+        const wRect = wrapper.getBoundingClientRect();
+        const iRect = img.getBoundingClientRect();
+        const W = Math.max(60, Math.round(wRect.width));
+        const H = Math.max(40, Math.round(wRect.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const offX = iRect.x - wRect.x;
+        const offY = iRect.y - wRect.y;
+        try {
+          ctx.drawImage(img, offX, offY, iRect.width, iRect.height);
+        } catch {
+          return null;
+        }
+        let imageData: ImageData;
+        try {
+          imageData = ctx.getImageData(0, 0, W, H);
+        } catch {
+          return null;
+        }
+        const isWhite = (x: number, y: number) => {
+          const idx = (y * W + x) * 4;
+          const r = imageData.data[idx], g = imageData.data[idx + 1], b = imageData.data[idx + 2];
+          return r >= 245 && g >= 245 && b >= 245 && Math.max(r, g, b) - Math.min(r, g, b) <= 12;
+        };
+        const rowMostlyWhite = (y: number) => {
+          let w = 0;
+          for (let x = 0; x < W; x++) if (isWhite(x, y)) w++;
+          return W > 0 && w / W >= 0.85;
+        };
+        const colMostlyWhite = (x: number) => {
+          let w = 0;
+          for (let y = 0; y < H; y++) if (isWhite(x, y)) w++;
+          return H > 0 && w / H >= 0.85;
+        };
+        let top = 0, bottom = 0, left = 0, right = 0;
+        for (let y = 0; y < H; y++) { if (!rowMostlyWhite(y)) { top = y; break; } if (y === H - 1) top = H; }
+        for (let y = H - 1; y >= 0; y--) { if (!rowMostlyWhite(y)) { bottom = H - 1 - y; break; } if (y === 0) bottom = H; }
+        for (let x = 0; x < W; x++) { if (!colMostlyWhite(x)) { left = x; break; } if (x === W - 1) left = W; }
+        for (let x = W - 1; x >= 0; x--) { if (!colMostlyWhite(x)) { right = W - 1 - x; break; } if (x === 0) right = W; }
+        return { top, bottom, left, right };
+      }, { source: addrPattern.source, flags: addrPattern.flags });
+    }
+
+    const card6 = await visibleWhiteBandDepths(/401 WEST Street.*\b6\b/i);
+    const cardPH = await visibleWhiteBandDepths(/401 WEST Street.*PH/i);
+    const card15 = await visibleWhiteBandDepths(/15 W 68/i);
+
+    console.log('── ADAPTIVE PROOF · desktop 1440 ───────────────────────────');
+    console.log('  401 WEST #6 white-band depth (px): ', card6);
+    console.log('  401 WEST PH white-band depth (px): ', cardPH);
+    console.log('  15 W 68TH  white-band depth (px): ', card15);
+
+    // Targets: bordered cards should now have <= 5px residual white per
+    // edge. The clean control card should stay at 0 (no false positive).
+    if (card6) {
+      expect(card6.top).toBeLessThanOrEqual(5);
+      expect(card6.bottom).toBeLessThanOrEqual(5);
+      expect(card6.left).toBeLessThanOrEqual(5);
+      expect(card6.right).toBeLessThanOrEqual(5);
+    }
+    if (cardPH) {
+      expect(cardPH.top).toBeLessThanOrEqual(5);
+      expect(cardPH.bottom).toBeLessThanOrEqual(5);
+      expect(cardPH.left).toBeLessThanOrEqual(5);
+      expect(cardPH.right).toBeLessThanOrEqual(5);
+    }
+    if (card15) {
+      // Clean photo control — must not pick up a false-positive scale
+      // that visually clips the image. 0 px is the strict expectation.
+      expect(card15.top).toBe(0);
+      expect(card15.bottom).toBe(0);
+      expect(card15.left).toBe(0);
+      expect(card15.right).toBe(0);
+    }
+  });
+
   test('mobile 390: cards render and fill viewport (item 10)', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'chromium-only proof');
     const telemetry = attachTelemetry(page);

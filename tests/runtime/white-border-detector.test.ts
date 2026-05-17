@@ -24,6 +24,7 @@
 import {
   WHITE_BORDER_THRESHOLDS,
   detectWhiteBorderFromImageData,
+  computeAdaptiveCropScale,
   type BorderDetectionResult,
 } from '@/lib/media/white-border-detector';
 import { readFileSync } from 'fs';
@@ -183,6 +184,13 @@ describe('detector public-API safety', () => {
     expect(WHITE_BORDER_THRESHOLDS.minBorderedEdges).toBeGreaterThanOrEqual(2);
   });
 
+  it('exports the adaptive-scale clamp ceiling + depth-walk threshold', () => {
+    expect(WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax).toBeGreaterThan(1);
+    expect(WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax).toBeLessThanOrEqual(2);
+    expect(WHITE_BORDER_THRESHOLDS.depthWhiteRatioThreshold).toBeGreaterThan(0.5);
+    expect(WHITE_BORDER_THRESHOLDS.depthWhiteRatioThreshold).toBeLessThanOrEqual(1);
+  });
+
   it('result type carries per-edge ratios for telemetry/test introspection', () => {
     const data = makeImageData(160, 90, { borderPx: { left: 14, right: 14 } });
     const result: BorderDetectionResult = detectWhiteBorderFromImageData(data);
@@ -191,6 +199,171 @@ describe('detector public-API safety', () => {
     expect(typeof result.ratios.left).toBe('number');
     expect(typeof result.ratios.right).toBe('number');
     expect(typeof result.ratios.center).toBe('number');
+  });
+
+  it('result type carries depthRatios for adaptive-scale computation', () => {
+    const data = makeImageData(160, 90, { borderPx: { left: 14, right: 14 } });
+    const result: BorderDetectionResult = detectWhiteBorderFromImageData(data);
+    expect(typeof result.depthRatios.top).toBe('number');
+    expect(typeof result.depthRatios.bottom).toBe('number');
+    expect(typeof result.depthRatios.left).toBe('number');
+    expect(typeof result.depthRatios.right).toBe('number');
+    // depthRatios must be in [0, 1]
+    for (const k of ['top', 'bottom', 'left', 'right'] as const) {
+      expect(result.depthRatios[k]).toBeGreaterThanOrEqual(0);
+      expect(result.depthRatios[k]).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('detector depthRatios — accurate per-edge measurement', () => {
+  it('measures left/right border depth as a fraction of source width (letterbox shape)', () => {
+    // 14px L+R border on a 160×90 canvas → depth fraction = 14/160 = 0.0875
+    const data = makeImageData(160, 90, { borderPx: { left: 14, right: 14 } });
+    const result = detectWhiteBorderFromImageData(data);
+    expect(result.hasBorder).toBe(true);
+    expect(result.depthRatios.left).toBeCloseTo(14 / 160, 2);
+    expect(result.depthRatios.right).toBeCloseTo(14 / 160, 2);
+    // Top/bottom had no border in the synthetic input
+    expect(result.depthRatios.top).toBeLessThan(0.05);
+    expect(result.depthRatios.bottom).toBeLessThan(0.05);
+  });
+
+  it('measures top/bottom + left/right border depth (4-sided heavy border)', () => {
+    // 401 WEST #6 shape: 12px T/B + 33px L/R on 160×90
+    const data = makeImageData(160, 90, { borderPx: { top: 12, bottom: 12, left: 33, right: 33 } });
+    const result = detectWhiteBorderFromImageData(data);
+    expect(result.hasBorder).toBe(true);
+    expect(result.depthRatios.top).toBeCloseTo(12 / 90, 2);
+    expect(result.depthRatios.bottom).toBeCloseTo(12 / 90, 2);
+    expect(result.depthRatios.left).toBeCloseTo(33 / 160, 2);
+    expect(result.depthRatios.right).toBeCloseTo(33 / 160, 2);
+  });
+
+  it('returns near-zero depthRatios for a clean photo (false-positive safety preserved)', () => {
+    const data = makeImageData(160, 90, { inner: [110, 80, 60] });
+    const result = detectWhiteBorderFromImageData(data);
+    expect(result.hasBorder).toBe(false);
+    expect(result.depthRatios.top).toBeLessThan(0.05);
+    expect(result.depthRatios.bottom).toBeLessThan(0.05);
+    expect(result.depthRatios.left).toBeLessThan(0.05);
+    expect(result.depthRatios.right).toBeLessThan(0.05);
+  });
+});
+
+describe('computeAdaptiveCropScale — scale math', () => {
+  // 401 WEST #6 production shape: 1920×1080 source, 376×250.656 wrapper,
+  // ~21% L/R border + ~13% T/B border on the source.
+  const SOURCE_W = 1920;
+  const SOURCE_H = 1080;
+  const WRAPPER_W = 376;
+  const WRAPPER_H = 250.656;
+  const baseDepth = { top: 0, bottom: 0, left: 0, right: 0 };
+
+  it('returns 1 (no extra crop) when there is no detected border', () => {
+    const scale = computeAdaptiveCropScale({
+      depthRatios: baseDepth,
+      sourceWidth: SOURCE_W,
+      sourceHeight: SOURCE_H,
+      wrapperWidth: WRAPPER_W,
+      wrapperHeight: WRAPPER_H,
+    });
+    expect(scale).toBe(1);
+  });
+
+  it('returns 1 (degenerate input) when any dimension is zero or negative', () => {
+    for (const bad of [
+      { sourceWidth: 0 },
+      { sourceHeight: 0 },
+      { wrapperWidth: 0 },
+      { wrapperHeight: 0 },
+      { sourceWidth: -1 },
+    ]) {
+      const scale = computeAdaptiveCropScale({
+        depthRatios: { top: 0.2, bottom: 0.2, left: 0.2, right: 0.2 },
+        sourceWidth: SOURCE_W, sourceHeight: SOURCE_H,
+        wrapperWidth: WRAPPER_W, wrapperHeight: WRAPPER_H,
+        ...bad,
+      });
+      expect(scale).toBe(1);
+    }
+  });
+
+  it('clamps the scale at WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax', () => {
+    // An absurd 45% border on every edge would otherwise compute a scale
+    // far above 1.5. The clamp must hold.
+    const scale = computeAdaptiveCropScale({
+      depthRatios: { top: 0.45, bottom: 0.45, left: 0.45, right: 0.45 },
+      sourceWidth: SOURCE_W, sourceHeight: SOURCE_H,
+      wrapperWidth: WRAPPER_W, wrapperHeight: WRAPPER_H,
+    });
+    expect(scale).toBeLessThanOrEqual(WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax);
+    expect(scale).toBe(WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax);
+  });
+
+  it('cropping math: for a wide source on a less-wide wrapper, L/R borders are PARTIALLY hidden by cover', () => {
+    // 401 WEST PH: ~9% L/R border, no T/B border. sourceAspect=1.778,
+    // wrapperAspect=1.5. cover crops L+R; effective L/R visible ratio
+    // (in wrapper-fraction) = max(0, (0.09 - cropFraction) * scaleRatio).
+    //   scaleRatio = 1.778/1.5 = 1.185
+    //   cropFraction = (1.185-1)/(2*1.185) = 0.0782
+    //   effective = (0.09 - 0.0782) * 1.185 = 0.014
+    //   required scale = 1 + 2*0.014 = 1.028, clamped to floor 1
+    // Detector floors this in IDXImage but the math itself returns
+    // raw value (caller applies the floor).
+    const scale = computeAdaptiveCropScale({
+      depthRatios: { top: 0, bottom: 0, left: 0.09, right: 0.09 },
+      sourceWidth: SOURCE_W, sourceHeight: SOURCE_H,
+      wrapperWidth: WRAPPER_W, wrapperHeight: WRAPPER_H,
+    });
+    // Cover absorbs most of the L/R border, so the required scale is
+    // small. Just confirm it's > 1 (some additional crop needed) and
+    // bounded.
+    expect(scale).toBeGreaterThan(1);
+    expect(scale).toBeLessThan(1.1);
+  });
+
+  it('cropping math: for a heavy 4-sided border, the larger post-cover edge drives the scale', () => {
+    // 401 WEST #6: ~21% L/R + ~13% T/B on 1920×1080 → 376×250.656.
+    //   sourceAspect = 1.778, wrapperAspect = 1.5
+    //   sourceAspect >= wrapperAspect → cover crops L/R
+    //   scaleRatio = sourceAspect / wrapperAspect = 1.185
+    //   cropFraction (per side, as fraction of source width) =
+    //     (scaleRatio - 1) / (2 * scaleRatio) = 0.0782
+    //   L/R effective (wrapper-fraction) =
+    //     max(0, (0.21 - 0.0782) * scaleRatio) = 0.1318 * 1.185 = 0.156
+    //   T/B effective (wrapper-fraction, no cover crop on this axis) =
+    //     0.13 (raw)
+    //   worst = max(L/R effective, T/B effective) = 0.156 (L/R wins
+    //     after cover absorbs only part of the 21% L/R source border)
+    //   required scale = 1 + 2 * 0.156 = 1.312
+    const scale = computeAdaptiveCropScale({
+      depthRatios: { top: 0.13, bottom: 0.13, left: 0.21, right: 0.21 },
+      sourceWidth: SOURCE_W, sourceHeight: SOURCE_H,
+      wrapperWidth: WRAPPER_W, wrapperHeight: WRAPPER_H,
+    });
+    expect(scale).toBeGreaterThan(1.2);
+    expect(scale).toBeLessThanOrEqual(WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax);
+    expect(scale).toBeCloseTo(1.31, 1);
+  });
+
+  it('cropping math: for a tall source on a wider wrapper, T/B borders are partially hidden by cover', () => {
+    // Mirror case: portrait source on landscape wrapper. cover scales by
+    // width, crops T+B. Source 1080×1920 (portrait) on wrapper 376×251.
+    //   sourceAspect=0.5625, wrapperAspect=1.5
+    //   sourceAspect < wrapperAspect → cover scales by width
+    //   scaleRatio = wrapperAspect/sourceAspect = 2.667
+    //   cropFraction = (2.667-1)/(2*2.667) = 0.3125
+    // A 0.20 T/B depth ratio with 0.3125 cropped per side → 0 effective.
+    const scale = computeAdaptiveCropScale({
+      depthRatios: { top: 0.20, bottom: 0.20, left: 0.05, right: 0.05 },
+      sourceWidth: 1080, sourceHeight: 1920,
+      wrapperWidth: WRAPPER_W, wrapperHeight: WRAPPER_H,
+    });
+    // T/B fully absorbed by cover. L/R drives: 0.05 of source maps 1:1
+    // to wrapper-fraction, so worst = 0.05 → required = 1 + 0.1 = 1.10.
+    expect(scale).toBeGreaterThan(1);
+    expect(scale).toBeCloseTo(1.1, 1);
   });
 });
 
@@ -219,9 +392,20 @@ describe('autoCropWhiteBorder wiring (source-level pins)', () => {
     expect(idxImageSrc).toMatch(/autoCropWhiteBorder\s*=\s*false/);
   });
 
-  it('IDXImage uses the WHITE_BORDER_CROP_SCALE constant (not a magic number) for the scale value', () => {
-    expect(idxImageSrc).toMatch(/export\s+const\s+WHITE_BORDER_CROP_SCALE\s*=\s*1\.1\b/);
-    expect(idxImageSrc).toMatch(/scale\(\$\{WHITE_BORDER_CROP_SCALE\}\)/);
+  it('IDXImage applies the ADAPTIVE per-image scale (not a hardcoded constant) in the render path', () => {
+    // PR #149+: the scale is computed per-image by
+    // computeAdaptiveCropScale and stored in IDXImage state as
+    // `borderedState.scale`. The render path must template it as
+    // `scale(${cropScale})` — NOT a hardcoded `scale(1.10)` magic
+    // number or the old `WHITE_BORDER_CROP_SCALE` constant.
+    expect(idxImageSrc).toMatch(/transform:\s*hasWhiteBorder\s*\?\s*`scale\(\$\{cropScale\}\)`/);
+    // The old constant must be gone — its presence would mean a partial
+    // revert dropped the adaptive math.
+    expect(idxImageSrc).not.toMatch(/\bWHITE_BORDER_CROP_SCALE\b/);
+    // The min-floor constant must be exported and used.
+    expect(idxImageSrc).toMatch(/export\s+const\s+WHITE_BORDER_MIN_CROP_SCALE\s*=/);
+    // The adaptive computer must be imported.
+    expect(idxImageSrc).toMatch(/computeAdaptiveCropScale/);
   });
 
   it('IDXImage imports the detector from the canonical module', () => {
@@ -236,15 +420,19 @@ describe('autoCropWhiteBorder wiring (source-level pins)', () => {
   });
 
   it('IDXImage derives hasWhiteBorder per-src so a carousel advance auto-invalidates the old verdict', () => {
-    // Pattern: borderedSrc holds the src the detector confirmed, and
-    // hasWhiteBorder is `borderedSrc === src`. When src changes,
-    // borderedSrc still points at the OLD src, so the derived flag
-    // flips to false — no useEffect reset needed and no
-    // `react-hooks/set-state-in-effect` lint warning.
-    expect(idxImageSrc).toMatch(/borderedSrc\s*,?\s*setBorderedSrc/);
-    expect(idxImageSrc).toMatch(/const\s+hasWhiteBorder\s*=\s*borderedSrc\s*===\s*src/);
-    // The detector calls setBorderedSrc(src) — NOT a bare boolean.
-    expect(idxImageSrc).toMatch(/setBorderedSrc\(src\)/);
+    // PR #149+: state shape is `borderedState: { src, scale } | null`,
+    // and `hasWhiteBorder` is `borderedState?.src === src`. When src
+    // changes, borderedState.src still points at the OLD src so the
+    // derived flag flips to false — no useEffect reset, no
+    // `react-hooks/set-state-in-effect` lint warning. The companion
+    // `cropScale` (the per-image adaptive scale) lives alongside src
+    // in the same state object so they invalidate atomically.
+    expect(idxImageSrc).toMatch(/borderedState\s*,?\s*setBorderedState/);
+    expect(idxImageSrc).toMatch(/const\s+hasWhiteBorder\s*=\s*borderedState\?\.\s*src\s*===\s*src/);
+    // The detector calls setBorderedState({ src, scale }) — NOT a bare boolean.
+    expect(idxImageSrc).toMatch(/setBorderedState\s*\(\s*\{\s*src\s*,\s*scale\s*\}\s*\)/);
+    // cropScale is derived from borderedState.scale, falls back to 1 when not bordered
+    expect(idxImageSrc).toMatch(/const\s+cropScale\s*=\s*hasWhiteBorder\s*\?\s*borderedState\.scale\s*:\s*1/);
   });
 
   it('SearchListingCard GridCard passes autoCropWhiteBorder on the hero IDXImage', () => {
