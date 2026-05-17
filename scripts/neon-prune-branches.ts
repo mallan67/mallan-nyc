@@ -3,13 +3,18 @@
  * neon-prune-branches — Delete idle Neon branches that have been
  * accumulating from preview deploys.
  *
- * Why this exists: Neon's free-tier project caps at 10 branches.
+ * Why this exists: branch hygiene + cost-control on the Launch plan.
  * The Neon-Vercel marketplace integration creates a fresh branch on
- * every preview deploy, so a fast-pushing day fills the quota and
- * every subsequent preview shows "Neon branching: Branch limit
- * exceeded" in Vercel's deployment Checks panel. Daily runs of this
- * script (via the cron at app/api/cron/neon-branch-prune) keep the
- * count well under the cap so the failure mode never recurs.
+ * every preview deploy. The Launch plan's 5000-branch cap is far above
+ * any realistic accumulation rate, but stale branches still represent
+ * operational debt + cost. Daily runs of this script (via the cron at
+ * app/api/cron/neon-branch-prune) keep the count near its steady-state
+ * baseline (~8 at time of writing).
+ *
+ * Historical context: originally built 2026-04-28 to keep mallan-nyc
+ * under the Neon free-tier 10-branch cap. After the plan was upgraded
+ * to Launch, the cap dimension disappeared but the hygiene motivation
+ * remained. See docs/neon-launch-branch-policy-audit-2026-05-17.md.
  *
  * SAFETY:
  *   - Default mode is dry-run: prints what WOULD be deleted, no API

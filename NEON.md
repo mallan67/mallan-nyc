@@ -2,7 +2,9 @@
 
 > **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json` — stop and read this file first. Then read `docs/DEPLOYMENT.md` which is the authoritative architecture doc.**
 
-**Last updated:** 2026-04-28 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
+**Last updated:** 2026-05-17 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
+
+**Plan:** **Launch** (since 2026-05-17, confirmed via Maya's Vercel UI inspection). Storage cap 10 GB, compute baseline 300 CU-hr/mo, branch cap 5000 per project. See §2 for full table, §10 change log for tier-history.
 
 ---
 
@@ -30,28 +32,32 @@ The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `pr
 
 ## 2. Current tier + caps
 
-| Dimension | Free tier cap | Current usage | Source |
+| Dimension | Launch plan baseline | Current usage | Source |
 |---|---|---|---|
-| Storage | **500 MB** | ~215–220 MB after Phase 1 cleanup | `scripts/ops-health.js:25`, `scripts/phase1-ROLLBACK.md` |
-| Compute time | **191.9 hours / month** on primary branch | Recently hit quota on 2026-04-19 (build-time migrations + mass redeploys) | `scripts/neon-full-audit.js:336`, `scripts/ops-health.js:28` |
-| PITR retention | 7 days | — | `scripts/phase1-cleanup.sql:37` |
-| Compute auto-suspend | 5 min idle | `db-keepalive` cron at `*/15` **mitigates, does not prevent** — see §3 Trap #3. The 15-min interval lets routine 5-min suspends happen between pings; the cron's job is preventing multi-hour idles, not 5-min suspends. | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
+| Storage | **10 GB** (10,240 MB) — usage-billed past baseline | ~215–220 MB (~2% of cap) | `scripts/ops-health.js` THRESHOLDS |
+| Compute time | **300 CU-hours / month** baseline, overage at ~$0.16/CU-hr | well under baseline at current traffic | `scripts/ops-health.js` THRESHOLDS |
+| Branches per project | **5000** (vs. 10 on Free) | 8 on `neon-green-school` per 2026-05-17 Console read | Vercel Configure panel + Neon Console |
+| PITR retention | 7 days (Launch baseline; 14 days at Scale) | — | Neon Launch docs |
+| Compute auto-suspend | 5 min idle (configurable; default unchanged from Free) | `db-keepalive` cron at `*/15` **mitigates, does not prevent** — see §3 Trap #3. The 15-min interval lets routine 5-min suspends happen between pings; the cron's job is preventing multi-hour idles, not 5-min suspends. | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
 
-### The compute budget is the tight one, not storage
+### Plan-pressure ordering, not a hard ceiling
 
-- Neon free tier: 191.9 compute-hours/month ≈ 25% of a calendar month (720h)
-- The architecture is designed assuming the DB spends 75% of its time **idle/suspended**
-- The `db-keepalive` cron trades a bit of compute for reliability — it prevents the 24h+ cold-start outages that happened before (commit `93fb0cd9`) — but it does **not** hold compute always-on; it's a lightweight periodic ping
-- Every additional query path (especially synthetic ones like health probes or repeated migrations) cuts into the 191.9h budget
+Unlike the Free tier (where 500 MB / 191.9 CU-hr were *hard* caps), Launch baselines are *soft* — overage is billed, not blocked. The thresholds in `scripts/ops-health.js` are configured to surface plan pressure long before overage billing becomes material.
 
 ### Upgrade triggers (from `scripts/ops-health.js`)
 
-- Storage ≥ 80% → warning
-- Storage ≥ 85% sustained → **consider upgrade**
-- Compute ≥ 160 hrs/month → warning (at 83% of cap)
+- Storage ≥ 70% of Launch cap (7 GB) → warning
+- Storage ≥ 85% sustained → **discuss Scale-plan upgrade**
+- Compute ≥ 240 hrs/month → warning (at 80% of 300)
+- Branch count ≥ 25 → warning (anomalous-growth signal; baseline ~8)
+- Branch count ≥ 4000 → critical (approaching 5000 plan cap)
 - Sync watermark > 2 hrs stale → warning
 
-**An upgrade is not the first resort. Reduce compute-burn first.** Every DB query path added or removed matters.
+**An upgrade is not the first resort. Reduce compute-burn / branch-count first.** Every DB query path added or removed matters; every preview-branch creation rate change matters.
+
+### History — Free → Launch transition
+
+Until 2026-05-17, mallan-nyc was on Neon's Free plan (500 MB storage / 191.9 CU-hr compute / 10 branches). Operational discipline + the `neon-branch-prune` cron (PR #80) kept the project within those caps. On 2026-05-17 the plan was upgraded to Launch after the Vercel-Neon integration began reporting stale "Branch limit exceeded" on every preview deploy. The cron + retention window remain enabled as hygiene + cost-control discipline. See `docs/neon-launch-branch-policy-audit-2026-05-17.md` for the threshold-update audit and `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8 for the stale-state investigation.
 
 ---
 
@@ -75,11 +81,13 @@ Commit `12261631 fix(prisma): baseline reconciliation + db push guard` documents
 
 Before writing a new migration, run `npx prisma migrate diff` to see if the schema is drifted. If yes, baseline first.
 
-### Trap #3 — Neon free tier auto-suspends after 5 min idle
+### Trap #3 — Neon auto-suspends after 5 min idle (Launch plan inherits this default)
 
 Before `93fb0cd9` (2026-03-26): a 24-hour outage was caused by Neon suspending overnight, then morning requests timing out on the cold start. The `db-keepalive` cron was added to prevent this.
 
-**Trade-off explicitly accepted:** we burn a small continuous amount of compute to avoid large intermittent outages. This is part of why the compute budget is tight — it's not "free"; it's "paying for uptime in compute hours."
+This auto-suspend behavior is **not specific to the Free tier**. The Launch plan inherits the same 5-min idle suspend default; it is a per-compute-endpoint setting that can be raised via Neon Console but defaults to 5 min for cost reasons.
+
+**Trade-off explicitly accepted:** we burn a small continuous amount of compute to avoid large intermittent outages. On the Launch plan this costs marginal pennies/month rather than threatening a hard quota, but the discipline remains.
 
 ### Trap #4 — Deploying schema-change PRs without running the migration first
 
@@ -216,15 +224,17 @@ The HTTP-driver experiment (`lib/prisma-http.ts`, "Phase 5") was prototyped 2026
 
 ## 7. Recovery playbooks
 
-### A — "Neon compute quota exceeded"
+### A — "Neon compute baseline exceeded (Launch plan)"
 
-1. `npm run ops:health` — confirm compute hours are near/over cap
-2. Neon console → Project → Usage — check the reset date
+Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook below addresses both "approaching the baseline" (cost-discipline) and "way over baseline" (suggests a runaway query path that should be fixed regardless of plan).
+
+1. `npm run ops:health` — confirm compute hours are near/over the Launch baseline (300 CU-hr/mo)
+2. Neon console → Project → Usage — check current usage + reset date
 3. **Options (in order of preference):**
    - Reduce compute-burn: audit recent changes for new DB query paths, check uptime-monitor frequency, consider slowing down `db-keepalive` or non-critical crons temporarily
-   - Wait for monthly reset — acceptable if within 24–48 hrs
-   - **Last resort:** upgrade to Launch ($19/mo, 300 compute hrs, 10 GB). Do this only if reducing burn is genuinely not possible
-4. Once unblocked, apply any deferred migration manually: `DATABASE_URL=prod npx prisma migrate deploy`
+   - Accept overage for the current month if a one-off (rare event, batch backfill, etc.) — Launch overage is metered, not catastrophic
+   - **If sustained:** evaluate Scale plan upgrade (more baseline + lower per-CU-hr overage rate). Charter conversation required.
+4. Once stable, apply any deferred migration manually: `DATABASE_URL=prod npx prisma migrate deploy`
 
 ### B — "Schema drift: prod has columns that don't match `prisma/schema.prisma`"
 
@@ -306,6 +316,7 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 | 2026-04-28 | Post-PR-#80 Codex review hardening — `scripts/neon-prune-branches.ts` now validates `--hours` is a positive finite number before passing to `pruneBranches` (prevents `Number("24h") === NaN` from making every branch look prunable on `--execute`); `app/api/cron/neon-branch-prune/route.ts` now returns HTTP 500 when `pruneBranches` reports per-branch DELETE failures, so Vercel Cron flags the run as failed instead of letting stale branches accumulate silently. Plus `memory/SESSION-2026-04-28-allnighter.md` captures the full operational sequence + numbers for future-session reference. | `dc79b5be` (#81) |
 | 2026-04-28 | Doc-drift cleanup pass — corrected stale `*/3` `db-keepalive` references to `*/15`, removed three references to deleted `lib/prisma-http.ts`, replaced §8 deferred-workstreams content with current status (A superseded, B dropped, JSON-drop work moved to a dedicated plan), refreshed last-updated header. New planning doc `memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md` captures the remaining JSON-column drops on `Listing` (the largest unrealized storage lever, ~115 MB recoverable). | `86b2deb4` (#84) |
 | 2026-04-28 | Codex-review accuracy fix on PR #84 — original wording claimed `*/15` keepalive "beats the 5-min idle suspend window comfortably," which is factually wrong (Neon suspends after 5 min idle, so a 15-min cron lets the DB suspend between pings). §2 and §10 reworded to make the trade-off explicit: `*/15` mitigates multi-hour idles, not 5-min suspends. | (current) |
+| 2026-05-17 | **Plan upgrade Free → Launch.** Storage cap 500 MB → 10 GB. Compute baseline 191.9 → 300 CU-hr/mo. Branch cap 10 → 5000. The upgrade was confirmed via Vercel UI inspection (`neon-green-school` connected to `mallan-nyc`, Neon Console shows 8 / 5000 branches on `hidden-mountain-87248164`). The Vercel-Neon integration check "Branch limit exceeded" turned out to be stale Vercel-side state rather than real exhaustion — see `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8 for the support-packet investigation. §2 and §11 of this file rewritten to Launch framing; §3 Trap #3 reframed since 5-min idle auto-suspend is plan-agnostic. The `neon-branch-prune` cron + 24h retention window remain enabled, reframed from cap-avoidance to hygiene + cost-control. Threshold update to `scripts/ops-health.js`: `>=8` → `branch_count_warning=25`, new `branch_count_critical=4000`, storage cap 500 MB → 10240 MB, compute baseline 191.9 → 300. See `docs/neon-launch-branch-policy-audit-2026-05-17.md` for the audit + threshold derivations. | (current) |
 
 ---
 
@@ -313,15 +324,21 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 
 ### What's installed
 
-The Neon-Vercel marketplace integration is installed on this project (`store_K9l79ICRUTMsiRh2`, scope `mallan-nyc`). By default it creates a **fresh Neon branch on every preview deploy** so PR previews can write to a throwaway DB without touching production data.
+The Neon-Vercel marketplace integration is installed on this project (Vercel-managed flavor, resource id `store_K9l79ICRUTMsiRh2`, scope `mallan-nyc`). The Vercel UI surface lists two Neon products:
+- **`neon-green-school`** — Active, connected to `mallan-nyc`, All Environments. Underlying Neon project id `hidden-mountain-87248164`. This is where preview branches accumulate.
+- **`neon-green-door`** — Visible but NOT connected to `mallan-nyc`. Leave alone.
 
-### The free-tier collision
+By default the integration creates a **fresh Neon branch on every preview deploy** so PR previews can write to a throwaway DB without touching production data.
 
-Neon's free tier caps at **10 branches per project**. A fast-pushing day (force-pushes, multiple PRs in flight) burns through the cap in hours. Once over, every subsequent preview deploy posts a `Neon branching: Branch limit exceeded` check to Vercel — visible in the deployment row's Checks panel as a red "Checks Failed" badge, even though the build itself succeeded and the deploy is `Ready`. The badge is cosmetic but the underlying cap is real: the 11th preview deploy of the day genuinely cannot get a fresh branch.
+### Why hygiene still matters on the Launch plan
 
-### Resolution — automated cleanup, not architectural removal
+The Launch plan caps at **5000 branches per Neon project** — comfortable headroom against any realistic accumulation rate (steady-state baseline at time of writing is ~8). The 11th-preview-of-the-day collision that existed under Free tier no longer applies.
 
-We keep the integration (preview isolation is genuinely useful) and add a daily prune that deletes preview branches idle for more than the retention window. With a 24-hour retention and roughly 1–3 deploys per active PR per day, the steady-state branch count stays well under the cap.
+However, idle preview branches still represent operational debt + cost on the Launch plan: each unused branch consumes a small amount of storage + occasional metadata churn. Letting them accumulate indefinitely is sloppy. So the cleanup discipline established under Free remains active under Launch, with a re-framed motivation: **hygiene + cost-control**, not cap-avoidance.
+
+### Resolution — automated cleanup, retained as hygiene
+
+We keep the integration (preview isolation is genuinely useful) and run a daily prune that deletes preview branches idle for more than the retention window. With a 24-hour retention and roughly 1–3 deploys per active PR per day, the steady-state branch count stays near the ~8 baseline.
 
 | Layer | What it does |
 |---|---|
@@ -340,8 +357,14 @@ Set both via `vercel env add NEON_API_KEY production` and `vercel env add NEON_P
 
 ### Re-enabling considerations
 
-Do not remove this cron without first either:
-- Disabling the Neon-Vercel preview-branching toggle (Vercel → Project → Integrations → Neon → Configure), OR
-- Upgrading Neon to a paid tier that lifts the 10-branch cap.
+Do not remove this cron without first considering:
+- Disabling the Neon-Vercel preview-branching toggle (Vercel → Project → Integrations → Neon → Configure) — note: doing so routes preview deploys at the production DB, which is **unsafe** without a thorough audit of every preview-callable write path. See `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.6 / E.6.
+- Relying solely on Vercel's own auto-cleanup (180-day deployment retention default) — note: opaque, vendor-dependent, no operational visibility on our side.
 
-Otherwise the failure mode resurfaces on the next fast-pushing day.
+The Launch plan removed the hard 10-branch-cap failure mode that existed under Free, but the cron remains useful for hygiene + cost-control. Removal should be a deliberate trade-off, not a default.
+
+### Known mismatch (separate fix lane, 2026-05-17)
+
+The `NEON_PROJECT_ID` env var on Vercel Production currently points at `morning-bread-68708332` (the production DB project), NOT at `hidden-mountain-87248164` (the integration's preview-branching project). The cron has therefore been running daily against a project that has no accumulating preview branches — operationally a no-op. Vercel's own auto-cleanup has been doing the work all along.
+
+This is acknowledged but NOT fixed in this commit. Tracked separately. See `docs/neon-launch-branch-policy-audit-2026-05-17.md` §C.4.

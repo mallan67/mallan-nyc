@@ -30,17 +30,30 @@ const prisma = new PrismaClient();
 
 const JSON_OUT = process.argv.includes('--json');
 
-// Phase-6 upgrade trigger thresholds (from architecture doc §6)
+// Launch-plan thresholds (2026-05-17 — migrated from Free).
+// Storage cap is 10 GB; compute is 300 CU-hours/mo baseline + overage billing.
+// Branch cap is 5000 per project. See
+// docs/neon-launch-branch-policy-audit-2026-05-17.md §D.4 for derivations.
+//
+// Field name notes (backwards compat):
+//   - `storage_free_cap_mb` retained as the field name so the JSON output
+//     shape stays stable for any downstream parser. Value is now the Launch
+//     plan cap (10240 MB / 10 GB), not the Free plan cap (500 MB).
+//   - `compute_free_cap_hours` likewise — value bumped from 191.9 to 300.
+//   - A future PR may rename these fields to `storage_plan_cap_mb` /
+//     `compute_plan_cap_hours` if a JSON-shape break is acceptable.
 const THRESHOLDS = {
-  storage_free_cap_mb: 500,
-  storage_warning_pct: 0.80,    // warn at 80% of free cap
-  storage_upgrade_pct: 0.85,    // trigger Launch upgrade at 85% sustained
-  compute_free_cap_hours: 191.9,
-  compute_warning_hours: 160,
+  storage_free_cap_mb: 10_240,        // Launch: 10 GB (was Free: 500 MB)
+  storage_warning_pct: 0.70,          // warn at 70% of plan cap → 7 GB
+  storage_upgrade_pct: 0.85,          // discuss Scale plan upgrade at 85% → 8.7 GB
+  compute_free_cap_hours: 300,        // Launch: 300 CU-hr/mo (was Free: 191.9)
+  compute_warning_hours: 240,         // 80% of 300
+  branch_count_warning: 25,           // anomalous-growth signal (baseline ~8)
+  branch_count_critical: 4000,        // 80% of 5000 plan cap → emergency
   sync_error_warn_24h: 20,
   sync_error_critical_24h: 100,
-  sync_watermark_stale_hours: 2, // no sync in 2h = stale
-  archive_backlog_warn: 1000,    // over 1K eligible = cron caps need increase
+  sync_watermark_stale_hours: 2,      // no sync in 2h = stale
+  archive_backlog_warn: 1000,         // over 1K eligible = cron caps need increase
 };
 
 function mb(bytes) { return Number(bytes) / 1024 / 1024; }
@@ -211,10 +224,19 @@ async function run() {
   //   - critical if last status is `skipped` (env-var misconfig)
   //   - warning  if last successful run >25h ago (cron stopped firing)
   //   - warning  if last run had errors_count > 0 (some deletes failed)
-  //   - warning  if examined branch count >= 8 (within 2 of free-tier 10 cap)
+  //   - warning  if examined branch count >= branch_count_warning (25):
+  //     anomalous-growth signal — preview-branch creation has accelerated
+  //     above the steady-state baseline of ~8, even though the Launch
+  //     plan cap of 5000 is nowhere near hit
+  //   - critical if examined branch count >= branch_count_critical (4000):
+  //     approaching the Launch plan cap of 5000 — operator must act
+  //
   // The prior silent-skip behavior (return 200 + no audit event) was
   // invisible to every observation surface; this section closes that
   // gap so a future env-var misconfiguration cannot persist for 2+ weeks.
+  // The branch-count thresholds were updated 2026-05-17 from the
+  // free-tier `>=8` (within-2-of-10-cap) framing to the Launch-plan
+  // hygiene framing — see docs/neon-launch-branch-policy-audit-2026-05-17.md.
   try {
     const lastPrune = await prisma.auditEvent.findFirst({
       where: { action: 'neon_branch_prune_cron' },
@@ -283,12 +305,21 @@ async function run() {
           msg: `neon-branch-prune last run had ${lastPrune.changes.errors_count ?? '?'} per-branch delete failures`,
         });
       }
-      if (typeof lastPrune.changes?.examined === 'number' && lastPrune.changes.examined >= 8) {
-        report.issues.push({
-          level: 'warning',
-          category: 'neon-prune',
-          msg: `${lastPrune.changes.examined} Neon branches examined — within 2 of free-tier 10-branch cap`,
-        });
+      if (typeof lastPrune.changes?.examined === 'number') {
+        const branches = lastPrune.changes.examined;
+        if (branches >= THRESHOLDS.branch_count_critical) {
+          report.issues.push({
+            level: 'critical',
+            category: 'neon-prune',
+            msg: `${branches} Neon branches examined — approaching Launch plan cap of 5000 (>= ${THRESHOLDS.branch_count_critical}). Operator must investigate preview-branch creation rate or aggressively prune.`,
+          });
+        } else if (branches >= THRESHOLDS.branch_count_warning) {
+          report.issues.push({
+            level: 'warning',
+            category: 'neon-prune',
+            msg: `${branches} Neon branches examined — exceeds Launch-plan hygiene threshold of ${THRESHOLDS.branch_count_warning} (baseline ~8). Preview-branch creation has accelerated; cap of 5000 is not yet at risk.`,
+          });
+        }
       }
     }
   } catch (e) {
@@ -314,7 +345,7 @@ async function run() {
     report.issues.push({
       level: report.triggers.storage_upgrade_needed ? 'critical' : 'warning',
       category: 'capacity',
-      msg: `Storage at ${report.storage.pct_of_free}% of free cap — review upgrade triggers in architecture doc §6`,
+      msg: `Storage at ${report.storage.pct_of_free}% of Launch plan cap — review Scale-plan upgrade triggers in architecture doc §6`,
     });
   }
 
@@ -350,7 +381,7 @@ function renderHuman(r) {
   console.log(`\n${emoji} ${v.toUpperCase()}  —  ${r.generated_at}\n`);
 
   console.log('── STORAGE ───────────────────────────────────────');
-  console.log(`  DB size: ${r.storage.db_size_mb} MB (${r.storage.pct_of_free}% of ${r.storage.free_cap_mb} MB free cap)`);
+  console.log(`  DB size: ${r.storage.db_size_mb} MB (${r.storage.pct_of_free}% of ${r.storage.free_cap_mb} MB Launch plan cap)`);
   console.log('  Top 5 tables:');
   r.storage.top_5_tables.forEach((t) => console.log(`    ${t.table.padEnd(30)} ${t.size_mb} MB`));
 
@@ -401,7 +432,7 @@ function renderHuman(r) {
   console.log(`  Total listings: ${r.triggers.total_listings} (PostGIS trigger at 50,000)`);
   console.log(`  Total audit events: ${r.triggers.total_audit_events} (partition trigger at 10,000,000)`);
   console.log(`  Storage warning: ${r.triggers.storage_warning ? 'YES' : 'no'}`);
-  console.log(`  Upgrade to Launch needed: ${r.triggers.storage_upgrade_needed ? 'YES — 85%+ sustained' : 'no'}`);
+  console.log(`  Upgrade to Scale plan needed: ${r.triggers.storage_upgrade_needed ? 'YES — 85%+ of Launch cap sustained' : 'no'}`);
 
   if (r.issues.length) {
     console.log('\n── ISSUES ────────────────────────────────────────');

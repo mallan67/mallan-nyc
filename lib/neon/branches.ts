@@ -3,12 +3,23 @@
  *
  * Why this exists: the Neon-Vercel marketplace integration creates a
  * fresh DB branch on every preview deploy so PR previews can write
- * without polluting production. Convenient — but Neon's free tier caps
- * at 10 branches per project, and a fast-pushing day burns through that
- * quickly. Once the cap is hit, every subsequent preview deploy posts a
- * "Neon branching: Branch limit exceeded" check to Vercel and the
- * deployment row shows "Checks Failed" even though the build itself
- * succeeded. The only way to recover is to delete old branches.
+ * without polluting production. Convenient — but those preview branches
+ * accumulate operational debt + cost when left unpruned, even though
+ * the Launch plan's 5000-branch cap is far above any realistic
+ * accumulation rate.
+ *
+ * This module is the hygiene + cost-control discipline: it deletes
+ * preview branches idle past a 24-hour retention window, keeping the
+ * branch count near its steady-state baseline (~8 at time of writing).
+ * It is also a defense-in-depth complement to Vercel's own auto-cleanup
+ * (which runs on Vercel deployment retention — 180 days by default —
+ * and is too slow for our day-to-day hygiene).
+ *
+ * Historical context (2026-04-28 → 2026-05-17): this module was
+ * originally built to keep mallan-nyc under the Neon free-tier 10-branch
+ * cap. After the plan was upgraded to Launch, the cap dimension
+ * disappeared, but the hygiene + cost-control motivation remained.
+ * See docs/neon-launch-branch-policy-audit-2026-05-17.md.
  *
  * This module provides the shared pruning logic used by:
  *   - scripts/neon-prune-branches.ts (one-shot CLI; dry-run by default)
