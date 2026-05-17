@@ -97,7 +97,14 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
   return (
     <Link
       href={listingHref(listing)}
-      className={`glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group ${
+      // `block` is load-bearing — without it the <a> renders inline and
+      // grows to the photo's max-content (1920 px Trestle source), which
+      // pushes the card past the mobile viewport (583 px at 390 px wide).
+      // The all-listings grid that backs the mobile /search view (page.tsx
+      // line 1153, `grid md:grid-cols-2 gap-6` → 1-col on mobile) only
+      // constrains a block-level child to the track width. See
+      // docs/mobile-search-card-overflow-audit-2026-05-17.md §E (F1).
+      className={`block glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group ${
         isHighlighted ? 'ring-2 ring-brand-gold shadow-lg' : ''
       }`}
       onMouseEnter={() => onHover?.(listing.id)}

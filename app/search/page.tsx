@@ -1150,7 +1150,18 @@ function SearchClient() {
         {/* ── ALL LISTINGS VIEW ── */}
         {!loading && !error && sortedListings.length > 0 && viewMode === 'all-listings' && (
           <div ref={listingsRef} className="h-full overflow-y-auto p-4">
-            <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6">
+            {/* 2026-05-17 — `grid-cols-1` (NEW) is load-bearing on mobile.
+                Without an explicit mobile column template, CSS Grid defaults
+                to a single auto-sized column that grows to max-content. The
+                inside-card photo has 1920 px intrinsic width, so the auto
+                column expands to ~583 px on a 390 px viewport and pushes
+                cards outside the visible viewport (DOM-confirmed via
+                Playwright diag 2026-05-17). Adding `grid-cols-1` pins the
+                track to `minmax(0, 1fr)` = 358 px at 390 px and the cards
+                fit. Mirrors the fix PR #142 applied to the split-view grid
+                at line 1113. The `md:grid-cols-2` breakpoint is unchanged —
+                tablet+ keeps the 2-col layout. */}
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
               {sortedListings.map((listing) => (
                 <div key={listing.id} ref={(el) => { if (el) cardRefs.current.set(listing.id, el); }}>
                   <GridCard listing={listing} isRental={isRental} isHighlighted={highlightedId === listing.id} onHover={setHighlightedId} />
