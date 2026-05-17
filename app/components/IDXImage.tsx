@@ -49,9 +49,22 @@ const ASPECT_CLASSES = {
  * Hard ceiling lives in `WHITE_BORDER_THRESHOLDS.adaptiveScaleClampMax`
  * (currently 1.5) and is enforced inside `computeAdaptiveCropScale`.
  *
+ * 2026-05-17 — raised 1.05 → 1.20 after the live e2e on PR #149's
+ * preview proved the adaptive math under-reports L/R-only letterbox
+ * borders (401 WEST PH stayed at 26 px white because cover absorbs
+ * ~7.8 % of source width before the math sees the rest, and the
+ * downsampled-canvas depth walk further under-measures the
+ * anti-aliased border edge). The detector's hasBorder verdict is
+ * the trusted gate; the floor guarantees that "hasBorder=true"
+ * always produces a visible improvement instead of bottoming out
+ * at 1.022 → 1.05. Heavy 4-sided borders compute above 1.20 anyway
+ * (401 WEST #6 = 1.26) so the math still differentiates between
+ * thicknesses above the floor. The 1.5 ceiling protects against
+ * runaway over-crop on any hypothetical false positive.
+ *
  * Exported so tests can pin the floor + a future audit can find it.
  */
-export const WHITE_BORDER_MIN_CROP_SCALE = 1.05;
+export const WHITE_BORDER_MIN_CROP_SCALE = 1.20;
 
 interface IDXImageProps {
   src: string;
