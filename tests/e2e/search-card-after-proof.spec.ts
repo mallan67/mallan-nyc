@@ -305,8 +305,16 @@ test.describe('After-proof @ Vercel preview (PR #145)', () => {
     }
 
     async function visibleWhiteBandDepths(addrPattern: RegExp): Promise<EdgeWalk | null> {
-      return page.evaluate((pattern) => {
-        const re = new RegExp(pattern);
+      // Codex review (PR #149): pass BOTH source and flags so the
+      // reconstructed RegExp preserves /i, /m, etc. Earlier
+      // `new RegExp(pattern.source)` silently dropped the case-
+      // insensitive flag, making /401 WEST Street.*PH/i fall back to
+      // case-sensitive matching inside page.evaluate — which still
+      // happened to find the cards because production rendered the
+      // addresses in matching case, but the test was effectively
+      // unguarded against any rendering change.
+      return page.evaluate(({ source, flags }) => {
+        const re = new RegExp(source, flags);
         const cards = Array.from(document.querySelectorAll('.glass-card')) as HTMLElement[];
         const cardIdx = cards.findIndex((c) => re.test(c.textContent ?? ''));
         if (cardIdx < 0) return null;
@@ -358,7 +366,7 @@ test.describe('After-proof @ Vercel preview (PR #145)', () => {
         for (let x = 0; x < W; x++) { if (!colMostlyWhite(x)) { left = x; break; } if (x === W - 1) left = W; }
         for (let x = W - 1; x >= 0; x--) { if (!colMostlyWhite(x)) { right = W - 1 - x; break; } if (x === 0) right = W; }
         return { top, bottom, left, right };
-      }, addrPattern.source);
+      }, { source: addrPattern.source, flags: addrPattern.flags });
     }
 
     const card6 = await visibleWhiteBandDepths(/401 WEST Street.*\b6\b/i);
