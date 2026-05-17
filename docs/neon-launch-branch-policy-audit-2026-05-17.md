@@ -170,9 +170,9 @@ Multiple references to "free-tier 10-branch cap" — accurate at the time, archi
 
 | ID | Project affected |
 |---|---|
-| **A.1, A.2, A.3, A.4** | The Neon project named by `NEON_PROJECT_ID` env var on Production. Per the rotate-db-keys workflow runtime env, this is `morning-bread-68708332` (the production DB project). The ops:health script reads `DATABASE_URL` (also pointed at `morning-bread-68708332`'s `cold-waterfall` endpoint), so the storage/compute thresholds apply to the production DB. |
-| **A.5** (NEON.md) | Mixed. The branch-cap claims (§11) apply to whichever project the Vercel integration is on — which is `neon-green-school` / `hidden-mountain-87248164`, NOT `morning-bread-68708332`. The storage/compute claims (§2) apply to the production DB on `morning-bread-68708332`. **The NEON.md page conflates the two projects throughout.** |
-| **A.6, A.7, A.8** (branch-prune code + comments) | The code targets whatever project `NEON_PROJECT_ID` env var names. **Per the runtime env that's `morning-bread-68708332`** (production), NOT `neon-green-school` (where the preview branches actually live). The comments describe behavior against the integration's project, but the code is pointing somewhere else. |
+| **A.1, A.2, A.3, A.4** (ops:health thresholds) | Storage + compute thresholds: the production DB project — known to be `morning-bread-68708332` because the ops:health script connects via `DATABASE_URL`, and `DATABASE_URL` is known to point at `ep-cold-waterfall-adno3ao2-pooler.c-2.us-east-1.aws.neon.tech` (a compute endpoint on `morning-bread-68708332`, per `memory/BACKEND-AUDIT-2026-04-29.md:891` + `docs/listing-search-projection-drift-report-2026-05-16.md:5`). The branch-count thresholds (A.2's `branch_count_warning` / `branch_count_critical`) read from whichever project the Vercel-runtime `NEON_PROJECT_ID` env var names. Per the post-PR-#150 ops:health smoke (cron `examined=17, pruned=10`) the runtime value is most likely `hidden-mountain-87248164` (`neon-green-school`) — see §C.4 for the read-only confirmation pending. |
+| **A.5** (NEON.md) | Mixed. The branch-cap claims (§11) describe the project the Vercel integration is bound to — `neon-green-school` / `hidden-mountain-87248164`. The storage/compute claims (§2) describe the production DB project — `morning-bread-68708332`. NEON.md describes these as a single project's architecture; clarifying the two-project split (preview branching project vs production DB project) is a documentation improvement, not a contradiction with the audit — pending the §C.4 read-only proofs. |
+| **A.6, A.7, A.8** (branch-prune code + comments) | The code targets whichever project the Vercel-runtime `NEON_PROJECT_ID` env var names. Original §C.4 of this audit asserted the value was `morning-bread-68708332` and the cron was therefore a no-op against the integration's project. The post-PR-#150 ops:health smoke (`examined=17, pruned=10, errors=0`) contradicts that assertion — see §C.4 reclassification. The most likely current state is that the Vercel-runtime value is already `hidden-mountain-87248164` (the integration's project), in which case the existing comments + code are correctly targeted. No behavior change is recommended without the read-only confirmation steps in §C.4. |
 | **A.9** | The future `mallan-public-records` project (not provisioned). Independent. |
 | **A.10, A.11** | Both projects discussed; both docs need a "superseded" banner. |
 
@@ -298,7 +298,7 @@ const THRESHOLDS = {
 
 **Recommendation: keep the cron. Reframe the surrounding doc/comment language from "cap-avoidance" to "hygiene + cost-awareness."**
 
-The §C.4 finding (cron is pointed at the wrong project) means the cron is functionally a no-op against the right workload anyway — but that's a separate fix lane. Fix the threshold framing here; fix the project targeting separately.
+§C.4 (project-targeting hypothesis) has been reclassified to NEEDS RE-EVALUATION post-PR-#150 — the cron's audit-event record (`examined=17, pruned=10, errors=0`) is consistent with the cron correctly targeting the integration's preview-branching project. No project-targeting change is recommended here; the threshold + framing changes in this section stand on their own.
 
 ---
 
@@ -415,4 +415,4 @@ The original "Compounding risk: the §C.4 finding" subsection was written under 
 
 ---
 
-**End of audit. Awaiting approval to patch the items in §H. The §C.4 finding (cron pointed at wrong Neon project) is recommended for a separate follow-up PR.**
+**End of audit. Awaiting approval to patch the items in §H. §C.4 has been reclassified to NEEDS RE-EVALUATION post-PR-#150 — the read-only confirmation steps in §C.4 are the next move there, and no behavior change is recommended without those proofs.**
