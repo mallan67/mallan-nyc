@@ -12,7 +12,7 @@
 1. **Code-level runtime behavior is affected in exactly one place:** `scripts/ops-health.js` emits a `warning` every time the Neon branch count is ≥ 8 ("within 2 of free-tier 10-branch cap"). On a Launch plan with 5000-branch cap and a steady-state of 8 branches, this fires **every single ops:health run forever** — false-positive noise. Fix is a one-line threshold change.
 2. **Documentation is heavily drifted but operationally harmless** — six files repeatedly cite the 10-branch cap as the rationale for the prune cron + retention window. None of these references drive code paths.
 3. **The prune cron + retention window remain useful** even at 5000-branch cap, but for a different reason: hygiene (don't accumulate dead branches indefinitely) and cost-awareness (a paid plan with thousands of stale branches is still operational debt). Keep them, lower the urgency framing.
-4. **CRITICAL parallel discovery (separate lane):** `NEON_PROJECT_ID` points at `morning-bread-68708332` (the production DB project), but the Vercel integration creates preview branches on `neon-green-school` / `hidden-mountain-87248164`. **The prune cron is pruning the WRONG Neon project.** It hasn't mattered yet because the integration is doing its own retention on the right project — but this is a real defect surfaced by this audit. Flagged in §C.4 for a separate fix lane.
+4. **Parallel observation (reclassified 2026-05-17 post-PR-#150 to NEEDS RE-EVALUATION):** the `NEON_PROJECT_ID` value the rotate-db-keys workflow uses is `morning-bread-68708332` (per its runtime env), while the Vercel integration creates preview branches on `hidden-mountain-87248164`. The original §C.4 of this audit assumed the Vercel-runtime `NEON_PROJECT_ID` matches the GH-Actions value and concluded the prune cron targets the wrong project. The post-PR-#150 ops:health smoke (cron run `status=ok, examined=17, pruned=10, errors=0`) contradicts that conclusion. The likely explanation is that the two surfaces (Vercel env vs GitHub Actions env) **intentionally differ** because they serve different automations — preview-branch hygiene vs production credential rotation. See §C.4 below for the corrected classification + read-only confirmation steps. **No behavior change recommended without those proofs.**
 
 ---
 
@@ -176,38 +176,52 @@ Multiple references to "free-tier 10-branch cap" — accurate at the time, archi
 | **A.9** | The future `mallan-public-records` project (not provisioned). Independent. |
 | **A.10, A.11** | Both projects discussed; both docs need a "superseded" banner. |
 
-### C.4 — Project-mismatch finding (CRITICAL, but separate fix lane)
+### C.4 — Possible project mismatch — NEEDS RE-EVALUATION (not a confirmed defect)
 
-Surfacing the issue raised by §C: **the prune cron is pointed at the wrong Neon project.**
+> **🟡 RECLASSIFIED 2026-05-17T08:30Z (post-PR-#150).** The original wording of this section asserted that the prune cron was running against the wrong Neon project (`morning-bread-68708332`) instead of the integration's project (`hidden-mountain-87248164`). That conclusion was **based on incomplete evidence** — specifically, on the rotate-db-keys workflow's runtime env (a GitHub Actions surface) without confirming the Vercel runtime env. New evidence from the post-PR-#150 ops:health smoke run **contradicts that conclusion.** The cron IS pruning branches. This section is preserved as the investigative trail with the corrected classification added below.
+
+**New evidence (PR #150 ops:health smoke, 2026-05-17T07:40Z):**
 
 ```
-Vercel-Neon integration target:    neon-green-school (hidden-mountain-87248164)
-                                   ↑ preview branches accumulate here
-
-NEON_PROJECT_ID env var on Vercel: morning-bread-68708332
-                                   ↑ where the rotate workflow + prune cron operate
-
-Production DATABASE_URL points to: ep-cold-waterfall-adno3ao2-pooler...
-                                   ↑ a compute endpoint on the rotate workflow's project
-                                     (morning-bread-68708332 by all current evidence)
+── BRANCH PRUNE ──────────────────────────────────
+  Last run: status=ok
+  Examined: 17 · pruned: 10 · errors: 0
 ```
 
-The prune cron has been running daily since PR #80 (2026-04-28). It's been examining branches on `morning-bread-68708332` (production), never on `neon-green-school` (where preview branches live). The reason this hasn't surfaced as a visible problem:
+The cron's most recent run examined 17 branches and pruned 10. That is NOT consistent with the original §C.4 hypothesis that the cron was a no-op against the wrong project — if it were targeting `morning-bread-68708332` (production DB), there would be at most 1 examined (the `main` primary branch, unpruneable) and 0 pruned. 17 examined / 10 pruned matches a project where preview branches genuinely accumulate, which is `hidden-mountain-87248164` (`neon-green-school`).
 
-1. `morning-bread-68708332` has `main` (the production-data branch) flagged `primary: true`. The cron's `isPrunable()` returns `prunable: false, reason: "primary branch (production)"` for it. No deletion possible.
-2. Any other branches on `morning-bread-68708332` would be rotation-related compute endpoints, NOT separate branches — so they don't count against the branch list.
-3. So the cron has been a no-op against the wrong project.
-4. Meanwhile `neon-green-school` retention IS happening — via Vercel's own auto-cleanup against deployment retention (per Neon's Vercel-Managed integration docs). That's why the count is sitting at 8/5000 (Vercel is doing it, not our cron).
+**Likely (NOT YET PROVEN) explanation:**
 
-**This means the cron has been operationally dead since 2026-04-28** — and is also why the manual operator actions in `memory/NEXT-SESSION-2026-04-28.md` ("Set `NEON_API_KEY` + `NEON_PROJECT_ID` on Vercel Production") cited the wrong Neon project for the integration's actual workload.
+There are two `NEON_PROJECT_ID` surfaces, and they may intentionally differ:
 
-**This is a separate fix lane from the threshold update.** It's worth its own PR after Maya decides:
-- Whether to point `NEON_PROJECT_ID` at `hidden-mountain-87248164` (the integration's project) so the cron actually prunes preview branches, OR
-- Whether to maintain the env var as-is and accept that Vercel's own auto-cleanup handles preview branches (relying on a vendor's automatic mechanism rather than our own).
+| Surface | Likely value | Used by |
+|---|---|---|
+| **Vercel Production env** `NEON_PROJECT_ID` | `hidden-mountain-87248164` (the integration's project) | `app/api/cron/neon-branch-prune/route.ts` (preview-branch hygiene cron) |
+| **GitHub Actions secret/var** `NEON_PROJECT_ID` | `morning-bread-68708332` (the production DB project) | `.github/workflows/rotate-db-keys.yml` (production credential rotation) |
 
-Recommendation: switch the env var to point at the integration's project. Vercel's auto-cleanup is opaque and we have no operational visibility into it; our cron has audit-event logging and ops:health reporting. Owning the workflow is cleaner.
+This is a sensible two-surface architecture: the **preview-branching workspace** is one Neon project, the **production DB** is a separate Neon project, and each automation reads the value appropriate to its target. The original §C.4 assumed the two values were the same and concluded the cron was misconfigured. The new ops:health evidence is consistent with the values intentionally differing.
 
-**Decision deferred to Maya.** Not covered in §H below.
+**What this means for the recommendation:**
+
+- The earlier "switch the env var to point at the integration's project" recommendation is **withdrawn pending verification.** If the Vercel-runtime value already IS `hidden-mountain-87248164`, no change is needed.
+- The "cron has been operationally dead since 2026-04-28" assertion is **withdrawn.** The cron's audit-event record shows otherwise.
+- The "manual operator actions in `memory/NEXT-SESSION-2026-04-28.md` cited the wrong Neon project" assertion is **withdrawn.** Those actions may have been correct as written.
+
+**Read-only confirmation steps (NONE EXECUTED — defer to Maya):**
+
+| # | Step | Surface | Risk |
+|---|------|---------|------|
+| 1 | Open Vercel UI → mallan-nyc → Settings → Environment Variables → Production tab → find `NEON_PROJECT_ID` → click the value reveal (or screenshot the masked field) → note whether it reads `hidden-mountain-87248164` or `morning-bread-68708332` (or anything else) | Read-only, no clicks beyond reveal | None |
+| 2 | Open Neon Console → `hidden-mountain-87248164` → Branches → count the branches and compare to the cron's `examined=17` | Read-only | None |
+| 3 | (Optional) `gh secret get NEON_PROJECT_ID` is NOT supported (GitHub returns values only at workflow runtime). The rotate workflow's most-recent runtime log already shows `morning-bread-68708332` for the GH-side value. No further GH-side probe needed | n/a | None |
+
+**No behavior change is recommended without these read-only proofs.** Specifically:
+- Do NOT change `NEON_PROJECT_ID` on either surface based on this audit's current evidence.
+- Do NOT disable, modify, or repoint the prune cron.
+- Do NOT delete any Neon branches manually.
+- Do NOT touch the integration binding.
+
+If steps 1 + 2 confirm the two-project architecture, this section can be closed as a non-issue and the cron's operation continues as-is. If steps 1 + 2 reveal that both surfaces actually point at the same project after all, the original §C.4 analysis can be revisited with that fact in hand.
 
 ---
 
@@ -366,18 +380,11 @@ Already answered in §D.3. **Recommendation: change to >= 25.** Add a second `cr
 | **A.5** NEON.md operational doctrine | Future Claude sessions (and future Maya) reading NEON.md will base decisions on the wrong tier. Likely outcomes: avoiding necessary work because "we're already on the brink of the cap", or running needlessly defensive prune cadences |
 | **A.6 / A.7 / A.8** comments in branch-prune code | Same — future readers misinterpret why the cron exists and what its job is |
 | **A.10 / A.11** prior docs without banner | Diagnostic trail confused; readers see contradictory facts about the cap |
-| **§C.4** prune cron pointed at wrong project | Cron is operationally a no-op against the right workload. If Vercel's own auto-cleanup ever breaks, we'd have no second line of defense. **Real but latent risk** — could surface as a sudden spike in `neon-green-school` branch count weeks/months later |
+| **§C.4** prune cron project targeting | **RECLASSIFIED to NEEDS RE-EVALUATION 2026-05-17 post-PR-#150.** The original "wrong project" conclusion is withdrawn. New ops:health evidence (`examined=17, pruned=10, errors=0`) is consistent with the cron correctly targeting `hidden-mountain-87248164`. Pending the read-only proofs in §C.4, no risk to act on. |
 
-### Compounding risk: the §C.4 finding
+### Compounding risk reclassified — see §C.4
 
-The runtime impact of the cron pointing at the wrong Neon project is currently **none** (Vercel auto-cleans). But our local cron's logs and ops:health output have been falsely reporting "cron ran, examined N, pruned 0" for `morning-bread-68708332` — which is mistaken-for-good every time. The first time Vercel's auto-cleanup misses (vendor outage, integration drift, retention-policy change), we discover the cron has been operationally dead for weeks.
-
-This is the same failure pattern that caused the 2-week silent skip Maya documented in `app/api/cron/neon-branch-prune/route.ts:16-19`. Pattern repeated at a different layer.
-
-**Strong recommendation: fix §C.4 in a separate PR after this audit lands.** Either:
-- Repoint `NEON_PROJECT_ID` to `hidden-mountain-87248164`, OR
-- Add a second cron / split the env vars to maintain visibility into both projects, OR
-- Document explicitly that we rely on Vercel auto-cleanup and the local cron is intentionally a no-op (then arguably delete the cron entirely — but that's the most surgical solution)
+The original "Compounding risk: the §C.4 finding" subsection was written under the assumption that the prune cron targets the wrong Neon project. That assumption was contradicted by the post-PR-#150 ops:health smoke (`examined=17, pruned=10, errors=0`). **The compounding-risk subsection is withdrawn.** The cron's operation appears healthy and the silent-skip detection (`status=skipped` audit-event path) remains in place. The read-only confirmation steps in §C.4 are the next move if Maya chooses to close the loop — no behavior change is recommended until those steps confirm or refute the two-project architecture hypothesis.
 
 ---
 
