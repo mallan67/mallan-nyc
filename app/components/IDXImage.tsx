@@ -128,13 +128,20 @@ export default function IDXImage({
           // flag (computed against `src` in the render body) auto-
           // invalidates when src later changes — no separate reset.
           //
-          // Note: the detector returns false (silently) for cross-
-          // origin images served WITHOUT CORS headers — getImageData()
-          // throws a SecurityError on a tainted canvas, which our
-          // wrapper catches. Cloudflare R2 public buckets without a
-          // CORS policy fall into this bucket. Same-origin images
-          // (`/api/media/proxy?url=…`) work correctly. See
-          // `lib/media/white-border-detector.ts` for the per-failure
+          // Cross-origin contract (R2 CORS policy live since 2026-05-16):
+          //   - Cloudflare R2 public bucket emits
+          //     `Access-Control-Allow-Origin: https://mallan.nyc` (+ www +
+          //     `*.mallan.vercel.app`). Combined with the `crossOrigin=
+          //     "anonymous"` attribute we set on the <img> below when
+          //     `autoCropWhiteBorder=true`, the browser fetches the image
+          //     under CORS rules, the canvas stays untainted, and
+          //     `getImageData()` succeeds — detector works on R2 photos.
+          //   - Same-origin images (`/api/media/proxy?url=…`) keep
+          //     working as before.
+          //   - Foreign origins (any host NOT in the R2 CORS policy)
+          //     would still taint the canvas; the detector's inner
+          //     try/catch swallows that and returns false (no-op).
+          // See `lib/media/white-border-detector.ts` for the per-failure
           // mode documentation.
           setBorderedSrc(src);
         }
@@ -221,6 +228,30 @@ export default function IDXImage({
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding={priority ? 'sync' : 'async'}
+        // Conditional CORS opt-in. Set ONLY when the consumer asked for
+        // the white-border detector — the detector needs a non-tainted
+        // canvas (getImageData throws SecurityError on tainted images).
+        //
+        // Why conditional and not always-on:
+        //   - `crossOrigin="anonymous"` makes the browser send an
+        //     `Origin` request header. Without a matching CORS policy
+        //     on the image host, the browser refuses to render the
+        //     image at all (broken image icon).
+        //   - The R2 public bucket has a CORS policy as of 2026-05-16:
+        //     AllowedOrigins = [mallan.nyc, www.mallan.nyc,
+        //     *.mallan.vercel.app], AllowedMethods = [GET, HEAD].
+        //   - `/api/media/proxy?url=…` is same-origin (CORS not
+        //     applicable). Other future image hosts that lack a CORS
+        //     policy would render broken on cards if we always-on'd
+        //     `crossOrigin`. Gating on `autoCropWhiteBorder` keeps
+        //     featured + detail-page images on the no-CORS path and
+        //     opts in only the card surfaces that pass the prop.
+        //
+        // We use "anonymous" not "use-credentials" — the bucket is
+        // public, no cookies are needed, and "use-credentials" would
+        // require ACAO + ACAC: true (which is intentionally NOT in
+        // the R2 policy).
+        crossOrigin={autoCropWhiteBorder ? 'anonymous' : undefined}
         onLoad={handleLoad}
         onError={() => {
           setFailedSrc(src);

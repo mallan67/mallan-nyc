@@ -172,32 +172,34 @@ export function detectWhiteBorderFromImageData(
  * This function is the ONLY canvas-touching code. The IDXImage
  * onLoad handler calls it inside a try/catch as defense in depth.
  *
- * Same-origin / CORS contract (2026-05-16)
- * ----------------------------------------
+ * Same-origin / CORS contract (updated 2026-05-16, R2 CORS policy live)
+ * ---------------------------------------------------------------------
  * `getImageData()` throws `SecurityError` when the canvas has been
  * tainted by a cross-origin image drawn WITHOUT a valid CORS opt-in.
- * The wrapper catches the throw and returns false — so cross-origin
- * sources without CORS headers degrade gracefully into "no border
- * detected" (no scale, no transform, image renders unchanged).
+ * The wrapper catches the throw and returns false — so any future
+ * source without matching CORS headers degrades gracefully into "no
+ * border detected" (no scale, no transform, image renders unchanged).
  *
- * Coverage by source on mallan.nyc:
+ * Coverage by source on mallan.nyc (verified by curl probe 2026-05-16
+ * after R2 bucket CORS policy was applied):
  *
  *   - `/api/media/proxy?url=…` (Trestle live, server-side Bearer
  *     auth, response is same-origin from the browser) → detector
- *     WORKS. Verified 2026-05-16 against 433 E 74TH GARDEN listing
- *     with rendered `matrix(1.1, 0, 0, 1.1, 0, 0)` and animation
- *     disabled.
+ *     WORKS. CORS not applicable; canvas is never tainted.
  *
  *   - `https://pub-<hash>.r2.dev/photos/…` (Cloudflare R2 cached
- *     copies) → detector NO-OPS. R2 bucket does not emit
- *     `Access-Control-Allow-Origin`, so canvas reads are blocked.
- *     The IMG renders normally; just the scale crop is not applied.
+ *     copies) → detector WORKS, provided the consumer sets
+ *     `crossOrigin="anonymous"` on the <img> element AND the request
+ *     `Origin` matches the R2 bucket's CORS policy
+ *     (`AllowedOrigins: [https://mallan.nyc, https://www.mallan.nyc,
+ *     https://*.mallan.vercel.app]`, `AllowedMethods: [GET, HEAD]`).
+ *     `IDXImage` opts in to `crossOrigin="anonymous"` only when its
+ *     `autoCropWhiteBorder` prop is true, keeping featured + detail-
+ *     page images on the no-CORS path.
  *
- * Closing the R2 gap requires a one-time R2 bucket CORS policy
- * (`AllowedOrigins: ["https://mallan.nyc"]`, `AllowedMethods: ["GET"]`)
- * which is a Cloudflare-side configuration outside the code surface
- * of this PR. Once configured, this detector starts working on R2
- * images automatically — no code change required.
+ *   - Any other future image host without a matching CORS policy →
+ *     detector NO-OPS gracefully (defensive try/catch on
+ *     `getImageData`). No broken-image side effects.
  *
  * @param img  The loaded <img> element. Must have non-zero
  *             naturalWidth / naturalHeight.
@@ -229,8 +231,11 @@ export function detectWhiteBorder(img: HTMLImageElement): boolean {
       imageData = ctx.getImageData(0, 0, cw, ch);
     } catch {
       // Tainted canvas — image came from a cross-origin source without
-      // CORS headers. Our /api/media/proxy is same-origin so this
-      // shouldn't happen in production, but defend regardless.
+      // matching CORS headers (or the <img> wasn't given
+      // `crossOrigin="anonymous"`). Same-origin proxy responses + R2
+      // cached copies with the live CORS policy are both safe; this
+      // branch defends against future image hosts that don't fit
+      // either pattern.
       return false;
     }
     return detectWhiteBorderFromImageData(imageData).hasBorder;

@@ -264,4 +264,101 @@ describe('autoCropWhiteBorder wiring (source-level pins)', () => {
     // silently broaden the change.
     expect(featuredSrc).not.toMatch(/autoCropWhiteBorder/);
   });
+
+  // ─── Conditional crossOrigin wiring (R2 CORS policy live 2026-05-16) ───
+  // The detector needs an UNTAINTED canvas. For cross-origin images
+  // (R2 cached copies on pub-<hash>.r2.dev) the browser will refuse to
+  // give us pixel data unless the <img> element opts in with
+  // `crossOrigin="anonymous"` AND the response carries
+  // Access-Control-Allow-Origin matching the page origin. The R2 bucket
+  // now emits ACAO for mallan.nyc + www + *.mallan.vercel.app.
+  //
+  // Wiring contract:
+  //   1. crossOrigin is set ONLY when autoCropWhiteBorder === true
+  //      (so featured + detail-page images stay no-CORS)
+  //   2. Value is exactly "anonymous" — not "use-credentials"
+  //      (public bucket, no cookies, ACAC: true intentionally NOT in
+  //      the R2 policy)
+  //   3. Falsy default → undefined attr → browser skips Origin header
+  //      and serves no-CORS like before
+  //
+  // Regression matters: dropping conditional `crossOrigin` reintroduces
+  // the SecurityError on R2 photos and the detector silently no-ops on
+  // every cached card photo — the exact failure mode pre-2026-05-16.
+  it('IDXImage sets crossOrigin="anonymous" CONDITIONALLY on autoCropWhiteBorder', () => {
+    // Match the exact JSX attribute shape. The conditional MUST guard
+    // on autoCropWhiteBorder so featured + detail-page images stay on
+    // the no-CORS path.
+    expect(idxImageSrc).toMatch(
+      /crossOrigin\s*=\s*\{\s*autoCropWhiteBorder\s*\?\s*['"]anonymous['"]\s*:\s*undefined\s*\}/
+    );
+  });
+
+  it('IDXImage does NOT use crossOrigin="use-credentials" (public bucket — credentials would break CORS)', () => {
+    // ACAC: true is NOT in the R2 policy. "use-credentials" would make
+    // the browser refuse the response. Defensive pin against a future
+    // copy-paste that swaps the literal.
+    expect(idxImageSrc).not.toMatch(/crossOrigin\s*=\s*['"]use-credentials['"]/);
+    expect(idxImageSrc).not.toMatch(
+      /crossOrigin\s*=\s*\{[^}]*['"]use-credentials['"][^}]*\}/
+    );
+  });
+
+  it('IDXImage does NOT set crossOrigin unconditionally (would break non-CORS image hosts)', () => {
+    // A bare `crossOrigin="anonymous"` (no conditional, no destructuring
+    // ternary) would force CORS on every image — featured listings and
+    // detail-page galleries would suddenly render broken on any future
+    // image host without a matching CORS policy. Pin the conditional
+    // shape so a refactor can't silently always-on it.
+    //
+    // Strip // line comments and /* ... */ block comments before
+    // matching, because the comment block that documents the attribute
+    // contains the literal text `crossOrigin="anonymous"` for
+    // readability — that's not the actual JSX attribute.
+    const stripped = idxImageSrc
+      .replace(/\/\/[^\n]*/g, '')          // strip line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '');   // strip block comments
+    expect(stripped).not.toMatch(/crossOrigin[ \t]*=[ \t]*["']anonymous["']/);
+    // The bare attr `crossOrigin="anonymous"` is gone; the only allowed
+    // form is the conditional `crossOrigin={autoCropWhiteBorder ? ...}`.
+    expect(stripped).toMatch(/crossOrigin\s*=\s*\{\s*autoCropWhiteBorder\s*\?/);
+  });
+
+  it('IDXImage attaches crossOrigin to the SAME <img> element the detector targets', () => {
+    // Defensive: there's only ONE real <img> JSX element in IDXImage
+    // (the JSDoc comments at the top mention <img> as text). Pin that
+    // the crossOrigin attribute lives on the element the detector
+    // reads via imgRef (so the CORS opt-in actually affects the
+    // canvas the detector touches).
+    //
+    // Match strategy: find `<img` followed by a newline + indented
+    // `ref={imgRef}` (the actual JSX element shape) — JSDoc
+    // references close immediately with `>` and don't have ref=.
+    const imgStart = idxImageSrc.search(/<img\s*\n\s*ref=\{\s*imgRef\s*\}/);
+    expect(imgStart).toBeGreaterThan(0);
+    // Slice from the JSX <img start to the next /> (the close of the
+    // self-closing element). This is now safe — we've anchored at the
+    // real element, not at a JSDoc mention.
+    const tail = idxImageSrc.slice(imgStart);
+    const closeIdx = tail.indexOf('/>');
+    expect(closeIdx).toBeGreaterThan(0);
+    const imgBlock = tail.slice(0, closeIdx + 2);
+    expect(imgBlock).toMatch(/ref=\{\s*imgRef\s*\}/);
+    expect(imgBlock).toMatch(/crossOrigin=\{\s*autoCropWhiteBorder\s*\?/);
+  });
+
+  it('white-border-detector docstring reflects R2 CORS is live (no stale "no-op on R2" caveat)', () => {
+    const detectorSrc = readFileSync(
+      path.resolve(__dirname, '../../lib/media/white-border-detector.ts'),
+      'utf8',
+    );
+    // Negative pin — the old caveat text MUST be gone now that R2 CORS
+    // is configured. If a future refactor accidentally regresses the
+    // doc, this catches it.
+    expect(detectorSrc).not.toMatch(/detector NO-OPS\.\s*R2\s+bucket\s+does\s+not\s+emit/);
+    // Positive pin — the updated text mentions the live policy + the
+    // crossOrigin opt-in pattern.
+    expect(detectorSrc).toMatch(/R2 CORS policy live/);
+    expect(detectorSrc).toMatch(/crossOrigin="anonymous"/);
+  });
 });
