@@ -1,10 +1,15 @@
 // GET /api/cron/neon-branch-prune
 // Daily cron — deletes idle Neon branches that the Neon-Vercel
-// marketplace integration accumulates from preview deploys. Without
-// pruning, a fast-pushing day burns through the free-tier 10-branch
-// cap and every subsequent preview deploy posts "Branch limit
-// exceeded" to Vercel's Checks panel. With this cron + a 24h
-// retention window, branches auto-expire long before the cap is hit.
+// marketplace integration accumulates from preview deploys. The
+// Launch plan's 5000-branch cap is far above any realistic
+// accumulation rate, but stale branches represent operational debt
+// + cost; this cron + a 24h retention window keep the count near its
+// steady-state baseline (~8) without operator intervention.
+//
+// Originally built 2026-04-28 to keep mallan-nyc under the Neon
+// free-tier 10-branch cap. After the plan upgrade to Launch the cap
+// dimension disappeared but the hygiene + cost-control motivation
+// remained. See docs/neon-launch-branch-policy-audit-2026-05-17.md.
 //
 // Mirrors scripts/neon-prune-branches.ts so an operator can verify the
 // cron's decisions locally before deploys. See lib/neon/branches.ts
