@@ -333,6 +333,40 @@ async function run(): Promise<void> {
   console.log(`  post-flight any-gate drift: ${post.any_gate} ` +
     (EXECUTE ? (post.any_gate === 0 ? "✓ drift cleared" : "⚠ residual drift") : "(dry-run — unchanged)"));
   console.log(`  total elapsed:           ${fmtDuration(Date.now() - startTime)}`);
+
+  // Per Codex review on PR #148: execute mode must NEVER silently succeed
+  // when the reconciliation isn't actually complete. Two distinct failure
+  // modes promote to a non-zero exit code so CI / a one-shot operator /
+  // a wrapping shell can detect partial reconciliation without parsing
+  // logs.
+  //
+  // Dry-run is exempt by design: it's supposed to leave drift in place
+  // (the whole point), so existing drift must NOT cause a non-zero exit.
+  // Only an unhandled script-level error (caught in the outer .catch
+  // below) can fail a dry-run.
+  if (EXECUTE) {
+    const failures: string[] = [];
+    if (stats.errors > 0) {
+      failures.push(
+        `${stats.errors} row error(s) during reconciliation — projection sync for those rows did NOT complete`,
+      );
+    }
+    if (post.any_gate > 0) {
+      failures.push(
+        `${post.any_gate} drift row(s) remain after reconciliation (pre-flight was ${any_gate}) — execute did not fully reconcile`,
+      );
+    }
+    if (failures.length > 0) {
+      console.log("");
+      console.log("\x1b[31m─── EXECUTE MODE FAILED ───\x1b[0m");
+      for (const f of failures) {
+        console.log(`\x1b[31m  ✗ ${f}\x1b[0m`);
+      }
+      console.log("\x1b[31m  Exit code: 1\x1b[0m");
+      console.log("\x1b[31m  Action: investigate failed rows + re-run --execute to converge.\x1b[0m");
+      process.exitCode = 1;
+    }
+  }
 }
 
 run()
