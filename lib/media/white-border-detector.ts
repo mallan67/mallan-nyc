@@ -80,6 +80,20 @@ export const WHITE_BORDER_THRESHOLDS = {
    */
   depthWhiteRatioThreshold: 0.85,
   /**
+   * RGB floor for the per-row "is this still inside the border?" check
+   * used by the depth walk. Intentionally LOWER than `rgbMin` (245) so
+   * the depth walk also captures anti-aliased pixels at the border-to-
+   * content boundary — which a typical broker-uploaded photo renders
+   * with channel values around 220–244 instead of pure 255. Without
+   * this, the depth walk stops one pixel too early on every edge,
+   * under-reports the visible white extent, and the adaptive scale
+   * lands too low (verified 2026-05-17: 401 WEST PH adaptive came out
+   * to 1.05× when 1.20× was needed). The strict 245 floor is still
+   * used by the hasBorder edge-band test so the false-positive
+   * protections (warm tints, bright interiors) are unaffected.
+   */
+  depthRgbMin: 225,
+  /**
    * Hard upper bound on the adaptive crop scale. Even if the detector
    * thinks the border is enormous (e.g. an off-aspect photo where
    * `object-fit: cover` already crops most of the source), refuse to
@@ -184,17 +198,33 @@ export function detectWhiteBorderFromImageData(
   }
 
   // ── Per-row / per-column whiteness for the depth walk ──
+  // Uses a LOOSER whiteness check (depthRgbMin instead of rgbMin) so
+  // anti-aliased near-white pixels at the border-to-content boundary
+  // are still counted as part of the border. This is critical for the
+  // adaptive scale to match the visible-white extent — see the
+  // `depthRgbMin` doc on WHITE_BORDER_THRESHOLDS for rationale.
+  function isWhitishPixel(idx: number): boolean {
+    const r = data[idx];
+    const g = data[idx + 1];
+    const b = data[idx + 2];
+    if (r < WHITE_BORDER_THRESHOLDS.depthRgbMin) return false;
+    if (g < WHITE_BORDER_THRESHOLDS.depthRgbMin) return false;
+    if (b < WHITE_BORDER_THRESHOLDS.depthRgbMin) return false;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return (max - min) <= WHITE_BORDER_THRESHOLDS.maxChannelSpread;
+  }
   function rowWhiteFraction(y: number): number {
     let white = 0;
     for (let x = 0; x < cw; x++) {
-      if (isWhitePixel((y * cw + x) * 4)) white++;
+      if (isWhitishPixel((y * cw + x) * 4)) white++;
     }
     return cw > 0 ? white / cw : 0;
   }
   function colWhiteFraction(x: number): number {
     let white = 0;
     for (let y = 0; y < ch; y++) {
-      if (isWhitePixel((y * cw + x) * 4)) white++;
+      if (isWhitishPixel((y * cw + x) * 4)) white++;
     }
     return ch > 0 ? white / ch : 0;
   }
