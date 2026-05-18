@@ -82,15 +82,37 @@ set -euo pipefail
 alias_url="https://mallan-nyc-git-<branch-name>-mallan.vercel.app"
 latest_immutable="https://mallan-<short-id>-mallan.vercel.app"
 
-# Both probes are READ-ONLY (HTTP GET on a public page) and use `curl -fsS`
-# so a non-2xx response surfaces as a failed pipeline rather than an empty
-# string. `grep -oE … | head -1` extracts the first `dpl=dpl_<id>` token
-# from the response body.
-alias_dpl=$(curl -fsS "${alias_url}/search?tab=rent-residential&sort=price-desc" \
-  | grep -oE 'dpl=dpl_[A-Za-z0-9]+' | head -1)
+# Both probes are READ-ONLY (HTTP GET on a public page).
+#
+# IMPORTANT — pipeline-guard pattern with `set -euo pipefail`:
+#
+# Without the trailing `|| true`, `set -euo pipefail` + `curl -fsS`
+# would cause this script to exit the moment curl returns non-2xx
+# (HTTP error, vendor outage, wrong URL). With `pipefail`, the
+# pipeline's exit code becomes curl's non-zero status; with `set -e`,
+# the script aborts immediately — BEFORE the explicit empty-value
+# guards below have a chance to run. Same silent-failure mode as
+# the pre-PR-#156 script, just with a different proximate cause.
+#
+# `grep -oE` has the same problem on a different axis: it exits 1
+# when no match is found. Even if curl succeeds with HTTP 200 but
+# the response doesn't contain `dpl=`, grep's exit-1 propagates via
+# pipefail and `set -e` kills the script.
+#
+# The `|| true` at the end of each assignment pipeline forces the
+# pipeline to exit 0 regardless of curl/grep status. The variable
+# lands as the empty string on failure, and the explicit empty-value
+# guards below produce the diagnostic error message.
 
-latest_dpl=$(curl -fsS "${latest_immutable}/search?tab=rent-residential&sort=price-desc" \
-  | grep -oE 'dpl=dpl_[A-Za-z0-9]+' | head -1)
+alias_dpl=$(curl -fsS "${alias_url}/search?tab=rent-residential&sort=price-desc" 2>/dev/null \
+  | grep -oE 'dpl=dpl_[A-Za-z0-9]+' \
+  | head -1 \
+  || true)
+
+latest_dpl=$(curl -fsS "${latest_immutable}/search?tab=rent-residential&sort=price-desc" 2>/dev/null \
+  | grep -oE 'dpl=dpl_[A-Za-z0-9]+' \
+  | head -1 \
+  || true)
 
 # Fail loudly if either probe returned no `dpl=` reference. An empty
 # value means one of:
@@ -129,9 +151,20 @@ fi
 echo "OK: alias matches latest ($latest_dpl)."
 ```
 
-### Why the empty-value guards matter
+### Why BOTH the `|| true` AND the empty-value guards matter
 
-The earlier version of this script ran the comparison `[ "$alias_dpl" != "$latest_dpl" ]` directly. If both `curl` calls failed (e.g. vendor outage, both URLs returning errors, alias and latest happen to be the same broken page returning no `dpl=`), both variables would be empty strings, the comparison `"" != ""` would evaluate to **false**, the script would exit silently with no warning, and the operator would believe the alias was fresh when it was actually undeterminable. The empty-value guards above force a loud failure in that scenario.
+Two distinct silent-failure modes need to be guarded simultaneously:
+
+1. **Pipeline-abort failure mode.** `set -euo pipefail` + `curl -fsS` (or `grep -oE` finding no match) would terminate the script before the empty-value guards run. The `|| true` at the end of each assignment pipeline forces the pipeline's exit code to 0, the script continues, and the variable receives the empty string. **Without `|| true`, the explicit empty-value guards below are unreachable.**
+
+2. **Empty-comparison failure mode.** If `|| true` is added but the empty-value guards are NOT, the comparison `[ "$alias_dpl" != "$latest_dpl" ]` would silently return false when both are empty (i.e. both probes failed). The script would exit 0 reporting "OK: alias matches latest ()" — a false-positive that masks the actual outage. **Without the explicit empty checks, `|| true` makes failures invisible.**
+
+Both guards are load-bearing. Removing either re-introduces a silent-failure path:
+- Pre-PR-#156 script: no guards at all → empty comparison passed silently
+- PR #156 script: empty-value guards added, but `set -euo pipefail` + `curl -fsS` killed the script before the guards could run
+- This (post-PR-#157) script: pipeline guarded with `|| true` AND empty-value checks gate the comparison
+
+The combination is the safe pattern.
 
 ### Exit codes
 
