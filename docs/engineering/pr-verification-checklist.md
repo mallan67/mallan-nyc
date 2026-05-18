@@ -75,12 +75,49 @@ When a finding/conclusion changes mid-doc, the change must be applied **in every
 Before opening any audit-correction PR:
 
 ```bash
-# Replace OLD_PHRASE with the original wording, NEW_PHRASE with the corrected one
-git diff main..HEAD -- "<doc-path>" | grep -c "OLD_PHRASE"
-# Must equal:
-git grep -c "OLD_PHRASE" main -- "<doc-path>"
-# Difference > 0 = unresolved contradiction in this PR
+# Step 1 — Find every occurrence of OLD_PHRASE in the post-PR document.
+#
+# Use `git grep` against the working-tree / final document (NOT a diff).
+# This is the authoritative check: it counts what's actually in the doc
+# now and is not contaminated by diff context lines, file headers, or
+# rename markers (which is why the earlier `git diff … | grep -c …`
+# pattern was unreliable — it counted matches inside unchanged context
+# lines and made the count look larger than the number of actually-
+# removed occurrences).
+git grep -n "OLD_PHRASE" -- "<doc-path>"
+
+# Step 2 — For EVERY line returned by Step 1, the PR body must label
+# that occurrence as one of:
+#   • corrected             — the line is the new wording
+#   • withdrawn             — the line is the old wording, explicitly
+#                              marked as withdrawn / reclassified in
+#                              place (e.g. a struck-through note or a
+#                              "RECLASSIFIED" banner)
+#   • preserved as          — the line is the old wording, preserved
+#     investigative trail     verbatim as historical narrative (e.g.
+#                              kept in a §Investigation Trail section)
+#
+# An UNLABELED remaining occurrence = unresolved contradiction.
+# The PR is not ready to merge until every line returned by Step 1
+# falls into one of the three labels above.
+
+# Step 3 (optional, for proof of what was REMOVED from the doc) —
+#
+# Show only the removed-line instances of OLD_PHRASE from the diff.
+# This restricts to the `^-` change lines and explicitly excludes
+# `^---` file headers (which start with `---` and are not actual
+# removals). Use this when the PR body needs to show "here are the
+# lines we deleted that contained OLD_PHRASE."
+git diff main..HEAD -- "<doc-path>" | grep '^-' | grep -v '^---' | grep -n "OLD_PHRASE"
 ```
+
+**Why three steps:**
+
+- Step 1 is the gate ("are there any unresolved occurrences in the doc as it stands?").
+- Step 2 is the disposition rule ("each remaining occurrence has a known role").
+- Step 3 is removal proof ("here is what we explicitly deleted") — useful in the PR body to show the diff intent, but not a replacement for Step 1's gate.
+
+The earlier `git diff … | grep -c "OLD_PHRASE"` count is **withdrawn** because diff output includes context lines (unchanged lines surrounding a change), and a match inside a context line is NOT a removal — but the naïve count treats it as one.
 
 ---
 

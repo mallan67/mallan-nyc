@@ -76,16 +76,70 @@ We discovered the stale-alias issue only after multiple wrong Playwright runs. T
 ### Detection probe (read-only, mandatory before trusting any branch-alias result)
 
 ```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 alias_url="https://mallan-nyc-git-<branch-name>-mallan.vercel.app"
 latest_immutable="https://mallan-<short-id>-mallan.vercel.app"
 
-alias_dpl=$(curl -s "${alias_url}/search?tab=rent-residential&sort=price-desc" | grep -oE 'dpl=dpl_[A-Za-z0-9]+' | head -1)
-latest_dpl=$(curl -s "${latest_immutable}/search?tab=rent-residential&sort=price-desc" | grep -oE 'dpl=dpl_[A-Za-z0-9]+' | head -1)
+# Both probes are READ-ONLY (HTTP GET on a public page) and use `curl -fsS`
+# so a non-2xx response surfaces as a failed pipeline rather than an empty
+# string. `grep -oE … | head -1` extracts the first `dpl=dpl_<id>` token
+# from the response body.
+alias_dpl=$(curl -fsS "${alias_url}/search?tab=rent-residential&sort=price-desc" \
+  | grep -oE 'dpl=dpl_[A-Za-z0-9]+' | head -1)
 
-if [ "$alias_dpl" != "$latest_dpl" ]; then
-  echo "STALE: alias serves $alias_dpl but latest is $latest_dpl. Use immutable URL."
+latest_dpl=$(curl -fsS "${latest_immutable}/search?tab=rent-residential&sort=price-desc" \
+  | grep -oE 'dpl=dpl_[A-Za-z0-9]+' | head -1)
+
+# Fail loudly if either probe returned no `dpl=` reference. An empty
+# value means one of:
+#   - curl returned non-2xx (auth wall, 404, vendor outage)
+#   - the URL was wrong (typo in <branch-name> or <short-id>)
+#   - the search HTML changed shape and no longer contains `dpl=`
+#   - the chunk-loading mechanism changed and the marker is no longer
+#     present in the SSR HTML
+#
+# Comparing two empty strings would silently pass the stale-alias
+# check (because "" == "") even though both probes failed — that
+# would defeat the purpose of running the detection probe at all.
+# Fail loudly before reaching the comparison.
+
+if [ -z "$alias_dpl" ]; then
+  echo "ERROR: alias probe returned no dpl= reference from $alias_url" >&2
+  echo "  Possible causes: curl failed, alias URL wrong, search HTML changed shape." >&2
+  echo "  Verify the alias is the correct preview URL for the current branch and that" >&2
+  echo "  /search renders successfully when opened in a browser." >&2
+  exit 2
 fi
+
+if [ -z "$latest_dpl" ]; then
+  echo "ERROR: immutable probe returned no dpl= reference from $latest_immutable" >&2
+  echo "  Possible causes: curl failed, immutable URL wrong, search HTML changed shape." >&2
+  echo "  Verify the immutable URL is the most recent READY deployment's URL." >&2
+  exit 2
+fi
+
+# Both probes returned a non-empty `dpl=` value — comparison is meaningful.
+if [ "$alias_dpl" != "$latest_dpl" ]; then
+  echo "STALE: alias serves $alias_dpl but latest is $latest_dpl. Use immutable URL." >&2
+  exit 1
+fi
+
+echo "OK: alias matches latest ($latest_dpl)."
 ```
+
+### Why the empty-value guards matter
+
+The earlier version of this script ran the comparison `[ "$alias_dpl" != "$latest_dpl" ]` directly. If both `curl` calls failed (e.g. vendor outage, both URLs returning errors, alias and latest happen to be the same broken page returning no `dpl=`), both variables would be empty strings, the comparison `"" != ""` would evaluate to **false**, the script would exit silently with no warning, and the operator would believe the alias was fresh when it was actually undeterminable. The empty-value guards above force a loud failure in that scenario.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Alias matches latest — alias is fresh, safe to use either URL |
+| `1` | Stale — alias serves a different deploy than the latest; use the immutable URL |
+| `2` | Probe failure — one or both URLs returned no `dpl=` reference; cannot determine staleness; investigate before proceeding |
 
 ### Rule
 
