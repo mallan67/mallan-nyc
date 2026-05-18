@@ -1866,13 +1866,130 @@ function manualSaveDraft(type) {
     showToast('Draft saved successfully');
 }
 
+// PR-CRM.1 (2026-05-16) — wire BUYER-DEAL-FORM header-submit to /api/crm/deals.
+//
+// Prior to this PR this function was a stub: it validated address +
+// client name and then showed a success toast WITHOUT calling the
+// backend. The CRM workflow proof audit (docs/crm-workflow-proof-
+// audit-2026-05-16.md §8 item #1) flagged this as a critical defect
+// blocking the producing-CRM commission flow. The backend route
+// POST /api/crm/deals + the Prisma Deal model already exist and
+// work; only the JS wiring was missing.
+//
+// Behavior:
+//   1. Preserve original client-side validation (address + client name).
+//   2. Build a payload matching createDealSchema (lib/api/schemas/deal.ts):
+//      representation_code, property_address, price_usd,
+//      commission_rate_percent, split_percent, agent_fee_usd,
+//      company_fee_usd, gross_commission_usd, contract_signed.
+//   3. Prevent double-submit by toggling a data-submitting flag +
+//      disabling every button bound to this handler.
+//   4. If a previous submit in this browser session stored a deal id
+//      (sessionStorage.buyerDealRecord.dbId), PATCH that deal instead
+//      of POSTing a new one — prevents duplicate Deal rows when an
+//      agent re-clicks the header Submit button after editing fields.
+//   5. Surface backend success and failure honestly:
+//      - success: green toast with the persisted deal id
+//      - failure: red toast; nothing is faked-successful
+//   6. The separate, in-tab `submitBuyerCommissionRequest()` (which
+//      already wires to the backend for the Commission tab) is
+//      untouched.
 function submitBuyerDeal() {
     var status = (document.getElementById('buyerDealStatus') || {}).value;
     var addr = (document.getElementById('buyerStreetAddress') || {}).value;
     var client = (document.getElementById('buyerClientName') || {}).value;
     if (!addr) { alert('Please search for a listing or enter a property address.'); return; }
     if (!client) { alert('Please enter the buyer client name.'); showBuyerMainTab(3); return; }
-    showToast('Buyer deal submitted successfully');
+
+    var buttons = document.querySelectorAll('button[onclick="submitBuyerDeal()"]');
+    var anyInFlight = false;
+    buttons.forEach(function(b) { if (b.dataset && b.dataset.submitting === 'true') anyInFlight = true; });
+    if (anyInFlight) return; // double-submit guard
+    buttons.forEach(function(b) { b.dataset.submitting = 'true'; b.disabled = true; });
+
+    function release() {
+        buttons.forEach(function(b) { b.dataset.submitting = 'false'; b.disabled = false; });
+    }
+
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.deals || typeof MallanAPI.deals.create !== 'function') {
+        showToast('Cannot submit: CRM API client unavailable. Reload the page and try again.', 'error');
+        release();
+        return;
+    }
+
+    var val = function(id) { return (document.getElementById(id) || {}).value || ''; };
+    var unit = val('buyerUnitNumber');
+    var propertyAddress = unit ? (addr + ', Unit ' + unit) : addr;
+
+    // Prefer the most-recent priced field: sold > offer > list.
+    var priceRaw = val('buyerSoldPrice') || val('buyerOfferPrice') || val('buyerListPrice');
+    var priceUsd = parseFloat(priceRaw) || null;
+
+    // Commission tab fields — populated only once the agent fills the
+    // Commission tab. Best-effort capture for the header submit; the
+    // Commission tab has its own canonical submit handler.
+    var commTotalPct = parseFloat(val('commBuyerTotalPct')) || null;
+    var ourSidePct = parseFloat(val('commBuyerOurSidePct')) || null;
+    var agentSplitPct = parseFloat(val('commBuyerAgentSplitPct')) || null;
+
+    var grossUsd = (priceUsd && commTotalPct) ? priceUsd * (commTotalPct / 100) : null;
+    var agentFeeUsd = null;
+    var companyFeeUsd = null;
+    if (grossUsd && ourSidePct !== null && agentSplitPct !== null) {
+        var ourSideAmt = grossUsd * (ourSidePct / 100);
+        agentFeeUsd = ourSideAmt * (agentSplitPct / 100);
+        companyFeeUsd = ourSideAmt - agentFeeUsd;
+    }
+
+    var contractDate = val('buyerContractDate');
+
+    var payload = {
+        representation_code: 'buyer',
+        property_address: propertyAddress
+    };
+    if (priceUsd !== null && priceUsd > 0) payload.price_usd = priceUsd;
+    if (commTotalPct !== null) payload.commission_rate_percent = commTotalPct;
+    if (agentSplitPct !== null) payload.split_percent = agentSplitPct;
+    if (agentFeeUsd !== null && agentFeeUsd >= 0) payload.agent_fee_usd = agentFeeUsd;
+    if (companyFeeUsd !== null && companyFeeUsd >= 0) payload.company_fee_usd = companyFeeUsd;
+    if (grossUsd !== null && grossUsd >= 0) payload.gross_commission_usd = grossUsd;
+    if (contractDate) {
+        try { payload.contract_signed = new Date(contractDate + 'T00:00:00').toISOString(); }
+        catch (e) { /* ignore unparseable date */ }
+    }
+
+    // Upsert on second click: if we already wrote a deal in this session,
+    // PATCH it instead of POSTing a duplicate.
+    var stored = {};
+    try { stored = JSON.parse(sessionStorage.getItem('buyerDealRecord') || '{}'); } catch (e) { stored = {}; }
+    var existingId = stored.dbId;
+
+    var promise = existingId
+        ? MallanAPI.deals.update(existingId, payload)
+        : MallanAPI.deals.create(payload);
+
+    promise.then(function(data) {
+        var dealId = (data && data.id) || existingId || null;
+        var dealStatus = (data && data.status) || stored.status || 'draft';
+        try {
+            sessionStorage.setItem('buyerDealRecord', JSON.stringify({
+                dbId: dealId,
+                status: dealStatus,
+                updatedAt: new Date().toISOString()
+            }));
+        } catch (e) { /* sessionStorage may be unavailable in some contexts */ }
+        var label = existingId ? 'Buyer deal updated' : 'Buyer deal saved as draft';
+        showToast(label + (dealId ? ' (#' + dealId + ')' : ''), 'success');
+        if (typeof addBuyerHistoryEntry === 'function') {
+            addBuyerHistoryEntry(label, 'Deal id ' + (dealId || '?') + ' · status ' + dealStatus, 'fa-save', 'green');
+        }
+        release();
+    }).catch(function(err) {
+        console.error('[BuyerDeal] submit failed:', err);
+        var msg = (err && err.message) ? err.message : 'unknown error';
+        showToast('Submit failed: ' + msg + '. Nothing was saved.', 'error');
+        release();
+    });
 }
 
 // ══════════════════════════════════════════════════════
