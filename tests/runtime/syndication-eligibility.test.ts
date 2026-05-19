@@ -275,6 +275,59 @@ describe("Mallan syndication eligibility — listing-side control", () => {
     expect(r.failed_layers).toEqual([]);
   });
 
+  // ── Case 17 (Codex PR #162 follow-up) — verification flag + empty config = STILL BLOCKED ──
+  // The empty-config guard runs BEFORE the manual-verification check.
+  // A row with a complete broker-approved manual_control_verification flag
+  // MUST NOT pass when both MALLAN_OFFICE_MLS_IDS and MALLAN_AGENT_MLS_IDS
+  // are empty. This is the case Codex flagged on the merged PR #162 —
+  // the original Layer 1d would have set control.passes=true on the
+  // verification flag even with empty config, bypassing invariant I.5.
+  it("BLOCKS even when a complete broker-approved manual_control_verification flag is present, if both config sets are empty (Codex PR #162 fix)", () => {
+    const r = evaluateMallanSyndicationEligibility(
+      fullyApprovedRow({
+        source: "manual",
+        agent_id: 1 as unknown as bigint,
+        agent_info: {}, // no canonical IDs
+        list_office_name: "Mallan Real Estate Inc.",
+        compliance: {
+          syndication: {
+            approval_status: "approved",
+            approved_at: "2026-05-19T10:00:00Z",
+            approved_by: "1",
+          },
+          seller_advertising_authorization: {
+            signed_at: "2026-05-19T09:00:00Z",
+            scope: "mallan_owned_only",
+          },
+          media_rights: {
+            confirmed_at: "2026-05-19T09:00:00Z",
+            source: "owner_release",
+          },
+          // Full, complete manual-control verification flag — would have
+          // passed Layer 1d in the pre-Codex-fix version of the gate.
+          mallan_control_verification: {
+            verified_by: "1",
+            verified_at: "2026-05-19T11:00:00Z",
+            verification_note:
+              "Attempted bypass: verification flag set with empty identity config",
+          },
+        },
+      }),
+      configEmpty(), // <-- KEY: both sets empty
+    );
+    expect(r.eligible).toBe(false);
+    expect(r.failed_layers).toContain("layer_1");
+    expect(r.control.passes).toBe(false);
+    expect(r.control.via).toBeNull();
+    expect(r.control.ambiguity_reasons).toContain(
+      "identity_config_empty_blocks_all_rows",
+    );
+    // Critically: even though the verification flag is fully populated,
+    // `via` must NOT be 'manual_control_verified' — the empty-config
+    // guard short-circuits Layer 1 before 1d is ever evaluated.
+    expect(r.control.via).not.toBe("manual_control_verified");
+  });
+
   // ── Case 16 — partial manual-control flag is NOT a flag = block ──
   it("blocks when the manual-control verification flag is partial (missing verification_note)", () => {
     const r = evaluateMallanSyndicationEligibility(
