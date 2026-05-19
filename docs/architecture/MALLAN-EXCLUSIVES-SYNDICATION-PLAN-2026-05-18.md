@@ -116,6 +116,23 @@ So **every Trestle row already carries the listing-side identity in `agent_info`
 
 The gate is a **single function** evaluated at multiple checkpoints. **It is source-agnostic.** A `source='trestle'` row CAN pass; a `source='manual'` row CAN fail. The discriminator is the union of Layers 1-5 below.
 
+### C.0 Eligibility invariants — UPDATED 2026-05-18 (Codex PR #161 feedback)
+
+These invariants are non-negotiable. Every test, every adapter, every UI screen must honor them.
+
+| # | Invariant | Status |
+|---:|---|---|
+| **I.1** | **Manual listings are not automatically eligible.** `source='manual'` alone never passes Layer 1. | **HARD RULE** |
+| **I.2** | **Trestle listings are not automatically excluded.** `source='trestle'` is irrelevant to eligibility. Trestle rows with Mallan listing-side canonical IDs CAN pass; non-Mallan rows CANNOT, regardless of source. | **HARD RULE** |
+| **I.3** | **`source` alone never proves Mallan control.** The eligibility decision is driven exclusively by canonical IDs (`ListAgentMlsId`, `ListOfficeMlsId`, `CoListAgentMlsId`, `CoListOfficeMlsId`) matched against the `MALLAN_OFFICE_MLS_IDS` / `MALLAN_AGENT_MLS_IDS` config, OR by an explicit broker-approved manual-control verification flag in the row's `compliance` JSON. | **HARD RULE** |
+| **I.4** | **Free-text brokerage / agent name matching is never sufficient for eligibility.** Substrings like `"mallan"` in `list_office_name` are a UI hint, never a gate input. The earlier v2 draft (Layer 1d) treated a "mallan" substring + `agent_id != null` + `source='manual'` as a sufficient eligibility path; that was unsafe and is removed. | **HARD RULE** |
+| **I.5** | **If `MALLAN_OFFICE_MLS_IDS` AND `MALLAN_AGENT_MLS_IDS` are both empty, ALL listings are blocked at Layer 1.** No row can pass without at least one of those config sets being non-empty AND at least one corresponding canonical ID matching on the row. The "empty config = block all" behavior is the correct fail-closed default. | **HARD RULE** |
+| **I.6** | **A manual listing may become eligible only when ONE of the following is true:** (a) canonical Mallan office or agent IDs are configured AND the row's `ListOfficeMlsId` / `ListAgentMlsId` matches (same path used for Trestle rows); OR (b) a broker-approved explicit manual-control verification flag is set on `Listing.compliance.mallan_control_verification` AFTER a deliberate human review action. There is no third path. | **HARD RULE** |
+| **I.7** | **The manual-control verification flag must NEVER be auto-created by the audit script.** PR 1A's audit script is read-only and dry-run only; it cannot write any field, and specifically cannot write `compliance.mallan_control_verification`. The flag is created ONLY by an explicit broker action in the admin UI (a future PR; not in scope for PR 1A). | **HARD RULE** |
+| **I.8** | **Ambiguity = block.** Every Layer fails-closed; no fallback to "try the next signal." If canonical IDs are missing OR conflicting OR partially set, the row is INELIGIBLE. | **HARD RULE** |
+
+These eight invariants supersede any earlier description in this document. They were added 2026-05-18 in response to Codex's PR #161 finding that v2's Layer 1d (manual + `agent_id` fallback) could open the gate while canonical identifiers were unset, contradicting the fail-closed rule.
+
 ```typescript
 // proposed location — not implemented yet
 // lib/syndication/eligibility.ts
@@ -187,26 +204,47 @@ export async function evaluateMallanSyndicationEligibility(
       control.ambiguity_reasons.push("co_list_match_but_no_co_list_authorization_doc");
     }
   }
-  // 1d — Manual listing with a Mallan agent linked (only when no Trestle IDs are present)
+  // 1d — Broker-approved manual-control verification (the ONLY path that
+  // makes a row eligible when no canonical Trestle IDs match). MUST be set
+  // by an explicit human broker action in the admin UI; NEVER auto-created
+  // by the audit script or any other automated path. See invariants I.6
+  // and I.7 in §C.0.
+  //
+  // Required shape on the row:
+  //   compliance.mallan_control_verification = {
+  //     verified_by:    "<broker_user_id>",   // BigInt as string
+  //     verified_at:    "<ISO timestamp>",
+  //     verification_note: "<free text from broker — required, audit trail>",
+  //     evidence_doc_url:  "<optional URL to signed exclusive agreement>",
+  //   }
+  //
+  // The mere presence of `agent_id`, the substring "mallan" in
+  // `list_office_name`, or `source==='manual'` is NEVER sufficient by
+  // itself. The Codex feedback on PR #161 explicitly rejected the earlier
+  // Layer-1d "manual + agent_id fallback" because it could open the gate
+  // while canonical identifiers were unset. That fallback is REMOVED.
   else if (
-    !listOfficeMlsId && !listAgentMlsId &&
-    listing.source === "manual" && listing.agent_id != null
+    typeof (compliance.mallan_control_verification as Record<string, unknown> | undefined)?.verified_at === "string" &&
+    typeof (compliance.mallan_control_verification as Record<string, unknown> | undefined)?.verified_by === "string" &&
+    typeof (compliance.mallan_control_verification as Record<string, unknown> | undefined)?.verification_note === "string"
   ) {
-    // The Agent table FK proves Mallan-side because every Agent row IS a Mallan agent
-    // (the model is single-tenant). But still demand the brokerage attribution to be
-    // present on the row.
-    if (String(listing.list_office_name ?? "").toLowerCase().includes("mallan")) {
-      control = { passes: true, via: "manual_with_mallan_agent_link", ambiguity_reasons: [] };
-    } else {
-      control.ambiguity_reasons.push("manual_row_missing_mallan_brokerage_attribution");
-    }
+    control = { passes: true, via: "manual_control_verified", ambiguity_reasons: [] };
   }
+
   // 1e — Ambiguity / conflicts — fail-closed
   if (listOfficeMlsId && listAgentMlsId &&
       officeSet.has(listOfficeMlsId) === false &&
       mallanAgentMlsIds.has(listAgentMlsId) === true) {
     control.ambiguity_reasons.push("agent_says_mallan_office_says_other_brokerage");
   }
+
+  // 1f — Empty-config guard (invariant I.5). If BOTH config sets are empty,
+  // every row is blocked at Layer 1. This is the correct fail-closed default
+  // until Maya populates MALLAN_OFFICE_MLS_IDS and Agent.trestle_mls_id.
+  if (officeSet.size === 0 && mallanAgentMlsIds.size === 0 && !control.passes) {
+    control.ambiguity_reasons.push("identity_config_empty_blocks_all_rows");
+  }
+
   if (!control.passes) {
     failedLayers.add("layer_1");
     reasons.push(`listing_side_control_failed (via=${control.via}; ambiguities=${control.ambiguity_reasons.join("|") || "none"})`);
@@ -278,34 +316,41 @@ export async function evaluateMallanSyndicationEligibility(
 }
 ```
 
-### C.1 Why this gate is correct (vs the v1 mistake)
+### C.1 Why this gate is correct (vs the v1 + early-v2 mistakes)
 
-| Scenario | v1 verdict (WRONG) | v2 verdict (CORRECT) |
+| Scenario | v1 verdict (WRONG) | v2 + Codex correction (CORRECT) |
 |---|---|---|
 | Mallan listing entered in RealPlus → routed to REBNY RLS → re-ingested via Trestle with `ListOfficeMlsId = <Mallan>` and `source='trestle'` | ❌ blocked (source wrong) | ✓ Layer 1a passes; eligible if other layers pass |
-| Mallan listing manually entered in CRM (`source='manual'`, `agent_id=<Mallan agent>`) | ✓ passes | ✓ Layer 1d passes if `list_office_name` contains "Mallan" |
-| Co-brokerage listing (some other brokerage is listing side, Mallan is buyer side) — `source='trestle'`, `ListOfficeMlsId = <another brokerage>` | ❌ blocked | ✓ blocked — Layer 1 fails (no Mallan office/agent match) |
-| Mallan agent's old listing transferred to a partner brokerage but old `agent_id` still matches in DB | ✓ passes (WRONG — partner brokerage controls it now) | ❌ blocked — Layer 1's "agent match + office is other brokerage" ambiguity catches this |
-| Manual entry typo (`list_office_name = "Maelan Real Estate"`) | ✓ passes (WRONG — brittle string match) | ❌ blocked — Layer 1d requires lowercase substring match against "mallan"; future hardening replaces this with a positive boolean field |
+| Mallan listing manually entered in CRM (`source='manual'`, `agent_id=<Mallan agent>`), NO canonical IDs, NO verification flag | ✓ passes | ❌ **BLOCKED** — early-v2 Layer 1d allowed this via free-text "mallan" substring; **that path is removed** (invariants I.1, I.3, I.4). Broker must EITHER (a) populate the canonical IDs (Decision #1 / #2) or (b) set `compliance.mallan_control_verification` via deliberate admin UI action. |
+| Mallan-controlled manual listing WITH `compliance.mallan_control_verification` populated by broker action | n/a | ✓ Layer 1d passes via the explicit verification flag |
+| Co-brokerage listing (some other brokerage is listing side, Mallan is buyer side) — `source='trestle'`, `ListOfficeMlsId = <another brokerage>` | ❌ blocked | ✓ blocked — Layer 1 fails (no Mallan office/agent match, no verification flag) |
+| Mallan agent's old listing transferred to a partner brokerage but old `agent_id` still matches in DB | ✓ passes (WRONG — partner brokerage controls it now) | ❌ blocked — Layer 1e's "agent match + office is other brokerage" ambiguity catches this |
+| Manual entry typo (`list_office_name = "Maelan Real Estate"`) — no canonical IDs, no verification flag | ✓ passes (WRONG — brittle string match) | ❌ blocked — free-text matching is not a gate input per invariant I.4 |
+| **Empty config — both `MALLAN_OFFICE_MLS_IDS` and `MALLAN_AGENT_MLS_IDS` are empty** | n/a | ❌ **EVERY row blocked at Layer 1** via the empty-config guard (1f) (invariant I.5). Correct fail-closed default until Maya populates the config. |
+| Audit script attempts to write `compliance.mallan_control_verification` automatically | n/a | ❌ forbidden by invariant I.7 — the audit script is read-only and dry-run only |
 
 ---
 
 ## D. Risk if listing-side IDs are ambiguous
 
-**Default behavior: block.** Every layer fails-closed; no fallback to "try the next signal."
+**Default behavior: BLOCK.** Every layer fails-closed; no silent fallback. The "ambiguity = block" rule (invariant I.8) supersedes any earlier text describing a fallback path.
 
 Specific ambiguity scenarios + what happens:
 
 | Ambiguity | Verdict | Logged as |
 |---|---|---|
 | `ListAgentMlsId` matches a Mallan agent BUT `ListOfficeMlsId` is set and is NOT Mallan | **BLOCK** | `agent_says_mallan_office_says_other_brokerage` |
-| `ListAgentMlsId` empty AND `ListOfficeMlsId` empty AND source=`manual` AND no Mallan agent FK | **BLOCK** | `listing_side_control_failed (via=null; ambiguities=none)` |
-| Co-listing scenario where Mallan is co-list but co-list authorization doc is absent | **BLOCK** | `co_list_match_but_no_co_list_authorization_doc` |
-| `Agent.trestle_mls_id` not populated for any Mallan agent → `mallanAgentMlsIds` is empty | **BLOCK ALL** — the gate cannot match agent-level | (no specific reason; Layer 1 fails on every row) |
-| `MALLAN_OFFICE_MLS_IDS` config is empty | **BLOCK ALL** — gate cannot match office-level | (Layer 1 fails on every row unless Layer 1d manual branch hits) |
-| Free-text brokerage match used as primary discriminator | **NOT ALLOWED in this gate** | Layer 1d only uses text as a FALLBACK when both Trestle IDs are absent AND `source='manual'` AND `agent_id` is set — three independent conditions, not one |
+| Both Trestle IDs empty AND no broker-approved manual-control verification flag | **BLOCK** | `listing_side_control_failed (via=null; ambiguities=none)` |
+| Co-listing scenario where Mallan is co-list but `compliance.syndication.co_list_authorization_url` is absent | **BLOCK** | `co_list_match_but_no_co_list_authorization_doc` |
+| `Agent.trestle_mls_id` not populated for any Mallan agent → `mallanAgentMlsIds` set empty at runtime | **BLOCKS ALL** agent-level matches | Layer 1b cannot fire |
+| `MALLAN_OFFICE_MLS_IDS` config is empty | **BLOCKS ALL** office-level matches | Layer 1a cannot fire |
+| **BOTH config sets empty AND no manual-control verification flag** | **BLOCKS EVERY ROW** | `identity_config_empty_blocks_all_rows` (Layer 1f) |
+| **`source='manual'` + `agent_id != null` + NO canonical IDs + NO verification flag** (the early-v2 Layer 1d path) | **BLOCK** — Codex feedback on PR #161 explicitly rejected this fallback; **the path is removed** (invariants I.1, I.3, I.4) | `listing_side_control_failed (via=null)` |
+| `list_office_name` contains substring "mallan" but no canonical IDs and no verification flag | **BLOCK** — free-text matching is never sufficient (invariant I.4) | `listing_side_control_failed (via=null)` |
+| Manual-control verification flag present but missing required fields (`verified_by`, `verified_at`, `verification_note`) | **BLOCK** — partial flag is not a flag | `listing_side_control_failed (via=null)` |
+| Audit script attempts to set the verification flag programmatically | **NEVER OCCURS** — audit script is read-only / dry-run only (invariant I.7) | n/a |
 
-**Operator note:** Until Maya backfills `Agent.trestle_mls_id` for active agents AND populates `MALLAN_OFFICE_MLS_IDS`, the gate will block every listing. That is the correct default. The MVP rollout sequence (§E PR 1) makes that backfill the first deliverable, BEFORE any export route exists.
+**Operator note:** Until Maya populates `MALLAN_OFFICE_MLS_IDS` AND backfills `Agent.trestle_mls_id` (Decisions #1, #2), the gate will block every listing. That is the correct default. The MVP rollout sequence (§E PR 1A) makes the audit script (read-only / dry-run only) the first deliverable, BEFORE any backfill or export action exists.
 
 ---
 
@@ -313,7 +358,7 @@ Specific ambiguity scenarios + what happens:
 
 | # | PR title | Scope | Effort | Class |
 |---:|---|---|:---:|:---:|
-| **1** | `feat(syndication): canonical Mallan listing-side identifier audit + helper scaffolding (no export)` | (a) `lib/syndication/mallan-identity.ts` config file with empty arrays for `MALLAN_OFFICE_MLS_IDS` (Maya fills in via a separate untracked override file or commits values directly). (b) `lib/syndication/eligibility.ts` with the gate function. (c) `lib/syndication/payload.ts` with the canonical payload TYPE + sanitizer stubs. (d) `scripts/audit-mallan-listing-side-ids.ts` — read-only script that scans existing `listings.agent_info` JSON across the DB and reports unique `ListOfficeMlsId` / `ListAgentMlsId` values with counts, so Maya can verify which IDs to add to config. (e) `tests/runtime/syndication-eligibility.test.ts` with the full test matrix from §J. **No routes. No exports. No UI. No audit-event writes.** | S–M | A |
+| **1A** | `feat(syndication): canonical Mallan listing-side identifier audit script (READ-ONLY / DRY-RUN ONLY) + helper scaffolding` | (a) `lib/syndication/mallan-identity.ts` config file with **empty** arrays for `MALLAN_OFFICE_MLS_IDS`. Empty config + invariant I.5 means every row blocks at Layer 1 until Maya populates the values. (b) `lib/syndication/eligibility.ts` with the gate function reflecting invariants I.1–I.8 — no early-v2 Layer-1d fallback. (c) `lib/syndication/payload.ts` with the canonical payload TYPE + sanitizer stubs. (d) `scripts/audit-mallan-listing-side-ids.ts` — **strictly READ-ONLY / DRY-RUN ONLY**. Scans `listings.agent_info` JSON, reports unique `ListOfficeMlsId` / `ListAgentMlsId` value frequencies, computes coverage statistics. **MUST NOT** write any field, **MUST NOT** create `compliance.mallan_control_verification` flags, **MUST NOT** update `Agent.trestle_mls_id`, **MUST NOT** mutate any DB row. Output: a single human-readable report to stdout + optionally a `.json` artifact in the repo for Maya's review. Enforce read-only at compile time by importing only `prisma` and never destructuring write methods, plus a runtime guard that asserts no `$queryRaw`/`$executeRaw` with `UPDATE`/`INSERT`/`DELETE` keywords. (e) `tests/runtime/syndication-eligibility.test.ts` with the full test matrix from §I.1, including the 4 new cases added 2026-05-18. **No routes. No exports. No UI. No audit-event writes. No DB writes of any kind.** | S–M | A |
 | **2** | `feat(syndication): broker-only eligible-list API (read-only, preview-only)` | `app/api/crm/syndication/eligible/route.ts` GET — broker-only, returns paginated list of listings that pass the gate. Includes `eligibility` object so the UI can show the eligibility-checklist modal. **No mutating routes. No exports. AuditEvent writes "syndication_eligibility_queried" diagnostic only.** | XS–S | A |
 | **3** | `feat(syndication): JSON + CSV preview/download + payload sanitizer + AuditEvent` | (a) `lib/syndication/sanitizers/sanitizeForMallanSyndication.ts`. (b) `lib/syndication/adapters/json.ts` + `csv.ts` (XML defer to later — Maya's spec said XML only "if low-risk"; CSV is the safer minimum). (c) `app/api/crm/syndication/preview/[id]/route.ts` POST returning the JSON payload (no file write). (d) `app/api/crm/syndication/export/[id]/route.ts` POST returning the file download AND writing `AuditEvent action='syndication_export_generated'` with payload hash, OR `action='syndication_export_blocked'` on gate failure. (e) Adapter re-check pattern: every adapter calls `evaluateMallanSyndicationEligibility()` again with the row BEFORE emitting. | S–M | A |
 | **4** | `feat(syndication): admin UI — eligibility checklist + preview + approve+export + audit history` | `public/crm/js/dashboard/panels/syndication.js` (new panel, broker-only). Five views per §I in the original spec: eligible list, eligibility checklist (per row), preview (JSON viewer), approve+export button, per-listing audit history. Wires to the 3 routes from PR #3. | M | A |
@@ -435,23 +480,28 @@ Once those two data items are in hand, PR 1 (audit script + helper + tests, NO e
 
 **Hold on PR 2+** until PR 1 is reviewed, merged, and the audit script's output has been reviewed by Maya. Each subsequent PR opens only after the previous one is shipped and the next set of preconditions is confirmed.
 
-### I.1 Test matrix (Maya's spec, restated)
+### I.1 Test matrix — UPDATED 2026-05-18 (Codex PR #161 feedback)
 
-The PR 1 deliverable includes `tests/runtime/syndication-eligibility.test.ts` proving all 10 cases:
+The PR 1A deliverable includes `tests/runtime/syndication-eligibility.test.ts` proving all 15 cases. Cases #12–#15 were added in response to Codex's correction of the early-v2 manual-listing fallback.
 
-| # | Case | Expected |
-|---:|---|:---:|
-| 1 | Mallan-listed Trestle row (`ListOfficeMlsId` matches Mallan) — all other layers pass | ✓ eligible |
-| 2 | Non-Mallan Trestle / RLS row (`ListOfficeMlsId` belongs to another brokerage) | ✗ blocked at Layer 1 |
-| 3 | Manual Mallan exclusive (`source='manual'`, `agent_id` = Mallan agent, `list_office_name` contains "mallan") — all other layers pass | ✓ eligible |
-| 4 | Ambiguous IDs (`ListAgentMlsId` matches Mallan but `ListOfficeMlsId` is another brokerage) | ✗ blocked at Layer 1 (ambiguity-fail-closed) |
-| 5 | Missing IDs (`ListAgentMlsId` empty AND `ListOfficeMlsId` empty AND `source='trestle'`) | ✗ blocked at Layer 1 |
-| 6 | `owner_opt_out=true` | ✗ blocked at Layer 3 |
-| 7 | `internet_entire_listing_display_yn=false` OR `idx_display_yn=false` | ✗ blocked at Layer 3 |
-| 8 | `Listing.compliance.media_rights.confirmed_at` missing | ✗ blocked at Layer 2 (and media never serializes) |
-| 9 | Another brokerage's listing | ✗ blocked at Layer 1 |
-| 10 | Verify NO blocklisted field ever appears in any adapter output | ✓ payload allowlist enforced |
-| 11 | Verify adapter re-check blocks ineligible payloads even if route handler is buggy | ✓ Layer 5 re-check fires |
+| # | Case | Expected | Test enforces |
+|---:|---|:---:|---|
+| 1 | Mallan-listed Trestle row (`ListOfficeMlsId` matches Mallan) — all other layers pass | ✓ eligible | I.2 (Trestle CAN pass) |
+| 2 | Non-Mallan Trestle / RLS row (`ListOfficeMlsId` belongs to another brokerage) | ✗ blocked at Layer 1 | I.3 |
+| 3 | **Manual Mallan exclusive (`source='manual'`, `agent_id` = Mallan agent, `list_office_name` contains "mallan") — but NO canonical IDs in `agent_info` AND NO `compliance.mallan_control_verification` flag** | **✗ blocked at Layer 1** (the early-v2 Layer 1d path is removed) | I.1, I.3, I.4 |
+| 4 | Ambiguous IDs (`ListAgentMlsId` matches Mallan but `ListOfficeMlsId` is another brokerage) | ✗ blocked at Layer 1 (ambiguity-fail-closed) | I.8 |
+| 5 | Missing IDs (`ListAgentMlsId` empty AND `ListOfficeMlsId` empty AND `source='trestle'`) | ✗ blocked at Layer 1 | I.3 |
+| 6 | `owner_opt_out=true` | ✗ blocked at Layer 3 | (REBNY §2.05) |
+| 7 | `internet_entire_listing_display_yn=false` OR `idx_display_yn=false` | ✗ blocked at Layer 3 | (REBNY §2.05) |
+| 8 | `Listing.compliance.media_rights.confirmed_at` missing | ✗ blocked at Layer 2 (and media never serializes) | (Decision #4) |
+| 9 | Another brokerage's listing | ✗ blocked at Layer 1 | I.3 |
+| 10 | Verify NO blocklisted field ever appears in any adapter output | ✓ payload allowlist enforced | (Layer 4) |
+| 11 | Verify adapter re-check blocks ineligible payloads even if route handler is buggy | ✓ Layer 5 re-check fires | (Layer 5) |
+| **12** | **Manual listing with `agent_id` but NO canonical ID match AND empty `MALLAN_OFFICE_MLS_IDS` / `MALLAN_AGENT_MLS_IDS` config AND NO verification flag** | **✗ blocked at Layer 1** | **I.1, I.5, I.6** |
+| **13** | **Empty identity config — both `MALLAN_OFFICE_MLS_IDS` AND `MALLAN_AGENT_MLS_IDS` empty at runtime AND NO verification flag on ANY row** | **✗ EVERY ROW blocked at Layer 1** with reason `identity_config_empty_blocks_all_rows` | **I.5** |
+| **14** | **Free-text "Mallan" name match only — `list_office_name='Mallan Real Estate'` BUT no canonical IDs AND no verification flag** | **✗ blocked at Layer 1** — free-text is never a gate input | **I.4** |
+| **15** | **Broker-approved manual-control verification — `compliance.mallan_control_verification = { verified_by, verified_at, verification_note }` populated by deliberate admin action AND all other layers (2/3/5) pass** | **✓ eligible** via the only allowed manual path | **I.6** |
+| 16 | Partial verification flag (missing `verified_at` OR `verified_by` OR `verification_note`) | ✗ blocked at Layer 1 | I.6 (partial flag is not a flag) |
 
 ### I.2 Risk mitigation
 
