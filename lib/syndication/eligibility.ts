@@ -143,76 +143,102 @@ export function evaluateMallanSyndicationEligibility(
     ambiguity_reasons: [],
   };
 
-  // ── 1a — Office-level match (strongest signal) ──
-  if (listOfficeMlsId && config.officeMlsIds.has(listOfficeMlsId)) {
-    control = {
-      passes: true,
-      via: "list_office_mls_id_match",
-      ambiguity_reasons: [],
-    };
-  }
-  // ── 1b — Agent-level match (secondary) ──
-  // Only fires when 1a didn't already pass. If the agent matches Mallan
-  // but the office is explicitly set to ANOTHER brokerage, block —
-  // ambiguity = block (invariant I.8).
-  else if (listAgentMlsId && config.agentMlsIds.has(listAgentMlsId)) {
-    if (listOfficeMlsId && !config.officeMlsIds.has(listOfficeMlsId)) {
-      control.ambiguity_reasons.push(
-        "agent_match_but_office_is_other_brokerage",
-      );
-    } else {
-      control = {
-        passes: true,
-        via: "list_agent_mls_id_match",
-        ambiguity_reasons: [],
-      };
-    }
-  }
-  // ── 1c — Co-list scenarios — default block unless explicit URL ──
-  else if (
-    (coListOfficeId && config.officeMlsIds.has(coListOfficeId)) ||
-    (coListAgentId && config.agentMlsIds.has(coListAgentId))
-  ) {
-    const coListAuth = synd.co_list_authorization_url;
-    if (typeof coListAuth === "string" && coListAuth.trim() !== "") {
-      control = {
-        passes: true,
-        via: "co_list_authorization",
-        ambiguity_reasons: [],
-      };
-    } else {
-      control.ambiguity_reasons.push(
-        "co_list_match_but_no_co_list_authorization_doc",
-      );
-    }
-  }
-  // ── 1d — Broker-approved manual-control verification flag ──
-  // The ONLY path that passes when no canonical Trestle IDs match.
-  // The flag is set by an explicit broker action in the admin UI
-  // (future PR). It is NEVER auto-created by the audit script
-  // (invariant I.7).
+  // ── 1.PRE — Empty-config guard (invariant I.5 — RUNS FIRST) ──
+  // If BOTH canonical-identity sets are empty, BLOCK every row
+  // unconditionally, BEFORE 1a/1b/1c/1d are evaluated. The
+  // broker-approved manual-control verification flag (1d) does NOT
+  // bypass this check — see Codex PR #162 review and invariant I.5
+  // in docs/architecture/MALLAN-EXCLUSIVES-SYNDICATION-PLAN-2026-05-18.md.
   //
-  // Partial flag = block (invariant I.6). All three of verified_by,
-  // verified_at, and verification_note must be non-empty strings.
-  else {
-    const verification = asRecord(compliance.mallan_control_verification);
-    const verifiedBy = pickString(verification, "verified_by");
-    const verifiedAt = pickString(verification, "verified_at");
-    const verificationNote = pickString(verification, "verification_note");
-    if (verifiedBy && verifiedAt && verificationNote) {
+  // Rationale: if the system does not know what Mallan's office or
+  // agent MLS IDs are, the verification flag is a single point of
+  // bypass — anyone with write access to `compliance` JSON could
+  // mint a passing row. The fail-closed default is: no canonical
+  // identity → no eligibility, period.
+  const identityConfigEmpty =
+    config.officeMlsIds.size === 0 && config.agentMlsIds.size === 0;
+
+  if (identityConfigEmpty) {
+    control.ambiguity_reasons.push("identity_config_empty_blocks_all_rows");
+    // Skip 1a/1b/1c/1d entirely — control.passes stays false.
+  } else {
+    // ── 1a — Office-level match (strongest signal) ──
+    if (listOfficeMlsId && config.officeMlsIds.has(listOfficeMlsId)) {
       control = {
         passes: true,
-        via: "manual_control_verified",
+        via: "list_office_mls_id_match",
         ambiguity_reasons: [],
       };
+    }
+    // ── 1b — Agent-level match (secondary) ──
+    // Only fires when 1a didn't already pass. If the agent matches
+    // Mallan but the office is explicitly set to ANOTHER brokerage,
+    // block — ambiguity = block (invariant I.8).
+    else if (listAgentMlsId && config.agentMlsIds.has(listAgentMlsId)) {
+      if (listOfficeMlsId && !config.officeMlsIds.has(listOfficeMlsId)) {
+        control.ambiguity_reasons.push(
+          "agent_match_but_office_is_other_brokerage",
+        );
+      } else {
+        control = {
+          passes: true,
+          via: "list_agent_mls_id_match",
+          ambiguity_reasons: [],
+        };
+      }
+    }
+    // ── 1c — Co-list scenarios — default block unless explicit URL ──
+    else if (
+      (coListOfficeId && config.officeMlsIds.has(coListOfficeId)) ||
+      (coListAgentId && config.agentMlsIds.has(coListAgentId))
+    ) {
+      const coListAuth = synd.co_list_authorization_url;
+      if (typeof coListAuth === "string" && coListAuth.trim() !== "") {
+        control = {
+          passes: true,
+          via: "co_list_authorization",
+          ambiguity_reasons: [],
+        };
+      } else {
+        control.ambiguity_reasons.push(
+          "co_list_match_but_no_co_list_authorization_doc",
+        );
+      }
+    }
+    // ── 1d — Broker-approved manual-control verification flag ──
+    // The ONLY path that passes when no canonical Trestle IDs match
+    // on the row. Pre-requisite enforced ABOVE by 1.PRE: at least one
+    // canonical-identity config set must be non-empty for this branch
+    // to be reachable at all.
+    //
+    // The flag itself is set by an explicit broker action in the
+    // admin UI (future PR). It is NEVER auto-created by the audit
+    // script (invariant I.7).
+    //
+    // Partial flag = block (invariant I.6). All three of verified_by,
+    // verified_at, and verification_note must be non-empty strings.
+    else {
+      const verification = asRecord(compliance.mallan_control_verification);
+      const verifiedBy = pickString(verification, "verified_by");
+      const verifiedAt = pickString(verification, "verified_at");
+      const verificationNote = pickString(verification, "verification_note");
+      if (verifiedBy && verifiedAt && verificationNote) {
+        control = {
+          passes: true,
+          via: "manual_control_verified",
+          ambiguity_reasons: [],
+        };
+      }
     }
   }
 
   // ── 1e — Ambiguity / conflicts catch-all ──
   // If a Trestle agent ID matched Mallan but the office is another
   // brokerage, record the ambiguity even if 1a/1b/1c/1d already
-  // failed. Diagnostic / audit aid.
+  // failed. Diagnostic / audit aid. Skipped when identity-config is
+  // empty (1.PRE already blocked).
   if (
+    !identityConfigEmpty &&
     listOfficeMlsId &&
     listAgentMlsId &&
     config.officeMlsIds.has(listOfficeMlsId) === false &&
@@ -221,18 +247,6 @@ export function evaluateMallanSyndicationEligibility(
     control.ambiguity_reasons.push(
       "agent_says_mallan_office_says_other_brokerage",
     );
-  }
-
-  // ── 1f — Empty-config guard (invariant I.5) ──
-  // If BOTH config sets are empty AND we did not find a verification
-  // flag, every row blocks. Correct fail-closed default until Maya
-  // populates the config OR an explicit broker action sets the flag.
-  if (
-    config.officeMlsIds.size === 0 &&
-    config.agentMlsIds.size === 0 &&
-    !control.passes
-  ) {
-    control.ambiguity_reasons.push("identity_config_empty_blocks_all_rows");
   }
 
   if (!control.passes) {
