@@ -121,12 +121,16 @@ export const MALLAN_PRINCIPAL_BROKER_NAME = "Maya Allan";
  * above + the runtime-loaded agent set, then calls this helper.
  */
 export function isIdentityConfigEmpty(
-  officeMlsIds: ReadonlySet<string> | readonly string[],
-  agentMlsIds: ReadonlySet<string> | readonly string[],
+  officeMlsIds: ReadonlySet<string>,
+  agentMlsIds: ReadonlySet<string>,
 ): boolean {
-  const officeSize = officeMlsIds instanceof Set ? officeMlsIds.size : officeMlsIds.length;
-  const agentSize = agentMlsIds instanceof Set ? agentMlsIds.size : agentMlsIds.length;
-  return officeSize === 0 && agentSize === 0;
+  // Helper restricted to `ReadonlySet<string>` to keep this function
+  // strict-mode safe. Callers that hold a `readonly string[]` (e.g. the
+  // exported MALLAN_OFFICE_MLS_IDS constant) construct the Set at the
+  // call site: `new Set(MALLAN_OFFICE_MLS_IDS)`. This matches how
+  // `evaluateMallanSyndicationEligibility()` already shapes its config
+  // argument in `lib/syndication/eligibility.ts`.
+  return officeMlsIds.size === 0 && agentMlsIds.size === 0;
 }
 
 /**
