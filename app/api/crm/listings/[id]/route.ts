@@ -16,6 +16,7 @@ import { sanitizeForCRM } from "@/lib/compliance/dto";
 import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -299,6 +300,36 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     where: { id: listing.id },
     data: update,
   });
+
+  // Phase A W3 — dual-write the listing_search_projection so any reader
+  // (including the PR 5B-future projection reader) sees the updated row
+  // immediately. CRM PATCH can change `list_price`, address fields,
+  // `idx_display_yn` (via IDXEntireListingDisplayYN guard above),
+  // `rls_eligible`, status, and other projection-mirrored columns; without
+  // this dual-write the projection would lag until the next idx-sync run
+  // (Trestle path only) or the data-retention cron (terminal rows only).
+  //
+  // See docs/idx/post-reconciliation-tightening-audit-2026-05-20.md W3 for
+  // the gap analysis. Failure logged to AuditEvent + does NOT block the
+  // agent's edit (matches per-row-failure semantics of lib/idx/sync.ts).
+  try {
+    await dualWriteProjectionForListingId(prisma, updated.listing_id);
+  } catch (err) {
+    await prisma.auditEvent.create({
+      data: {
+        action: "projection_dual_write_failed",
+        entity_type: "listing",
+        entity_id: updated.id.toString(),
+        user_type: auth.userType,
+        user_id: auth.userId,
+        changes: {
+          source: "crm_listing_patch",
+          listing_id: updated.listing_id,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      },
+    }).catch(() => { /* swallow — don't fail user edit on a logging failure */ });
+  }
 
   await logAuditEvent(
     "update",

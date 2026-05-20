@@ -480,9 +480,22 @@ if (fs.existsSync(mapperPath)) {
   // This guard locks the asymmetry: AVM and ConsumerComment remain fail-closed
   // via affirmPermission (per-row opt-out flags); EntireListing/Address use
   // `!== false` (provider pre-filter convention).
+  //
+  // Phase A (2026-05-20): the inline `affirmPermission(raw.X)` calls were
+  // moved into the `computeGateColumns` helper (still inside this same file)
+  // so all 5 gate-column writers share one canonical computation. The helper
+  // takes input shaped as `input.internetAutomatedValuationDisplayYN` (camelCase
+  // property, `input` prefix) and applies the same fail-closed `affirmPermission`
+  // call. The regex below accepts EITHER the historical inline form
+  // (`(?:raw|normalized).InternetAutomatedValuationDisplayYN`) OR the helper's
+  // `input.internet*` form — both encode the same semantic invariant. Adding
+  // a camelCase variant to the negative IDX-Plus check also catches the
+  // regression of wrapping the helper's `input.internetEntireListingDisplayYN`
+  // in `affirmPermission` (which would re-introduce the 2026-04-30 incident
+  // shape on the new code path).
   const idxPlusPrefilterViolations = [
-    { pattern: /affirmPermission\(\s*(?:raw|normalized)\.InternetEntireListingDisplayYN\s*\)/, name: 'InternetEntireListingDisplayYN wrapped in affirmPermission (must use !== false per IDX Plus pre-filter)' },
-    { pattern: /affirmPermission\(\s*(?:raw|normalized)\.InternetAddressDisplayYN\s*\)/, name: 'InternetAddressDisplayYN wrapped in affirmPermission (must use !== false per IDX Plus pre-filter)' },
+    { pattern: /affirmPermission\(\s*(?:(?:raw|normalized)\.InternetEntireListingDisplayYN|input\.internetEntireListingDisplayYN)[\s,]*\)/, name: 'InternetEntireListingDisplayYN wrapped in affirmPermission (must use !== false per IDX Plus pre-filter)' },
+    { pattern: /affirmPermission\(\s*(?:(?:raw|normalized)\.InternetAddressDisplayYN|input\.internetAddressDisplayYN)[\s,]*\)/, name: 'InternetAddressDisplayYN wrapped in affirmPermission (must use !== false per IDX Plus pre-filter)' },
   ];
   const idxPlusHits = idxPlusPrefilterViolations.filter(({ pattern }) => pattern.test(content));
   if (idxPlusHits.length === 0) {
@@ -493,13 +506,15 @@ if (fs.existsSync(mapperPath)) {
 
   // The fail-closed posture for the per-row opt-out flags must remain.
   // AVM and ConsumerComment ARE populated per row in the live feed (~97% true);
-  // null on these means "unknown" and must collapse to false.
-  if (/affirmPermission\(\s*(?:raw|normalized)\.InternetAutomatedValuationDisplayYN\s*\)/.test(content)) {
+  // null on these means "unknown" and must collapse to false. See the Phase A
+  // note above for why the regex accepts both the historical `raw.X` form and
+  // the helper's `input.x` form.
+  if (/affirmPermission\(\s*(?:(?:raw|normalized)\.InternetAutomatedValuationDisplayYN|input\.internetAutomatedValuationDisplayYN)[\s,]*\)/.test(content)) {
     pass('Mapper keeps AVM (InternetAutomatedValuationDisplayYN) fail-closed via affirmPermission (per-row opt-out)');
   } else {
     fail('Mapper missing affirmPermission on InternetAutomatedValuationDisplayYN — per-row opt-out flag must remain fail-closed');
   }
-  if (/affirmPermission\(\s*(?:raw|normalized)\.InternetConsumerCommentYN\s*\)/.test(content)) {
+  if (/affirmPermission\(\s*(?:(?:raw|normalized)\.InternetConsumerCommentYN|input\.internetConsumerCommentYN)[\s,]*\)/.test(content)) {
     pass('Mapper keeps ConsumerComment (InternetConsumerCommentYN) fail-closed via affirmPermission (per-row opt-out)');
   } else {
     fail('Mapper missing affirmPermission on InternetConsumerCommentYN — per-row opt-out flag must remain fail-closed');
