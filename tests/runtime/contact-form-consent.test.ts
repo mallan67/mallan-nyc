@@ -26,11 +26,15 @@ import { makeRequest } from './helpers';
 // is a real jest.fn so we can assert call counts and overrides.
 const leadUpsertMock = jest.fn(async () => ({ id: 99n, email: 'test@example.com' }));
 const auditEventCreateMock = jest.fn(async () => ({ id: 1n }));
+// A3 (2026-05-20): the contact route now calls lead.findUnique BEFORE
+// upsert to additively merge roles. Default = no prior lead (first-time
+// contact); the intent-routing describe block overrides per-test.
+const leadFindUniqueMock = jest.fn(async () => null as null | { roles: string[] });
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
-    lead: { upsert: leadUpsertMock },
+    lead: { upsert: leadUpsertMock, findUnique: leadFindUniqueMock },
     auditEvent: { create: auditEventCreateMock },
   },
 }));
@@ -81,6 +85,10 @@ beforeEach(() => {
   sendEmailMock.mockResolvedValue({ success: true });
   leadUpsertMock.mockClear();
   auditEventCreateMock.mockClear();
+  leadFindUniqueMock.mockReset();
+  // Default = first-time lead, no prior roles. Per-test overrides
+  // simulate a returning lead.
+  leadFindUniqueMock.mockResolvedValue(null);
 });
 
 const baseBody = () => ({
@@ -200,5 +208,224 @@ describe('POST /api/contact — SMTP fail-loud in production (Bug A15)', () => {
       makeRequest({ url: 'http://test/api/contact', body: { ...baseBody(), consent: true } })
     );
     expect(res.status).toBe(200);
+  });
+});
+
+// ── A3 (2026-05-20): intent routing ────────────────────────────────────
+//
+// The public site exposes CTAs that carry `?intent=` (e.g. an exclusive
+// townhouse landing-page CTA → /contact?intent=townhouse-seller). Prior to
+// this PR the value was DROPPED between URL → form → API → lead, so a
+// high-intent seller was treated as a generic buyer lead.
+//
+// Audit pointer:
+//   docs/audits/exclusive-launch-readiness-audit-2026-05-20.md → A3.
+//
+// These cases assert:
+//   (a) the closed allowlist behavior — only the 8 known values map to
+//       roles other than ["buyer"];
+//   (b) the additive role merge — a returning lead's prior roles are
+//       NEVER overwritten;
+//   (c) the AuditEvent shape — `intent`, `intent_raw`, and
+//       `roles_after_merge` are recorded for forensic and routing review;
+//   (d) the source-pin contract — INTENT_ALLOWLIST, classifyIntent, and
+//       mergeRoles are exported by the route module so future refactors
+//       that rename or remove them red-light this suite.
+describe('POST /api/contact — intent routing (A3 2026-05-20)', () => {
+  type AuditChanges = {
+    intent?: string;
+    intent_raw?: string | null;
+    roles_after_merge?: string[];
+  };
+  const lastAuditChanges = (): AuditChanges => {
+    expect(auditEventCreateMock).toHaveBeenCalled();
+    const lastCall = auditEventCreateMock.mock.calls[
+      auditEventCreateMock.mock.calls.length - 1
+    ] as unknown as [{ data: { changes: AuditChanges } }];
+    return lastCall[0].data.changes;
+  };
+  const lastUpsertRoles = (): string[] => {
+    expect(leadUpsertMock).toHaveBeenCalled();
+    const lastCall = leadUpsertMock.mock.calls[
+      leadUpsertMock.mock.calls.length - 1
+    ] as unknown as [
+      {
+        create: { roles: string[] };
+        update: { roles?: string[] };
+      },
+    ];
+    // The route writes the same merged-roles array into both create.roles
+    // and update.roles, so either side is authoritative for the assertion.
+    return lastCall[0].create.roles;
+  };
+
+  // For the merge tests below we let the route's normal production code
+  // path run (consent=true), which is verified separately by the consent
+  // suite above. We also force VERCEL_ENV out of production so the SMTP
+  // fail-loud branch can't intercept the 200 response.
+  beforeEach(() => {
+    (process.env as Record<string, string | undefined>).VERCEL_ENV = undefined;
+  });
+
+  it('case 1 — no intent field → roles default to ["buyer"] (non-regression)', async () => {
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(lastUpsertRoles()).toEqual(['buyer']);
+    const changes = lastAuditChanges();
+    expect(changes.intent).toBe('general');
+    expect(changes.intent_raw).toBeNull();
+    expect(changes.roles_after_merge).toEqual(['buyer']);
+  });
+
+  it('case 2 — intent=general → roles = ["buyer"] (non-regression)', async () => {
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'general' },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(lastUpsertRoles()).toEqual(['buyer']);
+    expect(lastAuditChanges().intent).toBe('general');
+    expect(lastAuditChanges().intent_raw).toBe('general');
+  });
+
+  it('case 3 — intent=seller (first contact) → roles includes "seller", NOT "buyer"', async () => {
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'seller' },
+      })
+    );
+    expect(res.status).toBe(200);
+    const roles = lastUpsertRoles();
+    expect(roles).toContain('seller');
+    expect(roles).not.toContain('buyer');
+    expect(lastAuditChanges().intent).toBe('seller');
+    expect(lastAuditChanges().roles_after_merge).toEqual(['seller']);
+  });
+
+  it('case 4 — intent=exclusive-seller → roles includes "seller", audit records exclusive-seller', async () => {
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'exclusive-seller' },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(lastUpsertRoles()).toEqual(['seller']);
+    expect(lastAuditChanges().intent).toBe('exclusive-seller');
+    expect(lastAuditChanges().intent_raw).toBe('exclusive-seller');
+  });
+
+  it('case 5 — intent=international-seller → roles includes "seller", audit records international-seller', async () => {
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'international-seller' },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(lastUpsertRoles()).toEqual(['seller']);
+    expect(lastAuditChanges().intent).toBe('international-seller');
+  });
+
+  it('case 6 — XSS-style raw intent → normalized to "general", raw kept (truncated) for forensics', async () => {
+    const xssPayload = '<script>alert(1)</script>';
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: xssPayload },
+      })
+    );
+    expect(res.status).toBe(200);
+    // Defaults to buyer because the value is not in the allowlist.
+    expect(lastUpsertRoles()).toEqual(['buyer']);
+    const changes = lastAuditChanges();
+    expect(changes.intent).toBe('general');
+    // intent_raw preserves the raw payload (under the 128-char cap) so a
+    // human reviewer can spot abuse patterns without the value ever
+    // touching business logic.
+    expect(changes.intent_raw).toBe(xssPayload);
+  });
+
+  it('case 6b — overly-long raw intent → truncated to 128 chars in intent_raw', async () => {
+    const huge = 'a'.repeat(500);
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: huge },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(lastAuditChanges().intent_raw?.length).toBe(128);
+    expect(lastAuditChanges().intent).toBe('general');
+  });
+
+  it('case 7 — returning lead with prior ["buyer","seller"], intent=tenant → merged ["buyer","seller","tenant"], no role lost', async () => {
+    leadFindUniqueMock.mockResolvedValueOnce({ roles: ['buyer', 'seller'] });
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'tenant' },
+      })
+    );
+    expect(res.status).toBe(200);
+    const roles = lastUpsertRoles();
+    expect(roles).toEqual(['buyer', 'seller', 'tenant']);
+    expect(lastAuditChanges().roles_after_merge).toEqual([
+      'buyer',
+      'seller',
+      'tenant',
+    ]);
+  });
+
+  it('case 7b — case-insensitive: intent=" SELLER " → normalizes to "seller"', async () => {
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: '  SELLER  ' },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(lastAuditChanges().intent).toBe('seller');
+    expect(lastUpsertRoles()).toEqual(['seller']);
+  });
+
+  // Source-pin: a future refactor that renames or removes any of these
+  // exports will red-light this suite immediately. This catches the
+  // "well-meaning rename" failure mode that a black-box test cannot.
+  it('source-pin — exports INTENT_ALLOWLIST, classifyIntent, mergeRoles', async () => {
+    const mod: Record<string, unknown> = await import('@/app/api/contact/route');
+    expect(typeof mod.classifyIntent).toBe('function');
+    expect(typeof mod.mergeRoles).toBe('function');
+    expect(mod.INTENT_ALLOWLIST).toBeInstanceOf(Set);
+    // The exact membership of the allowlist is asserted as well — adding
+    // a value WITHOUT updating this assertion forces a deliberate review
+    // (especially for any value that could collide with Fair Housing).
+    const allowlist = mod.INTENT_ALLOWLIST as Set<string>;
+    expect(allowlist.has('general')).toBe(true);
+    expect(allowlist.has('buyer')).toBe(true);
+    expect(allowlist.has('seller')).toBe(true);
+    expect(allowlist.has('exclusive-seller')).toBe(true);
+    expect(allowlist.has('townhouse-seller')).toBe(true);
+    expect(allowlist.has('international-seller')).toBe(true);
+    expect(allowlist.has('landlord')).toBe(true);
+    expect(allowlist.has('tenant')).toBe(true);
+    expect(allowlist.size).toBe(8);
   });
 });

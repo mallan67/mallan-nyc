@@ -9,6 +9,20 @@ import {
   extractBehavioralSessionId,
   linkBehavioralSessionToLead,
 } from '@/lib/behavioral/session-link';
+// A3 (2026-05-20): intent routing. Re-exported below so a refactor that
+// renames or removes these symbols red-lights the contact-form-consent
+// test suite (source-pin assertion).
+import {
+  INTENT_ALLOWLIST,
+  classifyIntent,
+  mergeRoles,
+  truncateIntentRaw,
+} from '@/lib/leads/intent';
+
+// Re-export so the symbols are visibly part of the route module surface and
+// the source-pin test in tests/runtime/contact-form-consent.test.ts can
+// assert their presence without requiring a separate import line.
+export { INTENT_ALLOWLIST, classifyIntent, mergeRoles };
 
 /**
  * Contact Form API - TCPA-Safe Implementation
@@ -98,12 +112,37 @@ export async function POST(request: NextRequest) {
     const receivedAt = new Date().toISOString();
     const behavioralSessionId = extractBehavioralSessionId(body);
 
+    // ── Intent routing (A3, 2026-05-20) ─────────────────────────────
+    // Public CTAs across the site pass `?intent=...` to /contact (e.g.
+    // /contact?intent=international-seller for the international-owner
+    // landing page). The client posts it through as body.intent. We:
+    //   1. classify against a CLOSED allowlist (unknown → "general")
+    //   2. keep the raw value (truncated) for forensic logging only
+    //   3. additively merge the resulting role(s) onto any existing
+    //      roles already on the lead — never demote, never overwrite.
+    // Audit pointer:
+    //   docs/audits/exclusive-launch-readiness-audit-2026-05-20.md → A3.
+    const intentRaw = truncateIntentRaw(body.intent);
+    const { intent, roles: incomingRoles } = classifyIntent(body.intent);
+
     // Store in database as a Lead record
     const nameParts = name.trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
     const consentDate = new Date(body.consentTimestamp);
+
+    // Read existing roles BEFORE upsert so we can additively merge. Prisma
+    // upsert.update cannot atomically reference prior column values for a
+    // String[] field without raw SQL, so the findUnique-then-upsert pattern
+    // is the simplest correct option. If the row doesn't exist yet, existing
+    // is null and mergeRoles falls back to incomingRoles.
+    const existing = await prisma.lead.findUnique({
+      where: { email },
+      select: { roles: true },
+    });
+    const mergedRoles = mergeRoles(existing?.roles ?? null, incomingRoles);
+
     const lead = await prisma.lead.upsert({
       where: { email },
       create: {
@@ -111,13 +150,14 @@ export async function POST(request: NextRequest) {
         last_name: lastName,
         email,
         phone: phone || '',
-        roles: ['buyer'],
+        roles: mergedRoles,
         status: 'new',
         source: 'contact_form',
         consent_captured_at: consentDate,
       },
       update: {
         phone: phone || undefined,
+        roles: mergedRoles,
         consent_captured_at: consentDate,
         updated_at: new Date(),
       },
@@ -136,6 +176,14 @@ export async function POST(request: NextRequest) {
           message,
           consent_timestamp: body.consentTimestamp,
           source: 'contact_form',
+          // A3: intent routing audit trail. `intent` is the normalized
+          // allowlist value; `intent_raw` preserves the (truncated) input
+          // for forensic review even when the input was XSS payload or
+          // unknown garbage; `roles_after_merge` records the post-merge
+          // role array so re-running classifyIntent later is not needed.
+          intent,
+          intent_raw: intentRaw,
+          roles_after_merge: mergedRoles,
         },
       },
     });
@@ -155,6 +203,10 @@ export async function POST(request: NextRequest) {
       rawClientIp: ip,
       metadata: {
         received_at: receivedAt,
+        // A3: normalized intent (allowlist value). Raw value is intentionally
+        // kept ONLY in AuditEvent.changes.intent_raw — not duplicated into
+        // Inquiry.metadata — so forensic review has a single canonical home.
+        intent,
       },
     });
 
