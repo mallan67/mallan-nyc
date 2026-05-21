@@ -21,6 +21,7 @@ import PriceHistory from '@/app/components/PriceHistory';
 import SimilarListings from '@/app/components/SimilarListings';
 import SchoolInfo from '@/app/components/SchoolInfo';
 import ListingOpenHouseRSVP from '@/app/components/ListingOpenHouseRSVP';
+import { MobileStickyCta } from '@/app/components/listing-detail/mobile-sticky-cta';
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
@@ -1186,6 +1187,29 @@ export default async function ListingPage({ params, searchParams }: Props) {
           </div>
         </div>
       </div>
+
+      {/*
+        A2 (PR-A2-mobile-cta, 2026-05-21) — Class-A above-fold contact CTA.
+        Fixed-bottom bar visible on <md from page load (no scroll required).
+        Touch targets ≥ 48 px (WCAG 2.5.5). Hidden on md+ so the existing
+        desktop sidebar agent-contact card and the sticky-top in-flow bar
+        remain the canonical CTA paths on larger viewports.
+
+        LISTING-TYPE → INTENT MAPPING (Maya correction, 2026-05-21):
+          - sale  → intent=buyer
+          - rent  → intent=tenant
+        Both literals are confirmed members of the A3 INTENT_ALLOWLIST in
+        `lib/leads/intent.ts`. NEVER hardcode 'buyer' for rentals — that
+        misroutes every rental inquiry to the buyer queue.
+
+        Carries listing=<slug> as a separate query param so it cannot
+        collide with A3's intent contract. The contact form does not yet
+        consume `listing=` (reserved for a follow-up PR that prefills the
+        inquiry message).
+
+        See: docs/audits/exclusive-launch-readiness-audit-2026-05-20.md A2
+      */}
+      <MobileStickyCta slug={listing.slug} listingType={listing.listingType} />
 
       <main className="py-8 md:py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
