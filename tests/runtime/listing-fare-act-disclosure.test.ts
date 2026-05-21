@@ -55,6 +55,94 @@ function normalizeWhitespace(s: string): string {
   return s.replace(/\s+/g, " ");
 }
 
+// Find the position of the `)` that matches the `(` at `openParenIdx`,
+// tracking JSX/TSX paren-depth while respecting string literals and
+// comments. Returns the position of the closing `)`, or -1 if no match
+// is found before EOF.
+//
+// Added 2026-05-21 to address Codex PR #169 review feedback: the prior
+// placement assertion only checked positional order, which a refactor
+// could silently break. This scanner gives real structural containment.
+//
+// Handles: nested parens (depth tracking); line comments (// to newline);
+// block comments (slash-star to star-slash, including the JSX-comment
+// form embedded as a brace-wrapped block); string literals (single-,
+// double-quote, and backtick template); escaped chars inside strings
+// (backslash + next char is skipped).
+//
+// NOT handled (intentionally — none of these appear in the JSX rental
+// block we're scanning): template literal interpolation paren-depth
+// inside `${...}`. If a `${expr}` inside a backtick string ever contains
+// an unbalanced paren, this scanner will get the wrong answer. The
+// listing detail page never has this shape inside the rental block; if
+// it ever does, this test will fail loudly with a clear assertion
+// message and the scanner can be upgraded then.
+function findMatchingParen(source: string, openParenIdx: number): number {
+  if (source[openParenIdx] !== "(") {
+    throw new Error(
+      `findMatchingParen: expected '(' at index ${openParenIdx}, got '${source[openParenIdx]}'`,
+    );
+  }
+
+  type Mode =
+    | "code"
+    | "line-comment"
+    | "block-comment"
+    | "string-single"
+    | "string-double"
+    | "string-template";
+
+  let depth = 1;
+  let i = openParenIdx + 1;
+  let mode: Mode = "code";
+
+  while (i < source.length && depth > 0) {
+    const c = source[i];
+    const next = i + 1 < source.length ? source[i + 1] : "";
+
+    if (mode === "code") {
+      if (c === "/" && next === "/") {
+        mode = "line-comment";
+        i += 2;
+        continue;
+      }
+      if (c === "/" && next === "*") {
+        mode = "block-comment";
+        i += 2;
+        continue;
+      }
+      if (c === '"') { mode = "string-double"; i++; continue; }
+      if (c === "'") { mode = "string-single"; i++; continue; }
+      if (c === "`") { mode = "string-template"; i++; continue; }
+      if (c === "(") depth++;
+      else if (c === ")") depth--;
+    } else if (mode === "line-comment") {
+      if (c === "\n") mode = "code";
+    } else if (mode === "block-comment") {
+      if (c === "*" && next === "/") {
+        mode = "code";
+        i += 2;
+        continue;
+      }
+    } else if (mode === "string-single") {
+      if (c === "\\") { i += 2; continue; }
+      if (c === "'") mode = "code";
+    } else if (mode === "string-double") {
+      if (c === "\\") { i += 2; continue; }
+      if (c === '"') mode = "code";
+    } else if (mode === "string-template") {
+      if (c === "\\") { i += 2; continue; }
+      if (c === "`") mode = "code";
+      // Note: we intentionally do not parse `${...}` interpolation. See
+      // the function docstring for why this is safe in the current file.
+    }
+
+    i++;
+  }
+
+  return depth === 0 ? i - 1 : -1;
+}
+
 describe("FARE Act disclosure — source-side regression pin (A4 audit follow-up)", () => {
   let source: string;
 
@@ -73,23 +161,104 @@ describe("FARE Act disclosure — source-side regression pin (A4 audit follow-up
     expect(normalizeWhitespace(source)).toContain(FARE_TENANT_FEE_CLAUSE_NORMALIZED);
   });
 
-  it("disclosure block sits INSIDE the `isRental && (...)` rental section", () => {
-    // Locate the `{isRental && (` opening for the rental-details section.
-    // The disclosure must appear AFTER this opening and BEFORE the
-    // matching closing `)}` of the same conditional. We pin this by
-    // checking that the disclosure phrase appears AFTER the rental gate
-    // and BEFORE the next top-level section comment after Rental Details.
-    const rentalGateIdx = source.indexOf("{isRental && (");
+  it("disclosure block sits INSIDE the `{isRental && (...)` rental conditional (structural paren-depth check)", () => {
+    // Codex PR #169 review pin (2026-05-21): the previous version of this
+    // test only checked that the disclosure appeared AFTER `{isRental && (`
+    // and BEFORE a later `BUILDING INFO` marker — which does NOT prove
+    // structural containment. A refactor could move the disclosure to a
+    // position AFTER the rental block's `)}` closes but BEFORE
+    // `BUILDING INFO`, silently breaking the rental gating (the
+    // disclosure would render on sale listings too, and the rental-fee-
+    // context disclaimer would be detached from the fee fields it
+    // disclaims).
+    //
+    // This version uses a real JSX paren-depth scanner that tracks
+    // code / string / comment state, finds the matching `)` of the
+    // `{isRental && (` opening, and asserts the disclosure heading lies
+    // strictly BETWEEN the open and the matching close. A future
+    // refactor that moves the disclosure outside the rental block now
+    // fails this test loudly.
+
+    const rentalGateMarker = "{isRental && (";
+    const rentalGateIdx = source.indexOf(rentalGateMarker);
     expect(rentalGateIdx).toBeGreaterThan(-1);
 
-    const disclosureIdx = source.indexOf(FARE_DISCLOSURE_HEADING);
-    expect(disclosureIdx).toBeGreaterThan(rentalGateIdx);
+    // Position of the `(` character (last char of the marker).
+    const openParenIdx = rentalGateIdx + rentalGateMarker.length - 1;
+    expect(source[openParenIdx]).toBe("(");
 
-    // The next section comment after "RENTAL DETAILS" should be
-    // "BUILDING INFO" (or similar) — verify the disclosure appears
-    // BEFORE the next section starts (i.e., inside the rental section).
-    const buildingInfoIdx = source.indexOf("BUILDING INFO", disclosureIdx);
-    expect(buildingInfoIdx).toBeGreaterThan(disclosureIdx);
+    // Find the matching `)` that closes the JSX expression. The
+    // character immediately after should be `}` (the close of the JSX
+    // expression brace block).
+    const closeParenIdx = findMatchingParen(source, openParenIdx);
+    expect(closeParenIdx).toBeGreaterThan(openParenIdx);
+    expect(source[closeParenIdx + 1]).toBe("}");
+
+    // The disclosure heading MUST sit strictly between the open and the
+    // matching close. If a future refactor moves it outside the
+    // conditional (even by one character past `)}`), this assertion
+    // fails because disclosureIdx will be > closeParenIdx.
+    const disclosureIdx = source.indexOf(FARE_DISCLOSURE_HEADING);
+    expect(disclosureIdx).toBeGreaterThan(openParenIdx);
+    expect(disclosureIdx).toBeLessThan(closeParenIdx);
+  });
+
+  it("structural containment scanner correctly rejects out-of-block placement (negative test)", () => {
+    // Self-test of findMatchingParen: build a synthetic source where the
+    // FARE phrase is intentionally placed AFTER the matching `)` of
+    // `{isRental && (`. The structural check used above must reject
+    // this; if it doesn't, the scanner is broken and the positive
+    // assertion above is meaningless.
+    const synthetic = [
+      "{isRental && (",
+      "  <section>",
+      "    <p>real rental content</p>",
+      "  </section>",
+      ")}",
+      "<p>Fee Disclosure (NYC Local Law 119/2024): leaked outside</p>",
+    ].join("\n");
+
+    const gateMarker = "{isRental && (";
+    const gateIdx = synthetic.indexOf(gateMarker);
+    const openParenIdx = gateIdx + gateMarker.length - 1;
+    const closeParenIdx = findMatchingParen(synthetic, openParenIdx);
+    const disclosureIdx = synthetic.indexOf(FARE_DISCLOSURE_HEADING);
+
+    expect(closeParenIdx).toBeGreaterThan(openParenIdx);
+    expect(disclosureIdx).toBeGreaterThan(closeParenIdx);
+    // The same assertion shape as the real test — but here it MUST fail
+    // the `disclosureIdx < closeParenIdx` predicate. Asserting the
+    // negation proves the scanner is doing real containment work.
+    expect(disclosureIdx).not.toBeLessThan(closeParenIdx);
+  });
+
+  it("paren-depth scanner correctly handles nested parens + strings + comments (unit test)", () => {
+    // Synthetic JSX with nested parens, string-literal parens, line+block
+    // comments — all of which would fool a naive position-based check.
+    const synthetic =
+      "{isRental && (\n" +
+      "  // ) this paren in a line comment must not count\n" +
+      "  /* ) and this one in a block comment also must not count */\n" +
+      "  <button onClick={() => doThing(')')}>{'(' + 'x' + ')'}</button>\n" +
+      "  /* close-paren in template: */\n" +
+      "  {`backtick )) string`}\n" +
+      "  <p>inside</p>\n" +
+      ")}<p>outside</p>";
+
+    const gateMarker = "{isRental && (";
+    const gateIdx = synthetic.indexOf(gateMarker);
+    const openParenIdx = gateIdx + gateMarker.length - 1;
+    const closeParenIdx = findMatchingParen(synthetic, openParenIdx);
+
+    // The matching close must be the `)` immediately before `}<p>outside</p>`
+    // — NOT any of the in-comment or in-string parens.
+    expect(closeParenIdx).toBeGreaterThan(openParenIdx);
+    expect(synthetic.slice(closeParenIdx, closeParenIdx + 2)).toBe(")}");
+    // The synthetic "inside" content should be between open and close.
+    expect(synthetic.indexOf("<p>inside</p>")).toBeGreaterThan(openParenIdx);
+    expect(synthetic.indexOf("<p>inside</p>")).toBeLessThan(closeParenIdx);
+    // The synthetic "outside" content must be AFTER the close.
+    expect(synthetic.indexOf("<p>outside</p>")).toBeGreaterThan(closeParenIdx);
   });
 
   it("disclosure block sits adjacent to the move-in cost / fee fields it disclaims", () => {
