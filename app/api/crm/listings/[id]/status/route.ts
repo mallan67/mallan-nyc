@@ -13,6 +13,8 @@ import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
 import { createNotification } from "@/lib/notifications/engine";
+import { computeGateColumns } from "@/lib/idx/trestle-mapper";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -167,6 +169,41 @@ export async function PATCH(
     ? { ...existingRaw, _wasComingSoon: true }
     : undefined;
 
+  // Phase A W1 — recompute display gates against the new status.
+  //
+  // Closes the W1 gap from docs/idx/post-reconciliation-tightening-audit-2026-05-20.md:
+  // before this change a CRM status PATCH to a terminal state (Sold / Rented /
+  // Withdrawn / Expired / Cancelled / Closed) left `idx_display_yn=true` on
+  // the listing until the next 03:00 UTC data-retention cron firing. With the
+  // PR 5B reader swap (held), that 24h window would be a real public-display
+  // leakage. Calling the canonical helper here flips the gate in the same
+  // transaction as the status change, so writer + cron agree on the
+  // terminal-status set with no race window.
+  //
+  // The existing `internet_*_display_yn`, AVM, ConsumerComment, participant_only,
+  // owner_opt_out, AND rls_eligible columns are unchanged by a status PATCH;
+  // they are read from the existing listing row and passed through to the
+  // helper unchanged.
+  //
+  // The `rls_eligible` input was added to the helper 2026-05-20 (Codex review
+  // on PR #165) — without it, a CRM status PATCH on a commercial / website-
+  // only listing would have flipped `idx_display_yn=true` on an Active
+  // transition, overriding the CRM POST's `rlsEligible && ...` guard at
+  // app/api/crm/listings/route.ts:340-343. Locked by tests in
+  // lib/idx/__tests__/compute-gate-columns.test.ts "rls_eligible first-class
+  // gate" describe block.
+  const newGateColumns = computeGateColumns({
+    status: newStatus,
+    internetEntireListingDisplayYN: listing.internet_entire_listing_display_yn,
+    internetAddressDisplayYN: listing.internet_address_display_yn,
+    internetAutomatedValuationDisplayYN:
+      listing.internet_automated_valuation_display_yn,
+    internetConsumerCommentYN: listing.internet_consumer_comment_yn,
+    participantOnly: listing.participant_only,
+    ownerOptOut: listing.owner_opt_out,
+    rls_eligible: listing.rls_eligible,
+  });
+
   await prisma.listing.update({
     where: { id: listing.id },
     data: {
@@ -176,9 +213,37 @@ export async function PATCH(
       first_active_date: domUpdate.first_active_date,
       days_on_market: domUpdate.days_on_market,
       cumulative_days_on_market: domUpdate.cumulative_days_on_market,
+      idx_display_yn: newGateColumns.idx_display_yn,
       ...(updatedRaw ? { raw_data: updatedRaw } : {}),
     },
   });
+
+  // Phase A W1 — dual-write the listing_search_projection so any reader
+  // (including the PR 5B-future projection reader) sees the new gate state
+  // immediately. The data-retention cron's per-row dual-write (PR #147)
+  // remains as belt-and-suspenders if this call fails — the failure is
+  // logged to AuditEvent but does NOT block the agent's status change
+  // (matches the same per-row-failure semantics as lib/idx/sync.ts).
+  try {
+    await dualWriteProjectionForListingId(prisma, listing.listing_id);
+  } catch (err) {
+    await prisma.auditEvent.create({
+      data: {
+        action: "projection_dual_write_failed",
+        entity_type: "listing",
+        entity_id: listing.id.toString(),
+        user_type: auth.userType,
+        user_id: auth.userId,
+        changes: {
+          source: "crm_status_patch",
+          listing_id: listing.listing_id,
+          previous_status: currentStatus,
+          new_status: newStatus,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      },
+    }).catch(() => { /* swallow — don't fail the user action on a logging failure */ });
+  }
 
   const domReset = domUpdate.days_on_market === 0 && listing.days_on_market > 0;
 

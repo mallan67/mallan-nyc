@@ -10,6 +10,7 @@ import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -376,6 +377,41 @@ export async function POST(req: NextRequest) {
 
     return { id: listing.id.toString(), listingId };
   });
+
+  // Phase A W3 — dual-write the listing_search_projection for newly created
+  // CRM listings (Mallan exclusives).
+  //
+  // Closes the W3 gap from
+  // docs/idx/post-reconciliation-tightening-audit-2026-05-20.md: before this
+  // change, CRM POST only wrote `listings`; the projection row was created
+  // lazily by the next `lib/idx/sync.ts` run — but that path only writes
+  // Trestle-sourced rows. Mallan exclusives could exist for hours / days
+  // with NO projection row until `npm run ops:projection-backfill` ran.
+  // After PR 5B reader swap, that gap = Mallan exclusive invisible on
+  // /search and any other projection-backed surface.
+  //
+  // Runs outside the transaction (the helper is its own transaction
+  // boundary) so a projection-write failure does not roll back the listing
+  // create. The data-retention cron's per-row dual-write at 03:00 UTC
+  // (PR #147) and the projection-backfill script remain belt-and-suspenders.
+  try {
+    await dualWriteProjectionForListingId(prisma, result.listingId);
+  } catch (err) {
+    await prisma.auditEvent.create({
+      data: {
+        action: "projection_dual_write_failed",
+        entity_type: "listing",
+        entity_id: result.id,
+        user_type: auth.userType,
+        user_id: auth.userId,
+        changes: {
+          source: "crm_listing_create",
+          listing_id: result.listingId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      },
+    }).catch(() => { /* swallow — don't fail listing-create on a logging failure */ });
+  }
 
   return NextResponse.json(
     {

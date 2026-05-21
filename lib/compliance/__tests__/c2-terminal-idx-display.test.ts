@@ -258,17 +258,32 @@ describe('C2 — DOM/typo robustness', () => {
     expect(mapped.idx_display_yn).toBe(true);
   });
 
-  it('case-sensitive — "closed" (lowercase) is NOT terminal under the canonical set', () => {
-    // The cron predicate matches exact-case RESO strings. The writer must
-    // mirror that — if Trestle were ever to emit a lowercased variant the
-    // canonical match would not fire, BUT the cron predicate wouldn't fire
-    // either. They stay symmetric. (Documentation test — exercises the
-    // contract, not a desired behavior change.)
+  it('case-insensitive — "closed" (lowercase) IS canonicalized + blocked under Phase A', () => {
+    // Phase A (2026-05-20): the inline gate computation moved into the
+    // shared `computeGateColumns` helper, which always runs
+    // `normalizeStandardStatus` on its `status` input. That means even the
+    // Trestle-sourced mapper path now case-folds "closed" → "Closed" and
+    // matches the canonical TERMINAL_STATUSES set — so a hypothetical
+    // upstream emit of lowercased "closed" is now correctly blocked at the
+    // writer instead of silently passing through.
+    //
+    // The cron predicate at app/api/cron/data-retention/route.ts:79 still
+    // uses Prisma's exact-case `status: { in: [...] }`, so this is a one-
+    // sided defensive improvement: the writer is now MORE defensive than
+    // the cron. If Trestle ever did emit "closed" (lowercase), the writer
+    // would set idx_display_yn=false at ingest time and no cron sweep
+    // would be needed. Strictly safer than the previous symmetric-but-
+    // permissive contract.
+    //
+    // The H1 ping-pong scenario fixed by PR #112/#113 (writer re-flips
+    // terminal row to displayable on every re-emit) is unaffected — the
+    // canonical exact-case "Closed" path is still the dominant case, and
+    // this test exists only to document the new lowercased-edge behavior.
     const raw = buildRaw({
       StandardStatus: 'closed',
       InternetEntireListingDisplayYN: true,
     });
     const mapped = mapTrestleToPrisma(raw);
-    expect(mapped.idx_display_yn).toBe(true);
+    expect(mapped.idx_display_yn).toBe(false);
   });
 });

@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-05-14T17:31:26.970Z",
-  "pass": 1278,
+  "timestamp": "2026-05-21T00:40:20.751Z",
+  "pass": 1281,
   "critical": 0,
-  "warning": 0,
+  "warning": 2,
   "info": 37,
   "sections": [
     {
@@ -45,9 +45,9 @@
       "section": 5,
       "title": "Prisma Listing ↔ Mapper Return Type",
       "category": "IDX Pipeline",
-      "pass": 3,
+      "pass": 6,
       "critical": 0,
-      "warning": 0,
+      "warning": 2,
       "info": 0
     },
     {

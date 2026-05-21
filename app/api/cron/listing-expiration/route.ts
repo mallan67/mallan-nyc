@@ -11,6 +11,7 @@ import { createNotification } from "@/lib/notifications/engine";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingExpirationEmail } from "@/lib/email/templates";
+import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 // Imported per the compliance gate at scripts/ci-compliance-check.js:184-194
 // (every file that imports sendEmail/sendgrid must reference escapeHtml).
 // Aliased to `_escapeHtml` so ESLint accepts it as intentionally unused —
@@ -202,15 +203,60 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Transition listing to Expired
+    // Phase A W2 — Transition listing to Expired with the terminal-status
+    // guard applied in the same write.
+    //
+    // Closes the W2 gap from
+    // docs/idx/post-reconciliation-tightening-audit-2026-05-20.md: before
+    // this change the cron set `status: "Expired"` without flipping
+    // `idx_display_yn=false` and without dual-writing the projection,
+    // leaving the row publicly displayable until the next 03:00 UTC
+    // data-retention cron firing (≤24h leakage; with PR 5B reader swap
+    // this would be a real public-display gap). Bumped
+    // `modification_timestamp` is also the exact pattern that previously
+    // caused the H1 ping-pong (cron cleans up, next sync re-emits) — the
+    // hardcoded false here closes that ping-pong at the writer.
+    //
+    // `status: "Expired"` is deterministically terminal
+    // (TERMINAL_STATUSES.has("Expired") = true), so the canonical
+    // `computeGateColumns()` would return idx_display_yn=false regardless
+    // of the other gate columns. Hardcoding the literal here keeps this
+    // cron's SELECT narrow (no need to fetch the 5 other gate columns
+    // just to compute a known value) and matches the data-retention cron's
+    // pattern at app/api/cron/data-retention/route.ts:79.
     await prisma.listing.update({
       where: { id: listing.id },
       data: {
         status: "Expired",
         status_changed_at: now,
         modification_timestamp: now,
+        idx_display_yn: false,
       },
     });
+
+    // Phase A W2 — dual-write the listing_search_projection so any reader
+    // (including the PR 5B-future projection reader) sees the new terminal
+    // gate state immediately. Failure logged to AuditEvent + does NOT
+    // block the rest of the cron run (the data-retention cron's per-row
+    // dual-write at 03:00 UTC remains belt-and-suspenders for any miss).
+    try {
+      await dualWriteProjectionForListingId(prisma, listing.listing_id);
+    } catch (err) {
+      await prisma.auditEvent.create({
+        data: {
+          action: "projection_dual_write_failed",
+          entity_type: "listing",
+          entity_id: listing.id.toString(),
+          user_type: "system",
+          user_id: null,
+          changes: {
+            source: "listing_expiration_cron",
+            listing_id: listing.listing_id,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        },
+      }).catch(() => { /* swallow — logging failure must not crash the cron */ });
+    }
 
     // Notify agent
     const addr = formatAddress(listing.address);

@@ -719,6 +719,188 @@ export function normalizeStandardStatus(input: unknown): string {
   return trimmed;
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Phase A — Centralized display-gate computation
+// ───────────────────────────────────────────────────────────────────────────
+//
+// Single source of truth for the 5 display-gate columns on `listings`:
+//   - idx_display_yn
+//   - internet_entire_listing_display_yn
+//   - internet_address_display_yn
+//   - internet_automated_valuation_display_yn
+//   - internet_consumer_comment_yn
+//
+// Before this helper, every writer (Trestle mapper, CRM POST, CRM PATCH, CRM
+// status PATCH, listing-expiration cron, ensure-listing, convert, reset-sync)
+// re-implemented the same combination of:
+//   1. normalizeStandardStatus → canonical status string
+//   2. TERMINAL_STATUSES.has  → terminal-status guard
+//   3. `!== false` semantics  → REBNY IDX Plus pre-filter for Internet*Display
+//   4. affirmPermission       → fail-closed per-row AVM / ConsumerComment
+//   5. !participantOnly && !ownerOptOut → REBNY Gate 1 / Gate 2
+//
+// Drift between any two writers reopens the H1 dual-write gap that PR #112
+// + PR #113 closed for the mapper path. The audit
+// `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` documents the
+// surviving gaps (W1 / W2 / W3) the helper closes. Adding a new writer that
+// touches these columns? Call this helper — do not redeclare the logic.
+//
+// Semantics (KEEP IN SYNC with mapTrestleToPrisma's comment block at the
+// `internetEntireListing` definition below, and with the data-retention cron
+// at app/api/cron/data-retention/route.ts:79 — those three must agree on the
+// terminal-status set forever):
+//
+//   - Internet*DisplayYN inputs use the REBNY IDX Plus pre-filter convention:
+//     null/undefined = "REBNY upstream filter passed this row" = displayable.
+//     Only an explicit `false` (rare per-row override) blocks display. CRM
+//     forms producing these flags follow the same convention because the
+//     normalizer applies the same defaults (lib/compliance/normalizer.ts).
+//
+//   - InternetAutomatedValuationDisplayYN + InternetConsumerCommentYN are
+//     per-row opt-out flags populated by REBNY (~97% true / ~3% false).
+//     These remain fail-closed via affirmPermission — null = false = blocked.
+//
+//   - participantOnly + ownerOptOut accept already-derived booleans (the
+//     caller did the Permission enum → boolean conversion). Use strict
+//     equality on `=== true` so an undefined / null / string value defaults
+//     to false (not-blocked); the caller is expected to pass the canonical
+//     boolean shape.
+//
+//   - status is normalized via normalizeStandardStatus, so callers can pass
+//     a lowercased / whitespace-padded / aliased ("canceled" → "Cancelled")
+//     input safely. Terminal statuses force idx_display_yn=false regardless
+//     of the other flags (this is the H1 fix at writer-side; the cron is
+//     belt-and-suspenders for DB-direct mutation paths).
+export interface ComputeGateColumnsInput {
+  /** REBNY/RESO StandardStatus value. Normalized internally via
+   * `normalizeStandardStatus`; safe to pass un-normalized strings. */
+  status: unknown;
+  /** Trestle / form field. null = displayable per IDX Plus pre-filter. */
+  internetEntireListingDisplayYN?: unknown;
+  /** Trestle / form field. null = displayable per IDX Plus pre-filter. */
+  internetAddressDisplayYN?: unknown;
+  /** Per-row opt-out flag. null = blocked (fail-closed). */
+  internetAutomatedValuationDisplayYN?: unknown;
+  /** Per-row opt-out flag. null = blocked (fail-closed). */
+  internetConsumerCommentYN?: unknown;
+  /** Already-derived from `Permission='Private'`. Pass `true` to block. */
+  participantOnly?: unknown;
+  /** Already-derived from `Permission='OwnerOptOut'` etc. Pass `true` to block. */
+  ownerOptOut?: unknown;
+  /**
+   * RLS eligibility flag (`listings.rls_eligible` column). Commercial /
+   * website-only listings carry `rls_eligible=false` and MUST be excluded
+   * from all 6 IDX distribution gates regardless of other flags
+   * (CLAUDE.md "Commercial Property Classification" — RLS compliance rules
+   * apply ONLY to `rls_eligible=true` listings; commercial listings are
+   * website-only on mallan.nyc and bypass IDX distribution entirely).
+   *
+   * Semantics:
+   *   - undefined / null → defaults to true (preserves Trestle-mapper
+   *                       behavior — Trestle-sourced rows are always REBNY-
+   *                       eligible; Trestle never serializes rls_eligible
+   *                       because it's an internal-only column)
+   *   - false           → forces `idx_display_yn=false` regardless of all
+   *                       other flags. The CRM POST already has this guard
+   *                       inline at `rls_eligible: rlsEligible &&`; the
+   *                       helper carries it forward to every other writer.
+   *   - true            → no-op (defers to other gates)
+   *
+   * Added 2026-05-20 (Codex review on PR #165) — the original Phase A
+   * helper omitted this input, which would have caused the W1 CRM status
+   * PATCH to flip `idx_display_yn=true` on a commercial Active listing.
+   * Locked by tests in `lib/idx/__tests__/compute-gate-columns.test.ts`
+   * "rls_eligible first-class gate" describe block.
+   */
+  rls_eligible?: unknown;
+}
+
+export interface ComputeGateColumnsResult {
+  /** Aggregate gate — only true when `rls_eligible !== false` AND status
+   * is non-terminal AND entire-listing display is allowed AND not
+   * participant-only AND not owner-opted-out. */
+  idx_display_yn: boolean;
+  internet_entire_listing_display_yn: boolean;
+  internet_address_display_yn: boolean;
+  internet_automated_valuation_display_yn: boolean;
+  internet_consumer_comment_yn: boolean;
+  /** Observability — the normalized status the helper used. Not a DB column. */
+  normalized_status: string;
+  /** Observability — true if `normalized_status ∈ TERMINAL_STATUSES`. */
+  is_terminal: boolean;
+  /** Observability — false only if input.rls_eligible was explicit `false`. */
+  rls_eligible: boolean;
+}
+
+/**
+ * Compute all 5 display-gate columns for a `listings` row write. Pure: no
+ * DB access, no side effects, no logging. Callers can use the result to
+ * pass into `prisma.listing.update` / `prisma.listing.create` / etc.
+ *
+ * If you are adding a new writer to one of the gate columns, call this
+ * helper instead of re-implementing the logic. The CI pin-test
+ * `tests/runtime/listing-writer-projection-coverage.test.ts` and the unit
+ * tests in `lib/idx/__tests__/compute-gate-columns.test.ts` lock the
+ * contract.
+ */
+export function computeGateColumns(
+  input: ComputeGateColumnsInput,
+): ComputeGateColumnsResult {
+  const normalized_status = normalizeStandardStatus(input.status);
+  const is_terminal = TERMINAL_STATUSES.has(normalized_status);
+
+  // IDX Plus pre-filter: null / undefined = REBNY upstream filter passed
+  // this row through = displayable. Only explicit `false` blocks.
+  const internet_entire_listing_display_yn =
+    input.internetEntireListingDisplayYN !== false;
+  const internet_address_display_yn =
+    input.internetAddressDisplayYN !== false;
+
+  // Per-row opt-out flags — fail-closed via affirmPermission (null=false).
+  const internet_automated_valuation_display_yn = affirmPermission(
+    input.internetAutomatedValuationDisplayYN,
+  );
+  const internet_consumer_comment_yn = affirmPermission(
+    input.internetConsumerCommentYN,
+  );
+
+  // Defensive strict-equality on the already-derived booleans. Caller is
+  // expected to pass the canonical boolean shape; anything else defaults
+  // to "not blocked".
+  const owner_opt_out = input.ownerOptOut === true;
+  const participant_only = input.participantOnly === true;
+
+  // rls_eligible (commercial/website-only listings carry false; Trestle-
+  // sourced rows are always REBNY-eligible so omitted/null defaults to
+  // true to preserve mapper behavior). See input docstring for the full
+  // rationale and the Codex PR #165 review that surfaced this.
+  const rls_eligible = input.rls_eligible !== false;
+
+  // The aggregate gate. Mirrors the data-retention cron predicate at
+  // app/api/cron/data-retention/route.ts:79 so writer + cron + helper all
+  // agree on the terminal-status set. The leading `rls_eligible &&` mirrors
+  // the existing inline CRM POST gate (`rlsEligible && ...` in
+  // app/api/crm/listings/route.ts) so commercial / website-only listings
+  // can never become publicly-displayable IDX rows.
+  const idx_display_yn =
+    rls_eligible &&
+    !is_terminal &&
+    internet_entire_listing_display_yn &&
+    !participant_only &&
+    !owner_opt_out;
+
+  return {
+    idx_display_yn,
+    internet_entire_listing_display_yn,
+    internet_address_display_yn,
+    internet_automated_valuation_display_yn,
+    internet_consumer_comment_yn,
+    normalized_status,
+    is_terminal,
+    rls_eligible,
+  };
+}
+
 /**
  * Map a raw Trestle record to our Prisma Listing shape.
  * Returns the data object ready for prisma.listing.upsert().
@@ -830,8 +1012,6 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // MLS, or another non-REBNY MLS (per the parked external-inventory spec
   // Phase 2-A), the policy layer will be different and this null-handling
   // logic must be re-evaluated for that feed independently.
-  const internetEntireListing = raw.InternetEntireListingDisplayYN !== false;
-  const internetAddress = raw.InternetAddressDisplayYN !== false;
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
   // (The legacy field name ParticipantOnlyYN was never a Trestle field — it was
@@ -846,28 +1026,29 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     permissions === 'OwnerOptOut' ||
     permissions === 'Owner Opt-Out' ||
     String(raw.MlsStatus || '') === 'OwnerOptOut';
-  // Legacy local flag kept for backward compat with DB schema's idx_display_yn column.
-  // Evaluates true iff all the above gates pass AND internet display is enabled
-  // AND the listing is in a non-terminal status.
-  //
-  // C2 fix (2026-05-13) — close the H1 dual-write gap. Before this fix the
-  // writer omitted the status check, so every time Trestle re-emitted an
-  // already-terminal listing (price update, photo edit, modification
-  // timestamp tick) the next idx-sync recomputed idx_display_yn=true and
-  // overrode the data-retention cron's 03:00 UTC §2.05 cleanup. Audit-event
-  // join proved 15 of 21 current violators were cron-disabled then sync-
-  // re-enabled — same listing, same row, ping-ponging.
-  //
-  // Mirrors the data-retention cron predicate at
-  // app/api/cron/data-retention/route.ts:79 so writer and cron agree on the
-  // terminal-status set. Single source of truth lives here in the writer;
-  // the cron remains in place as belt-and-suspenders for any DB-direct
-  // mutation paths (CRM edits, manual SQL fixes) that bypass the mapper.
-  const idxDisplayYn =
-    !TERMINAL_STATUSES.has(String(raw.StandardStatus || '')) &&
-    internetEntireListing &&
-    !participantOnly &&
-    !ownerOptOut;
+  // Phase A (2026-05-20) — delegate the 5-column gate computation to the
+  // canonical `computeGateColumns` helper above. Was an inline calculation;
+  // moved to a shared helper so the W1/W2/W3 writer surfaces identified by
+  // docs/idx/post-reconciliation-tightening-audit-2026-05-20.md can call the
+  // same logic instead of re-implementing it. Behavior is byte-identical to
+  // the previous inline form:
+  //   - InternetEntireListingDisplayYN / InternetAddressDisplayYN use the
+  //     IDX Plus pre-filter convention (`!== false`).
+  //   - InternetAutomatedValuationDisplayYN / InternetConsumerCommentYN use
+  //     fail-closed `affirmPermission`.
+  //   - idx_display_yn forces false on TERMINAL_STATUSES (PR #112/#113 +
+  //     H1 amend 2026-05-13 — closes the dual-write ping-pong with the
+  //     data-retention cron at app/api/cron/data-retention/route.ts:79).
+  // See the helper's docstring for the full semantics rationale.
+  const gateColumns = computeGateColumns({
+    status: raw.StandardStatus,
+    internetEntireListingDisplayYN: raw.InternetEntireListingDisplayYN,
+    internetAddressDisplayYN: raw.InternetAddressDisplayYN,
+    internetAutomatedValuationDisplayYN: raw.InternetAutomatedValuationDisplayYN,
+    internetConsumerCommentYN: raw.InternetConsumerCommentYN,
+    participantOnly,
+    ownerOptOut,
+  });
 
   // JSONB columns — pick fields by category
   const address = pick(raw, B1_ADDRESS);
@@ -969,11 +1150,11 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     neighborhood,
     city: raw.City ? String(raw.City) : null,
     postal_code: raw.PostalCode ? String(raw.PostalCode) : null,
-    idx_display_yn: idxDisplayYn,
-    internet_entire_listing_display_yn: internetEntireListing,
-    internet_address_display_yn: internetAddress,
-    internet_automated_valuation_display_yn: affirmPermission(raw.InternetAutomatedValuationDisplayYN),
-    internet_consumer_comment_yn: affirmPermission(raw.InternetConsumerCommentYN),
+    idx_display_yn: gateColumns.idx_display_yn,
+    internet_entire_listing_display_yn: gateColumns.internet_entire_listing_display_yn,
+    internet_address_display_yn: gateColumns.internet_address_display_yn,
+    internet_automated_valuation_display_yn: gateColumns.internet_automated_valuation_display_yn,
+    internet_consumer_comment_yn: gateColumns.internet_consumer_comment_yn,
     participant_only: participantOnly,
     owner_opt_out: ownerOptOut,
     address,
