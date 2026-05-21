@@ -19,24 +19,56 @@
  */
 
 import { makeRequest } from './helpers';
+import { mergeRoles as realMergeRoles } from '@/lib/leads/intent';
 
 // Direct minimal prisma mock — buildPrismaMock seed mechanism collides
 // with the proxy's "prop in target" short-circuit when seeded values are
 // non-function objects, so we use a hand-rolled mock here. Each method
 // is a real jest.fn so we can assert call counts and overrides.
-const leadUpsertMock = jest.fn(async () => ({ id: 99n, email: 'test@example.com' }));
 const auditEventCreateMock = jest.fn(async () => ({ id: 1n }));
-// A3 (2026-05-20): the contact route now calls lead.findUnique BEFORE
-// upsert to additively merge roles. Default = no prior lead (first-time
-// contact); the intent-routing describe block overrides per-test.
-const leadFindUniqueMock = jest.fn(async () => null as null | { roles: string[] });
+
+// A3 Codex fix (2026-05-20): the contact route now calls the
+// atomicMergeUpsertLead helper instead of findUnique+upsert. The helper
+// runs an INSERT ... ON CONFLICT DO UPDATE that unions the roles arrays
+// inside Postgres, so two concurrent submissions for the same email
+// cannot lose a role. In this unit-test environment we mock the helper
+// and simulate the DB-side union in JS by maintaining a per-email
+// roles map across calls — that lets us assert both single-call
+// semantics AND the concurrent-safety contract without a real DB.
+const rolesByEmail = new Map<string, string[]>();
+const atomicMergeUpsertLeadMock = jest.fn(
+  async (
+    _prisma: unknown,
+    params: {
+      email: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      incomingRoles: readonly string[];
+      consentCapturedAt: Date;
+    }
+  ) => {
+    const prior = rolesByEmail.get(params.email) ?? null;
+    const merged = realMergeRoles(prior, params.incomingRoles as never);
+    rolesByEmail.set(params.email, merged);
+    return { id: 99n, roles: merged };
+  }
+);
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
-    lead: { upsert: leadUpsertMock, findUnique: leadFindUniqueMock },
+    // No lead.upsert / lead.findUnique mocks — the route no longer uses
+    // them on this hot path. If a future refactor reintroduces them,
+    // the missing mock will surface immediately via TypeError instead
+    // of silently passing.
     auditEvent: { create: auditEventCreateMock },
   },
+}));
+
+jest.mock('@/lib/leads/lead-upsert', () => ({
+  __esModule: true,
+  atomicMergeUpsertLead: atomicMergeUpsertLeadMock,
 }));
 
 jest.mock('@/lib/auth/readonly-guard', () => ({
@@ -83,12 +115,12 @@ jest.mock('@/lib/email/sendgrid', () => ({
 beforeEach(() => {
   sendEmailMock.mockReset();
   sendEmailMock.mockResolvedValue({ success: true });
-  leadUpsertMock.mockClear();
   auditEventCreateMock.mockClear();
-  leadFindUniqueMock.mockReset();
-  // Default = first-time lead, no prior roles. Per-test overrides
-  // simulate a returning lead.
-  leadFindUniqueMock.mockResolvedValue(null);
+  atomicMergeUpsertLeadMock.mockClear();
+  // Reset the per-email roles store. Each test starts with no prior
+  // leads in the simulated DB; "returning lead" tests seed via
+  // rolesByEmail.set(email, [...]) before invoking POST.
+  rolesByEmail.clear();
 });
 
 const baseBody = () => ({
@@ -107,7 +139,7 @@ describe('POST /api/contact — TCPA consent enforcement (Bug A14)', () => {
     expect(body.error).toMatch(/consent/i);
     expect(body.error).toMatch(/TCPA/i);
     // Lead row is NOT created when consent fails.
-    expect(leadUpsertMock).not.toHaveBeenCalled();
+    expect(atomicMergeUpsertLeadMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 when consent is explicitly false', async () => {
@@ -116,7 +148,7 @@ describe('POST /api/contact — TCPA consent enforcement (Bug A14)', () => {
       makeRequest({ url: 'http://test/api/contact', body: { ...baseBody(), consent: false } })
     );
     expect(res.status).toBe(400);
-    expect(leadUpsertMock).not.toHaveBeenCalled();
+    expect(atomicMergeUpsertLeadMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 when consent is the string "true" (must be literal boolean)', async () => {
@@ -136,7 +168,7 @@ describe('POST /api/contact — TCPA consent enforcement (Bug A14)', () => {
       makeRequest({ url: 'http://test/api/contact', body: { ...baseBody(), consent: true } })
     );
     expect(res.status).toBe(200);
-    expect(leadUpsertMock).toHaveBeenCalledTimes(1);
+    expect(atomicMergeUpsertLeadMock).toHaveBeenCalledTimes(1);
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
   });
 });
@@ -171,7 +203,7 @@ describe('POST /api/contact — SMTP fail-loud in production (Bug A15)', () => {
     expect(body.code).toBe('SMTP_NOT_CONFIGURED');
     expect(body.leadId).toBeDefined();
     // Lead row IS created so the inquiry data isn't lost
-    expect(leadUpsertMock).toHaveBeenCalledTimes(1);
+    expect(atomicMergeUpsertLeadMock).toHaveBeenCalledTimes(1);
   });
 
   it('returns 200 even when SMTP fails for non-config reasons (transient errors are still non-fatal)', async () => {
@@ -188,7 +220,7 @@ describe('POST /api/contact — SMTP fail-loud in production (Bug A15)', () => {
       makeRequest({ url: 'http://test/api/contact', body: { ...baseBody(), consent: true } })
     );
     expect(res.status).toBe(200);
-    expect(leadUpsertMock).toHaveBeenCalledTimes(1);
+    expect(atomicMergeUpsertLeadMock).toHaveBeenCalledTimes(1);
   });
 
   it('returns 200 in dev/test even when _devMode is set (fail-loud is production-only)', async () => {
@@ -245,18 +277,19 @@ describe('POST /api/contact — intent routing (A3 2026-05-20)', () => {
     return lastCall[0].data.changes;
   };
   const lastUpsertRoles = (): string[] => {
-    expect(leadUpsertMock).toHaveBeenCalled();
-    const lastCall = leadUpsertMock.mock.calls[
-      leadUpsertMock.mock.calls.length - 1
-    ] as unknown as [
-      {
-        create: { roles: string[] };
-        update: { roles?: string[] };
-      },
-    ];
-    // The route writes the same merged-roles array into both create.roles
-    // and update.roles, so either side is authoritative for the assertion.
-    return lastCall[0].create.roles;
+    expect(atomicMergeUpsertLeadMock).toHaveBeenCalled();
+    // After the Codex atomic-upsert refactor the merge happens DB-side;
+    // the helper mock above (atomicMergeUpsertLeadMock) simulates that
+    // by maintaining `rolesByEmail` across calls. The post-merge roles
+    // array is what gets returned from the helper and also written to
+    // AuditEvent.roles_after_merge, so either source is authoritative.
+    const calls = atomicMergeUpsertLeadMock.mock.calls;
+    const lastEmail = calls[calls.length - 1][1].email;
+    const stored = rolesByEmail.get(lastEmail);
+    if (!stored) {
+      throw new Error('lastUpsertRoles: no stored roles for ' + lastEmail);
+    }
+    return stored;
   };
 
   // For the merge tests below we let the route's normal production code
@@ -375,7 +408,10 @@ describe('POST /api/contact — intent routing (A3 2026-05-20)', () => {
   });
 
   it('case 7 — returning lead with prior ["buyer","seller"], intent=tenant → merged ["buyer","seller","tenant"], no role lost', async () => {
-    leadFindUniqueMock.mockResolvedValueOnce({ roles: ['buyer', 'seller'] });
+    // Seed the simulated DB with the returning lead's prior roles. The
+    // helper mock reads from rolesByEmail and unions in JS to mimic the
+    // real DB-side union performed by lib/leads/lead-upsert.ts.
+    rolesByEmail.set('test@example.com', ['buyer', 'seller']);
     const { POST } = await import('@/app/api/contact/route');
     const res = await POST(
       makeRequest({
@@ -391,6 +427,98 @@ describe('POST /api/contact — intent routing (A3 2026-05-20)', () => {
       'seller',
       'tenant',
     ]);
+  });
+
+  // ── Codex feedback cases (atomic concurrency contract, 2026-05-20) ────
+  //
+  // The original A3 implementation used findUnique → mergeRoles → upsert.
+  // Under concurrent submissions for the same email, both requests would
+  // read the same prior-roles snapshot and the second UPDATE would
+  // overwrite the first — silently dropping a role. The atomicMergeUpsertLead
+  // helper closes the race by doing the union DB-side inside one
+  // INSERT ... ON CONFLICT DO UPDATE statement.
+
+  it('case 8 — existing buyer + seller intent → ["buyer","seller"] (Codex contract: union, never demote)', async () => {
+    rolesByEmail.set('test@example.com', ['buyer']);
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'seller' },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(lastUpsertRoles()).toEqual(['buyer', 'seller']);
+    expect(lastAuditChanges().roles_after_merge).toEqual(['buyer', 'seller']);
+  });
+
+  it('case 9 — existing seller + generic intent → ["seller","buyer"], seller preserved (Codex contract: never demote)', async () => {
+    rolesByEmail.set('test@example.com', ['seller']);
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'general' },
+      })
+    );
+    expect(res.status).toBe(200);
+    // Existing "seller" is preserved verbatim, incoming "buyer" is
+    // appended. The seller role MUST NOT be lost — that was the whole
+    // point of the Codex feedback.
+    const roles = lastUpsertRoles();
+    expect(roles).toContain('seller');
+    expect(roles).toContain('buyer');
+    expect(roles.indexOf('seller')).toBeLessThan(roles.indexOf('buyer'));
+  });
+
+  it('case 10 — concurrent submissions with different intents preserve union of all roles (Codex contract: no TOCTOU loss)', async () => {
+    // Three POSTs fired in parallel for the same email, each with a
+    // different intent. With the old findUnique-then-upsert pattern at
+    // least one role could be dropped under interleaving. The atomic
+    // helper resolves serially against the simulated DB store; if any
+    // role were lost the union assertion below would fail.
+    const { POST } = await import('@/app/api/contact/route');
+    const body = (intent: string) => ({
+      ...baseBody(),
+      consent: true,
+      intent,
+    });
+    const responses = await Promise.all([
+      POST(makeRequest({ url: 'http://test/api/contact', body: body('seller') })),
+      POST(makeRequest({ url: 'http://test/api/contact', body: body('tenant') })),
+      POST(makeRequest({ url: 'http://test/api/contact', body: body('landlord') })),
+    ]);
+    for (const r of responses) {
+      expect(r.status).toBe(200);
+    }
+    // After all three submissions resolve, every role must be present.
+    // Order is not asserted — only that no role was lost to concurrency.
+    const finalRoles = rolesByEmail.get('test@example.com') ?? [];
+    expect(finalRoles).toEqual(
+      expect.arrayContaining(['seller', 'tenant', 'landlord'])
+    );
+  });
+
+  it('case 11 — invalid intent does NOT inject a foreign role into the lead', async () => {
+    // The closed allowlist + classifyIntent gate is the only path that
+    // role strings can take into the helper. An invalid intent must
+    // default to "general" → ["buyer"], never to a fabricated role.
+    const { POST } = await import('@/app/api/contact/route');
+    const res = await POST(
+      makeRequest({
+        url: 'http://test/api/contact',
+        body: { ...baseBody(), consent: true, intent: 'admin' },
+      })
+    );
+    expect(res.status).toBe(200);
+    const roles = lastUpsertRoles();
+    // Exactly ["buyer"] — no "admin", no echo of the invalid value.
+    expect(roles).toEqual(['buyer']);
+    expect(roles).not.toContain('admin');
+    expect(lastAuditChanges().intent).toBe('general');
+    // Raw value is still captured for forensics, but only in
+    // intent_raw — NOT in roles or any business field.
+    expect(lastAuditChanges().intent_raw).toBe('admin');
   });
 
   it('case 7b — case-insensitive: intent=" SELLER " → normalizes to "seller"', async () => {

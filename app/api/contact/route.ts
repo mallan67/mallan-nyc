@@ -18,10 +18,16 @@ import {
   mergeRoles,
   truncateIntentRaw,
 } from '@/lib/leads/intent';
+// A3 Codex fix (2026-05-20): atomic DB-side roles union — see
+// lib/leads/lead-upsert.ts header for the race scenario this closes.
+import { atomicMergeUpsertLead } from '@/lib/leads/lead-upsert';
 
 // Re-export so the symbols are visibly part of the route module surface and
 // the source-pin test in tests/runtime/contact-form-consent.test.ts can
 // assert their presence without requiring a separate import line.
+// `mergeRoles` is still exported because (a) external callers may rely on
+// the JS implementation, and (b) the source-pin test asserts it is
+// present — see tests/runtime/contact-form-consent.test.ts.
 export { INTENT_ALLOWLIST, classifyIntent, mergeRoles };
 
 /**
@@ -132,36 +138,24 @@ export async function POST(request: NextRequest) {
 
     const consentDate = new Date(body.consentTimestamp);
 
-    // Read existing roles BEFORE upsert so we can additively merge. Prisma
-    // upsert.update cannot atomically reference prior column values for a
-    // String[] field without raw SQL, so the findUnique-then-upsert pattern
-    // is the simplest correct option. If the row doesn't exist yet, existing
-    // is null and mergeRoles falls back to incomingRoles.
-    const existing = await prisma.lead.findUnique({
-      where: { email },
-      select: { roles: true },
+    // Atomic insert-or-merge — the roles union is evaluated DB-side
+    // inside a single INSERT ... ON CONFLICT statement, so concurrent
+    // submissions for the same email cannot drop a role under TOCTOU.
+    // See lib/leads/lead-upsert.ts header for the race scenario that
+    // the prior findUnique → mergeRoles → upsert path was vulnerable to
+    // (Codex review on PR #171, 2026-05-20). The JS `mergeRoles()`
+    // helper is still exported for use by other lead-write surfaces
+    // and for the source-pin contract in the test suite, but it is
+    // intentionally NOT called on this hot path.
+    const lead = await atomicMergeUpsertLead(prisma, {
+      email,
+      firstName,
+      lastName,
+      phone: phone || '',
+      incomingRoles,
+      consentCapturedAt: consentDate,
     });
-    const mergedRoles = mergeRoles(existing?.roles ?? null, incomingRoles);
-
-    const lead = await prisma.lead.upsert({
-      where: { email },
-      create: {
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone: phone || '',
-        roles: mergedRoles,
-        status: 'new',
-        source: 'contact_form',
-        consent_captured_at: consentDate,
-      },
-      update: {
-        phone: phone || undefined,
-        roles: mergedRoles,
-        consent_captured_at: consentDate,
-        updated_at: new Date(),
-      },
-    });
+    const mergedRoles = lead.roles;
 
     await linkBehavioralSessionToLead(behavioralSessionId, lead.id);
 
