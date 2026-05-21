@@ -1,13 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import AgencyDisclosure from '@/app/components/AgencyDisclosure';
 import AntiDiscriminationNotice from '@/app/components/AntiDiscriminationNotice';
 import { trackInquiry } from '@/lib/posthog';
+import { INTENT_ALLOWLIST } from '@/lib/leads/intent';
 
 const BEHAVIORAL_SESSION_KEY = 'mallan_behavioral_session';
+
+/**
+ * Parse `?intent=` from the current URL and validate against the closed
+ * allowlist. Anything outside the allowlist (or absent / non-string) maps
+ * to "general". Always returns a known-safe value; the raw URL string is
+ * NEVER reflected into the UI.
+ *
+ * Pattern matches app/sign-up/page.tsx: uses window.location.search inside
+ * a lazy useState initializer so SSR returns "general" deterministically and
+ * the real value is picked up on first client render. Avoids Next 16's
+ * Suspense-boundary requirement that comes with useSearchParams().
+ */
+function readIntentFromUrl(): string {
+  if (typeof window === 'undefined') return 'general';
+  try {
+    const raw = new URLSearchParams(window.location.search).get('intent');
+    if (!raw) return 'general';
+    const normalized = raw.trim().toLowerCase();
+    return INTENT_ALLOWLIST.has(normalized) ? normalized : 'general';
+  } catch {
+    return 'general';
+  }
+}
+
+/** Intents that should show the seller / property-owner-flavored copy. */
+const SELLER_INTENTS = new Set([
+  'seller',
+  'exclusive-seller',
+  'townhouse-seller',
+  'international-seller',
+  'landlord',
+]);
 
 /**
  * Contact Page - TCPA-Safe Implementation
@@ -48,6 +81,25 @@ export default function ContactPage() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   // Honeypot: invisible field to catch bots. If filled, silently reject.
   const [hp, setHp] = useState('');
+
+  // A3 (2026-05-20): intent routing.
+  // Lazy initializer returns "general" during SSR (window undefined) and the
+  // real allowlisted value on first client render. The useEffect-+-ref combo
+  // locks the FIRST observed value so client-side route changes inside the
+  // app shell can't silently swap a seller intent for a buyer intent later.
+  const [intent, setIntent] = useState<string>(() => readIntentFromUrl());
+  const intentLockedRef = useRef(false);
+  useEffect(() => {
+    if (intentLockedRef.current) return;
+    intentLockedRef.current = true;
+    // Re-read once on mount in case the lazy initializer ran during SSR.
+    const fromUrl = readIntentFromUrl();
+    if (fromUrl !== intent) {
+      setIntent(fromUrl);
+    }
+  }, [intent]);
+
+  const isSellerIntent = SELLER_INTENTS.has(intent);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -108,6 +160,11 @@ export default function ContactPage() {
           // not sufficient proof — the API must verify the checkbox state.
           consent: formData.consent === true,
           consentTimestamp: new Date().toISOString(),
+          // A3 (2026-05-20): forward the URL `?intent=` so server-side
+          // classifyIntent() can route the lead to the right agent queue.
+          // The server re-validates against the closed allowlist — this
+          // field is never trusted blind.
+          intent,
         }),
       });
 
@@ -156,10 +213,12 @@ export default function ContactPage() {
           </div>
           <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
             <h1 className="font-display font-bold text-3xl md:text-5xl mb-4">
-              Contact Us
+              {isSellerIntent ? 'Discuss Your Property' : 'Contact Us'}
             </h1>
             <p className="text-lg text-gray-200 max-w-2xl mx-auto">
-              Questions about buying, selling, or renting in NYC? We&apos;re here to help.
+              {isSellerIntent
+                ? 'Tell us about your home. A licensed broker will respond within one business day — no automated calls or texts.'
+                : 'Questions about buying, selling, or renting in NYC? We’re here to help.'}
             </p>
           </div>
         </section>
@@ -225,6 +284,21 @@ export default function ContactPage() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} noValidate>
+                    {/*
+                      A3 (2026-05-20): intent hidden input.
+                      `name="intent"` is intentional so the value is visible
+                      in the rendered HTML for the live-preview probe and so
+                      the form would round-trip correctly even in a degraded
+                      JS-disabled fallback. The value is ALWAYS an
+                      allowlist-validated string (never the raw URL value).
+                    */}
+                    <input
+                      type="hidden"
+                      name="intent"
+                      value={intent}
+                      readOnly
+                      data-testid="contact-intent-hidden"
+                    />
                     {/* Honeypot field — invisible to users, catches bots */}
                     <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
                       <label htmlFor="fax_line">Fax</label>
