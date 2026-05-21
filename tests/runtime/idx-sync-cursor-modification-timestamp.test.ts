@@ -46,7 +46,13 @@
  *
  *   B. Source-regex assertions on infrastructure non-changes
  *      - vercel.json still contains /api/cron/idx-sync schedule "every 10 min"
- *      - vercel.json still contains /api/cron/media-backfill schedule "every 15 min"
+ *      - vercel.json does NOT contain /api/cron/media-backfill (paused
+ *        2026-05-21 by PR #176 as P0 Neon/media incident mitigation;
+ *        the legacy cron was writing the legacy Listing.media JSON
+ *        column redundantly with /api/cron/media-sync writing
+ *        listing_media + R2 — the new preferred path)
+ *      - vercel.json still contains /api/cron/media-sync schedule
+ *        "every 15 min" (the preferred R2 writer remains active)
  *      - app/api/cron/idx-sync/route.ts still has SCHEDULED_MAX_RECORDS = 500
  *      - prisma/schema.prisma Listing model still declares the
  *        modification_timestamp column (no schema change)
@@ -261,11 +267,45 @@ describe('infrastructure non-changes around PR-S.6', () => {
     expect(idxSyncCron!.schedule).toBe('*/10 * * * *');
   });
 
-  it("vercel.json still contains the media-backfill cron at schedule */15 * * * *", () => {
+  it("vercel.json does NOT contain /api/cron/media-backfill — paused for 2026-05-21 P0 Neon/media incident (PR #176)", () => {
+    // PR #176 (2026-05-21 P0 Neon/media incident mitigation) removed
+    // the legacy /api/cron/media-backfill cron entry. The route file at
+    // app/api/cron/media-backfill/route.ts remains in the repo; only
+    // the Vercel cron schedule that invoked it was removed. Reversible
+    // by re-adding the entry to vercel.json.
+    //
+    // Context from the read-only incident audit:
+    //   - media_sync_state.last_photos_change cursor was frozen at
+    //     2026-04-30T18:11:27Z for 21 days, so the newer
+    //     /api/cron/media-sync was making negligible R2 progress
+    //     (r2_mirrored=1 vs r2_failed=151 per 24h).
+    //   - /api/cron/media-backfill ran redundantly without a
+    //     concurrency guard, calling backfillEmptyMedia +
+    //     migrateMediaToR2 in lib/idx/sync.ts which rewrote the
+    //     legacy Listing.media JSON column.
+    //   - Pausing media-backfill cuts the cron compute pressure in
+    //     half while the newer listing_media + R2 path remains
+    //     active.
     const crons = vercelJson.crons ?? [];
     const mediaBackfillCron = crons.find(c => c.path === '/api/cron/media-backfill');
-    expect(mediaBackfillCron).toBeDefined();
-    expect(mediaBackfillCron!.schedule).toBe('*/15 * * * *');
+    expect(mediaBackfillCron).toBeUndefined();
+  });
+
+  it("vercel.json still contains /api/cron/media-sync at schedule */15 * * * * (PR #176 — newer preferred listing_media + R2 writer remains active)", () => {
+    // /api/cron/media-sync is the PR-3 master-refactor path with
+    // retry/cooldown/tombstone guards in listing_media (see
+    // prisma/schema.prisma ListingMedia model at lines 2357-2370 and
+    // the audit-event 10-minute concurrency guard at
+    // app/api/cron/media-sync/route.ts:42-56). It must remain active
+    // after PR #176 so R2 mirroring continues. A separate follow-up
+    // (PR B, not started at PR #176 time) may later throttle this to
+    // `0,30 * * * *`; pin the current PR-#176-era schedule here so a
+    // later schedule change is detected by the test rather than
+    // silently shipping.
+    const crons = vercelJson.crons ?? [];
+    const mediaSyncCron = crons.find(c => c.path === '/api/cron/media-sync');
+    expect(mediaSyncCron).toBeDefined();
+    expect(mediaSyncCron!.schedule).toBe('*/15 * * * *');
   });
 
   it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
