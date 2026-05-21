@@ -1,550 +1,168 @@
-# CLAUDE.md - Project Instructions for Claude Code
+# CLAUDE.md — Project Command Center · mallan.nyc
+
+> Lean indexed command center (rebuilt 2026-05-20). Full historical reference preserved at `docs/historical/CLAUDE-FULL-REFERENCE-2026-05-20.md` (45 KB, byte-identical to the pre-2026-05-20 CLAUDE.md).
+>
+> **Compliance-first.** When a task touches anything in §D, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST. The index has per-area canonical pointers, validators, and fail-closed instructions for REBNY, RLS, UCBA, IDX Plus, Trestle/Cotality, Fair Housing, NY DOS, FARE Act, TCPA, NY SHIELD, audit retention, CRM lead routing, seller/landlord intake, and Mallan exclusives/syndication.
 
 ---
 
-## 🛑 STOP — READ `NEON.md` BEFORE ANY OF THE FOLLOWING
+## A. Absolute hard rules
 
-The file `NEON.md` at the repo root is the **single source of truth** for Neon / Prisma / DB / migration behavior on this project. It lists tier caps, known traps, required migration discipline, pre-flight checklist, and recovery playbooks.
-
-**You MUST read `NEON.md` before:**
-- Editing `prisma/schema.prisma`
-- Writing a migration under `prisma/migrations/`
-- Running `prisma migrate deploy` / `prisma db push`
-- Modifying `vercel.json`'s `buildCommand` or crons touching DB
-- Touching `scripts/vercel-migrate-deploy.js` or `lib/prisma.ts`
-- Removing or changing the `db-keepalive` cron
-- Any code that adds a column, FK, index, or table
-- Discussions about upgrading the Neon plan
-
-Failing to read `NEON.md` first is how the 2026-04-19 silent-drift incident happened. Don't repeat it.
+1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, `db-keepalive` cron, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
+2. **Source-of-truth charter** — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` before creating, renaming, moving, or editing any file in search, CRM, featured/exclusives, neighborhoods/locations, media, listings, or IDX. No parallel `*-v2`/`*-new`/`*-final` files. No editing generated files (`public/crm/index-built.html` is built via `npm run crm:build`).
+3. **Memory file mirror policy** — every file created/updated under `memory/` must also be mirrored to `C:\Users\MayaAllan\Desktop\memory\` in the same session (byte-identical). Verify with `cmp` after write. The `memory/archive/` subdirectory itself is not mirrored, only its parent file movements.
+4. **Compliance-first** — see §D.
+5. **Fail-closed on rule conflict or missing canonical file** — see §E.
+6. **Proof-first on completion claims** — see §F.
+7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), Sentinel, agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main.
+8. **Never skip hooks** (`--no-verify`), never bypass signing (`--no-gpg-sign`), never amend a published commit.
+9. **`scripts/__pr147-soak-verify.mjs` stays UNTRACKED.** Do not commit it.
 
 ---
 
-## 🏛️ STOP — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` BEFORE TOUCHING SEARCH / CRM / FEATURED / NEIGHBORHOODS / MEDIA / LISTINGS
+## B. Current project status
 
-The charter at `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` is the **architecture rulebook** for this repo. It exists because AI sessions repeatedly invented parallel files (`search-v2.ts`, `featured-new.tsx`, `location-stuff.json`, `crm-search-final.js`) instead of using the correct existing source files.
-
-**You MUST read the charter before creating, renaming, moving, or editing any file in:**
-
-- Public search — `/search`, `app/search/page.tsx`, `app/components/Search*.tsx`, `app/api/listings/`
-- CRM search — `/crm/search`, `public/crm/index*.html`, `public/crm/js/search/*`, `app/api/idx/search/`
-- Featured / Exclusives — `app/components/FeaturedListings.tsx`, `app/api/featured-config/`, `panels.js` Featured Properties section
-- Neighborhoods / Locations — `lib/neighborhoods/`, `lib/geo/`, `data/*neighborhoods*`, `public/geo/`
-- Media — `lib/media/`, `lib/images/`, `app/api/media/`, `app/components/IDXImage.tsx`, `app/components/ListingMediaGallery.tsx`
-- Listings / IDX / Trestle — `lib/idx/`, `lib/compliance/gates.ts`, `lib/compliance/rebny-validator.ts`, `data/rebny-rls-property-fields.csv`
-
-The charter lists every canonical file by domain, forbids version-suffixed names (`-v2`, `-new`, `-final`, `-temp`), forbids editing generated files directly (`public/crm/index-built.html` is built via `npm run crm:build`), defines the mandatory cleanup classification (`FRONTEND_CONNECTED` / `PUBLIC_FRONTEND_CONNECTED` / `CRM_FRONTEND_CONNECTED` / `API_CONNECTED` / `GENERATED` / `SAFE_TO_ARCHIVE_NOW`), and pins the active PR priority order.
-
-**If unsure which file owns the change, STOP and report.** Do not create a parallel system. Do not invent a new file name to "make progress." Cite the charter in commit bodies when your change touches a charter boundary.
+- **Production:** mallan.nyc on Vercel (Next.js 16.1.6 + Turbopack, App Router)
+- **Database:** Neon Postgres (Vercel-Managed integration, cold-waterfall project `morning-bread-68708332`)
+- **Feed:** REBNY IDX Plus via Cotality/Trestle 5.0 (`https://api.cotality.com/trestle`) — read-only display
+- **Brokerage:** Mallan Real Estate Inc. · NY broker license **#10991205323** · 646-258-4460 · 400 East 90th Street, Suite 17C, NY 10128 · Principal broker: Maya Allan (REBNY agent license #10311201806)
+- **Active state / current PR queue / exclusive-launch readiness:** see the most recent audit at `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` (or run `gh pr list --state open` for the live queue)
+- **Master refactor plan:** `memory/REFACTOR-2026-04-25.md`
+- **Compliance baseline** (verify before any major work): `npm run ops:health` → drift=0 + §2.05=0; `npm run ucba:audit` → 46/46 PASS, 0 REGRESSIONS; `npm run idx:validate` → 0 critical; `npm run compliance-check` → 93/93 BLOCKER+STRICT
 
 ---
 
-## 🗂️ MEMORY FILE POLICY — ALWAYS MIRROR TO DESKTOP
+## C. Current holds (require explicit Maya approval before starting)
 
-Whenever you create or update any file under `memory/` (or move a file to `memory/archive/`), also mirror it to `C:\Users\MayaAllan\Desktop\memory\` so the Desktop copy stays byte-identical to the repo copy. This is a durable rule set by user instruction 2026-04-30 — applies every session, no exceptions.
+| Item | Status | Where the hold is recorded |
+|---|---|---|
+| **PR 5B** — `refactor/05-listing-search-projection` (public reader swap from `listings.idx_display_yn` → `listing_search_projection.idx_display_yn`) | HELD | `memory/REFACTOR-2026-04-25.md` master plan + recurring Maya direction |
+| **External-inventory implementation** (OneKey / NY-State MLS / other non-REBNY feeds) | HELD | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`; spec at `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md` |
+| **Syndication exports / partner integrations** | HELD | `MALLAN_OFFICE_MLS_IDS=[]` in `lib/syndication/mallan-identity.ts`; Layer 1.PRE empty-config-guard blocks all rows (PR #162 + #163); no `/api/exports/*` route exists |
+| Schema migrations · env vars · Neon · cron config · CRM frontend (`public/crm/**`) · Sentinel · agents · skills · `.github/workflows/**` | HELD | Maya standing directive |
+| Manual cron triggers · reconciliation runs · admin merge bypass · force-push to main | HELD | Maya standing directive |
 
-The `archive/` subdirectory itself is not mirrored (only its parent file moves are reflected by removing the file from the Desktop top level when archived).
+---
 
-Verify after any memory write:
+## D. Compliance-first rule
+
+If a task touches ANY of the following surfaces, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` **first**, then read the canonical file the index points to for the specific area, then proceed:
+
+- Public listings · listing-display rendering · FeaturedListings · search-result composition
+- IDX · RLS · Trestle / Cotality Web API · OData queries · field mapping
+- Syndication · Mallan exclusives · partner export
+- CRM lead routing · inquiry · contact · open-house RSVP · sign-up · CMA · guides · search-alerts · favorites · saved-searches
+- Seller / landlord intake forms (`SALE-FORM-REDESIGN.html`, `RENTAL-FORM-REDESIGN.html`)
+- Advertising surfaces (any public text mentioning a listing, agent, or brokerage)
+- Broker attribution · NY DOS §175.25 disclosures · IDX disclaimer
+- Fair Housing language scanning · prohibited terms
+- Portal access · agent PII masking · invite-token flow
+- Audit-event creation · lead consent capture · retention windows
+- Display gate writes (`idx_display_yn`, `internet_*_display_yn`, `participant_only`, `owner_opt_out`)
+- Status transitions (`TERMINAL_STATUSES`, `normalizeStandardStatus`)
+- Media / photo / floorplan / video (Trestle Media API rules — `ResourceRecordKey` not `ResourceRecordID`)
+
+The compliance index has 18 numbered areas, each with: canonical file · backup / reference · validator / test · when to read · fail-closed instruction. No compliance rule lives directly in this CLAUDE.md — only the pointer.
+
+---
+
+## E. Fail-closed rule
+
+If REBNY / RLS / IDX Plus / Trestle / Cotality / FARE Act / NY DOS / Fair Housing / TCPA / NY SHIELD requirements are unclear, conflicting, or absent from the canonical file:
+
+- **STOP and report.**
+- **Do NOT guess** from memory.
+- **Do NOT extrapolate** from one MLS's behavior to another's, or from one field's null-handling to another's.
+
+The 2026-04-30 incident — 7,594-row corruption — happened because `affirmPermission()` was assumed to be correct for `InternetEntireListingDisplayYN` (which is REBNY-pre-filtered, so null = displayable). The full incident is canonicalized at `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`. Read it once if you have not already.
+
+---
+
+## F. Proof-first rule
+
+A change is not "fixed" without one of the following:
+
+- A **failing test that the fix flips green** (the test must be in the same PR — see PR #112 + #113 + #148 pattern). Source-grep verification ALONE is not sufficient for any rendering or behavior claim.
+- A **live URL probe** (production or immutable Vercel preview URL) with the actual rendered evidence captured.
+- A **Vercel runtime log** (`mcp__claude_ai_Vercel__get_runtime_logs`).
+- **Direct source-code Read** — for purely static claims only (e.g., "is the import present?" — NOT for "does the disclosure render?").
+
+Example of why this matters: the 2026-05-20 launch-readiness audit found the FARE Act disclosure source-grep passing (`app/listing/[id]/page.tsx:1546-1555` contained the text) BUT the conditional was not rendering on production rentals — a real legal exposure ($1,800–$2,000 per violation under NYC LL 119/2024). See `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4.
+
+Guardrail docs: `docs/engineering/pr-verification-checklist.md` + `docs/engineering/vercel-preview-proof-rules.md` + `docs/operations/proof-first-guardrails.md`.
+
+---
+
+## G. Required validation checklist (run before every commit that touches compliance-shaped surfaces)
 
 ```bash
-cmp memory/<file> "C:/Users/MayaAllan/Desktop/memory/<file>" && echo "synced"
+npm run type-check          # 0 TypeScript errors required
+npm run rls:validate        # 10-section REBNY RLS validator
+npm run compliance-check    # 93+ rules — BLOCKER+STRICT must be 0 failures
+npm run ucba:audit          # 145-rule UCBA — REGRESSIONS must be 0
+npm run idx:validate        # 32-section IDX Plus — 0 critical
+npm run crm:test            # if public/crm/** touched (172/172 smoke)
+npm run ops:health          # before major deploys (see NEON.md)
 ```
 
-If a file was edited via the `Edit` tool, re-`cp -f` it to Desktop in the same session before reporting completion. Stale Desktop mirrors are the prior failure mode this rule prevents.
+Exit codes must be 0. Any `REGRESSIONS: N` where N > 0 from `ucba:audit` is a hard stop — fix the regression, do not edit the checklist to silence it.
+
+CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with red checks; don't admin-bypass.
 
 ---
 
-## 🔔 ACTIVE FOLLOW-UP — FIRST AGENDA ITEM EVERY SESSION
+## H. Canonical file pointers
 
-**Status:** OPEN · **Updated:** 2026-05-14 · **PR 4 merged · §2.05 = 0 violations · H1 dual-write closed**
-
-**GATE CLEARED 2026-05-14:** Media PR 3 observation window (started `2026-04-30T06:00:42-04:00`, eligibility `2026-05-02T06:00:42-04:00`) completed cleanly. Master plan PR 4 merged 2026-05-12 (PR #105, `daa6c44c`). §2.05 violations = 0 verified via `npm run ops:health` at 2026-05-14T15:04 ET (also: listings missing `status_changed_at` = 0, T+180d archive backlog = 0). H1 dual-write gap mechanically closed by PR #112 + PR #113. Source: progress audit 2026-05-14 (report-only).
-
-**ACTIVE HOLD:** External-inventory implementation is parked behind PR 4 closeout AND explicit user approval. Spec at `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md`. Hold record + release conditions in [`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`](memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md). Do NOT invoke `superpowers:writing-plans` against this spec until both release conditions are met.
-
-**2026-04-30 INCIDENT (background for new sessions):** [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md) — full sequence of (1) RESO live coverage probe → (2) read-only DB-state confirmation → (3) bounded mapper writer fix `0309875b` → (4) first recovery (7,545 rows) → (5) §2.05 corrective (489 rows) → (6) push → (7) full system audit → (8) second recovery (49 post-push corruptions). Active gate-pass back to 100%. Architectural follow-ups status (2026-05-14): **H1 dual-write gap CLOSED by PR #112 (`df6791d`) + PR #113 (`e939073e`)** — primary + secondary writer guards and `normalizeStandardStatus()` now in place. Still open: H2 deploy/cron race detection; H3 cron heartbeat observability. The user-requested permanent command (`npm run ops:system-audit`) remains parked.
-
-**PRIMARY plan (10-PR backend rebuild):** [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — status table inside is the source of truth for which PR is next. **Master plan PR 4 merged 2026-05-12 (PR #105, `daa6c44c`)** — `refactor(media): swap public reader from Listing.media JSON to listing_media table`. Next eligible master-plan step is **PR 5 (search projection)** per `memory/REFACTOR-2026-04-25.md`.
-
-**SECONDARY (parallel track):** [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) — Workstream C (UCBA compliance gaps: Inquiry, Offers, Auction, Ethics) runs in parallel after PR 1 of the master plan lands. Workstream A (Phase 3 schema) is **superseded** by master-plan PR 5. Workstream B (HTTP adapter) is **dropped** per user decision 2026-04-25.
-
-### Action at next session (regardless of date):
-1. **Check current state.** Observation window closed 2026-05-02; Master plan PR 4 merged 2026-05-12. Verify §2.05 still = 0 violations via `npm run ops:health` before starting PR 5 work. If `ops:health` shows §2.05 > 0, investigate before continuing — post-PR-#113 any non-zero reading is a real regression, not transient drift.
-2. Open `memory/REFACTOR-2026-04-25.md`. Read the "Current state" snapshot, then the "PR sequence overview" status table. **Next eligible PR is PR 5 (search projection).**
-3. Run the pre-flight checklist at the top of that file (`ops:health` + `ucba:audit` + `rls:validate` + `crm:test` + `idx:validate`). **Current state baseline (2026-05-14): §2.05 violations = 0, UCBA 46/46 PASS with 0 regressions, IDX validator 1,278 pass / 0 critical, compliance-check 93/93 BLOCKER+STRICT pass.** Any drop below baseline = regression to investigate before continuing.
-4. If all pass, identify the lowest-numbered PR with status `NOT_STARTED` and execute it per the per-PR instructions in that file.
-5. Workstream C (C1–C4 in `FOLLOWUP-2026-05-01.md`) can be picked up in parallel as soon as master-plan PR 1 has merged.
-6. After any PR merges, update its status field in `memory/REFACTOR-2026-04-25.md` to `MERGED — <commit-sha> · <date>`.
-
-### Summary of in-flight workstreams
-- **Master plan (10 PRs)** — backend rebuild: PR 1 compliance fail-closed → PR 2 media schema → PR 3 R2-backed media sync → PR 4 rewrite media batch → PR 5 search projection → PR 6/7 search-core → PR 8 collections+sends → PR 9 lease lifecycle → PR 10 Neon shedding.
-- **Workstream C (4 sub-PRs)** — parallel UCBA compliance: C1 Inquiry, C2 Offer transmission, C3 Auction fields, C4 Ethics training gate.
-
-### Completion criteria
-Close this follow-up when both the master-plan completion criteria (in `memory/REFACTOR-2026-04-25.md`) and Workstream C completion criteria (in `memory/FOLLOWUP-2026-05-01.md`) are met. Replace this block with a dated archival note pointing to both files.
-
-### Recently landed (since 2026-04-25)
-- PR #38 (`fix(trestle-media): MediaStatus='Deleted' filter`) — merged 2026-04-26T01:46:50Z
-- PR #39 (`fix(trestle-media): BATCH_SIZE 50→15`) — merged 2026-04-26T01:41Z (`bf8f5ee5`)
-- PR #41 (`refactor: compliance fail-closed gates`) + PR #42 (`chore: parameterized comp tool`) + PR #43 (`infra: R2 setup runbook + ops:r2-health`) + PR #44 (`chore: npm audit triage`) + PR #45 / #46 (`chore: migrate xlsx → exceljs + 50MB cap`)
-- PR #47 (`feat(c1): Inquiry model + 3 lead-capture endpoints wired`)
-- PR #48 (`feat(media-schema): ListingMedia + MediaSyncState + 4 Listing cols — Master PR 2`)
-- PR #49 (`feat(c2): Offer model + UCBA Art. II transmission endpoint`)
-- PR #50 (`feat(c3): Listing.auction_yn + 4 auction cols — UCBA Art. I exception`)
-- PR #51 (`feat(c4): Agent ethics_training_completed_at + ethics_training_expires_at — schema only`)
-- PR #55 (`feat(c1b): wire 5 remaining lead-capture endpoints to Inquiry`, replaces auto-closed #52)
-- PR #56 (`fix(deps): pin lightningcss linux binaries via top-level optionalDependencies`) — unblocked Vercel cross-platform builds
-- PR #57 (`feat(c3b): auction listing enforcement validator + 9 tests`, replaces auto-closed #53) — UCBA Art. I codes AU-001..AU-005
-- PR #58 (`feat(c4b): ethics training auth gate`, replaces auto-closed #54) — merged `276fe3ae` 2026-04-26T10:17:47Z. Pre-merge backfill executed via `scripts/c4-ethics-backfill.ts` (3 active agents → 30-day grace, `would_lock_out=0`).
-
-**Workstream C: 4 of 4 complete (C1, C2, C3a/b, C4a/b).** Deferred: C3c (auction form/UI), C4c (broker admin panel + dev-login catch + commit backfill script to repo).
-
-### Recently landed — IDX Plus display-gate sub-incident (2026-04-30)
-- **`0309875b` `fix(idx): treat IDX Plus display nulls as provider-gated`** — pushed to `origin/main`, deployed Vercel-green. Reverts `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` from `affirmPermission` (fail-closed) back to `!== false` (fail-open) — these two fields are pre-filtered upstream by REBNY/Cotality on IDX Plus and null = displayable. AVM/ConsumerComment remain fail-closed (per-row opt-out flags). +18 writer-side tests, +3 regression guards (compliance-check 87 → 90).
-- **DB recovery 1** (7,545 rows · `listings` + `listing_search_projection`) — flipped `internet_entire_listing_display_yn`, `internet_address_display_yn`, `idx_display_yn` from false → true on rows synced after the buggy commit (2026-04-23) where there was no owner/participant blocker.
-- **§2.05 corrective** (489 rows · both surfaces) — first recovery's WHERE was over-broad and flipped terminal-status rows past 24h to `idx_display_yn=true`; corrective restored `idx_display_yn=false` per REBNY RLS §2.05 / `data-retention` cron's same SQL.
-- **DB recovery 2** (49 rows · both surfaces) — system audit caught 49 active rows re-corrupted by the cron at 21:00 UTC running on the OLD code 1m12s after push (Vercel build still completing). Same recovery shape, narrower scope.
-- **Active suspicious gate-fail count: 0.** Active public gate-pass: **100%** (10,510/10,510). Listing↔projection row parity: 20,075/20,075/0 missing.
-- **Architectural debt status (updated 2026-05-14):** H1 dual-write gap on non-mapper writers **CLOSED by PR #112 (`df6791d`) + PR #113 (`e939073e`)** — primary writer terminal-status guard + secondary-writer guard + `normalizeStandardStatus()` exported from `lib/idx/trestle-mapper.ts`. §2.05 violations confirmed = 0 in 2026-05-14T15:04 ET `ops:health` snapshot. Still OPEN: H2 deploy/cron race detection; H3 cron heartbeat observability; M1 `saved_searches` empty; permanent `npm run ops:system-audit` command (spec in `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`).
-
----
-
-## 🧪 COMPLIANCE AUDIT — RUN WHEN CHANGES LAND
-
-**This is the test an external auditor runs against this codebase.** Keep this reference stable; the runner + checklist below are the source of truth for all 145 UCBA 2026 rules.
-
-| Piece | Path |
+| Topic | Canonical file |
 |---|---|
-| Machine-readable checklist (all 145 UCBA 2026 rules with file paths + regex patterns) | `compliance/rules/ucba-audit-checklist.json` |
-| Runner (reads the checklist, greps the codebase, emits a verdict per rule) | `scripts/ucba-compliance-audit.js` |
-| Primary command | `npm run ucba:audit` |
-| Machine-readable output (for CI / dashboards) | `npm run ucba:audit:json` |
-| Only show failures | `npm run ucba:audit:fails` |
-
-### Reading the result
-
-Every rule resolves to one of four verdicts. Expected verdicts are encoded in the checklist — the runner compares actual vs expected:
-
-| Verdict | Meaning |
-|---|---|
-| `PASS` | Pattern(s) found in the expected file(s). |
-| `FAIL` | Pattern not found. May be a regression OR a known unimplemented rule (checklist tells the runner which). |
-| `EVALUATE_CLOSELY` | Pattern exists but regex alone can't verify the semantic — human must eyeball the call sites whenever the file changes. |
-| `REGRESSIONS` | A rule whose expected verdict was `PASS` is now `FAIL`. **This is the only number that must stay 0.** Exit code is non-zero if >0. |
-
-**Exit 0 = auditor-green.** The runner tolerates expected FAILs (they're annotated `[low]`/`[med]`/`[high]` in the checklist). It exits non-zero only on regressions.
-
-### When to run
-
-- **Always before committing** changes to: `lib/compliance/**`, `lib/idx/**`, `app/api/crm/**`, `app/api/portal/**`, `app/api/listings/**`, any public listing display component, or any form that captures free-text from an agent or client.
-- Before pushing to `main`.
-- After reviewing any external compliance finding (the checklist is how you verify the claims).
-- It already runs on every PR via `.github/workflows/pr-check.yml` — if CI fails there, pull the artifact and fix the regression before merging.
-
-### Sibling checks (same CI chain, `npm run ci`)
-
-```bash
-npm run type-check              # 0 TS errors required
-npm run rls:validate            # 10-section RLS validator (fields, renames, gates, masking, coverage)
-npm run compliance-check        # scripts/ci-compliance-check.js — pre-commit sanity gate
-npm run ucba:audit              # this test — the 145-rule checklist
-npm run ops:health              # Neon tier headroom + sync freshness (see NEON.md)
-npm run ci                      # lint → type-check → compliance-check → idx:validate → build
-```
-
-### Last known-good run
-
-- **2026-04-20 · commit `cc8a50af`:** 46 rules checked · 42 PASS · 1 expected FAIL (C15 auction — tracked as workstream C3 in `memory/FOLLOWUP-2026-05-01.md`) · 3 expected EVALUATE_CLOSELY (A2 DOM-start, A5 no-circumvention, C2 simultaneous-distribution) · **0 regressions** · exit 0.
-
-**If a future run shows `REGRESSIONS: N` where N > 0, fix the regression — do not edit the checklist to silence it.** The checklist is the auditor's source; editing it to mask a broken rule is how compliance drift compounds.
+| **Compliance per-area canonical map** (read first for any §D surface) | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
+| REBNY skill (auto-loaded at session start) | `.claude/skills/rebny-compliance/SKILL.md` |
+| Neon / Prisma / DB rules | `NEON.md` |
+| Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
+| Trestle field registry (all 12 resources, ~1,364 fields) | `data/RLS-FIELD-REGISTRY.md` |
+| IDX Plus field CSV (902 fields, 7 resources) | `data/rebny-rls-property-fields.csv` |
+| Picklist values (2,066 lookups) | `data/rebny-rls-property-lookup.csv` |
+| UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` |
+| Syndication research (RLS feeds, vendors, costs, providers) | `data/RLS-Syndication-Research.md` |
+| Trestle live OData $metadata | `artifacts/metadata.xml` |
+| Master refactor plan (10-PR backend rebuild) | `memory/REFACTOR-2026-04-25.md` |
+| Most recent comprehensive audit | `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` |
+| Post-reconciliation tightening audit (Phase A scope rationale) | `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` |
+| Backend / CRM gap audit | `docs/backend-crm-current-gap-audit-2026-05-18.md` |
+| CRM workflow proof audit | `docs/crm-workflow-proof-audit-2026-05-16.md` |
+| Engineering proof rules | `docs/engineering/pr-verification-checklist.md` · `docs/engineering/vercel-preview-proof-rules.md` |
+| Proof-first guardrails | `docs/operations/proof-first-guardrails.md` |
+| Neon cost / branch policy | `docs/architecture/NEON-COST-CONTROL-POLICY.md` |
+| Neon / Vercel ownership map | `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` |
+| Mallan exclusives syndication plan (invariants I.1–I.8) | `docs/architecture/MALLAN-EXCLUSIVES-SYNDICATION-PLAN-2026-05-18.md` |
+| MASTER-PROJECT-TREE (file roles, phases, gates) | `MASTER-PROJECT-TREE-v3.3.md` |
+| Master project document | `MALLAN-NYC-CRM-PROJECT.md` |
 
 ---
 
-## Project: mallan-nyc
+## I. Historical archive pointers
 
-> **Compliance-First · Fast · Scalable**
->
-> **Last Comprehensive Audit:** 2026-04-06 — [Full findings in memory/FULL-SITE-AUDIT-2026-04-06.md]
-> Build PASS, TypeScript 0 errors, IDX Validator 822/0 critical. 5 critical bugs fixed, 25+ medium findings documented.
-> **IMPORTANT: Trestle does NOT provide Latitude/Longitude.** All geocoding is mallan.nyc's responsibility via `lib/geo/geocode.ts` (address geocoding) + ZIP centroid fallback. No hardcoded coordinate fallbacks.
->
-> **REBNY Compliance Skill:** `.claude/skills/rebny-compliance/SKILL.md` — READ AT SESSION START. Contains all REBNY UCBA 2026, IDX Plus/Trestle connector (auth, fetch, mapper, all 902 fields), Fair Housing (20+ protected classes), FARE Act, NY DOS advertising law, real estate law, TCPA, CAN-SPAM, NY SHIELD Act, penalties, and audit checklists.
+Old long-form CLAUDE.md (45 KB · all content from before 2026-05-20 rebuild) is preserved verbatim at:
 
-| | |
-|---|---|
-| **Status** | Active Development |
-| **Stage** | **Live Production** (Next.js 16.1.6 on Vercel, real Trestle/IDX data) |
-| **Type** | **Full-Stack Platform** — public frontend (mallan.nyc) + backend CRM + API |
-| **Jurisdiction** | New York State / NYC |
-| **License Holder** | Mallan Real Estate Inc. |
-| **Brokerage License** | #10991205323 (Mallan Real Estate Inc. - company) |
-| **Agent License** | #10311201806 (Maya Allan - individual REBNY license) |
-| **Phone** | 646-258-4460 |
-| **Address** | 400 East 90th Street, Suite 17C, New York, NY 10128 |
+- `docs/historical/CLAUDE-FULL-REFERENCE-2026-05-20.md` (lives in `docs/archive/` rather than `memory/archive/` because the latter is `.gitignore`d — preservation must be reachable to every Claude session via the repo, not just Maya's local disk)
 
-### Portal Access Levels
+Other historical material:
 
-The backend CRM supports 6 portal types, each with different access levels:
-
-| Portal | User Type | Access Level |
-|--------|-----------|-------------|
-| **Broker Admin** | Maya Allan (principal broker) | FULL admin access — all sections, all agents, all clients, compliance, approvals |
-| **Broker/Agent Admin** | Each licensed agent (Maya also has this) | OWN private dashboard, OWN search, OWN clients, listings, documents, marketing. NOT shared with other agents. |
-| **Buyer Portal** | Buyer clients | Sees ONLY what agent provides. CANNOT see listing agent name. Can: Like, Dislike, Let's Discuss, Schedule, Open House, Offer, "view this" → pending. |
-| **Seller Portal** | Seller clients | Invited by listing agent. Follows: showings, price, comparables, comments, marketing, offers. |
-| **Tenant Portal** | Renter clients | Same as Buyer Portal but for rentals. CANNOT see listing agent name. |
-| **Landlord Portal** | Landlord/property owner clients | Same as Seller Portal but for rentals. |
-
-### File Roles (ENFORCED — do not deviate)
-
-> **Full detail in `MASTER-PROJECT-TREE-v3.3.md` Section 0**
-
-| File | Role |
-|------|------|
-| `dashboard.html` | **CRM HUB** — Broker Admin + Agent Admin (private per agent) + 4 Client Portals. v2: Two-CRM lifecycle workspaces (Sales + Rentals) with prospect/active phases, Convert API, listing backend. |
-| `index-built.html` | **IDX SEARCH** — each agent's OWN PRIVATE search via IDX Plus (read-only, IDX-eligible inventory only). Not shared. Not full-market search — limited to IDX-released fields and IDX-eligible listings. Agents use RealPlus for full RLS inventory. |
-| `SALE-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive sale listing (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc). Audited 2026-03-19: 119 data-rls-field values verified against CSV, distribution gates clean (IDX+Syndication primary, InternetEntireListingDisplayYN locked for standard sales, no VOW), 34 Fair Housing patterns, 48 mandatory fields collected. |
-| `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + buyers view exclusive sale listings (buyers see masked listing agent info) |
-| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** — listing agent creates/edits OWN exclusive rental (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc). Audited 2026-03-18: checkbox groups + fees + open houses + commercial fields fixed. |
-| `RENTAL-FORM-WITH-TOOLS.html` | **VIEW ONLY** — agents + renters view exclusive rental listings (renters see masked listing agent info) |
-| `BUYER-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — buyer's agent → broker. Agent can check status + edit errors. Not client-facing. |
-| `TENANT-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** — renter's agent → broker. Agent can check status + edit errors. Not client-facing. |
-
-**REDESIGN = SUBMISSION. WITH-TOOLS = VIEW ONLY. DEAL FORMS = INTERNAL COMMISSION REQUEST.**
-**Search is PER AGENT (private). No global/brokerage-wide search exists.**
+- `compliance/archive/MASTER-AUDIT-REPORT-v3.md` — 225-finding audit (archived)
+- `compliance/archive/FULL-AUDIT-2026-03-13.md` — UCBA 2026 source-verified (archived)
+- (An earlier full-site audit from 2026-04-06 is preserved on Maya's local disk only — it lives under the `memory/` tree which is gitignored, so it is intentionally not in the repo. Superseded by `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md`.)
+- `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` — canonical incident report (the 7,594-row corruption)
+- `memory/AUDIT-2026-05-12.md` — pre-PR-#148 audit
+- `memory/BACKEND-AUDIT-2026-04-29.md` — backend deep audit (large; superseded by `docs/backend-crm-current-gap-audit-2026-05-18.md`)
+- `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md` — search spine handoff (large; superseded by master plan PR 5)
+- `memory/archive/` — older quarterly snapshots
 
 ---
 
-## Architecture
-
-> **Live production site at mallan.nyc (Vercel, Next.js 16.1.6)**
->
-> **Components:**
-> - **Public frontend** — Next.js App Router pages (search, listings, neighborhoods, about, building profiles). **Search page (`app/search/page.tsx`):** NeighborhoodSelector (5-borough tabbed panel, multi-select), beds/baths toolbar dropdowns, server-side address search. Public search is IDX-only — limited to IDX-released fields and IDX-eligible listings (not full-market search). `PropertySearch.tsx` is dead code.
-> - **Backend CRM** — `public/crm/dashboard.html` (modular shell) + `public/crm/js/dashboard/` (app.js, panels.js, router.js, store.js, ui-components.js, workspace.js, portals.js + `panels/` subdirectory with sales-crm, rentals-crm, seller-prospects, lease-tracker, pitch-packet modules). **v2 Two-CRM redesign (2026-03-19):** lifecycle-based workspaces with prospect/active phases, `detectTypeAndPhase()` routing, Convert API, `Listing.owner_client_id` FK. Seller/Buyer/Landlord/Tenant each have full prospect + active workspace renderers.
-> - **API layer** — `app/api/` (235 route files: auth, CRM, portal, IDX, media, AI, compliance, cron, outlook)
-> - **Database** — PostgreSQL on Neon (Prisma ORM, 60 models)
-> - **Outlook integration** — Microsoft Graph OAuth for email scanning (StreetEasy lead import, folder browser)
-> - **Media** — Trestle photos cached to Cloudflare R2 + server-side proxy fallback
-> - **Cron** — 23 scheduled jobs via `vercel.json` (updated 2026-05-14): db-keepalive (*/15), data-retention (daily 3am UTC), feed-reconcile (daily 3:30am UTC), neon-branch-prune (daily 4am UTC), dom-reset (daily 6am), idx-sync (*/10), media-backfill (*/15), media-sync (*/15), listing-expiration (daily 7am), search-alerts (daily 7:30am), seller-scoring (daily 8am), tenant-nurture (daily 8:30am), prospect-triggers (daily 9am), demand-signals (daily 10am), intent-profiles (daily 11am), agent-metrics (weekly Mon noon), lead-scoring (daily 1pm), conviction-scores (daily 2pm), listing-momentum (daily 3pm), social-proof (daily 4pm), lifecycle-triggers (daily 5pm), experiment-metrics (weekly Sun 2am), market-snapshots (monthly 1st 6am).
->
-> **Auth:** Cookie-only (`session_token`, httpOnly, SameSite=Lax, Secure). Per-role TTL: Broker 24h, Agent 8h, Client 30d. Bearer fully removed.
->
-> **MFA:** Broker login requires email OTP (6-digit code via M365 SMTP). SMS ready when Twilio env vars added. `MFA_EMAIL` env var overrides recipient (currently Gmail to avoid M365 same-mailbox delivery issue). Files: `lib/auth/mfa.ts`, `app/api/auth/mfa/verify/route.ts`. No TOTP app needed.
->
-> **Listing fetch strategy:** DB-first (Prisma, 20-80ms) → Trestle direct fallback (10s timeout) → API endpoint fallback. AbortController timeouts on all external calls (10s fetch, 8s auth). Graceful null returns on failure — pages never crash from Trestle outages.
->
-> **Media pipeline:** Trestle photos/floor plans cached to R2 during ISR. `/api/media/proxy` as fallback (Bearer auth server-side, 7-day CDN cache). **CRITICAL (Trestle guidance 2026-04-07):** All Media queries MUST use `ResourceRecordKey` (always unique across MLOs), NOT `ResourceRecordID` (can duplicate). Property.`ListingKey` = Media.`ResourceRecordKey`. DB `mls_id` stores `ListingKey`. `Media/All` endpoint is deprecated — query Media resource directly with filters. See "Trestle Media API Rules" section below.
->
-> **Lead capture:** 8 public endpoints (inquiries, contact, sign-up, CMA, guides, favorites, search-alerts, open-house RSVP). All record `consent_captured_at` for TCPA/CAN-SPAM compliance. Contact form has honeypot bot protection.
->
-> **Commission system:** `CommissionPayment` model with fail-closed split validation.
->
-> **Client data model (Lead):** Multi-person support — primary person (`first_name`, `last_name`, `email`, `phone`) + secondary person (`secondary_first_name`, `secondary_last_name`, `secondary_email`, `secondary_phone`, `secondary_relationship`). Dual addresses: `property_address` (rental/sale unit) + `home_address` (owner's personal). `legal_ownership_name` for LLC/Trust. Roles array supports combos: `["landlord","seller"]`.
->
-> **CRM analytics (14 systems):** Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor, Seller Outreach, Pricing Experiments, Pipeline.
->
-> **CRM v2 workspace system:** `detectTypeAndPhase()` routes each client to the correct workspace renderer. 4 workspace files (seller, buyer, landlord, tenant) each have prospect + active modes. Convert API (`POST /api/crm/convert`) handles 6 lifecycle transitions with AuditEvent logging. `Listing.owner_client_id` links listings to their owner client.
->
-> **Frontend resilience (added 2026-03-13):**
-> - Error boundaries: 9 error.tsx files (global + per-section)
-> - Loading states: 7 loading.tsx skeleton files
-> - SEO metadata: 19 layout.tsx files for client-side pages (noindex on private routes)
-> - Structured data: JSON-LD BreadcrumbList on listing pages
-> - Resource hints: preconnect/dns-prefetch for Trestle API
-> - Input validation: API pagination caps (200 listings, 50 transit), zip code OData injection prevention
->
-> **Compliance libraries (server-side):**
-> - RLS Enforcement Gate (`lib/compliance/rls-enforcement.ts`) — 19 mandatory fields, 6 distribution gates, Fair Housing scanning
-> - DOM Tracker (`lib/compliance/dom-tracker.ts`) — UCBA 2026 days-on-market with 30-day reset
-> - Portal DTO sanitizer (`lib/compliance/dto.ts`) — public/portal/CRM tiers with agent PII masking
-> - REBNY Validator (`lib/compliance/`) — CI-gateable, 10-section validation, 4-layer field resolution
->
-> **Do NOT:**
-> - Confuse the public frontend with the backend CRM — they are different products for different users
-> - Expose Trestle/IDX credentials or tokens to the browser
-> - Make client-side calls to MLS/IDX APIs
-
----
-
-## 🚨 CRITICAL: MLS/IDX DATA COMPLIANCE
-
-This project handles **licensed MLS/IDX data from REBNY RLS via Trestle/Cotality** (formerly CoreLogic).
-
-### ❌ PROHIBITED (Violations = $40,000 damages + suspension)
-- Client-side calls to MLS/IDX APIs
-- Public/unsecured JSON endpoints with MLS data
-- Scraping, bulk export, redistribution
-- Using MLS data for AI training, embeddings, or vector databases
-- Exposing credentials in frontend code
-- Displaying listings where `InternetEntireListingDisplayYN = False`
-- Showing addresses where `InternetAddressDisplayYN = False`
-- Displaying Owner Opt-Out or Participant Only listings publicly
-- Using "Off-Market" language in any listing description
-- Including agent info (name, contact, URL) in property descriptions
-- Including compensation/broker fees in property descriptions or comments
-- Displaying compensation amounts on any listing
-
-### ✅ REQUIRED
-- Server-side only MLS data access
-- REBNY RLS attribution on all IDX/VOW displayed listings
-- Update timestamps on displayed data
-- Fair Housing compliant language (Federal, NY State, NYC Human Rights Law)
-- Audit logging for data access
-- Statistical data disclaimer: "Based on information from the REBNY Listing Service for the period [date] through [date]..."
-- Coming Soon badge: "Coming Soon. No Showings or Open House until [date]"
-- Remove/mark closed listings within 24 hours
-- Commission negotiability disclosure in listing/buyer agreements
-
----
-
-## Commercial Property Classification
-
-Commercial listings are **website-only** (mallan.nyc). They are NOT distributed to REBNY RLS/IDX feeds.
-
-- **`rls_eligible: false`** on the Listing model bypasses all 6 distribution gates
-- CRM listing POST detects commercial property type, skips RLS enforcement gate
-- Public search uses `OR` query: (RLS listings with gate checks) OR (website-only listings)
-- Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner
-- Fields: `commercial_sub_type`, `commercial_ownership` on Listing model
-
-**Important:** RLS compliance rules (distribution gates, attribution, disclaimers) apply ONLY to `rls_eligible: true` listings. Website-only listings still must comply with Fair Housing, NY DOS advertising laws, and TCPA.
-
----
-
-## Compliance Requirements
-
-All code and technical work must comply with:
-
-1. **RESO Standards** - Real Estate Standards Organization data standards
-2. **REBNY RLS Rules / UCBA 2026** - Universal Co-Brokerage Agreement (January 2026 revision)
-3. **NY DOS Advertising Laws** - New York State real estate advertising regulations (19 N.Y.C.R.R. § 175.25)
-4. **Fair Housing Act + NYC Human Rights Law Title 8** - No discriminatory language or filtering
-5. **TCPA/CTIA** - Telephone Consumer Protection Act (lead capture/SMS)
-6. **CAN-SPAM Act** - Email marketing compliance
-7. **NY SHIELD Act** - Data security requirements
-8. **WCAG 2.1 AA** - Accessibility standards
-
-### UCBA 2026 Key Rules (Enforced by REBNY)
-
-| Rule | Penalty |
-|------|---------|
-| Fair Housing violation | $250 first, $500 + RLS termination second |
-| Data quality violation | $0/$250/$250/termination (escalating) |
-| Incurable violation (e.g., advertising opted-out property) | $250 first, $500 subsequent |
-| General UCBA violation | $500/$2K/$10K/suspension |
-| Quarterly >5% rejection rate | **$10,000 fine** |
-| 3 quarterly fines in a year | **30-day RLS suspension** |
-
----
-
-## Responsive Design Requirements
-
-All changes must be fully responsive and tested across:
-
-- **Desktop** - All screen sizes (1920px+, 1440px, 1280px, 1024px)
-- **Laptops** - Standard laptop displays (1366px, 1536px)
-- **Tablets** - iPad, Android tablets, and all other tablet devices (768px - 1024px)
-- **Mobile** - All mobile devices including iPhone, Android phones (320px - 767px)
-
-Every UI change should work seamlessly across all screen sizes and device types.
-
----
-
-## Key Project Files
-
-| File | Purpose |
-|------|---------|
-| `MASTER-PROJECT-TREE-v3.3.md` | **Master Project Tree** — file roles, portals, progress, phases 0-6, 24 Go-Live gates, enforcement, System Doctrine |
-| `MALLAN-NYC-CRM-PROJECT.md` | Master project document |
-| `CRM-ENHANCEMENT-SPEC.md` | Detailed enhancement specifications |
-| `compliance/archive/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes, 47 BLOCKERs) — archived |
-| `prisma/schema.prisma` | Database schema — 60 Prisma models (Listing, Agent, Lead, Deal, CommissionPayment, AuditEvent, etc.) |
-| `lib/compliance/` | Server-side compliance: RLS enforcement gate, DOM tracker, portal DTO sanitizer |
-| `lib/compliance/` | CI-gateable REBNY RLS validator (10 sections, 4-layer resolution) |
-| `compliance/archive/FULL-AUDIT-2026-03-13.md` | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY — archived |
-| `compliance/rules/ucba-audit-checklist.json` | Machine-readable audit checklist — used by `scripts/ucba-compliance-audit.js` for regression detection |
-| `scripts/ucba-compliance-audit.js` | UCBA compliance validator — `npm run ucba:audit` — detects regressions if passing rules break |
-| `data/rebny-rls-property-fields.csv` | **902 REBNY IDX Plus fields** across 7 resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Replaced 2026-03-19 from REBNY official "IDX PLUS 3.15.26" document. 100% match against Trestle live feed. |
-| `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
-| `data/RLS-FIELD-REGISTRY.md` | **Complete Trestle resource map** — all 12 data resources, distribution gates, media/video/3D, Building, PropertyRooms, Teams, CustomFields, field corrections |
-| `artifacts/metadata.xml` | Full Trestle OData metadata (all entity types, field definitions, enum values) |
-| `data/UCBA-2026-Requirements.md` | UCBA 2026 rules extracted (56 pages) — all compliance requirements |
-| `data/RLS-Syndication-Research.md` | RLS feed types, syndication portals, costs, pre-licensed providers |
-
----
-
-## Data Source & RLS Feed
-
-- **Primary Feed:** REBNY RLS via Trestle (Cotality, formerly CoreLogic) — migrated Feb 2025 from Perchwell
-- **Trestle API:** `api.cotality.com/trestle` — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated, hard deadline March 31, 2026. Media proxy allowlists all 3 domains during transition.
-- **LMP:** RealPlus (listing input to RLS — REBNY does not grant LMP licenses to individual brokers)
-- **Trestle License:** IDX Plus - WebAPI (Trestle-11371-20) — READ-ONLY display on mallan.nyc. No write access to RLS.
-- **IDX Plus Fields:** 902 across 7 REBNY-specified resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39)
-- **Additional Trestle Resources:** 5 beyond IDX Plus — PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only, empty shell)
-- **Total Trestle Fields:** ~1,364 across 12 data resources
-- **Critical Beyond-CSV Fields:** Distribution gates (`InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`) + `ShowingInstructions` are on Trestle Property but NOT in the IDX Plus CSV
-- **Fields NOT on Trestle:** `IDXEntireListingDisplayYN` (use `InternetEntireListingDisplayYN`), `SyndicateYN` (use `SyndicateTo`), all VOW-prefixed gate fields, **Latitude**, **Longitude** (Trestle REBNY feed does NOT provide coordinates — all geocoding is mallan.nyc's responsibility via `lib/geo/geocode.ts` + ZIP centroid fallback)
-- **Picklist Values:** 2,066 lookup values
-- **Data Dictionary:** `Desktop/mallan nyc web/Trestle fields/Data_Migration_2025_RLS_Data_Rules.xlsx`
-- **Full Registry:** `data/RLS-FIELD-REGISTRY.md` — all 12 resources, media/video/3D, field corrections
-- **UCBA Rules:** `data/UCBA-2026-Requirements.md` (extracted from 56-page PDF)
-
-### Feed Types
-
-| Feed | Purpose | For |
-|------|---------|-----|
-| **RLS** | Core REBNY listing database | Authorized Participants only |
-| **IDX** | Reciprocal broker display on websites | Public (mallan.nyc listing search) |
-| **VOW** | Consumer-facing with extra data | Client portal (requires login) |
-| **Syndication** | Distribution to third-party portals | 3 Trestle opt-in portals |
-
-### Syndication & Distribution
-
-| Portal | Cost | Method |
-|--------|------|--------|
-| StreetEasy | Sales: FREE / Rentals: $7+/day | Direct upload (NOT via RLS) |
-| Zillow / Trulia | FREE | Auto from StreetEasy |
-| Realtor.com, Redfin, Homes.com, RentHop | FREE | Direct data license from REBNY (automatic) |
-| openigloo, Samaki.com, TBI Listings | FREE | Trestle IDX Plus opt-in toggles (all ON) |
-
-### IDX Plus License Scope (mallan.nyc — Confirmed by REBNY 2026-03-27)
-- **REBNY confirmed (Michaela Parker, mparker@rebny.com, 2026-03-27):** IDX feed may power: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting features. Client data stays on mallan.nyc.
-- **mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.** It is a read-only IDX consumer + internal CRM platform.
-- **IDX feed is NOT full-market search.** Limited to the IDX-released field set (902 fields) and IDX-eligible listing inventory only. Excludes Participant Only, Owner Opt-Out, and listings where InternetEntireListingDisplayYN = False. Agents use RealPlus for full RLS inventory.
-- **Listing input:** Agents create/edit listings in RealPlus (LMP) → RealPlus submits to RLS → mallan.nyc reads via IDX Plus. REBNY does not grant LMP licenses to individual brokers.
-- **What mallan.nyc owns:** CRM, client database, portals, branded client emails, lead capture, commission tracking, search alerts, reporting, and all agent/client workflows. Client data never passes through RealPlus or any third party. RealPlus is used only for listing submission to the RLS and full-market agent search.
-- Trestle IDX Plus WebAPI (Trestle-11371-20) — live metadata has 1,457 Property definitions. 902 in REBNY IDX Plus CSV + additional Trestle-provisioned fields.
-- **ClosePrice, OriginalListPrice, PreviousListPrice, DaysOnMarket ARE authorized for public IDX display** — verified against REBNY IDX Plus CSV, REBNY IDX/VOW Compliance Checklist (Dec 2021, no field-level restriction), Trestle live feed validation (2026-03-04), and NAR IDX Policy 7.58.
-- VOW adds consumer registration requirements and pre-registration display limits (image, ID, beds/baths, price, neighborhood only before login). VOW does NOT restrict additional fields beyond what IDX provides — it adds access control, not field restrictions.
-- Fields that MUST NOT be displayed: PrivateRemarks, ShowingInstructions, ExpirationDate (Hidden), PropertyCondition (agent-only), seller/occupant names/phone/email. These are prohibited on BOTH IDX and VOW per REBNY checklist.
-- Contact for any feed questions: rlssupport@rebny.com / 212-616-5270
-
----
-
-## ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
-
-> **Source:** Direct feedback from CoreLogic/Trestle (Cotality) support, received 2026-04-07.
-> **These rules are AUTHORITATIVE and override any prior assumptions about Media resource queries.**
-
-### 1. ResourceRecordKey, NOT ResourceRecordID (CRITICAL)
-- **`ResourceRecordKey`** and **`ResourceRecordKeyNumeric`** are ALWAYS unique across all MLOs (Multiple Listing Organizations).
-- **`ResourceRecordID`** MAY BE DUPLICATED across MLOs. Using it can return wrong photos for listings.
-- **Field mapping:** Property.`ListingKey` = Media.`ResourceRecordKey` | Property.`ListingKeyNumeric` = Media.`ResourceRecordKeyNumeric`
-- **DB mapping:** `mls_id` column on Listing model stores `ListingKey` (= `ResourceRecordKey`)
-- **All Media OData queries MUST filter by `ResourceRecordKey`**, falling back to `ResourceRecordID` only if `mls_id`/`ListingKey` is null.
-
-### 2. Media/All Endpoint is DEPRECATED
-- The `Media/All` endpoint is being removed by Trestle.
-- **Use filtered queries on the `/odata/Media` resource directly** (e.g., `$filter=ResourceRecordKey eq '...'`).
-- mallan.nyc already does this correctly — no `Media/All` usage exists.
-
-### 3. Two-Tier Timestamp Strategy for Media Sync
-- **`Media.ModificationTimestamp`** — Source of truth for individual media row changes. Use to detect when specific photos/floorplans were added, modified, or removed.
-- **`Property.PhotosChangeTimestamp`** — High-level trigger on the Property resource. Modified when ANYTHING in the listing's media record changes. Use as a lightweight signal to decide which listings need their media re-fetched.
-- **Recommended workflow:** Check `PhotosChangeTimestamp > lastSyncTime` on Property to identify changed listings → then query their Media with `ModificationTimestamp` filter for granular updates.
-
-### 4. Files Enforcing These Rules (17 total — deep-audited 2026-04-07)
-
-**Production code (7 files):**
-| File | What it does |
-|------|-------------|
-| `lib/idx/sync.ts` | 3 batch media sections (syncListings, backfill, agent history) |
-| `lib/idx/fetch.ts` | `fetchListingMedia()` priority order + inline `$expand=Media` |
-| `lib/idx/card-fields.ts` | `PhotosChangeTimestamp` in $select |
-| `app/api/media/batch/route.ts` | CRM media batch endpoint (detail + primary photo modes) — DB lookup for mls_id |
-| `app/api/agents/[slug]/listings/route.ts` | Agent listing photo batch fetch |
-| `app/api/idx/search/route.ts` | Search result photo backfill (uses `wid` = SourceSystemKey) |
-| `scripts/import-closed-from-trestle.ts` | Closed listing import with idToKeyMap |
-
-**Utility scripts (1 file):**
-| File | What it does |
-|------|-------------|
-| `scripts/rebuild-past-deals.js` | Past deals rebuild — idToKeyMap from ListingKey |
-
-*Past one-off Trestle/media debug scripts (test-media-*, check-trestle-*, fetch-real-photos, trestle-audit, etc.) were removed during the 2026-04-27 repo cleanup. The Trestle media rules they verified are now enforced by production code in `lib/idx/sync.ts` + `lib/idx/fetch.ts` and gated by the runtime test suite at `tests/runtime/`. Re-create on demand as needed.*
-
----
-
-## UI/UX Standards
-
-### Color Scheme
-- **Luxury Gold:** #B8860B (accent for premium features)
-- **Status Colors:** Blue (Active), Orange (Offer), Purple (Contract), Green (Sold), Gray (Off Market)
-
-### Typography
-- Labels: `text-xs font-semibold text-gray-700`
-- Inputs: `text-sm font-medium`
-- Section headers: `text-sm font-bold text-gray-700`
-
-### Component Patterns
-- Collapsible sections with +/- icons
-- Status boxes with expandable sub-items
-- Datalist inputs for custom + suggested values
-- Calculator boxes with colored backgrounds
-
----
-
-## REBNY RLS Pre-Licensed Providers
-
-| Category | Count | Names |
-|----------|-------|-------|
-| **Direct Network Portal** | 3 | openigloo, Samaki.com, TBI Listings |
-| **VOW** | 3 | Lofty, OLR, Zenlist |
-| **LMP** | 8 | BrokersNYC, Leadkit, Lofty, OLR, Perchwell, RealPlus, RealtyMX, RESoft |
-| **IDX** | 30 | blankslate, blueroof360, BoomTown, CINC, Constellation RE, Home ASAP, HomeJunction, IDX (Elm Street), iHomefinder, kvCORE, Leadkit, Lofty, Luxury Presence, MoxiWorks, OLR, propertybase, PropMiX, RE Webmasters, RealGeeks, RealPlus, RealtyMX, Realtyna, RealtyWatch, RESoft, Sierra Interactive, Smarter Agent, The House Club, TREM Group, Xome, Ylopo |
-| **Product** | 10 | BoldTrail, brokerloop, Core Present, Espresso Agent, Haystack, LiveBy, Nancy Packes, PerryStory, UrbanDigs, Vulcan7 |
-
-**Not on lists (own data licenses):** Realtor.com, Redfin, Homes.com, Zillow/StreetEasy, RentHop, Compass
-
----
-
-## Data Retention Policies (NY SHIELD Act + REBNY)
-
-| Data Category | Retention Period | Policy |
-|---------------|-----------------|--------|
-| Listing data & agreements | 6 years | Required by NY DOS |
-| Transaction records & commissions | 6 years | Required by NY DOS / IRS |
-| Audit event logs | 2 years | REBNY RLS compliance |
-| Trestle/IDX access logs | 12 months | REBNY RLS requirement |
-| Lead PII (inactive) | 3 years then archive | NY SHIELD Act |
-| Session tokens | 24 hours | Auto-expiring, httpOnly cookies |
-| Closed listing display | Remove within 24 hours | REBNY RLS Sec. 2.05 |
-
-**Consent:** All lead-capture endpoints record `consent_captured_at` (TCPA/CAN-SPAM). No autoresponders on contact form (TCPA safe). Search alerts and marketing emails require explicit opt-in.
-
-## GitHub & Vercel
-
-All deployments and CI/CD workflows must maintain compliance with the above standards.
-
-**Cron jobs (vercel.json):** 23 scheduled tasks (updated 2026-05-14) — db-keepalive (every 15min), data retention (daily 3am UTC), feed-reconcile (daily 3:30am UTC), neon-branch-prune (daily 4am UTC), DOM reset (daily 6am), IDX sync (every 10min), media backfill (every 15min), media-sync (every 15min), listing expiration (daily 7am), search alerts (daily 7:30am) + 13 more scheduled. 23 cron route handlers total.
-
-**Validation (CI):** `npm run ci` runs: lint → type-check → compliance-check → **idx:validate (32-section validator)** → build. The IDX Plus Validator (`scripts/idx-validate.js`) blocks builds on critical issues. Results saved to `public/crm/data/validator-results.json` for the CRM System Health dashboard. Run history stored in `.idx-validate/history.json`.
-
-**Repo surface area (verified 2026-04-06):**
-- Scheduled crons: **19** (vercel.json)
-- Cron route files: **19** (app/api/cron/)
-- Prisma models: **60** (schema.prisma)
-- API route files: **253** (app/api/)
-- Components: **102** (app/components/)
-- Verify: `node scripts/regenerate-claude-counts.js`
-
----
-
-## Reference
-
-- `MALLAN-NYC-CRM-PROJECT.md` — Master project document
-- `data/UCBA-2026-Requirements.md` — UCBA 2026 compliance rules (extracted from PDF)
-- `data/RLS-Syndication-Research.md` — Feed types, syndication, costs, providers
-- `data/rebny-rls-property-fields.csv` — All 902 REBNY IDX Plus fields (replaced 2026-03-19)
-- `data/rebny-rls-property-lookup.csv` — All 2,066 picklist values
-
----
-
-## Audit History
-
-- **2026-04-06 full-site audit + 2026-04-14 compliance findings:** moved to `memory/FULL-SITE-AUDIT-2026-04-06.md` (25 critical/quality fixes, 22 compliance findings with verdicts, REBNY/Trestle external status).
-- **Current status (2026-04-07):** Build PASS · TypeScript 0 errors · IDX Validator 823/0 critical · UCBA 42/46 pass, 0 regressions · CRM Smoke 218/0.
-- **Trestle does NOT provide Latitude/Longitude** — geocoding order: `geocodeListings()` (address) → ZIP centroid → null (graceful hide).
-- Older audits: `compliance/archive/FULL-AUDIT-2026-03-13.md`, `compliance/archive/MASTER-AUDIT-REPORT-v3.md`.
+## Operational tips
+
+- **For a quick "what's the project state right now"** → run `gh pr list --state open` plus `git log --oneline -10`, then list the contents of the audits directory (`docs/audits/`) and Read the most recent file there. The current latest is `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md`.
+- **For a compliance question** → `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first, then the canonical file it points to.
+- **For "is there a test for X"** → check `tests/runtime/` and `lib/**/__tests__/` first; the test name usually matches the feature.
+- **For Neon / Prisma / cron-DB work** → `NEON.md` is non-negotiable reading.
+- **If the user says "ultrareview"** → that's a multi-agent cloud review of the current branch. It is user-triggered and billed; you cannot launch it.
