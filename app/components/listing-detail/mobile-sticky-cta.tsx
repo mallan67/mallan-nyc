@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * A2 (PR-A2-mobile-cta, 2026-05-21) — Mobile above-fold contact CTA.
  *
@@ -22,6 +24,40 @@
  *   `min-h-12` (= 48 px) plus generous tap padding. The bar hides on
  *   `md:hidden` so the desktop sidebar (and tablet/laptop layout) is
  *   byte-identical to pre-fix.
+ *
+ * COOKIE-CONSENT STACKING FIX (Codex review pinned at ed3d6b56, 2026-05-21):
+ *   The global `<CookieConsent />` (app/components/CookieConsent.tsx:113,
+ *   mounted in app/layout.tsx) renders a `fixed bottom-0 z-50` overlay on
+ *   first visit when no consent is stored. The A2 CTA uses `z-40`, so on
+ *   a first-time mobile visitor the consent banner sits ON TOP of the CTA
+ *   and the "above-fold contact action" is not actually accessible until
+ *   the banner is dismissed — defeating the whole point of A2.
+ *
+ *   Decision: Option A (chosen of A/B/C in the agent brief).
+ *     - A (chosen):    Hide the CTA while consent banner is pending; render
+ *                      it once consent is granted or denied. Smallest test
+ *                      surface, no z-index race, no visual competition for
+ *                      the same screen-bottom strip.
+ *     - B (rejected):  Bump z-index to z-[60]. Simpler, but CTA and consent
+ *                      banner visually compete for the same bottom region
+ *                      until the banner is dismissed.
+ *     - C (rejected):  Shift CTA upward (e.g. bottom-[88px]) while banner
+ *                      visible. Best UX in theory but adds a magic offset
+ *                      and a second responsive variant for tests to cover.
+ *
+ *   Why A is fine UX: a first-time visitor must interact with the cookie
+ *   banner before any meaningful site interaction anyway (it's a modal-ish
+ *   bottom dialog). Once they pick "Essential Only" or "Accept All", the
+ *   CTA flips into view in the same screen region the banner just vacated
+ *   — total below-fold visit time is bounded by the consent-dismiss tap.
+ *
+ *   Implementation: this component is now a client component (`'use client'`
+ *   directive on line 1) so it can consume `useConsentStatus()` from
+ *   `app/components/CookieConsent.tsx`. The hook returns `hasConsent` =
+ *   `true` when a consent record exists in localStorage (granted OR denied),
+ *   `false` otherwise. We render nothing until `hasConsent === true`.
+ *
+ *   Import is READ-ONLY — we do NOT modify CookieConsent.tsx.
  *
  * LISTING-TYPE → INTENT MAPPING (Maya correction, 2026-05-21):
  *   - listingType === 'sale' → intent=buyer
@@ -68,6 +104,8 @@
  *   - data-testid="mobile-sticky-cta-call"       on the Call link
  */
 
+import { useConsentStatus } from '@/app/components/CookieConsent';
+
 interface MobileStickyCtaProps {
   /** Canonical listing slug — used to tag the contact request in the URL. */
   slug: string;
@@ -88,7 +126,23 @@ export function MobileStickyCta({
   slug,
   listingType,
   phone = MALLAN_BROKERAGE_PHONE,
-}: MobileStickyCtaProps): React.JSX.Element {
+}: MobileStickyCtaProps): React.JSX.Element | null {
+  // Codex #1 fix (ed3d6b56): suppress the CTA while the cookie consent
+  // banner is visible. `useConsentStatus()` returns `hasConsent: false`
+  // when no consent record exists in localStorage (i.e. the banner is
+  // showing). We render nothing until the user dismisses the banner via
+  // "Essential Only" / "Accept All" / "Save Preferences". After dismissal,
+  // `useConsentStatus()` flips to `hasConsent: true` (banner removed)
+  // and the CTA appears in the same bottom-of-viewport strip.
+  //
+  // First-paint behavior: `useClientOnly` (inside `useConsentStatus`) gates
+  // on hydration, so `hasConsent` is `false` during SSR. The CTA does not
+  // render until after hydration — there is no flash-of-CTA-then-banner.
+  const { hasConsent } = useConsentStatus();
+  if (!hasConsent) {
+    return null;
+  }
+
   // Sanitize slug for query-string safety. We never trust slug to be already
   // URL-safe (defense in depth even though Prisma slugs are already
   // [a-z0-9-]). encodeURIComponent is the right primitive here.
@@ -110,7 +164,9 @@ export function MobileStickyCta({
       // `md:hidden` = hide on md (768 px) and up; visible on phones only.
       // `fixed bottom-0` = always pinned to the bottom of the visual viewport,
       //   in the user's eye-line from page load (no scroll required to find).
-      // `z-40` = above page content, below the cookie banner if present.
+      // `z-40` = above page content; the cookie banner (z-50) is the only
+      //   higher-priority bottom overlay, and we already gate render on
+      //   consent dismissal above so they never visually conflict.
       // `pb-[env(safe-area-inset-bottom,0px)]` = clears the iOS home indicator
       //   when `viewport-fit=cover` is set; harmlessly 0 px otherwise.
       // `backdrop-blur-xl bg-white/95` matches the sticky-top bar styling.

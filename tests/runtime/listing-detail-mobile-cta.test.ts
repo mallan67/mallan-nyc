@@ -183,4 +183,33 @@ describe('A2 — mobile above-fold CTA source-pin', () => {
     // would require co-attribution in this tight UI strip.
     expect(componentSrc).not.toMatch(/Maya Allan/i);
   });
+
+  test('CTA is a client component and gates render on cookie-consent dismissal (Codex #1, ed3d6b56)', () => {
+    // Codex review found a z-index conflict: the global <CookieConsent />
+    // banner (z-50) sits on top of the CTA (z-40) on first visit, hiding
+    // the above-fold contact action behind the consent prompt.
+    //
+    // Option A (chosen): make the CTA a client component and consume
+    // useConsentStatus() from CookieConsent; render nothing until
+    // hasConsent === true (i.e. the user dismissed the banner). This is
+    // the smallest test surface and removes the z-index race entirely.
+    //
+    // These greps pin Option A so a future PR that reverts to z-40 stacking
+    // without the consent gate reds before shipping.
+
+    // Client component marker (required for the hook).
+    expect(componentSrc).toMatch(/^['"]use client['"];/);
+
+    // Import is from the canonical CookieConsent path — NOT a private
+    // copy or a stale re-export. CookieConsent.tsx is treated as read-only
+    // by this component (Codex flagged it as context only, not a target).
+    expect(componentSrc).toMatch(
+      /import\s+\{\s*useConsentStatus\s*\}\s+from\s+['"]@\/app\/components\/CookieConsent['"]/
+    );
+
+    // The render-gate must be present — a future PR that drops the early
+    // return puts the z-index conflict back on first-visit mobile.
+    expect(componentSrc).toMatch(/useConsentStatus\(\)/);
+    expect(componentSrc).toMatch(/if\s*\(\s*!hasConsent\s*\)\s*\{\s*return\s+null/);
+  });
 });
