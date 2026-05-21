@@ -85,7 +85,12 @@ describe('A2 — mobile above-fold CTA source-pin', () => {
     // is suppressed at ≥ 768 px viewport. A future PR that removes
     // md:hidden would leak the CTA onto desktop and conflict with the
     // sidebar agent-contact card.
-    expect(componentSrc).toMatch(/className=["'][^"']*\bmd:hidden\b/);
+    //
+    // Accept either string-literal className (`className="md:hidden ..."`)
+    // OR template-literal className (`className={\`md:hidden ...\`}`) — the
+    // Option C re-fix uses the template form so the bottom-* class can be
+    // interpolated based on consent state.
+    expect(componentSrc).toMatch(/className=(?:["']|\{`)[^"'`]*\bmd:hidden\b/);
   });
 
   test('CTA uses fixed bottom positioning so it is above-the-fold from page load', () => {
@@ -184,18 +189,24 @@ describe('A2 — mobile above-fold CTA source-pin', () => {
     expect(componentSrc).not.toMatch(/Maya Allan/i);
   });
 
-  test('CTA is a client component and gates render on cookie-consent dismissal (Codex #1, ed3d6b56)', () => {
+  test('CTA is a client component and consumes useConsentStatus to shift above banner (Codex #1 re-fix, Option C)', () => {
     // Codex review found a z-index conflict: the global <CookieConsent />
     // banner (z-50) sits on top of the CTA (z-40) on first visit, hiding
     // the above-fold contact action behind the consent prompt.
     //
-    // Option A (chosen): make the CTA a client component and consume
-    // useConsentStatus() from CookieConsent; render nothing until
-    // hasConsent === true (i.e. the user dismissed the banner). This is
-    // the smallest test surface and removes the z-index race entirely.
+    // History:
+    //   Option A (commit 43980931, REJECTED by Maya 2026-05-21): hide CTA
+    //   until consent dismissed. Defeated A2's purpose for the paid-social
+    //   first-time mobile cohort the CTA was designed for.
     //
-    // These greps pin Option A so a future PR that reverts to z-40 stacking
-    // without the consent gate reds before shipping.
+    // Current fix — Option C: keep CTA rendered in BOTH consent states.
+    // While consent is pending, shift CTA upward via `bottom-[260px]` so
+    // it sits above the consent banner with breathing room. Once consent
+    // resolves (granted OR denied), settle to `bottom-0` like before.
+    //
+    // These greps pin Option C so a future PR that reverts to either
+    // Option A (hide-on-pending) or the original always-bottom-0 stacking
+    // bug reds before shipping.
 
     // Client component marker (required for the hook).
     expect(componentSrc).toMatch(/^['"]use client['"];/);
@@ -207,9 +218,28 @@ describe('A2 — mobile above-fold CTA source-pin', () => {
       /import\s+\{\s*useConsentStatus\s*\}\s+from\s+['"]@\/app\/components\/CookieConsent['"]/
     );
 
-    // The render-gate must be present — a future PR that drops the early
-    // return puts the z-index conflict back on first-visit mobile.
+    // The hook must be invoked — defense against a future PR removing the
+    // import but leaving stale `hasConsent` references behind.
     expect(componentSrc).toMatch(/useConsentStatus\(\)/);
-    expect(componentSrc).toMatch(/if\s*\(\s*!hasConsent\s*\)\s*\{\s*return\s+null/);
+
+    // CRITICAL: Option C must keep the CTA rendered in BOTH states. A
+    // future PR that re-introduces an `if (!hasConsent) return null` (the
+    // rejected Option A) hides the CTA from the paid-social first-time
+    // cohort and reds here.
+    expect(componentSrc).not.toMatch(/if\s*\(\s*!hasConsent\s*\)\s*\{?\s*return\s+null/);
+
+    // The conditional bottom-class swap must be present — when consent is
+    // pending, the CTA uses an offset bottom-* class (e.g. bottom-[260px])
+    // so it sits above the consent banner; when consent resolves it uses
+    // bottom-0. We pin both literal class strings so a future refactor
+    // that drops the conditional shift reds.
+    expect(componentSrc).toMatch(/bottom-0/);
+    expect(componentSrc).toMatch(/bottom-\[260px\]/);
+    // The hasConsent boolean must drive the position decision — the
+    // ternary shape covers `hasConsent ? 'bottom-0' : 'bottom-[260px]'`
+    // (the chosen implementation).
+    expect(componentSrc).toMatch(
+      /hasConsent\s*\?\s*['"]bottom-0['"]\s*:\s*['"]bottom-\[260px\]['"]/
+    );
   });
 });

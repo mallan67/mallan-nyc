@@ -251,24 +251,15 @@ test.describe('A2 — mobile above-fold CTA hidden on desktop (1440 px)', () => 
   });
 });
 
-test.describe('A2 — cookie consent stacking (Codex #1, ed3d6b56)', () => {
+test.describe('A2 — CTA visible above-fold WITH consent banner showing (Codex #1 re-fix, Option C)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('first-visit (no stored consent) — CTA is hidden until consent banner is dismissed', async ({
-    page,
-    context,
-  }) => {
-    // Codex review found that on first-visit mobile, the global
-    // <CookieConsent /> (`fixed bottom-0 z-50`) sits on top of the A2 CTA
-    // (`fixed bottom-0 z-40`), making the above-fold contact action
-    // inaccessible until the banner is dismissed.
-    //
-    // Option A chosen: gate CTA render on `useConsentStatus().hasConsent`.
-    // While the banner is showing, the CTA returns null. After the user
-    // dismisses the banner (Accept All / Essential Only / Save Preferences),
-    // the CTA appears in the same bottom-of-viewport strip.
-
-    // Simulate a brand-new visitor: clear all storage before the page loads.
+  test.beforeEach(async ({ context }) => {
+    // Simulate a brand-new visitor: clear all cookies + storage BEFORE the
+    // page loads. The CTA must render alongside the consent banner — Option
+    // A (commit 43980931) hid the CTA in this state, which Maya rejected
+    // because A2's whole purpose is above-fold contact access for the
+    // paid-social first-time mobile cohort.
     await context.clearCookies();
     await context.addInitScript(() => {
       try {
@@ -277,42 +268,130 @@ test.describe('A2 — cookie consent stacking (Codex #1, ed3d6b56)', () => {
         // No localStorage (private mode) — fine, hook treats as no-consent.
       }
     });
+  });
+
+  test('first-visit fresh session: CTA visible AND tappable above-fold WHILE consent banner is up', async ({
+    page,
+  }) => {
+    // Maya's C1 acceptance criteria (PR #172, 2026-05-21):
+    //   1. See a contact action above the fold (no scroll required)
+    //   2. Tap that contact action without first dismissing the banner
+    //   3. No horizontal overflow
+    //   4. Contact action visible alongside (not behind) the consent banner
+    //
+    // Option C implementation: CTA renders in BOTH consent states. While
+    // hasConsent === false (banner showing), CTA position shifts to
+    // `bottom-[260px]` so it sits above the banner with vertical breathing
+    // room. Once hasConsent === true (banner dismissed), CTA settles to
+    // `bottom-0` like the returning-visitor case.
 
     const slug = await resolveListingSlug(page, 'sale', FALLBACK_SALE_SLUG);
     await page.goto(`/listing/${slug}`, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('main section', { timeout: 20_000 });
 
-    // Consent banner is the one that should be visible right now.
+    // Both elements must be present + visible.
     const consentBanner = page.locator('[role="dialog"][aria-labelledby="cookie-consent-title"]');
-    await expect(consentBanner).toBeVisible({ timeout: 10_000 });
-
-    // CTA must not be rendered while the banner is showing (Option A).
-    // We assert the data-testid wrapper is not attached to the DOM AT ALL,
-    // not just hidden — that's how the early `return null` manifests.
     const cta = page.locator('[data-testid="mobile-sticky-cta"]');
-    await expect(cta).toHaveCount(0);
+    const contactLink = page.locator('[data-testid="mobile-sticky-cta-contact"]');
+    await expect(consentBanner).toBeVisible({ timeout: 10_000 });
+    await expect(cta).toBeVisible({ timeout: 10_000 });
+    await expect(contactLink).toBeVisible({ timeout: 5_000 });
 
-    // Dismiss the banner via "Essential Only" (cheapest path that records
-    // a consent decision without enabling optional cookies). After this,
-    // useConsentStatus() flips to hasConsent: true and the CTA mounts.
+    // Verify Option C is in effect: the CTA reports consent-pending = true.
+    // This is a defense-in-depth marker on the wrapper that lets us
+    // distinguish Option-C-correct-render from a flaky pre-hydration paint.
+    await expect(cta).toHaveAttribute('data-consent-pending', 'true');
+
+    const ctaBox = await cta.boundingBox();
+    const bannerBox = await consentBanner.boundingBox();
+    expect(ctaBox, 'CTA bounding box').not.toBeNull();
+    expect(bannerBox, 'Banner bounding box').not.toBeNull();
+
+    // ABOVE-FOLD: CTA top is within the 844 px visual viewport. This is
+    // the core A2 contract that Maya rejected Option A for breaking.
+    expect(ctaBox!.y, 'CTA top within viewport (above the fold)').toBeLessThanOrEqual(844);
+    // All four corners on screen.
+    expect(ctaBox!.x, 'CTA left edge on screen').toBeGreaterThanOrEqual(0);
+    expect(ctaBox!.x + ctaBox!.width, 'CTA right edge on screen').toBeLessThanOrEqual(390);
+    expect(ctaBox!.y + ctaBox!.height, 'CTA bottom edge on screen').toBeLessThanOrEqual(844);
+
+    // NO OVERLAP: CTA bottom must be at or above banner top — they
+    // visually occupy separate strips. This is the Option C contract.
+    const ctaBottom = ctaBox!.y + ctaBox!.height;
+    expect(
+      ctaBottom,
+      'CTA bottom edge does not overlap consent banner top (Option C — shifted upward)'
+    ).toBeLessThanOrEqual(bannerBox!.y);
+
+    // TAPPABILITY: contact link is exposed to hit-testing — not occluded
+    // by the consent banner or any other overlay. Playwright's `isEnabled`
+    // + `boundingBox` are not sufficient for occlusion; we use
+    // `elementsFromPoint` at the link's center to confirm the topmost
+    // element under the tap is the link itself (or its inner text node).
+    const tappable = await contactLink.evaluate((node) => {
+      const rect = (node as HTMLElement).getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const stack = document.elementsFromPoint(cx, cy);
+      // The link itself OR a child (text node, span) must be the topmost
+      // element. The consent banner must NOT be above it.
+      return {
+        topmostTag: stack[0]?.tagName ?? 'NONE',
+        topmostIsLinkOrChild: stack.some(
+          (el) => el === node || (node as HTMLElement).contains(el)
+        ),
+        bannerOnTop: stack.some(
+          (el) =>
+            el.getAttribute('aria-labelledby') === 'cookie-consent-title' ||
+            el.closest('[aria-labelledby="cookie-consent-title"]') !== null
+        ),
+        stackTop3: stack.slice(0, 3).map((el) => el.tagName + (el.getAttribute('data-testid') ? `[${el.getAttribute('data-testid')}]` : '')),
+      };
+    });
+    expect(tappable.topmostIsLinkOrChild, `contact link is hit-test-topmost; stackTop3=${JSON.stringify(tappable.stackTop3)}`).toBe(true);
+    expect(tappable.bannerOnTop, 'consent banner is NOT covering the CTA tap point').toBe(false);
+
+    // NO HORIZONTAL OVERFLOW: A1 layout invariant preserved.
+    const { scrollWidth, clientWidth } = await page.evaluate(() => {
+      const el = document.documentElement;
+      return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+    });
+    expect(scrollWidth, 'no horizontal overflow at 390 px (A1 preserved)').toBeLessThanOrEqual(clientWidth + 1);
+
+    // PROOF-FIRST: capture the screenshot artifact.
+    await page.screenshot({
+      path: 'tests/e2e/_artifacts/a2-cta-with-consent-390x844.png',
+      fullPage: false,
+    });
+
+    // POST-DISMISSAL: after the user picks "Essential Only", the banner
+    // closes and the CTA must SETTLE to bottom-0 (its normal resting
+    // position). This proves the position swap is bidirectional.
     await page.getByRole('button', { name: 'Essential Only' }).click();
     await expect(consentBanner).toBeHidden({ timeout: 5_000 });
-
-    // CTA now visible in the same bottom region the banner vacated.
-    await expect(cta).toBeVisible({ timeout: 10_000 });
-    const box = await cta.boundingBox();
-    expect(box, 'CTA bounding box after consent').not.toBeNull();
-    expect(box!.y, 'CTA top within viewport after consent').toBeLessThanOrEqual(844);
+    await expect(cta).toBeVisible({ timeout: 5_000 });
+    await expect(cta).toHaveAttribute('data-consent-pending', 'false');
+    const postBox = await cta.boundingBox();
+    expect(postBox, 'CTA bounding box after consent dismissal').not.toBeNull();
+    // CTA's bottom edge should be at or near the bottom of the viewport
+    // (= 844 px), allowing for safe-area inset and the transition window.
+    // We give a 16 px tolerance to absorb the iOS env(safe-area-inset)
+    // padding and any sub-pixel rounding.
+    expect(
+      postBox!.y + postBox!.height,
+      'CTA settles to bottom-0 after consent dismissal'
+    ).toBeGreaterThanOrEqual(844 - 16);
   });
 
-  test('returning visitor (stored consent) — CTA is visible from page load', async ({
+  test('returning visitor (stored consent) — CTA is visible from page load at bottom-0', async ({
     page,
     context,
   }) => {
     // Seed a "returning visitor" consent record so the banner does not show
-    // and the CTA renders immediately. This is the happy path that the rest
-    // of the A2 spec implicitly assumes — pin it here too so a regression in
-    // the consent gate (e.g. inverted boolean) is caught.
+    // and the CTA renders at its natural bottom-0 position immediately.
+    // This is the happy path that the rest of the A2 spec implicitly
+    // assumes — pin it here too so a regression in the consent gate (e.g.
+    // inverted boolean) is caught.
     await seedConsentForReturningVisitor(context);
     const slug = await resolveListingSlug(page, 'sale', FALLBACK_SALE_SLUG);
 
@@ -324,5 +403,12 @@ test.describe('A2 — cookie consent stacking (Codex #1, ed3d6b56)', () => {
 
     const cta = page.locator('[data-testid="mobile-sticky-cta"]');
     await expect(cta).toBeVisible({ timeout: 10_000 });
+    await expect(cta).toHaveAttribute('data-consent-pending', 'false');
+
+    const box = await cta.boundingBox();
+    expect(box, 'CTA bounding box').not.toBeNull();
+    // bottom-0 → bbox bottom edge at viewport bottom (allowing 16 px
+    // tolerance for iOS safe-area inset).
+    expect(box!.y + box!.height, 'CTA at bottom-0').toBeGreaterThanOrEqual(844 - 16);
   });
 });

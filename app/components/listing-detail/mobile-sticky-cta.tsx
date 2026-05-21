@@ -25,37 +25,52 @@
  *   `md:hidden` so the desktop sidebar (and tablet/laptop layout) is
  *   byte-identical to pre-fix.
  *
- * COOKIE-CONSENT STACKING FIX (Codex review pinned at ed3d6b56, 2026-05-21):
+ * COOKIE-CONSENT STACKING FIX — Option C (Maya rejected Option A, 2026-05-21):
  *   The global `<CookieConsent />` (app/components/CookieConsent.tsx:113,
  *   mounted in app/layout.tsx) renders a `fixed bottom-0 z-50` overlay on
- *   first visit when no consent is stored. The A2 CTA uses `z-40`, so on
- *   a first-time mobile visitor the consent banner sits ON TOP of the CTA
- *   and the "above-fold contact action" is not actually accessible until
- *   the banner is dismissed — defeating the whole point of A2.
+ *   first visit when no consent is stored. The A2 CTA originally used `z-40`,
+ *   so on a first-time mobile visitor the consent banner sat ON TOP of the
+ *   CTA — defeating the whole point of A2.
  *
- *   Decision: Option A (chosen of A/B/C in the agent brief).
- *     - A (chosen):    Hide the CTA while consent banner is pending; render
- *                      it once consent is granted or denied. Smallest test
- *                      surface, no z-index race, no visual competition for
- *                      the same screen-bottom strip.
- *     - B (rejected):  Bump z-index to z-[60]. Simpler, but CTA and consent
- *                      banner visually compete for the same bottom region
- *                      until the banner is dismissed.
- *     - C (rejected):  Shift CTA upward (e.g. bottom-[88px]) while banner
- *                      visible. Best UX in theory but adds a magic offset
- *                      and a second responsive variant for tests to cover.
+ *   Initial fix attempt (commit 43980931): Option A — hide the CTA until
+ *   the user dismisses the consent banner. Maya REJECTED this because A2
+ *   exists specifically to give paid-social first-time mobile visitors an
+ *   above-the-fold contact action; hiding the only CTA when the consent
+ *   banner is up defeats the goal for exactly the cohort A2 was designed
+ *   to serve.
  *
- *   Why A is fine UX: a first-time visitor must interact with the cookie
- *   banner before any meaningful site interaction anyway (it's a modal-ish
- *   bottom dialog). Once they pick "Essential Only" or "Accept All", the
- *   CTA flips into view in the same screen region the banner just vacated
- *   — total below-fold visit time is bounded by the consent-dismiss tap.
+ *   Current fix: Option C — shift the CTA UPWARD when consent is pending,
+ *   then settle to bottom-0 after the user resolves the banner.
+ *     - While `useConsentStatus().hasConsent === false` (banner showing):
+ *       position CTA at `bottom-[260px]` so it sits ABOVE the consent
+ *       banner with vertical breathing room. Measured banner height at
+ *       390×844 viewport (collapsed state, no details expanded) is ~230 px;
+ *       260 px gives a ~30 px gap so the two strips do not visually
+ *       collide.
+ *     - Once `hasConsent === true` (banner removed): position at
+ *       `bottom-0` like before.
  *
- *   Implementation: this component is now a client component (`'use client'`
- *   directive on line 1) so it can consume `useConsentStatus()` from
+ *   Why Option C over Option B (z-[60] bump):
+ *     B works structurally but the CTA visually overlaps the consent
+ *     banner's tap region until dismissal — two competing 48 px tap
+ *     strips at the same bottom band is a tap-target ambiguity nightmare
+ *     on phones. C keeps both elements visually distinct: banner at
+ *     bottom, CTA above banner. After dismissal the CTA slides into the
+ *     position the banner just vacated.
+ *
+ *   Implementation: this component is a client component (`'use client'`)
+ *   so it can consume `useConsentStatus()` from
  *   `app/components/CookieConsent.tsx`. The hook returns `hasConsent` =
- *   `true` when a consent record exists in localStorage (granted OR denied),
- *   `false` otherwise. We render nothing until `hasConsent === true`.
+ *   `true` when a consent record exists in localStorage (granted OR
+ *   denied), `false` otherwise (banner showing OR not yet hydrated). The
+ *   CTA renders in BOTH states; only its `bottom-*` class changes.
+ *
+ *   First-paint behavior: `useClientOnly` (inside `useConsentStatus`) gates
+ *   on hydration, so `hasConsent` is `false` during SSR. The CTA's SSR
+ *   markup is the shifted-up position (`bottom-[260px]`); after hydration
+ *   on a returning visitor it transitions to `bottom-0`. The class swap
+ *   is a single Tailwind class so no layout thrash beyond the position
+ *   change itself.
  *
  *   Import is READ-ONLY — we do NOT modify CookieConsent.tsx.
  *
@@ -126,22 +141,26 @@ export function MobileStickyCta({
   slug,
   listingType,
   phone = MALLAN_BROKERAGE_PHONE,
-}: MobileStickyCtaProps): React.JSX.Element | null {
-  // Codex #1 fix (ed3d6b56): suppress the CTA while the cookie consent
-  // banner is visible. `useConsentStatus()` returns `hasConsent: false`
-  // when no consent record exists in localStorage (i.e. the banner is
-  // showing). We render nothing until the user dismisses the banner via
-  // "Essential Only" / "Accept All" / "Save Preferences". After dismissal,
-  // `useConsentStatus()` flips to `hasConsent: true` (banner removed)
-  // and the CTA appears in the same bottom-of-viewport strip.
+}: MobileStickyCtaProps): React.JSX.Element {
+  // Codex #1 re-fix (Option C, supersedes Option A from commit 43980931):
+  // While the cookie-consent banner is showing, shift the CTA upward so it
+  // remains visible AND tappable above the banner. Once the user dismisses
+  // the banner via "Accept All" / "Essential Only" / "Save Preferences",
+  // useConsentStatus() flips to hasConsent: true and the CTA settles to
+  // bottom-0 (its natural resting position).
   //
-  // First-paint behavior: `useClientOnly` (inside `useConsentStatus`) gates
-  // on hydration, so `hasConsent` is `false` during SSR. The CTA does not
-  // render until after hydration — there is no flash-of-CTA-then-banner.
+  // 260 px clears the measured ~230 px collapsed-state banner height at
+  // 390×844 viewport with a ~30 px visual gap. If a future CookieConsent
+  // redesign grows the banner past ~250 px, this constant needs to grow
+  // with it — the Playwright fresh-session test catches the regression by
+  // asserting the CTA bbox bottom is ABOVE the banner bbox top.
+  //
+  // First-paint behavior: useClientOnly gates the hook on hydration, so
+  // hasConsent is false during SSR. The SSR markup is the shifted-up
+  // position; for a returning visitor it swaps to bottom-0 after hydration.
+  // No flash-of-hidden-CTA — the CTA is always rendered.
   const { hasConsent } = useConsentStatus();
-  if (!hasConsent) {
-    return null;
-  }
+  const bottomClass = hasConsent ? 'bottom-0' : 'bottom-[260px]';
 
   // Sanitize slug for query-string safety. We never trust slug to be already
   // URL-safe (defense in depth even though Prisma slugs are already
@@ -161,16 +180,23 @@ export function MobileStickyCta({
   return (
     <div
       data-testid="mobile-sticky-cta"
+      data-consent-pending={hasConsent ? 'false' : 'true'}
       // `md:hidden` = hide on md (768 px) and up; visible on phones only.
-      // `fixed bottom-0` = always pinned to the bottom of the visual viewport,
-      //   in the user's eye-line from page load (no scroll required to find).
-      // `z-40` = above page content; the cookie banner (z-50) is the only
-      //   higher-priority bottom overlay, and we already gate render on
-      //   consent dismissal above so they never visually conflict.
+      // `fixed left-0 right-0` = always pinned horizontally to viewport edges.
+      // `${bottomClass}` = bottom-0 when consent resolved, bottom-[260px]
+      //   when the consent banner is up (Option C — shift above banner).
+      // `z-40` = above page content; the cookie banner sits at z-50 BELOW
+      //   the shifted CTA visually (banner is lower on screen). z-40 is
+      //   sufficient because Option C eliminates the vertical overlap.
       // `pb-[env(safe-area-inset-bottom,0px)]` = clears the iOS home indicator
-      //   when `viewport-fit=cover` is set; harmlessly 0 px otherwise.
+      //   when `viewport-fit=cover` is set; harmlessly 0 px otherwise. Only
+      //   meaningful when bottom-0 (i.e. consent resolved); harmless when
+      //   shifted up.
       // `backdrop-blur-xl bg-white/95` matches the sticky-top bar styling.
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-black/10 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom,0px)]"
+      // `transition-[bottom] duration-300` smooths the slide-down when the
+      //   user dismisses the consent banner — feels like the CTA "lands" in
+      //   place rather than snapping abruptly.
+      className={`md:hidden fixed ${bottomClass} left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-black/10 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom,0px)] transition-[bottom] duration-300`}
     >
       <div className="flex items-stretch gap-2 px-4 py-3">
         <a
