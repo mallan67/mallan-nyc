@@ -787,11 +787,38 @@ export interface ComputeGateColumnsInput {
   participantOnly?: unknown;
   /** Already-derived from `Permission='OwnerOptOut'` etc. Pass `true` to block. */
   ownerOptOut?: unknown;
+  /**
+   * RLS eligibility flag (`listings.rls_eligible` column). Commercial /
+   * website-only listings carry `rls_eligible=false` and MUST be excluded
+   * from all 6 IDX distribution gates regardless of other flags
+   * (CLAUDE.md "Commercial Property Classification" — RLS compliance rules
+   * apply ONLY to `rls_eligible=true` listings; commercial listings are
+   * website-only on mallan.nyc and bypass IDX distribution entirely).
+   *
+   * Semantics:
+   *   - undefined / null → defaults to true (preserves Trestle-mapper
+   *                       behavior — Trestle-sourced rows are always REBNY-
+   *                       eligible; Trestle never serializes rls_eligible
+   *                       because it's an internal-only column)
+   *   - false           → forces `idx_display_yn=false` regardless of all
+   *                       other flags. The CRM POST already has this guard
+   *                       inline at `rls_eligible: rlsEligible &&`; the
+   *                       helper carries it forward to every other writer.
+   *   - true            → no-op (defers to other gates)
+   *
+   * Added 2026-05-20 (Codex review on PR #165) — the original Phase A
+   * helper omitted this input, which would have caused the W1 CRM status
+   * PATCH to flip `idx_display_yn=true` on a commercial Active listing.
+   * Locked by tests in `lib/idx/__tests__/compute-gate-columns.test.ts`
+   * "rls_eligible first-class gate" describe block.
+   */
+  rls_eligible?: unknown;
 }
 
 export interface ComputeGateColumnsResult {
-  /** Aggregate gate — only true when status is non-terminal AND entire-listing
-   * display is allowed AND not participant-only AND not owner-opted-out. */
+  /** Aggregate gate — only true when `rls_eligible !== false` AND status
+   * is non-terminal AND entire-listing display is allowed AND not
+   * participant-only AND not owner-opted-out. */
   idx_display_yn: boolean;
   internet_entire_listing_display_yn: boolean;
   internet_address_display_yn: boolean;
@@ -801,6 +828,8 @@ export interface ComputeGateColumnsResult {
   normalized_status: string;
   /** Observability — true if `normalized_status ∈ TERMINAL_STATUSES`. */
   is_terminal: boolean;
+  /** Observability — false only if input.rls_eligible was explicit `false`. */
+  rls_eligible: boolean;
 }
 
 /**
@@ -841,10 +870,20 @@ export function computeGateColumns(
   const owner_opt_out = input.ownerOptOut === true;
   const participant_only = input.participantOnly === true;
 
+  // rls_eligible (commercial/website-only listings carry false; Trestle-
+  // sourced rows are always REBNY-eligible so omitted/null defaults to
+  // true to preserve mapper behavior). See input docstring for the full
+  // rationale and the Codex PR #165 review that surfaced this.
+  const rls_eligible = input.rls_eligible !== false;
+
   // The aggregate gate. Mirrors the data-retention cron predicate at
   // app/api/cron/data-retention/route.ts:79 so writer + cron + helper all
-  // agree on the terminal-status set.
+  // agree on the terminal-status set. The leading `rls_eligible &&` mirrors
+  // the existing inline CRM POST gate (`rlsEligible && ...` in
+  // app/api/crm/listings/route.ts) so commercial / website-only listings
+  // can never become publicly-displayable IDX rows.
   const idx_display_yn =
+    rls_eligible &&
     !is_terminal &&
     internet_entire_listing_display_yn &&
     !participant_only &&
@@ -858,6 +897,7 @@ export function computeGateColumns(
     internet_consumer_comment_yn,
     normalized_status,
     is_terminal,
+    rls_eligible,
   };
 }
 

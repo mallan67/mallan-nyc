@@ -178,10 +178,21 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     // After normalization the guard sees the canonical "Closed" and refuses.
     // Reuses the C2 canonical TERMINAL_STATUSES set so writer and cron stay
     // aligned (lib/idx/trestle-mapper.ts is the source of truth).
+    //
+    // Phase A Codex fix (2026-05-20): also AND-in `effectiveRlsEligible` so a
+    // commercial / website-only listing (`rls_eligible=false`) cannot have
+    // its idx_display_yn flipped true by the body's IDXEntireListingDisplayYN
+    // input. Matches the CRM POST guard at
+    // app/api/crm/listings/route.ts:340-343 (`rlsEligible && ...`). Before
+    // this fix, if a listing was already `rls_eligible=false` AND the body
+    // did not change rls_eligible (so the block at line 140-145 didn't
+    // override), the body's IDXEntireListingDisplayYN: true would have
+    // bypassed the rls_eligible guard.
     const effectiveStatus = normalizeStandardStatus(
       (merged.MlsStatus as string | undefined) ?? listing.status,
     );
     update.idx_display_yn =
+      effectiveRlsEligible &&
       !TERMINAL_STATUSES.has(effectiveStatus) &&
       coerceStrictBool(body.IDXEntireListingDisplayYN);
   }

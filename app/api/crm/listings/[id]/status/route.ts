@@ -181,8 +181,17 @@ export async function PATCH(
   // terminal-status set with no race window.
   //
   // The existing `internet_*_display_yn`, AVM, ConsumerComment, participant_only,
-  // owner_opt_out columns are unchanged by a status PATCH; they are read from
-  // the existing listing row and passed through to the helper unchanged.
+  // owner_opt_out, AND rls_eligible columns are unchanged by a status PATCH;
+  // they are read from the existing listing row and passed through to the
+  // helper unchanged.
+  //
+  // The `rls_eligible` input was added to the helper 2026-05-20 (Codex review
+  // on PR #165) — without it, a CRM status PATCH on a commercial / website-
+  // only listing would have flipped `idx_display_yn=true` on an Active
+  // transition, overriding the CRM POST's `rlsEligible && ...` guard at
+  // app/api/crm/listings/route.ts:340-343. Locked by tests in
+  // lib/idx/__tests__/compute-gate-columns.test.ts "rls_eligible first-class
+  // gate" describe block.
   const newGateColumns = computeGateColumns({
     status: newStatus,
     internetEntireListingDisplayYN: listing.internet_entire_listing_display_yn,
@@ -192,6 +201,7 @@ export async function PATCH(
     internetConsumerCommentYN: listing.internet_consumer_comment_yn,
     participantOnly: listing.participant_only,
     ownerOptOut: listing.owner_opt_out,
+    rls_eligible: listing.rls_eligible,
   });
 
   await prisma.listing.update({
