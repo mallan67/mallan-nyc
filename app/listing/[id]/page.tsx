@@ -1189,12 +1189,26 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
       <main className="py-8 md:py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-8 lg:gap-10">
+          {/*
+            A1 (PR-A1, 2026-05-20) — Class-A mobile-overflow blocker.
+            Pre-fix: `grid lg:grid-cols-3 gap-8 lg:gap-10` created a CSS Grid
+            container on ALL viewports. At <lg (390 px) the grid had no
+            explicit template-columns rule, so the single implicit column
+            stretched to fit the widest child and `body { overflow-x: hidden }`
+            cosmetically masked horizontal scroll (frontend-auditor measured
+            gridTemplateColumns: "1640px" / scrollX: 1266 on mobile).
+            Fix: on <lg use `flex flex-col` (stacks vertically, no column
+            stretch); on lg+ use the original 3-column grid (byte-identical
+            desktop behavior). The sidebar is `hidden lg:block` so it
+            participates in the layout only at lg+, exactly as before.
+            See: docs/audits/exclusive-launch-readiness-audit-2026-05-20.md A1
+          */}
+          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-3 lg:gap-10">
 
             {/* ═══════════════════════════════════════
                 MAIN CONTENT (2/3)
                 ═══════════════════════════════════════ */}
-            <div className="lg:col-span-2 space-y-0">
+            <div className="lg:col-span-2 min-w-0 space-y-0">
 
               {/* ── AUCTION BANNER (UCBA Art. I exception path) ── */}
               {/* Renders nothing on non-auction listings (auction=null). When  */}
@@ -1767,7 +1781,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
             {/* ═══════════════════════════════════════
                 SIDEBAR (1/3)
                 ═══════════════════════════════════════ */}
-            <div className="lg:col-span-1 hidden lg:block">
+            <div className="lg:col-span-1 min-w-0 hidden lg:block">
               <div className="sticky top-24 space-y-5">
 
                 {/* Contact Card */}
