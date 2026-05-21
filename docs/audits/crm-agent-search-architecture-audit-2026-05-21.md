@@ -19,7 +19,7 @@
 - data/UCBA-2026-Requirements.md, data/RLS-Syndication-Research.md
 - .claude/skills/rebny-compliance/SKILL.md
 - lib/compliance/**, lib/auth/**, lib/idx/**, lib/search/**, lib/external-listings/**
-- app/api/crm/** (97 routes), app/api/listings/**, app/api/idx/search/**
+- app/api/crm/** (150 routes, verified 2026-05-21 via `find app/api/crm -name "route.ts" -type f | wc -l`), app/api/listings/**, app/api/idx/search/**
 - prisma/schema.prisma (70 models)
 - public/crm/dashboard.html, public/crm/js/dashboard/* (panels.js 13,358 lines)
 
@@ -29,7 +29,7 @@
 
 ## TL;DR
 
-mallan.nyc has shipped a **production-grade public IDX surface** (Trestle/Cotality REBNY IDX Plus, 6 distribution gates fail-closed/fail-open by REBNY pre-filter semantics, FARE Act + UCBA + NY DOS attribution all live) and a **CRM with 97 routes + 70 Prisma models** that is 75–80% production-capable but has 4 concrete defects (deal-form submit stubs, impersonation client-only, page-size cap, portal write rate-limits) plus 2 active UCBA holes (Art. III §6 ethics gate, agent-level row isolation).
+mallan.nyc has shipped a **production-grade public IDX surface** (Trestle/Cotality REBNY IDX Plus, 6 distribution gates fail-closed/fail-open by REBNY pre-filter semantics, FARE Act + UCBA + NY DOS attribution all live) and a **CRM with 150 route.ts files + 70 Prisma models** (verified 2026-05-21 via `find app/api/crm -name "route.ts" -type f | wc -l`) that is 75–80% production-capable but has 4 concrete defects (deal-form submit stubs, impersonation client-only, page-size cap, portal write rate-limits) plus 2 active UCBA holes (Art. III §6 ethics gate, agent-level row isolation).
 
 Two parked specs (701-line external-inventory + 1003-line sponsor-database, both HELD) define the data model + share-gate + reveal-gate + audit chain for **agent-only tiered search** without touching public IDX or `ListingSearchProjection`.
 
@@ -62,7 +62,7 @@ The audit assumes the **three-tier inventory boundary** Maya specified:
 ## A. Current CRM architecture map
 
 ### A.1 Surface count
-- **97 active CRM routes** under `app/api/crm/**` (sampled inventory)
+- **150 active CRM route.ts files** under `app/api/crm/**` (verified 2026-05-21 via `find app/api/crm -name "route.ts" -type f | wc -l` — corrects the original research-agent "sampled glob" undercount of 97)
 - **`public/crm/`** frontend — `dashboard.html`, `login.html`, intake forms (SALE-FORM-REDESIGN 580 KB, RENTAL-FORM-REDESIGN 514 KB, BUYER-DEAL-FORM 123 KB, TENANT-DEAL-FORM 106 KB), `index-built.html` (2.5 MB bundled)
 - **Monolithic JS:** `public/crm/js/dashboard/panels.js` is 13,358 lines hosting Featured config, Sales CRM (buyers/sellers/prospects), Rentals CRM (landlords/tenants), tools (CMA/comps/pricing), broker approval queue, commission tracker, payout review
 - **70 Prisma models** (14 CRM-core + 6 supporting + 8 analytics + 3 sync + many auxiliary). All 70 actively used — no orphan stubs at the model layer.
@@ -252,7 +252,7 @@ This existing scaffold is the right Tier 2 starting point — but the parked ext
 
 ### C.4 CRM — what's mapped, stubbed, gapped (see §D + §F below)
 
-Map: 97 routes, 70 models, 8 lead-capture surfaces, `requireAgentOrBroker` on all CRM routes, AuditEvent chain.
+Map: 150 routes, 70 models, 8 lead-capture surfaces, `requireAgentOrBroker` on all CRM routes, AuditEvent chain.
 
 Stubs / gaps: BUYER + TENANT deal-form submit, impersonation backend bypass (`Store.startImpersonation` client-only), Outlook N+1, page-size cap, portal write rate-limits, ethics-gate mid-session, per-agent row isolation, `Inquiry.duplicate_of_lead_id` unused, honeypot silent accept, search-alert unsubscribe entropy, RSVP consent capture, broker approval queue POST targets unverified.
 
@@ -364,7 +364,7 @@ LionDesk, etc.)                  + consent provenance)               ↓ If matc
 ## E. What exists already
 
 ### E.1 CRM
-- ✅ 97 routes covering 11 functional clusters
+- ✅ 150 routes covering 11 functional clusters (verified 2026-05-21)
 - ✅ 70 Prisma models, all actively used
 - ✅ 8 public lead-capture surfaces wired to real Prisma writes
 - ✅ AuditEvent chain with 240+ writes across routes
@@ -736,7 +736,7 @@ There is **no agent-search UI today.** The agent today either uses:
 | 8 | TCPA consent before automated outreach | All lead-capture + share-blasts + lead-plugin imports | 8 endpoints + `Lead.consent_captured_at:200` + `app/api/crm/email/route.ts:66-68` blocks send | Lead-plugin import provenance not yet defined; share-to-non-consenting-recipient must block | HIGH |
 | 9 | CAN-SPAM footer + unsubscribe | All marketing email | (assumed in templates) | `Lead.unsubscribed_at` column missing; need for share-blast + plugin imports | MEDIUM |
 | 10 | NY DOS §175.25 brokerage attribution | All public ads + agent-share copy | `app/components/Footer.tsx:25-29,104,215`, JSON-LD identifier | T2/T3 share emails must template brokerage attribution; verify | HIGH |
-| 11 | NY DOS §175.28 anti-discrimination notice | First substantive contact | `app/components/AntiDiscriminationNotice.tsx` | Verify on every NEW lead-capture form (T2/T3 reveal-gate trigger) | MEDIUM |
+| 11 | NY DOS §175.28 anti-discrimination notice | First substantive contact — **including T2/T3 owner-PII reveal-gate attestation modal** (the reveal action initiates substantive contact with a non-Mallan owner) | `app/components/AntiDiscriminationNotice.tsx` | **Notice copy must be embedded directly in the T2/T3 attestation modal** (see §D.4 + §H.6 reveal-gate flow); plain "verify on every NEW lead-capture form" is insufficient when the new surface is a reveal-modal that triggers substantive contact | **HIGH** |
 | 12 | "Off-market" language ban | All description + share copy | `lib/compliance/rls-enforcement.ts:199-205` | Currently only blocks listing payload; not the share-caption surface | HIGH |
 | 13 | Compensation/commission text ban | All public copy | `lib/compliance/rls-enforcement.ts:207-213` | Same; share copy not scanned | HIGH |
 | 14 | NAR Settlement removed fields | All response tiers | `lib/compliance/dto.ts:51-56` `REMOVED_FIELDS` | None | HIGH |
@@ -746,7 +746,7 @@ There is **no agent-search UI today.** The agent today either uses:
 | 18 | UCBA Art. III §6 ethics gate (90-day) | Agent CRM access | enforced at login only | Add `Agent.ethics_completed_at` + middleware per-request gate | MEDIUM |
 | 19 | Owner Opt-Out write-time validation | Sale/rental forms | `lib/compliance/rls-enforcement.ts:235` `assertRlsCompliantPayload` + `lib/compliance/gates.ts:134` `isOwnerOptOut` | None on T1; T2/T3 owners must have written consent before listing add (Fair Housing analog) | HIGH |
 | 20 | Owner PII reveal-gate audit | T2/T3 owner-contact reveal | `lib/auth/middleware.ts:182` `logAuditEvent` (pattern only) | Reveal endpoint + attestation flag not yet built (HELD) | **CRITICAL when built** |
-| 21 | DOM 30-day reset (UCBA Art. I §11) | T1 only | `lib/compliance/dom-tracker.ts:43` `shouldResetDom` | T2/T3 do not accrue REBNY DOM — must be visually distinguished in agent search | MEDIUM |
+| 21 | DOM 30-day reset (UCBA Art. I §11) | T1 only | `lib/compliance/dom-tracker.ts:43` `shouldResetDom` | T2/T3 do not accrue REBNY DOM — **MUST NOT display REBNY-DOM counters on portal renders or client share renders.** Any DOM-style filter or sort in agent search must be either T1-only (filters out T2/T3 when active) OR labeled clearly as a non-REBNY/non-public time-on-market metric (e.g., "Days since added to CRM" for T2/T3) | MEDIUM |
 | 22 | Coming Soon badge + `ActivationDate` immutable | T1 sales only | `lib/idx/trestle-mapper.ts` | T2/T3 cannot use "Coming Soon" terminology — UCBA reserved | MEDIUM |
 | 23 | Commission-negotiability disclosure (Art. I §17) | Buyer/tenant rep agreements + pre-closing | Verify in `app/contact/page.tsx`, `app/components/InquiryForm.tsx` | Required on every NEW lead-capture/reveal/attestation form | HIGH |
 | 24 | AuditEvent 2-yr retention + cron | All mutations | `prisma/schema.prisma:695` + `app/api/cron/data-retention/route.ts` | Transaction rows need extended retention (CommissionPayment, Deal, ProtectedPeriod, ListingMedia) — confirm T2/T3 share/reveal events route correctly | MEDIUM |
@@ -907,7 +907,7 @@ A new top-level CRM page (e.g., `/broker/search` or `/agent/search` inside `publ
 | Featured / Exclusive | display-side flags | as today |
 | Tier toggle | NEW — `include_external_inventory`, `include_sponsor_inventory` | default OFF |
 | Owner-info available | NEW — `has_owner_contact` boolean — show only listings with reachable owner | T2/T3 specific |
-| Days on market range | `Listing.days_on_market` index | direct |
+| Days on market range | `Listing.days_on_market` index | **T1 only.** When T2/T3 toggles are ON, this filter is hidden OR replaced with a non-REBNY-DOM label (e.g., "Days since added to CRM") — T2/T3 listings do not accrue REBNY DOM (per §K #21 + UCBA Art. I §11) |
 | Listing agent (search by name) | `Listing.list_agent_full_name` index | direct (Agent.trestle_mls_id where present) |
 | Listing brokerage (search by name) | `Listing.list_office_name` index | direct |
 | Saved-search recall | `SavedSearch` model | direct |
@@ -957,6 +957,7 @@ Suggested relevance score combining:
 | FARE Act applicability (rental + NYC tenant) | rental tier on send to NYC tenant | non-blocking but injects disclosure into email body |
 | TCPA consent on recipient | every send | YES if `consent_captured_at IS NULL` AND send method is automated (email/SMS) |
 | Agent ownership of recipient | every send | YES — must be agent's lead or broker-bypass |
+| **Brokerage attribution present in template** (NY DOS §175.25) | every send | **YES — block on missing.** Template must contain "Mallan Real Estate Inc." + license #10991205323 + office address (400 East 90th Street, Suite 17C, NY 10128) OR phone (646-258-4460). Agent-name-only sends without brokerage attribution are non-compliant per §175.25 |
 
 ### P.4 Send method routing
 
@@ -975,6 +976,7 @@ Suggested relevance score combining:
 |---|---|
 | Reverse boundary pin (CRITICAL) | `lib/external-listings/**` + `lib/sponsor/**` cannot import `lib/search/listing-search-projection.ts` or `lib/idx/**` or `app/api/listings/**` |
 | Forward boundary (existing) | `lib/syndication/**` cannot import `lib/idx/**` or `lib/search/**` |
+| **SQL injection — no `$queryRawUnsafe` in T2/T3 future code** | source-grep `lib/external-listings/**` + `lib/sponsor/**` (when added) for `\$queryRawUnsafe` → must be ZERO. All `$queryRaw` uses MUST be tagged-template form with `Prisma.sql` + `Prisma.join` for array literals (the canonical pattern from PR #171's `lib/leads/lead-upsert.ts`). Implementer caveat for any future T2/T3 ranking/search query |
 | No external/sponsor in sitemap | source-grep `app/sitemap.ts` for `external_inventory` or `sponsor_` — must be ZERO |
 | No external/sponsor in robots.txt route allowlist | source-grep `app/robots.ts` — ZERO |
 | No external/sponsor in `/api/listings` | source-grep `app/api/listings/route.ts` — ZERO |
@@ -1148,7 +1150,7 @@ The agent search shell built in Lane 2 will need a single-line reader swap when 
 
 ### D. CRM (mapped)
 
-- Current routes: 97 across 11 functional clusters (§A.2)
+- Current routes: 150 across 11 functional clusters (§A.2, verified 2026-05-21)
 - Current stubs: BUYER + TENANT deal-form submit, impersonation client-only (§F.1)
 - Current gaps: page-size cap, portal rate-limits, ethics-gate mid-session, per-agent row isolation, Outlook N+1, honeypot, invite TTL, broker approval queue verify-only (§F.1–F.5)
 - Lead plugin integration path: §J (single endpoint, hard blocks listed)
