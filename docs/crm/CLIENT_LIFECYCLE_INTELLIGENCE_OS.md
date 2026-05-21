@@ -453,7 +453,7 @@ Before any implementation PR is opened against this doctrine, Maya should provid
 
 1. Per-state inactivity thresholds for `NEW_LEAD → DORMANT` and `ACTIVE_SEARCH → DORMANT`.
 2. Quarterly cadence anchor: from `CLOSED_CLIENT` entry date, or from a global Mallan quarter calendar?
-3. `nurture_auto` allow-list contents (which templates may pre-fire after a single agent allow-list approval, vs. always require per-send approval).
+3. Template eligibility for the pre-certified allow-list referenced in §1.2 — i.e., which specific report/send templates qualify to flow through the allow-listed per-recipient-review path, as distinct from those that must always be agent-composed. The per-recipient review pass remains mandatory per §1 and §14 either way.
 4. Per-channel preference defaults at intake (email, SMS, portal, postal).
 5. `REACTIVATED` confirmation window before returning to `POST_DEAL_NURTURE` or `DORMANT`.
 6. Referral attribution algorithm (single-source vs. multi-touch; commission split semantics).
