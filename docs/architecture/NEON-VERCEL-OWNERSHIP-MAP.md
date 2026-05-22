@@ -1,9 +1,102 @@
 # Neon ↔ Vercel Ownership Map
 
 **Status:** OPEN · REPORT-ONLY · No env vars changed. No projects altered. No automation modified. Sister doc: `docs/architecture/NEON-COST-CONTROL-POLICY.md`.
-**Date:** 2026-05-18
+**Date:** 2026-05-18 · clarification patch 2026-05-22
 **Author:** Claude Code under Maya direction.
-**Scope:** Definitive map of which Neon project is what, which env surface owns which value, which automation owns which lifecycle. The map exists so any future change to env / integration / cron can be reviewed against a single ownership table.
+**Scope:** **Current best-known ownership map** of which Neon project is what, which env surface owns which value, which automation owns which lifecycle. The map exists so any future change to env / integration / cron can be reviewed against a single ownership table. (Prior wording said "Definitive map"; downgraded 2026-05-22 because not every surface has dashboard-confirmed values — see Confirmation Tier below.)
+
+**Confirmation tier (2026-05-22):**
+
+- **Production Neon project `morning-bread-68708332` → PROVEN.** Active reads/writes confirmed via `prisma/schema.prisma` migrations applied (`memory/BACKEND-AUDIT-2026-04-29.md:891`), `ops:health` storage measurements (961 MB → 1000 MB across 4 days), and the rotation script's endpoint hardcode (`.github/workflows/backups/rotate-db-keys.yml.cleanbak:82`).
+- **Preview / integration Neon project `hidden-mountain-87248164` → UI-PROVEN from 2026-05-17.** Vercel Configure panel + Neon Console read by Maya on 2026-05-17 (per `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8). Vercel-side display name: "neon-green-school".
+- **Vercel runtime `NEON_PROJECT_ID` env-var value → NO-CHANGE / PENDING FINAL DASHBOARD CONFIRMATION.** Inferred from cron behavior (examined=17 pruned=10 implies preview project, not production) but the operator has not yet read the literal Vercel Production env value side-by-side with the Neon Console URL bar. See §7 "Key ownership rule" and `docs/neon-launch-branch-policy-audit-2026-05-17.md` §C.4. **Do not change this value without that confirmation** (see Do-Not-Fix-Blindly below).
+
+---
+
+## ⚠️ Do Not Fix Blindly (added 2026-05-22)
+
+If you're reading this because a Vercel preview build is stuck "pending" or a "Neon branching: Branch limit exceeded" check is failing, **STOP and classify the symptom first**:
+
+| Symptom class | Indicator | Likely cause | Action |
+|---|---|---|---|
+| **A. Stale Vercel-Neon branch check** | "Branch limit exceeded" but `ops:health` reports `branch_prune` examined ≤ 25 and Neon Console shows ≤ baseline branches | Stale Vercel-side cache of the integration's pre-Launch-plan state | NO settings change. Refresh the Vercel preview status display only. See `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8. |
+| **B. Stale Vercel-GitHub legacy `Vercel` status** (RC8) | GitHub `gh pr checks` shows `Vercel: pending` indefinitely, but actual Vercel deployment state is `READY` and `Vercel Preview Comments` check-run is `success` | Vercel posts build-start "pending" to GitHub's legacy Statuses API but never sends the success post-back. Modern Check-Runs API works fine. | Cosmetic only. Verify via Vercel Dashboard or `mcp__claude_ai_Vercel__get_deployment` that `state=READY` and merge based on Vercel-side truth. **Do not** reconnect the Vercel-GitHub integration without explicit Maya approval. |
+| **C. Real failed deployment** | Vercel deployment state is `ERROR`; build logs show actual error | Genuine build/runtime failure | Inspect build logs via `mcp__claude_ai_Vercel__get_deployment_build_logs`. Fix the underlying error. |
+| **D. Real Neon branch exhaustion** | `ops:health` reports `branch_prune` examined ≥ 4000 (critical) or `≥ 25` (warn); Neon Console actually shows that count | Cron not pruning OR cron pointed at wrong project (the known `NEON_PROJECT_ID` ambiguity) | First confirm cron's actual target project via Neon Console + Vercel env read. Only then act. |
+
+**Do NOT (without explicit Maya approval AND symptom classification above):**
+- ❌ Do not change `NEON_PROJECT_ID` on Vercel runtime or GitHub Actions
+- ❌ Do not copy one `NEON_PROJECT_ID` value to the other surface (the two intentionally differ per §7)
+- ❌ Do not disconnect/reconnect the Vercel-Neon integration (resource id `store_K9l79ICRUTMsiRh2`)
+- ❌ Do not reconnect the Vercel-GitHub integration
+- ❌ Do not rotate DB credentials manually (the rotate workflow is the only authorized writer per §8)
+- ❌ Do not change `DATABASE_URL` / `DATABASE_URL_UNPOOLED` / `ASSISTANT_DATABASE_URL` on any surface
+- ❌ Do not toggle Vercel preview-branching off (would route preview deploys at production DB — see `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.6)
+
+**Why these guardrails exist:** the `NEON_PROJECT_ID` value differs between Vercel and GitHub Actions surfaces by design (see §7). Treating the symptom by "fixing" the env without proving which symptom class is in play can corrupt production data binding or rotation lifecycle.
+
+---
+
+## 🔌 RC8 — GitHub legacy `Vercel` status drift (added 2026-05-22)
+
+GitHub maintains **two parallel commit-status APIs** that Vercel posts to. They get out of sync chronically on this repo:
+
+- **Modern Check-Runs API** (`commits/{sha}/check-runs`) → Vercel posts `Vercel Preview Comments` with `conclusion: success`. Works correctly.
+- **Legacy Statuses API** (`commits/{sha}/status`) → Vercel posts `context: "Vercel"` at `state: "pending"` when the build starts, then **never sends the success post-back**. Stuck at "pending" indefinitely.
+
+**Operational consequence:**
+
+- `gh pr checks` reads BOTH and labels the row "Vercel: pending" forever.
+- `mergeStateStatus` stays `UNSTABLE`. This is **cosmetic only**.
+- Branch protection on `main` is NOT enabled (verified via `gh api repos/.../branches/main/protection` → 404 "Branch not protected"), so the cosmetic state does not block merges.
+
+**Use Vercel deployment state + Vercel Preview Comments before calling a build "failed".**
+
+To verify a build's truth state:
+```
+mcp__claude_ai_Vercel__get_deployment(idOrUrl=<dpl_*>, teamId=team_kZQh5NYLyrOKqffK0r9EXf4E)
+→ check {state: "READY"}
+```
+Or use the inspector URL on the GitHub check row (`https://vercel.com/mallan/mallan-nyc/<id>`).
+
+Cross-reference: `docs/incidents/2026-05-21-chronic-media-sync-root-cause.md` §RC8 (canonical incident treatment).
+
+---
+
+## 🚧 Separation — Vercel/Neon branching ≠ media-cron Neon compute (added 2026-05-22)
+
+**These are two SEPARATE incidents living at different layers. Do not conflate.**
+
+| Incident | Layer | State | Owner |
+|---|---|---|---|
+| **Vercel-Neon "Branch limit exceeded" stale check** | Vercel CI integration ↔ Neon-Vercel marketplace integration | Stale UI state since plan upgrade 2026-05-17; actual branch count is **8 / 5000** | Vendor-side (Vercel-Managed integration `store_K9l79ICRUTMsiRh2`) |
+| **Media-cron Neon compute burn (RC1 / RC3)** | Neon production workload | Real chronic — `media_sync_state.last_photos_change` cursor frozen 21 days; 149 r2_failed vs 1 r2_mirrored per 24h before mitigation | mallan-nyc cron (`/api/cron/media-sync` + `/api/cron/media-backfill`) |
+
+**The media-cron compute burn is a PROVEN compute risk** (see canonical incident doc) but it is **NOT proven to cause** the Vercel-Neon preview branching status. The two share no causal path:
+
+- Media cron writes to the **production** project (`morning-bread-68708332`).
+- Preview branching lives on the **integration** project (`hidden-mountain-87248164`).
+- Branch-limit GitHub checks read Vercel/Neon UI state, not Neon production compute metrics.
+
+**Mitigation status (2026-05-22):**
+
+- PR #176 (merged at `b4f9ede0`) paused `/api/cron/media-backfill` — addresses the legacy `Listing.media` JSON stomp half of the compute burn.
+- PR #178 (merged at `4b81dc0b`) added observability (`ops:health` media-sync section) — surfaces cursor staleness + R2 mirror failure ratio + dead-tuple ratio within one cron interval going forward.
+- Vercel-Neon preview-branch status drift is unchanged (still cosmetic). No integration reconnect performed.
+
+---
+
+## 🧱 Public-records firewall (added 2026-05-22)
+
+`PUBLIC_RECORDS_*` env-var family and the `mallan-public-records` Neon project (planned, intentionally Free per `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md`) are **unrelated to mallan-nyc production/preview ownership**.
+
+**Do NOT use public-records provisioning rules to:**
+- Change `DATABASE_URL` / `DATABASE_URL_UNPOOLED` / `ASSISTANT_DATABASE_URL` on mallan-nyc surfaces
+- Change `NEON_PROJECT_ID` on Vercel runtime or GitHub Actions for mallan-nyc
+- Tune branch pruning retention in `lib/neon/branches.ts` (governed by `NEON-COST-CONTROL-POLICY.md`)
+- Modify the Vercel-Neon integration binding for mallan-nyc (`store_K9l79ICRUTMsiRh2`)
+
+The two projects share an account but **must remain operationally isolated** — provisioning, rotation, and cleanup are owned by separate workflows targeting different `NEON_PROJECT_ID` values.
 
 ---
 
@@ -207,10 +300,13 @@ The full list is in `NEON-COST-CONTROL-POLICY.md` §11. Highlights for the owner
 - `docs/architecture/NEON-COST-CONTROL-POLICY.md` — sister doc; defines budget target as policy separate from plan capacity
 - `NEON.md` — operational discipline (migrations, traps, change log)
 - `docs/neon-launch-branch-policy-audit-2026-05-17.md` — Launch-plan threshold audit (which `NEON-COST-CONTROL-POLICY.md` reframes as "capacity, not policy")
-- `docs/neon-vercel-integration-repair-plan-2026-05-17.md` — Vercel ↔ Neon integration deep-dive (the support-packet path)
+- `docs/neon-vercel-integration-repair-plan-2026-05-17.md` **§F.8** — Vercel ↔ Neon integration deep-dive; specifically §F.8 documents that the "Branch limit exceeded" check is **stale Vercel-side state**, not actual branch exhaustion (cited in Do-Not-Fix-Blindly and Separation sections above)
 - `.github/workflows/rotate-db-keys.yml` — credential rotation (this doc §8)
 - `app/api/cron/neon-branch-prune/route.ts` + `lib/neon/branches.ts` + `scripts/neon-prune-branches.ts` — preview cleanup (this doc §9)
-- `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` — describes a future 3rd Neon project (`mallan-public-records`, intentionally Free); unrelated to mallan-nyc's production/preview pair
+- `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` — describes a future 3rd Neon project (`mallan-public-records`, intentionally Free); **unrelated to mallan-nyc's production/preview pair** (see Public-Records Firewall above)
+- **`docs/incidents/2026-05-21-chronic-media-sync-root-cause.md`** — canonical chronic-incident doctrine; documents RC1–RC7 (media-sync cursor freeze, stomping, R2 retry purgatory, storage churn, held migrations, observability gap, CI Trap #2) and RC8 (Vercel-GitHub status drift, expanded in this doc's RC8 section above)
+- **PR #176** (`b4f9ede0`, merged 2026-05-22) — paused `/api/cron/media-backfill` cron in `vercel.json`; first mitigation for the chronic media/Neon compute burn (see Separation section above)
+- **PR #178** (`4b81dc0b`, merged 2026-05-22) — `ops-health` media-sync + storage observability; closes the RC6 observability gap (`media_sync_state` cursor staleness, listing_media coverage, R2 mirror progress, dead-tuple ratio)
 
 ---
 
