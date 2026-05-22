@@ -21,6 +21,31 @@
 //   an actual build failure. See docs/incidents/2026-05-21-chronic-media-sync-root-cause.md
 //   §RC8 + Path B for the diagnostic chain and the recommended Vercel-side fix.
 //
+// SEPARATE-INCIDENT clarification (Maya, 2026-05-22):
+//   The Vercel/Neon preview-branch stale integration and the media-cron
+//   Neon compute burn (RC1/RC3) are SEPARATE incidents. The media cron is
+//   NOT proven to cause the Vercel preview Neon branching status; the two
+//   live at different layers (Vercel CI integration vs Neon production
+//   workload). Do not conflate. Specifically:
+//     1. The vercel.json buildCommand does NOT run migrations (verified
+//        in NEON.md §3 Trap #1).
+//     2. The GitHub check showing "Vercel: pending" reflects the legacy
+//        Statuses API drift (RC8 above), not a Neon branch-limit failure.
+//     3. Repo docs (docs/neon-vercel-integration-repair-plan-2026-05-17.md
+//        §F.8) classify the "Branch limit exceeded" symptom as stale
+//        Vercel-Neon integration state, NOT actual branch exhaustion.
+//     4. Actual documented branch count is 8 / 5000 (well under cap).
+//     5. The media-backfill + media-sync crons (both formerly `*/15`)
+//        are the real Neon compute risk because media-backfill runs
+//        JSON-heavy scans against the 872 MB `Listing.media` column
+//        (now mitigated by PR #176 which paused media-backfill).
+//     6. There is a known Neon project-ID ambiguity (Vercel env
+//        NEON_PROJECT_ID may point at the production DB project rather
+//        than the integration's preview-branching project — see
+//        NEON.md §11 "Known mismatch"); operator must verify against
+//        the Vercel env + Neon Console read-only before any project-ID
+//        change. Do NOT rotate project IDs without that verification.
+//
 // Exit codes:
 //   0 — healthy
 //   1 — warning (something is drifting but not urgent)
