@@ -493,25 +493,57 @@ async function run() {
       });
     }
 
-    // Public image usability — first-image classification on IDX-displayable
-    // listings. Uses the same SQL shape that the read-only incident probes used.
+    // Public image usability — TRUE first-image classification on
+    // IDX-displayable listings. Codex P2 fix on PR #178 (b3ab86da):
+    // the prior shape used `media::text LIKE '%r2.dev%'` which would
+    // classify a listing as "R2" if ANY url in the array matched the
+    // R2 domain, even when the user-visible first image was Trestle/
+    // proxy. That hid fallback dependency during incident monitoring.
+    //
+    // New shape extracts `media->0` and reads its `url` / `MediaURL`
+    // field (different writer code paths use different casing — the
+    // legacy idx-sync writes `{url, mediaType, order}`, raw Trestle
+    // batches sometimes write `{MediaURL, MediaCategory, ...}`).
+    // COALESCE picks whichever the row actually has. Buckets are now
+    // mutually exclusive and exhaustive across IDX-displayable rows.
     const [imgRow] = await prisma.$queryRawUnsafe(`
       SELECT
-        (COUNT(*) FILTER (WHERE media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0))::int AS empty_media,
+        (COUNT(*) FILTER (
+          WHERE media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0
+        ))::int AS empty_media,
         (COUNT(*) FILTER (
           WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
-            AND (media::text LIKE '%r2.dev%' OR media::text LIKE '%images.mallan.nyc%')
-        ))::int AS r2_media,
+            AND (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%r2.dev%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%images.mallan.nyc%'
+            )
+        ))::int AS first_image_r2,
         (COUNT(*) FILTER (
           WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
-            AND (media::text LIKE '%cotality.com%' OR media::text LIKE '%corelogic.com%')
-            AND NOT (media::text LIKE '%r2.dev%' OR media::text LIKE '%images.mallan.nyc%')
-        ))::int AS trestle_only_media
+            AND (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%cotality.com%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%corelogic.com%'
+            )
+            AND NOT (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%r2.dev%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%images.mallan.nyc%'
+            )
+        ))::int AS first_image_trestle_proxy,
+        (COUNT(*) FILTER (
+          WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
+            AND NOT (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%r2.dev%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%images.mallan.nyc%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%cotality.com%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%corelogic.com%'
+            )
+        ))::int AS first_image_other
       FROM listings WHERE idx_display_yn = true
     `);
-    report.media_sync.first_image_r2 = Number(imgRow.r2_media);
-    report.media_sync.first_image_trestle_proxy = Number(imgRow.trestle_only_media);
+    report.media_sync.first_image_r2 = Number(imgRow.first_image_r2);
+    report.media_sync.first_image_trestle_proxy = Number(imgRow.first_image_trestle_proxy);
     report.media_sync.first_image_empty = Number(imgRow.empty_media);
+    report.media_sync.first_image_other = Number(imgRow.first_image_other);
     // Conservative lower bound on "no usable image": only the empty-media set
     // is definitively unusable. Trestle-proxy URLs may still render via the
     // proxy if Trestle hasn't rotated them; R2 URLs are stable.
@@ -773,9 +805,10 @@ function renderHuman(r) {
         console.log(`    with R2 cached: ${ms.with_r2_cached_listing_media} (${ms.r2_cached_coverage_pct}%)`);
       }
       if (ms.first_image_r2 !== undefined) {
-        console.log(`  First image classification (Listing.media JSON, IDX-displayable):`);
+        console.log(`  First image classification (media->0 ‘url’ / ‘MediaURL’ on IDX-displayable):`);
         console.log(`    R2 URL:           ${ms.first_image_r2}`);
         console.log(`    Trestle/proxy:    ${ms.first_image_trestle_proxy}`);
+        console.log(`    other URL host:   ${ms.first_image_other ?? 0}`);
         console.log(`    empty (no image): ${ms.first_image_empty}`);
       }
       if (ms.r2_mirrored_24h !== undefined) {
