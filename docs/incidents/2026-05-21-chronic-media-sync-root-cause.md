@@ -367,9 +367,9 @@ To get ALL 14,839 IDX-displayable listings serving working photos requires fixin
 
 ---
 
-## §10. Untracked artifacts left on disk (per CLAUDE.md `__` pattern)
+## §10. Investigation probe scripts — UNTRACKED, NOT REPRODUCIBLE FROM A FRESH CLONE
 
-Nine throwaway probe scripts produced during this investigation. All UNTRACKED. All read-only against production. None to be committed; preserved as evidence.
+Nine throwaway probe scripts were written during this investigation and run read-only against production. They follow the CLAUDE.md §A.9 `__` throwaway pattern and are **explicitly NOT tracked in the repository** — they exist only on the investigator's local disk (Maya's workstation as of 2026-05-21):
 
 ```
 scripts/__incident-2026-05-21-media-audit.mjs            — Q1-Q9 baseline state
@@ -383,22 +383,31 @@ scripts/__incident-2026-05-21-r2-head-probe.mjs          — live R2 HEAD on 3 b
 scripts/__incident-2026-05-21-stomping-probe.mjs         — production-data stomping rate evidence
 ```
 
-Re-run any of these at any future date to re-prove the diagnosis with current production data.
+**Reproducibility contract — do NOT promise these are rerunnable from a fresh clone.** A future agent in a fresh checkout, or any CI environment, will NOT have these scripts. The **canonical evidence base for this incident is the citations in §3–§4 (file:line + commit SHA + production-data quotations) and the production-data tables embedded in this document**, not the scripts themselves. Future re-proof must derive new queries from those citations, not by attempting to source these scripts.
+
+If a future investigator needs to repeat any specific query, the SQL / Trestle-OData calls are quoted verbatim in §4 RC1–RC4 evidence subsections. The intended path to durable, repo-tracked observability is **PR B** in the §7 fix sequence (`ops:health` additions), which makes these one-off probes unnecessary for steady-state monitoring.
 
 ---
 
 ## §11. Companion files
 
-| File | Purpose |
-|---|---|
-| `CLAUDE.md` | Project doctrine; references this incident in compliance-first rule |
-| `NEON.md` | DB / Prisma / migration discipline — required reading before any schema change; documents Trap #1 / #2 / #3 |
-| `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` | File-location rules — §7 Media canonical paths |
-| `memory/REFACTOR-2026-04-25.md` | Master 10-PR backend refactor plan — PRs 4 / 5B / 10 status |
-| `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` | 7,594-row corruption incident — predecessor to today's chronic situation |
-| `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` | PR-3 rollout proof — first prod firing died at 120s |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry (480/min Media URL ceiling cited at lines 307-310) |
-| `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate doctrine |
+Tracked-in-repo references (these will be accessible to any future agent in a fresh clone):
+
+| File | Tracked? | Purpose |
+|---|---|---|
+| `CLAUDE.md` | ✅ tracked | Project doctrine; references this incident in compliance-first rule |
+| `NEON.md` | ✅ tracked | DB / Prisma / migration discipline — required reading before any schema change; documents Trap #1 / #2 / #3 |
+| `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` | ✅ tracked | File-location rules — §7 Media canonical paths |
+| `memory/REFACTOR-2026-04-25.md` | ✅ tracked | Master 10-PR backend refactor plan — PRs 4 / 5B / 10 status |
+| `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` | ✅ tracked | 7,594-row corruption incident — predecessor to today's chronic situation |
+| `data/RLS-FIELD-REGISTRY.md` | ✅ tracked | Trestle field registry (480/min Media URL ceiling) |
+
+Non-tracked references (these live only on contributors' local disks and are gitignored — future agents in a fresh clone will NOT have access; do not rely on these for canonical evidence):
+
+| File | Why not tracked | Substitute |
+|---|---|---|
+| `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` | `memory/*` is generally `.gitignore`d; this specific file was never `-f` force-added | Use git log `--all -- lib/idx/media-sync.ts` between 2026-05-08 and 2026-05-10 to reconstruct PR-3 rollout state, or rely on §3 pivot timeline above which captures the key facts |
+| `.claude/skills/rebny-compliance/SKILL.md` | `.claude/*` is `.gitignore`d (per `.gitignore:156`); auto-loaded at session start by the agent runtime, not the repo | Compliance gate doctrine is summarized in this doc's §3 (REBNY gates 1–6) and in `CLAUDE.md §D` (compliance-first rule). The detailed REBNY skill content is shown to AI sessions at start but is not part of the repo's tracked-evidence chain |
 
 ---
 
