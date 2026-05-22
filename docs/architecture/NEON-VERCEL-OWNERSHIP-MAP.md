@@ -23,6 +23,7 @@ If you're reading this because a Vercel preview build is stuck "pending" or a "N
 | **B. Stale Vercel-GitHub legacy `Vercel` status** (RC8) | GitHub `gh pr checks` shows `Vercel: pending` indefinitely, but actual Vercel deployment state is `READY` and `Vercel Preview Comments` check-run is `success` | Vercel posts build-start "pending" to GitHub's legacy Statuses API but never sends the success post-back. Modern Check-Runs API works fine. | Cosmetic only. Verify via Vercel Dashboard or `mcp__claude_ai_Vercel__get_deployment` that `state=READY` and merge based on Vercel-side truth. **Do not** reconnect the Vercel-GitHub integration without explicit Maya approval. |
 | **C. Real failed deployment** | Vercel deployment state is `ERROR`; build logs show actual error | Genuine build/runtime failure | Inspect build logs via `mcp__claude_ai_Vercel__get_deployment_build_logs`. Fix the underlying error. |
 | **D. Real Neon branch exhaustion** | `ops:health` reports `branch_prune` examined ≥ 4000 (critical) or `≥ 25` (warn); Neon Console actually shows that count | Cron not pruning OR cron pointed at wrong project (the known `NEON_PROJECT_ID` ambiguity) | First confirm cron's actual target project via Neon Console + Vercel env read. Only then act. |
+| **E. Alias-stale promotion** (PR #175 pattern; added 2026-05-22) | Branch alias serves an OLDER deployment than the latest READY one; latest deployment's `alias: [...]` does not include the branch-alias hostname OR the branch alias resolves to a different older deployment; multiple commits/deployments exist on the same branch and alias promotion did not advance correctly. | Vercel-side alias-promotion drift — the build/deployment succeeded, but the branch alias did not advance to the latest READY deployment. The build itself is NOT failed. | Verify the latest READY deployment for the PR head SHA via Vercel evidence (`mcp__claude_ai_Vercel__get_deployment` or list_deployments); verify immutable preview URL and branch alias **SEPARATELY** (curl each `-I` and compare `dpl_*` they resolve to). Confirm whether the branch alias points to the latest READY deployment. **If alias is stale: do NOT treat as build failure. Do NOT rerun deployments as the "fix" — the deployment is already READY. Do NOT touch app/listing/media code, Neon, Prisma, env vars, workflows, cron, or integrations.** Prepare Vercel support evidence with: affected PR, head SHA, latest READY deployment ID, immutable preview URL, branch alias URL, which deployment the branch alias actually resolves to, expected deployment-alias mapping, actual deployment-alias mapping. |
 
 **Do NOT (without explicit Maya approval AND symptom classification above):**
 - ❌ Do not change `NEON_PROJECT_ID` on Vercel runtime or GitHub Actions
@@ -60,6 +61,73 @@ mcp__claude_ai_Vercel__get_deployment(idOrUrl=<dpl_*>, teamId=team_kZQh5NYLyrOKq
 Or use the inspector URL on the GitHub check row (`https://vercel.com/mallan/mallan-nyc/<id>`).
 
 Cross-reference: `docs/incidents/2026-05-21-chronic-media-sync-root-cause.md` §RC8 (canonical incident treatment).
+
+---
+
+## 📋 Operational Doctrine — RC8 Vercel/GitHub Status Drift (added 2026-05-22, post-PR-#179)
+
+Codified after PR #179 surfaced the pattern across 10+ PRs (#62, #124, #153, #160, #168, #174, #175, #176, #177, #178, #179). Maya direction: this is the **standing operational rule** for any PR or production deploy in this repo.
+
+### Principle
+
+**The legacy GitHub commit-status context named `Vercel` is NON-AUTHORITATIVE when it conflicts with Vercel-side READY evidence.** Proved on PR #179: the legacy preview-head `Vercel` status stayed `pending` indefinitely, while the merge commit deployed successfully and production became READY.
+
+### Trusted readiness evidence (use these for any merge/readiness decision)
+
+Do NOT rely on the legacy `Vercel` status context alone. Use these instead:
+
+1. **Vercel deployment `state: "READY"`** — read via the Vercel MCP `get_deployment` call or the inspector URL.
+2. **Immutable preview URL returns HTTP 200** — `curl -sI https://mallan-<hash>-mallan.vercel.app/` (or browser).
+3. **Production deployment `state` when the change is being promoted to `main`** — verify the post-merge production rebuild reached READY.
+4. **Deployment alias / `dpl_*` match when relevant** — confirm the branch alias actually points at the latest deployment (guards against the PR #175-style alias-stale variant; see "⚠️ Do Not Fix Blindly" classifier row **E (alias-stale promotion)**).
+5. **GitHub Check-Runs API** (modern, not the legacy Statuses API) — `pr-check`, `guardrails`, `claude-review`, `Vercel Preview Comments` all reporting `conclusion: success`.
+6. **Release-truth / repo-owned checks** if available (custom GitHub Actions verifying end-to-end behavior).
+
+### Hard rule
+
+**Do NOT rerun deployments as the "fix" for the stale legacy `Vercel` status.** PR #179 proved the deployment itself was READY; the stale signal was the post-back / status context, not the deployment. Rerunning will produce another READY deployment with the same stuck `Vercel: pending` legacy status — wasted compute, zero resolution.
+
+### Durable fix (Maya approval required)
+
+The persistent legacy-status drift is probably a Vercel/GitHub integration repair or a Vercel support investigation. It is **NOT** to be attempted via:
+
+- ❌ App code, listing code, media code
+- ❌ Neon, Prisma, schema, migrations
+- ❌ Env vars
+- ❌ GitHub Actions workflows
+- ❌ Cron jobs
+- ❌ Deployment reruns
+
+**Maya-approved fixes only:**
+
+- Inspect Vercel/GitHub integration state in the Vercel Dashboard (Settings → Git)
+- Disconnect/reconnect Vercel-GitHub integration (Vercel UI; cannot be done from CLI)
+- Open a Vercel support ticket
+
+### PR #179 evidence package (for Vercel support if a ticket is opened)
+
+Bundle this evidence for any future Vercel support ticket on the stale-status pattern:
+
+| Field | Value |
+|---|---|
+| **Preview head SHA** | `4255cf3b340e19fbb2f91989dfa8932587585b21` |
+| **Merge SHA** | `e53431eb713588fdcca46ecc7f15ceadfe1a88e6` |
+| **Production deploy after merge** | Succeeded — production rebuild on `main` reached READY following PR #179 merge |
+| **Legacy preview-head `Vercel` status** | Stayed `pending`. `updated_at` only `2026-05-22T04:11:35Z` (= build-start), never updated to success despite the Vercel deployment reaching READY ~2.5 min later. |
+| **Modern Check-Runs API for same SHA** | 4/4 success: `claude-review`, `guardrails`, `pr-check`, `Vercel Preview Comments` |
+| **GitHub Deployments API for same SHA** | `[]` (empty — Vercel did not register a GitHub Deployment object either) |
+| **GitHub branch protection on `main`** | NOT enabled — confirmed via `gh api repos/mallan67/mallan-nyc/branches/main/protection` → `HTTP 404 "Branch not protected"`. The stale status was therefore not blocking the merge; PR #179 (and all prior in-pattern PRs) merged successfully via Vercel-side truth. |
+| **Multi-PR pattern** | Same drift observed across PRs #62, #124, #153, #160, #168, #174, #175, #176, #177, #178, #179 |
+
+Pair the table above with this single-sentence ticket summary:
+
+> "On `mallan-nyc` (Vercel project `prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW`, team `team_kZQh5NYLyrOKqffK0r9EXf4E`), Vercel deployments consistently reach `state: READY` (confirmed via Vercel API and 200 OK on immutable URL + branch alias) but the legacy GitHub commit-status context named `Vercel` stays at `state: pending` indefinitely, with `updated_at` equal to build-start time. The modern Check-Runs API correctly reports success for `Vercel Preview Comments`. This pattern has held across 10+ PRs over multiple weeks. Please advise on integration repair."
+
+### When this doctrine does NOT apply
+
+- If the symptom is **alias-stale promotion** (the PR #175 pattern — branch alias points at an older deployment): a SEPARATE failure mode. See "⚠️ Do Not Fix Blindly" classifier row **E (alias-stale promotion)** and re-classify before any action.
+- If the symptom is a **real build error** (`state: ERROR`): do NOT apply this workaround. Inspect build logs via `mcp__claude_ai_Vercel__get_deployment_build_logs`.
+- If the symptom is a **real Neon branch-limit exhaustion** (verified via `ops:health` showing branch count ≥ 25 AND Neon Console confirming): see "⚠️ Do Not Fix Blindly" classifier row **D (real Neon branch exhaustion)**, not this RC8 doctrine.
 
 ---
 
@@ -307,6 +375,7 @@ The full list is in `NEON-COST-CONTROL-POLICY.md` §11. Highlights for the owner
 - **`docs/incidents/2026-05-21-chronic-media-sync-root-cause.md`** — canonical chronic-incident doctrine; documents RC1–RC7 (media-sync cursor freeze, stomping, R2 retry purgatory, storage churn, held migrations, observability gap, CI Trap #2) and RC8 (Vercel-GitHub status drift, expanded in this doc's RC8 section above)
 - **PR #176** (`b4f9ede0`, merged 2026-05-22) — paused `/api/cron/media-backfill` cron in `vercel.json`; first mitigation for the chronic media/Neon compute burn (see Separation section above)
 - **PR #178** (`4b81dc0b`, merged 2026-05-22) — `ops-health` media-sync + storage observability; closes the RC6 observability gap (`media_sync_state` cursor staleness, listing_media coverage, R2 mirror progress, dead-tuple ratio)
+- **PR #179** (`e53431eb`, merged 2026-05-22) — `NEON-VERCEL-OWNERSHIP-MAP` clarification (Do-Not-Fix-Blindly + RC8 + separation + public-records firewall); the **canonical case study** for the Operational Doctrine section above (preview-head `Vercel` status stayed `pending` while merge commit deployed READY)
 
 ---
 
