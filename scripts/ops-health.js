@@ -1,10 +1,50 @@
 // scripts/ops-health.js — unified operational health check for the Neon + Trestle stack.
 //
 // Run on demand (or as a weekly cron) to see:
-//   - Storage: DB size, top tables, growth velocity
-//   - Sync: last run status, error rate, watermark age
+//   - Storage: DB size, top tables, growth velocity, listings/listing_media dead-tuple ratio
+//   - Sync: last run status, error rate, watermark age (Property cron)
+//   - Media sync (added 2026-05-22 per docs/incidents/2026-05-21-chronic-media-sync-root-cause.md):
+//       * media_sync_state cursor staleness (RC1 — boundary-cluster deadlock detector)
+//       * listing_media coverage of IDX-displayable + R2 cached coverage
+//       * Public image usability (first image: R2 / Trestle proxy / empty)
+//       * R2 mirror progress 24h (RC3 — retry purgatory detector)
+//       * R2 retry backlog (rows with r2_attempts > 0)
 //   - Retention: archive queue, compliance gap
 //   - Upgrade triggers: which thresholds are approaching for Phase 6 decisions
+//
+// RC8 note (2026-05-22) — Vercel ↔ GitHub status integration drift:
+//   Vercel preview builds may report state=READY on the Vercel side while
+//   GitHub's legacy commit-Statuses API stays at context=Vercel state=pending
+//   indefinitely. This script does NOT probe that integration (it is read-only
+//   against Neon only), but operators should be aware that `gh pr checks`
+//   reporting "Vercel: pending" forever is a documented chronic drift, not
+//   an actual build failure. See docs/incidents/2026-05-21-chronic-media-sync-root-cause.md
+//   §RC8 + Path B for the diagnostic chain and the recommended Vercel-side fix.
+//
+// SEPARATE-INCIDENT clarification (Maya, 2026-05-22):
+//   The Vercel/Neon preview-branch stale integration and the media-cron
+//   Neon compute burn (RC1/RC3) are SEPARATE incidents. The media cron is
+//   NOT proven to cause the Vercel preview Neon branching status; the two
+//   live at different layers (Vercel CI integration vs Neon production
+//   workload). Do not conflate. Specifically:
+//     1. The vercel.json buildCommand does NOT run migrations (verified
+//        in NEON.md §3 Trap #1).
+//     2. The GitHub check showing "Vercel: pending" reflects the legacy
+//        Statuses API drift (RC8 above), not a Neon branch-limit failure.
+//     3. Repo docs (docs/neon-vercel-integration-repair-plan-2026-05-17.md
+//        §F.8) classify the "Branch limit exceeded" symptom as stale
+//        Vercel-Neon integration state, NOT actual branch exhaustion.
+//     4. Actual documented branch count is 8 / 5000 (well under cap).
+//     5. The media-backfill + media-sync crons (both formerly `*/15`)
+//        are the real Neon compute risk because media-backfill runs
+//        JSON-heavy scans against the 872 MB `Listing.media` column
+//        (now mitigated by PR #176 which paused media-backfill).
+//     6. There is a known Neon project-ID ambiguity (Vercel env
+//        NEON_PROJECT_ID may point at the production DB project rather
+//        than the integration's preview-branching project — see
+//        NEON.md §11 "Known mismatch"); operator must verify against
+//        the Vercel env + Neon Console read-only before any project-ID
+//        change. Do NOT rotate project IDs without that verification.
 //
 // Exit codes:
 //   0 — healthy
@@ -54,6 +94,22 @@ const THRESHOLDS = {
   sync_error_critical_24h: 100,
   sync_watermark_stale_hours: 2,      // no sync in 2h = stale
   archive_backlog_warn: 1000,         // over 1K eligible = cron caps need increase
+
+  // ── Media-sync thresholds (added 2026-05-22 per RC1/RC3/RC4 of the
+  //    canonical incident document). All read-only against existing tables.
+  media_cursor_warn_hours: 1,                        // last_photos_change age > 1h = warn
+  media_cursor_stale_hours: 2,                       // > 2h = critical (matches Property sync watermark)
+  media_cursor_freeze_hours: 24,                     // > 24h = critical with explicit "boundary-cluster deadlock" pointer
+  media_last_run_stale_hours: 1,                     // cron last_run_at > 1h ago = warn (it fires every 15 min)
+  listing_media_coverage_warn_pct: 50,               // < 50% of IDX-displayable have listing_media rows
+  listing_media_coverage_critical_pct: 30,
+  r2_cached_coverage_warn_pct: 40,                   // < 40% have media_url_cached on listing_media
+  r2_attempts_backlog_warn: 50,                      // > 50 rows with r2_attempts > 0
+  r2_attempts_backlog_critical: 500,
+  no_usable_image_warn: 1000,                        // > 1K IDX-displayable have empty media
+  no_usable_image_critical: 5000,
+  listings_dead_tuple_warn_pct: 20,                  // listings table dead-tuple ratio > 20%
+  listings_dead_tuple_critical_pct: 35,
 };
 
 function mb(bytes) { return Number(bytes) / 1024 / 1024; }
@@ -329,6 +385,313 @@ async function run() {
     }
   }
 
+  // ─── Media Sync Health (added 2026-05-22) ────────────────────────
+  // Read-only checks against `media_sync_state`, `listing_media`, `listings`,
+  // and `audit_events`. Catches the chronic patterns documented in
+  // docs/incidents/2026-05-21-chronic-media-sync-root-cause.md:
+  //   RC1 — Phase 1 boundary-cluster cursor deadlock
+  //   RC3 — Phase 3 R2 mirror retry purgatory
+  //   RC4 — Storage bloat (dead-tuple, see Storage extension below)
+  //   RC6 — Observability gap (this block IS the closure)
+  report.media_sync = {};
+  try {
+    const mediaCursor = await prisma.mediaSyncState.findUnique({ where: { resource: 'Media' } });
+    if (!mediaCursor) {
+      report.media_sync.state = 'not_yet_populated';
+      report.issues.push({
+        level: 'warning',
+        category: 'media-sync',
+        msg: 'media_sync_state row for resource=Media does not exist — media-sync cron has never run',
+      });
+    } else {
+      const cursorAgeH = hoursAgo(mediaCursor.last_photos_change);
+      const runAgeH = hoursAgo(mediaCursor.last_run_at);
+      report.media_sync.last_photos_change = mediaCursor.last_photos_change;
+      report.media_sync.cursor_age_hours = cursorAgeH !== null ? Number(cursorAgeH.toFixed(1)) : null;
+      report.media_sync.last_media_modified = mediaCursor.last_media_modified;
+      report.media_sync.last_run_at = mediaCursor.last_run_at;
+      report.media_sync.last_run_status = mediaCursor.last_run_status;
+      report.media_sync.last_run_hours_ago = runAgeH !== null ? Number(runAgeH.toFixed(1)) : null;
+      report.media_sync.rows_checked_last_run = Number(mediaCursor.rows_checked);
+      report.media_sync.rows_updated_last_run = Number(mediaCursor.rows_updated);
+      report.media_sync.rows_failed_last_run = Number(mediaCursor.rows_failed);
+
+      // Cursor staleness — the chronic-freeze detector (RC1).
+      if (cursorAgeH !== null && cursorAgeH > THRESHOLDS.media_cursor_freeze_hours) {
+        report.issues.push({
+          level: 'critical',
+          category: 'media-sync',
+          msg: `media-sync cursor (last_photos_change) is ${cursorAgeH.toFixed(1)}h stale (> ${THRESHOLDS.media_cursor_freeze_hours}h) — likely Phase 1 boundary-cluster deadlock; see docs/incidents/2026-05-21-chronic-media-sync-root-cause.md RC1`,
+        });
+      } else if (cursorAgeH !== null && cursorAgeH > THRESHOLDS.media_cursor_stale_hours) {
+        report.issues.push({
+          level: 'critical',
+          category: 'media-sync',
+          msg: `media-sync cursor stale (${cursorAgeH.toFixed(1)}h > ${THRESHOLDS.media_cursor_stale_hours}h)`,
+        });
+      } else if (cursorAgeH !== null && cursorAgeH > THRESHOLDS.media_cursor_warn_hours) {
+        report.issues.push({
+          level: 'warning',
+          category: 'media-sync',
+          msg: `media-sync cursor warming-stale (${cursorAgeH.toFixed(1)}h > ${THRESHOLDS.media_cursor_warn_hours}h)`,
+        });
+      }
+
+      // Last-run heartbeat — the cron should fire every 15 min.
+      if (runAgeH !== null && runAgeH > THRESHOLDS.media_last_run_stale_hours) {
+        report.issues.push({
+          level: 'warning',
+          category: 'media-sync',
+          msg: `media-sync cron last fired ${runAgeH.toFixed(1)}h ago — schedule is every 15 min, expected < 1h`,
+        });
+      }
+    }
+
+    // listing_media coverage on IDX-displayable listings.
+    const [coverageRow] = await prisma.$queryRawUnsafe(`
+      SELECT
+        COUNT(*)::int AS idx_displayable,
+        (COUNT(*) FILTER (WHERE EXISTS (
+          SELECT 1 FROM listing_media lm
+          WHERE lm.listing_id = l.listing_id AND lm.status = 'active'
+        )))::int AS with_active_listing_media,
+        (COUNT(*) FILTER (WHERE EXISTS (
+          SELECT 1 FROM listing_media lm
+          WHERE lm.listing_id = l.listing_id AND lm.status = 'active' AND lm.media_url_cached IS NOT NULL
+        )))::int AS with_r2_cached_listing_media
+      FROM listings l
+      WHERE l.idx_display_yn = true
+    `);
+    const idxDisp = Number(coverageRow.idx_displayable);
+    const withLM = Number(coverageRow.with_active_listing_media);
+    const withR2 = Number(coverageRow.with_r2_cached_listing_media);
+    const coveragePct = idxDisp > 0 ? (100 * withLM / idxDisp) : 0;
+    const r2CovPct = idxDisp > 0 ? (100 * withR2 / idxDisp) : 0;
+    report.media_sync.idx_displayable_total = idxDisp;
+    report.media_sync.with_active_listing_media = withLM;
+    report.media_sync.with_r2_cached_listing_media = withR2;
+    report.media_sync.listing_media_coverage_pct = Number(coveragePct.toFixed(1));
+    report.media_sync.r2_cached_coverage_pct = Number(r2CovPct.toFixed(1));
+    if (coveragePct < THRESHOLDS.listing_media_coverage_critical_pct) {
+      report.issues.push({
+        level: 'critical',
+        category: 'media-sync',
+        msg: `listing_media coverage ${coveragePct.toFixed(1)}% of ${idxDisp} IDX-displayable (critical < ${THRESHOLDS.listing_media_coverage_critical_pct}%)`,
+      });
+    } else if (coveragePct < THRESHOLDS.listing_media_coverage_warn_pct) {
+      report.issues.push({
+        level: 'warning',
+        category: 'media-sync',
+        msg: `listing_media coverage ${coveragePct.toFixed(1)}% of ${idxDisp} IDX-displayable (warn < ${THRESHOLDS.listing_media_coverage_warn_pct}%)`,
+      });
+    }
+    if (r2CovPct < THRESHOLDS.r2_cached_coverage_warn_pct) {
+      report.issues.push({
+        level: 'warning',
+        category: 'media-sync',
+        msg: `R2 cached coverage ${r2CovPct.toFixed(1)}% of IDX-displayable (warn < ${THRESHOLDS.r2_cached_coverage_warn_pct}%) — many listings still depend on legacy Listing.media JSON fallback`,
+      });
+    }
+
+    // Public image usability — TRUE first-image classification on
+    // IDX-displayable listings. Codex P2 fix on PR #178 (b3ab86da):
+    // the prior shape used `media::text LIKE '%r2.dev%'` which would
+    // classify a listing as "R2" if ANY url in the array matched the
+    // R2 domain, even when the user-visible first image was Trestle/
+    // proxy. That hid fallback dependency during incident monitoring.
+    //
+    // New shape extracts `media->0` and reads its `url` / `MediaURL`
+    // field (different writer code paths use different casing — the
+    // legacy idx-sync writes `{url, mediaType, order}`, raw Trestle
+    // batches sometimes write `{MediaURL, MediaCategory, ...}`).
+    // COALESCE picks whichever the row actually has. Buckets are now
+    // mutually exclusive and exhaustive across IDX-displayable rows.
+    const [imgRow] = await prisma.$queryRawUnsafe(`
+      SELECT
+        (COUNT(*) FILTER (
+          WHERE media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0
+        ))::int AS empty_media,
+        (COUNT(*) FILTER (
+          WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
+            AND (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%r2.dev%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%images.mallan.nyc%'
+            )
+        ))::int AS first_image_r2,
+        (COUNT(*) FILTER (
+          WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
+            AND (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%cotality.com%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%corelogic.com%'
+            )
+            AND NOT (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%r2.dev%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%images.mallan.nyc%'
+            )
+        ))::int AS first_image_trestle_proxy,
+        (COUNT(*) FILTER (
+          WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
+            AND NOT (
+              COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%r2.dev%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%images.mallan.nyc%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%cotality.com%'
+              OR COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%corelogic.com%'
+            )
+        ))::int AS first_image_other
+      FROM listings WHERE idx_display_yn = true
+    `);
+    report.media_sync.first_image_r2 = Number(imgRow.first_image_r2);
+    report.media_sync.first_image_trestle_proxy = Number(imgRow.first_image_trestle_proxy);
+    report.media_sync.first_image_empty = Number(imgRow.empty_media);
+    report.media_sync.first_image_other = Number(imgRow.first_image_other);
+    // Conservative lower bound on "no usable image": only the empty-media set
+    // is definitively unusable. Trestle-proxy URLs may still render via the
+    // proxy if Trestle hasn't rotated them; R2 URLs are stable.
+    report.media_sync.idx_displayable_no_usable_image_lower_bound = Number(imgRow.empty_media);
+    if (Number(imgRow.empty_media) >= THRESHOLDS.no_usable_image_critical) {
+      report.issues.push({
+        level: 'critical',
+        category: 'media-sync',
+        msg: `${imgRow.empty_media} IDX-displayable listings have empty media (placeholder rendered) — critical >= ${THRESHOLDS.no_usable_image_critical}`,
+      });
+    } else if (Number(imgRow.empty_media) >= THRESHOLDS.no_usable_image_warn) {
+      report.issues.push({
+        level: 'warning',
+        category: 'media-sync',
+        msg: `${imgRow.empty_media} IDX-displayable listings have empty media (warn >= ${THRESHOLDS.no_usable_image_warn})`,
+      });
+    }
+
+    // R2 mirror progress — last 24h (from media_sync_cron audit events).
+    const [r2_24h] = await prisma.$queryRawUnsafe(`
+      SELECT
+        COALESCE(SUM((changes->>'r2_mirrored')::int), 0)::int AS r2_mirrored_24h,
+        COALESCE(SUM((changes->>'r2_failed')::int), 0)::int   AS r2_failed_24h,
+        COALESCE(SUM((changes->>'r2_skipped')::int), 0)::int  AS r2_skipped_24h,
+        COUNT(*)::int                                          AS firings_24h
+      FROM audit_events
+      WHERE action = 'media_sync_cron'
+        AND created_at > (NOW() - INTERVAL '24 hours')
+    `);
+    const r2Mirrored = Number(r2_24h.r2_mirrored_24h);
+    const r2Failed   = Number(r2_24h.r2_failed_24h);
+    const r2Skipped  = Number(r2_24h.r2_skipped_24h);
+    const firings    = Number(r2_24h.firings_24h);
+    report.media_sync.r2_mirrored_24h = r2Mirrored;
+    report.media_sync.r2_failed_24h = r2Failed;
+    report.media_sync.r2_skipped_24h = r2Skipped;
+    report.media_sync.media_sync_firings_24h = firings;
+    if (firings > 0 && r2Mirrored === 0 && r2Failed > 0) {
+      report.issues.push({
+        level: 'critical',
+        category: 'media-sync',
+        msg: `R2 mirror 24h: 0 succeeded, ${r2Failed} failed across ${firings} cron firings — Phase 3 retry purgatory (RC3)`,
+      });
+    } else if (r2Failed > 5 * Math.max(r2Mirrored, 1)) {
+      report.issues.push({
+        level: 'warning',
+        category: 'media-sync',
+        msg: `R2 mirror 24h failure ratio: ${r2Failed} failed vs ${r2Mirrored} mirrored (warn ratio > 5)`,
+      });
+    }
+
+    // R2 retry backlog — listing_media rows currently in or near tombstone window.
+    const [retryRow] = await prisma.$queryRawUnsafe(`
+      SELECT
+        (COUNT(*) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts > 0 AND status = 'active'))::int AS rows_with_attempts,
+        (COUNT(*) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts >= 3 AND status = 'active'))::int AS rows_at_or_above_threshold,
+        MIN(r2_last_attempt_at) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts > 0 AND status = 'active') AS oldest_last_attempt,
+        MAX(r2_last_attempt_at) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts > 0 AND status = 'active') AS newest_last_attempt
+      FROM listing_media
+    `);
+    report.media_sync.r2_retry_backlog = Number(retryRow.rows_with_attempts);
+    report.media_sync.r2_above_tombstone_threshold = Number(retryRow.rows_at_or_above_threshold);
+    report.media_sync.r2_retry_backlog_oldest = retryRow.oldest_last_attempt;
+    report.media_sync.r2_retry_backlog_newest = retryRow.newest_last_attempt;
+    if (Number(retryRow.rows_with_attempts) >= THRESHOLDS.r2_attempts_backlog_critical) {
+      report.issues.push({
+        level: 'critical',
+        category: 'media-sync',
+        msg: `${retryRow.rows_with_attempts} listing_media rows have r2_attempts > 0 (critical >= ${THRESHOLDS.r2_attempts_backlog_critical})`,
+      });
+    } else if (Number(retryRow.rows_with_attempts) > THRESHOLDS.r2_attempts_backlog_warn) {
+      report.issues.push({
+        level: 'warning',
+        category: 'media-sync',
+        msg: `${retryRow.rows_with_attempts} listing_media rows have r2_attempts > 0 (warn > ${THRESHOLDS.r2_attempts_backlog_warn})`,
+      });
+    }
+  } catch (e) {
+    if (e.message?.includes('does not exist')) {
+      report.media_sync.state = 'pre_migration';
+      report.media_sync.note = 'media_sync_state / listing_media table not yet migrated';
+    } else {
+      report.media_sync.error = e.message;
+      report.issues.push({
+        level: 'warning',
+        category: 'media-sync',
+        msg: `Media-sync health probe error: ${e.message}`,
+      });
+    }
+  }
+
+  // ─── Storage extension — table health (dead-tuple ratio) ─────────
+  // Added 2026-05-22 per RC4 of the canonical incident doc. listings table
+  // bloated to 872 MB despite media JSON being only 13 MB; root driver is
+  // 663K+ UPDATEs with zero manual VACUUM FULL ever. This block surfaces
+  // dead-tuple ratio so the next bloat episode is detected within hours,
+  // not 23 days. Read-only — pg_stat_user_tables is a system catalog view.
+  try {
+    const tableHealth = await prisma.$queryRawUnsafe(`
+      SELECT
+        relname,
+        n_live_tup, n_dead_tup,
+        CASE WHEN (n_live_tup + n_dead_tup) > 0
+          THEN ROUND(100.0 * n_dead_tup / (n_live_tup + n_dead_tup), 1)::float
+          ELSE 0::float END AS dead_pct,
+        last_vacuum, last_autovacuum,
+        vacuum_count, autovacuum_count
+      FROM pg_stat_user_tables
+      WHERE relname IN ('listings', 'listing_media')
+    `);
+    report.storage.table_health = tableHealth.map((t) => ({
+      table: t.relname,
+      live: Number(t.n_live_tup),
+      dead: Number(t.n_dead_tup),
+      dead_pct: Number(t.dead_pct),
+      last_vacuum: t.last_vacuum,
+      last_autovacuum: t.last_autovacuum,
+      manual_vacuum_count: Number(t.vacuum_count),
+      autovacuum_count: Number(t.autovacuum_count),
+    }));
+    const listingsHealth = tableHealth.find((t) => t.relname === 'listings');
+    const listingMediaHealth = tableHealth.find((t) => t.relname === 'listing_media');
+    if (listingsHealth && Number(listingsHealth.dead_pct) >= THRESHOLDS.listings_dead_tuple_critical_pct) {
+      report.issues.push({
+        level: 'critical',
+        category: 'storage',
+        msg: `listings table dead-tuple ratio ${listingsHealth.dead_pct}% (critical >= ${THRESHOLDS.listings_dead_tuple_critical_pct}%) — VACUUM FULL needed; see docs/incidents/2026-05-21-chronic-media-sync-root-cause.md RC4`,
+      });
+    } else if (listingsHealth && Number(listingsHealth.dead_pct) >= THRESHOLDS.listings_dead_tuple_warn_pct) {
+      report.issues.push({
+        level: 'warning',
+        category: 'storage',
+        msg: `listings table dead-tuple ratio ${listingsHealth.dead_pct}% (warn >= ${THRESHOLDS.listings_dead_tuple_warn_pct}%) — schedule VACUUM FULL window`,
+      });
+    }
+    if (listingMediaHealth && Number(listingMediaHealth.dead_pct) >= THRESHOLDS.listings_dead_tuple_warn_pct) {
+      report.issues.push({
+        level: 'warning',
+        category: 'storage',
+        msg: `listing_media table dead-tuple ratio ${listingMediaHealth.dead_pct}% (warn >= ${THRESHOLDS.listings_dead_tuple_warn_pct}%)`,
+      });
+    }
+  } catch (e) {
+    if (!e.message?.includes('does not exist')) {
+      report.storage.table_health_error = e.message;
+    }
+  }
+
   // ─── Phase 6 Upgrade Triggers ─────────────────────────────────────
   report.triggers.storage_upgrade_needed = report.storage.pct_of_free >= THRESHOLDS.storage_upgrade_pct * 100;
   report.triggers.storage_warning = report.storage.pct_of_free >= THRESHOLDS.storage_warning_pct * 100;
@@ -384,6 +747,16 @@ function renderHuman(r) {
   console.log(`  DB size: ${r.storage.db_size_mb} MB (${r.storage.pct_of_free}% of ${r.storage.free_cap_mb} MB Launch plan cap)`);
   console.log('  Top 5 tables:');
   r.storage.top_5_tables.forEach((t) => console.log(`    ${t.table.padEnd(30)} ${t.size_mb} MB`));
+  if (Array.isArray(r.storage.table_health) && r.storage.table_health.length) {
+    console.log('  Table health (dead-tuple ratio):');
+    r.storage.table_health.forEach((t) => {
+      const vacuumSrc = t.last_vacuum || t.last_autovacuum;
+      const lv = vacuumSrc ? new Date(vacuumSrc).toISOString().slice(0, 19) + 'Z' : 'never';
+      console.log(`    ${t.table.padEnd(20)} live=${t.live} dead=${t.dead} (${t.dead_pct}%) · manual VACUUM=${t.manual_vacuum_count} · last_vacuum=${lv}`);
+    });
+  } else if (r.storage.table_health_error) {
+    console.log(`  Table health: (read error: ${r.storage.table_health_error})`);
+  }
 
   console.log('\n── SYNC ──────────────────────────────────────────');
   console.log(`  State: ${r.sync.state || 'unknown'}`);
@@ -404,6 +777,49 @@ function renderHuman(r) {
   console.log(`  T+180d archive backlog: ${r.retention.archive_backlog ?? 0}`);
   if (r.retention.listings_archived_total !== undefined) {
     console.log(`  Archived total: ${r.retention.listings_archived_total}`);
+  }
+
+  if (r.media_sync && Object.keys(r.media_sync).length) {
+    console.log('\n── MEDIA SYNC ────────────────────────────────────');
+    const ms = r.media_sync;
+    if (ms.state === 'pre_migration' || ms.state === 'not_yet_populated') {
+      console.log(`  State: ${ms.state}${ms.note ? ` — ${ms.note}` : ''}`);
+    } else if (ms.error) {
+      console.log(`  (probe error: ${ms.error})`);
+    } else {
+      if (ms.last_photos_change) {
+        const cursorAge = ms.cursor_age_hours;
+        const stale = cursorAge !== null && cursorAge > THRESHOLDS.media_cursor_warn_hours;
+        console.log(`  Cursor (last_photos_change): ${new Date(ms.last_photos_change).toISOString().slice(0, 19) + 'Z'} (${cursorAge}h ago${stale ? ' ⚠️' : ''})`);
+      }
+      if (ms.last_media_modified) {
+        console.log(`  Cursor (last_media_modified): ${new Date(ms.last_media_modified).toISOString().slice(0, 19) + 'Z'}`);
+      }
+      if (ms.last_run_at) {
+        console.log(`  Last run: ${new Date(ms.last_run_at).toISOString().slice(0, 19) + 'Z'} (${ms.last_run_hours_ago}h ago) · status=${ms.last_run_status}`);
+        console.log(`  Last run counters: checked=${ms.rows_checked_last_run} updated=${ms.rows_updated_last_run} failed=${ms.rows_failed_last_run}`);
+      }
+      if (ms.idx_displayable_total !== undefined) {
+        console.log(`  IDX-displayable total: ${ms.idx_displayable_total}`);
+        console.log(`    with listing_media (active): ${ms.with_active_listing_media} (${ms.listing_media_coverage_pct}%)`);
+        console.log(`    with R2 cached: ${ms.with_r2_cached_listing_media} (${ms.r2_cached_coverage_pct}%)`);
+      }
+      if (ms.first_image_r2 !== undefined) {
+        console.log(`  First image classification (media->0 ‘url’ / ‘MediaURL’ on IDX-displayable):`);
+        console.log(`    R2 URL:           ${ms.first_image_r2}`);
+        console.log(`    Trestle/proxy:    ${ms.first_image_trestle_proxy}`);
+        console.log(`    other URL host:   ${ms.first_image_other ?? 0}`);
+        console.log(`    empty (no image): ${ms.first_image_empty}`);
+      }
+      if (ms.r2_mirrored_24h !== undefined) {
+        console.log(`  R2 mirror 24h: mirrored=${ms.r2_mirrored_24h} failed=${ms.r2_failed_24h} skipped=${ms.r2_skipped_24h} (across ${ms.media_sync_firings_24h} cron firings)`);
+      }
+      if (ms.r2_retry_backlog !== undefined) {
+        const oldest = ms.r2_retry_backlog_oldest ? new Date(ms.r2_retry_backlog_oldest).toISOString().slice(0, 19) + 'Z' : 'n/a';
+        const newest = ms.r2_retry_backlog_newest ? new Date(ms.r2_retry_backlog_newest).toISOString().slice(0, 19) + 'Z' : 'n/a';
+        console.log(`  R2 retry backlog: ${ms.r2_retry_backlog} rows w/ r2_attempts>0 (${ms.r2_above_tombstone_threshold} ≥ 3-strike threshold) · oldest=${oldest} newest=${newest}`);
+      }
+    }
   }
 
   if (r.branch_prune) {
