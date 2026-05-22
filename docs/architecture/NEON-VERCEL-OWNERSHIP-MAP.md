@@ -23,6 +23,7 @@ If you're reading this because a Vercel preview build is stuck "pending" or a "N
 | **B. Stale Vercel-GitHub legacy `Vercel` status** (RC8) | GitHub `gh pr checks` shows `Vercel: pending` indefinitely, but actual Vercel deployment state is `READY` and `Vercel Preview Comments` check-run is `success` | Vercel posts build-start "pending" to GitHub's legacy Statuses API but never sends the success post-back. Modern Check-Runs API works fine. | Cosmetic only. Verify via Vercel Dashboard or `mcp__claude_ai_Vercel__get_deployment` that `state=READY` and merge based on Vercel-side truth. **Do not** reconnect the Vercel-GitHub integration without explicit Maya approval. |
 | **C. Real failed deployment** | Vercel deployment state is `ERROR`; build logs show actual error | Genuine build/runtime failure | Inspect build logs via `mcp__claude_ai_Vercel__get_deployment_build_logs`. Fix the underlying error. |
 | **D. Real Neon branch exhaustion** | `ops:health` reports `branch_prune` examined ≥ 4000 (critical) or `≥ 25` (warn); Neon Console actually shows that count | Cron not pruning OR cron pointed at wrong project (the known `NEON_PROJECT_ID` ambiguity) | First confirm cron's actual target project via Neon Console + Vercel env read. Only then act. |
+| **E. Alias-stale promotion** (PR #175 pattern; added 2026-05-22) | Branch alias serves an OLDER deployment than the latest READY one; latest deployment's `alias: [...]` does not include the branch-alias hostname OR the branch alias resolves to a different older deployment; multiple commits/deployments exist on the same branch and alias promotion did not advance correctly. | Vercel-side alias-promotion drift — the build/deployment succeeded, but the branch alias did not advance to the latest READY deployment. The build itself is NOT failed. | Verify the latest READY deployment for the PR head SHA via Vercel evidence (`mcp__claude_ai_Vercel__get_deployment` or list_deployments); verify immutable preview URL and branch alias **SEPARATELY** (curl each `-I` and compare `dpl_*` they resolve to). Confirm whether the branch alias points to the latest READY deployment. **If alias is stale: do NOT treat as build failure. Do NOT rerun deployments as the "fix" — the deployment is already READY. Do NOT touch app/listing/media code, Neon, Prisma, env vars, workflows, cron, or integrations.** Prepare Vercel support evidence with: affected PR, head SHA, latest READY deployment ID, immutable preview URL, branch alias URL, which deployment the branch alias actually resolves to, expected deployment-alias mapping, actual deployment-alias mapping. |
 
 **Do NOT (without explicit Maya approval AND symptom classification above):**
 - ❌ Do not change `NEON_PROJECT_ID` on Vercel runtime or GitHub Actions
@@ -78,7 +79,7 @@ Do NOT rely on the legacy `Vercel` status context alone. Use these instead:
 1. **Vercel deployment `state: "READY"`** — read via the Vercel MCP `get_deployment` call or the inspector URL.
 2. **Immutable preview URL returns HTTP 200** — `curl -sI https://mallan-<hash>-mallan.vercel.app/` (or browser).
 3. **Production deployment `state` when the change is being promoted to `main`** — verify the post-merge production rebuild reached READY.
-4. **Deployment alias / `dpl_*` match when relevant** — confirm the branch alias actually points at the latest deployment (guards against the PR #175-style alias-stale variant; see "⚠️ Do Not Fix Blindly" classifier row D).
+4. **Deployment alias / `dpl_*` match when relevant** — confirm the branch alias actually points at the latest deployment (guards against the PR #175-style alias-stale variant; see "⚠️ Do Not Fix Blindly" classifier row **E (alias-stale promotion)**).
 5. **GitHub Check-Runs API** (modern, not the legacy Statuses API) — `pr-check`, `guardrails`, `claude-review`, `Vercel Preview Comments` all reporting `conclusion: success`.
 6. **Release-truth / repo-owned checks** if available (custom GitHub Actions verifying end-to-end behavior).
 
@@ -124,9 +125,9 @@ Pair the table above with this single-sentence ticket summary:
 
 ### When this doctrine does NOT apply
 
-- If the symptom is **alias-stale promotion** (the PR #175 pattern — branch alias points at an older deployment): a SEPARATE failure mode. See "⚠️ Do Not Fix Blindly" classifier row D and re-classify before any action.
+- If the symptom is **alias-stale promotion** (the PR #175 pattern — branch alias points at an older deployment): a SEPARATE failure mode. See "⚠️ Do Not Fix Blindly" classifier row **E (alias-stale promotion)** and re-classify before any action.
 - If the symptom is a **real build error** (`state: ERROR`): do NOT apply this workaround. Inspect build logs via `mcp__claude_ai_Vercel__get_deployment_build_logs`.
-- If the symptom is a **real Neon branch-limit exhaustion** (verified via `ops:health` showing branch count ≥ 25 AND Neon Console confirming): see "⚠️ Do Not Fix Blindly" classifier row D-real, not this RC8 doctrine.
+- If the symptom is a **real Neon branch-limit exhaustion** (verified via `ops:health` showing branch count ≥ 25 AND Neon Console confirming): see "⚠️ Do Not Fix Blindly" classifier row **D (real Neon branch exhaustion)**, not this RC8 doctrine.
 
 ---
 
