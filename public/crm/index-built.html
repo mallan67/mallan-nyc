@@ -13315,6 +13315,27 @@ var MallanAPI = (function () {
     },
 
     /**
+     * PR-CRM.6 (2026-05-24) — stop an active impersonation session.
+     * Backend (app/api/auth/impersonation/stop) writes an AuditEvent
+     * ("impersonate_stop"), destroys the delegated session, and
+     * clears the SESSION_COOKIE. Per the route's own doc:
+     * "Broker must re-login with their own credentials" — the
+     * original broker session cannot be restored because impersonation
+     * overwrote the cookie at start.
+     *
+     * MUST go through _fetch so the call honors MallanAPI._baseUrl
+     * + 401-unauthorized handling (same reason as agents.impersonate
+     * above — Codex P1 on the original PR-CRM.6 commit).
+     *
+     * Response shape: { success: true, message: "..." }
+     */
+    stopImpersonation: function () {
+      return _fetch('/api/auth/impersonation/stop', {
+        method: 'POST',
+      });
+    },
+
+    /**
      * Change password (authenticated).
      */
     changePassword: function (currentPassword, newPassword) {
@@ -13489,6 +13510,28 @@ var MallanAPI = (function () {
     deactivate: function (id) {
       return _fetch('/api/crm/agents/' + encodeURIComponent(id), {
         method: 'DELETE',
+      });
+    },
+
+    /**
+     * PR-CRM.6 (2026-05-24) — start a server-side delegated impersonation
+     * session for the given agent. Broker-only on the backend
+     * (requireBroker); the server writes an AuditEvent ("impersonate_start"),
+     * creates a 2-hour delegated agent session, and sets the SESSION_COOKIE
+     * to the new token.
+     *
+     * MUST go through _fetch so the request honors MallanAPI._baseUrl
+     * (the CRM may be served from a non-mallan.nyc origin while pointing
+     * at https://mallan.nyc via agent-context.js) AND inherits the shared
+     * 401-unauthorized handler. The pre-fix raw fetch('/api/crm/agents/.../
+     * impersonate') bypassed both — flagged as P1 by Codex on the original
+     * PR-CRM.6 commit.
+     *
+     * Response shape: { success: true, impersonating: { id, name, email, role } }
+     */
+    impersonate: function (agentId) {
+      return _fetch('/api/crm/agents/' + encodeURIComponent(agentId) + '/impersonate', {
+        method: 'POST',
       });
     },
 
