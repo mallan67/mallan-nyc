@@ -7,6 +7,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { isAuthError, logAuditEvent, requirePortalRole } from "@/lib/auth";
 import { normalizeTenantSignalPayload } from "@/lib/rental-signals/summary";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 const SIGNAL_EVENTS = [
   "tenant_rental_link_saved",
   "tenant_rent_vs_buy_signal",
@@ -20,6 +21,10 @@ export async function POST(req: NextRequest) {
 
   const auth = await requirePortalRole(req, "tenant", "renter");
   if (isAuthError(auth)) return auth;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(auth.userId);
+  if (limited) return limited;
+
 
   let body: Record<string, unknown>;
   try {

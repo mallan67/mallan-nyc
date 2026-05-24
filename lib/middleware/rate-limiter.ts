@@ -63,6 +63,16 @@ const limiterSpecs = {
   // to mirror the public inquiry rate but with its own quota so bursts
   // on the public form don't lock out broker workflows (and vice versa).
   agent_inquiry: { count: 30, window: "3600 s" },
+  // PR-CRM.5 (2026-05-24) — Authenticated portal write quota.
+  // 30 writes/hour per portal user (key = "user:<userId>", NOT IP-only).
+  // Closes the 2026-05-24 CRM Backbone Audit §6 finding: 17 portal POST
+  // routes had no rate limit, allowing authenticated buyer/seller/
+  // tenant/landlord users to spam broker inboxes / comments / showing
+  // requests / offers / signals / email-triggering flows. NY SHIELD
+  // Act + UCBA 2026 data-quality risk. 30/hr is generous for normal
+  // human usage (a buyer making >30 listing reactions in an hour is
+  // either bot-driven or a stuck UI loop) and harsh for spam.
+  portal_write: { count: 30, window: "3600 s" },
 } as const satisfies Record<string, { count: number; window: `${number} s` }>;
 
 export type RouteLimiterName = keyof typeof limiterSpecs;
@@ -108,6 +118,50 @@ export async function checkRouteRateLimit(
   return memCheckRateLimit(
     `${route}:${ip}`,
     Math.max(1, Math.floor((memFallbackLimit * (RATE_WINDOW_MS / 1000)) / memFallbackWindowSeconds))
+  );
+}
+
+/**
+ * PR-CRM.5 (2026-05-24) — Portal write rate-limit convenience helper.
+ *
+ * Keyed by AUTHENTICATED USER identity (`user:<userId>`), NOT IP alone.
+ * This matters because multiple portal users may share an IP (NAT,
+ * household, corporate VPN) and a per-IP key would let one abusive user
+ * starve the whole household's quota OR conversely let multiple users
+ * collectively bypass the cap. Per-user keying is the correct model
+ * for an authenticated surface.
+ *
+ * Returns `null` when the call is allowed; returns a 429 `NextResponse`
+ * when rate-limited (callers `return` this directly). The 429 response
+ * body is intentionally PII-free — just a generic message + a
+ * `rate_limited: true` flag + a Retry-After header.
+ *
+ * Usage in any portal POST handler:
+ *
+ *   const limited = await checkPortalWriteRateLimit(auth.userId);
+ *   if (limited) return limited;
+ *   // … existing handler logic …
+ *
+ * Call AFTER auth gate (so a stranger can't burn an authenticated user's
+ * quota by trying their /api/portal/* route unauthenticated) and BEFORE
+ * any DB write / email send (so a 429 has zero side effects).
+ */
+export async function checkPortalWriteRateLimit(
+  userId: string | bigint | number,
+): Promise<NextResponse | null> {
+  const allowed = await checkRouteRateLimit(
+    `user:${String(userId)}`,
+    "portal_write",
+    30,    // 30 requests …
+    3600,  // … per hour
+  );
+  if (allowed) return null;
+  return NextResponse.json(
+    {
+      error: "Too many requests. Please slow down and try again in a moment.",
+      rate_limited: true,
+    },
+    { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
   );
 }
 

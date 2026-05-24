@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isAuthError, logAuditEvent, requireWorkspace } from "@/lib/auth";
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import {
   normalizeExternalListingCommentBody,
@@ -79,6 +80,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const access = await loadAccessibleExternalListing(req, id);
   if (access.response) return access.response;
   const { auth, externalListing } = access;
+
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(auth.userId);
+  if (limited) return limited;
 
   let body: Record<string, unknown>;
   try {

@@ -6,9 +6,14 @@ import prisma from "@/lib/prisma";
 import { requirePortalRole, requireAuth, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 export async function POST(req: NextRequest) {
   const session = await requireAuth(req);
   if (isAuthError(session)) return session;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(session.userId);
+  if (limited) return limited;
+
 
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;

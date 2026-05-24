@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 
 const VALID_ROLES = ["buyer", "renter", "seller", "landlord"];
 
@@ -10,6 +11,10 @@ export async function POST(req: NextRequest) {
   try {
     const session = await requireAuth(req);
     if (session instanceof NextResponse) return session;
+
+    // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+    const limited = await checkPortalWriteRateLimit(session.userId);
+    if (limited) return limited;
 
     if (session.userType !== "lead") {
       return NextResponse.json({ error: "Agents do not need to complete profile" }, { status: 400 });

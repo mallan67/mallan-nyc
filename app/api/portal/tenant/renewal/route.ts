@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { requirePortalRole, requireAuth, isAuthError } from "@/lib/auth";
 import { safeJson } from "@/lib/api/safe-json";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 export const dynamic = 'force-dynamic';
 
 const VALID_STATUSES = ['renewing', 'not_renewing', 'month_to_month', 'pending'];
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireAuth(request);
   if (isAuthError(session)) return session;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(session.userId);
+  if (limited) return limited;
+
 
   const auth = await requirePortalRole(request, "buyer", "tenant");
   if (isAuthError(auth)) return auth;

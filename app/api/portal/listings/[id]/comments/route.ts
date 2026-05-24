@@ -8,6 +8,7 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { isListingDisplayable } from "@/lib/search/listing-access-decision";
 import { recordPortalEvent } from "@/lib/portal/events";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 type RouteParams = { params: Promise<{ id: string }> };
 
 /**
@@ -84,6 +85,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 export async function POST(req: NextRequest, { params }: RouteParams) {
   const session = await requireAuth(req);
   if (isAuthError(session)) return session;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(session.userId);
+  if (limited) return limited;
+
 
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;

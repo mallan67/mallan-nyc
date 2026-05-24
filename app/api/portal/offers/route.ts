@@ -12,6 +12,7 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { isListingDisplayable } from "@/lib/search/listing-access-decision";
 import { recordPortalEvent } from "@/lib/portal/events";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 function formatMoney(value: unknown): string | null {
   const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
   if (!Number.isFinite(n) || n <= 0) return null;
@@ -154,6 +155,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(auth.userId);
+  if (limited) return limited;
+
 
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;

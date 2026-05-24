@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 export async function GET(req: NextRequest) {
   const session = await requireAuth(req);
   if (isAuthError(session)) return session;
@@ -11,6 +12,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(auth.userId);
+  if (limited) return limited;
+
 
   // Parse body defensively — returns 400 on malformed JSON rather than a 500.
   let body: Record<string, unknown>;

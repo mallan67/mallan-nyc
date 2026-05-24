@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
@@ -37,6 +38,10 @@ export async function POST(req: NextRequest) {
   if (blocked) return blocked;
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(auth.userId);
+  if (limited) return limited;
+
   if (auth.userType !== "lead") {
     return NextResponse.json({ error: "Portal access only" }, { status: 403 });
   }

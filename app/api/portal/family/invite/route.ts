@@ -10,11 +10,16 @@ import { portalInviteEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { escapeHtml } from "@/lib/sanitize";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
   const auth = await requireAuth(req);
   if (isAuthError(auth)) return auth;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(auth.userId);
+  if (limited) return limited;
+
 
   if (auth.userType !== "lead") {
     return NextResponse.json(

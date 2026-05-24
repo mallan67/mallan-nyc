@@ -13,6 +13,7 @@ import {
 } from "@/lib/external-listings/normalize";
 import { buildPortalExternalListingWhere, externalListingAccessRole } from "@/lib/external-listings/access";
 
+import { checkPortalWriteRateLimit } from "@/lib/middleware/rate-limiter";
 export async function GET(req: NextRequest) {
   const auth = await requireWorkspace(req, "buyer");
   if (isAuthError(auth)) return auth;
@@ -47,6 +48,10 @@ export async function POST(req: NextRequest) {
 
   const auth = await requireWorkspace(req, "buyer");
   if (isAuthError(auth)) return auth;
+  // PR-CRM.5 (2026-05-24) — portal_write rate limit (30/hr/user)
+  const limited = await checkPortalWriteRateLimit(auth.userId);
+  if (limited) return limited;
+
   if (auth.userType !== "lead") {
     return NextResponse.json({ error: "Portal access requires a client account" }, { status: 403 });
   }
