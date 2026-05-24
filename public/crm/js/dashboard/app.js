@@ -826,14 +826,44 @@ var CRM = (function () {
   // ─── Impersonation ───────────────────────────────────────────────────
   function showImpersonationPicker() {
     if (Store.isImpersonating()) {
-      // Stop impersonation
-      Events.log('impersonation_ended', 'agent', Store.session.impersonatedAgentId);
-      Store.stopImpersonation();
-      renderSidebar();
-      renderUserInfo();
-      _updateImpersonationBar();
-      Router.navigate('/broker/dashboard');
-      toast('Impersonation ended', 'info');
+      // PR-CRM.6 (2026-05-24, post-Codex-P1) — Stop impersonation
+      // server-side FIRST so the AuditEvent is written and the
+      // delegated session cookie is destroyed. Routed through the
+      // MallanAPI.auth.stopImpersonation() wrapper (NOT raw fetch)
+      // so the call honors MallanAPI._baseUrl (the CRM may be served
+      // from a non-mallan.nyc origin while pointing at https://
+      // mallan.nyc via agent-context.js) AND inherits the shared
+      // 401-unauthorized handler. Per the backend route's own doc,
+      // "Broker must re-login with their own credentials" — the
+      // original broker session cannot be restored because
+      // impersonation overwrote the cookie when it started. We
+      // redirect to /crm/login.html?redirect=/crm after stop.
+      var stoppedAgentId = Store.session.impersonatedAgentId;
+      MallanAPI.auth.stopImpersonation().then(function (data) {
+        if (!data || !data.success) {
+          // Don't fake success on a backend failure. Surface the
+          // error honestly — local state stays as-is so the user is
+          // not confused into thinking impersonation ended when it
+          // didn't.
+          toast('Failed to end impersonation. Please refresh and try again.', 'error');
+          return;
+        }
+        Events.log('impersonation_ended', 'agent', stoppedAgentId);
+        Store.stopImpersonation();
+        renderSidebar();
+        renderUserInfo();
+        _updateImpersonationBar();
+        toast('Impersonation ended — please log in again.', 'info');
+        // Backend cleared the session cookie; navigate to login so the
+        // next request lands on a fresh authenticated session.
+        window.location.href = '/crm/login.html?redirect=/crm';
+      }).catch(function (err) {
+        // _fetch rejects on non-2xx (with a parsed error message when
+        // available) and on network failure. Either way, surface
+        // honest error UI without clearing local state.
+        var msg = (err && err.message) ? err.message : 'Could not reach the server to end impersonation.';
+        toast(msg + ' Please refresh.', 'error');
+      });
       return;
     }
 
@@ -870,17 +900,57 @@ var CRM = (function () {
 
   function doImpersonate(agentId) {
     closeModal();
-    MallanAPI.agents.list().then(function (data) {
-      var agent = (data.agents || []).find(function (a) { return a.id === agentId; });
-      if (!agent) { toast('Agent not found', 'error'); return; }
-
+    // PR-CRM.6 (2026-05-24, post-Codex-P1) — Pre-fix, this function set
+    // client-only impersonation state via Store.startImpersonation
+    // without ever calling the backend. Consequence (per the
+    // 2026-05-16 CRM workflow audit BA1–BA10): no AuditEvent for the
+    // impersonation start, no server-side delegated session, server-
+    // side ownership checks still saw BROKER, and broker-as-agent
+    // could still approve own deals (leaky).
+    //
+    // We now POST via MallanAPI.agents.impersonate(agentId), which
+    // routes through _fetch and therefore:
+    //   - honors MallanAPI._baseUrl (the CRM may be served from a
+    //     non-mallan.nyc origin while agent-context.js points the
+    //     API base at https://mallan.nyc — raw fetch would hit the
+    //     wrong host)
+    //   - inherits the shared 401-unauthorized handler (raw fetch
+    //     would silently fail without redirecting to login)
+    //
+    // Backend (app/api/crm/agents/[id]/impersonate/route.ts) requires
+    // broker auth, writes AuditEvent "impersonate_start", creates a
+    // 2h delegated agent session, and sets the SESSION_COOKIE to the
+    // new token. ONLY on backend success (data.success && data
+    // .impersonating present) do we call Store.startImpersonation,
+    // so local UI never claims success when the server didn't actually
+    // authorize.
+    MallanAPI.agents.impersonate(agentId).then(function (data) {
+      if (!data || !data.success || !data.impersonating) {
+        toast('Impersonation refused by server.', 'error');
+        return;
+      }
+      // Build the agent object Store expects from the backend's
+      // authoritative response (not from the client-side agent list,
+      // which could be stale or filtered).
+      var agent = {
+        id: data.impersonating.id,
+        name: data.impersonating.name,
+        email: data.impersonating.email,
+        role: data.impersonating.role,
+      };
       Store.startImpersonation(agent);
-      Events.log('impersonation_started', 'agent', agentId, { agentName: agent.name });
+      Events.log('impersonation_started', 'agent', agent.id, { agentName: agent.name });
       renderSidebar();
       renderUserInfo();
       _updateImpersonationBar();
       Router.navigate('/ops/dashboard');
       toast('Now viewing as ' + (agent.name || agent.email), 'info');
+    }).catch(function (err) {
+      // _fetch rejects on non-2xx with a parsed error message and on
+      // network failure. Surface the message honestly — Store stays
+      // unmutated so the UI is consistent with the server.
+      var msg = (err && err.message) ? err.message : 'Could not reach the server to start impersonation.';
+      toast(msg, 'error');
     });
   }
 
