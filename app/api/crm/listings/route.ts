@@ -20,7 +20,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const type = searchParams.get("type"); // "sale" | "rent"
   const status = searchParams.get("status");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
+  // PR-CRM.4 (2026-05-24) — clamp limit to [1, 200] to prevent bulk
+  // extraction (NY SHIELD Act concern surfaced by the 2026-05-24 CRM
+  // Backbone Audit §8 finding #4). Prior cap was 200 but had no
+  // min-guard / NaN-guard: `?limit=` (empty) or `?limit=abc` would
+  // have made `parseInt` return NaN, propagating through Math.min to
+  // Prisma and failing unpredictably. Default 50 preserved.
+  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50") || 50, 1), 200);
   const offset = parseInt(searchParams.get("offset") || "0");
 
   // Build where clause with ownership enforcement
