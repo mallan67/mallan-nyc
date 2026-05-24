@@ -9,6 +9,7 @@ import { escapeHtml } from "@/lib/sanitize";
 import type { Prisma } from "@prisma/client";
 import { generateTrackingToken } from "@/lib/tracking/listing-token";
 import { assertLeadIdsAccess } from "@/lib/crm/access";
+import { scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -111,6 +112,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This listing is not eligible for distribution per REBNY RLS rules." },
       { status: 400 }
     );
+  }
+
+  // PR-CRM.2 (2026-05-24) — Fair Housing scan on agent-composed free text.
+  //
+  // Per the CRM Backbone Audit (2026-05-24) §8 finding #1: this route was
+  // sending agent-composed `note` (and any future cover_note/caption
+  // field) to clients WITHOUT scanning for protected-class language.
+  // Listing fields themselves are already scanned at listing-write time
+  // via `assertRlsCompliantPayload`; this closes the send-time gap.
+  // Federal FHA + NY State HRL + NYC Title 8 + NYC Fair Chance Housing
+  // Act all apply to client outreach text, not just public ads.
+  //
+  // We scan three agent-composed text fields:
+  //   - note         (currently consumed by listingSendEmail as personalNote)
+  //   - cover_note   (CRM Lifecycle Intelligence OS doctrine §10; reserved)
+  //   - caption      (same doctrine; reserved for future caller use)
+  // If/when callers add other agent-composed fields, add them to fhRecord.
+  //
+  // On any violation: return HTTP 422 BEFORE any DB write or email send.
+  // The response surfaces field + severity only — we do NOT echo the
+  // matched term back to the caller (avoid teaching the scanner's
+  // exact triggers and avoid mirroring prohibited language).
+  const fhRecord: Record<string, string | null | undefined> = {};
+  if (typeof body.note === "string") fhRecord.note = body.note;
+  if (typeof body.cover_note === "string") fhRecord.cover_note = body.cover_note;
+  if (typeof body.caption === "string") fhRecord.caption = body.caption;
+  const fhViolations = scanRecordForFairHousing(fhRecord);
+  if (fhViolations.length > 0) {
+    return NextResponse.json({
+      error: "This send was blocked by the Fair Housing scanner. Please revise the message and try again.",
+      fair_housing_violations: fhViolations.map((v) => ({
+        field: v.field,
+        severity: v.severity,
+      })),
+    }, { status: 422 });
   }
 
   // Resolve agent name for email
