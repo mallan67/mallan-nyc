@@ -22,6 +22,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // PR-CRM.3 (2026-05-24) — explicit consent capture per CRM Backbone Audit
+  // §6 finding (TCPA/CAN-SPAM gap on RSVP). The audit found this route
+  // silently accepted submissions without verifying the user explicitly
+  // consented to be contacted about the open house / listing. We now
+  // require `consent: true` in the body and refresh Lead.consent_captured_at
+  // on success. Per spec: do NOT create a misleading success on missing
+  // consent — fail fast with 422 before any DB write.
+  if (body.consent !== true) {
+    return NextResponse.json(
+      {
+        error:
+          "Explicit consent is required to RSVP. Please confirm you agree to be contacted about this open house.",
+        consent_required: true,
+      },
+      { status: 422 },
+    );
+  }
+
   const openHouseId = (body.open_house_id || body.event_id) as string;
   const listingId = body.listing_id as string | undefined;
 
@@ -43,9 +61,27 @@ export async function POST(req: NextRequest) {
       changes: {
         open_house_id: openHouseId,
         ...(listingId ? { listing_id: listingId } : {}),
+        consent_captured_at: new Date().toISOString(),
       },
     },
   });
+
+  // PR-CRM.3 — refresh consent timestamp on the Lead row (only when the
+  // session belongs to a lead; agents don't carry this column on the
+  // Agent model). Best-effort: a missing-lead failure should not bubble
+  // up as a 500 to the user.
+  if (session.userType === "lead") {
+    try {
+      await prisma.lead.update({
+        where: { id: session.userId },
+        data: { consent_captured_at: new Date() },
+      });
+    } catch (err) {
+      // Lead row may not exist (orphaned session) — log but don't fail
+      // the RSVP since the audit_event has already captured the consent.
+      console.warn("[RSVP] consent_captured_at refresh failed:", err);
+    }
+  }
 
   return NextResponse.json({ success: true, message: "RSVP confirmed" });
 }

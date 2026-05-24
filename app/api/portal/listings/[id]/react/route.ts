@@ -35,6 +35,26 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // PR-CRM.3 (2026-05-24) — explicit consent capture per CRM Backbone Audit
+  // §6 finding (TCPA/CAN-SPAM gap on favorites / portal reactions). Maya's
+  // spec referenced app/api/portal/favorites/route.ts as the favorites POST
+  // path, but that file only exposes GET; the actual favorites WRITE path
+  // is this react endpoint (action: "liked" is the canonical favorite
+  // toggle; "disliked"/"discuss"/"schedule" are sibling engagement actions
+  // that produce the same downstream TCPA-relevant signals). We gate ALL
+  // four actions on `consent: true` to be consistent with the RSVP gate
+  // and refresh Lead.consent_captured_at on success.
+  if (body.consent !== true) {
+    return NextResponse.json(
+      {
+        error:
+          "Explicit consent is required to react to a listing. Please confirm you agree to be contacted about this property.",
+        consent_required: true,
+      },
+      { status: 422 },
+    );
+  }
+
   const action = body.action as string;
   const comment = (body.comment as string) ?? null;
 
@@ -88,6 +108,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       });
     }
 
+    // PR-CRM.3 — refresh consent_captured_at on toggle-off too: the
+    // user did just provide explicit consent (gated above), so the
+    // timestamp should advance regardless of which branch we take.
+    await prisma.lead.update({
+      where: { id: auth.userId },
+      data: { consent_captured_at: new Date() },
+    });
+
     return NextResponse.json({ action, active: false });
   }
 
@@ -138,11 +166,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   // Update engagement timestamps on Lead
+  // PR-CRM.3 — also refresh consent_captured_at since the user just
+  // explicitly consented (body.consent === true gated above). Same
+  // TCPA/CAN-SPAM trail pattern as the inquiry / contact / cma routes.
   await prisma.lead.update({
     where: { id: auth.userId },
     data: {
       last_click_at: new Date(),
       last_response_at: new Date(),
+      consent_captured_at: new Date(),
     },
   });
 
