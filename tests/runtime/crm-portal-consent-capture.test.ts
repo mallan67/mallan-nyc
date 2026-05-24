@@ -100,6 +100,16 @@ jest.mock('@/lib/auth/readonly-guard', () => ({
   assertWriteAllowed: () => null,
 }));
 
+// PR-CRM.5 (2026-05-24) — portal_write rate-limit gate now fires before
+// the consent gate in both the RSVP and react routes. Mock it to always
+// allow so these tests exercise the consent-gate behavior in isolation
+// (which is what they were written to verify). The rate-limit gate
+// itself is covered by tests/runtime/crm-portal-write-rate-limits.test.ts.
+jest.mock('@/lib/middleware/rate-limiter', () => ({
+  __esModule: true,
+  checkPortalWriteRateLimit: jest.fn(async () => null),
+}));
+
 // ── React-route-specific support mocks ─────────────────────────────────
 const createInquiryMock = jest.fn(async () => 999n);
 jest.mock('@/lib/inquiries/create', () => ({

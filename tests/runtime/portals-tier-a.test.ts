@@ -65,6 +65,16 @@ jest.mock("@/lib/auth/readonly-guard", () => ({
   assertWriteAllowed: () => null,
 }));
 
+// PR-CRM.5 (2026-05-24) — portal_write rate-limit gate now fires before
+// the offer-submission write path. Mock it to always allow so this
+// Tier-A regression test exercises the masking/event-recording behavior
+// in isolation. The rate-limit gate itself is covered by
+// tests/runtime/crm-portal-write-rate-limits.test.ts.
+jest.mock("@/lib/middleware/rate-limiter", () => ({
+  __esModule: true,
+  checkPortalWriteRateLimit: jest.fn(async () => null),
+}));
+
 jest.mock("@/lib/search/listing-access-decision", () => ({
   __esModule: true,
   isListingDisplayable: () => true,
