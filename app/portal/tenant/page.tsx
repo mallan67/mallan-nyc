@@ -346,10 +346,13 @@ export default function TenantPortalPage() {
   /* ── Reaction handler ──────────────────────────────────────────── */
   const handleReaction = useCallback(async (listingId: string, action: string) => {
     try {
+      // PR-CRM.3 — explicit consent: the user clicked a reaction button in
+      // the portal UI; that click is the TCPA/CAN-SPAM consent action.
+      // The backend now requires body.consent === true (422 otherwise).
       const r = await fetch(`/api/portal/listings/${listingId}/react`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, consent: true }),
       });
       if (r.ok) {
         // The reaction state lives server-side; refetch the listings

@@ -13556,9 +13556,18 @@ var MallanAPI = (function () {
     },
 
     react: function (listingId, action, comment) {
+      // PR-CRM.3 — the backend now requires body.consent === true (422
+      // otherwise). This wrapper is the canonical portal-action client
+      // path: any call through `MallanAPI.portal.react()` is by
+      // definition a user-initiated portal-UI button click (like /
+      // dislike / discuss / schedule), which is the TCPA/CAN-SPAM
+      // consent moment. Senders SHOULD only call this wrapper from a
+      // user-action handler. If a future caller needs to react without
+      // a fresh user action (e.g. a background scheduled retry), it
+      // must NOT use this wrapper.
       return _fetch('/api/portal/listings/' + encodeURIComponent(listingId) + '/react', {
         method: 'POST',
-        body: JSON.stringify({ action: action, comment: comment || null }),
+        body: JSON.stringify({ action: action, comment: comment || null, consent: true }),
       });
     },
 

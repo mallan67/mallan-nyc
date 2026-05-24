@@ -306,6 +306,52 @@ describe('POST /api/portal/listings/[id]/react — consent gate (PR-CRM.3)', () 
 // ═══════════════════════════════════════════════════════════════════════
 // Source pins — belt-and-suspenders structural assertions
 // ═══════════════════════════════════════════════════════════════════════
+describe('PR-CRM.3 — in-repo callers send consent: true (Codex P1 fix)', () => {
+  // Codex P1 on PR #184 commit 6165fbe5 flagged that the backend now
+  // requires body.consent === true, but in-repo portal callers were
+  // still posting only { action }. This describe pins that ALL known
+  // in-repo callers of POST /api/portal/listings/[id]/react now include
+  // consent: true in their JSON body. Discovered via grep:
+  //   - app/portal/buyer/page.tsx
+  //   - app/portal/tenant/page.tsx
+  //   - public/crm/js/core/api-client.js  (MallanAPI.portal.react wrapper)
+  //   - public/crm/index-built.html       (bundled output of the above)
+  // No other in-repo callers exist (grep confirmed; portals.js uses the
+  // wrapper, not raw fetch — so updating the wrapper covers it).
+
+  const fs = require('fs');
+  const path = require('path');
+  const ROOT = path.resolve(__dirname, '../..');
+
+  it('buyer portal page sends consent: true with action', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'app/portal/buyer/page.tsx'), 'utf8');
+    expect(src).toMatch(/handleReaction[\s\S]*?fetch\(`\/api\/portal\/listings\/\$\{listingId\}\/react`[\s\S]*?body:\s*JSON\.stringify\(\{\s*action,\s*consent:\s*true\s*\}\)/);
+  });
+
+  it('tenant portal page sends consent: true with action', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'app/portal/tenant/page.tsx'), 'utf8');
+    expect(src).toMatch(/handleReaction[\s\S]*?fetch\(`\/api\/portal\/listings\/\$\{listingId\}\/react`[\s\S]*?body:\s*JSON\.stringify\(\{\s*action,\s*consent:\s*true\s*\}\)/);
+  });
+
+  it('MallanAPI.portal.react wrapper sends consent: true', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'public/crm/js/core/api-client.js'), 'utf8');
+    // Pin the portal.react function body specifically (not just any
+    // occurrence of consent: true elsewhere in the 1000+ line file).
+    const portalReactMatch = src.match(/react:\s*function\s*\(listingId,\s*action,\s*comment\)\s*\{[\s\S]*?\},/);
+    expect(portalReactMatch).not.toBeNull();
+    expect(portalReactMatch![0]).toMatch(/consent:\s*true/);
+    expect(portalReactMatch![0]).toMatch(/\/api\/portal\/listings\//);
+  });
+
+  it('bundled CRM shell (index-built.html) contains the consent: true from api-client.js', () => {
+    // Sanity check that the regenerated bundle picked up the consent
+    // patch in the source file. If this fails, the CRM static shell
+    // drift guard in guardrails.yml will also fail.
+    const src = fs.readFileSync(path.join(ROOT, 'public/crm/index-built.html'), 'utf8');
+    expect(src).toMatch(/react:\s*function\s*\(listingId,\s*action,\s*comment\)[\s\S]{0,2000}consent:\s*true/);
+  });
+});
+
 describe('PR-CRM.3 — source pins (consent gate position + persistence)', () => {
   const RSVP_PATH = require('path').resolve(
     __dirname,
