@@ -296,18 +296,24 @@ jobs:
             exit 1
           fi
           # Capture skeleton baseline measurements for the post-Claude diagnostic
-          # guard added in PR Sentinel-A. These let the guard detect the "Claude
-          # returned success but never called Write" failure mode by comparing
-          # post-invocation counts against these initial values.
+          # guard added in PR Sentinel-A. The SHA-256 hash (NOT bytes) is the
+          # canonical zero-Write signal: a perfectly-completed audit MAY be
+          # smaller than the skeleton (e.g., terse "PASS" replaces "IN PROGRESS",
+          # short evidence lines replace `_TODO_`), so byte-growth is unreliable
+          # and can falsely fail a valid completed report (Codex finding 1 on
+          # PR Sentinel-A). Same SHA == same content == Write was never called.
+          # The byte count is kept for diagnostic logging only.
           skeleton_bytes=$(wc -c < "$report")
+          skeleton_sha=$(sha256sum "$report" | awk '{print $1}')
           skeleton_matrix_ip=$(grep -c '| IN PROGRESS |' "$report" || true)
           skeleton_todo=$(grep -c '^_TODO_$' "$report" || true)
           {
             echo "skeleton_bytes=$skeleton_bytes"
+            echo "skeleton_sha=$skeleton_sha"
             echo "skeleton_matrix_ip=$skeleton_matrix_ip"
             echo "skeleton_todo=$skeleton_todo"
           } >> "$GITHUB_OUTPUT"
-          echo "Skeleton baseline: ${skeleton_bytes} bytes, ${skeleton_matrix_ip} matrix IN PROGRESS rows, ${skeleton_todo} _TODO_ section blocks."
+          echo "Skeleton baseline: ${skeleton_bytes} bytes (diagnostic only), sha256=${skeleton_sha:0:12}…, ${skeleton_matrix_ip} matrix IN PROGRESS rows, ${skeleton_todo} _TODO_ section blocks."
           echo "Skeleton OK — Claude will update IN PROGRESS markers and add the closing line."
 
       - name: Invoke Claude repo-audit-bot
@@ -322,22 +328,25 @@ jobs:
           # the existing runner log audience.
           show_full_output: true
           # Allow-list: Claude can read freely, run npm validators / curl / read-only
-          # scripts / read-only shell utilities, and write ONLY under memory/audits/.
-          # No Edit, no general Write, no Bash for git-mutate/gh-mutate/prisma/
-          # destructive commands.
+          # scripts, and write ONLY under memory/audits/. No Edit, no general Write,
+          # no Bash for git/gh/prisma/destructive commands.
           # NOTE: `npm run build` and `npx jest --ci --forceExit` are intentionally
           # NOT in this allow-list. Those are already gated by `pr-check.yml` and
           # `guardrails.yml` on every PR; running them inside the scheduled audit
           # is duplicative and burns the 35-minute Claude job budget. The audit
           # focuses on compliance, RESO/IDX mapping, production behavior, and
           # report synthesis — not build/test correctness.
-          # PR Sentinel-A — added safe read-only shell utilities (ls/find/cat/
-          # head/tail/wc/sed/awk/grep) so Claude can spot-check files without
-          # being denied. Maya-approved subset; explicitly excludes git mutate,
-          # gh mutate, prisma, curl POST/PUT/PATCH/DELETE, rm, mv, cp into
-          # app/lib/prisma, npm run build, npx jest.
+          # PR Sentinel-A — allow-list INTENTIONALLY LEFT UNCHANGED from
+          # pre-Sentinel-A. Read / Glob / Grep already cover safe inspection,
+          # and broad shell-utility patterns (find / sed / awk especially) open
+          # a write/exec/redirect surface even when "read-only" in intent:
+          # `find -exec`, `find -delete`, `sed -i`, redirects (`> >> | tee`),
+          # `awk` system()/getline-write, etc. (Codex finding 2 on PR Sentinel-A.)
+          # show_full_output: true above will surface the actual denied tools
+          # on the next run; only then will we add precisely those (and only in
+          # the safest narrow forms — never the broad `<cmd> *` patterns).
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Bash(ls *),Bash(find *),Bash(cat *),Bash(head *),Bash(tail *),Bash(wc *),Bash(sed *),Bash(awk *),Bash(grep *),Write(memory/audits/**)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
@@ -425,11 +434,15 @@ jobs:
             After your invocation returns, the workflow runs a diagnostic
             guard BEFORE the existing 3-gate guard:
 
-              1. Report file size must be greater than the captured skeleton
-                 baseline. If equal, the guard fires with: "Claude returned
-                 success but did not update the audit file." Rerunning the
-                 workflow without changing this prompt will reproduce the
-                 same failure — fix the underlying tool denial first.
+              1. Report file SHA-256 must differ from the captured skeleton
+                 baseline SHA-256. If identical (= the file is byte-for-byte
+                 unchanged), the guard fires with: "Claude returned success
+                 but did not update the audit file." Rerunning the workflow
+                 without changing this prompt will reproduce the same
+                 failure — fix the underlying tool denial first.
+                 (Note: this is content-hash, NOT byte-growth — a perfectly
+                 complete terse audit may legitimately be SHORTER than the
+                 skeleton, so we compare content identity, not file size.)
               2. At least one Coverage Matrix row must no longer be
                  `IN PROGRESS` AND at least one A–S section must no longer
                  be `_TODO_` (proves real audit-area progress beyond the
@@ -543,7 +556,10 @@ jobs:
       #
       # This guard runs BEFORE the existing 3-gate guard so the operator
       # sees the clearer diagnostic first:
-      #   - File size <= skeleton baseline  -> zero-Write failure
+      #   - File SHA == skeleton SHA  -> zero-Write failure (content
+      #     unchanged regardless of byte count; addresses Codex finding 1
+      #     on PR Sentinel-A that byte-growth falsely flags terse complete
+      #     audits that happen to be shorter than the skeleton)
       #   - All Matrix rows still IN PROGRESS AND all sections still _TODO_
       #     -> Claude wrote but made no audit progress (e.g. early-write
       #        succeeded but investigation phase stalled)
@@ -555,6 +571,7 @@ jobs:
           set -euo pipefail
           report="${{ steps.paths.outputs.report_path }}"
           skeleton_bytes="${{ steps.skeleton.outputs.skeleton_bytes }}"
+          skeleton_sha="${{ steps.skeleton.outputs.skeleton_sha }}"
           skeleton_matrix_ip="${{ steps.skeleton.outputs.skeleton_matrix_ip }}"
           skeleton_todo="${{ steps.skeleton.outputs.skeleton_todo }}"
 
@@ -565,19 +582,26 @@ jobs:
           fi
 
           current_bytes=$(wc -c < "$report")
+          current_sha=$(sha256sum "$report" | awk '{print $1}')
           # `|| true` keeps grep -c from exit-1ing on zero matches under set -e.
           current_matrix_ip=$(grep -c '| IN PROGRESS |' "$report" || true)
           current_todo=$(grep -c '^_TODO_$' "$report" || true)
 
           echo "Post-Claude diagnostic:"
-          echo "  bytes:           $current_bytes (skeleton baseline: $skeleton_bytes)"
+          echo "  bytes:           $current_bytes (skeleton baseline: $skeleton_bytes, diagnostic only — NOT a gate)"
+          echo "  sha256:          ${current_sha:0:12}… (skeleton baseline: ${skeleton_sha:0:12}…)"
           echo "  matrix IP rows:  $current_matrix_ip (skeleton baseline: $skeleton_matrix_ip)"
           echo "  _TODO_ blocks:   $current_todo (skeleton baseline: $skeleton_todo)"
 
-          # Check 1 — Did Claude call Write at all?
-          if [ "$current_bytes" -le "$skeleton_bytes" ]; then
+          # Check 1 — Did Claude call Write at all? Use content HASH, not bytes:
+          # a perfectly-completed audit may legitimately be SHORTER than the
+          # skeleton (e.g., "PASS" replacing "IN PROGRESS", terse evidence lines
+          # replacing `_TODO_` blocks). Same SHA = same content = Write was
+          # never called, regardless of file size. (Addresses Codex finding 1.)
+          if [ "$current_sha" = "$skeleton_sha" ]; then
             echo "::error::Claude returned success but did not update the audit file."
-            echo "::error::File size ($current_bytes bytes) <= skeleton baseline ($skeleton_bytes bytes)."
+            echo "::error::Current SHA-256 == skeleton baseline SHA-256 ($current_sha)."
+            echo "::error::File is byte-for-byte identical to the pre-Claude skeleton."
             echo "::error::This is the same failure mode as run 26332734778."
             echo "::error::Inspect the full Claude action output above (show_full_output: true)"
             echo "::error::for the list of permission-denied tools and address those before rerunning."
@@ -587,10 +611,10 @@ jobs:
           # Check 2 — Did Claude make measurable audit-area progress?
           #
           # Claude is required (per prompt) to do an early-write that proves
-          # Write works but does not necessarily clear a Matrix row. So size-
-          # only progress is consistent with a stalled audit. We require that
-          # at least one Matrix row OR at least one A-S section actually
-          # transitioned away from its initial placeholder.
+          # Write works but does not necessarily clear a Matrix row. So a
+          # changed SHA alone is consistent with an early-write-then-stall.
+          # We require that at least one Matrix row OR at least one A-S
+          # section actually transitioned away from its initial placeholder.
           if [ "$current_matrix_ip" -ge "$skeleton_matrix_ip" ] && [ "$current_todo" -ge "$skeleton_todo" ]; then
             echo "::error::Claude wrote to the report but made no audit-area progress."
             echo "::error::Every Coverage Matrix row is still IN PROGRESS AND every A-S section is still _TODO_."

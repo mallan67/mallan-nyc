@@ -191,9 +191,12 @@ The workflow's guard + final-verification steps fail RED if any of:
 - The file does not exist (should not happen — the workflow pre-creates it,
   but Gate 1 stays in place as a sanity check).
 - **(PR Sentinel-A — post-Claude diagnostic, runs BEFORE Gate 1)** The file
-  size is `<=` the captured skeleton baseline → "Claude returned success but
+  content SHA-256 is identical to the captured skeleton baseline SHA-256
+  (= the file is byte-for-byte unchanged) → "Claude returned success but
   did not update the audit file." This catches the zero-Write failure that
-  caused run 26332734778.
+  caused run 26332734778. The check uses content hash, not byte size, so a
+  legitimately terse completed audit that happens to be shorter than the
+  skeleton is not falsely flagged.
 - **(PR Sentinel-A — post-Claude diagnostic)** Every Coverage Matrix row is
   still `IN PROGRESS` AND every A–S section is still `_TODO_` → "Claude wrote
   to the report but made no audit-area progress." This catches the case
