@@ -1465,10 +1465,25 @@ function submitTenantDeal() {
         catch (e) { /* ignore unparseable date */ }
     }
 
-    // Upsert on second click: PATCH if dbId stored, else POST.
+    // PR-CRM.1b (2026-05-24) — context-scoped upsert. Mirror of the
+    // BUYER-DEAL-FORM fix for the same Codex P1 defect on PR #146
+    // commit f90b9e47 (this file, line 1475). PATCH only when the
+    // stored record's context matches the current form's context
+    // (representation_code + property_address + client_name);
+    // otherwise POST. sessionStorage is also cleared at logout in
+    // public/crm/js/core/api-client.js logout().
+    var currentContext = {
+        representation_code: 'tenant',
+        property_address: propertyAddress,
+        client_name: client
+    };
     var stored = {};
     try { stored = JSON.parse(sessionStorage.getItem('tenantDealRecord') || '{}'); } catch (e) { stored = {}; }
-    var existingId = stored.dbId;
+    var canPatch = !!(stored.dbId && stored.context
+        && stored.context.representation_code === currentContext.representation_code
+        && stored.context.property_address === currentContext.property_address
+        && stored.context.client_name === currentContext.client_name);
+    var existingId = canPatch ? stored.dbId : null;
 
     var promise = existingId
         ? MallanAPI.deals.update(existingId, payload)
@@ -1476,12 +1491,15 @@ function submitTenantDeal() {
 
     promise.then(function(data) {
         var dealId = (data && data.id) || existingId || null;
-        var dealStatus = (data && data.status) || stored.status || 'draft';
+        // When context mismatched, ignore stored.status — it belonged
+        // to a different deal. Only inherit prior status on real PATCH.
+        var dealStatus = (data && data.status) || (canPatch ? stored.status : null) || 'draft';
         try {
             sessionStorage.setItem('tenantDealRecord', JSON.stringify({
                 dbId: dealId,
                 status: dealStatus,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
+                context: currentContext
             }));
         } catch (e) { /* sessionStorage may be unavailable */ }
         var label = existingId ? 'Tenant deal updated' : 'Tenant deal saved as draft';

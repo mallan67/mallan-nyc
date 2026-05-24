@@ -133,6 +133,46 @@ describe('BUYER-DEAL-FORM submitBuyerDeal — backend wiring', () => {
   it('upserts via PATCH (MallanAPI.deals.update) when a session deal id already exists', () => {
     expect(body).toMatch(/existingId\s*\?\s*MallanAPI\.deals\.update\(/);
   });
+
+  // ──────────────────────────────────────────────────────────────────
+  // PR-CRM.1b (2026-05-24) — context-scoped PATCH guard
+  //
+  // Codex P1 on PR #146 commit f90b9e47 flagged that `existingId` was
+  // taken unconditionally from sessionStorage.buyerDealRecord.dbId,
+  // even when the stored record belonged to a different deal / agent /
+  // tab session. The fix scopes the PATCH decision to a context match
+  // (representation_code + property_address + client_name) and falls
+  // through to POST when the context differs.
+  // ──────────────────────────────────────────────────────────────────
+
+  it('PR-CRM.1b: defines currentContext with representation_code, property_address, client_name', () => {
+    expect(body).toMatch(/var\s+currentContext\s*=\s*\{[\s\S]*?representation_code\s*:\s*['"]buyer['"][\s\S]*?property_address\s*:\s*propertyAddress[\s\S]*?client_name\s*:\s*client[\s\S]*?\}/);
+  });
+
+  it('PR-CRM.1b: PATCH is gated on a context match (canPatch), not on dbId alone', () => {
+    // canPatch must require ALL THREE fields of stored.context to
+    // match currentContext before existingId is set.
+    expect(body).toMatch(/canPatch\s*=\s*!!\(\s*stored\.dbId\s*&&\s*stored\.context/);
+    expect(body).toMatch(/stored\.context\.representation_code\s*===\s*currentContext\.representation_code/);
+    expect(body).toMatch(/stored\.context\.property_address\s*===\s*currentContext\.property_address/);
+    expect(body).toMatch(/stored\.context\.client_name\s*===\s*currentContext\.client_name/);
+    // existingId must be null when canPatch is false (forcing POST).
+    expect(body).toMatch(/existingId\s*=\s*canPatch\s*\?\s*stored\.dbId\s*:\s*null/);
+  });
+
+  it('PR-CRM.1b: persisted sessionStorage record includes the context for the next decision', () => {
+    // The setItem call after a successful create/update must include
+    // context: currentContext so the NEXT submit can detect mismatch.
+    const setItemMatch = body.match(/sessionStorage\.setItem\(['"]buyerDealRecord['"]\s*,\s*JSON\.stringify\(\{([\s\S]*?)\}\)\)/);
+    expect(setItemMatch).not.toBeNull();
+    expect(setItemMatch![1]).toMatch(/context\s*:\s*currentContext/);
+  });
+
+  it('PR-CRM.1b: does NOT inherit stored.status when the context mismatches (treat as new draft)', () => {
+    // dealStatus fallback chain must scope stored.status to canPatch
+    // so a different deal's status does not bleed into the new one.
+    expect(body).toMatch(/dealStatus\s*=\s*\(data\s*&&\s*data\.status\)\s*\|\|\s*\(canPatch\s*\?\s*stored\.status\s*:\s*null\)\s*\|\|\s*['"]draft['"]/);
+  });
 });
 
 describe('TENANT-DEAL-FORM submitTenantDeal — backend wiring', () => {
@@ -210,6 +250,34 @@ describe('TENANT-DEAL-FORM submitTenantDeal — backend wiring', () => {
   it('upserts via PATCH when a session deal id already exists', () => {
     expect(body).toMatch(/existingId\s*\?\s*MallanAPI\.deals\.update\(/);
   });
+
+  // ──────────────────────────────────────────────────────────────────
+  // PR-CRM.1b (2026-05-24) — context-scoped PATCH guard (TENANT parity)
+  // Mirror of the BUYER assertions above. Same Codex P1 defect on
+  // PR #146 commit f90b9e47 (line 1475 in this file).
+  // ──────────────────────────────────────────────────────────────────
+
+  it('PR-CRM.1b: defines currentContext with representation_code, property_address, client_name', () => {
+    expect(body).toMatch(/var\s+currentContext\s*=\s*\{[\s\S]*?representation_code\s*:\s*['"]tenant['"][\s\S]*?property_address\s*:\s*propertyAddress[\s\S]*?client_name\s*:\s*client[\s\S]*?\}/);
+  });
+
+  it('PR-CRM.1b: PATCH is gated on a context match (canPatch), not on dbId alone', () => {
+    expect(body).toMatch(/canPatch\s*=\s*!!\(\s*stored\.dbId\s*&&\s*stored\.context/);
+    expect(body).toMatch(/stored\.context\.representation_code\s*===\s*currentContext\.representation_code/);
+    expect(body).toMatch(/stored\.context\.property_address\s*===\s*currentContext\.property_address/);
+    expect(body).toMatch(/stored\.context\.client_name\s*===\s*currentContext\.client_name/);
+    expect(body).toMatch(/existingId\s*=\s*canPatch\s*\?\s*stored\.dbId\s*:\s*null/);
+  });
+
+  it('PR-CRM.1b: persisted sessionStorage record includes the context for the next decision', () => {
+    const setItemMatch = body.match(/sessionStorage\.setItem\(['"]tenantDealRecord['"]\s*,\s*JSON\.stringify\(\{([\s\S]*?)\}\)\)/);
+    expect(setItemMatch).not.toBeNull();
+    expect(setItemMatch![1]).toMatch(/context\s*:\s*currentContext/);
+  });
+
+  it('PR-CRM.1b: does NOT inherit stored.status when the context mismatches', () => {
+    expect(body).toMatch(/dealStatus\s*=\s*\(data\s*&&\s*data\.status\)\s*\|\|\s*\(canPatch\s*\?\s*stored\.status\s*:\s*null\)\s*\|\|\s*['"]draft['"]/);
+  });
 });
 
 describe('Backend contract — schema + route + client method exist', () => {
@@ -244,6 +312,48 @@ describe('Backend contract — schema + route + client method exist', () => {
     const src = readFileSync(API_CLIENT_PATH, 'utf8');
     expect(src).toMatch(/update:\s*function\s*\(id,\s*data\)\s*\{[\s\S]{0,200}\/api\/crm\/deals\//);
     expect(src).toMatch(/method:\s*['"]PATCH['"]/);
+  });
+});
+
+describe('PR-CRM.1b — logout clears deal-form sessionStorage records', () => {
+  // Codex P1 on PR #146 noted the stored dbId is never cleared on
+  // logout, so a different agent on the same browser tab could PATCH
+  // the prior agent's deal. The fix lives in the canonical logout
+  // handler in api-client.js so it runs regardless of which UI path
+  // initiated the logout. Source-pin both removeItem calls and the
+  // helper that wraps them.
+
+  it('logout() in api-client.js removes buyerDealRecord from sessionStorage', () => {
+    const src = readFileSync(API_CLIENT_PATH, 'utf8');
+    const logoutMatch = src.match(/logout:\s*function\s*\(\)\s*\{([\s\S]*?)\n\s{4}\},/);
+    expect(logoutMatch).not.toBeNull();
+    expect(logoutMatch![1]).toMatch(/sessionStorage\.removeItem\(['"]buyerDealRecord['"]\)/);
+  });
+
+  it('logout() in api-client.js removes tenantDealRecord from sessionStorage', () => {
+    const src = readFileSync(API_CLIENT_PATH, 'utf8');
+    const logoutMatch = src.match(/logout:\s*function\s*\(\)\s*\{([\s\S]*?)\n\s{4}\},/);
+    expect(logoutMatch).not.toBeNull();
+    expect(logoutMatch![1]).toMatch(/sessionStorage\.removeItem\(['"]tenantDealRecord['"]\)/);
+  });
+
+  it('logout() clears deal records on BOTH the success and the catch paths', () => {
+    // The /api/auth/logout call may fail (offline, server 500, etc.);
+    // local state — including the deal-record sessionStorage keys —
+    // must still be cleared so the next login does not inherit it.
+    const src = readFileSync(API_CLIENT_PATH, 'utf8');
+    // Count removeItem occurrences inside the logout function body.
+    const logoutMatch = src.match(/logout:\s*function\s*\(\)\s*\{([\s\S]*?)\n\s{4}\},/);
+    expect(logoutMatch).not.toBeNull();
+    const buyerRemovals = (logoutMatch![1].match(/sessionStorage\.removeItem\(['"]buyerDealRecord['"]\)/g) || []).length;
+    const tenantRemovals = (logoutMatch![1].match(/sessionStorage\.removeItem\(['"]tenantDealRecord['"]\)/g) || []).length;
+    // Either two literal calls per key (one in .then, one in .catch),
+    // OR a single helper invoked twice — accept both shapes by
+    // requiring AT LEAST one of each AND requiring the .catch block
+    // to reference the same clear path the .then block uses.
+    expect(buyerRemovals).toBeGreaterThanOrEqual(1);
+    expect(tenantRemovals).toBeGreaterThanOrEqual(1);
+    expect(logoutMatch![1]).toMatch(/\.catch\(function\s*\(\s*\)\s*\{[\s\S]*?(clearDealRecords|removeItem\(['"]buyerDealRecord['"]\))/);
   });
 });
 
