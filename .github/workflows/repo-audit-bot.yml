@@ -354,11 +354,20 @@ jobs:
           # Sentinel-A prompt requested. The Write was DENIED because the
           # allow-list pattern `Write(memory/audits/**)` is a relative-path
           # glob that does NOT match the absolute path Claude SDK supplies.
-          # Fix: add a second Write entry matching the absolute runner path
-          # (still scoped to /memory/audits/ ONLY — no other write surface).
+          # Sentinel-A.2 added `Write(/home/runner/work/**/memory/audits/**)`
+          # but the verification run (26369571083) showed Write was STILL
+          # denied — the matcher does not honor `**` in non-terminal
+          # position of an absolute Write pattern.
+          #
+          # PR Sentinel-A.3 (2026-05-24) — replace the mid-path `**` variant
+          # with the exact repo workspace prefix and only trailing `**`.
+          # Hardcoding `mallan-nyc/mallan-nyc` is acceptable because the
+          # repo name is already hardcoded in vercel.json, CLAUDE.md, and
+          # several workflow headers; this workflow itself is repo-specific.
+          # Write surface is still anchored to `/memory/audits/` ONLY.
           # No Edit, no Bash-write, no Write outside memory/audits.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**),Write(/home/runner/work/**/memory/audits/**)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**),Write(/home/runner/work/mallan-nyc/mallan-nyc/memory/audits/**)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
