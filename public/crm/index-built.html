@@ -13278,17 +13278,31 @@ var MallanAPI = (function () {
 
     /**
      * Logout — destroy session on server, clear local state.
+     *
+     * PR-CRM.1b (2026-05-24) — also clears the deal-form session-scoped
+     * upsert records (buyerDealRecord / tenantDealRecord) so that when
+     * another agent logs in on the same browser tab, a subsequent deal
+     * submission cannot PATCH the prior agent's deal via a stale dbId.
+     * Pairs with the context-scoped PATCH check in BUYER-DEAL-FORM.html
+     * and TENANT-DEAL-FORM.html that addresses the same Codex P1 finding
+     * on the originally-merged PR #146 (commit f90b9e47).
      */
     logout: function () {
+      function clearDealRecords() {
+        try { sessionStorage.removeItem('buyerDealRecord'); } catch (e) { /* sessionStorage may be unavailable */ }
+        try { sessionStorage.removeItem('tenantDealRecord'); } catch (e) { /* sessionStorage may be unavailable */ }
+      }
       return _fetch('/api/auth/logout', { method: 'POST' }).then(function () {
         _user = null;
         _context = null;
         _ready = false;
+        clearDealRecords();
       }).catch(function () {
         // Clear local state even if API call fails
         _user = null;
         _context = null;
         _ready = false;
+        clearDealRecords();
       });
     },
 
