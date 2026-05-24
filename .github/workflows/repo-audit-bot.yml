@@ -345,8 +345,20 @@ jobs:
           # show_full_output: true above will surface the actual denied tools
           # on the next run; only then will we add precisely those (and only in
           # the safest narrow forms — never the broad `<cmd> *` patterns).
+          #
+          # PR Sentinel-A.2 (2026-05-24) — root-cause fix for run 26361375109.
+          # The 2026-05-24 audit failed with the Sentinel-A post-Claude guard
+          # citing zero-Write. show_full_output revealed Claude DID try
+          # `Write(/home/runner/work/mallan-nyc/mallan-nyc/memory/audits/
+          # AUDIT-2026-05-24.md)` with the exact early-write content the
+          # Sentinel-A prompt requested. The Write was DENIED because the
+          # allow-list pattern `Write(memory/audits/**)` is a relative-path
+          # glob that does NOT match the absolute path Claude SDK supplies.
+          # Fix: add a second Write entry matching the absolute runner path
+          # (still scoped to /memory/audits/ ONLY — no other write surface).
+          # No Edit, no Bash-write, no Write outside memory/audits.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**),Write(/home/runner/work/**/memory/audits/**)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
