@@ -165,6 +165,7 @@ jobs:
       # creatable on partial-completion runs.
       # -----------------------------------------------------------------------
       - name: Create audit report skeleton
+        id: skeleton
         run: |
           set -euo pipefail
           report="${{ steps.paths.outputs.report_path }}"
@@ -294,23 +295,49 @@ jobs:
             echo "::error::Skeleton accidentally contains the literal closing line — this is a workflow bug."
             exit 1
           fi
+          # Capture skeleton baseline measurements for the post-Claude diagnostic
+          # guard added in PR Sentinel-A. These let the guard detect the "Claude
+          # returned success but never called Write" failure mode by comparing
+          # post-invocation counts against these initial values.
+          skeleton_bytes=$(wc -c < "$report")
+          skeleton_matrix_ip=$(grep -c '| IN PROGRESS |' "$report" || true)
+          skeleton_todo=$(grep -c '^_TODO_$' "$report" || true)
+          {
+            echo "skeleton_bytes=$skeleton_bytes"
+            echo "skeleton_matrix_ip=$skeleton_matrix_ip"
+            echo "skeleton_todo=$skeleton_todo"
+          } >> "$GITHUB_OUTPUT"
+          echo "Skeleton baseline: ${skeleton_bytes} bytes, ${skeleton_matrix_ip} matrix IN PROGRESS rows, ${skeleton_todo} _TODO_ section blocks."
           echo "Skeleton OK — Claude will update IN PROGRESS markers and add the closing line."
 
       - name: Invoke Claude repo-audit-bot
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # PR Sentinel-A — show_full_output exposes permission_denials by name
+          # so we can diagnose which tools Claude tried to call. Run 26332734778
+          # had `permission_denials_count: 10` with the affected tools hidden,
+          # which is what motivated this PR. Output remains GitHub-Actions-log
+          # only (not posted as a PR comment), so no secrets are exposed beyond
+          # the existing runner log audience.
+          show_full_output: true
           # Allow-list: Claude can read freely, run npm validators / curl / read-only
-          # scripts, and write ONLY under memory/audits/. No Edit, no general Write,
-          # no Bash for git/gh/prisma/destructive commands.
+          # scripts / read-only shell utilities, and write ONLY under memory/audits/.
+          # No Edit, no general Write, no Bash for git-mutate/gh-mutate/prisma/
+          # destructive commands.
           # NOTE: `npm run build` and `npx jest --ci --forceExit` are intentionally
           # NOT in this allow-list. Those are already gated by `pr-check.yml` and
           # `guardrails.yml` on every PR; running them inside the scheduled audit
           # is duplicative and burns the 35-minute Claude job budget. The audit
           # focuses on compliance, RESO/IDX mapping, production behavior, and
           # report synthesis — not build/test correctness.
+          # PR Sentinel-A — added safe read-only shell utilities (ls/find/cat/
+          # head/tail/wc/sed/awk/grep) so Claude can spot-check files without
+          # being denied. Maya-approved subset; explicitly excludes git mutate,
+          # gh mutate, prisma, curl POST/PUT/PATCH/DELETE, rm, mv, cp into
+          # app/lib/prisma, npm run build, npx jest.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Bash(ls *),Bash(find *),Bash(cat *),Bash(head *),Bash(tail *),Bash(wc *),Bash(sed *),Bash(awk *),Bash(grep *),Write(memory/audits/**)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
@@ -342,20 +369,76 @@ jobs:
             Each Write call overwrites the whole file with the new content;
             do NOT lose the structural elements the skeleton already set up.
 
-            First action: call Read on the skeleton path so you have the
-            exact structure (headers, table layout, area names) loaded.
-            Then begin investigation.
+            ### EARLY-WRITE REQUIREMENT (mandatory — diagnostic + smoke test)
 
-            After each batch of findings:
-              - Call Write with the file's updated full contents.
-              - Replace the Coverage Matrix row's `IN PROGRESS` for the area
-                you just addressed with `PASS / FAIL / LIMITED / NOT VERIFIED
-                / BLOCKED`, plus the cited evidence path and a one-line note.
-              - Replace the matching A–S section's `_TODO_` with the actual
+            Run `26332734778` (the failure this PR fixes) showed Claude finish
+            with SDK `success` after 24 min / 90 turns and `permission_denials
+            _count: 10` while making ZERO Write calls. The skeleton stayed
+            byte-identical. The workflow now has a post-Claude diagnostic guard
+            that fails RED if Write was never invoked.
+
+            You MUST follow this ordered procedure:
+
+              1. **First action — Read the skeleton.** Call Read on the path
+                 ${{ steps.paths.outputs.report_path }} so you have the exact
+                 structure (headers, table layout, area names, A–S sections)
+                 loaded.
+
+              2. **Second action — Early Write (PROVE Write works).** BEFORE
+                 any investigation, call Write on the same path with the
+                 skeleton content plus a confirmation marker. Replace the
+                 placeholder line `Overall status: IN PROGRESS — audit
+                 running.` with:
+                   `Overall status: IN PROGRESS — Sentinel started; first
+                   write confirmed at <UTC ISO timestamp>.`
+                 Keep `status: IN PROGRESS` in the header. This second Write
+                 proves the Write tool functions in this runner / for this
+                 path. If Write is denied, STOP and document the denial in
+                 your final synthesis — do not waste the runtime budget on
+                 investigation that cannot be reported.
+
+              3. **Then begin investigation.**
+
+            ### WRITE-AFTER-EACH-AREA REQUIREMENT (mandatory)
+
+            After EACH audit area (not batched, not at the end), call Write
+            with the file's updated full contents:
+
+              - Replace that area's Coverage Matrix row `IN PROGRESS` with
+                `PASS / FAIL / LIMITED / NOT VERIFIED / BLOCKED`, plus the
+                cited evidence path and a one-line note.
+              - Replace that area's A–S section `_TODO_` with the actual
                 findings + evidence excerpts.
-              - Save often. Do not hold the full report in memory until the
-                end — a runner timeout would lose progress, and the guard
-                will still fire on any remaining `IN PROGRESS` markers.
+              - Save immediately. Do not hold multiple areas in memory before
+                saving — a runner timeout, network blip, or tool denial
+                would lose all unsaved progress. The post-Claude guard
+                requires measurable progress (at least one Matrix row not
+                `IN PROGRESS` AND at least one section not `_TODO_`); the
+                existing Gate 3 still fails on any remaining `IN PROGRESS`.
+
+            If a verification approach hits a permission denial, IMMEDIATELY
+            mark that area `LIMITED` or `NOT VERIFIED` in the next Write with
+            a one-line evidence-gap note — do not keep retrying denied tools.
+
+            ### POST-CLAUDE GUARD (workflow enforces — for your awareness)
+
+            After your invocation returns, the workflow runs a diagnostic
+            guard BEFORE the existing 3-gate guard:
+
+              1. Report file size must be greater than the captured skeleton
+                 baseline. If equal, the guard fires with: "Claude returned
+                 success but did not update the audit file." Rerunning the
+                 workflow without changing this prompt will reproduce the
+                 same failure — fix the underlying tool denial first.
+              2. At least one Coverage Matrix row must no longer be
+                 `IN PROGRESS` AND at least one A–S section must no longer
+                 be `_TODO_` (proves real audit-area progress beyond the
+                 early-write smoke test).
+
+            The existing Gate 3 then fails RED if ANY `IN PROGRESS` remains
+            (so the new guard is more permissive than Gate 3 by design —
+            it catches the catastrophic zero-Write case earlier with a
+            clearer error message).
 
             ### COVERAGE STANDARD — NOT A SPOT-CHECK
 
@@ -447,6 +530,77 @@ jobs:
           git checkout -- .idx-validate/history.json 2>/dev/null
           set -e
           echo "Reverted any validator-output side effects (if present)."
+
+      # ---------------------------------------------------------------------
+      # PR Sentinel-A — POST-CLAUDE DIAGNOSTIC GUARD
+      #
+      # Why this exists: Run 26332734778 (2026-05-23T12:31:04Z) failed with
+      # Claude SDK returning `success` after 24m / 90 turns / 10 permission
+      # denials and ZERO Write calls. The skeleton stayed byte-identical
+      # (1510-byte artifact == 1510-byte skeleton). Existing Gate 3 fired on
+      # "IN PROGRESS still present" — correct, but a misleading error
+      # message because the actual defect was "Claude never wrote anything."
+      #
+      # This guard runs BEFORE the existing 3-gate guard so the operator
+      # sees the clearer diagnostic first:
+      #   - File size <= skeleton baseline  -> zero-Write failure
+      #   - All Matrix rows still IN PROGRESS AND all sections still _TODO_
+      #     -> Claude wrote but made no audit progress (e.g. early-write
+      #        succeeded but investigation phase stalled)
+      # The existing Gate 3 still enforces full completion afterward.
+      # ---------------------------------------------------------------------
+      - name: Verify Claude actually updated the report (post-invocation diagnostic)
+        id: postclaude
+        run: |
+          set -euo pipefail
+          report="${{ steps.paths.outputs.report_path }}"
+          skeleton_bytes="${{ steps.skeleton.outputs.skeleton_bytes }}"
+          skeleton_matrix_ip="${{ steps.skeleton.outputs.skeleton_matrix_ip }}"
+          skeleton_todo="${{ steps.skeleton.outputs.skeleton_todo }}"
+
+          if [ ! -f "$report" ]; then
+            echo "::error::Report file missing after Claude invocation: $report"
+            echo "::error::Skeleton-create step ran (we have a baseline) but the file is gone."
+            exit 1
+          fi
+
+          current_bytes=$(wc -c < "$report")
+          # `|| true` keeps grep -c from exit-1ing on zero matches under set -e.
+          current_matrix_ip=$(grep -c '| IN PROGRESS |' "$report" || true)
+          current_todo=$(grep -c '^_TODO_$' "$report" || true)
+
+          echo "Post-Claude diagnostic:"
+          echo "  bytes:           $current_bytes (skeleton baseline: $skeleton_bytes)"
+          echo "  matrix IP rows:  $current_matrix_ip (skeleton baseline: $skeleton_matrix_ip)"
+          echo "  _TODO_ blocks:   $current_todo (skeleton baseline: $skeleton_todo)"
+
+          # Check 1 — Did Claude call Write at all?
+          if [ "$current_bytes" -le "$skeleton_bytes" ]; then
+            echo "::error::Claude returned success but did not update the audit file."
+            echo "::error::File size ($current_bytes bytes) <= skeleton baseline ($skeleton_bytes bytes)."
+            echo "::error::This is the same failure mode as run 26332734778."
+            echo "::error::Inspect the full Claude action output above (show_full_output: true)"
+            echo "::error::for the list of permission-denied tools and address those before rerunning."
+            exit 1
+          fi
+
+          # Check 2 — Did Claude make measurable audit-area progress?
+          #
+          # Claude is required (per prompt) to do an early-write that proves
+          # Write works but does not necessarily clear a Matrix row. So size-
+          # only progress is consistent with a stalled audit. We require that
+          # at least one Matrix row OR at least one A-S section actually
+          # transitioned away from its initial placeholder.
+          if [ "$current_matrix_ip" -ge "$skeleton_matrix_ip" ] && [ "$current_todo" -ge "$skeleton_todo" ]; then
+            echo "::error::Claude wrote to the report but made no audit-area progress."
+            echo "::error::Every Coverage Matrix row is still IN PROGRESS AND every A-S section is still _TODO_."
+            echo "::error::Likely cause: early-write succeeded but the investigation phase stalled or hit tool denials."
+            echo "::error::Inspect the full Claude action output above (show_full_output: true) and adjust the allow-list."
+            exit 1
+          fi
+
+          echo "Post-Claude diagnostic passed — Claude wrote AND made measurable audit-area progress."
+          echo "Handing off to the existing 3-gate guard for full-completion enforcement."
 
       - name: Verify audit report exists, is in scope, and is complete
         id: guard

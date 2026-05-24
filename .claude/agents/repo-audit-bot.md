@@ -96,17 +96,36 @@ reruns) BEFORE invoking you. The skeleton already contains:
 5. The literal closing line `Report-only: no changes made.` is intentionally
    NOT in the skeleton — you add it last.
 
-Your first action is to call `Read` on the skeleton so you have the exact
-structure loaded. Then begin investigation. Use `Write` to save the file's
-updated full contents after each batch of findings — the runner has a
-35-minute timeout, so holding the report in memory is a recipe for losing
-progress on a timeout.
+Your **first action** is to call `Read` on the skeleton so you have the exact
+structure loaded.
+
+Your **second action** — BEFORE any investigation — is to call `Write` on the
+same skeleton path with the skeleton content plus a confirmation marker.
+Replace the placeholder line `Overall status: IN PROGRESS — audit running.`
+with:
+
+```
+Overall status: IN PROGRESS — Sentinel started; first write confirmed at <UTC ISO timestamp>.
+```
+
+Keep `status: IN PROGRESS` in the header. This second call proves the `Write`
+tool is functioning in this runner for this path before the 35-minute
+investigation begins. The workflow (`.github/workflows/repo-audit-bot.yml`)
+has a post-Claude diagnostic guard added in PR Sentinel-A that fails RED
+with "Claude returned success but did not update the audit file." if Write
+is never invoked — same failure pattern as run 26332734778.
+
+Only after the early-write returns successfully should you begin investigation.
 
 ### 2. Update incrementally — never hold the report in memory
 
 After each finding or each batch of findings, re-call Write to save the
 updated report. The runner has a 35-minute timeout. If you hold the entire
 report in memory until the end, a timeout or crash loses everything.
+
+If a verification approach hits a permission denial, immediately mark that
+area `LIMITED` or `NOT VERIFIED` in the next Write with a one-line
+evidence-gap note — do not keep retrying denied tools.
 
 Update the Coverage Matrix row for each area as soon as that area is resolved:
 `PASS | FAIL | LIMITED | NOT VERIFIED | BLOCKED`, plus the evidence path and
@@ -171,7 +190,15 @@ The workflow's guard + final-verification steps fail RED if any of:
 
 - The file does not exist (should not happen — the workflow pre-creates it,
   but Gate 1 stays in place as a sanity check).
-- The file still contains any `IN PROGRESS` string.
+- **(PR Sentinel-A — post-Claude diagnostic, runs BEFORE Gate 1)** The file
+  size is `<=` the captured skeleton baseline → "Claude returned success but
+  did not update the audit file." This catches the zero-Write failure that
+  caused run 26332734778.
+- **(PR Sentinel-A — post-Claude diagnostic)** Every Coverage Matrix row is
+  still `IN PROGRESS` AND every A–S section is still `_TODO_` → "Claude wrote
+  to the report but made no audit-area progress." This catches the case
+  where the early-write succeeded but the investigation phase stalled.
+- The file still contains any `IN PROGRESS` string (existing Gate 3).
 - The file is missing `Overall status: Green|Yellow|Red`.
 - The file is missing the `Coverage Matrix` table.
 - The file is missing the literal closing line `Report-only: no changes made.`
