@@ -404,12 +404,6 @@ jobs:
           # (zero-Write, Matrix progress, _TODO_ progress) remain unchanged.
           claude_args: >-
             --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*)"
-        env:
-          # Sentinel-D.1 — workflow-supplied audit date. The script invoked
-          # by Claude (scripts/sentinel-write-audit.mjs) reads ONLY this
-          # env var to compute its output path. Claude has no way to
-          # override or redirect the write target.
-          AUDIT_DATE: ${{ steps.paths.outputs.report_date }}
           prompt: |
             STRICT REPORT-ONLY MODE.
 
@@ -623,6 +617,15 @@ jobs:
 
             If a finding requires action, record it as a recommendation in section P.
             Never auto-fix anything. Never invent commands not in your allow-list.
+        env:
+          # Sentinel-D.1 — workflow-supplied audit date. The script invoked
+          # by Claude (scripts/sentinel-write-audit.mjs) reads ONLY this
+          # env var to compute its output path. Claude has no way to
+          # override or redirect the write target. `env` is intentionally
+          # at step level (sibling of `with:`), NOT nested under `with:`,
+          # so it remains a GitHub Actions step-environment binding rather
+          # than an unknown action input.
+          AUDIT_DATE: ${{ steps.paths.outputs.report_date }}
 
       - name: Revert validator-output side effects
         if: always()
