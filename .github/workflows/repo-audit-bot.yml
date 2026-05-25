@@ -115,14 +115,16 @@ jobs:
         run: |
           set -euo pipefail
           ny_date=$(TZ=America/New_York date +%Y-%m-%d)
-          ny_hhmm=$(TZ=America/New_York date +%H%M)
           branch="audits/auto-${ny_date}"
-          base_path="memory/audits/AUDIT-${ny_date}.md"
-          if [ -e "$base_path" ]; then
-            report_path="memory/audits/AUDIT-${ny_date}-${ny_hhmm}.md"
-          else
-            report_path="$base_path"
-          fi
+          # Sentinel-D.1 — path is now strictly memory/audits/AUDIT-${date}.md
+          # with no HHMM same-day-rerun variant. The Sentinel-D writer script
+          # computes its output path internally from the AUDIT_DATE env var
+          # only; supporting an HHMM variant would either require the script
+          # to accept a path argument (rejected by spec) or duplicate the
+          # date logic in two places. Same-day reruns overwrite the day's
+          # audit atomically — cleaner per-day audit snapshot and a simpler
+          # post-Claude diagnostic.
+          report_path="memory/audits/AUDIT-${ny_date}.md"
           echo "branch=$branch"             >> "$GITHUB_OUTPUT"
           echo "report_path=$report_path"   >> "$GITHUB_OUTPUT"
           echo "report_date=$ny_date"       >> "$GITHUB_OUTPUT"
@@ -381,15 +383,27 @@ jobs:
           #
           # The docs warn explicitly: "A pattern like /Users/alice/file is
           # NOT an absolute path. It's relative to the project root. Use
-          # //Users/alice/file for absolute paths." Our prior entry
-          # `Write(/home/runner/.../memory/audits/**)` was therefore being
-          # matched against `<project-root>/home/runner/...` (which does
-          # not exist) instead of the absolute path Claude SDK supplies.
-          # Fix: prepend a second leading slash → `Write(//home/runner/...)`.
-          # Write surface remains anchored to `/memory/audits/` ONLY.
-          # No Edit, no Bash-write, no Write outside memory/audits.
+          # //Users/alice/file for absolute paths." Sentinel-A.4 added the
+          # `//` form. The verification run 26382919646 STILL failed RED
+          # with 4× Write denials, 1× Edit denial, 10× Bash denials, and
+          # 1× Skill denial. The action's permission matcher does NOT honor
+          # the documented `//` gitignore-spec absolute-path syntax for
+          # the Write tool.
+          #
+          # PR Sentinel-D.1 (2026-05-25) — REMOVE Write dependency entirely.
+          # Three rounds of allow-list syntax fixes (A.2/A.3/A.4) failed to
+          # land a single byte. Sentinel-D.1 removes both Write(...) entries
+          # and routes audit-file creation through `scripts/sentinel-write-
+          # audit.mjs`, which is invoked by Claude via the existing
+          # `Bash(node scripts/*)` allow-list entry (no broadening required).
+          # The script reads the full audit content from stdin and writes to
+          # exactly memory/audits/AUDIT-${AUDIT_DATE}.md (path computed
+          # internally from env var only; Claude cannot redirect). The
+          # script enforces every gate (size, schema, sections, matrix,
+          # closing line) before writing. Post-Claude diagnostic guards
+          # (zero-Write, Matrix progress, _TODO_ progress) remain unchanged.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**),Write(//home/runner/work/mallan-nyc/mallan-nyc/memory/audits/**)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
@@ -401,10 +415,28 @@ jobs:
                 Cloudflare/REBNY/Trestle settings, release the external-inventory
                 hold, remove media-backfill, reopen PR #104, start JSON-drop work,
                 or alter production data.
-              - You may write EXACTLY ONE file: ${{ steps.paths.outputs.report_path }}
+              - You may produce EXACTLY ONE output file: ${{ steps.paths.outputs.report_path }}
+              - You must NOT use the Write tool. You must NOT use the Edit tool.
+                You must NOT use filesystem-write Bash workarounds (no `cat >`,
+                no `tee`, no `sed -i`, no `python -c`/`node -e` with fs writes).
+                The Write and Edit tools are NOT in your allow-list — calls
+                will be denied. (Sentinel-A.2 through A.4 proved the Claude
+                Code Action permission matcher cannot be coaxed into honoring
+                Write patterns for the runner's absolute audit path.)
+              - The ONLY supported way to produce the audit file is to invoke
+                `node scripts/sentinel-write-audit.mjs` via Bash with the full
+                audit content piped on stdin (heredoc). The script reads the
+                workflow-supplied AUDIT_DATE env var and writes to exactly:
+                  memory/audits/AUDIT-${{ steps.paths.outputs.report_date }}.md
+                You cannot supply a path argument; the script rejects all
+                positional args. The script enforces every schema gate
+                (size 1 KB–2 MB, no `_TODO_`, no `| IN PROGRESS |`, all 19
+                A–S section headers, 21 Coverage Matrix rows, literal closing
+                line). If any gate fails, the script exits 1 with a specific
+                ERROR_CODE on stderr — read stderr, fix the gap, re-invoke.
               - The workflow handles git + PR creation. Do not attempt either.
 
-            ### UPDATE-SKELETON RULE (NO Write-to-create — skeleton already exists)
+            ### USE-SCRIPT RULE (NO Write/Edit — invoke the workflow-owned writer)
 
             The workflow has ALREADY created the report file at
             ${{ steps.paths.outputs.report_path }} BEFORE invoking you. The
@@ -416,18 +448,31 @@ jobs:
             `Report-only: no changes made.` is intentionally NOT in the
             skeleton — you add it last.
 
-            Your job is to UPDATE this existing file as you investigate. The
-            workflow tools allow-list grants you `Write(memory/audits/**)`.
-            Each Write call overwrites the whole file with the new content;
-            do NOT lose the structural elements the skeleton already set up.
+            Your job is to PRODUCE the full final report content (replacing
+            every `IN PROGRESS` and `_TODO_`, appending the closing line)
+            and submit it via a single Bash call:
 
-            ### EARLY-WRITE REQUIREMENT (mandatory — diagnostic + smoke test)
+                node scripts/sentinel-write-audit.mjs <<'AUDIT_EOF'
+                # Mallan Sentinel Audit — <DATE>
+                ...full audit content here...
+                Report-only: no changes made.
+                AUDIT_EOF
 
-            Run `26332734778` (the failure this PR fixes) showed Claude finish
-            with SDK `success` after 24 min / 90 turns and `permission_denials
-            _count: 10` while making ZERO Write calls. The skeleton stayed
-            byte-identical. The workflow now has a post-Claude diagnostic guard
-            that fails RED if Write was never invoked.
+            On success the script prints a single JSON line to stdout:
+            `{"path":"memory/audits/AUDIT-YYYY-MM-DD.md","sha256":"…","bytes":N}`.
+            On failure the script writes ERROR_CODE + message to stderr and
+            exits non-zero. The output file is written atomically (.tmp +
+            rename), so a rejected invocation leaves the previous content
+            (the workflow skeleton) intact and you can re-invoke.
+
+            ### EARLY-CALL REQUIREMENT (mandatory — diagnostic + smoke test)
+
+            Sentinel-A run 26332734778 and Sentinel-A.2/A.3/A.4 runs all
+            failed RED because Claude finished investigation without
+            successfully writing the audit file. The post-Claude diagnostic
+            guard correctly turns the workflow red, but no audit content is
+            produced. Sentinel-D.1's script removes the Write-matcher
+            dependency entirely.
 
             You MUST follow this ordered procedure:
 
@@ -436,25 +481,24 @@ jobs:
                  structure (headers, table layout, area names, A–S sections)
                  loaded.
 
-              2. **Second action — Early Write (PROVE Write works).** BEFORE
-                 any investigation, call Write on the same path with the
-                 skeleton content plus a confirmation marker. Replace the
-                 placeholder line `Overall status: IN PROGRESS — audit
-                 running.` with:
-                   `Overall status: IN PROGRESS — Sentinel started; first
-                   write confirmed at <UTC ISO timestamp>.`
-                 Keep `status: IN PROGRESS` in the header. This second Write
-                 proves the Write tool functions in this runner / for this
-                 path. If Write is denied, STOP and document the denial in
-                 your final synthesis — do not waste the runtime budget on
-                 investigation that cannot be reported.
+              2. **Second action — Smoke-test the script.** BEFORE any
+                 investigation, invoke `node scripts/sentinel-write-audit.mjs`
+                 once with a STRUCTURALLY VALID placeholder body (all 21
+                 Matrix rows present with non-IN-PROGRESS placeholder values
+                 like `LIMITED`, all 19 A–S sections present with non-`_TODO_`
+                 placeholder text like `Pending — early-write smoke test`,
+                 and the closing line). This proves the script path works in
+                 this runner / for this date. If the script rejects, read its
+                 ERROR_CODE on stderr and fix before continuing.
 
-              3. **Then begin investigation.**
+              3. **Then begin investigation.** Replace placeholder values
+                 with real findings and re-invoke the script. Each
+                 invocation overwrites the file atomically.
 
-            ### WRITE-AFTER-EACH-AREA REQUIREMENT (mandatory)
+            ### CALL-AFTER-EACH-AREA REQUIREMENT (mandatory)
 
-            After EACH audit area (not batched, not at the end), call Write
-            with the file's updated full contents:
+            After EACH audit area (not batched, not at the end), call the
+            script with the full updated audit content:
 
               - Replace that area's Coverage Matrix row `IN PROGRESS` with
                 `PASS / FAIL / LIMITED / NOT VERIFIED / BLOCKED`, plus the
@@ -469,8 +513,9 @@ jobs:
                 existing Gate 3 still fails on any remaining `IN PROGRESS`.
 
             If a verification approach hits a permission denial, IMMEDIATELY
-            mark that area `LIMITED` or `NOT VERIFIED` in the next Write with
-            a one-line evidence-gap note — do not keep retrying denied tools.
+            mark that area `LIMITED` or `NOT VERIFIED` in the next script
+            invocation with a one-line evidence-gap note — do not keep
+            retrying denied tools.
 
             ### POST-CLAUDE GUARD (workflow enforces — for your awareness)
 
@@ -544,7 +589,7 @@ jobs:
 
             ### FINISH STATE (REQUIRED — workflow verifies)
 
-            Before your final Write call:
+            Before your final `node scripts/sentinel-write-audit.mjs` call:
               - Replace the header line `status: IN PROGRESS` with
                 `status: COMPLETE`.
               - Replace `Overall status: IN PROGRESS — audit running.` with
@@ -552,9 +597,11 @@ jobs:
               - Confirm NO `IN PROGRESS` strings remain anywhere in the file
                 (Coverage Matrix included). If an area genuinely could not be
                 verified, change that row's status to `LIMITED` or
-                `NOT VERIFIED` — never leave it as `IN PROGRESS`.
+                `NOT VERIFIED` — never leave it as `IN PROGRESS`. The script
+                rejects any `| IN PROGRESS |` row.
               - Append the literal closing line at the very end:
-                `Report-only: no changes made.`
+                `Report-only: no changes made.` (The script rejects content
+                that does not end with this line.)
 
             The workflow's guard + final-verification steps fail RED if any of:
             file missing (should not happen — skeleton was pre-created), any
@@ -570,6 +617,15 @@ jobs:
 
             If a finding requires action, record it as a recommendation in section P.
             Never auto-fix anything. Never invent commands not in your allow-list.
+        env:
+          # Sentinel-D.1 — workflow-supplied audit date. The script invoked
+          # by Claude (scripts/sentinel-write-audit.mjs) reads ONLY this
+          # env var to compute its output path. Claude has no way to
+          # override or redirect the write target. `env` is intentionally
+          # at step level (sibling of `with:`), NOT nested under `with:`,
+          # so it remains a GitHub Actions step-environment binding rather
+          # than an unknown action input.
+          AUDIT_DATE: ${{ steps.paths.outputs.report_date }}
 
       - name: Revert validator-output side effects
         if: always()
