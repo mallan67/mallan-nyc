@@ -366,8 +366,30 @@ jobs:
           # several workflow headers; this workflow itself is repo-specific.
           # Write surface is still anchored to `/memory/audits/` ONLY.
           # No Edit, no Bash-write, no Write outside memory/audits.
+          #
+          # PR Sentinel-A.4 (2026-05-24) — official Claude Code permission
+          # syntax fix. The Sentinel-A.3 verification run also failed RED for
+          # the same root cause as A.2: the matcher interprets a single
+          # leading `/` as PROJECT-ROOT-RELATIVE, not filesystem-absolute,
+          # per the gitignore-spec documented at
+          # https://code.claude.com/docs/en/permissions :
+          #
+          #   //path  → filesystem absolute (e.g. Read(//Users/alice/secrets/**))
+          #   /path   → relative to project root
+          #   ~/path  → relative to home directory
+          #   path    → relative to current directory
+          #
+          # The docs warn explicitly: "A pattern like /Users/alice/file is
+          # NOT an absolute path. It's relative to the project root. Use
+          # //Users/alice/file for absolute paths." Our prior entry
+          # `Write(/home/runner/.../memory/audits/**)` was therefore being
+          # matched against `<project-root>/home/runner/...` (which does
+          # not exist) instead of the absolute path Claude SDK supplies.
+          # Fix: prepend a second leading slash → `Write(//home/runner/...)`.
+          # Write surface remains anchored to `/memory/audits/` ONLY.
+          # No Edit, no Bash-write, no Write outside memory/audits.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**),Write(/home/runner/work/mallan-nyc/mallan-nyc/memory/audits/**)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(npm run repo:hygiene),Bash(npm run ops:health),Bash(npm run ops:system-audit),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff),Bash(git log *),Bash(gh pr list*),Bash(gh issue list*),Write(memory/audits/**),Write(//home/runner/work/mallan-nyc/mallan-nyc/memory/audits/**)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
