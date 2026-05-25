@@ -84,16 +84,29 @@ function validateContent(content) {
     );
   }
 
-  if (!content.includes(MATRIX_HEADING)) {
+  const matrixStart = content.indexOf(MATRIX_HEADING);
+  if (matrixStart === -1) {
     fail('NO_MATRIX_HEADING', `missing "${MATRIX_HEADING}" heading.`);
   }
 
+  // Codex P2 fix (2026-05-25): scope matrix row counting to the substring
+  // BETWEEN `## Coverage Matrix` and the next level-2 heading (or end of
+  // document). A numbered markdown table elsewhere in the report (e.g. a
+  // priority-ordered fix table in section P, an evidence table in section
+  // S) must NOT contribute to the count. Previously the regex ran across
+  // the entire document and would falsely fail valid audits.
+  const afterHeading = content.slice(matrixStart + MATRIX_HEADING.length);
+  const nextHeadingMatch = afterHeading.match(/^## /m);
+  const matrixSection = nextHeadingMatch
+    ? afterHeading.slice(0, nextHeadingMatch.index)
+    : afterHeading;
+
   const matrixRowRe = /^\|\s*\d{1,2}\s*\|/gm;
-  const matrixRowCount = (content.match(matrixRowRe) || []).length;
+  const matrixRowCount = (matrixSection.match(matrixRowRe) || []).length;
   if (matrixRowCount !== REQUIRED_MATRIX_ROWS) {
     fail(
       'MATRIX_ROW_COUNT',
-      `Coverage Matrix has ${matrixRowCount} data rows; expected exactly ${REQUIRED_MATRIX_ROWS} (one per audit area).`
+      `## Coverage Matrix section has ${matrixRowCount} data rows; expected exactly ${REQUIRED_MATRIX_ROWS} (one per audit area).`
     );
   }
 

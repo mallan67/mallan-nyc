@@ -271,6 +271,63 @@ describe('sentinel-write-audit.mjs', () => {
       expect(stderr).toMatch(/MATRIX_ROW_COUNT/);
     });
 
+    // Codex P2 regression — matrix row counting must be scoped to the
+    // Coverage Matrix section, not the whole document.
+
+    test('rejects extra row INSIDE Coverage Matrix (22 rows fails)', async () => {
+      // Inject a 22nd row immediately after the legitimate row 21.
+      const content = buildValidAudit().replace(
+        '| 21 | Area 21 | PASS | evidence/21.md | note |',
+        '| 21 | Area 21 | PASS | evidence/21.md | note |\n| 22 | Area 22 | PASS | evidence/22.md | note |'
+      );
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/MATRIX_ROW_COUNT/);
+      expect(stderr).toMatch(/Coverage Matrix section has 22/);
+    });
+
+    test('accepts numbered markdown table OUTSIDE Coverage Matrix (Codex P2)', async () => {
+      // Inject a numbered markdown table into section P (Recommended fix
+      // order). Pre-fix this would have been counted as additional matrix
+      // rows and falsely tripped MATRIX_ROW_COUNT. After the Codex P2 fix
+      // the row count is scoped to the `## Coverage Matrix` section only.
+      const extraTable = [
+        '## P. Section P title',
+        '',
+        '| # | Item | Priority |',
+        '|---|------|----------|',
+        '| 1 | Fix media-sync RC1 | HIGH |',
+        '| 2 | Fix media-sync RC2 | HIGH |',
+        '| 3 | Add CSP header | MEDIUM |',
+        '',
+        'Real finding body for section P. evidence: file:1.',
+      ].join('\n');
+
+      const content = buildValidAudit().replace(
+        '## P. Section P title\n\nReal finding body for section P. evidence: file:1.',
+        extraTable
+      );
+
+      const { code, stderr, stdout } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(stderr).toBe('');
+      expect(code).toBe(0);
+      // Must successfully produce the JSON output with on-disk file.
+      const payload = JSON.parse(stdout.trim());
+      expect(payload.path).toBe(`memory/audits/AUDIT-${VALID_DATE}.md`);
+      expect(payload.bytes).toBeGreaterThan(0);
+      expect(fs.readFileSync(path.join(tmpdir, payload.path), 'utf8')).toBe(content);
+    });
+
+    test('accepts valid report with exactly 21 Coverage Matrix rows', async () => {
+      // Explicit assertion that the baseline fixture (21 rows in the
+      // Coverage Matrix, nothing else) still passes. This complements the
+      // happy-path block by being a single-purpose "row count == 21" check.
+      const content = buildValidAudit();
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(stderr).toBe('');
+      expect(code).toBe(0);
+    });
+
     test.each(['A', 'F', 'M', 'R', 'S'])('rejects missing section %s', async (letter) => {
       const content = buildValidAudit().replace(`## ${letter}. Section ${letter} title`, `## ZZZ ${letter}`);
       const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
