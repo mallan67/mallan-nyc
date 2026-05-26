@@ -5035,11 +5035,11 @@ function selectBuildingFromIDX(prefix, address) {
                 setVal(prefix + 'Borough', building.borough);
                 setVal(prefix + 'ZipCode', building.zip);
                 setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
-                var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-                if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
-                var banner = document.getElementById(prefix + 'IdxMatchBanner');
-                if (banner) {
-                    banner.classList.remove('hidden');
+                var keptTypeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
+                if (keptTypeRadio) { keptTypeRadio.checked = true; applySalesFieldRules(); }
+                var keptBanner = document.getElementById(prefix + 'IdxMatchBanner');
+                if (keptBanner) {
+                    keptBanner.classList.remove('hidden');
                     document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
                     document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
                 }
