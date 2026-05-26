@@ -36,19 +36,25 @@ const DIR_PREFIX_MAP: Record<string, string> = {
   northeast: 'NE', northwest: 'NW', southeast: 'SE', southwest: 'SW',
 };
 
+const STREET_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?\s*$/i;
+const ORDINAL_RE = /(\d+)(st|nd|rd|th)\b/gi;
+
+function stripSuffix(v: string): string { return v.replace(STREET_SUFFIX_RE, '').trim(); }
+function stripOrdinal(v: string): string { return v.replace(ORDINAL_RE, '$1').trim(); }
+
 /**
- * Parse a free-text address query into RESO-aligned components.
+ * Parse a free-text address query into RESO/Cotality-aligned components.
  *
- * RESO/Cotality stores addresses as:
- *   StreetNumber + StreetDirPrefix + StreetName + StreetSuffix
- *   e.g. "333" + "E" + "46TH" + "St"
+ * Matches the proven Cotality OData pattern from lib/search/public-listing-trestle.ts.
+ * Cotality stores: StreetNumber + StreetDirPrefix(enum) + StreetName + StreetSuffix
+ *   e.g. "333" + "E" + "46" + "St"  (ordinal stripped by Cotality)
  *
  * Examples:
  *   "333 East"            → { streetNumber: "333", streetDirPrefix: "E" }
- *   "333 East 46th Street"→ { streetNumber: "333", streetDirPrefix: "E", streetName: "46TH" }
- *   "333 E 46th St"       → { streetNumber: "333", streetDirPrefix: "E", streetName: "46TH" }
- *   "333 46th"            → { streetNumber: "333", streetName: "46TH" }
- *   "157 W 57th"          → { streetNumber: "157", streetDirPrefix: "W", streetName: "57TH" }
+ *   "333 East 46th Street"→ { streetNumber: "333", streetDirPrefix: "E", streetName: "46" }
+ *   "333 E 46th St"       → { streetNumber: "333", streetDirPrefix: "E", streetName: "46" }
+ *   "333 46th"            → { streetNumber: "333", streetName: "46" }
+ *   "157 W 57th"          → { streetNumber: "157", streetDirPrefix: "W", streetName: "57" }
  *   "One57"               → { buildingName: "One57" }
  */
 function parseAddressQuery(q: string): {
@@ -64,9 +70,7 @@ function parseAddressQuery(q: string): {
   }
 
   const streetNumber = match[1];
-  let rest = match[2]
-    .replace(/\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?\s*$/i, '')
-    .trim();
+  let rest = stripSuffix(match[2]);
 
   // Detect RESO directional prefix as the first token after street number
   const tokens = rest.split(/\s+/);
@@ -75,11 +79,13 @@ function parseAddressQuery(q: string): {
 
   if (dirPrefix) {
     tokens.shift();
-    const streetName = tokens.length > 0 ? tokens.join(' ').toUpperCase() : undefined;
+    const raw = tokens.length > 0 ? tokens.join(' ') : undefined;
+    const streetName = raw ? stripOrdinal(raw).toLowerCase() : undefined;
     return { streetNumber, streetDirPrefix: dirPrefix, streetName: streetName || undefined };
   }
 
-  return { streetNumber, streetName: rest.toUpperCase() || undefined };
+  const streetName = rest ? stripOrdinal(rest).toLowerCase() : undefined;
+  return { streetNumber, streetName: streetName || undefined };
 }
 
 interface TrestleRecord {
@@ -113,27 +119,25 @@ export async function GET(request: NextRequest) {
   const seenAddresses = new Set<string>();
 
   try {
-    // ── 1. Search DB first (fast) ──
+    // ── 1. Search DB first (fast, case-insensitive via raw SQL) ──
     if (parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
-      const dbAnd: object[] = [
-        { address: { path: ['StreetNumber'], equals: parsed.streetNumber } },
-      ];
+      const conditions = [`address->>'StreetNumber' = $1`];
+      const params: string[] = [parsed.streetNumber];
+      let paramIdx = 2;
       if (parsed.streetDirPrefix) {
-        dbAnd.push({ address: { path: ['StreetDirPrefix'], string_contains: parsed.streetDirPrefix } });
+        conditions.push(`address->>'StreetDirPrefix' = $${paramIdx}`);
+        params.push(parsed.streetDirPrefix);
+        paramIdx++;
       }
       if (parsed.streetName) {
-        dbAnd.push({ address: { path: ['StreetName'], string_contains: parsed.streetName } });
+        conditions.push(`LOWER(address->>'StreetName') LIKE $${paramIdx}`);
+        params.push(`%${parsed.streetName}%`);
+        paramIdx++;
       }
-      const dbResults = await prisma.listing.findMany({
-        where: { AND: dbAnd },
-        select: {
-          address: true,
-          features: true,
-          property_type: true,
-          property_sub_type: true,
-        },
-        take: 20,
-      });
+      const sql = `SELECT address, features, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
+      const dbResults = await prisma.$queryRawUnsafe<Array<{
+        address: unknown; features: unknown; property_type: string | null; property_sub_type: string | null;
+      }>>(sql, ...params);
 
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
@@ -203,14 +207,14 @@ export async function GET(request: NextRequest) {
           'BuildingFeatures', 'PetsAllowed', 'AttendanceType',
         ].join(',');
 
-        const filterParts = [`StreetNumber eq '${cleanNum}'`];
+        const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
         if (parsed.streetDirPrefix) {
           const cleanDir = sanitizeOData(parsed.streetDirPrefix);
           filterParts.push(`StreetDirPrefix eq '${cleanDir}'`);
         }
         if (parsed.streetName) {
-          const cleanName = sanitizeOData(parsed.streetName);
-          filterParts.push(`contains(StreetName,'${cleanName}')`);
+          const cleanName = sanitizeOData(parsed.streetName).toLowerCase();
+          filterParts.push(`contains(tolower(StreetName),'${cleanName}')`);
         }
         const filter = filterParts.join(' and ');
         const params = new URLSearchParams({

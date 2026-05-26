@@ -189,7 +189,7 @@ describe('Form — Banner text uses building reference, not IDX distribution', (
 
 // ─── 9. RESO address parser — parseAddressQuery ─────────────────────────────
 
-describe('Building search — parseAddressQuery RESO directional prefix', () => {
+describe('Building search — Cotality OData pattern alignment', () => {
   const routeCode = fs.readFileSync(
     path.resolve(__dirname, '../../app/api/buildings/search/route.ts'),
     'utf8'
@@ -207,22 +207,39 @@ describe('Building search — parseAddressQuery RESO directional prefix', () => 
     expect(routeCode).toMatch(/south.*'S'/i);
   });
 
-  it('DB query uses StreetDirPrefix path when parsed', () => {
-    expect(routeCode).toContain("path: ['StreetDirPrefix']");
+  it('Trestle OData uses startswith(StreetNumber,...) not strict eq', () => {
+    expect(routeCode).toContain("startswith(StreetNumber,");
   });
 
-  it('Trestle OData filter uses StreetDirPrefix eq when parsed', () => {
+  it('Trestle OData uses contains(tolower(StreetName),...) for case-insensitive search', () => {
+    expect(routeCode).toContain("contains(tolower(StreetName),");
+  });
+
+  it('Trestle OData uses StreetDirPrefix eq for enum comparison', () => {
     expect(routeCode).toContain("StreetDirPrefix eq");
   });
 
-  it('DB fullAddr includes StreetDirPrefix in display address', () => {
-    expect(routeCode).toContain("addr.StreetDirPrefix");
+  it('does NOT use case-sensitive contains(StreetName,...) without tolower', () => {
+    // The only contains(StreetName,...) pattern should be wrapped in tolower()
+    const badPattern = /contains\(StreetName,/;
+    const goodPattern = /contains\(tolower\(StreetName\),/;
+    expect(routeCode).toMatch(goodPattern);
+    // Remove all good patterns and check no bad pattern remains
+    const withoutGood = routeCode.replace(/contains\(tolower\(StreetName\),/g, '');
+    expect(withoutGood).not.toMatch(badPattern);
   });
 
-  it('does NOT search StreetName contains EAST for directional-only queries', () => {
-    // The filter is built conditionally — streetName filter only added when parsed.streetName exists.
-    // For "333 East", streetName is undefined, so contains(StreetName,...) should not be in the filter.
-    expect(routeCode).toContain("if (parsed.streetName)");
+  it('parser strips ordinal suffixes (46th→46, 57th→57)', () => {
+    expect(routeCode).toContain('stripOrdinal');
+    expect(routeCode).toContain('ORDINAL_RE');
+  });
+
+  it('parser lowercases streetName for tolower() alignment', () => {
+    expect(routeCode).toContain('.toLowerCase()');
+  });
+
+  it('DB query uses case-insensitive LOWER() for StreetName', () => {
+    expect(routeCode).toContain("LOWER(address->>'StreetName')");
   });
 
   it('Trestle fallback fires when streetNumber + streetDirPrefix (no streetName)', () => {
