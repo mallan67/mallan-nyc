@@ -4974,6 +4974,7 @@ async function fetchBuildingsFromAPI(query) {
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
+    if (_isInHouseListingType(prefix)) { results.classList.add('hidden'); return; }
     if (query.length < 3) { results.classList.add('hidden'); return; }
 
     // Debounce API calls
@@ -5091,6 +5092,7 @@ function autoDeriveSaleStructureType() {
 
 // Address field onblur — exact-match auto-populate from IDX
 function saleAddressBlurLookup() {
+    if (_isInHouseListingType('sale')) { parseSaleAddress(); return; }
     const addr = document.getElementById('saleStreetAddress')?.value?.trim();
     if (!addr || addr.length < 5) return;
     const match = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
@@ -5159,6 +5161,23 @@ function parseSaleAddress() {
 }
 
 // ══════════════════════════════════════════════════════
+// IN-HOUSE / IDX SUPPRESSION HELPERS
+// ══════════════════════════════════════════════════════
+function _isInHouseListingType(prefix) {
+    var radio = document.querySelector('input[name="' + prefix + 'ListingType"]:checked');
+    return radio && radio.value === 'InHouse';
+}
+
+function _clearIdxMatchState(prefix) {
+    var banner = document.getElementById(prefix + 'IdxMatchBanner');
+    if (banner) banner.classList.add('hidden');
+    var results = document.getElementById(prefix + 'BuildingSearchResults');
+    if (results) results.classList.add('hidden');
+    var search = document.getElementById(prefix + 'BuildingSearch');
+    if (search) search.value = '';
+}
+
+// ══════════════════════════════════════════════════════
 // LISTING TYPE HANDLER
 // ══════════════════════════════════════════════════════
 function handleSaleListingTypeChange(value) {
@@ -5170,6 +5189,10 @@ function handleSaleListingTypeChange(value) {
     if (warning) warning.style.display = isOptOut ? '' : 'none';
     if (inHouse) inHouse.style.display = value === 'InHouse' ? '' : 'none';
     if (optOutSection) optOutSection.style.display = value === 'OwnerOptOut' ? '' : 'none';
+
+    if (value === 'InHouse') {
+        _clearIdxMatchState('sale');
+    }
 
     // Re-evaluate InternetEntireListingDisplayYN lock when permissions change
     enforceSaleInternetDisplayRule();
@@ -6523,8 +6546,8 @@ function collectSaleFormData() {
     // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
     data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
-    // Distribution gates — force OFF when Owner Opt-Out or Participant Only
-    if (isOwnerOptOut || isParticipantOnly) {
+    // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse
+    if (isOwnerOptOut || isParticipantOnly || isInHouse) {
         data.IDXEntireListingDisplayYN = false;
         data.InternetEntireListingDisplayYN = false;
         data.InternetAddressDisplayYN = false;

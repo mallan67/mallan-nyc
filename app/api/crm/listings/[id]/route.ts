@@ -100,8 +100,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const merged = { ...existingRaw, ...body };
 
   // Re-classify RLS eligibility on update (unit count or property type may have changed)
+  // InHouse listings are website-only — not on RLS.
+  const isInHouse = merged.saleListingType === "InHouse" || merged.listingAgreement === "InHouse";
   const eligibility = classifyRlsEligibility(merged, {
-    explicitOptOut: body.rls_eligible === false || (!body.rls_eligible && !listing.rls_eligible),
+    explicitOptOut: body.rls_eligible === false || (!body.rls_eligible && !listing.rls_eligible) || isInHouse,
     commercialSubType: (body.commercial_sub_type as string) || (listing.commercial_sub_type as string | null) || undefined,
     commercialOwnership: (body.commercial_ownership as string) || (listing.commercial_ownership as string | null) || undefined,
   });
