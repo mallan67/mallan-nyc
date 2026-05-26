@@ -66,6 +66,64 @@ describe('repo-audit-bot.yml — Sentinel-D.1 structure', () => {
       expect(invokeStep.with.prompt).toMatch(/You must NOT use the Write tool/);
       expect(invokeStep.with.prompt).toMatch(/You must NOT use the Edit tool/);
     });
+
+    // Sentinel-D.1.1 — payload-budget + compact-report rules added to
+    // prevent the Claude SDK tool-input "Parser aborted (over-length)"
+    // failure mode observed in run 26434727016 (2026-05-26). Each marker
+    // assertion below pins one of the rules Maya specified.
+
+    test('prompt declares the PAYLOAD BUDGET RULE (Sentinel-D.1.1)', () => {
+      expect(invokeStep.with.prompt).toMatch(/PAYLOAD BUDGET RULE/);
+      // The 6 KB / 6,144-byte cap must be stated as the hard limit.
+      expect(invokeStep.with.prompt).toMatch(/6\s*KB/);
+      expect(invokeStep.with.prompt).toMatch(/6,144\s*bytes/);
+      // The SDK abort error must be cited so Claude knows the failure mode.
+      expect(invokeStep.with.prompt).toMatch(/Parser aborted/);
+    });
+
+    test('prompt forbids giant heredoc / oversized final payload', () => {
+      // "longer payloads will be parser-aborted" or equivalent prohibition.
+      expect(invokeStep.with.prompt).toMatch(/parser-aborted/i);
+      // Explicit "no giant evidence dumps" rule.
+      expect(invokeStep.with.prompt).toMatch(/No giant evidence dumps/);
+      // No new pipe-tables outside the Coverage Matrix.
+      expect(invokeStep.with.prompt).toMatch(/No new tables outside.*Coverage Matrix/);
+      // No verbose raw logs / no repeated command outputs.
+      expect(invokeStep.with.prompt).toMatch(/No repeated command outputs/);
+      expect(invokeStep.with.prompt).toMatch(/No verbose raw logs/);
+    });
+
+    test('prompt mandates compact-report format (one paragraph per section)', () => {
+      expect(invokeStep.with.prompt).toMatch(/Compact-report rules/);
+      expect(invokeStep.with.prompt).toMatch(/One concise paragraph per A.S section/);
+      // Evidence via file:line, not pasted source/output blobs.
+      expect(invokeStep.with.prompt).toMatch(/file:line.*references/);
+    });
+
+    test('prompt requires first script call to be a compact COMPLETE audit (not a smoke test)', () => {
+      expect(invokeStep.with.prompt).toMatch(/FIRST-CALL = COMPACT COMPLETE AUDIT/);
+      // Explicit "first call already produces a complete audit, not a placeholder"
+      // (whitespace-tolerant — the YAML block-scalar inserts hard newlines
+      // at arbitrary positions within sentences, including between "not a"
+      // and "placeholder").
+      expect(invokeStep.with.prompt).toMatch(/must already produce a compact complete audit,\s+not\s+a\s+placeholder/);
+      // The safety-net framing — even if a later call aborts, the artifact is usable.
+      expect(invokeStep.with.prompt).toMatch(/safety net/);
+    });
+
+    test('prompt requires LIMITED fallback when content exceeds budget', () => {
+      expect(invokeStep.with.prompt).toMatch(/LIMITED FALLBACK RULE/);
+      // "Do NOT expand the heredoc body" — must shrink, not grow.
+      expect(invokeStep.with.prompt).toMatch(/do NOT[\s\S]{0,40}expand the heredoc body/);
+      // LIMITED is the documented fallback label, not silent dropout.
+      expect(invokeStep.with.prompt).toMatch(/Change the Coverage Matrix row to .LIMITED/);
+    });
+
+    test('prompt cross-references payload budget from runtime budget policy', () => {
+      // Ensures the 6 KB cap is positioned as taking PRECEDENCE over the
+      // 35-min runtime budget — i.e. shrink before you race the clock.
+      expect(invokeStep.with.prompt).toMatch(/payload budget[\s\S]{0,80}takes precedence over runtime budget/i);
+    });
   });
 
   describe('step-level env (sibling of with:)', () => {

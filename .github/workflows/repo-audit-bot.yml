@@ -465,57 +465,97 @@ jobs:
             rename), so a rejected invocation leaves the previous content
             (the workflow skeleton) intact and you can re-invoke.
 
-            ### EARLY-CALL REQUIREMENT (mandatory — diagnostic + smoke test)
+            ### PAYLOAD BUDGET RULE (Sentinel-D.1.1 — mandatory)
 
-            Sentinel-A run 26332734778 and Sentinel-A.2/A.3/A.4 runs all
-            failed RED because Claude finished investigation without
-            successfully writing the audit file. The post-Claude diagnostic
-            guard correctly turns the workflow red, but no audit content is
-            produced. Sentinel-D.1's script removes the Write-matcher
-            dependency entirely.
+            Sentinel-D.1's first verification run (`26434727016`, 2026-05-26)
+            proved the script write-path works end-to-end. The script
+            accepted ~4.6 KB of content, validated all schema gates, and
+            wrote the audit file atomically. The failure was downstream:
+            Claude attempted subsequent script invocations with much larger
+            heredoc bodies (full investigation content + evidence dumps)
+            and the Claude SDK's tool-input parser repeatedly aborted with:
 
-            You MUST follow this ordered procedure:
+                Parser aborted (timeout, resource limit, or over-length)
 
-              1. **First action — Read the skeleton.** Call Read on the path
-                 ${{ steps.paths.outputs.report_path }} so you have the exact
-                 structure (headers, table layout, area names, A–S sections)
-                 loaded.
+            Nine consecutive parser aborts over 12 minutes preceded the
+            35-minute job-timeout cancellation. No script ERROR codes ever
+            appeared because the SDK aborted upstream of the script.
 
-              2. **Second action — Smoke-test the script.** BEFORE any
-                 investigation, invoke `node scripts/sentinel-write-audit.mjs`
-                 once with a STRUCTURALLY VALID placeholder body (all 21
-                 Matrix rows present with non-IN-PROGRESS placeholder values
-                 like `LIMITED`, all 19 A–S sections present with non-`_TODO_`
-                 placeholder text like `Pending — early-write smoke test`,
-                 and the closing line). This proves the script path works in
-                 this runner / for this date. If the script rejects, read its
-                 ERROR_CODE on stderr and fix before continuing.
+            **Hard rule: each `node scripts/sentinel-write-audit.mjs` call's
+            heredoc payload MUST stay under 6 KB (6,144 bytes total).**
+            Treat 6 KB as the maximum tool-input size for this script;
+            longer payloads will be parser-aborted by the Claude SDK and
+            lost. There is no fallback path for an aborted call.
 
-              3. **Then begin investigation.** Replace placeholder values
-                 with real findings and re-invoke the script. Each
-                 invocation overwrites the file atomically.
+            **Compact-report rules to fit under budget:**
 
-            ### CALL-AFTER-EACH-AREA REQUIREMENT (mandatory)
+              - **One concise paragraph per A–S section** — not multi-
+                paragraph blocks. Bullets only when listing 3+ items.
+              - **No giant evidence dumps.** Summarize evidence with
+                `file:line` references (e.g. `lib/idx/trestle-mapper.ts:782`),
+                NOT pasted source excerpts. NOT full command output. NOT
+                multi-line log paste.
+              - **No new tables outside `## Coverage Matrix`.** The matrix
+                is the only structured table allowed. Sections P/S etc.
+                use prose + file:line citations, never new pipe-tables.
+              - **No repeated command outputs.** If `npm run idx:validate`
+                appears twice in the report, the second mention should
+                just be `(see appendix S)` not a re-paste of the output.
+              - **No verbose raw logs.** A 50-line stack trace becomes
+                "stack trace at `scripts/foo.ts:42` — TypeError on `bar`".
 
-            After EACH audit area (not batched, not at the end), call the
-            script with the full updated audit content:
+            ### FIRST-CALL = COMPACT COMPLETE AUDIT (mandatory)
 
-              - Replace that area's Coverage Matrix row `IN PROGRESS` with
-                `PASS / FAIL / LIMITED / NOT VERIFIED / BLOCKED`, plus the
-                cited evidence path and a one-line note.
-              - Replace that area's A–S section `_TODO_` with the actual
-                findings + evidence excerpts.
-              - Save immediately. Do not hold multiple areas in memory before
-                saving — a runner timeout, network blip, or tool denial
-                would lose all unsaved progress. The post-Claude guard
-                requires measurable progress (at least one Matrix row not
-                `IN PROGRESS` AND at least one section not `_TODO_`); the
-                existing Gate 3 still fails on any remaining `IN PROGRESS`.
+            **The first successful `node scripts/sentinel-write-audit.mjs`
+            invocation must already produce a compact complete audit, not a
+            placeholder smoke test.** This guarantees that even if a later
+            refinement call parser-aborts or the job times out, the
+            artifact and draft PR contain a real, usable audit.
 
-            If a verification approach hits a permission denial, IMMEDIATELY
-            mark that area `LIMITED` or `NOT VERIFIED` in the next script
-            invocation with a one-line evidence-gap note — do not keep
-            retrying denied tools.
+            Required ordered procedure:
+
+              1. **Read the skeleton** at ${{ steps.paths.outputs.report_path }}
+                 so you have the area names and section headers loaded.
+
+              2. **Investigate at compact resolution.** For each of the 21
+                 areas, run only the minimum verification needed to assign
+                 a Coverage Matrix verdict (`PASS / FAIL / LIMITED /
+                 NOT VERIFIED / BLOCKED`) and one `file:line` citation.
+                 Do NOT generate multi-paragraph findings yet.
+
+              3. **First script call — compact complete audit.** Submit a
+                 STRUCTURALLY COMPLETE report (all 21 Matrix rows filled,
+                 all 19 A–S sections filled with at minimum a one-sentence
+                 finding + one file:line citation each, `status: COMPLETE`,
+                 final `Overall status: Green/Yellow/Red`, closing line).
+                 Stay under 6 KB. The script will validate and write
+                 atomically. This first call is the safety net.
+
+              4. **(Optional) Refinement calls within budget.** Only after
+                 the first call succeeds (script printed JSON to stdout),
+                 you MAY re-invoke the script with refined content — still
+                 ≤ 6 KB — to deepen specific sections. If a refinement
+                 would push total content above 6 KB, you MUST drop the
+                 refinement and either: (a) shorten a different section's
+                 prose to make room, or (b) leave that area as `LIMITED`
+                 with a one-line evidence-gap note in its section body.
+
+            ### LIMITED FALLBACK RULE (Sentinel-D.1.1)
+
+            **When detail does not fit under the 6 KB budget, do NOT
+            expand the heredoc body.** Instead:
+
+              - Change the Coverage Matrix row to `LIMITED` (if currently
+                a different label).
+              - Add a one-line evidence-gap note in that area's body
+                section explaining what was and was not verified, plus
+                the `file:line` reference for what was checked.
+              - Re-invoke the script with the shrunken content.
+
+            **A LIMITED row with a real one-line evidence gap is a valid
+            audit outcome. A row labeled PASS with a "see [4 KB of pasted
+            output]" body is a failed audit — that body will parser-abort
+            and never reach the script.**
 
             ### POST-CLAUDE GUARD (workflow enforces — for your awareness)
 
@@ -579,6 +619,10 @@ jobs:
               - Do NOT skip writing the file. A partial-coverage report with
                 clearly marked LIMITED rows is acceptable; a missing report
                 is a fail-red workflow outcome.
+              - The 6 KB payload budget (see PAYLOAD BUDGET RULE above)
+                takes precedence over runtime budget. A 5-minute audit that
+                produced a compact 4 KB complete report is preferred over a
+                30-minute audit whose oversized heredoc parser-aborted.
 
             ### COMPARE AGAINST PRIORS
 
@@ -589,17 +633,18 @@ jobs:
 
             ### FINISH STATE (REQUIRED — workflow verifies)
 
-            Before your final `node scripts/sentinel-write-audit.mjs` call:
-              - Replace the header line `status: IN PROGRESS` with
-                `status: COMPLETE`.
-              - Replace `Overall status: IN PROGRESS — audit running.` with
-                the final `Overall status: Green` / `Yellow` / `Red` line.
-              - Confirm NO `IN PROGRESS` strings remain anywhere in the file
-                (Coverage Matrix included). If an area genuinely could not be
-                verified, change that row's status to `LIMITED` or
-                `NOT VERIFIED` — never leave it as `IN PROGRESS`. The script
-                rejects any `| IN PROGRESS |` row.
-              - Append the literal closing line at the very end:
+            Per the FIRST-CALL = COMPACT COMPLETE AUDIT rule, **every**
+            script invocation must already satisfy the finish state — the
+            first call is the safety net. For every call:
+              - Header line is `status: COMPLETE` (not `IN PROGRESS`).
+              - First content line is the final `Overall status: Green` /
+                `Yellow` / `Red` line, not the placeholder.
+              - NO `IN PROGRESS` strings anywhere in the file (Coverage
+                Matrix included). If an area genuinely could not be
+                verified, the row's status is `LIMITED` or `NOT VERIFIED` —
+                never `IN PROGRESS`. The script rejects any
+                `| IN PROGRESS |` row.
+              - Last non-blank line is the literal closing line:
                 `Report-only: no changes made.` (The script rejects content
                 that does not end with this line.)
 
