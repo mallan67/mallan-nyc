@@ -4,7 +4,7 @@
 // On failure: increments attempts, destroys session after 5 failures.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { verifyPassword, createSession, SESSION_COOKIE, EthicsTrainingExpiredError } from "@/lib/auth";
+import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 import { MFA_MAX_ATTEMPTS } from "@/lib/auth/mfa";
 import { logAuditEvent } from "@/lib/auth/middleware";
@@ -137,18 +137,6 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (err) {
-    // UCBA Art. III §6 ethics training gate (Workstream C4b).
-    if (err instanceof EthicsTrainingExpiredError) {
-      return NextResponse.json(
-        {
-          error: err.message,
-          code: err.code,
-          reason: err.reason,
-          retraining_url: err.retrainingUrl,
-        },
-        { status: 403 }
-      );
-    }
     console.error("MFA verify error:", err);
     return NextResponse.json(
       { error: "Internal server error" },

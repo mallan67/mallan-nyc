@@ -6,7 +6,6 @@ import prisma from "@/lib/prisma";
 import {
   createSession,
   SESSION_COOKIE,
-  EthicsTrainingExpiredError,
 } from "@/lib/auth";
 
 type DevLoginResult =
@@ -19,11 +18,6 @@ type DevLoginResult =
       ok: false;
       status: number;
       error: string;
-      // Surfaced when the broker's UCBA Art. III §6 ethics training is
-      // missing or expired (matches /api/auth/login + /api/auth/mfa/verify).
-      code?: string;
-      reason?: "missing" | "expired";
-      retraining_url?: string;
     };
 
 // GET handler — so you can just visit the URL in the browser
@@ -48,12 +42,7 @@ export async function GET(req: NextRequest) {
     return res;
   }
   return NextResponse.json(
-    {
-      error: result.error,
-      ...(result.code ? { code: result.code } : {}),
-      ...(result.reason ? { reason: result.reason } : {}),
-      ...(result.retraining_url ? { retraining_url: result.retraining_url } : {}),
-    },
+    { error: result.error },
     { status: result.status }
   );
 }
@@ -65,25 +54,7 @@ async function _devLogin(req: NextRequest): Promise<DevLoginResult> {
     });
     if (!agent) return { ok: false, error: "No active broker found", status: 404 };
 
-    let token: string;
-    try {
-      token = await createSession("agent", agent.id, agent.role);
-    } catch (err) {
-      // UCBA Art. III §6 ethics training gate (Workstream C4b).
-      // Mirror the response shape used by /api/auth/login and
-      // /api/auth/mfa/verify so the UI can route to the retraining URL.
-      if (err instanceof EthicsTrainingExpiredError) {
-        return {
-          ok: false,
-          status: 403,
-          error: err.message,
-          code: err.code,
-          reason: err.reason,
-          retraining_url: err.retrainingUrl,
-        };
-      }
-      throw err;
-    }
+    const token = await createSession("agent", agent.id, agent.role);
 
     await prisma.agent.update({ where: { id: agent.id }, data: { last_login: new Date() } });
     console.warn("[DEV-LOGIN] Dev login used at", new Date().toISOString(), "from", req.headers.get("x-forwarded-for") || "local");
@@ -111,12 +82,7 @@ export async function POST(req: NextRequest) {
   const result = await _devLogin(req);
   if (!result.ok) {
     return NextResponse.json(
-      {
-        error: result.error,
-        ...(result.code ? { code: result.code } : {}),
-        ...(result.reason ? { reason: result.reason } : {}),
-        ...(result.retraining_url ? { retraining_url: result.retraining_url } : {}),
-      },
+      { error: result.error },
       { status: result.status }
     );
   }

@@ -2,15 +2,14 @@
 /**
  * Full auth login flow runtime test.
  *
- * Covers all five branches the spec calls out:
+ * Covers four branches:
  *   1. Valid agent + valid password → MFA challenge issued (broker)
  *   2. Valid agent + invalid password → 401 "Invalid email or password"
  *   3. Inactive agent → 403 "Account is inactive or suspended"
- *   4. Agent with expired ethics training → 403 with code:"ETHICS_TRAINING_EXPIRED"
- *   5. Valid lead + valid password → session cookie set with userType:lead
+ *   4. Valid lead + valid password → session cookie set with userType:lead
  *
- * The expired-ethics case is the post-#58 verification path — proving the
- * gate routes through both /api/auth/login and /api/auth/mfa/verify.
+ * Ethics training is tracked in the DB and admin panel but does NOT
+ * block session creation. Compliance is enforced at listing submission.
  */
 
 import { buildPrismaMock, makeRequest, readJson } from './helpers';
@@ -21,24 +20,9 @@ jest.mock('@/lib/prisma', () => ({
   default: prismaMock,
 }));
 
-// Mock auth helpers — we test the route's branching, not the helpers
-// themselves (those have their own tests in tests/runtime/auth-ethics-gate
-// and lib/auth/__tests__/mfa.test.ts).
 const verifyPasswordMock = jest.fn(async (plain: string, hash: string) => plain === 'right');
 const hashPasswordMock = jest.fn(async (s: string) => `hashed:${s}`);
 const createSessionMock = jest.fn(async () => 'session-token-abc');
-class EthicsTrainingExpiredErrorMock extends Error {
-  code = 'ETHICS_TRAINING_EXPIRED';
-  reason: 'missing' | 'expired';
-  retrainingUrl: string;
-  expiredAt: Date | null;
-  constructor(reason: 'missing' | 'expired', expiredAt: Date | null) {
-    super(`Ethics training ${reason}`);
-    this.reason = reason;
-    this.expiredAt = expiredAt;
-    this.retrainingUrl = 'https://example.com/training';
-  }
-}
 
 jest.mock('@/lib/auth', () => ({
   __esModule: true,
@@ -46,7 +30,6 @@ jest.mock('@/lib/auth', () => ({
   hashPassword: hashPasswordMock,
   createSession: createSessionMock,
   SESSION_COOKIE: 'session_token',
-  EthicsTrainingExpiredError: EthicsTrainingExpiredErrorMock,
 }));
 
 jest.mock('@/lib/auth/mfa', () => ({
@@ -117,24 +100,7 @@ describe('auth login full flow', () => {
     expect(body.error).toMatch(/inactive|suspended/i);
   });
 
-  it('case 4: ethics training expired → 403 with code:ETHICS_TRAINING_EXPIRED', async () => {
-    (prismaMock as { agent: { findUnique: jest.Mock } }).agent.findUnique = jest.fn(async () => ACTIVE_BROKER);
-    (prismaMock as { mfaSession: { create: jest.Mock } }).mfaSession.create = jest.fn(async () => {
-      // Simulate the EthicsTrainingExpiredError surfacing during session creation.
-      // (In production this fires from createSession when called by mfa-verify; we
-      // model the same throw here so the login route's catch-block branch is exercised.)
-      throw new EthicsTrainingExpiredErrorMock('expired', new Date('2026-01-01'));
-    });
-
-    const res = await callLogin({ email: 'broker@mallan.nyc', password: 'right', portalType: 'broker' });
-    expect(res.status).toBe(403);
-    const body = await readJson<{ error: string; code: string; reason: string; retraining_url: string }>(res);
-    expect(body.code).toBe('ETHICS_TRAINING_EXPIRED');
-    expect(body.reason).toBe('expired');
-    expect(body.retraining_url).toMatch(/^https?:\/\//);
-  });
-
-  it('case 5: valid lead + valid password → session cookie set with userType:lead', async () => {
+  it('case 4: valid lead + valid password → session cookie set with userType:lead', async () => {
     // No matching agent
     (prismaMock as { agent: { findUnique: jest.Mock } }).agent.findUnique = jest.fn(async () => null);
     (prismaMock as { lead: { findUnique: jest.Mock } }).lead.findUnique = jest.fn(async () => ({
