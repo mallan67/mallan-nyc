@@ -5141,7 +5141,12 @@ function saleAddressBlurLookup() {
     }
     // No local match — call API, then show candidates in the existing results UI
     fetchBuildingsFromAPI(addr).then(function(matches) {
-        if (!matches || matches.length === 0) { parseSaleAddress(); return; }
+        if (!matches || matches.length === 0) {
+            var stale = document.getElementById('saleBuildingSearchResults');
+            if (stale) stale.classList.add('hidden');
+            parseSaleAddress();
+            return;
+        }
         buildingDatabase = matches;
         var results = document.getElementById('saleBuildingSearchResults');
         if (results && matches.length === 1) {
