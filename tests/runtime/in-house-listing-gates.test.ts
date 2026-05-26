@@ -27,13 +27,34 @@ describe('Form — InHouse permits Trestle building lookup', () => {
   });
 
   it('saleAddressBlurLookup does NOT have InHouse early-return', () => {
-    const fnMatch = formHtml.match(/function saleAddressBlurLookup\(\)\s*\{([\s\S]{0,400}?)\n\}/);
-    expect(fnMatch).not.toBeNull();
-    expect(fnMatch![1]).not.toContain('_isInHouseListingType');
+    const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = formHtml.slice(fnStart, fnStart + 2000);
+    expect(body).not.toContain('_isInHouseListingType');
   });
 
-  it('fetchBuildingsFromAPI is still called by searchBuildingForListing', () => {
+  it('fetchBuildingsFromAPI is called by both searchBuildingForListing and saleAddressBlurLookup', () => {
     expect(formHtml).toContain('fetchBuildingsFromAPI(query)');
+    expect(formHtml).toContain('fetchBuildingsFromAPI(addr)');
+  });
+
+  it('saleAddressBlurLookup checks local cache first, then falls back to API', () => {
+    const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = formHtml.slice(fnStart, fnStart + 2000);
+    expect(body).toContain('buildingDatabase.find');
+    expect(body).toContain('fetchBuildingsFromAPI(addr)');
+    const cacheIdx = body.indexOf('buildingDatabase.find');
+    const apiIdx = body.indexOf('fetchBuildingsFromAPI(addr)');
+    expect(cacheIdx).toBeLessThan(apiIdx);
+  });
+
+  it('saleAddressBlurLookup shows candidates in existing results UI on multi-match', () => {
+    const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = formHtml.slice(fnStart, fnStart + 2000);
+    expect(body).toContain('saleBuildingSearchResults');
+    expect(body).toContain("selectBuildingFromIDX('sale'");
   });
 });
 
