@@ -124,6 +124,21 @@ describe('repo-audit-bot.yml — Sentinel-D.1 structure', () => {
       // 35-min runtime budget — i.e. shrink before you race the clock.
       expect(invokeStep.with.prompt).toMatch(/payload budget[\s\S]{0,80}takes precedence over runtime budget/i);
     });
+
+    test('prompt forbids retry-with-larger-content after parser abort + requires 40% reduction', () => {
+      // STOP-EXPAND + POST-ABORT RECOVERY RULE (Sentinel-D.1.1 extension):
+      // codifies the three lifecycle rules Maya specified.
+      expect(invokeStep.with.prompt).toMatch(/STOP-EXPAND \+ POST-ABORT RECOVERY RULE/);
+      // Rule 1: stop expanding once the compact report passes.
+      expect(invokeStep.with.prompt).toMatch(/Stop expanding once the compact report passes/);
+      // Rule 2: never retry with larger content after a parser abort.
+      expect(invokeStep.with.prompt).toMatch(/Never retry with larger content after a parser abort/);
+      // Rule 3: 40% minimum reduction after parser abort.
+      expect(invokeStep.with.prompt).toMatch(/40%\s+minimum reduction after parser abort/);
+      // Sanity — the rule is anchored to the specific SDK abort string so
+      // Claude knows exactly which event triggers the recovery procedure.
+      expect(invokeStep.with.prompt).toMatch(/Parser aborted \(timeout, resource limit, or over-length\)/);
+    });
   });
 
   describe('step-level env (sibling of with:)', () => {

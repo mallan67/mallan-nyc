@@ -557,6 +557,40 @@ jobs:
             output]" body is a failed audit — that body will parser-abort
             and never reach the script.**
 
+            ### STOP-EXPAND + POST-ABORT RECOVERY RULE (Sentinel-D.1.1)
+
+            Three additional hard rules govern the script-call lifecycle
+            once a compact complete audit has been written or once a
+            parser abort has fired:
+
+              1. **Stop expanding once the compact report passes.** After
+                 the first successful script invocation (the writer prints
+                 a JSON line to stdout), the run already has a usable
+                 audit artifact. Continuing to grow the heredoc payload to
+                 add more detail is a risk-for-no-reward trade — any
+                 parser-aborted refinement is a wasted call AND a wasted
+                 minute against the 35-min budget. If you can think of a
+                 useful refinement, ask: does it fit under 6 KB AFTER the
+                 trim? If not, stop. The compact report is the deliverable.
+
+              2. **Never retry with larger content after a parser abort.**
+                 If a script call returns `Parser aborted (timeout,
+                 resource limit, or over-length)`, the SDK is telling you
+                 the payload exceeded its tool-input limit. Retrying the
+                 SAME content will fail identically. Retrying with MORE
+                 content will fail faster. There is exactly one valid
+                 recovery: shrink the payload.
+
+              3. **40% minimum reduction after parser abort.** If you must
+                 retry after a parser abort, the next heredoc payload MUST
+                 be at least 40% smaller than the aborted one. Trimming
+                 by a couple of sentences is not enough — the SDK's
+                 over-length boundary is sharp, and small reductions
+                 will re-abort. Cut a whole evidence block (replace with
+                 `file:line` reference), drop a section to LIMITED, or
+                 collapse 3 paragraphs into 1 bullet list. If you cannot
+                 cut 40%, mark more rows LIMITED until you can.
+
             ### POST-CLAUDE GUARD (workflow enforces — for your awareness)
 
             After your invocation returns, the workflow runs a diagnostic
