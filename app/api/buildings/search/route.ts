@@ -24,29 +24,62 @@ function checkRateLimit(ip: string): boolean {
 }
 
 /**
- * Parse a free-text address query into components.
+ * RESO/Cotality directional abbreviation map.
+ * Trestle stores StreetDirPrefix as the short form ("E", "W", "N", "S").
+ */
+const DIR_PREFIX_MAP: Record<string, string> = {
+  east: 'E', e: 'E',
+  west: 'W', w: 'W',
+  north: 'N', n: 'N',
+  south: 'S', s: 'S',
+  ne: 'NE', nw: 'NW', se: 'SE', sw: 'SW',
+  northeast: 'NE', northwest: 'NW', southeast: 'SE', southwest: 'SW',
+};
+
+/**
+ * Parse a free-text address query into RESO-aligned components.
+ *
+ * RESO/Cotality stores addresses as:
+ *   StreetNumber + StreetDirPrefix + StreetName + StreetSuffix
+ *   e.g. "333" + "E" + "46TH" + "St"
+ *
  * Examples:
- *   "157 W 57th" → { streetNumber: "157", streetName: "W 57TH" }
- *   "400 East 90th Street" → { streetNumber: "400", streetName: "EAST 90TH" }
- *   "One57" → { buildingName: "One57" }
+ *   "333 East"            → { streetNumber: "333", streetDirPrefix: "E" }
+ *   "333 East 46th Street"→ { streetNumber: "333", streetDirPrefix: "E", streetName: "46TH" }
+ *   "333 E 46th St"       → { streetNumber: "333", streetDirPrefix: "E", streetName: "46TH" }
+ *   "333 46th"            → { streetNumber: "333", streetName: "46TH" }
+ *   "157 W 57th"          → { streetNumber: "157", streetDirPrefix: "W", streetName: "57TH" }
+ *   "One57"               → { buildingName: "One57" }
  */
 function parseAddressQuery(q: string): {
   streetNumber?: string;
+  streetDirPrefix?: string;
   streetName?: string;
   buildingName?: string;
 } {
   const trimmed = q.trim();
-  // Try to match "123 Street Name..."
   const match = trimmed.match(/^(\d+)\s+(.+)$/);
-  if (match) {
-    const streetName = match[2]
-      .replace(/\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?\s*$/i, '')
-      .trim()
-      .toUpperCase();
-    return { streetNumber: match[1], streetName };
+  if (!match) {
+    return { buildingName: trimmed };
   }
-  // No leading number — treat as building name search
-  return { buildingName: trimmed };
+
+  const streetNumber = match[1];
+  let rest = match[2]
+    .replace(/\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?\s*$/i, '')
+    .trim();
+
+  // Detect RESO directional prefix as the first token after street number
+  const tokens = rest.split(/\s+/);
+  const firstLower = tokens[0]?.toLowerCase() || '';
+  const dirPrefix = DIR_PREFIX_MAP[firstLower];
+
+  if (dirPrefix) {
+    tokens.shift();
+    const streetName = tokens.length > 0 ? tokens.join(' ').toUpperCase() : undefined;
+    return { streetNumber, streetDirPrefix: dirPrefix, streetName: streetName || undefined };
+  }
+
+  return { streetNumber, streetName: rest.toUpperCase() || undefined };
 }
 
 interface TrestleRecord {
@@ -81,14 +114,18 @@ export async function GET(request: NextRequest) {
 
   try {
     // ── 1. Search DB first (fast) ──
-    if (parsed.streetNumber && parsed.streetName) {
+    if (parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
+      const dbAnd: object[] = [
+        { address: { path: ['StreetNumber'], equals: parsed.streetNumber } },
+      ];
+      if (parsed.streetDirPrefix) {
+        dbAnd.push({ address: { path: ['StreetDirPrefix'], string_contains: parsed.streetDirPrefix } });
+      }
+      if (parsed.streetName) {
+        dbAnd.push({ address: { path: ['StreetName'], string_contains: parsed.streetName } });
+      }
       const dbResults = await prisma.listing.findMany({
-        where: {
-          AND: [
-            { address: { path: ['StreetNumber'], equals: parsed.streetNumber } },
-            { address: { path: ['StreetName'], string_contains: parsed.streetName } },
-          ],
-        },
+        where: { AND: dbAnd },
         select: {
           address: true,
           features: true,
@@ -101,7 +138,7 @@ export async function GET(request: NextRequest) {
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
-        const fullAddr = `${addr.StreetNumber || ''} ${addr.StreetName || ''} ${addr.StreetSuffix || ''}`.trim();
+        const fullAddr = `${addr.StreetNumber || ''} ${addr.StreetDirPrefix ? addr.StreetDirPrefix + ' ' : ''}${addr.StreetName || ''} ${addr.StreetSuffix || ''}`.trim();
         const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
         if (seenAddresses.has(key)) continue;
         seenAddresses.add(key);
@@ -152,11 +189,10 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 2. Supplement from Trestle if DB has <5 results ──
-    if (buildings.length < 5 && parsed.streetNumber && parsed.streetName) {
+    if (buildings.length < 5 && parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       try {
         const token = await getAccessToken();
         const cleanNum = sanitizeOData(parsed.streetNumber);
-        const cleanName = sanitizeOData(parsed.streetName);
 
         const SELECT = [
           'ListingId', 'BuildingName', 'YearBuilt', 'StoriesTotal',
@@ -167,7 +203,16 @@ export async function GET(request: NextRequest) {
           'BuildingFeatures', 'PetsAllowed', 'AttendanceType',
         ].join(',');
 
-        const filter = `StreetNumber eq '${cleanNum}' and contains(StreetName,'${cleanName}')`;
+        const filterParts = [`StreetNumber eq '${cleanNum}'`];
+        if (parsed.streetDirPrefix) {
+          const cleanDir = sanitizeOData(parsed.streetDirPrefix);
+          filterParts.push(`StreetDirPrefix eq '${cleanDir}'`);
+        }
+        if (parsed.streetName) {
+          const cleanName = sanitizeOData(parsed.streetName);
+          filterParts.push(`contains(StreetName,'${cleanName}')`);
+        }
+        const filter = filterParts.join(' and ');
         const params = new URLSearchParams({
           $filter: filter,
           $select: SELECT,

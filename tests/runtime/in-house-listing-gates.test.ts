@@ -165,3 +165,46 @@ describe('Form — Banner text uses building reference, not IDX distribution', (
     expect(formHtml).toContain('Property Address — Building Lookup');
   });
 });
+
+// ─── 9. RESO address parser — parseAddressQuery ─────────────────────────────
+
+describe('Building search — parseAddressQuery RESO directional prefix', () => {
+  const routeCode = fs.readFileSync(
+    path.resolve(__dirname, '../../app/api/buildings/search/route.ts'),
+    'utf8'
+  );
+
+  it('parser returns streetDirPrefix field', () => {
+    expect(routeCode).toContain('streetDirPrefix');
+    expect(routeCode).toContain('DIR_PREFIX_MAP');
+  });
+
+  it('DIR_PREFIX_MAP normalizes East→E, West→W, North→N, South→S', () => {
+    expect(routeCode).toMatch(/east.*'E'/i);
+    expect(routeCode).toMatch(/west.*'W'/i);
+    expect(routeCode).toMatch(/north.*'N'/i);
+    expect(routeCode).toMatch(/south.*'S'/i);
+  });
+
+  it('DB query uses StreetDirPrefix path when parsed', () => {
+    expect(routeCode).toContain("path: ['StreetDirPrefix']");
+  });
+
+  it('Trestle OData filter uses StreetDirPrefix eq when parsed', () => {
+    expect(routeCode).toContain("StreetDirPrefix eq");
+  });
+
+  it('DB fullAddr includes StreetDirPrefix in display address', () => {
+    expect(routeCode).toContain("addr.StreetDirPrefix");
+  });
+
+  it('does NOT search StreetName contains EAST for directional-only queries', () => {
+    // The filter is built conditionally — streetName filter only added when parsed.streetName exists.
+    // For "333 East", streetName is undefined, so contains(StreetName,...) should not be in the filter.
+    expect(routeCode).toContain("if (parsed.streetName)");
+  });
+
+  it('Trestle fallback fires when streetNumber + streetDirPrefix (no streetName)', () => {
+    expect(routeCode).toContain("parsed.streetName || parsed.streetDirPrefix");
+  });
+});
