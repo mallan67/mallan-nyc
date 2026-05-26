@@ -15,10 +15,14 @@ const SESSION_TTL_MS = {
 const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UCBA Art. III §6 ethics training gate (Workstream C4b).
-// Schema fields land in PR #51. This block enforces them at the moment a
-// session token is issued for an agent. Brokers (role=BROKER) are also
-// agents under the hood so the check fires for them too.
+// UCBA Art. III §6 ethics training tracking (Workstream C4b).
+// DB fields (ethics_training_completed_at, ethics_training_expires_at) and
+// the admin panel at /broker/people/ethics remain for compliance record-
+// keeping. Ethics/CE dates do NOT block session creation — compliance is
+// enforced at the RLS listing-submission layer, not at login.
+//
+// PR-Licensing.1: Licensing Department workflow (agent self-upload of
+// proof, renewal reminders, broker review dashboard) is the next PR.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Where agents are sent to complete or renew their REBNY ethics training. */
@@ -57,10 +61,9 @@ export class EthicsTrainingExpiredError extends Error {
  * Verify the agent's ethics training is valid. Throws
  * `EthicsTrainingExpiredError` if missing or expired.
  *
- * Call this directly at any agent token issuance point that does not flow
- * through `createSession()` (e.g. impersonation, force-login admin paths).
- * For normal login + MFA verify, `createSession()` already calls this when
- * `userType === "agent"`.
+ * NOT called from createSession() — login is never blocked by ethics dates.
+ * Available for future use at the RLS listing-submission layer or as a
+ * soft-warning in the broker compliance dashboard.
  */
 export async function assertAgentEthicsTrainingValid(agentId: bigint): Promise<void> {
   const agent = await prisma.agent.findUnique({
@@ -112,12 +115,8 @@ export async function createSession(
   ipAddress?: string,
   userAgent?: string
 ): Promise<string> {
-  // UCBA Art. III §6 — gate agent token issuance on ethics training.
-  // Lead (client) sessions are unaffected. Throws EthicsTrainingExpiredError
-  // if the agent has no recorded training or it has expired.
-  if (userType === "agent") {
-    await assertAgentEthicsTrainingValid(userId);
-  }
+  // Ethics/CE tracking lives in the DB and admin panel but does NOT
+  // block session creation. Compliance is enforced at listing submission.
 
   const token = randomUUID();
   const durationMs = getSessionDurationMs(userType, role);
