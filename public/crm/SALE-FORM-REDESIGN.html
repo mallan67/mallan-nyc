@@ -5207,6 +5207,7 @@ function _isInHouseListingType(prefix) {
 }
 
 function _clearIdxMatchState(prefix) {
+    clearTimeout(_buildingSearchTimeout);
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) banner.classList.add('hidden');
     var results = document.getElementById(prefix + 'BuildingSearchResults');
