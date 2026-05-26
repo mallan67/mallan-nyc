@@ -1,3 +1,4 @@
+// Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Building Lookup)
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
@@ -6,9 +7,6 @@ import { getAccessToken } from '@/lib/idx/auth';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
-/**
- * Rate limiter — 20 requests per minute per IP.
- */
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(ip: string): boolean {
@@ -23,10 +21,6 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-/**
- * RESO/Cotality directional abbreviation map.
- * Trestle stores StreetDirPrefix as the short form ("E", "W", "N", "S").
- */
 const DIR_PREFIX_MAP: Record<string, string> = {
   east: 'E', e: 'E',
   west: 'W', w: 'W',
@@ -42,27 +36,14 @@ const ORDINAL_RE = /(\d+)(st|nd|rd|th)\b/gi;
 function stripSuffix(v: string): string { return v.replace(STREET_SUFFIX_RE, '').trim(); }
 function stripOrdinal(v: string): string { return v.replace(ORDINAL_RE, '$1').trim(); }
 
-/**
- * Parse a free-text address query into RESO/Cotality-aligned components.
- *
- * Matches the proven Cotality OData pattern from lib/search/public-listing-trestle.ts.
- * Cotality stores: StreetNumber + StreetDirPrefix(enum) + StreetName + StreetSuffix
- *   e.g. "333" + "E" + "46" + "St"  (ordinal stripped by Cotality)
- *
- * Examples:
- *   "333 East"            → { streetNumber: "333", streetDirPrefix: "E" }
- *   "333 East 46th Street"→ { streetNumber: "333", streetDirPrefix: "E", streetName: "46" }
- *   "333 E 46th St"       → { streetNumber: "333", streetDirPrefix: "E", streetName: "46" }
- *   "333 46th"            → { streetNumber: "333", streetName: "46" }
- *   "157 W 57th"          → { streetNumber: "157", streetDirPrefix: "W", streetName: "57" }
- *   "One57"               → { buildingName: "One57" }
- */
-function parseAddressQuery(q: string): {
+export interface ParsedAddress {
   streetNumber?: string;
   streetDirPrefix?: string;
   streetName?: string;
   buildingName?: string;
-} {
+}
+
+export function parseAddressQuery(q: string): ParsedAddress {
   const trimmed = q.trim();
   const match = trimmed.match(/^(\d+)\s+(.+)$/);
   if (!match) {
@@ -72,7 +53,6 @@ function parseAddressQuery(q: string): {
   const streetNumber = match[1];
   let rest = stripSuffix(match[2]);
 
-  // Detect RESO directional prefix as the first token after street number
   const tokens = rest.split(/\s+/);
   const firstLower = tokens[0]?.toLowerCase() || '';
   const dirPrefix = DIR_PREFIX_MAP[firstLower];
@@ -88,38 +68,103 @@ function parseAddressQuery(q: string): {
   return { streetNumber, streetName: streetName || undefined };
 }
 
+type ErrorClass =
+  | 'none'
+  | 'auth_failed'
+  | 'rate_limited'
+  | 'token_failed'
+  | 'cotality_non_200'
+  | 'cotality_zero_results'
+  | 'db_error'
+  | 'unknown';
+
+interface DiagnosticInfo {
+  authenticated: boolean;
+  userRole: string | null;
+  parsedQuery: ParsedAddress;
+  localDbResultCount: number;
+  cotality: {
+    resource: string;
+    odataFilter: string | null;
+    httpStatus: number | null;
+    resultCount: number | null;
+    firstThreeAddresses: string[];
+  };
+  resultSource: 'db' | 'cotality' | 'both' | 'none';
+  errorClass: ErrorClass;
+  errorMessage: string | null;
+}
+
+function formatAddress(r: Record<string, unknown>): string {
+  return `${r.StreetNumber || ''} ${r.StreetDirPrefix ? r.StreetDirPrefix + ' ' : ''}${r.StreetName || ''} ${r.StreetSuffix || ''}`.trim();
+}
+
 interface TrestleRecord {
   [key: string]: unknown;
 }
 
-/**
- * GET /api/buildings/search?q=157+W+57th
- *
- * Free-text building search for the CRM listing forms.
- * Returns a simplified list of matching buildings with key fields.
- *
- * COMPLIANCE: Agent/broker only, server-side, rate limited, no MLS credentials exposed.
- */
 export async function GET(request: NextRequest) {
+  const debugMode = request.nextUrl.searchParams.get('debug') === '1';
+
+  const diag: DiagnosticInfo = {
+    authenticated: false,
+    userRole: null,
+    parsedQuery: {},
+    localDbResultCount: 0,
+    cotality: {
+      resource: '/odata/Property',
+      odataFilter: null,
+      httpStatus: null,
+      resultCount: null,
+      firstThreeAddresses: [],
+    },
+    resultSource: 'none',
+    errorClass: 'none',
+    errorMessage: null,
+  };
+
   const auth = await requireAgentOrBroker(request);
-  if (isAuthError(auth)) return auth;
+  if (isAuthError(auth)) {
+    diag.errorClass = 'auth_failed';
+    diag.errorMessage = 'Session expired or not authenticated';
+    if (debugMode) {
+      return NextResponse.json({ buildings: [], _debug: diag, _errorHint: 'Session expired. Please log in again.' }, { status: 401 });
+    }
+    return NextResponse.json({ buildings: [], _errorHint: 'Session expired. Please log in again.' }, { status: 401 });
+  }
+
+  diag.authenticated = true;
+  diag.userRole = auth.role;
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
   if (!checkRateLimit(ip)) {
+    diag.errorClass = 'rate_limited';
+    diag.errorMessage = 'Rate limit exceeded';
+    if (debugMode) {
+      return NextResponse.json({ buildings: [], _debug: diag, _errorHint: 'Building lookup temporarily unavailable.' }, { status: 429 });
+    }
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }
 
   const q = request.nextUrl.searchParams.get('q');
   if (!q || q.length < 3) {
+    if (debugMode) {
+      diag.errorMessage = 'Query too short (minimum 3 characters)';
+      return NextResponse.json({ buildings: [], _debug: diag });
+    }
     return NextResponse.json({ buildings: [] });
   }
 
   const parsed = parseAddressQuery(q);
+  diag.parsedQuery = parsed;
+
   const buildings: Array<Record<string, unknown>> = [];
   const seenAddresses = new Set<string>();
+  let dbHadResults = false;
+  let cotHadResults = false;
 
   try {
-    // ── 1. Search DB first (fast, case-insensitive via raw SQL) ──
+    // ── 1. Search DB first ──
     if (parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       const conditions = [`address->>'StreetNumber' = $1`];
       const params: string[] = [parsed.streetNumber];
@@ -139,10 +184,13 @@ export async function GET(request: NextRequest) {
         address: unknown; features: unknown; property_type: string | null; property_sub_type: string | null;
       }>>(sql, ...params);
 
+      diag.localDbResultCount = dbResults.length;
+      if (dbResults.length > 0) dbHadResults = true;
+
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
-        const fullAddr = `${addr.StreetNumber || ''} ${addr.StreetDirPrefix ? addr.StreetDirPrefix + ' ' : ''}${addr.StreetName || ''} ${addr.StreetSuffix || ''}`.trim();
+        const fullAddr = formatAddress(addr);
         const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
         if (seenAddresses.has(key)) continue;
         seenAddresses.add(key);
@@ -168,6 +216,9 @@ export async function GET(request: NextRequest) {
         select: { address: true, features: true, property_type: true, property_sub_type: true },
         take: 10,
       });
+
+      diag.localDbResultCount = dbResults.length;
+      if (dbResults.length > 0) dbHadResults = true;
 
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
@@ -217,29 +268,39 @@ export async function GET(request: NextRequest) {
           filterParts.push(`contains(tolower(StreetName),'${cleanName}')`);
         }
         const filter = filterParts.join(' and ');
-        const params = new URLSearchParams({
+        diag.cotality.odataFilter = filter;
+
+        const odataParams = new URLSearchParams({
           $filter: filter,
           $select: SELECT,
           $orderby: 'ListPrice desc',
           $top: '20',
         });
 
-        const res = await fetch(`${TRESTLE_URL}/odata/Property?${params}`, {
+        const res = await fetch(`${TRESTLE_URL}/odata/Property?${odataParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 3600 },
         });
 
+        diag.cotality.httpStatus = res.status;
+
         if (res.ok) {
           const data = await res.json();
           const records: TrestleRecord[] = data.value || [];
+          diag.cotality.resultCount = records.length;
+          diag.cotality.firstThreeAddresses = records.slice(0, 3).map(formatAddress);
+
+          if (records.length > 0) cotHadResults = true;
+          if (records.length === 0) {
+            diag.errorClass = 'cotality_zero_results';
+          }
 
           for (const r of records) {
-            const fullAddr = `${r.StreetNumber || ''} ${r.StreetDirPrefix ? r.StreetDirPrefix + ' ' : ''}${r.StreetName || ''} ${r.StreetSuffix || ''}`.trim();
+            const fullAddr = formatAddress(r);
             const key = `${r.StreetNumber}-${r.StreetName}-${r.PostalCode || ''}`.toUpperCase();
             if (seenAddresses.has(key)) continue;
             seenAddresses.add(key);
 
-            // Detect amenities from building features
             const features = String(r.BuildingFeatures || '').toLowerCase();
             const attendance = String(r.AttendanceType || '').toLowerCase();
 
@@ -263,15 +324,53 @@ export async function GET(request: NextRequest) {
               concierge: attendance.includes('concierge'),
             });
           }
+        } else {
+          diag.errorClass = 'cotality_non_200';
+          diag.errorMessage = `Cotality returned HTTP ${res.status}`;
         }
       } catch (trestleErr) {
+        const errMsg = trestleErr instanceof Error ? trestleErr.message : String(trestleErr);
+        if (errMsg.includes('IDX Auth') || errMsg.includes('Missing IDX_CLIENT')) {
+          diag.errorClass = 'token_failed';
+          diag.errorMessage = 'Cotality token acquisition failed';
+        } else {
+          diag.errorClass = diag.errorClass === 'none' ? 'unknown' : diag.errorClass;
+          diag.errorMessage = 'Cotality request failed';
+        }
         console.warn('[/api/buildings/search] Trestle error:', trestleErr);
       }
     }
 
-    return NextResponse.json({ buildings });
+    // Compute result source
+    if (dbHadResults && cotHadResults) diag.resultSource = 'both';
+    else if (dbHadResults) diag.resultSource = 'db';
+    else if (cotHadResults) diag.resultSource = 'cotality';
+    else diag.resultSource = 'none';
+
+    // Build error hint for frontend
+    let errorHint: string | undefined;
+    if (buildings.length === 0) {
+      if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown') {
+        errorHint = 'Building lookup temporarily unavailable.';
+      } else {
+        errorHint = 'No Cotality/Trestle building match found.';
+      }
+    }
+
+    const response: Record<string, unknown> = { buildings };
+    if (errorHint) response._errorHint = errorHint;
+    if (debugMode) response._debug = diag;
+
+    return NextResponse.json(response);
   } catch (err) {
+    diag.errorClass = 'db_error';
+    diag.errorMessage = 'Internal server error';
     console.error('[/api/buildings/search] Error:', err);
-    return NextResponse.json({ buildings: [] });
+    const response: Record<string, unknown> = {
+      buildings: [],
+      _errorHint: 'Building lookup temporarily unavailable.',
+    };
+    if (debugMode) response._debug = diag;
+    return NextResponse.json(response, { status: 500 });
   }
 }
