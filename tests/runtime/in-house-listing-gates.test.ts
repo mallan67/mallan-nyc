@@ -3,36 +3,52 @@
  * InHouse listing gate tests — PR-Exclusive.1.
  *
  * Proves:
- *   1. InHouse forces all 4 distribution gates OFF in form serialization
- *   2. InHouse → rls_eligible=false in backend eligibility classification
- *   3. Website-only (rls_eligible=false) listings pass filterDisplayableDbListings
- *   4. IDX lookup is suppressed when listing type is InHouse
- *   5. Non-InHouse listing types preserve IDX lookup behavior
- *   6. Switching to InHouse clears IDX match state
+ *   1. InHouse still permits Trestle building lookup (not suppressed)
+ *   2. InHouse forces all 4 distribution gates OFF in form serialization
+ *   3. InHouse → rls_eligible=false in backend eligibility classification
+ *   4. Website-only (rls_eligible=false) listings pass filterDisplayableDbListings
+ *   5. Ambiguous/different Trestle match requires confirmation for InHouse
+ *   6. Non-InHouse listing types preserve existing lookup behavior
+ *   7. Switching to InHouse clears stale IDX match state
  */
 
-// ─── 1. Form serialization: InHouse forces distribution gates OFF ───────────
+const fs = require('fs');
+const path = require('path');
+const FORM_PATH = path.resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
+const formHtml = fs.readFileSync(FORM_PATH, 'utf8');
+
+// ─── 1. InHouse still permits Trestle building lookup ───────────────────────
+
+describe('Form — InHouse permits Trestle building lookup', () => {
+  it('searchBuildingForListing does NOT have InHouse early-return', () => {
+    const fnMatch = formHtml.match(/function searchBuildingForListing\(query, prefix\)\s*\{([\s\S]{0,600}?)\n\s*\/\/ Debounce/);
+    expect(fnMatch).not.toBeNull();
+    expect(fnMatch![1]).not.toContain('_isInHouseListingType');
+  });
+
+  it('saleAddressBlurLookup does NOT have InHouse early-return', () => {
+    const fnMatch = formHtml.match(/function saleAddressBlurLookup\(\)\s*\{([\s\S]{0,400}?)\n\}/);
+    expect(fnMatch).not.toBeNull();
+    expect(fnMatch![1]).not.toContain('_isInHouseListingType');
+  });
+
+  it('fetchBuildingsFromAPI is still called by searchBuildingForListing', () => {
+    expect(formHtml).toContain('fetchBuildingsFromAPI(query)');
+  });
+});
+
+// ─── 2. InHouse forces all 4 distribution gates OFF ─────────────────────────
 
 describe('Form serialization — InHouse distribution gates', () => {
-  it('InHouse must be included in the gate-off condition alongside OwnerOptOut/ParticipantOnly', () => {
-    const fs = require('fs');
-    const html = fs.readFileSync(
-      require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
-      'utf8'
-    );
+  it('InHouse is included in the gate-off condition', () => {
     const gatePattern = /if\s*\(\s*isOwnerOptOut\s*\|\|\s*isParticipantOnly\s*\|\|\s*isInHouse\s*\)/;
-    expect(html).toMatch(gatePattern);
+    expect(formHtml).toMatch(gatePattern);
   });
 
   it('gate-off block sets all 4 flags to false', () => {
-    const fs = require('fs');
-    const html = fs.readFileSync(
-      require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
-      'utf8'
-    );
-    const idx = html.indexOf('Distribution gates');
+    const idx = formHtml.indexOf('Distribution gates');
     expect(idx).toBeGreaterThan(-1);
-    const slice = html.slice(idx, idx + 500);
+    const slice = formHtml.slice(idx, idx + 500);
     expect(slice).toContain('IDXEntireListingDisplayYN = false');
     expect(slice).toContain('InternetEntireListingDisplayYN = false');
     expect(slice).toContain('InternetAddressDisplayYN = false');
@@ -40,24 +56,21 @@ describe('Form serialization — InHouse distribution gates', () => {
   });
 });
 
-// ─── 2. Backend: InHouse → rls_eligible=false ───────────────────────────────
+// ─── 3. Backend: InHouse → rls_eligible=false ───────────────────────────────
 
 describe('Backend — InHouse RLS eligibility', () => {
   it('POST handler treats saleListingType=InHouse as explicitOptOut', () => {
-    const fs = require('fs');
     const postRoute = fs.readFileSync(
-      require('path').resolve(__dirname, '../../app/api/crm/listings/route.ts'),
+      path.resolve(__dirname, '../../app/api/crm/listings/route.ts'),
       'utf8'
     );
     expect(postRoute).toContain('body.saleListingType === "InHouse"');
-    expect(postRoute).toContain('isInHouse');
     expect(postRoute).toMatch(/explicitOptOut:.*isInHouse/);
   });
 
   it('PATCH handler treats merged InHouse as explicitOptOut', () => {
-    const fs = require('fs');
     const patchRoute = fs.readFileSync(
-      require('path').resolve(__dirname, '../../app/api/crm/listings/[id]/route.ts'),
+      path.resolve(__dirname, '../../app/api/crm/listings/[id]/route.ts'),
       'utf8'
     );
     expect(patchRoute).toContain('merged.saleListingType === "InHouse"');
@@ -65,7 +78,7 @@ describe('Backend — InHouse RLS eligibility', () => {
   });
 });
 
-// ─── 3. Website-only bypass in filterDisplayableDbListings ──────────────────
+// ─── 4. Website-only bypass in filterDisplayableDbListings ──────────────────
 
 describe('filterDisplayableDbListings — website-only bypass', () => {
   it('rls_eligible=false listings bypass IDX distribution gates', () => {
@@ -88,71 +101,67 @@ describe('filterDisplayableDbListings — website-only bypass', () => {
   });
 });
 
-// ─── 4. IDX lookup suppressed for InHouse ───────────────────────────────────
+// ─── 5. Ambiguous Trestle match requires confirmation for InHouse ───────────
 
-describe('Form — IDX lookup suppression for InHouse', () => {
-  it('searchBuildingForListing returns early when InHouse', () => {
-    const fs = require('fs');
-    const html = fs.readFileSync(
-      require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
-      'utf8'
-    );
-    const fnMatch = html.match(/function searchBuildingForListing\(query, prefix\)\s*\{([^}]{0,500})/);
+describe('Form — InHouse address mismatch confirmation', () => {
+  it('selectBuildingFromIDX checks _isInHouseListingType before address overwrite', () => {
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
-    expect(fnMatch![1]).toContain('_isInHouseListingType(prefix)');
+    const body = fnMatch![1];
+    expect(body).toContain('_isInHouseListingType(prefix)');
+    expect(body).toContain('typedNorm');
+    expect(body).toContain('trestleNorm');
+    expect(body).toContain('confirm(');
   });
 
-  it('saleAddressBlurLookup returns early when InHouse', () => {
-    const fs = require('fs');
-    const html = fs.readFileSync(
-      require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
-      'utf8'
-    );
-    const fnMatch = html.match(/function saleAddressBlurLookup\(\)\s*\{([^}]{0,300})/);
+  it('confirmation dialog mentions both typed and Trestle canonical addresses', () => {
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX[\s\S]*?confirm\(([\s\S]*?)\)/);
     expect(fnMatch).not.toBeNull();
-    expect(fnMatch![1]).toContain('_isInHouseListingType');
+    const confirmBody = fnMatch![1];
+    expect(confirmBody).toContain('You entered');
+    expect(confirmBody).toContain('Trestle/RLS canonical');
+  });
+
+  it('Cancel preserves typed address but still populates building fields', () => {
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+    expect(fnMatch).not.toBeNull();
+    const body = fnMatch![1];
+    expect(body).toContain('if (!useCanonical)');
+    expect(body).toContain('populateBuildingFromIDX(prefix, building)');
   });
 });
 
-// ─── 5. Non-InHouse preserves IDX lookup ────────────────────────────────────
+// ─── 6. Non-InHouse preserves existing lookup behavior ──────────────────────
 
-describe('Form — Non-InHouse IDX lookup preserved', () => {
-  it('searchBuildingForListing still calls fetchBuildingsFromAPI for non-InHouse', () => {
-    const fs = require('fs');
-    const html = fs.readFileSync(
-      require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
-      'utf8'
-    );
-    expect(html).toContain('fetchBuildingsFromAPI(query)');
-    expect(html).toContain('selectBuildingFromIDX');
+describe('Form — Non-InHouse lookup behavior preserved', () => {
+  it('selectBuildingFromIDX still overwrites address for non-InHouse (no confirm gate)', () => {
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+    expect(fnMatch).not.toBeNull();
+    const body = fnMatch![1];
+    const afterGuard = body.split('populateBuildingFromIDX(prefix, building)')[1] || '';
+    expect(afterGuard || body).toContain("setVal(prefix + 'StreetAddress', building.address)");
   });
 });
 
-// ─── 6. Switching to InHouse clears IDX match state ─────────────────────────
+// ─── 7. Switching to InHouse clears stale match state ───────────────────────
 
-describe('Form — handleSaleListingTypeChange clears IDX state for InHouse', () => {
+describe('Form — handleSaleListingTypeChange clears stale state for InHouse', () => {
   it('handleSaleListingTypeChange calls _clearIdxMatchState when InHouse', () => {
-    const fs = require('fs');
-    const html = fs.readFileSync(
-      require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
-      'utf8'
-    );
-    const fnMatch = html.match(/function handleSaleListingTypeChange\(value\)\s*\{([\s\S]{0,800}?)\n\}/);
+    const fnMatch = formHtml.match(/function handleSaleListingTypeChange\(value\)\s*\{([\s\S]{0,800}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     expect(fnMatch![1]).toContain("_clearIdxMatchState('sale')");
   });
+});
 
-  it('_clearIdxMatchState hides banner and clears search', () => {
-    const fs = require('fs');
-    const html = fs.readFileSync(
-      require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
-      'utf8'
-    );
-    expect(html).toContain("function _clearIdxMatchState(prefix)");
-    const fnMatch = html.match(/function _clearIdxMatchState\(prefix\)\s*\{([\s\S]{0,500}?)\n\}/);
-    expect(fnMatch).not.toBeNull();
-    expect(fnMatch![1]).toContain("IdxMatchBanner");
-    expect(fnMatch![1]).toContain("BuildingSearchResults");
-    expect(fnMatch![1]).toContain("BuildingSearch");
+// ─── 8. Banner says "Building Match Found" not "IDX Match Found" ────────────
+
+describe('Form — Banner text uses building reference, not IDX distribution', () => {
+  it('banner says "Building Match Found"', () => {
+    expect(formHtml).toContain('Building Match Found');
+    expect(formHtml).not.toContain('>IDX Match Found<');
+  });
+
+  it('section header says "Building Lookup" not "IDX Lookup"', () => {
+    expect(formHtml).toContain('Property Address — Building Lookup');
   });
 });
