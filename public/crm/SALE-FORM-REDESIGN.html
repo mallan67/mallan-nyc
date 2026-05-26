@@ -281,8 +281,8 @@ body { font-family: Manrope, sans-serif; }
 
         <!-- IDX Address Search -->
         <div class="form-card">
-            <div class="form-card-header"><i class="fas fa-search-location"></i> Property Address — IDX Lookup</div>
-            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect property type and populate building data from IDX/RLS.</p>
+            <div class="form-card-header"><i class="fas fa-search-location"></i> Property Address — Building Lookup</div>
+            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect property type and populate building data from Trestle/RLS reference.</p>
             <div class="mb-3 relative">
                 <input type="text" id="saleBuildingSearch"
                        placeholder="Start typing address (e.g., 200 East 66th, 15 Central Park West)..."
@@ -295,9 +295,9 @@ body { font-family: Manrope, sans-serif; }
             <div id="saleIdxMatchBanner" class="hidden mt-2 warning-banner bg-green-50 border border-green-200 text-green-800">
                 <i class="fas fa-check-circle text-green-500 mt-0.5"></i>
                 <div class="text-xs">
-                    <p class="font-semibold">IDX Match Found</p>
+                    <p class="font-semibold">Building Match Found</p>
                     <p>Property type: <strong id="saleIdxDetectedType">--</strong> | Building: <strong id="saleIdxDetectedBuilding">--</strong></p>
-                    <p class="mt-0.5 text-green-600">Building data auto-populated. Review and adjust if needed.</p>
+                    <p class="mt-0.5 text-green-600">Building data populated from Trestle/RLS reference. Review and adjust if needed.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
@@ -4970,7 +4970,7 @@ async function fetchBuildingsFromAPI(query) {
     }
 }
 
-// IDX Search — auto-detect property type and populate fields (API-backed)
+// Building search — auto-detect property type and populate building data
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
@@ -5006,23 +5006,63 @@ function searchBuildingForListing(query, prefix) {
     }, 300);
 }
 
-// IDX Selection — triggers property model and populates fields
+// Building selection — populates building/property fields from Trestle reference data.
+// For InHouse: requires explicit confirmation when Trestle address differs from typed address.
 function selectBuildingFromIDX(prefix, address) {
     const building = buildingDatabase.find(b => b.address === address);
     if (!building) return;
 
-    // 1. Populate address fields
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    const currentAddr = document.getElementById(prefix + 'StreetAddress')?.value?.trim() || '';
+
+    // InHouse guard: if typed address differs materially from Trestle canonical,
+    // require explicit confirmation before overwriting. Prevents silent address
+    // mismatch (e.g., "333 46TH Street" → "333 East 46th Street").
+    if (_isInHouseListingType(prefix) && currentAddr) {
+        var typedNorm = currentAddr.toLowerCase().replace(/[^a-z0-9]/g, '');
+        var trestleNorm = building.address.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (typedNorm !== trestleNorm) {
+            var useCanonical = confirm(
+                'Building match found:\n\n' +
+                'You entered: ' + currentAddr + '\n' +
+                'Trestle/RLS canonical: ' + building.address + '\n\n' +
+                'Use the Trestle canonical address?\n' +
+                'OK = use "' + building.address + '"\n' +
+                'Cancel = keep "' + currentAddr + '" (building data still populates)'
+            );
+            if (!useCanonical) {
+                // Keep typed address but still populate building/property fields
+                setVal(prefix + 'Borough', building.borough);
+                setVal(prefix + 'ZipCode', building.zip);
+                setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+                var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
+                if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
+                var banner = document.getElementById(prefix + 'IdxMatchBanner');
+                if (banner) {
+                    banner.classList.remove('hidden');
+                    document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
+                    document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
+                }
+                document.getElementById(prefix + 'BuildingSearchResults').classList.add('hidden');
+                document.getElementById(prefix + 'BuildingSearch').value = '';
+                populateBuildingFromIDX(prefix, building);
+                updateListingHeaderBar(prefix);
+                return;
+            }
+        }
+    }
+
+    // 1. Populate address fields (overwrite with Trestle canonical)
     setVal(prefix + 'StreetAddress', building.address);
     setVal(prefix + 'Borough', building.borough);
     setVal(prefix + 'ZipCode', building.zip);
     setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
 
-    // 2. Auto-detect property type from IDX
+    // 2. Auto-detect property type
     const typeRadio = document.querySelector(`input[name="${prefix}PropertyType"][value="${building.type}"]`);
     if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
 
-    // 3. Show IDX match banner
+    // 3. Show match banner
     const banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
@@ -5089,7 +5129,7 @@ function autoDeriveSaleStructureType() {
     if (map[propType]) stEl.value = map[propType];
 }
 
-// Address field onblur — exact-match auto-populate from IDX
+// Address field onblur — exact-match auto-populate from building data
 function saleAddressBlurLookup() {
     const addr = document.getElementById('saleStreetAddress')?.value?.trim();
     if (!addr || addr.length < 5) return;
@@ -5159,6 +5199,24 @@ function parseSaleAddress() {
 }
 
 // ══════════════════════════════════════════════════════
+// IN-HOUSE LISTING HELPERS
+// ══════════════════════════════════════════════════════
+function _isInHouseListingType(prefix) {
+    var radio = document.querySelector('input[name="' + prefix + 'ListingType"]:checked');
+    return radio && radio.value === 'InHouse';
+}
+
+function _clearIdxMatchState(prefix) {
+    clearTimeout(_buildingSearchTimeout);
+    var banner = document.getElementById(prefix + 'IdxMatchBanner');
+    if (banner) banner.classList.add('hidden');
+    var results = document.getElementById(prefix + 'BuildingSearchResults');
+    if (results) results.classList.add('hidden');
+    var search = document.getElementById(prefix + 'BuildingSearch');
+    if (search) search.value = '';
+}
+
+// ══════════════════════════════════════════════════════
 // LISTING TYPE HANDLER
 // ══════════════════════════════════════════════════════
 function handleSaleListingTypeChange(value) {
@@ -5170,6 +5228,10 @@ function handleSaleListingTypeChange(value) {
     if (warning) warning.style.display = isOptOut ? '' : 'none';
     if (inHouse) inHouse.style.display = value === 'InHouse' ? '' : 'none';
     if (optOutSection) optOutSection.style.display = value === 'OwnerOptOut' ? '' : 'none';
+
+    if (value === 'InHouse') {
+        _clearIdxMatchState('sale');
+    }
 
     // Re-evaluate InternetEntireListingDisplayYN lock when permissions change
     enforceSaleInternetDisplayRule();
@@ -6523,8 +6585,8 @@ function collectSaleFormData() {
     // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
     data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
-    // Distribution gates — force OFF when Owner Opt-Out or Participant Only
-    if (isOwnerOptOut || isParticipantOnly) {
+    // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse
+    if (isOwnerOptOut || isParticipantOnly || isInHouse) {
         data.IDXEntireListingDisplayYN = false;
         data.InternetEntireListingDisplayYN = false;
         data.InternetAddressDisplayYN = false;
