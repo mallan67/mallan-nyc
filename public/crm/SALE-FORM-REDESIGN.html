@@ -8130,8 +8130,14 @@ function _populateSaleFormFromApi(listing) {
     if (raw.Concessions) setVal('saleConcessions', raw.Concessions);
     if (raw.CoBrokeAgreement) setVal('saleCoBrokeAgreementType', raw.CoBrokeAgreement);
 
-    // Address fields
-    setVal('saleUnparsedAddress', addr.UnparsedAddress || raw.UnparsedAddress || '');
+    // Address fields — saleStreetAddress is the main user-facing input
+    var streetAddr = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
+    if (!streetAddr) {
+        var parts = [addr.StreetNumber || raw.StreetNumber, addr.StreetName || raw.StreetName, addr.StreetSuffix || raw.StreetSuffix].filter(Boolean);
+        streetAddr = parts.join(' ');
+    }
+    setVal('saleStreetAddress', streetAddr);
+    setVal('saleUnparsedAddress', streetAddr);
     setVal('saleStreetNumber', addr.StreetNumber || raw.StreetNumber || '');
     setVal('saleStreetDirPrefix', addr.StreetDirPrefix || raw.StreetDirPrefix || '');
     setVal('saleStreetName', addr.StreetName || raw.StreetName || '');
@@ -8177,8 +8183,11 @@ function _populateSaleFormFromApi(listing) {
 
     // Agent info — hidden field expects agent ID, display fields get text
     var agentInfo = listing.agent_info || {};
+    var companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || 'mallan';
     setVal('saleListingAgent', agentInfo.ListAgentKey || agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '');
-    setVal('saleListingCompany', agentInfo.ListOfficeKey || raw.ListOfficeKey || '');
+    setVal('saleListingCompany', companyKey);
+    var agentHidden = document.getElementById('saleListingAgent');
+    if (agentHidden) agentHidden.dataset.company = companyKey;
     var companySearch = document.getElementById('saleListingCompanySearch');
     if (companySearch) companySearch.value = agentInfo.ListOfficeName || raw.ListOfficeName || '';
     var agentSearch = document.getElementById('saleListingAgentSearch');
@@ -8205,10 +8214,29 @@ function _populateSaleFormFromApi(listing) {
     setVal('saleCoListingAgent', raw.CoListAgentFullName || '');
     setVal('saleCoListingCompany', raw.CoListOfficeName || '');
 
-    // Distribution flags
-    setChecked('saleIdxDisplayYN', listing.idx_display_yn !== false);
-    setChecked('saleInternetDisplayYN', listing.internet_entire_listing_display_yn !== false);
-    setChecked('saleInternetAddressYN', listing.internet_address_display_yn !== false);
+    // Distribution flags — correct checkbox IDs
+    setChecked('saleDist_IDX', listing.idx_display_yn !== false);
+    setChecked('saleInternetEntireListingDisplayYN', listing.internet_entire_listing_display_yn !== false);
+    setChecked('saleInternetAddressDisplayYN', listing.internet_address_display_yn !== false);
+    setChecked('saleDist_VOW', listing.internet_entire_listing_display_yn !== false);
+
+    // Status-change dates
+    if (raw.OffMarketDate) setVal('saleOffMarketDate', String(raw.OffMarketDate).split('T')[0]);
+    if (raw.WithdrawnDate) setVal('saleWithdrawnDate', String(raw.WithdrawnDate).split('T')[0]);
+    if (raw.PurchaseContractDate) setVal('saleContractSignedDate', String(raw.PurchaseContractDate).split('T')[0]);
+    if (raw.CloseDate) setVal('saleSoldDate', String(raw.CloseDate).split('T')[0]);
+    if (raw.ClosePrice) setVal('saleSoldPrice', raw.ClosePrice);
+
+    // Additional fields
+    if (raw.Concessions) setVal('saleConcessions', raw.Concessions);
+    if (raw.saleCondition) setVal('saleCondition', raw.saleCondition);
+    if (raw.LivingAreaSource) setVal('saleLivingAreaSource', raw.LivingAreaSource);
+    if (raw.saleUnitShares) setVal('saleUnitShares', raw.saleUnitShares);
+    if (raw.AssociationFeeFrequency) setVal('saleMaintCCFreq', raw.AssociationFeeFrequency);
+    if (raw.saleFloorInBuilding || raw.EntryLevel) setVal('saleFloorInBuilding', raw.saleFloorInBuilding || raw.EntryLevel);
+
+    // Virtual tour URLs
+    if (raw.VirtualTourURLUnbranded) setVal('saleVirtualTourUnbranded', raw.VirtualTourURLUnbranded);
 
     // Dates — match form IDs from collectSaleFormData
     if (raw.ExpirationDate) setVal('saleExclusiveExpires', String(raw.ExpirationDate).split('T')[0]);
@@ -8262,6 +8290,9 @@ function _populateSaleFormFromApi(listing) {
         setVal('saleAuctionTermsUrl', listing.auction_terms_url || raw.auction_terms_url || '');
         if (typeof toggleSaleAuctionFields === 'function') toggleSaleAuctionFields();
     }
+
+    // Update header bar with restored address
+    if (typeof updateListingHeaderBar === 'function') updateListingHeaderBar('sale');
 
     // Render existing media into preview containers
     if (media && media.length > 0) {
