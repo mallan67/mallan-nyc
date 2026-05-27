@@ -8494,9 +8494,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if editing an existing listing (?id= URL param)
     _checkSaleEditMode();
 
-    // Restore unsaved draft from localStorage (if not loading a DB listing)
+    // Check URL param ?restore=local to restore from localStorage
+    // (triggered from My Listings page when user clicks "Restore" on a localStorage draft)
     if (!_saleEditMode) {
-        _offerDraftRestore();
+        var restoreParam = new URLSearchParams(window.location.search).get('restore');
+        if (restoreParam === 'local') {
+            _restoreDraftFromLocalStorage();
+        }
     }
 
     console.log('Sale Listing Form Redesign initialized.');
