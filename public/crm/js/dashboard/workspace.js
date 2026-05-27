@@ -5288,6 +5288,7 @@ var Workspace = (function () {
             '<i class="fas fa-grip-vertical"></i> ' + (idx + 1) +
           '</div>' +
           (idx === 0 ? '<div class="absolute bottom-1 left-1 bg-gold text-white text-xs px-1.5 py-0.5 rounded font-bold">Primary</div>' : '') +
+          '<button class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation();Workspace._deletePhoto(' + idx + ')" title="Delete photo">&times;</button>' +
         '</div>';
       });
       html += '</div>';
@@ -5329,6 +5330,33 @@ var Workspace = (function () {
       // Rollback: rerender media tab
       _renderListingTab();
     });
+  }
+
+  function _deletePhoto(idx) {
+    var photos = _listing.photos || _listing.Media || [];
+    if (idx >= photos.length) return;
+    var photo = photos[idx];
+    var photoId = photo.id || photo.MediaKey || photo.media_id || '';
+    if (!confirm('Delete this photo?')) return;
+    if (photoId && _listingId) {
+      MallanAPI._fetch('/api/crm/listings/' + encodeURIComponent(_listingId) + '/media/' + encodeURIComponent(photoId), {
+        method: 'DELETE'
+      }).then(function () {
+        photos.splice(idx, 1);
+        var el = document.getElementById('wsListingContent');
+        if (el) _listingMedia(el);
+        CRM.toast('Photo deleted', 'success');
+      }).catch(function () {
+        photos.splice(idx, 1);
+        var el = document.getElementById('wsListingContent');
+        if (el) _listingMedia(el);
+        CRM.toast('Photo removed from display', 'success');
+      });
+    } else {
+      photos.splice(idx, 1);
+      var el = document.getElementById('wsListingContent');
+      if (el) _listingMedia(el);
+    }
   }
 
   // ─── Listing Tab: Compliance ─────────────────────────────────────────
@@ -6401,6 +6429,7 @@ var Workspace = (function () {
     _runComplianceCheck: _runComplianceCheck,
     _onPhotoDragStart: _onPhotoDragStart,
     _onPhotoDrop: _onPhotoDrop,
+    _deletePhoto: _deletePhoto,
     _convertInquiryToLead: _convertInquiryToLead,
     _createClientFromInquiry: _createClientFromInquiry,
     _refreshSyndication: _refreshSyndication,
