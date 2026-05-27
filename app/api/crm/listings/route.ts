@@ -402,8 +402,8 @@ export async function POST(req: NextRequest) {
     else if (code === 'P2000') hint = 'A field value is too long for the database column';
     else if (code === 'P2005' || code === 'P2006') hint = 'Invalid field value type (check price, dates, numbers)';
     else if (code === 'P2025') hint = 'Referenced record not found';
-    else if (msg.includes('Invalid')) hint = 'Invalid data: ' + msg.split('\n')[0].slice(0, 100);
-    else hint = 'DB error ' + (code || '') + ': ' + msg.split('\n')[0].slice(0, 80);
+    else if (code) hint = 'Database error (code ' + code + '). Check server logs for detail.';
+    else hint = 'Unexpected database error. Check server logs for detail.';
     return NextResponse.json(
       { error: 'Failed to create listing: ' + hint },
       { status: 500 }
