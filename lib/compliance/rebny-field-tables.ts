@@ -979,8 +979,10 @@ export const REBNY_FIELD_TABLES = {
 
     // ── Address → address bucket + top-level columns ──
     StreetNumber: { address: true, raw: true },
+    StreetDirPrefix: { address: true, raw: true },
     StreetName: { address: true, raw: true },
     StreetSuffix: { address: true, raw: true },
+    StreetDirSuffix: { address: true, raw: true },
     UnitNumber: { address: true, raw: true },
     City: { address: true, db: 'city', raw: true },
     CityRegion: { address: true, db: 'borough', raw: true },

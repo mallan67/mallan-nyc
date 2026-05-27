@@ -84,6 +84,7 @@ export interface DisplayListing {
   moveInCosts?: string;
   ongoingFees?: string;
   tenantPaysDescription?: string;
+  _source?: string;
   _displayCompliance: {
     comingSoon?: boolean;
     comingSoonDate?: string;
@@ -142,6 +143,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     moveInCosts: dto.moveInCosts,
     ongoingFees: dto.ongoingFees,
     tenantPaysDescription: dto.tenantPaysDescription,
+    _source: dto._source,
     _displayCompliance: dto._displayCompliance,
     // PR-FE.2 Option C — pass-through the API-layer annotation when present.
     _coListedCount: dto._coListedCount,
@@ -215,13 +217,10 @@ export function toDisplayListing(raw: any): DisplayListing {
     virtualTourURL: raw.media?.virtualTourUrl,
     publicRemarks: raw.publicRemarks,
     petsAllowed: raw.features?.pets?.allowed ? 'Yes' : undefined,
+    _source: raw._source,
     _displayCompliance: {
       comingSoon: raw.status === 'coming-soon' || raw.compliance?.comingSoonDate ? true : undefined,
       comingSoonDate: raw.compliance?.comingSoonDate || raw.activationDate || undefined,
-      // UCBA Art. III §2(C) — must identify the actual listing broker, never
-      // the displaying broker. Default to neutral "REBNY RLS" when the local
-      // fallback data omits `agent.listOfficeName`. Falling back to
-      // "Mallan Real Estate Inc." would falsely attribute every listing to us.
       attributionText: `Listing courtesy of ${raw.agent?.listOfficeName?.trim() || 'REBNY RLS'}`,
       requiresAttribution: true,
     },
