@@ -129,28 +129,32 @@ export async function PATCH(
     }
   }
 
-  // RLS Enforcement Gate — validate status-related UCBA rules (Coming Soon, terminal, etc.)
-  const enforcement = assertRlsCompliantPayload(
-    { ...existingRaw, MlsStatus: newStatus },
-    {
-      listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
-      isNewDevelopment: (existingRaw.NewDevelopmentYN as boolean) === true,
-      currentStatus: newStatus,
-      previousStatus: currentStatus,
-      statusChangedAt: listing.status_changed_at ?? undefined,
-      existingActivationDate: existingRaw.ActivationDate as string | undefined, // D12 immutability
-      rlsEligible: listing.rls_eligible,
-    }
-  );
-  if (!enforcement.passed) {
-    return NextResponse.json(
+  // RLS Enforcement Gate — only for RLS-eligible listings.
+  // InHouseWebOnly/InHouseInternal/commercial listings (rls_eligible=false)
+  // skip the 48-field mandatory check. They publish to mallan.nyc only.
+  if (listing.rls_eligible) {
+    const enforcement = assertRlsCompliantPayload(
+      { ...existingRaw, MlsStatus: newStatus },
       {
-        error: "Status change blocked by RLS enforcement gate",
-        blockers: enforcement.blockers,
-        warnings: enforcement.warnings,
-      },
-      { status: 422 }
+        listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
+        isNewDevelopment: (existingRaw.NewDevelopmentYN as boolean) === true,
+        currentStatus: newStatus,
+        previousStatus: currentStatus,
+        statusChangedAt: listing.status_changed_at ?? undefined,
+        existingActivationDate: existingRaw.ActivationDate as string | undefined,
+        rlsEligible: listing.rls_eligible,
+      }
     );
+    if (!enforcement.passed) {
+      return NextResponse.json(
+        {
+          error: "Status change blocked by RLS enforcement gate",
+          blockers: enforcement.blockers,
+          warnings: enforcement.warnings,
+        },
+        { status: 422 }
+      );
+    }
   }
 
   // Compute DOM tracking fields for this transition

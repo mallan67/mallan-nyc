@@ -7056,12 +7056,26 @@ function submitSalesListing() {
                     showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
                 }
             }
-            alert('SUCCESS! Listing ' + (_saleEditMode ? 'updated' : 'submitted') + '.\n\nListing ID: ' + lid + '\nStatus: ' + (result.status || 'Draft') + '\nMedia uploaded: ' + (pendingCount > 0 ? 'Yes' : 'N/A'));
+            // Transition status from Draft to Active
+            var dbId = result.id || _saleEditDbId;
+            var finalStatus = result.status || 'Draft';
+            if (finalStatus === 'Draft' && dbId) {
+                try {
+                    var statusResult = await MallanAPI.listings.updateStatus(dbId, 'Active');
+                    finalStatus = statusResult.status || 'Active';
+                } catch (statusErr) {
+                    console.warn('[Submit] Status transition failed:', statusErr.message);
+                    showToast('Listing saved but status change failed: ' + statusErr.message, 'warning');
+                }
+            }
+            alert('SUCCESS! Listing ' + (_saleEditMode ? 'updated' : 'submitted') + '.\n\nListing ID: ' + lid + '\nStatus: ' + finalStatus + '\nMedia uploaded: ' + (pendingCount > 0 ? 'Yes' : 'N/A'));
             if (result.warnings && result.warnings.length > 0) {
                 console.warn('[Submit] Warnings:', result.warnings);
             }
             var idDisplay = document.getElementById('saleListingIdDisplay');
             if (idDisplay) idDisplay.textContent = lid;
+            var statusBadge = document.getElementById('saleStatusBadge');
+            if (statusBadge) statusBadge.textContent = finalStatus;
             var lastUpdated = document.getElementById('saleLastUpdated');
             if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
         }).catch(function(err) {
