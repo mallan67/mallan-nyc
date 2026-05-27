@@ -7089,6 +7089,10 @@ function submitSalesListing() {
 
     // Submit to API — create or update depending on edit mode
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+        if (_saleEditMode && !_saleEditDbId) {
+            alert('Cannot submit: listing is in edit mode but has no database ID. Please save as draft first.');
+            return;
+        }
         var apiCall;
         if (_saleEditDbId) {
             apiCall = MallanAPI.listings.update(_saleEditDbId, fullData);
@@ -7129,6 +7133,7 @@ function submitSalesListing() {
                 }
             }
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+            try { localStorage.removeItem('saleListings'); } catch (e) {}
             clearTimeout(autoSaveTimer);
             _pendingMediaFiles = [];
             showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
@@ -7242,12 +7247,18 @@ function performAutoSave() {
 
     formData._savedAt = new Date().toISOString();
     formData._formType = 'sale';
+    if (_saleEditListingId) formData._saleEditListingId = _saleEditListingId;
+    if (_saleEditDbId) formData._listingId = _saleEditDbId;
 
-    // Save to localStorage as immediate fallback
-    try {
-        localStorage.setItem('mallan_draft_sale', JSON.stringify(formData));
-    } catch (e) {
-        console.warn('Auto-save localStorage failed:', e);
+    // Save to localStorage as immediate fallback — skip if listing already saved to DB
+    if (_saleEditMode && _saleEditDbId) {
+        // Edit mode: server autosave only, no localStorage (prevents phantom draft)
+    } else {
+        try {
+            localStorage.setItem('mallan_draft_sale', JSON.stringify(formData));
+        } catch (e) {
+            console.warn('Auto-save localStorage failed:', e);
+        }
     }
 
     // Also persist to server if connected and listing has an ID
