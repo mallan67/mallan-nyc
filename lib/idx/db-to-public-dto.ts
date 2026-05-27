@@ -105,6 +105,7 @@ interface DbMediaItem {
 export interface DbListing {
   id: string;
   listing_id: string;
+  mls_id?: string | null;
   status: string;
   listing_type: string;
   property_type: string | null;
@@ -278,7 +279,10 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
 
   // Address display cascades through internet-entire-listing gate;
   // any null/undefined permission = suppress (fail-closed).
-  const suppressAddress = !isAddressDisplayable(listing);
+  // CRM-created web-only exclusives (no mls_id) always show address —
+  // the IDX gate cascade is for RLS-distributed listings, not website-only.
+  const isCrmExclusive = !listing.mls_id;
+  const suppressAddress = isCrmExclusive ? false : !isAddressDisplayable(listing);
   const isComingSoon = listing.status === 'ComingSoon';
   const rawData = (listing.raw_data || {}) as Record<string, unknown>;
   const comingSoonDate = isComingSoon
