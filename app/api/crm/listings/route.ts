@@ -394,9 +394,18 @@ export async function POST(req: NextRequest) {
     const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
     const code = (dbErr as { code?: string })?.code;
     const meta = (dbErr as { meta?: unknown })?.meta;
-    console.error('[POST /api/crm/listings] DB error:', { code, meta, message: msg });
+    console.error('[POST /api/crm/listings] DB error:', JSON.stringify({ code, meta, message: msg }));
+    // Map common Prisma codes to user-friendly hints
+    let hint = 'Unknown database error';
+    if (code === 'P2002') hint = 'Duplicate listing ID — please retry';
+    else if (code === 'P2003') hint = 'Invalid agent or office reference';
+    else if (code === 'P2000') hint = 'A field value is too long for the database column';
+    else if (code === 'P2005' || code === 'P2006') hint = 'Invalid field value type (check price, dates, numbers)';
+    else if (code === 'P2025') hint = 'Referenced record not found';
+    else if (code) hint = 'Database error (code ' + code + '). Check server logs for detail.';
+    else hint = 'Unexpected database error. Check server logs for detail.';
     return NextResponse.json(
-      { error: 'Failed to create listing. Please try again or contact support.', prismaCode: code },
+      { error: 'Failed to create listing: ' + hint },
       { status: 500 }
     );
   }
