@@ -68,7 +68,7 @@ describe('Form serialization — both InHouse types force distribution OFF', () 
   });
 
   it('gate-off block still sets all 4 flags to false', () => {
-    const idx = formHtml.indexOf('Distribution gates');
+    const idx = formHtml.indexOf('// Distribution gates — force OFF');
     expect(idx).toBeGreaterThan(-1);
     const slice = formHtml.slice(idx, idx + 500);
     expect(slice).toContain('IDXEntireListingDisplayYN = false');
@@ -84,7 +84,7 @@ describe('Form — Internal Only locks status to Draft', () => {
   it('handleSaleListingTypeChange disables status selector for InHouseInternal', () => {
     const fnStart = formHtml.indexOf('function handleSaleListingTypeChange');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 3000);
+    const body = formHtml.slice(fnStart, fnStart + 5000);
     expect(body).toContain('isInHouseInternal');
     expect(body).toContain("statusEl.value = 'Draft'");
     expect(body).toContain('statusEl.disabled = true');
@@ -101,7 +101,7 @@ describe('Form — Web Only allows Active', () => {
   it('handleSaleListingTypeChange re-enables status selector for non-internal types', () => {
     const fnStart = formHtml.indexOf('function handleSaleListingTypeChange');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 3000);
+    const body = formHtml.slice(fnStart, fnStart + 5000);
     expect(body).toContain('statusEl.disabled = false');
   });
 });

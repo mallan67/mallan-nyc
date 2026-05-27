@@ -67,7 +67,7 @@ describe('Form serialization — InHouse distribution gates', () => {
   });
 
   it('gate-off block sets all 4 flags to false', () => {
-    const idx = formHtml.indexOf('Distribution gates');
+    const idx = formHtml.indexOf('// Distribution gates — force OFF');
     expect(idx).toBeGreaterThan(-1);
     const slice = formHtml.slice(idx, idx + 500);
     expect(slice).toContain('IDXEntireListingDisplayYN = false');
