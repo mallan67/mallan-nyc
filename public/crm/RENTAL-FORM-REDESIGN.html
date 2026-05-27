@@ -4532,9 +4532,11 @@ function rentalAddressBlurLookup() {
         }
         buildingDatabase = matches;
         var results = document.getElementById('rentalBuildingSearchResults');
-        if (results && matches.length === 1) {
+        var rentalTypeRadio = document.querySelector('input[name="rentalListingType"]:checked');
+        var isRentalInHouse = rentalTypeRadio && (rentalTypeRadio.value === 'InHouse' || rentalTypeRadio.value === 'InHouseInternal' || rentalTypeRadio.value === 'InHouseWebOnly');
+        if (results && matches.length === 1 && !isRentalInHouse) {
             selectBuildingFromIDX('rental', matches[0].address);
-        } else if (results && matches.length > 1) {
+        } else if (results && (matches.length > 1 || (matches.length === 1 && isRentalInHouse))) {
             results.innerHTML = matches.map(function(b) {
                 var escapedAddr = b.address.replace(/'/g, "\\'");
                 return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'rental\', \'' + escapedAddr + '\')">' +
