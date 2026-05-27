@@ -104,7 +104,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const inHouseValues = ["InHouse", "InHouseInternal", "InHouseWebOnly"];
   const isInHouse =
     inHouseValues.includes(String(merged.saleListingType || "")) ||
-    inHouseValues.includes(String(merged.listingAgreement || ""));
+    inHouseValues.includes(String(merged.listingAgreement || "")) ||
+    inHouseValues.includes(String(merged.ListingAgreement || ""));
   const eligibility = classifyRlsEligibility(merged, {
     explicitOptOut: body.rls_eligible === false || (!body.rls_eligible && !listing.rls_eligible) || isInHouse,
     commercialSubType: (body.commercial_sub_type as string) || (listing.commercial_sub_type as string | null) || undefined,
@@ -112,25 +113,34 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   });
   const effectiveRlsEligible = eligibility.rlsEligible;
 
-  // RLS Enforcement Gate — same gate as POST (create)
-  const enforcement = assertRlsCompliantPayload(merged, {
-    listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
-    isNewDevelopment: merged.NewDevelopmentYN === true,
-    currentStatus: (merged.MlsStatus as string) || listing.status || undefined,
-    previousStatus: listing.status || undefined,
-    existingActivationDate: existingRaw.ActivationDate as string | undefined, // D12 immutability
-    rlsEligible: effectiveRlsEligible,
-    mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
-  });
-  if (!enforcement.passed) {
-    return NextResponse.json(
-      {
-        error: "Update blocked by RLS enforcement gate",
-        blockers: enforcement.blockers,
-        warnings: enforcement.warnings,
-      },
-      { status: 422 }
-    );
+  // RLS Enforcement Gate — only for RLS-eligible listings leaving Draft.
+  // Draft saves and website-only listings (InHouseWebOnly, InHouseInternal,
+  // commercial) skip the 48-field mandatory check. REBNY requires those
+  // fields for RLS/IDX submission, not for in-progress drafts or web-only
+  // exclusives. Matches the POST handler's `if (rlsEligible)` guard.
+  const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
+  const isDraft = effectiveStatus === "Draft";
+
+  if (effectiveRlsEligible && !isDraft) {
+    const enforcement = assertRlsCompliantPayload(merged, {
+      listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
+      isNewDevelopment: merged.NewDevelopmentYN === true,
+      currentStatus: effectiveStatus,
+      previousStatus: listing.status || undefined,
+      existingActivationDate: existingRaw.ActivationDate as string | undefined,
+      rlsEligible: effectiveRlsEligible,
+      mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
+    });
+    if (!enforcement.passed) {
+      return NextResponse.json(
+        {
+          error: "Update blocked by RLS enforcement gate",
+          blockers: enforcement.blockers,
+          warnings: enforcement.warnings,
+        },
+        { status: 422 }
+      );
+    }
   }
 
   // Re-validate merged data
