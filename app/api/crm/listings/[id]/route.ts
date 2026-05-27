@@ -268,7 +268,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const existingAgentInfo = (listing.agent_info as Record<string, unknown>) ?? {};
 
   const addressKeys = [
-    "StreetNumber", "StreetName", "StreetSuffix", "UnitNumber",
+    "StreetNumber", "StreetDirPrefix", "StreetName", "StreetSuffix",
+    "StreetDirSuffix", "UnitNumber",
     "City", "StateOrProvince", "PostalCode", "Borough",
     "Neighborhood", "BuildingName", "UnparsedAddress",
   ];
