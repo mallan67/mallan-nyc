@@ -5346,11 +5346,8 @@ var Workspace = (function () {
         var el = document.getElementById('wsListingContent');
         if (el) _listingMedia(el);
         CRM.toast('Photo deleted', 'success');
-      }).catch(function () {
-        photos.splice(idx, 1);
-        var el = document.getElementById('wsListingContent');
-        if (el) _listingMedia(el);
-        CRM.toast('Photo removed from display', 'success');
+      }).catch(function (err) {
+        CRM.toast('Failed to delete photo: ' + (err.error || err.message || 'Unknown error'), 'error');
       });
     } else {
       photos.splice(idx, 1);

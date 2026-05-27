@@ -8765,13 +8765,20 @@ function handleSaleMediaUpload(event, mediaType) {
 function removeServerMedia(btn, mediaId) {
     if (!confirm('Remove this photo?')) return;
     var div = btn.closest('.group');
-    if (div) div.remove();
     if (mediaId && _saleEditListingId) {
         fetch('/api/crm/listings/' + encodeURIComponent(_saleEditListingId) + '/media/' + encodeURIComponent(mediaId), {
             method: 'DELETE', credentials: 'same-origin'
-        }).catch(function() {});
+        }).then(function(res) {
+            if (!res.ok) return res.json().then(function(e) { throw new Error(e.error || 'Delete failed'); });
+            if (div) div.remove();
+            showToast('Photo removed', 'success');
+        }).catch(function(err) {
+            showToast('Failed to delete photo: ' + (err.message || 'Unknown error'), 'error');
+        });
+    } else {
+        if (div) div.remove();
+        showToast('Photo removed', 'success');
     }
-    showToast('Photo removed', 'success');
 }
 
 function removePendingMedia(index, btn) {
