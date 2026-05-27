@@ -28,6 +28,7 @@ import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal } from '@/lib/idx/mapping';
+import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
 import { toPublicDTO, buildAuctionPublic, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
@@ -420,7 +421,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       slug: generateListingSlug({
         address: {
           streetNumber: addr.StreetNumber || '',
-          streetName: suppressAddress ? 'Address Undisclosed' : ([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
+          streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
           unitNumber: addr.UnitNumber || null,
           city: addr.City || '',
           stateOrProvince: addr.StateOrProvince || 'NY',
@@ -445,7 +446,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
           }
         : {
             streetNumber: addr.StreetNumber || '',
-            streetName: [addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || '',
+            streetName: normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
             unitNumber: addr.UnitNumber || null,
             city: addr.City || '',
             stateOrProvince: addr.StateOrProvince || 'NY',
