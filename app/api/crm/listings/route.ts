@@ -29,8 +29,17 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50") || 50, 1), 200);
   const offset = parseInt(searchParams.get("offset") || "0");
 
-  // Build where clause with ownership enforcement
-  const where: Record<string, unknown> = {};
+  // Build where clause with ownership enforcement.
+  // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
+  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
+  // are managed via REBNY RLS directly, not through the CRM.
+  const TRESTLE_TERMINAL = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"];
+  const crmCreated = { mls_id: null };
+  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_TERMINAL } };
+
+  const where: Record<string, unknown> = {
+    OR: [crmCreated, trestleClosed],
+  };
 
   // Ownership: agent sees only their own, broker sees all
   if (auth.role !== "BROKER") {
