@@ -236,6 +236,7 @@ export async function GET(request: Request) {
     const amenitiesParam = searchParams.get('amenities'); // route-side pet-friendly RAW post-filter on the Trestle path
     const openHouseParam = searchParams.get('openHouse') === 'true';
     const openHouseDateParam = searchParams.get('openHouseDate'); // 'weekend' | ISO date | undefined
+    const excludeUndisclosed = searchParams.get('excludeUndisclosed') === 'true';
     // `/exclusives` redirect (vercel.json:55-58) → `/buy?exclusive=mallan`.
     // When set, the response MUST contain only Mallan-authored listings —
     // returning other brokers' rows would violate UCBA Art. III §2(A) (no
@@ -308,6 +309,9 @@ export async function GET(request: Request) {
           // Two display paths: RLS listings (must pass 6 distribution gates) OR
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams);
+          if (excludeUndisclosed) {
+            (dbWhere as Record<string, unknown>).internet_address_display_yn = true;
+          }
           const dbTake = limit;
           const dbSkip = skip;
 

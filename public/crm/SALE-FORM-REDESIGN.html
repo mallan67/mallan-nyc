@@ -8498,13 +8498,24 @@ function _populateSaleFormFromApi(listing) {
     setVal('saleStreetAddress', streetAddr);
 
     // ── Agent contact panel + company/agent search display ──
-    // Fall back to logged-in user if saved agent data is empty (race condition on first save)
-    var _agentId = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || document.getElementById('saleUpdatingAgent')?.value || '';
-    var _agentName = agentInfo.ListAgentFullName || raw.ListAgentFullName || document.getElementById('saleUpdatingAgentName')?.value || '';
-    var _agentPhone = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || document.getElementById('saleUpdatingAgentPhone')?.value || '--';
-    var _agentEmail = agentInfo.ListAgentEmail || raw.ListAgentEmail || document.getElementById('saleUpdatingAgentEmail')?.value || '--';
-    var companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || document.getElementById('saleUpdatingAgentCompanyKey')?.value || 'mallan';
-    var _companyName = agentInfo.ListOfficeName || raw.ListOfficeName || document.getElementById('saleUpdatingAgentCompanyName')?.value || 'Mallan Real Estate Inc.';
+    // Use saved listing agent identity as a whole if present; session only when absent entirely.
+    var hasSavedAgent = !!(agentInfo.ListAgentMlsId || raw.ListAgentMlsId);
+    var _agentId, _agentName, _agentPhone, _agentEmail, companyKey, _companyName;
+    if (hasSavedAgent) {
+        _agentId = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
+        _agentName = agentInfo.ListAgentFullName || raw.ListAgentFullName || '';
+        _agentPhone = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
+        _agentEmail = agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
+        companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || 'mallan';
+        _companyName = agentInfo.ListOfficeName || raw.ListOfficeName || 'Mallan Real Estate Inc.';
+    } else {
+        _agentId = document.getElementById('saleUpdatingAgent')?.value || '';
+        _agentName = document.getElementById('saleUpdatingAgentName')?.value || '';
+        _agentPhone = document.getElementById('saleUpdatingAgentPhone')?.value || '--';
+        _agentEmail = document.getElementById('saleUpdatingAgentEmail')?.value || '--';
+        companyKey = document.getElementById('saleUpdatingAgentCompanyKey')?.value || 'mallan';
+        _companyName = document.getElementById('saleUpdatingAgentCompanyName')?.value || 'Mallan Real Estate Inc.';
+    }
     var companySearch = document.getElementById('saleListingCompanySearch');
     if (companySearch) companySearch.value = _companyName;
     var agentHiddenEl = document.getElementById('saleListingAgent');

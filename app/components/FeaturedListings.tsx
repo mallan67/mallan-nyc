@@ -366,6 +366,7 @@ export default function FeaturedListings() {
         const params = new URLSearchParams();
         params.set('type', filters.type === 'rent' ? 'rent' : 'sale');
         params.set('limit', String(Math.max(limit * 3, 30)));
+        params.set('excludeUndisclosed', 'true');
         params.set('sort', config.sort || 'price-desc');
         if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
         if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice));
@@ -379,9 +380,7 @@ export default function FeaturedListings() {
 
         if (cancelled || !data.listings || data.listings.length === 0) return;
 
-        const all: FeaturedListing[] = data.listings.filter(
-          (l: FeaturedListing) => l.address?.streetName !== 'Address Undisclosed'
-        );
+        const all: FeaturedListing[] = data.listings;
 
         // Separate pinned (exclusives) from rest — pinned always first
         const pinned = all.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
