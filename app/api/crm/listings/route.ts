@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         listing_id: true,
+        mls_id: true,
         agent_id: true,
         status: true,
         listing_type: true,

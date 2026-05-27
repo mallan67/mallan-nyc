@@ -400,6 +400,13 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
+  if (listing.mls_id) {
+    return NextResponse.json(
+      { error: "Only CRM-created listings can be withdrawn from this dashboard." },
+      { status: 409 }
+    );
+  }
+
   await prisma.listing.update({
     where: { id: listing.id },
     data: {

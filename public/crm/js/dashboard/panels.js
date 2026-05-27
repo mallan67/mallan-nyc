@@ -9539,7 +9539,7 @@ var Panels = (function () {
                 '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
               : '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
                 '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
-                '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Delete Listing"><i class="fas fa-trash"></i></button>') +
+                (!l.mls_id ? '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Withdraw Listing"><i class="fas fa-trash"></i></button>' : '')) +
           '</div></td>' +
         '</tr>';
       });
