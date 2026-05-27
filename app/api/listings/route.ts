@@ -1140,10 +1140,11 @@ async function fetchExclusiveListings(
 ): Promise<PublicListingDTO[]> {
   try {
     const where: Prisma.ListingWhereInput = {
-      // Only Active statuses — Draft/Incomplete NEVER shown publicly
       status: buildSearchDisplayWhere().status,
-      // Distribution gates
-      ...SEARCH_DISPLAY_GATE,
+      OR: [
+        { rls_eligible: true, ...SEARCH_DISPLAY_GATE },
+        { rls_eligible: false, list_price: { gt: 0 }, address: { not: { equals: null } } },
+      ],
     };
 
     if (listingType === 'sale' || listingType === 'buy') where.listing_type = 'sale';
