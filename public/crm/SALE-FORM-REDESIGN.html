@@ -3948,6 +3948,8 @@ body { font-family: Manrope, sans-serif; }
                     <p class="text-xs text-gray-500 mt-1">JPG, PNG, PDF only</p>
                     <input type="file" id="saleFloorplanInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" data-rls-ignore="true">
                 </div>
+                <div id="saleFloorplanPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4"></div>
+                <p class="text-[10px] text-gray-400 mt-2"><i class="fas fa-shield-alt mr-1"></i>Only upload media you have rights/authorization to use.</p>
             </div>
 
             <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
@@ -7038,17 +7040,23 @@ function submitSalesListing() {
             apiCall = MallanAPI.listings.create(fullData);
         }
 
-        apiCall.then(function(result) {
+        apiCall.then(async function(result) {
             var lid = result.listing_id || _saleEditListingId || formData.listingId;
-            if (_saleEditMode) {
-                alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid);
-            } else {
-                alert('SUCCESS! Your sales listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + result.status);
-                // Switch to edit mode for subsequent saves
+            if (!_saleEditMode) {
                 _saleEditMode = true;
                 _saleEditDbId = result.id || _saleEditDbId;
                 _saleEditListingId = lid;
             }
+            // Upload pending media
+            var pendingCount = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; }).length;
+            if (pendingCount > 0 && lid) {
+                showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
+                var mediaResult = await uploadPendingMedia(lid);
+                if (mediaResult.failed > 0) {
+                    showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
+                }
+            }
+            alert('SUCCESS! Listing ' + (_saleEditMode ? 'updated' : 'submitted') + '.\n\nListing ID: ' + lid + '\nStatus: ' + (result.status || 'Draft') + '\nMedia uploaded: ' + (pendingCount > 0 ? 'Yes' : 'N/A'));
             if (result.warnings && result.warnings.length > 0) {
                 console.warn('[Submit] Warnings:', result.warnings);
             }
@@ -7193,14 +7201,76 @@ function performAutoSave() {
     }, 500);
 }
 
-function manualSaveDraft() {
-    performAutoSave();
-    // Show toast notification
-    const toast = document.createElement('div');
-    toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold z-50 flex items-center gap-2';
-    toast.innerHTML = '<i class="fas fa-check-circle"></i> Draft saved successfully';
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+async function manualSaveDraft() {
+    // Step 1: Save/create listing via API
+    parseSaleAddress();
+    updateSaleAddressDerived();
+    var fullData = collectSaleFormData();
+    var formData = {
+        listing_type: 'sale',
+        listingAgreement: document.querySelector('input[name="saleListingType"]:checked')?.value || 'ExclusiveRightToSell',
+        status: 'Draft',
+    };
+    Object.assign(fullData, formData);
+
+    var listingId = _saleEditListingId;
+    var dbId = _saleEditDbId;
+
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+        try {
+            var result;
+            if (_saleEditMode && dbId) {
+                result = await MallanAPI.listings.update(dbId, fullData);
+                listingId = result.listing_id || listingId;
+            } else {
+                result = await MallanAPI.listings.create(fullData);
+                listingId = result.listing_id;
+                dbId = result.id;
+                _saleEditMode = true;
+                _saleEditDbId = dbId;
+                _saleEditListingId = listingId;
+            }
+
+            var idDisplay = document.getElementById('saleListingIdDisplay');
+            if (idDisplay) idDisplay.textContent = listingId;
+
+            // Step 2: Upload pending media files
+            var pendingCount = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; }).length;
+            if (pendingCount > 0 && listingId) {
+                showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
+                var mediaResult = await uploadPendingMedia(listingId);
+                if (mediaResult.uploaded > 0) {
+                    showToast(mediaResult.uploaded + ' file(s) uploaded successfully.' + (mediaResult.failed > 0 ? ' ' + mediaResult.failed + ' failed.' : ''), mediaResult.failed > 0 ? 'warning' : 'success');
+                }
+            }
+
+            // Step 3: Show draft recovery info
+            showToast('Draft saved: ' + listingId, 'success');
+            var editUrl = window.location.pathname + '?id=' + encodeURIComponent(dbId || listingId);
+            var recoveryDiv = document.getElementById('saleDraftRecovery');
+            if (!recoveryDiv) {
+                recoveryDiv = document.createElement('div');
+                recoveryDiv.id = 'saleDraftRecovery';
+                recoveryDiv.className = 'fixed bottom-4 right-4 bg-white border border-green-300 rounded-xl shadow-xl p-4 z-50 max-w-sm';
+                document.body.appendChild(recoveryDiv);
+            }
+            recoveryDiv.innerHTML = '<div class="flex items-start gap-3">' +
+                '<i class="fas fa-check-circle text-green-500 text-lg mt-0.5"></i>' +
+                '<div><p class="font-semibold text-gray-900 text-sm">Draft Saved: ' + listingId + '</p>' +
+                '<p class="text-xs text-gray-500 mt-1">Edit URL: <a href="' + editUrl + '" class="text-blue-600 underline">' + editUrl + '</a></p>' +
+                '<div class="flex gap-2 mt-2">' +
+                '<button onclick="document.getElementById(\'saleDraftRecovery\').remove()" class="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200">Dismiss</button>' +
+                '<button onclick="navigator.clipboard.writeText(\'' + editUrl + '\');showToast(\'Edit link copied\',\'success\')" class="px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium hover:bg-blue-100"><i class="fas fa-copy mr-1"></i>Copy Link</button>' +
+                '</div></div></div>';
+            setTimeout(function() { var el = document.getElementById('saleDraftRecovery'); if (el) el.remove(); }, 15000);
+        } catch (err) {
+            showToast('Save failed: ' + err.message, 'error');
+            performAutoSave();
+        }
+    } else {
+        performAutoSave();
+        showToast('Offline — saved locally only.', 'warning');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -8126,6 +8196,108 @@ function _populateSaleFormFromApi(listing) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// MEDIA UPLOAD — Photo + Floor Plan file handlers
+// ═══════════════════════════════════════════════════════════
+var _pendingMediaFiles = [];
+
+function handleSaleMediaUpload(event, mediaType) {
+    var files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    var previewContainer = mediaType === 'photo'
+        ? document.getElementById('salePhotoPreview')
+        : document.getElementById('saleFloorplanPreview');
+
+    for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        if (file.size > 20 * 1024 * 1024) {
+            showToast('File "' + file.name + '" exceeds 20MB limit.', 'error');
+            continue;
+        }
+
+        var entry = { file: file, type: mediaType, order: _pendingMediaFiles.length, uploaded: false, url: null };
+        _pendingMediaFiles.push(entry);
+
+        // Show local preview
+        if (previewContainer) {
+            var previewUrl = URL.createObjectURL(file);
+            var div = document.createElement('div');
+            div.className = 'relative group';
+            div.setAttribute('data-media-index', String(_pendingMediaFiles.length - 1));
+            if (file.type === 'application/pdf') {
+                div.innerHTML = '<div class="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-pdf text-3xl text-red-400"></i></div>' +
+                    '<p class="text-[10px] text-gray-500 truncate mt-1">' + file.name + '</p>' +
+                    '<button type="button" onclick="removePendingMedia(' + (_pendingMediaFiles.length - 1) + ', this)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition">&times;</button>';
+            } else {
+                div.innerHTML = '<img src="' + previewUrl + '" class="w-full h-24 object-cover rounded-lg">' +
+                    '<p class="text-[10px] text-gray-500 truncate mt-1">' + file.name + '</p>' +
+                    '<button type="button" onclick="removePendingMedia(' + (_pendingMediaFiles.length - 1) + ', this)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition">&times;</button>';
+            }
+            previewContainer.appendChild(div);
+        }
+    }
+
+    var photoCount = document.getElementById('salePhotoCount');
+    if (photoCount) {
+        var count = _pendingMediaFiles.filter(function(m) { return m.type === 'photo' && !m._removed; }).length;
+        photoCount.textContent = count + ' / 100 uploaded';
+    }
+
+    showToast(files.length + ' ' + mediaType + '(s) added. Save Draft to upload.', 'success');
+    event.target.value = '';
+}
+
+function removePendingMedia(index, btn) {
+    if (_pendingMediaFiles[index]) {
+        _pendingMediaFiles[index]._removed = true;
+    }
+    var div = btn.closest('[data-media-index]');
+    if (div) div.remove();
+
+    var photoCount = document.getElementById('salePhotoCount');
+    if (photoCount) {
+        var count = _pendingMediaFiles.filter(function(m) { return m.type === 'photo' && !m._removed; }).length;
+        photoCount.textContent = count + ' / 100 uploaded';
+    }
+}
+
+async function uploadPendingMedia(listingId) {
+    var pending = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; });
+    if (pending.length === 0) return { uploaded: 0, failed: 0 };
+
+    var uploaded = 0, failed = 0;
+    for (var i = 0; i < pending.length; i++) {
+        var entry = pending[i];
+        var formData = new FormData();
+        formData.append('file', entry.file);
+        formData.append('order', String(entry.order));
+        formData.append('caption', entry.type === 'floorplan' ? 'Floor Plan' : '');
+
+        try {
+            var resp = await fetch('/api/crm/listings/' + encodeURIComponent(listingId) + '/media/upload', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+            });
+            if (resp.ok) {
+                var result = await resp.json();
+                entry.uploaded = true;
+                entry.url = result.photo?.url || '';
+                uploaded++;
+            } else {
+                var errBody = await resp.json().catch(function() { return {}; });
+                showToast('Upload failed for ' + entry.file.name + ': ' + (errBody.error || resp.status), 'error');
+                failed++;
+            }
+        } catch (e) {
+            showToast('Upload failed for ' + entry.file.name + ': ' + e.message, 'error');
+            failed++;
+        }
+    }
+    return { uploaded: uploaded, failed: failed };
+}
+
+// ═══════════════════════════════════════════════════════════
 // INIT — Wire up all event listeners
 // ═══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
@@ -8188,6 +8360,16 @@ document.addEventListener('DOMContentLoaded', function() {
             clearTimeout(window._contentScanDebounce);
             window._contentScanDebounce = setTimeout(() => scanAllContent(), 800);
         });
+    }
+
+    // Wire photo + floor plan upload handlers
+    var photoInput = document.getElementById('salePhotoInput');
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) { handleSaleMediaUpload(e, 'photo'); });
+    }
+    var floorInput = document.getElementById('saleFloorplanInput');
+    if (floorInput) {
+        floorInput.addEventListener('change', function(e) { handleSaleMediaUpload(e, 'floorplan'); });
     }
 
     // Initialize validation system
