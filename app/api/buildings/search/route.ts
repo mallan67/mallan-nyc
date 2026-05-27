@@ -171,8 +171,79 @@ export async function GET(request: NextRequest) {
   let dbHadResults = false;
   let cotHadResults = false;
 
+  // Aggregate multiple unit listings into one building candidate.
+  // Groups by building key (StreetNumber-StreetName-PostalCode), then picks
+  // the best value for each field across all units. Majority vote for
+  // CommonInterest so a building with 8 Co-op units and 2 Condop units
+  // correctly reports the dominant type.
+  function aggregateBuilding(records: Array<{ address: Record<string, unknown>; features: Record<string, unknown> | null; property_type: string | null; property_sub_type: string | null }>): Record<string, unknown> | null {
+    if (records.length === 0) return null;
+    const first = records[0];
+    const addr = first.address;
+
+    // Majority vote for CommonInterest
+    const ciCounts: Record<string, number> = {};
+    records.forEach(r => {
+      const ci = String(r.features?.CommonInterest || r.property_sub_type || '');
+      if (ci) ciCounts[ci] = (ciCounts[ci] || 0) + 1;
+    });
+    let bestCI = '';
+    let bestCICount = 0;
+    for (const [ci, count] of Object.entries(ciCounts)) {
+      if (count > bestCICount) { bestCI = ci; bestCICount = count; }
+    }
+
+    // Pick best non-null value for each building fact across all units
+    let yearBuilt: number | null = null;
+    let storiesTotal: number | null = null;
+    let unitsTotal: number | null = null;
+    let buildingName = '';
+    let structureType = '';
+    let borough = '';
+    let neighborhood = '';
+    const amenities = { doorman: false, elevator: false, gym: false, pool: false, laundry: false, parking: false, concierge: false, spa: false };
+
+    records.forEach(r => {
+      const a = r.address;
+      const f = r.features;
+      if (!buildingName && a.BuildingName) buildingName = String(a.BuildingName);
+      if (!borough && a.CityRegion) borough = String(a.CityRegion);
+      if (!neighborhood && a.SubdivisionName) neighborhood = String(a.SubdivisionName);
+      if (!structureType && f?.StructureType) structureType = String(f.StructureType);
+      if (yearBuilt === null && f?.YearBuilt) yearBuilt = Number(f.YearBuilt);
+      if (storiesTotal === null && f?.StoriesTotal) storiesTotal = Number(f.StoriesTotal);
+      if (unitsTotal === null && f?.NumberOfUnitsTotal) unitsTotal = Number(f.NumberOfUnitsTotal);
+      const bf = String(f?.BuildingFeatures || '').toLowerCase();
+      const at = String(f?.AttendanceType || '').toLowerCase();
+      if (at.includes('doorman')) amenities.doorman = true;
+      if (bf.includes('elevator') || f?.ElevatorYN) amenities.elevator = true;
+      if (bf.includes('healthclub') || bf.includes('fitness') || bf.includes('gym')) amenities.gym = true;
+      if (bf.includes('pool')) amenities.pool = true;
+      if (bf.includes('laundry')) amenities.laundry = true;
+      if (bf.includes('parking') || bf.includes('garage')) amenities.parking = true;
+      if (at.includes('concierge')) amenities.concierge = true;
+      if (bf.includes('spa')) amenities.spa = true;
+    });
+
+    return {
+      address: formatAddress(addr),
+      name: buildingName,
+      borough,
+      zip: String(addr.PostalCode || ''),
+      neighborhood,
+      common_interest: bestCI,
+      structure_type: structureType,
+      year_built: yearBuilt,
+      stories_total: storiesTotal,
+      units_total: unitsTotal,
+      units_found: records.length,
+      source: 'db',
+      ...amenities,
+    };
+  }
+
   try {
-    // ── 1. Search DB first ──
+    // ── 1. Search DB first — aggregate by building ──
     if (parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       const conditions = [`address->>'StreetNumber' = $1`];
       const params: string[] = [parsed.streetNumber];
@@ -187,7 +258,7 @@ export async function GET(request: NextRequest) {
         params.push(`%${parsed.streetName}%`);
         paramIdx++;
       }
-      const sql = `SELECT address, features, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
+      const sql = `SELECT address, features, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 50`;
       const dbResults = await prisma.$queryRawUnsafe<Array<{
         address: unknown; features: unknown; property_type: string | null; property_sub_type: string | null;
       }>>(sql, ...params);
@@ -195,26 +266,21 @@ export async function GET(request: NextRequest) {
       diag.localDbResultCount = dbResults.length;
       if (dbResults.length > 0) dbHadResults = true;
 
+      // Group by building address key
+      const buildingGroups = new Map<string, Array<{ address: Record<string, unknown>; features: Record<string, unknown> | null; property_type: string | null; property_sub_type: string | null }>>();
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
-        const fullAddr = formatAddress(addr);
         const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
+        if (!buildingGroups.has(key)) buildingGroups.set(key, []);
+        buildingGroups.get(key)!.push({ address: addr, features: feat, property_type: l.property_type, property_sub_type: l.property_sub_type });
+      }
+
+      for (const [key, group] of buildingGroups) {
         if (seenAddresses.has(key)) continue;
         seenAddresses.add(key);
-
-        buildings.push({
-          address: fullAddr,
-          name: String(addr.BuildingName || ''),
-          borough: String(addr.CityRegion || ''),
-          zip: String(addr.PostalCode || ''),
-          neighborhood: String(addr.SubdivisionName || ''),
-          common_interest: String(feat?.CommonInterest || l.property_sub_type || ''),
-          structure_type: String(feat?.StructureType || ''),
-          year_built: feat?.YearBuilt ? Number(feat.YearBuilt) : null,
-          stories_total: feat?.StoriesTotal ? Number(feat.StoriesTotal) : null,
-          units_total: feat?.NumberOfUnitsTotal ? Number(feat.NumberOfUnitsTotal) : null,
-        });
+        const building = aggregateBuilding(group);
+        if (building) buildings.push(building);
       }
     } else if (parsed.buildingName) {
       const dbResults = await prisma.listing.findMany({
@@ -222,32 +288,26 @@ export async function GET(request: NextRequest) {
           address: { path: ['BuildingName'], string_contains: parsed.buildingName.toUpperCase() },
         },
         select: { address: true, features: true, property_type: true, property_sub_type: true },
-        take: 10,
+        take: 20,
       });
 
       diag.localDbResultCount = dbResults.length;
       if (dbResults.length > 0) dbHadResults = true;
 
+      const buildingGroups = new Map<string, Array<{ address: Record<string, unknown>; features: Record<string, unknown> | null; property_type: string | null; property_sub_type: string | null }>>();
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
-        const fullAddr = `${addr.StreetNumber || ''} ${addr.StreetName || ''} ${addr.StreetSuffix || ''}`.trim();
         const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
+        if (!buildingGroups.has(key)) buildingGroups.set(key, []);
+        buildingGroups.get(key)!.push({ address: addr, features: feat, property_type: l.property_type, property_sub_type: l.property_sub_type });
+      }
+
+      for (const [key, group] of buildingGroups) {
         if (seenAddresses.has(key)) continue;
         seenAddresses.add(key);
-
-        buildings.push({
-          address: fullAddr,
-          name: String(addr.BuildingName || ''),
-          borough: String(addr.CityRegion || ''),
-          zip: String(addr.PostalCode || ''),
-          neighborhood: String(addr.SubdivisionName || ''),
-          common_interest: String(feat?.CommonInterest || l.property_sub_type || ''),
-          structure_type: String(feat?.StructureType || ''),
-          year_built: feat?.YearBuilt ? Number(feat.YearBuilt) : null,
-          stories_total: feat?.StoriesTotal ? Number(feat.StoriesTotal) : null,
-          units_total: feat?.NumberOfUnitsTotal ? Number(feat.NumberOfUnitsTotal) : null,
-        });
+        const building = aggregateBuilding(group);
+        if (building) buildings.push(building);
       }
     }
 
@@ -304,33 +364,69 @@ export async function GET(request: NextRequest) {
             diag.errorClass = 'cotality_zero_results';
           }
 
+          // Group Trestle results by building, then aggregate
+          const trestleGroups = new Map<string, TrestleRecord[]>();
           for (const r of records) {
-            const fullAddr = formatAddress(r);
             const key = `${r.StreetNumber}-${r.StreetName}-${r.PostalCode || ''}`.toUpperCase();
             if (seenAddresses.has(key)) continue;
-            seenAddresses.add(key);
+            if (!trestleGroups.has(key)) trestleGroups.set(key, []);
+            trestleGroups.get(key)!.push(r);
+          }
 
-            const features = String(r.BuildingFeatures || '').toLowerCase();
-            const attendance = String(r.AttendanceType || '').toLowerCase();
+          for (const [key, group] of trestleGroups) {
+            seenAddresses.add(key);
+            const first = group[0];
+
+            // Majority vote for CommonInterest across units
+            const ciCounts: Record<string, number> = {};
+            group.forEach(r => {
+              const ci = String(r.CommonInterest || r.OwnershipType || '');
+              if (ci) ciCounts[ci] = (ciCounts[ci] || 0) + 1;
+            });
+            let bestCI = '';
+            let bestCICount = 0;
+            for (const [ci, count] of Object.entries(ciCounts)) {
+              if (count > bestCICount) { bestCI = ci; bestCICount = count; }
+            }
+
+            // Aggregate best building facts
+            let yearBuilt: number | null = null;
+            let storiesTotal: number | null = null;
+            let unitsTotal: number | null = null;
+            let buildingName = '';
+            let structureType = '';
+            const amenities = { doorman: false, elevator: false, gym: false, pool: false, laundry: false, parking: false, concierge: false };
+            group.forEach(r => {
+              if (!buildingName && r.BuildingName) buildingName = String(r.BuildingName);
+              if (!structureType && r.StructureType) structureType = String(r.StructureType);
+              if (yearBuilt === null && r.YearBuilt) yearBuilt = Number(r.YearBuilt);
+              if (storiesTotal === null && r.StoriesTotal) storiesTotal = Number(r.StoriesTotal);
+              if (unitsTotal === null && r.NumberOfUnitsInCommunity) unitsTotal = Number(r.NumberOfUnitsInCommunity);
+              const bf = String(r.BuildingFeatures || '').toLowerCase();
+              const at = String(r.AttendanceType || '').toLowerCase();
+              if (at.includes('doorman')) amenities.doorman = true;
+              if (bf.includes('elevator')) amenities.elevator = true;
+              if (bf.includes('healthclub') || bf.includes('fitness')) amenities.gym = true;
+              if (bf.includes('pool')) amenities.pool = true;
+              if (bf.includes('laundry')) amenities.laundry = true;
+              if (bf.includes('parking') || bf.includes('garage')) amenities.parking = true;
+              if (at.includes('concierge')) amenities.concierge = true;
+            });
 
             buildings.push({
-              address: fullAddr,
-              name: String(r.BuildingName || ''),
-              borough: String(r.CityRegion || ''),
-              zip: String(r.PostalCode || ''),
-              neighborhood: String(r.SubdivisionName || ''),
-              common_interest: String(r.CommonInterest || r.OwnershipType || ''),
-              structure_type: String(r.StructureType || ''),
-              year_built: r.YearBuilt ? Number(r.YearBuilt) : null,
-              stories_total: r.StoriesTotal ? Number(r.StoriesTotal) : null,
-              units_total: r.NumberOfUnitsInCommunity ? Number(r.NumberOfUnitsInCommunity) : null,
-              doorman: attendance.includes('doorman'),
-              elevator: features.includes('elevator'),
-              gym: features.includes('healthclub') || features.includes('fitness'),
-              pool: features.includes('pool'),
-              laundry: features.includes('laundry'),
-              parking: features.includes('parking') || features.includes('garage'),
-              concierge: attendance.includes('concierge'),
+              address: formatAddress(first),
+              name: buildingName,
+              borough: String(first.CityRegion || ''),
+              zip: String(first.PostalCode || ''),
+              neighborhood: String(first.SubdivisionName || ''),
+              common_interest: bestCI,
+              structure_type: structureType,
+              year_built: yearBuilt,
+              stories_total: storiesTotal,
+              units_total: unitsTotal,
+              units_found: group.length,
+              source: 'cotality',
+              ...amenities,
             });
           }
         } else {
