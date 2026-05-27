@@ -182,7 +182,9 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
         )}
         {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
         <p className="text-sm text-brand-dark/80 mt-2">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
+          {listing._source === 'exclusive'
+            ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
+            : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
         </p>
         {formatCoListedBadge(listing) && (
           // PR-FE.2 Option C — co-listed siblings badge. See
@@ -295,7 +297,9 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         )}
         {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
         <p className="text-sm text-brand-dark/80 mt-2">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
+          {listing._source === 'exclusive'
+            ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
+            : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
         </p>
         {formatCoListedBadge(listing) && (
           // PR-FE.2 Option C — co-listed siblings badge. See
@@ -452,7 +456,9 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         )}
         {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
         <p className="text-sm text-brand-dark/80 mt-2">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
+          {listing._source === 'exclusive'
+            ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
+            : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
         </p>
         {formatCoListedBadge(listing) && (
           // PR-FE.2 Option C — co-listed siblings badge. See

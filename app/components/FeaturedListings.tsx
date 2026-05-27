@@ -43,6 +43,8 @@ interface FeaturedListing {
   comingSoonDate?: string | null;
   activationDate?: string | null;
   _attribution?: string;
+  _source?: string;
+  _displayCompliance?: { attributionText?: string };
   _lastUpdated?: string;
   /**
    * PR-FE.2 Option C (2026-05-15) — co-listed siblings annotation
@@ -272,9 +274,11 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
               CC: ${cc.toLocaleString()}/mo
             </p>
           )}
-          {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
+          {/* Attribution: CRM exclusives show Mallan; RLS shows brokerage courtesy */}
           <p className="text-base text-brand-dark/80 mt-2">
-            RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}
+            {listing._source === 'exclusive'
+              ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
+              : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
           </p>
           {/* PR-FE.2 Option C — co-listed siblings badge, kept in sync
               with SearchListingCard's formatCoListedBadge variants. */}
