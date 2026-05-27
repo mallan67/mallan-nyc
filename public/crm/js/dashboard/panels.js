@@ -9361,7 +9361,7 @@ var Panels = (function () {
 
     // Status counts for this type
     var statusCounts = {};
-    var statuses = ['Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
+    var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
     statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
 
     // Expiring listings
