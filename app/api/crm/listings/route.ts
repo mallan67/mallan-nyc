@@ -156,6 +156,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Outer try/catch — normalizePayload, buildPersistenceRecord, etc. can throw
+  // outside the inner Prisma transaction catch. Without this, any error in
+  // payload processing returns a bare 500 with no JSON body.
+  try {
+
   const listingType = (body.listing_type as string) || "sale";
   if (!["sale", "rent"].includes(listingType)) {
     return NextResponse.json(
@@ -455,4 +460,13 @@ export async function POST(req: NextRequest) {
     },
     { status: 201 }
   );
+
+  } catch (outerErr) {
+    const msg = outerErr instanceof Error ? outerErr.message : String(outerErr);
+    console.error('[POST /api/crm/listings] Unhandled error:', msg);
+    return NextResponse.json(
+      { error: 'Failed to create listing: ' + msg.split('\n')[0].slice(0, 120) },
+      { status: 500 }
+    );
+  }
 }
