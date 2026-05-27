@@ -379,7 +379,9 @@ export default function FeaturedListings() {
 
         if (cancelled || !data.listings || data.listings.length === 0) return;
 
-        const all: FeaturedListing[] = data.listings;
+        const all: FeaturedListing[] = data.listings.filter(
+          (l: FeaturedListing) => l.address?.streetName !== 'Address Undisclosed'
+        );
 
         // Separate pinned (exclusives) from rest — pinned always first
         const pinned = all.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
