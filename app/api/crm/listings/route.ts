@@ -280,7 +280,9 @@ export async function POST(req: NextRequest) {
   // Wrap listing create + ID generation + audit log in a single transaction.
   // Advisory lock inside generateListingId prevents duplicate listing IDs.
   // If any step fails, the entire transaction rolls back.
-  const result = await prisma.$transaction(async (tx) => {
+  let result: { id: string; listingId: string };
+  try {
+  result = await prisma.$transaction(async (tx) => {
     const listingId = await generateListingId(tx, listingType);
 
     const listing = await tx.listing.create({
@@ -388,6 +390,16 @@ export async function POST(req: NextRequest) {
 
     return { id: listing.id.toString(), listingId };
   });
+  } catch (dbErr) {
+    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    const code = (dbErr as { code?: string })?.code;
+    const meta = (dbErr as { meta?: unknown })?.meta;
+    console.error('[POST /api/crm/listings] DB error:', { code, meta, message: msg });
+    return NextResponse.json(
+      { error: 'Failed to create listing', detail: msg, prismaCode: code },
+      { status: 500 }
+    );
+  }
 
   // Phase A W3 — dual-write the listing_search_projection for newly created
   // CRM listings (Mallan exclusives).

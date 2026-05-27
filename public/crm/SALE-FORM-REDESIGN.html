@@ -7311,14 +7311,14 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleExclusiveStart', label: 'Exclusive Start Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleExclusiveExpires', label: 'Exclusive Expires', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleFirstCoBroke', label: 'First Date To Co-Broke', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['PermOffMarket','TempOffMarket','Expired','Withdrawn'] },
+    { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['ContractSigned','ContractSignedThruUs','Sold','SoldThruUs'] },
     { id: 'salePrice', label: 'Price', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleMaintCC', label: 'Maint/CC', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
     { id: 'saleUnitShares', label: 'Shares', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDOP','COMMERCIAL_COOP'] },
     { id: 'saleFlipTaxAmount', label: 'Flip Tax Amount', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
     { id: 'saleExclusiveCommission', label: 'Exclusive Agent Commission', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
-    { name: 'saleAptCondition', label: 'Condition of Apartment', type: 'radio', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleCondition', label: 'Condition of Apartment', type: 'select', tab: 2, section: 'Unit Information/Essentials' },
     // Tab 1: Description
     { id: 'saleDescription', label: 'Listing Description', type: 'textarea', tab: 1, section: 'Listing Information/Description' },
     // Tab 1: Contacts
