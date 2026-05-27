@@ -50,11 +50,39 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
         'public/crm/js/dashboard/**',
         'app/api/buildings/**',
         'app/api/crm/listings/**',
-        'lib/idx/trestle-mapper.ts',
-        'lib/idx/mapping.ts',
-        'lib/idx/public-dto.ts',
         'lib/compliance/gates.ts',
         'lib/compliance/idx-display-gate.ts',
+      ]));
+    });
+
+    // Codex P0 #5 — additional path surfaces must all be covered.
+    test('paths filter includes every Codex P0 #5 surface', () => {
+      const paths = doc.on.pull_request.paths;
+      expect(paths).toEqual(expect.arrayContaining([
+        // media surfaces
+        'lib/media/**',
+        'app/api/media/**',
+        'app/api/cron/media-sync/**',
+        'app/api/cron/media-backfill/**',
+        // syndication
+        'lib/syndication/**',
+        // public-listing filter + readers + projection
+        'lib/compliance/public-listing-filter.ts',
+        'lib/search/public-listing-db.ts',
+        'lib/search/public-listing-trestle.ts',
+        'lib/search/listing-search-projection.ts',
+        // lib/idx (broader — covers all Cotality/Trestle mapping)
+        'lib/idx/**',
+        // listing detail page + display components
+        'app/listing/**',
+        'app/components/Listing*.tsx',
+        'app/components/FeaturedListings.tsx',
+        'app/components/IDX*.tsx',
+        // Sentinel-L self-paths (any change to L infra re-runs L)
+        '.github/workflows/sentinel-listing-readiness.yml',
+        'scripts/sentinel-write-listing-audit.mjs',
+        'scripts/__tests__/sentinel-listing-readiness-workflow.test.js',
+        'scripts/__tests__/sentinel-write-listing-audit.test.js',
       ]));
     });
 
@@ -66,16 +94,25 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
   });
 
   describe('permissions', () => {
-    test('grants only pull-requests:write + contents:read + id-token:write', () => {
+    // Codex P0 #6 — `gh pr comment` posts via the issues-comments
+    // endpoint, so `issues: write` is required alongside
+    // `pull-requests: write`. Both are scoped to commenting; neither
+    // permits merging, closing, reopening, or assigning.
+    test('grants contents:read + pull-requests:write + issues:write + id-token:write', () => {
       expect(doc.permissions).toEqual({
         contents: 'read',
         'pull-requests': 'write',
+        issues: 'write',
         'id-token': 'write',
       });
     });
 
     test('does NOT grant contents:write (Sentinel-L is report-only)', () => {
       expect(doc.permissions.contents).not.toBe('write');
+    });
+
+    test('issues: write is present (gh pr comment requirement — Codex P0 #6)', () => {
+      expect(doc.permissions.issues).toBe('write');
     });
   });
 
@@ -121,7 +158,7 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(invokeStep.with.claude_args.match(editRe) || []).toEqual([]);
     });
 
-    test('Bash allow-list is exactly the known set (no broadening)', () => {
+    test('Bash allow-list is exactly the known narrow set (Codex P0 #7)', () => {
       const bashEntries = (invokeStep.with.claude_args.match(bashRe) || []).sort();
       expect(bashEntries).toEqual([
         'Bash(curl -fsSL *)',
@@ -131,7 +168,10 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
         'Bash(git diff *)',
         'Bash(git log *)',
         'Bash(git status)',
-        'Bash(node scripts/*)',
+        // Codex P0 #7 — narrowed from Bash(node scripts/*) to the exact
+        // writer-command prefix. Any `node scripts/<other>` invocation is
+        // now denied; the trailing ` *` allows the heredoc-redirect tail.
+        'Bash(node scripts/sentinel-write-listing-audit.mjs *)',
         'Bash(npm run compliance-check)',
         'Bash(npm run crm:check-build)',
         'Bash(npm run idx:validate)',
@@ -142,8 +182,12 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       ].sort());
     });
 
-    test('node scripts/* allows invoking sentinel-write-listing-audit.mjs', () => {
-      expect(invokeStep.with.claude_args).toMatch(/Bash\(node scripts\/\*\)/);
+    test('writer-script Bash pattern is the narrow form (NOT Bash(node scripts/*))', () => {
+      // Codex P0 #7 — the broader `Bash(node scripts/*)` would permit
+      // invoking any node script under scripts/. We pin the exact writer.
+      expect(invokeStep.with.claude_args).toMatch(/Bash\(node scripts\/sentinel-write-listing-audit\.mjs \*\)/);
+      // The broad form must be absent.
+      expect(invokeStep.with.claude_args).not.toMatch(/Bash\(node scripts\/\*\)/);
     });
 
     test('no gh pr comment / gh pr merge / gh pr close in allow-list', () => {
@@ -253,24 +297,72 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
   });
 
   describe('post-Claude verification + comment posting', () => {
-    test('a post-Claude verification step exists', () => {
-      const step = doc.jobs.audit.steps.find(
-        (s) => s.name === 'Verify Claude actually updated the audit (post-invocation diagnostic)',
-      );
-      expect(step).toBeDefined();
-      // Must check skeleton SHA inequality (Sentinel-D zero-write guard).
-      expect(step.run).toMatch(/SKELETON_SHA/);
-      expect(step.run).toMatch(/current_sha/);
-    });
+    let postclaudeStep;
+    let commentStep;
 
-    test('a comment-posting step exists and uses gh pr comment with --body-file', () => {
-      const step = doc.jobs.audit.steps.find(
+    beforeAll(() => {
+      postclaudeStep = doc.jobs.audit.steps.find(
+        (s) => s.name === 'Verify Claude audit OR write fallback report (always runs)',
+      );
+      commentStep = doc.jobs.audit.steps.find(
         (s) => s.name === 'Post audit summary as PR comment',
       );
-      expect(step).toBeDefined();
-      expect(step.run).toMatch(/gh pr comment.*--body-file/);
+    });
+
+    // Codex P0 #1 — post-Claude verification must run even when Claude
+    // fails / aborts / times out. The previous version had no `if:`
+    // condition, so a Claude failure would short-circuit GitHub Actions'
+    // default fail-fast behavior and skip verification + comment + RED.
+    test('post-Claude verification step exists and has if: always()', () => {
+      expect(postclaudeStep).toBeDefined();
+      expect(postclaudeStep.if).toMatch(/always\(\)/);
+      expect(postclaudeStep.id).toBe('postclaude');
+    });
+
+    test('post-Claude step reads steps.claude.outcome via env (Codex P0 #1 wiring)', () => {
+      // The Invoke Claude step must have id: claude so steps.claude.outcome
+      // is queryable, and the post-Claude step must consume it (here via
+      // a step-level env var so the run-script can inspect it cleanly).
+      const claudeStep = doc.jobs.audit.steps.find(
+        (s) => s.name === 'Invoke Claude — Sentinel-L listing-readiness audit',
+      );
+      expect(claudeStep.id).toBe('claude');
+      // The step's env must wire steps.claude.outcome through to the script.
+      expect(postclaudeStep.env).toBeDefined();
+      const envValues = Object.values(postclaudeStep.env).join('\n');
+      expect(envValues).toMatch(/steps\.claude\.outcome/);
+      // The run-script must reference the env var name it expects.
+      expect(postclaudeStep.run).toMatch(/CLAUDE_OUTCOME/);
+    });
+
+    // Codex P0 #2 — when Claude does not produce a valid audit (missing
+    // file, SHA unchanged, missing verdict, duplicate verdict, missing
+    // closing line), the workflow must write a fallback RED report so
+    // the PR comment + artifact upload still surface a meaningful result.
+    test('post-Claude step writes a fallback report when Claude fails (Codex P0 #2)', () => {
+      expect(postclaudeStep.run).toMatch(/write_fallback_report/);
+      // Fallback report must include the verdict marker so downstream
+      // extraction works against the fallback content too.
+      expect(postclaudeStep.run).toMatch(/Final verdict: RED/);
+      // Fallback report must satisfy the closing-line contract.
+      expect(postclaudeStep.run).toMatch(/Sentinel-L: report-only — no changes made\./);
+      // Fallback report must satisfy the 5-section requirement.
+      expect(postclaudeStep.run).toMatch(/## A\. Address \/ Cotality \/ RESO/);
+      expect(postclaudeStep.run).toMatch(/## E\. Final verdict/);
+    });
+
+    // Codex P0 #3 — extraction must reject duplicate verdict lines and
+    // collapse to fallback RED.
+    test('post-Claude step rejects duplicate verdict lines (Codex P0 #3)', () => {
+      // verdict_count must be checked for !=1 — covers both zero and >1.
+      expect(postclaudeStep.run).toMatch(/verdict_count[^\n]*-ne 1/);
+    });
+
+    test('comment-posting step uses gh pr comment with --body-file and if: always()', () => {
+      expect(commentStep).toBeDefined();
+      expect(commentStep.run).toMatch(/gh pr comment.*--body-file/);
       // Must run even on failure so a RED verdict still surfaces on the PR.
-      expect(step.if).toMatch(/always\(\)/);
+      expect(commentStep.if).toMatch(/always\(\)/);
     });
 
     test('the audit artifact is uploaded even on failure', () => {

@@ -280,6 +280,76 @@ describe('sentinel-write-listing-audit.mjs', () => {
       expect(code).toBe(1);
       expect(stderr).toMatch(/MISSING_CLOSING_LINE/);
     });
+
+    // Codex P0 #3 — both 0 verdicts (MISSING_VERDICT) and >=2 verdicts
+    // (DUPLICATE_VERDICT) must be fail-closed. Without this, the writer
+    // would silently accept ambiguous reports and the workflow's
+    // verdict-extraction would pick one arbitrarily.
+    test('rejects DUPLICATE verdict lines — different values (Codex P0 #3)', async () => {
+      const content = buildValidAudit({ verdict: 'YELLOW' }).replace(
+        CLOSING_LINE,
+        `Final verdict: GREEN\n\n${CLOSING_LINE}`,
+      );
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/DUPLICATE_VERDICT/);
+      expect(stderr).toMatch(/expected exactly 1/);
+    });
+
+    test('rejects DUPLICATE verdict lines — same value (Codex P0 #3)', async () => {
+      const content = buildValidAudit({ verdict: 'GREEN' }).replace(
+        CLOSING_LINE,
+        `Final verdict: GREEN\n\n${CLOSING_LINE}`,
+      );
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/DUPLICATE_VERDICT/);
+    });
+
+    // Codex P0 #4 — a verdict of GREEN must mean every check passed AND
+    // the live user path was proven. Any LIMITED / BLOCKED / NOT VERIFIED /
+    // "evidence gap" / "cannot verify" marker in the body invalidates
+    // GREEN. The writer rejects with MISLEADING_GREEN — downgrading to
+    // YELLOW/RED is the auditor's responsibility, not the script's; we
+    // just block the misleading badge.
+    test.each([
+      ['LIMITED', 'LIMITED — preview-auth required'],
+      ['BLOCKED', 'BLOCKED on missing preview alias'],
+      ['NOT VERIFIED', 'NOT VERIFIED — could not reach endpoint'],
+      ['evidence gap', 'evidence gap on auth-required path'],
+      ['cannot verify', 'cannot verify without broker session'],
+    ])('rejects GREEN verdict when body contains "%s" (Codex P0 #4)', async (marker, injected) => {
+      const content = buildValidAudit({ verdict: 'GREEN' }).replace(
+        'Compact finding for section C.',
+        `Compact finding for section C. ${injected}.`,
+      );
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/MISLEADING_GREEN/);
+      expect(stderr).toMatch(new RegExp(marker.replace(/ /g, '\\s+')));
+    });
+
+    test('accepts YELLOW verdict with LIMITED in body (Codex P0 #4 inverse)', async () => {
+      // The gap markers are only blocking for GREEN; YELLOW/RED can
+      // (and should) name them.
+      const content = buildValidAudit({ verdict: 'YELLOW' }).replace(
+        'Compact finding for section C.',
+        'Compact finding for section C. LIMITED — preview-auth required.',
+      );
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(stderr).toBe('');
+      expect(code).toBe(0);
+    });
+
+    test('accepts RED verdict with NOT VERIFIED in body (Codex P0 #4 inverse)', async () => {
+      const content = buildValidAudit({ verdict: 'RED' }).replace(
+        'Compact finding for section D.',
+        'Compact finding for section D. NOT VERIFIED — workflow broken.',
+      );
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(stderr).toBe('');
+      expect(code).toBe(0);
+    });
   });
 
   // ── Happy path ─────────────────────────────────────────────────────────

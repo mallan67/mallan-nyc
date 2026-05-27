@@ -93,14 +93,52 @@ function validateContent(content) {
     );
   }
 
-  const verdictMatch = content.match(VERDICT_RE);
-  if (!verdictMatch) {
+  // Codex P0 #3 — enforce EXACTLY ONE verdict line. Zero verdicts is
+  // MISSING_VERDICT; two or more is DUPLICATE_VERDICT. Either is fail-
+  // closed: a Sentinel-L report with an ambiguous verdict is worse than
+  // no report at all because the workflow's verdict extraction would
+  // silently pick one and surface a misleading badge in the PR comment.
+  const allVerdictMatches = content.match(/^Final verdict:\s+(GREEN|YELLOW|RED)\s*$/gm) || [];
+  if (allVerdictMatches.length === 0) {
     fail(
       'MISSING_VERDICT',
       `report must contain exactly one line of the form "Final verdict: GREEN" / "Final verdict: YELLOW" / "Final verdict: RED".`
     );
   }
+  if (allVerdictMatches.length > 1) {
+    fail(
+      'DUPLICATE_VERDICT',
+      `report contains ${allVerdictMatches.length} "Final verdict:" lines (expected exactly 1). Remove the duplicates before re-invoking.`
+    );
+  }
+  const verdictMatch = content.match(VERDICT_RE);
   const verdict = verdictMatch[1];
+
+  // Codex P0 #4 — prevent misleading GREEN. A verdict of GREEN must mean
+  // every check passed AND the live user path was proven. If the report
+  // body mentions LIMITED, BLOCKED, NOT VERIFIED, "evidence gap", or
+  // "cannot verify", at least one check did NOT prove the live path. The
+  // verdict must then be YELLOW or RED — not GREEN. (Maya's hard rule:
+  // "code exists is not proof".)
+  if (verdict === 'GREEN') {
+    const greenBlockingMarkers = [
+      'LIMITED',
+      'BLOCKED',
+      'NOT VERIFIED',
+      'evidence gap',
+      'cannot verify',
+    ];
+    const found = greenBlockingMarkers.filter((m) => content.includes(m));
+    if (found.length > 0) {
+      fail(
+        'MISLEADING_GREEN',
+        `verdict is GREEN but report contains ${found.map((m) => `"${m}"`).join(', ')}. ` +
+        `GREEN requires every check to be PASS with the live user path proven. ` +
+        `Change the verdict to YELLOW (usable with named caveats) or RED (do not use), ` +
+        `or remove the gap markers if the verdict really is GREEN.`
+      );
+    }
+  }
 
   // Closing line must be the last non-blank line.
   const trimmedTail = content.replace(/\s+$/, '');

@@ -20,20 +20,50 @@ name: Sentinel-L — Listing Workflow Readiness (report-only)
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
-    # Mandatory trigger surfaces per Maya's Sentinel-L spec:
+    # Mandatory trigger surfaces per Maya's Sentinel-L spec (Codex P0 #5
+    # added the media + syndication + public-listing-filter + search-reader
+    # + idx/** + app/listing/** + listing display components + self-paths).
     paths:
+      # ── CRM forms + dashboard ──────────────────────────────────────────
       - 'public/crm/SALE-FORM-REDESIGN.html'
       - 'public/crm/RENTAL-FORM-REDESIGN.html'
       - 'public/crm/js/dashboard/**'
+      # ── API surfaces ───────────────────────────────────────────────────
       - 'app/api/buildings/**'
       - 'app/api/crm/listings/**'
       - 'app/api/crm/documents/upload/**'
-      - 'lib/idx/trestle-mapper.ts'
-      - 'lib/idx/mapping.ts'
-      - 'lib/idx/public-dto.ts'
+      - 'app/api/media/**'
+      - 'app/api/cron/media-sync/**'
+      - 'app/api/cron/media-backfill/**'
+      # ── Listing detail page + listing display components ───────────────
+      - 'app/listing/**'
+      - 'app/components/Listing*.tsx'
+      - 'app/components/FeaturedListings.tsx'
+      - 'app/components/IDX*.tsx'
+      - 'app/components/FareAct*.tsx'
+      - 'app/components/SearchMap.tsx'
+      - 'app/components/AgencyDisclosure.tsx'
+      - 'app/components/AntiDiscriminationNotice.tsx'
+      # ── lib/idx (Trestle/Cotality mapping, sync, media-sync) ───────────
+      - 'lib/idx/**'
+      # ── lib/media (media resolver, fallback chain) ─────────────────────
+      - 'lib/media/**'
+      # ── lib/syndication (Mallan exclusives, partner export) ────────────
+      - 'lib/syndication/**'
+      # ── lib/compliance (display gates, DTOs, public-listing filter) ────
       - 'lib/compliance/gates.ts'
       - 'lib/compliance/idx-display-gate.ts'
       - 'lib/compliance/dto.ts'
+      - 'lib/compliance/public-listing-filter.ts'
+      # ── lib/search (public readers + projection) ───────────────────────
+      - 'lib/search/public-listing-db.ts'
+      - 'lib/search/public-listing-trestle.ts'
+      - 'lib/search/listing-search-projection.ts'
+      # ── Sentinel-L self-paths (any change to L infra must re-run L) ────
+      - '.github/workflows/sentinel-listing-readiness.yml'
+      - 'scripts/sentinel-write-listing-audit.mjs'
+      - 'scripts/__tests__/sentinel-listing-readiness-workflow.test.js'
+      - 'scripts/__tests__/sentinel-write-listing-audit.test.js'
   workflow_dispatch:
     inputs:
       pr_number:
@@ -43,7 +73,13 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write   # post audit comment + read PR metadata
+  # Codex P0 #6 — `gh pr comment` posts via the issues-comments REST
+  # endpoint, so `issues: write` is required alongside `pull-requests: write`
+  # for the comment-posting step to succeed across all GitHub-token
+  # variants. Both stay scoped to commenting only; neither permits merging,
+  # closing, reopening, or assigning.
+  pull-requests: write
+  issues: write
   id-token: write         # required by anthropics/claude-code-action
 
 concurrency:
@@ -161,18 +197,23 @@ jobs:
           echo "Skeleton: ${skeleton_bytes} bytes, sha256=${skeleton_sha:0:12}…"
 
       - name: Invoke Claude — Sentinel-L listing-readiness audit
+        id: claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # show_full_output: surfaces permission_denials + script ERROR codes
           # in the workflow log for forensic debugging (same as Sentinel-D).
           show_full_output: true
-          # Allow-list shape mirrors Sentinel-D.1.1's: Read/Glob/Grep,
-          # narrow Bash for validators + curl + the writer script + read-only
-          # git/gh probes. NO Write tool. NO Edit. NO Bash for write/exec
-          # operations outside the writer script.
+          # Allow-list shape mirrors Sentinel-D.1.1's. NO Write tool. NO Edit.
+          # NO Bash for write/exec operations outside the writer script.
+          # Codex P0 #7 — narrowed the Bash entry from the broad
+          # `Bash(node scripts/*)` (which would permit invoking ANY script
+          # under scripts/) to the exact writer command prefix. The trailing
+          # ` *` allows the heredoc-redirect tail (`<<'AUDIT_EOF' …`) the
+          # writer needs, but nothing else; any `node scripts/<other>` call
+          # is denied.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff *),Bash(git log *),Bash(gh pr view *),Bash(gh pr diff *)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/sentinel-write-listing-audit.mjs *),Bash(git status),Bash(git diff *),Bash(git log *),Bash(gh pr view *),Bash(gh pr diff *)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
@@ -333,47 +374,130 @@ jobs:
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
           PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
 
-      - name: Verify Claude actually updated the audit (post-invocation diagnostic)
+      # ----------------------------------------------------------------------
+      # Codex P0 #1 + #2 — Post-Claude verification runs UNCONDITIONALLY
+      # (`if: always()`) so that a Claude failure / timeout / cancellation
+      # still surfaces a RED report on the PR. If Claude did not write a
+      # valid audit (file missing, SHA unchanged, verdict missing,
+      # duplicate verdict, closing line missing), the workflow writes its
+      # own independent fallback RED report so the PR-comment + artifact-
+      # upload steps still have content to publish. This is the "Sentinel-L
+      # must still produce a RED/LIMITED report even when Claude never
+      # invokes the writer" rule.
+      # ----------------------------------------------------------------------
+      - name: Verify Claude audit OR write fallback report (always runs)
         id: postclaude
+        if: always()
         env:
           REPORT_PATH: ${{ steps.pr.outputs.report_path }}
           SKELETON_SHA: ${{ steps.skeleton.outputs.skeleton_sha }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+
+          write_fallback_report() {
+            local reason="$1"
+            mkdir -p "$(dirname "$REPORT_PATH")"
+            ny_iso=$(TZ=America/New_York date +"%Y-%m-%dT%H:%M:%S%z")
+            utc_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            cat > "$REPORT_PATH" <<EOF
+          # Sentinel-L — Listing Workflow Readiness PR #${PR_NUMBER}
+
+          commit: ${PR_HEAD_SHA}
+          status: FAILED
+          run_url: ${RUN_URL}
+          timestamp_eastern: $ny_iso
+          timestamp_utc:     $utc_iso
+
+          ---
+
+          ## A. Address / Cotality / RESO
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## B. Sale listing workflow
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## C. Draft workflow
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## D. Media workflow
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## E. Final verdict
+
+          Reason: ${reason}. Manual broker workflow verification is required before this PR is merged. See workflow run for forensic detail.
+
+          Final verdict: RED
+
+          Sentinel-L: report-only — no changes made.
+          EOF
+            echo "Wrote fallback RED report (reason: $reason)"
+          }
+
+          # ── Case 1: report file missing entirely (Claude never ran or
+          #   was cancelled before the writer was invoked) ───────────────
           if [ ! -f "$REPORT_PATH" ]; then
-            echo "::error::Audit file missing after Claude invocation: $REPORT_PATH"
+            echo "::warning::Audit file missing (Claude outcome=$CLAUDE_OUTCOME). Writing fallback RED report."
+            write_fallback_report "Claude did not produce an audit file (outcome=$CLAUDE_OUTCOME)"
             echo "verdict=RED" >> "$GITHUB_OUTPUT"
-            echo "audit_written=false" >> "$GITHUB_OUTPUT"
-            exit 1
+            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
+            echo "fallback=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          # ── Case 2: file exists but equals the skeleton (zero-Write
+          #   class failure — script was never invoked, OR every script
+          #   call was rejected/parser-aborted) ──────────────────────────
           current_sha=$(sha256sum "$REPORT_PATH" | awk '{print $1}')
           if [ "$current_sha" = "$SKELETON_SHA" ]; then
-            echo "::error::Audit file SHA == skeleton SHA. Claude did not update the file."
+            echo "::warning::Audit file SHA == skeleton SHA (zero-Write, outcome=$CLAUDE_OUTCOME). Writing fallback RED report."
+            write_fallback_report "Claude did not update the skeleton (zero-Write; SHA unchanged from baseline)"
             echo "verdict=RED" >> "$GITHUB_OUTPUT"
-            echo "audit_written=false" >> "$GITHUB_OUTPUT"
-            exit 1
+            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
+            echo "fallback=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          # Extract the verdict line — must be exactly one match.
-          verdict=$(grep -oE '^Final verdict:\s+(GREEN|YELLOW|RED)' "$REPORT_PATH" | head -1 | sed -E 's/.*\s(GREEN|YELLOW|RED).*/\1/')
-          if [ -z "$verdict" ]; then
-            echo "::error::No 'Final verdict: GREEN|YELLOW|RED' line found in audit."
+
+          # ── Case 3: file was modified; enforce exactly-one verdict ───
+          # Codex P0 #3: count ALL Final-verdict lines and reject if !=1.
+          verdict_count=$(grep -cE '^Final verdict:\s+(GREEN|YELLOW|RED)\s*$' "$REPORT_PATH" || true)
+          if [ "$verdict_count" -ne 1 ]; then
+            echo "::warning::Found $verdict_count Final verdict lines (expected exactly 1). Writing fallback RED report."
+            write_fallback_report "Sentinel-L audit contained $verdict_count verdict lines (expected exactly 1)"
             echo "verdict=RED" >> "$GITHUB_OUTPUT"
-            echo "audit_written=true" >> "$GITHUB_OUTPUT"
-            exit 1
+            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
+            echo "fallback=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          # Closing line check (defensive; the script already validates).
+
+          verdict=$(grep -oE '^Final verdict:\s+(GREEN|YELLOW|RED)\s*$' "$REPORT_PATH" | head -1 | sed -E 's/^Final verdict:\s+(GREEN|YELLOW|RED).*/\1/')
+
+          # ── Case 4: closing line check (defensive — script already
+          #   validates, but a fallback path here means the workflow
+          #   matches the script's contract regardless of source) ───────
           if ! grep -Fq 'Sentinel-L: report-only — no changes made.' "$REPORT_PATH"; then
-            echo "::error::Closing line missing from audit."
+            echo "::warning::Closing line missing from audit. Writing fallback RED report."
+            write_fallback_report "Sentinel-L audit was missing the literal closing line"
             echo "verdict=RED" >> "$GITHUB_OUTPUT"
-            echo "audit_written=true" >> "$GITHUB_OUTPUT"
-            exit 1
+            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
+            echo "fallback=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "Audit written. verdict=$verdict"
+
+          echo "Audit verified. verdict=$verdict"
           echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
           echo "audit_written=true" >> "$GITHUB_OUTPUT"
+          echo "fallback=false" >> "$GITHUB_OUTPUT"
 
       - name: Post audit summary as PR comment
-        if: always() && steps.postclaude.outputs.audit_written == 'true'
+        if: always() && steps.pr.outputs.pr_number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
