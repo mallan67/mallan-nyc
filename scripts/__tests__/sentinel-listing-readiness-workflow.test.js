@@ -299,7 +299,16 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(invokeStep.with.prompt).toMatch(/"Tests pass" is not proof/);
       expect(invokeStep.with.prompt).toMatch(/"CI green" is not proof/);
       expect(invokeStep.with.prompt).toMatch(/"Code\s+exists" is not proof/);
-      expect(invokeStep.with.prompt).toMatch(/live user\s+path is proven/);
+      expect(invokeStep.with.prompt).toMatch(/live user\s+path is proven on production/);
+    });
+
+
+    test('prompt requires production-only live proof and treats preview as unreliable', () => {
+      expect(invokeStep.with.prompt).toMatch(/PRODUCTION-ONLY LIVE PROOF RULE/);
+      expect(invokeStep.with.prompt).toMatch(/mallan\.nyc/);
+      expect(invokeStep.with.prompt).toMatch(/current production deployment/);
+      expect(invokeStep.with.prompt).toMatch(/preview URLs are unreliable/);
+      expect(invokeStep.with.prompt).toMatch(/Preview-only\s+evidence[\s\S]{0,80}never enough for GREEN/);
     });
 
     test('prompt requires the literal closing line Sentinel-L: report-only — no changes made.', () => {

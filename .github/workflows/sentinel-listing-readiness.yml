@@ -2,8 +2,8 @@ name: Sentinel-L — Listing Workflow Readiness (report-only)
 
 # Sentinel-L is a PR-scoped companion to the daily Sentinel-D repo audit.
 # Where Sentinel-D answers "does the codebase still pass compliance gates",
-# Sentinel-L answers "if a broker tried to use the listing workflow on
-# this PR's preview deployment, would the end-to-end path actually work?"
+# Sentinel-L answers "would this listing workflow be safe against the
+# current production deployment on mallan.nyc/main?"
 #
 # Absolute restrictions (REPORT-ONLY — same as the repo-audit-bot agent):
 #   - Do not patch code. Do not auto-fix anything.
@@ -624,17 +624,34 @@ jobs:
 
             **L. Evidence quality: live proof vs code-only inference** —
             explicitly state per finding whether evidence is `live proof`
-            (preview-deploy probe) / `deterministic test` / `static code`
+            (production mallan.nyc/main probe) / `deterministic test` / `static code`
             / `limited`. The writer rejects GREEN if any P0/P1 lens
             shows LIMITED, BLOCKED, NOT VERIFIED, evidence gap, or
             cannot verify markers.
 
+            ### PRODUCTION-ONLY LIVE PROOF RULE
+
+            Do NOT assume preview deployment behavior proves production behavior.
+            Vercel support confirmed the current preview/branch-alias issue is not
+            caching: branch aliases may not apply when jobs are stuck or non-
+            finished. Until Vercel/Neon resolves branch alias / non-finished-job
+            drift, preview URLs are unreliable for Sentinel-L proof.
+
+            For live listing workflow testing, use Production only:
+              - host: `https://mallan.nyc`
+              - branch: `main`
+              - deployment: current production deployment
+
+            Any check that depends on a preview URL must be `LIMITED` unless the
+            same behavior is proven against `mallan.nyc` on `main`. Preview-only
+            evidence can inform the audit, but it is never enough for GREEN.
             ### HARD RULE — "code exists" is not proof
 
             "Tests pass" is not proof. "CI green" is not proof. "Code
             exists" is not proof. A check is only PASS when the live user
-            path is proven. If you cannot prove a step end-to-end (e.g.
-            you cannot live-probe an authed endpoint), the check is
+            path is proven on production (`mallan.nyc`, `main`, current
+            production deployment). If you cannot prove a step end-to-end
+            against production, the check is
             `LIMITED` with the evidence gap stated, not `PASS`.
 
             ### VERDICT SEMANTICS
@@ -750,11 +767,11 @@ jobs:
 
           ## D. Broker / agent usability
 
-          LIMITED — Claude reasoning required. End-to-end broker workflow verification requires live preview-deployment probe.
+          LIMITED — Claude reasoning required. End-to-end broker workflow verification requires a production probe against mallan.nyc/main/current production deployment.
 
           ## E. Client-facing usability
 
-          LIMITED — Claude reasoning required. Public listing surface verification requires live preview-deployment probe.
+          LIMITED — Claude reasoning required. Public listing surface verification requires a production probe against mallan.nyc/main/current production deployment.
 
           ## F. REBNY / RLS / RESO / IDX Plus compliance
 
@@ -786,7 +803,7 @@ jobs:
 
           ${DETERMINISTIC_SUMMARY_MD}
 
-          **Evidence quality**: deterministic static-code signals only. No live preview-deployment probe was performed. No Claude reasoning was applied. Manual broker workflow verification is required before this PR is merged. See workflow run for forensic detail.
+          **Evidence quality**: deterministic static-code signals only. No production mallan.nyc/main live probe was performed. No Claude reasoning was applied. Manual broker workflow verification is required before this PR is merged. See workflow run for forensic detail.
 
           Final verdict: RED
 
@@ -844,7 +861,7 @@ jobs:
               # P0 in either dimension OR any uncovered touched field => RED.
               if [ "$lang_max" != "P0" ] && [ "$flow_max" != "P0" ] && [ "$field_no_cov" = "0" ]; then
                 det_verdict="YELLOW"
-                det_reason="Claude reasoning layer did not run on this PR (deterministic-only synthesis); no P0 deterministic signals were detected. YELLOW because no live broker probe occurred and the audit lacks the Claude reasoning layer — broker must manually verify the workflow."
+                det_reason="Claude reasoning layer did not run on this PR (deterministic-only synthesis); no P0 deterministic signals were detected. YELLOW because no production live broker probe occurred and the audit lacks the Claude reasoning layer — broker must manually verify the workflow."
               else
                 det_verdict="RED"
                 # Build a specific RED reason citing the triggering signal.
@@ -870,7 +887,7 @@ jobs:
               # "deterministic static-code signals only" — that wording is
               # correct for YELLOW.
               sed -i 's/^Final verdict: RED$/Final verdict: YELLOW/' "$REPORT_PATH"
-              echo "Sentinel-L.2 deterministic synthesis: chose YELLOW (no P0 signals; live proof still missing)."
+              echo "Sentinel-L.2 deterministic synthesis: chose YELLOW (no P0 signals; production live proof still missing)."
             else
               echo "Sentinel-L.2 deterministic synthesis: chose RED ($det_reason)."
             fi
