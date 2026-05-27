@@ -7045,11 +7045,9 @@ function submitSalesListing() {
     // Submit to API — create or update depending on edit mode
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         var apiCall;
-        if (_saleEditMode && _saleEditDbId) {
-            // UPDATE existing listing
+        if (_saleEditDbId) {
             apiCall = MallanAPI.listings.update(_saleEditDbId, fullData);
         } else {
-            // CREATE new listing
             apiCall = MallanAPI.listings.create(fullData);
         }
 
@@ -7085,7 +7083,8 @@ function submitSalesListing() {
                     showToast('Listing saved but status change failed: ' + statusErr.message, 'warning');
                 }
             }
-            alert('SUCCESS! Listing ' + (_saleEditMode ? 'updated' : 'submitted') + '.\n\nListing ID: ' + lid + '\nStatus: ' + finalStatus + '\nMedia uploaded: ' + (pendingCount > 0 ? 'Yes' : 'N/A'));
+            showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
+            setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
             if (result.warnings && result.warnings.length > 0) {
                 console.warn('[Submit] Warnings:', result.warnings);
             }
@@ -8588,6 +8587,9 @@ async function uploadPendingMedia(listingId) {
                 var result = await resp.json();
                 entry.uploaded = true;
                 entry.url = result.photo?.url || '';
+                uploaded++;
+            } else if (resp.status === 409) {
+                entry.uploaded = true;
                 uploaded++;
             } else {
                 var errBody = await resp.json().catch(function() { return {}; });
