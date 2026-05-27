@@ -4939,9 +4939,24 @@ async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
     try {
         var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
-        if (!resp.ok) return [];
-        var results = await resp.json();
-        return (results.buildings || results || []).map(function(b) {
+        // Read body for all responses — backend returns _errorHint on errors
+        var body;
+        try { body = await resp.json(); } catch (_) { body = {}; }
+        var hint = body._errorHint || null;
+
+        if (resp.status === 401) {
+            showToast(hint || 'Session expired. Please log in again.', 'error');
+            return [];
+        }
+        if (!resp.ok) {
+            showToast(hint || 'Building lookup temporarily unavailable.', 'warning');
+            return [];
+        }
+        var buildings = body.buildings || [];
+        if (buildings.length === 0 && hint) {
+            showToast(hint, 'warning');
+        }
+        return buildings.map(function(b) {
             return {
                 address: b.address || b.street_address || '',
                 name: b.name || b.building_name || '',
@@ -4966,6 +4981,7 @@ async function fetchBuildingsFromAPI(query) {
         });
     } catch (e) {
         console.warn('[Building Search] API error:', e.message);
+        showToast('Building lookup temporarily unavailable.', 'warning');
         return [];
     }
 }
