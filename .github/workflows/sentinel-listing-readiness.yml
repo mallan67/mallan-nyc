@@ -147,6 +147,76 @@ jobs:
       # enforces the 6 KB cap, the 5 required sections (A–E), the verdict
       # marker, and the closing line. No Write/Edit tool needed.
       # ----------------------------------------------------------------------
+      # ----------------------------------------------------------------------
+      # Sentinel-L.2 — run the 3 deterministic JSON-producing audit scripts
+      # BEFORE Claude. The scripts inspect the PR diff and emit structured
+      # signals about field-contract coverage, compliance-language risk, and
+      # listing-flow surfaces touched. Claude then consumes these JSONs via
+      # the Read tool and uses them to populate the Finding matrix + the
+      # 12-lens A–L audit body. The scripts ship signals, not verdicts;
+      # Claude's judgment plus the writer's GREEN-blocker rules produce the
+      # final verdict.
+      # ----------------------------------------------------------------------
+      - name: Run Sentinel-L.2 deterministic audit scripts
+        id: deterministic
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
+          SHORT_SHA: ${{ steps.pr.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+
+          # Find the merge-base with main so we diff against the PR's actual
+          # changes, not the whole branch history.
+          git fetch origin main --depth=100 >/dev/null 2>&1 || true
+          base_ref=$(git merge-base origin/main HEAD 2>/dev/null || true)
+          if [ -z "$base_ref" ]; then
+            echo "::warning::No merge-base with origin/main; falling back to HEAD~1"
+            base_ref="HEAD~1"
+          fi
+
+          changed_files=$(git diff --name-only "$base_ref" HEAD || true)
+          changed_files_numstat=$(git diff --numstat "$base_ref" HEAD || true)
+
+          inputs_dir="memory/audits/listing-readiness/inputs"
+          mkdir -p "$inputs_dir"
+          field_path="$inputs_dir/PR-${PR_NUMBER}-${SHORT_SHA}-field-contract.json"
+          language_path="$inputs_dir/PR-${PR_NUMBER}-${SHORT_SHA}-compliance-language.json"
+          flow_path="$inputs_dir/PR-${PR_NUMBER}-${SHORT_SHA}-listing-flow.json"
+
+          echo "Running sentinel-field-contract-audit.mjs..."
+          CHANGED_FILES="$changed_files" \
+            node scripts/sentinel-field-contract-audit.mjs > "$field_path"
+          echo "Running sentinel-compliance-language-audit.mjs..."
+          CHANGED_FILES="$changed_files" \
+            node scripts/sentinel-compliance-language-audit.mjs > "$language_path"
+          echo "Running sentinel-listing-flow-static-audit.mjs..."
+          CHANGED_FILES="$changed_files" \
+          CHANGED_FILES_NUMSTAT="$changed_files_numstat" \
+            node scripts/sentinel-listing-flow-static-audit.mjs > "$flow_path"
+
+          # One-line rollup per JSON to make the workflow log self-auditable.
+          field_touched=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.touched_count)" "$field_path")
+          language_total=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.total_violations)" "$language_path")
+          language_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_severity)" "$language_path")
+          flow_count=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.workflows_touched)" "$flow_path")
+          flow_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_risk)" "$flow_path")
+
+          echo "Sentinel-L.2 deterministic rollup:"
+          echo "  field-contract:        $field_touched touched fields"
+          echo "  compliance-language:   $language_total violations (highest: $language_max)"
+          echo "  listing-flow:          $flow_count workflows touched (highest: $flow_max)"
+
+          echo "inputs_dir=$inputs_dir" >> "$GITHUB_OUTPUT"
+          echo "field_contract_path=$field_path" >> "$GITHUB_OUTPUT"
+          echo "compliance_language_path=$language_path" >> "$GITHUB_OUTPUT"
+          echo "listing_flow_path=$flow_path" >> "$GITHUB_OUTPUT"
+          echo "field_touched_count=$field_touched" >> "$GITHUB_OUTPUT"
+          echo "language_total_violations=$language_total" >> "$GITHUB_OUTPUT"
+          echo "language_highest_severity=$language_max" >> "$GITHUB_OUTPUT"
+          echo "flow_workflows_touched=$flow_count" >> "$GITHUB_OUTPUT"
+          echo "flow_highest_risk=$flow_max" >> "$GITHUB_OUTPUT"
+
       - name: Create listing-readiness audit skeleton
         id: skeleton
         env:
@@ -170,23 +240,55 @@ jobs:
 
           ---
 
-          ## A. Address / Cotality / RESO
+          ## Finding matrix
 
           _TODO_
 
-          ## B. Sale listing workflow
+          ## A. Syntax / structural correctness
 
           _TODO_
 
-          ## C. Draft workflow
+          ## B. Field contract correctness
 
           _TODO_
 
-          ## D. Media workflow
+          ## C. Business logic correctness
 
           _TODO_
 
-          ## E. Final verdict
+          ## D. Broker / agent usability
+
+          _TODO_
+
+          ## E. Client-facing usability
+
+          _TODO_
+
+          ## F. REBNY / RLS / RESO / IDX Plus compliance
+
+          _TODO_
+
+          ## G. Trestle / Cotality Web API contract
+
+          _TODO_
+
+          ## H. NYC / NYS real estate advertising law
+
+          _TODO_
+
+          ## I. Fair Housing / advertising language
+
+          _TODO_
+
+          ## J. Data persistence and media integrity
+
+          _TODO_
+
+          ## K. Security / privacy / role access
+
+          _TODO_
+
+          ## L. Evidence quality: live proof vs code-only inference
 
           _TODO_
           EOF
@@ -268,19 +370,29 @@ jobs:
             ordered procedure:
 
               1. Read the skeleton at ${{ steps.pr.outputs.report_path }}.
-              2. Read the PR diff:
+              2. Read the THREE Sentinel-L.2 deterministic JSON inputs the
+                 workflow already produced (read each with the Read tool):
+                   - ${{ steps.deterministic.outputs.field_contract_path }}
+                   - ${{ steps.deterministic.outputs.compliance_language_path }}
+                   - ${{ steps.deterministic.outputs.listing_flow_path }}
+                 These are deterministic signals. Use them to populate the
+                 Finding matrix and to assign per-section verdicts.
+              3. Read the PR diff:
                  `gh pr diff ${{ steps.pr.outputs.pr_number }} --patch`
-                 to know exactly which files changed.
-              3. Investigate the A–E checks below at compact resolution.
-                 For each, run only the minimum verification needed to
-                 assign a verdict + one `file:line` citation.
-              4. First script call: submit a STRUCTURALLY COMPLETE report
-                 (all 5 sections filled, one explicit `Final verdict:
-                 GREEN`/`YELLOW`/`RED` line, closing line). Stay under 6 KB.
+                 to know exactly which lines changed.
+              4. Investigate the 12 A–L lenses below at compact resolution.
+                 For each lens, assign a verdict (`PASS / FAIL / LIMITED /
+                 NOT VERIFIED / BLOCKED`) + at least one `file:line`
+                 citation. Aggregate per-file findings into the Finding
+                 matrix table.
+              5. First script call: submit a STRUCTURALLY COMPLETE report
+                 (Finding matrix + all 12 sections filled, one explicit
+                 `Final verdict: GREEN`/`YELLOW`/`RED` line, closing line).
+                 Stay under 10 KB.
 
             ### LIMITED FALLBACK RULE
 
-            When detail does not fit under 6 KB, do NOT expand the heredoc.
+            When detail does not fit under 10 KB, do NOT expand the heredoc.
             Instead, summarize that section in one sentence with the
             evidence gap explicitly stated (e.g. "Coop/Condop logic: code
             present at `SALE-FORM-REDESIGN.html:8421` but live form behavior
@@ -298,58 +410,83 @@ jobs:
                  MUST be at least 40% smaller. Drop an evidence block, mark
                  a section LIMITED, collapse paragraphs to bullets.
 
-            ### CHECKS — A through E (Maya's Sentinel-L spec, verbatim)
+            ### FINDING MATRIX (REQUIRED — Sentinel-L.2)
 
-            For each check below, assign one of:
-            `PASS`, `FAIL`, `LIMITED`, `NOT VERIFIED`, `BLOCKED`. Cite at
-            least one `file:line` reference per check.
+            Before the A–L sections, emit a `## Finding matrix` heading
+            followed by a pipe-table with these 10 columns:
 
-            **A. Address / Cotality / RESO**
-              A.1. Confirm which RESO resources are used: Building,
-                   Property, Media, Member, Office. Cite the file:line
-                   where each is consumed.
-              A.2. If Building exists in metadata, fail any claim that
-                   Property is the only building source unless Building
-                   was tested live.
-              A.3. Address search "fixed" must mean: route called, source
-                   identified, candidate returned or manual verified path
-                   shown, selected candidate populates visible fields AND
-                   hidden RESO fields.
+              | file | changed lines | affected workflow | field contracts touched | user role affected | compliance surface | risk | proof level | finding | required action |
 
-            **B. Sale listing workflow**
-              B.1. New Sale Listing opens.
-              B.2. Agent auto-populates.
-              B.3. InHouse Internal Only and InHouse Web Only are distinct
-                   (not aliased).
-              B.4. Web Only forces IDX/RLS/Syndication OFF.
-              B.5. Internal Only is locked to Draft/private.
-              B.6. Condop does not require townhouse/whole-building fields.
-              B.7. Manual override from Coop to Condop persists across save
-                   + reload.
-              B.8. Required sidebar matches property type.
+            One row per touched file (deduplicate where multiple workflows
+            apply to the same file). Use the deterministic JSON inputs to
+            populate `affected workflow`, `field contracts touched`,
+            `compliance surface`, `risk`, and `proof level`. The writer
+            REJECTS any report missing this matrix or with zero data rows.
 
-            **C. Draft workflow**
-              C.1. Save Draft creates DB record.
-              C.2. DB draft appears in My Listings → Draft.
-              C.3. Draft row has an Edit button.
-              C.4. Edit button opens /crm/sale-listing?id=<id>.
-              C.5. Form reloads saved data from DB.
-              C.6. localStorage is backup only, not primary storage.
+            ### 12-LENS A–L CHECKLIST (Sentinel-L.2 multi-lens spec)
 
-            **D. Media workflow**
-              D.1. Photo input has change handler.
-              D.2. Floor plan input has change handler.
-              D.3. Preview appears.
-              D.4. Save Draft creates listing ID before upload.
-              D.5. Upload endpoint receives files.
-              D.6. Uploaded media references persist.
-              D.7. Public listing display path is identified.
+            For each lens below, write one concise paragraph (no bullets
+            unless 3+ items). Assign a verdict and at least one
+            `file:line` citation per lens.
 
-            **E. Final verdict**
-              Emit exactly one line of the form:
-                `Final verdict: GREEN`   — broker can use flow end-to-end
-                `Final verdict: YELLOW`  — usable with named caveats / manual steps
-                `Final verdict: RED`     — do not use
+            **A. Syntax / structural correctness** — does the change parse,
+            type-check, and follow the project's structural conventions?
+            Lint + tsc results; not "tests pass" alone.
+
+            **B. Field contract correctness** — for each touched listing
+            field (see field-contract JSON), is the source → form → API →
+            DB → reload/display path complete? Missing coverage on
+            display gates / address atoms / status / display flags is P0.
+
+            **C. Business logic correctness** — does the changed code
+            preserve REBNY UCBA invariants (Coop/Condop, Web Only vs
+            Internal Only, Coming Soon rules, status transitions)?
+
+            **D. Broker / agent usability** — can a broker complete the
+            workflow end-to-end without manual workarounds, hidden state,
+            or surprising failure modes?
+
+            **E. Client-facing usability** — does the public listing page,
+            search result, or portal flow render correctly without exposing
+            internal-only data or stale state?
+
+            **F. REBNY / RLS / RESO / IDX Plus compliance** — display
+            gates (InternetEntireListingDisplayYN, InternetAddressDisplayYN)
+            honored, attribution present, RESO field names canonical, no
+            phantom fields (IDXEntireListingDisplayYN, ParticipantOnlyYN,
+            VOW* gates).
+
+            **G. Trestle / Cotality Web API contract** — ResourceRecordKey
+            (not ResourceRecordID) for Media, OData $filter syntax safe,
+            no `$filter=InternetEntireListingDisplayYN eq true` (HTTP 400),
+            idxPlusPreFiltered semantics preserved.
+
+            **H. NYC / NYS real estate advertising law** — 19 NYCRR §175.25
+            brokerage attribution + EHO logo + AgencyDisclosure + Anti-
+            DiscriminationNotice; FARE Act (NYC LL 119/2024) disclosure on
+            rentals; no misleading availability claims.
+
+            **I. Fair Housing / advertising language** — protected-class
+            steering, source-of-income exclusion, criminal-history rules
+            (NYC Fair Chance LL 24/2023), disability exclusion, national-
+            origin preference. Use the compliance-language JSON's
+            violations as P0/P1 signals.
+
+            **J. Data persistence and media integrity** — Save Draft → DB
+            record, Edit → reload from DB, media upload → R2 → public
+            display chain, listing_media parity, ResourceRecordKey
+            usage. Missing media persistence is P0.
+
+            **K. Security / privacy / role access** — agent PII masking in
+            portal/public DTOs, broker-vs-agent role checks, audit-event
+            logging, no internal-only data exposed publicly.
+
+            **L. Evidence quality: live proof vs code-only inference** —
+            explicitly state per finding whether evidence is `live proof`
+            (preview-deploy probe) / `deterministic test` / `static code`
+            / `limited`. The writer rejects GREEN if any P0/P1 lens
+            shows LIMITED, BLOCKED, NOT VERIFIED, evidence gap, or
+            cannot verify markers.
 
             ### HARD RULE — "code exists" is not proof
 
@@ -359,14 +496,30 @@ jobs:
             you cannot live-probe an authed endpoint), the check is
             `LIMITED` with the evidence gap stated, not `PASS`.
 
+            ### VERDICT SEMANTICS
+
+            Emit exactly one line of the form:
+              `Final verdict: GREEN`  — broker can use flow end-to-end
+              `Final verdict: YELLOW` — usable with named caveats / manual steps
+              `Final verdict: RED`    — do not use (illegal, misleading,
+                                        data-losing, nonfunctional, unsafe,
+                                        or unverified core workflows)
+
+            The writer rejects GREEN if any P0/P1 finding shows LIMITED,
+            BLOCKED, NOT VERIFIED, "evidence gap", or "cannot verify"
+            markers. Use YELLOW when the workflow is usable but requires
+            manual steps or has named limitations. RED is the correct
+            verdict when any of the L.2 GREEN-blocker conditions apply.
+
             ### FINISH STATE
 
             Before your final script call:
-              - All 5 sections filled (no `_TODO_` remaining).
+              - `## Finding matrix` section present with ≥ 1 data row.
+              - All 12 A–L sections filled (no `_TODO_` remaining).
               - Exactly one `Final verdict: GREEN|YELLOW|RED` line.
               - Last non-blank line is:
                 `Sentinel-L: report-only — no changes made.`
-              - Payload < 6 KB.
+              - Payload < 10 KB.
 
             Never auto-fix anything. Never invent commands not in your
             allow-list. Report-only.
@@ -414,23 +567,57 @@ jobs:
 
           ---
 
-          ## A. Address / Cotality / RESO
+          ## Finding matrix
+
+          | file | changed lines | affected workflow | field contracts touched | user role affected | compliance surface | risk | proof level | finding | required action |
+          |------|---------------|-------------------|-------------------------|--------------------|--------------------|------|-------------|---------|-----------------|
+          | (Sentinel-L workflow itself) | n/a | sentinel-l audit production | n/a | broker | n/a | P0 | limited | Sentinel-L audit did not complete | Manual broker workflow verification required |
+
+          ## A. Syntax / structural correctness
 
           LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
 
-          ## B. Sale listing workflow
+          ## B. Field contract correctness
 
           LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
 
-          ## C. Draft workflow
+          ## C. Business logic correctness
 
           LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
 
-          ## D. Media workflow
+          ## D. Broker / agent usability
 
           LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
 
-          ## E. Final verdict
+          ## E. Client-facing usability
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## F. REBNY / RLS / RESO / IDX Plus compliance
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## G. Trestle / Cotality Web API contract
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## H. NYC / NYS real estate advertising law
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## I. Fair Housing / advertising language
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## J. Data persistence and media integrity
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## K. Security / privacy / role access
+
+          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+
+          ## L. Evidence quality: live proof vs code-only inference
 
           Reason: ${reason}. Manual broker workflow verification is required before this PR is merged. See workflow run for forensic detail.
 

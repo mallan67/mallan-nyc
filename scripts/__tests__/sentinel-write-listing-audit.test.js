@@ -55,8 +55,27 @@ function runScript({ stdin, env = {}, args = [], cwd }) {
   });
 }
 
-/** Build valid Sentinel-L audit content (~1.3 KB). */
-function buildValidAudit({ verdict = 'GREEN', sections = ['A', 'B', 'C', 'D', 'E'] } = {}) {
+// Sentinel-L.2 — A–L (12 sections) per Maya's multi-lens spec.
+const SENTINEL_L2_SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+function buildFindingMatrix(rowCount = 1) {
+  const rows = [
+    '| file | changed lines | affected workflow | field contracts | user role | compliance surface | risk | proof level | finding | required action |',
+    '|------|---------------|-------------------|-----------------|-----------|--------------------|------|-------------|---------|-----------------|',
+  ];
+  for (let i = 0; i < rowCount; i += 1) {
+    rows.push(`| public/crm/SALE-FORM-REDESIGN.html | 12 | save_draft | StreetNumber | broker | REBNY | P1 | static code | placeholder finding ${i + 1} | manual broker check |`);
+  }
+  return rows.join('\n');
+}
+
+/** Build valid Sentinel-L.2 audit content (A–L + Finding matrix). */
+function buildValidAudit({
+  verdict = 'GREEN',
+  sections = SENTINEL_L2_SECTIONS,
+  findingMatrixRows = 1,
+  includeFindingMatrix = true,
+} = {}) {
   const body = [
     `# Sentinel-L — Listing Workflow Readiness PR #${VALID_PR_NUMBER}`,
     '',
@@ -64,10 +83,13 @@ function buildValidAudit({ verdict = 'GREEN', sections = ['A', 'B', 'C', 'D', 'E
     '',
     '---',
     '',
+    ...(includeFindingMatrix
+      ? ['## Finding matrix', '', buildFindingMatrix(findingMatrixRows), '']
+      : []),
     ...sections.map((L) => [
       `## ${L}. Section ${L}`,
       '',
-      `Compact finding for section ${L}. Evidence: \`file/path-${L.toLowerCase()}.ts:42\`. Verified the live workflow path produces the expected result on the preview deployment. Cross-checked the route handler, the form-side caller, and the DB persistence path. No regressions versus the prior audit baseline; the merged PRs in this surface are reflected in the current diff.`,
+      `Compact finding for section ${L}. Evidence: \`file/path-${L.toLowerCase()}.ts:42\`.`,
       '',
     ].join('\n')),
     '',
@@ -210,8 +232,10 @@ describe('sentinel-write-listing-audit.mjs', () => {
       expect(stderr).toMatch(/CONTENT_TOO_SMALL/);
     });
 
-    test('rejects stdin over 6 KB (Sentinel-D.1.1 parser cap)', async () => {
-      const big = 'X'.repeat(6 * 1024 + 200);
+    test('rejects stdin over 10 KB (Sentinel-L.2 cap)', async () => {
+      // Sentinel-L.2 — bumped the listing-audit cap to 10 KB to fit the
+      // 12-lens A–L audit plus Finding matrix.
+      const big = 'X'.repeat(10 * 1024 + 200);
       const { code, stderr } = await runScript({
         stdin: big,
         cwd: tmpdir,
@@ -243,13 +267,41 @@ describe('sentinel-write-listing-audit.mjs', () => {
       expect(stderr).toMatch(/UNFILLED_TODO/);
     });
 
-    test.each(['A', 'B', 'C', 'D', 'E'])('rejects missing section %s', async (letter) => {
-      const sections = ['A', 'B', 'C', 'D', 'E'].filter((L) => L !== letter);
+    // Sentinel-L.2 — 12 lenses (A–L). Spot-check each letter's removal
+    // trips MISSING_SECTIONS.
+    test.each(SENTINEL_L2_SECTIONS)('rejects missing section %s (Sentinel-L.2 12-lens)', async (letter) => {
+      const sections = SENTINEL_L2_SECTIONS.filter((L) => L !== letter);
       const content = buildValidAudit({ sections });
       const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
       expect(code).toBe(1);
       expect(stderr).toMatch(/MISSING_SECTIONS/);
       expect(stderr).toMatch(new RegExp(`\\b${letter}\\b`));
+    });
+
+    // Sentinel-L.2 — Finding matrix is now required.
+    test('rejects missing Finding matrix heading (Sentinel-L.2)', async () => {
+      const content = buildValidAudit({ includeFindingMatrix: false });
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/MISSING_FINDING_MATRIX/);
+    });
+
+    test('rejects Finding matrix with no data rows (Sentinel-L.2)', async () => {
+      // Strip the data rows leaving just header + separator.
+      const content = buildValidAudit().replace(
+        /\| public\/crm\/SALE-FORM-REDESIGN\.html .*\|/g,
+        '',
+      );
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/MISSING_FINDING_MATRIX/);
+    });
+
+    test('accepts Finding matrix with multiple data rows (Sentinel-L.2)', async () => {
+      const content = buildValidAudit({ verdict: 'YELLOW', findingMatrixRows: 3 });
+      const { code, stderr } = await runScript({ stdin: content, cwd: tmpdir });
+      expect(stderr).toBe('');
+      expect(code).toBe(0);
     });
 
     test('rejects missing Final verdict line', async () => {

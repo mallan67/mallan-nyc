@@ -228,10 +228,10 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(invokeStep.with.prompt).toMatch(/Parser aborted/);
     });
 
-    test('prompt mandates compact-report format (one paragraph per A–E section)', () => {
-      expect(invokeStep.with.prompt).toMatch(/One concise paragraph per A.E section/);
+    test('prompt mandates compact-report format (Sentinel-L.2 A–L)', () => {
+      // Sentinel-L.2 — paragraph rule applies to the 12-lens A–L body.
+      expect(invokeStep.with.prompt).toMatch(/one concise paragraph/i);
       expect(invokeStep.with.prompt).toMatch(/No giant evidence dumps/);
-      expect(invokeStep.with.prompt).toMatch(/No new tables anywhere/);
       expect(invokeStep.with.prompt).toMatch(/No repeated command outputs/);
       expect(invokeStep.with.prompt).toMatch(/No verbose raw logs/);
     });
@@ -253,32 +253,45 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(invokeStep.with.prompt).toMatch(/Never retry with larger content after a parser abort/);
     });
 
-    test('prompt enumerates all A–E checks from Maya\'s spec', () => {
-      expect(invokeStep.with.prompt).toMatch(/A\. Address \/ Cotality \/ RESO/);
-      expect(invokeStep.with.prompt).toMatch(/B\. Sale listing workflow/);
-      expect(invokeStep.with.prompt).toMatch(/C\. Draft workflow/);
-      expect(invokeStep.with.prompt).toMatch(/D\. Media workflow/);
-      expect(invokeStep.with.prompt).toMatch(/E\. Final verdict/);
+    // Sentinel-L.2 — enumerated 12 lenses (A–L), not 5 (A–E). Each lens
+    // must appear in the prompt with its canonical name.
+    test('prompt enumerates all 12 A–L lenses (Sentinel-L.2)', () => {
+      expect(invokeStep.with.prompt).toMatch(/A\.\s+Syntax \/ structural correctness/);
+      expect(invokeStep.with.prompt).toMatch(/B\.\s+Field contract correctness/);
+      expect(invokeStep.with.prompt).toMatch(/C\.\s+Business logic correctness/);
+      expect(invokeStep.with.prompt).toMatch(/D\.\s+Broker \/ agent usability/);
+      expect(invokeStep.with.prompt).toMatch(/E\.\s+Client-facing usability/);
+      expect(invokeStep.with.prompt).toMatch(/F\.\s+REBNY \/ RLS \/ RESO \/ IDX Plus compliance/);
+      expect(invokeStep.with.prompt).toMatch(/G\.\s+Trestle \/ Cotality Web API contract/);
+      expect(invokeStep.with.prompt).toMatch(/H\.\s+NYC \/ NYS real estate advertising law/);
+      expect(invokeStep.with.prompt).toMatch(/I\.\s+Fair Housing \/ advertising language/);
+      expect(invokeStep.with.prompt).toMatch(/J\.\s+Data persistence and media integrity/);
+      expect(invokeStep.with.prompt).toMatch(/K\.\s+Security \/ privacy \/ role access/);
+      expect(invokeStep.with.prompt).toMatch(/L\.\s+Evidence quality/);
     });
 
-    test('prompt lists the canonical Sentinel-L check numbering (A.1, B.1, C.1, …)', () => {
-      // Spot-check at least one numbered sub-bullet from each section to
-      // protect against an over-eager prompt trim dropping the checklist.
-      expect(invokeStep.with.prompt).toMatch(/A\.1\.\s+Confirm which RESO resources/);
-      expect(invokeStep.with.prompt).toMatch(/B\.4\.\s+Web Only forces IDX\/RLS\/Syndication OFF/);
-      expect(invokeStep.with.prompt).toMatch(/C\.1\.\s+Save Draft creates DB record/);
-      expect(invokeStep.with.prompt).toMatch(/D\.4\.\s+Save Draft creates listing ID before upload/);
+    test('prompt requires the Sentinel-L.2 Finding matrix with 10 documented columns', () => {
+      expect(invokeStep.with.prompt).toMatch(/FINDING MATRIX \(REQUIRED — Sentinel-L\.2\)/);
+      const tenCols = [
+        'file', 'changed lines', 'affected workflow', 'field contracts touched',
+        'user role affected', 'compliance surface', 'risk', 'proof level',
+        'finding', 'required action',
+      ];
+      for (const col of tenCols) {
+        expect(invokeStep.with.prompt).toMatch(new RegExp(col.replace(/ /g, '\\s+'), 'i'));
+      }
+    });
+
+    test('prompt references the 3 deterministic JSON inputs (Sentinel-L.2)', () => {
+      expect(invokeStep.with.prompt).toMatch(/steps\.deterministic\.outputs\.field_contract_path/);
+      expect(invokeStep.with.prompt).toMatch(/steps\.deterministic\.outputs\.compliance_language_path/);
+      expect(invokeStep.with.prompt).toMatch(/steps\.deterministic\.outputs\.listing_flow_path/);
     });
 
     test('prompt requires explicit GREEN | YELLOW | RED verdict line', () => {
-      // Each verdict label must appear with its documented semantics so
-      // Claude can pattern-match the decision.
       expect(invokeStep.with.prompt).toMatch(/Final verdict: GREEN/);
       expect(invokeStep.with.prompt).toMatch(/Final verdict: YELLOW/);
       expect(invokeStep.with.prompt).toMatch(/Final verdict: RED/);
-      expect(invokeStep.with.prompt).toMatch(/broker can use flow end-to-end/);
-      expect(invokeStep.with.prompt).toMatch(/usable with named caveats/);
-      expect(invokeStep.with.prompt).toMatch(/do not use/);
     });
 
     test('prompt enforces the "code exists is not proof" hard rule', () => {
@@ -339,16 +352,19 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
     // file, SHA unchanged, missing verdict, duplicate verdict, missing
     // closing line), the workflow must write a fallback RED report so
     // the PR comment + artifact upload still surface a meaningful result.
-    test('post-Claude step writes a fallback report when Claude fails (Codex P0 #2)', () => {
+    test('post-Claude step writes a fallback report (Codex P0 #2 + Sentinel-L.2)', () => {
       expect(postclaudeStep.run).toMatch(/write_fallback_report/);
       // Fallback report must include the verdict marker so downstream
       // extraction works against the fallback content too.
       expect(postclaudeStep.run).toMatch(/Final verdict: RED/);
       // Fallback report must satisfy the closing-line contract.
       expect(postclaudeStep.run).toMatch(/Sentinel-L: report-only — no changes made\./);
-      // Fallback report must satisfy the 5-section requirement.
-      expect(postclaudeStep.run).toMatch(/## A\. Address \/ Cotality \/ RESO/);
-      expect(postclaudeStep.run).toMatch(/## E\. Final verdict/);
+      // Sentinel-L.2 — fallback must satisfy the 12-section + Finding
+      // matrix shape so the writer's strict gates pass on the fallback.
+      expect(postclaudeStep.run).toMatch(/## Finding matrix/);
+      expect(postclaudeStep.run).toMatch(/## A\. Syntax \/ structural correctness/);
+      expect(postclaudeStep.run).toMatch(/## F\. REBNY \/ RLS \/ RESO \/ IDX Plus compliance/);
+      expect(postclaudeStep.run).toMatch(/## L\. Evidence quality/);
     });
 
     // Codex P0 #3 — extraction must reject duplicate verdict lines and

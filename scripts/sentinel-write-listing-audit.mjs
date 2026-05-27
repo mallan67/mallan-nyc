@@ -27,10 +27,25 @@ const AUDIT_DIR = 'memory/audits/listing-readiness';
 const PR_NUMBER_RE = /^\d+$/;
 const PR_HEAD_SHA_RE = /^[a-f0-9]{40}$/;
 const CLOSING_LINE = 'Sentinel-L: report-only — no changes made.';
-const REQUIRED_SECTIONS = ['A', 'B', 'C', 'D', 'E'];
+// Sentinel-L.2 — expanded from 5 (A–E) to 12 (A–L) required sections per
+// Maya's multi-lens audit spec. The 12 lenses cover syntax/structure,
+// field-contract correctness, business logic, broker UX, client UX,
+// REBNY/RLS/RESO/IDX, Trestle API contract, NY/NYC advertising law,
+// Fair Housing language, data persistence + media integrity,
+// security/privacy/role access, and evidence quality (live vs static).
+const REQUIRED_SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+// Sentinel-L.2 — the Finding matrix is a structured per-file rollup with
+// columns: file / changed lines / affected workflow / field contracts /
+// user role / compliance surface / risk / proof level / finding /
+// required action. The writer requires this heading + ≥ 1 data row.
+const FINDING_MATRIX_HEADING = '## Finding matrix';
 const VERDICT_RE = /^Final verdict:\s+(GREEN|YELLOW|RED)\s*$/m;
 const MIN_BYTES = 1024;          // 1 KB
-const MAX_BYTES = 6 * 1024;      // 6 KB (Sentinel-D.1.1 SDK parser limit)
+// Sentinel-L.2 — bumped to 10 KB to accommodate 12-section A–L audit
+// plus Finding matrix. The Sentinel-D.1.1 SDK parser cap is 6 KB for the
+// repo-audit case; Sentinel-L's narrower 12-section + matrix shape fits
+// within 10 KB in practice. Still below the heredoc parser-abort cap.
+const MAX_BYTES = 10 * 1024;     // 10 KB
 const FORBIDDEN_TODO_LINE = '_TODO_';
 
 // ── Error helper ─────────────────────────────────────────────────────────
@@ -89,7 +104,31 @@ function validateContent(content) {
   if (missingSections.length) {
     fail(
       'MISSING_SECTIONS',
-      `missing required section header(s): ${missingSections.join(', ')}. Each section must begin with "## <letter>. ".`
+      `missing required section header(s): ${missingSections.join(', ')}. Sentinel-L.2 requires all 12 lenses (A–L). Each section must begin with "## <letter>. ".`
+    );
+  }
+
+  // Sentinel-L.2 — the Finding matrix is a structured per-file rollup that
+  // makes per-file findings auditable in a fixed schema. The writer
+  // requires the heading exist AND that at least one pipe-table data row
+  // appears under it (between the heading and the next `^## ` heading).
+  const matrixHeadingIdx = content.indexOf(FINDING_MATRIX_HEADING);
+  if (matrixHeadingIdx === -1) {
+    fail(
+      'MISSING_FINDING_MATRIX',
+      `report must contain a "${FINDING_MATRIX_HEADING}" section with a pipe-table of per-file findings (columns: file | changed lines | affected workflow | field contracts | user role | compliance surface | risk | proof level | finding | required action).`
+    );
+  }
+  const afterMatrix = content.slice(matrixHeadingIdx + FINDING_MATRIX_HEADING.length);
+  const nextHeading = afterMatrix.match(/^## /m);
+  const matrixSection = nextHeading ? afterMatrix.slice(0, nextHeading.index) : afterMatrix;
+  // Count pipe-table data rows. The full table has a header row + a
+  // separator row + ≥ 1 data row, so we require ≥ 3 pipe-prefixed lines.
+  const pipeRows = matrixSection.split('\n').filter((l) => /^\s*\|/.test(l));
+  if (pipeRows.length < 3) {
+    fail(
+      'MISSING_FINDING_MATRIX',
+      `"${FINDING_MATRIX_HEADING}" section must contain a markdown pipe-table with at least 1 data row. Found ${pipeRows.length} pipe-prefixed line(s) (expected header + separator + ≥1 data row = ≥ 3).`
     );
   }
 
