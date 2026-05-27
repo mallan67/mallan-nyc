@@ -7202,6 +7202,8 @@ function performAutoSave() {
 }
 
 async function manualSaveDraft() {
+    // Capture the current autosave timer so we only cancel this one, not a newer one
+    var preFlightTimer = autoSaveTimer;
     // Step 1: Save/create listing via API
     parseSaleAddress();
     updateSaleAddressDerived();
@@ -7244,8 +7246,8 @@ async function manualSaveDraft() {
                 }
             }
 
-            // Cancel pending autosave so it doesn't re-write localStorage after removal
-            clearTimeout(autoSaveTimer);
+            // Cancel only the pre-flight autosave timer, not any newer one from edits during save
+            if (autoSaveTimer === preFlightTimer) clearTimeout(autoSaveTimer);
             // Clear localStorage draft — now saved to DB, no longer "unsaved browser draft"
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
 
