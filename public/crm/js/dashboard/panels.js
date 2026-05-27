@@ -9363,8 +9363,8 @@ var Panels = (function () {
     var statusCounts = {};
     var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
     statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
-    // Include localStorage browser drafts in Draft count
-    try {
+    // Include localStorage browser drafts in Draft count (sales tab only)
+    if (typeTab === 'sale') try {
       var _ldRaw = localStorage.getItem('mallan_draft_sale');
       if (_ldRaw) { var _ld = JSON.parse(_ldRaw); if (_ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) { statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1; } }
     } catch (e) {}
@@ -9451,9 +9451,9 @@ var Panels = (function () {
       html += '</div></div>';
     }
 
-    // LocalStorage draft recovery — inject as table row in Draft/All tabs
+    // LocalStorage draft recovery — inject as table row in Draft/All tabs (sales only)
     var _localDraftRow = '';
-    if (statusTab === 'Draft' || statusTab === 'all') {
+    if ((statusTab === 'Draft' || statusTab === 'all') && typeTab === 'sale') {
       try {
         var localDraftRaw = localStorage.getItem('mallan_draft_sale');
         if (localDraftRaw) {
