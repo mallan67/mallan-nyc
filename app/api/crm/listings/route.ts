@@ -124,7 +124,7 @@ async function generateListingId(
   // Advisory lock (pg_advisory_xact_lock) prevents concurrent transactions
   // from reading the same MAX and generating duplicate IDs.
   const lockId = prefix === "RL" ? 200001 : 200002;
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockId})`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockId})`;
 
   // Use BIGINT to avoid integer overflow on timestamp-style IDs (SL-1779...).
   // Filter to sequential IDs only (suffix <= 999999) — timestamp IDs are
