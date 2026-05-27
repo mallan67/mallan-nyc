@@ -67,14 +67,14 @@ describe('Form serialization — both InHouse types force distribution OFF', () 
     expect(formHtml).toContain("saleListType === 'InHouseWebOnly'");
   });
 
-  it('gate-off block still sets all 4 flags to false', () => {
+  it('gate-off block sets IDX + Internet + Syndicate to false, address conditional on web-only', () => {
     const idx = formHtml.indexOf('// Distribution gates — force OFF');
     expect(idx).toBeGreaterThan(-1);
     const slice = formHtml.slice(idx, idx + 500);
     expect(slice).toContain('IDXEntireListingDisplayYN = false');
     expect(slice).toContain('InternetEntireListingDisplayYN = false');
-    expect(slice).toContain('InternetAddressDisplayYN = false');
     expect(slice).toContain('SyndicateYN = false');
+    expect(slice).toMatch(/InternetAddressDisplayYN\s*=\s*isInHouseWebOnly\s*\?\s*true\s*:\s*false/);
   });
 });
 

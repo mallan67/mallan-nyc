@@ -518,7 +518,12 @@ export async function GET(request: Request) {
             // badge that visually differentiates 3 otherwise-identical
             // cards. Pure post-processing — does NOT remove or merge
             // any rows. Single pass over the array; O(N) work.
-            const annotatedListings = annotateCoListedSiblings(publicListings);
+            let annotatedListings = annotateCoListedSiblings(publicListings);
+            if (excludeUndisclosed) {
+              annotatedListings = annotatedListings.filter(
+                l => l.address?.streetName !== 'Address Undisclosed'
+              );
+            }
 
             const responseBody = {
               success: true,
@@ -996,7 +1001,12 @@ export async function GET(request: Request) {
         // the Trestle-direct + exclusive-merged path too. Same shape and
         // semantics as the DB-first branch above. Pure post-processing,
         // does not remove or merge rows.
-        const annotatedMerged = annotateCoListedSiblings(mergedListings);
+        let annotatedMerged = annotateCoListedSiblings(mergedListings);
+        if (excludeUndisclosed) {
+          annotatedMerged = annotatedMerged.filter(
+            l => l.address?.streetName !== 'Address Undisclosed'
+          );
+        }
 
         const responseBody = {
           success: true,
