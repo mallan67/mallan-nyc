@@ -258,7 +258,7 @@ export async function GET(request: NextRequest) {
         params.push(`%${parsed.streetName}%`);
         paramIdx++;
       }
-      const sql = `SELECT address, features, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 50`;
+      const sql = `SELECT address, features, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 200`;
       const dbResults = await prisma.$queryRawUnsafe<Array<{
         address: unknown; features: unknown; property_type: string | null; property_sub_type: string | null;
       }>>(sql, ...params);
@@ -343,7 +343,7 @@ export async function GET(request: NextRequest) {
           $filter: filter,
           $select: SELECT,
           $orderby: 'ListPrice desc',
-          $top: '20',
+          $top: '50',
         });
 
         const res = await fetch(`${TRESTLE_URL}/odata/Property?${odataParams}`, {
