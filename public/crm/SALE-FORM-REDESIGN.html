@@ -6822,11 +6822,12 @@ function collectSaleFormData() {
     // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
     data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
-    // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse (both types)
+    // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse
+    // InHouseWebOnly: IDX/syndication OFF but address displays on mallan.nyc
     if (isOwnerOptOut || isParticipantOnly || isInHouse) {
         data.IDXEntireListingDisplayYN = false;
         data.InternetEntireListingDisplayYN = false;
-        data.InternetAddressDisplayYN = false;
+        data.InternetAddressDisplayYN = isInHouseWebOnly ? true : false;
         data.SyndicateYN = false;
     } else {
         data.IDXEntireListingDisplayYN = data.saleDist_IDX !== false;
