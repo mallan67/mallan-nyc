@@ -51,6 +51,7 @@ function makeBaseListing(overrides: Partial<DbListing> = {}): DbListing {
   return {
     id: '1',
     listing_id: 'RBNY-1',
+    mls_id: 'RBNY-1',
     status: 'Active',
     listing_type: 'sale',
     property_type: 'Residential',

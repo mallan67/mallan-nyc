@@ -373,6 +373,7 @@ describe('Search-fix · Fix 6 — DTO propagates Latitude/Longitude', () => {
     return {
       id: '1',
       listing_id: 'RBNY-LL-1',
+      mls_id: 'RBNY-LL-1',
       status: 'Active',
       listing_type: 'sale',
       property_type: 'Residential',
