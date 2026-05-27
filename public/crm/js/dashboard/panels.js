@@ -9538,7 +9538,8 @@ var Panels = (function () {
               ? '<button class="btn btn-sm btn-outline" onclick="Panels._editPastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Edit Past Deal"><i class="fas fa-edit"></i></button>' +
                 '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
               : '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>') +
+                '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
+                '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Delete Listing"><i class="fas fa-trash"></i></button>') +
           '</div></td>' +
         '</tr>';
       });
@@ -9564,6 +9565,16 @@ var Panels = (function () {
   function _switchMyListingsStatus(status) {
     _myListingsStatus = status;
     _renderMyListings(_container());
+  }
+
+  function _deleteListing(listingId, address) {
+    if (!confirm('Withdraw listing "' + address + '"?\n\nThis sets the status to Withdrawn. The listing will no longer appear publicly.')) return;
+    MallanAPI.listings.remove(listingId).then(function () {
+      showToast('Listing withdrawn: ' + address, 'success');
+      myListings();
+    }).catch(function (err) {
+      showToast('Failed to withdraw: ' + err.message, 'error');
+    });
   }
 
   function _addOpenHouse(listingId, address) {
@@ -13365,6 +13376,7 @@ var Panels = (function () {
     _switchMyListingsType: _switchMyListingsType,
     _switchMyListingsStatus: _switchMyListingsStatus,
     _addOpenHouse: _addOpenHouse,
+    _deleteListing: _deleteListing,
     _submitOpenHouse: _submitOpenHouse,
     _switchMyClientsView: _switchMyClientsView,
     _searchMyClients: _searchMyClients,
