@@ -1,3 +1,5 @@
+// Probe: verify Sentinel-L triggers after PR #216 merge (2026-05-27)
+
 /**
  * Sentinel-L — workflow-structure regression test.
  *
