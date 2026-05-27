@@ -4953,6 +4953,22 @@ function toggleSaleAuctionFields() {
 let buildingDatabase = [];
 let _buildingSearchTimeout = null;
 
+// Map RESO CommonInterest enum values to sale form salePropertyType radio values.
+// Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §5, §11
+// Verified against Cotality $metadata: CommonInterest enum at artifacts/metadata.xml:7489
+function _commonInterestToFormType(ci) {
+    if (!ci) return '';
+    var map = {
+        'Condominium': 'Condo',
+        'StockCooperative': 'Coop',
+        'Condop': 'Condop',
+        'Condo': 'Condo',
+        'Co-op': 'Coop',
+        'Coop': 'Coop',
+    };
+    return map[ci] || ci;
+}
+
 // Fetch buildings from API by address query
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
@@ -4976,14 +4992,17 @@ async function fetchBuildingsFromAPI(query) {
             showToast(hint, 'warning');
         }
         return buildings.map(function(b) {
+            var ci = b.common_interest || b.property_type || '';
+            var formType = _commonInterestToFormType(ci);
             return {
                 address: b.address || b.street_address || '',
                 name: b.name || b.building_name || '',
                 borough: b.borough || b.city_region || '',
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
-                type: b.common_interest || b.property_type || '',
-                model: b.common_interest || '',
+                type: formType,
+                model: formType,
+                commonInterestRaw: ci,
                 structureType: b.structure_type || '',
                 yearBuilt: b.year_built || null,
                 totalFloors: b.stories_total || null,
@@ -5027,13 +5046,19 @@ function searchBuildingForListing(query, prefix) {
 
         results.innerHTML = matches.map(function(b) {
             var escapedAddr = b.address.replace(/'/g, "\\'");
+            var details = [b.neighborhood, b.borough].filter(Boolean).join(', ');
+            var buildingFacts = [
+                b.totalFloors ? b.totalFloors + ' stories' : '',
+                b.yearBuilt ? 'built ' + b.yearBuilt : '',
+            ].filter(Boolean).join(' · ');
+            var subtitle = [b.name, details, buildingFacts].filter(Boolean).join(' — ');
             return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'' + prefix + '\', \'' + escapedAddr + '\')">' +
                 '<div class="flex justify-between items-center"><div>' +
                 '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
-                '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
+                '<p class="text-xs text-gray-500">' + subtitle + '</p>' +
                 '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
-                (b.model === 'Coop' || b.model === 'StockCooperative' ? 'bg-purple-100 text-purple-700' :
-                 b.model === 'Condo' || b.model === 'Condominium' ? 'bg-blue-100 text-blue-700' :
+                (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
+                 b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
                  b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
                  'bg-green-100 text-green-700') +
                 '">' + b.model + '</span></div></div>';
@@ -5070,11 +5095,12 @@ function selectBuildingFromIDX(prefix, address) {
                 setVal(prefix + 'Borough', building.borough);
                 setVal(prefix + 'ZipCode', building.zip);
                 setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
-                var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-                if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
-                var banner = document.getElementById(prefix + 'IdxMatchBanner');
-                if (banner) {
-                    banner.classList.remove('hidden');
+                updateSaleAddressDerived();
+                var keptTypeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
+                if (keptTypeRadio) { keptTypeRadio.checked = true; applySalesFieldRules(); }
+                var keptBanner = document.getElementById(prefix + 'IdxMatchBanner');
+                if (keptBanner) {
+                    keptBanner.classList.remove('hidden');
                     document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
                     document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
                 }
@@ -5092,13 +5118,15 @@ function selectBuildingFromIDX(prefix, address) {
     setVal(prefix + 'Borough', building.borough);
     setVal(prefix + 'ZipCode', building.zip);
     setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+    parseSaleAddress();
+    updateSaleAddressDerived();
 
     // 2. Auto-detect property type
-    const typeRadio = document.querySelector(`input[name="${prefix}PropertyType"][value="${building.type}"]`);
+    var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
     if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
 
     // 3. Show match banner
-    const banner = document.getElementById(prefix + 'IdxMatchBanner');
+    var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
         document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
