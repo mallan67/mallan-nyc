@@ -309,9 +309,6 @@ export async function GET(request: Request) {
           // Two display paths: RLS listings (must pass 6 distribution gates) OR
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams);
-          if (excludeUndisclosed) {
-            (dbWhere as Record<string, unknown>).internet_address_display_yn = true;
-          }
           const dbTake = limit;
           const dbSkip = skip;
 
@@ -521,7 +518,7 @@ export async function GET(request: Request) {
             let annotatedListings = annotateCoListedSiblings(publicListings);
             if (excludeUndisclosed) {
               annotatedListings = annotatedListings.filter(
-                l => l.address?.streetName !== 'Address Undisclosed'
+                l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
               );
             }
 
@@ -1004,7 +1001,7 @@ export async function GET(request: Request) {
         let annotatedMerged = annotateCoListedSiblings(mergedListings);
         if (excludeUndisclosed) {
           annotatedMerged = annotatedMerged.filter(
-            l => l.address?.streetName !== 'Address Undisclosed'
+            l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
           );
         }
 
