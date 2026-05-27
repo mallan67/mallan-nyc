@@ -27,13 +27,17 @@ describe('CRM My Listings filter', () => {
   });
 
   test('Trestle-closed filter requires mls_id not null + terminal status', () => {
-    expect(routeSource).toMatch(/trestleClosed.*mls_id.*not.*null.*status.*in.*TRESTLE_TERMINAL/s);
+    expect(routeSource).toMatch(/trestleClosed.*mls_id.*not.*null.*status.*in.*TRESTLE_CLOSED/s);
   });
 
-  test('terminal set includes Closed, Sold, Rented, Expired', () => {
-    expect(routeSource).toMatch(/TRESTLE_TERMINAL.*Closed/s);
-    expect(routeSource).toMatch(/TRESTLE_TERMINAL.*Sold/s);
-    expect(routeSource).toMatch(/TRESTLE_TERMINAL.*Rented/s);
-    expect(routeSource).toMatch(/TRESTLE_TERMINAL.*Expired/s);
+  test('closed set includes Closed, Sold, Rented, Leased — not Withdrawn/Expired', () => {
+    const line = routeSource.split('\n').find(l => l.includes('TRESTLE_CLOSED') && l.includes('Closed'));
+    expect(line).toBeDefined();
+    expect(line).toContain('Sold');
+    expect(line).toContain('Rented');
+    expect(line).toContain('Leased');
+    expect(line).not.toContain('Withdrawn');
+    expect(line).not.toContain('Expired');
+    expect(line).not.toContain('Cancelled');
   });
 });
