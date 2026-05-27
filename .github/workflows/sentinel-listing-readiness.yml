@@ -1,0 +1,407 @@
+name: Sentinel-L — Listing Workflow Readiness (report-only)
+
+# Sentinel-L is a PR-scoped companion to the daily Sentinel-D repo audit.
+# Where Sentinel-D answers "does the codebase still pass compliance gates",
+# Sentinel-L answers "if a broker tried to use the listing workflow on
+# this PR's preview deployment, would the end-to-end path actually work?"
+#
+# Absolute restrictions (REPORT-ONLY — same as the repo-audit-bot agent):
+#   - Do not patch code. Do not auto-fix anything.
+#   - Do not edit any file except the per-PR audit report under
+#     memory/audits/listing-readiness/.
+#   - Do not open / merge / close / reopen PRs. The workflow posts ONE
+#     PR comment on the PR being audited; Claude does not call gh pr
+#     comment directly.
+#   - Do not trigger production crons. Do not run prisma migrate.
+#   - Do not change Neon / Vercel / Cloudflare / REBNY / Trestle settings.
+#   - Do not start JSON-drop work. Do not alter production data.
+#   - Do not merge any PR — verdict GREEN / YELLOW / RED is informational.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    # Mandatory trigger surfaces per Maya's Sentinel-L spec:
+    paths:
+      - 'public/crm/SALE-FORM-REDESIGN.html'
+      - 'public/crm/RENTAL-FORM-REDESIGN.html'
+      - 'public/crm/js/dashboard/**'
+      - 'app/api/buildings/**'
+      - 'app/api/crm/listings/**'
+      - 'app/api/crm/documents/upload/**'
+      - 'lib/idx/trestle-mapper.ts'
+      - 'lib/idx/mapping.ts'
+      - 'lib/idx/public-dto.ts'
+      - 'lib/compliance/gates.ts'
+      - 'lib/compliance/idx-display-gate.ts'
+      - 'lib/compliance/dto.ts'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to audit'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write   # post audit comment + read PR metadata
+  id-token: write         # required by anthropics/claude-code-action
+
+concurrency:
+  group: sentinel-l-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Resolve PR metadata
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_FROM_EVENT: ${{ github.event.pull_request.number }}
+          PR_FROM_INPUT: ${{ inputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pr_number="${PR_FROM_EVENT:-$PR_FROM_INPUT}"
+          if [ -z "$pr_number" ]; then
+            echo "::error::No PR number resolvable from event or workflow_dispatch input."
+            exit 1
+          fi
+          # Validate digits-only — defensive guard against any unexpected
+          # string that could slip into a downstream path.
+          if ! echo "$pr_number" | grep -Eq '^[0-9]+$'; then
+            echo "::error::PR number '$pr_number' is not numeric."
+            exit 1
+          fi
+          # Pull head SHA from the GitHub API (works for both trigger types).
+          pr_head_sha=$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.head.sha')
+          if ! echo "$pr_head_sha" | grep -Eq '^[a-f0-9]{40}$'; then
+            echo "::error::PR head SHA '$pr_head_sha' is not a valid 40-char lowercase hex."
+            exit 1
+          fi
+          pr_head_ref=$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.head.ref')
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "pr_head_sha=$pr_head_sha" >> "$GITHUB_OUTPUT"
+          echo "pr_head_ref=$pr_head_ref" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${pr_head_sha:0:8}" >> "$GITHUB_OUTPUT"
+          echo "report_path=memory/audits/listing-readiness/PR-${pr_number}-${pr_head_sha:0:8}.md" >> "$GITHUB_OUTPUT"
+          echo "Resolved PR #${pr_number} head ${pr_head_sha:0:8} (ref: ${pr_head_ref})"
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.pr_head_sha }}
+          fetch-depth: 0    # fetch main too so Claude can diff against it
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (read-only validators only)
+        run: npm ci
+
+      # ----------------------------------------------------------------------
+      # PRE-CREATE the audit skeleton (same pattern as Sentinel-D).
+      # Claude updates this file by invoking
+      # `node scripts/sentinel-write-listing-audit.mjs` via Bash. The script
+      # enforces the 6 KB cap, the 5 required sections (A–E), the verdict
+      # marker, and the closing line. No Write/Edit tool needed.
+      # ----------------------------------------------------------------------
+      - name: Create listing-readiness audit skeleton
+        id: skeleton
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
+          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$REPORT_PATH")"
+          ny_iso=$(TZ=America/New_York date +"%Y-%m-%dT%H:%M:%S%z")
+          utc_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          cat > "$REPORT_PATH" <<EOF
+          # Sentinel-L — Listing Workflow Readiness PR #${PR_NUMBER}
+
+          commit: ${PR_HEAD_SHA}
+          ref:    ${{ steps.pr.outputs.pr_head_ref }}
+          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          timestamp_eastern: $ny_iso
+          timestamp_utc:     $utc_iso
+          status: IN PROGRESS
+
+          ---
+
+          ## A. Address / Cotality / RESO
+
+          _TODO_
+
+          ## B. Sale listing workflow
+
+          _TODO_
+
+          ## C. Draft workflow
+
+          _TODO_
+
+          ## D. Media workflow
+
+          _TODO_
+
+          ## E. Final verdict
+
+          _TODO_
+          EOF
+          skeleton_bytes=$(wc -c < "$REPORT_PATH")
+          skeleton_sha=$(sha256sum "$REPORT_PATH" | awk '{print $1}')
+          echo "skeleton_bytes=$skeleton_bytes" >> "$GITHUB_OUTPUT"
+          echo "skeleton_sha=$skeleton_sha" >> "$GITHUB_OUTPUT"
+          echo "Skeleton: ${skeleton_bytes} bytes, sha256=${skeleton_sha:0:12}…"
+
+      - name: Invoke Claude — Sentinel-L listing-readiness audit
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # show_full_output: surfaces permission_denials + script ERROR codes
+          # in the workflow log for forensic debugging (same as Sentinel-D).
+          show_full_output: true
+          # Allow-list shape mirrors Sentinel-D.1.1's: Read/Glob/Grep,
+          # narrow Bash for validators + curl + the writer script + read-only
+          # git/gh probes. NO Write tool. NO Edit. NO Bash for write/exec
+          # operations outside the writer script.
+          claude_args: >-
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/*),Bash(git status),Bash(git diff *),Bash(git log *),Bash(gh pr view *),Bash(gh pr diff *)"
+          prompt: |
+            STRICT REPORT-ONLY MODE.
+
+            You are running Sentinel-L: Listing Workflow Readiness audit on
+            PR #${{ steps.pr.outputs.pr_number }} at commit ${{ steps.pr.outputs.pr_head_sha }}.
+
+            ### ABSOLUTE RESTRICTIONS
+
+              - You may NOT patch code, auto-fix anything, push, commit,
+                merge, open/close/reopen PRs, run `prisma migrate`, trigger
+                crons, delete media, change Neon/Vercel/Cloudflare/REBNY/
+                Trestle settings, release the external-inventory hold,
+                start JSON-drop work, or alter production data.
+              - You may NOT use the Write tool. You may NOT use the Edit
+                tool. You may NOT use filesystem-write Bash workarounds
+                (no `cat >`, no `tee`, no `sed -i`, no `python -c`/`node -e`
+                with fs writes). The Write and Edit tools are NOT in your
+                allow-list — calls will be denied.
+              - You may produce EXACTLY ONE output file:
+                ${{ steps.pr.outputs.report_path }}
+              - The ONLY supported way to produce this file is to invoke
+                `node scripts/sentinel-write-listing-audit.mjs` via Bash
+                with the full audit content on stdin (heredoc). The script
+                reads PR_NUMBER and PR_HEAD_SHA from env, computes the
+                output path internally, and rejects any positional args.
+              - The workflow handles the PR comment after you finish. Do
+                NOT attempt `gh pr comment` yourself — it is not allowed.
+
+            ### PAYLOAD BUDGET RULE (Sentinel-D.1.1 parser cap applies)
+
+            Each `node scripts/sentinel-write-listing-audit.mjs` call's
+            heredoc payload MUST stay under 6 KB (6,144 bytes total). The
+            Claude SDK tool-input parser aborts with
+            `Parser aborted (timeout, resource limit, or over-length)`
+            on larger payloads. Compact-report rules:
+
+              - One concise paragraph per A–E section. Bullets only when
+                listing 3+ items.
+              - No giant evidence dumps. Use `file:line` references, not
+                pasted source. No full command output. No multi-line log
+                paste.
+              - No new tables anywhere in the report.
+              - No repeated command outputs. Cite a finding once.
+              - No verbose raw logs. Stack traces → "TypeError at file:42".
+
+            ### FIRST-CALL = COMPACT COMPLETE AUDIT
+
+            **The first successful script invocation must already produce
+            a compact complete audit.** That call is the safety net — if
+            a later refinement parser-aborts or the job times out, the
+            artifact + PR comment still contain a real audit. Required
+            ordered procedure:
+
+              1. Read the skeleton at ${{ steps.pr.outputs.report_path }}.
+              2. Read the PR diff:
+                 `gh pr diff ${{ steps.pr.outputs.pr_number }} --patch`
+                 to know exactly which files changed.
+              3. Investigate the A–E checks below at compact resolution.
+                 For each, run only the minimum verification needed to
+                 assign a verdict + one `file:line` citation.
+              4. First script call: submit a STRUCTURALLY COMPLETE report
+                 (all 5 sections filled, one explicit `Final verdict:
+                 GREEN`/`YELLOW`/`RED` line, closing line). Stay under 6 KB.
+
+            ### LIMITED FALLBACK RULE
+
+            When detail does not fit under 6 KB, do NOT expand the heredoc.
+            Instead, summarize that section in one sentence with the
+            evidence gap explicitly stated (e.g. "Coop/Condop logic: code
+            present at `SALE-FORM-REDESIGN.html:8421` but live form behavior
+            not probed — preview-auth required."). A clearly-marked
+            evidence gap is a valid Sentinel-L outcome; a parser-aborted
+            heredoc is not.
+
+            ### STOP-EXPAND + POST-ABORT RECOVERY RULE
+
+              1. Once the first script call succeeds (writer prints JSON to
+                 stdout), the run already has a usable audit. Continuing to
+                 grow the heredoc is risk-for-no-reward.
+              2. Never retry with larger content after a parser abort.
+              3. If you must retry after a parser abort, the next payload
+                 MUST be at least 40% smaller. Drop an evidence block, mark
+                 a section LIMITED, collapse paragraphs to bullets.
+
+            ### CHECKS — A through E (Maya's Sentinel-L spec, verbatim)
+
+            For each check below, assign one of:
+            `PASS`, `FAIL`, `LIMITED`, `NOT VERIFIED`, `BLOCKED`. Cite at
+            least one `file:line` reference per check.
+
+            **A. Address / Cotality / RESO**
+              A.1. Confirm which RESO resources are used: Building,
+                   Property, Media, Member, Office. Cite the file:line
+                   where each is consumed.
+              A.2. If Building exists in metadata, fail any claim that
+                   Property is the only building source unless Building
+                   was tested live.
+              A.3. Address search "fixed" must mean: route called, source
+                   identified, candidate returned or manual verified path
+                   shown, selected candidate populates visible fields AND
+                   hidden RESO fields.
+
+            **B. Sale listing workflow**
+              B.1. New Sale Listing opens.
+              B.2. Agent auto-populates.
+              B.3. InHouse Internal Only and InHouse Web Only are distinct
+                   (not aliased).
+              B.4. Web Only forces IDX/RLS/Syndication OFF.
+              B.5. Internal Only is locked to Draft/private.
+              B.6. Condop does not require townhouse/whole-building fields.
+              B.7. Manual override from Coop to Condop persists across save
+                   + reload.
+              B.8. Required sidebar matches property type.
+
+            **C. Draft workflow**
+              C.1. Save Draft creates DB record.
+              C.2. DB draft appears in My Listings → Draft.
+              C.3. Draft row has an Edit button.
+              C.4. Edit button opens /crm/sale-listing?id=<id>.
+              C.5. Form reloads saved data from DB.
+              C.6. localStorage is backup only, not primary storage.
+
+            **D. Media workflow**
+              D.1. Photo input has change handler.
+              D.2. Floor plan input has change handler.
+              D.3. Preview appears.
+              D.4. Save Draft creates listing ID before upload.
+              D.5. Upload endpoint receives files.
+              D.6. Uploaded media references persist.
+              D.7. Public listing display path is identified.
+
+            **E. Final verdict**
+              Emit exactly one line of the form:
+                `Final verdict: GREEN`   — broker can use flow end-to-end
+                `Final verdict: YELLOW`  — usable with named caveats / manual steps
+                `Final verdict: RED`     — do not use
+
+            ### HARD RULE — "code exists" is not proof
+
+            "Tests pass" is not proof. "CI green" is not proof. "Code
+            exists" is not proof. A check is only PASS when the live user
+            path is proven. If you cannot prove a step end-to-end (e.g.
+            you cannot live-probe an authed endpoint), the check is
+            `LIMITED` with the evidence gap stated, not `PASS`.
+
+            ### FINISH STATE
+
+            Before your final script call:
+              - All 5 sections filled (no `_TODO_` remaining).
+              - Exactly one `Final verdict: GREEN|YELLOW|RED` line.
+              - Last non-blank line is:
+                `Sentinel-L: report-only — no changes made.`
+              - Payload < 6 KB.
+
+            Never auto-fix anything. Never invent commands not in your
+            allow-list. Report-only.
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
+
+      - name: Verify Claude actually updated the audit (post-invocation diagnostic)
+        id: postclaude
+        env:
+          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
+          SKELETON_SHA: ${{ steps.skeleton.outputs.skeleton_sha }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "$REPORT_PATH" ]; then
+            echo "::error::Audit file missing after Claude invocation: $REPORT_PATH"
+            echo "verdict=RED" >> "$GITHUB_OUTPUT"
+            echo "audit_written=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          current_sha=$(sha256sum "$REPORT_PATH" | awk '{print $1}')
+          if [ "$current_sha" = "$SKELETON_SHA" ]; then
+            echo "::error::Audit file SHA == skeleton SHA. Claude did not update the file."
+            echo "verdict=RED" >> "$GITHUB_OUTPUT"
+            echo "audit_written=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          # Extract the verdict line — must be exactly one match.
+          verdict=$(grep -oE '^Final verdict:\s+(GREEN|YELLOW|RED)' "$REPORT_PATH" | head -1 | sed -E 's/.*\s(GREEN|YELLOW|RED).*/\1/')
+          if [ -z "$verdict" ]; then
+            echo "::error::No 'Final verdict: GREEN|YELLOW|RED' line found in audit."
+            echo "verdict=RED" >> "$GITHUB_OUTPUT"
+            echo "audit_written=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          # Closing line check (defensive; the script already validates).
+          if ! grep -Fq 'Sentinel-L: report-only — no changes made.' "$REPORT_PATH"; then
+            echo "::error::Closing line missing from audit."
+            echo "verdict=RED" >> "$GITHUB_OUTPUT"
+            echo "audit_written=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "Audit written. verdict=$verdict"
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+          echo "audit_written=true" >> "$GITHUB_OUTPUT"
+
+      - name: Post audit summary as PR comment
+        if: always() && steps.postclaude.outputs.audit_written == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
+          VERDICT: ${{ steps.postclaude.outputs.verdict }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Build a header that prepends a clear verdict + run link, then
+          # the full audit body underneath.
+          {
+            echo "## Sentinel-L — Listing Workflow Readiness"
+            echo ""
+            echo "**Final verdict: ${VERDICT}**"
+            echo ""
+            echo "[Run details](${{ github.server_url }}/${REPO}/actions/runs/${{ github.run_id }})"
+            echo ""
+            echo "---"
+            echo ""
+            cat "$REPORT_PATH"
+          } > /tmp/sentinel-l-comment.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/sentinel-l-comment.md
+
+      - name: Upload audit artifact (always, when audit exists)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-l-pr-${{ steps.pr.outputs.pr_number }}-${{ steps.pr.outputs.short_sha }}
+          path: ${{ steps.pr.outputs.report_path }}
+          retention-days: 30
+          if-no-files-found: warn
