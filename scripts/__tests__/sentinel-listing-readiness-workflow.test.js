@@ -170,7 +170,9 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
         'Bash(git status)',
         // Codex P0 #7 — narrowed from Bash(node scripts/*) to the exact
         // writer-command prefix. Any `node scripts/<other>` invocation is
-        // now denied; the trailing ` *` allows the heredoc-redirect tail.
+        // now denied; the no-arg form proves the exact command is allowed,
+        // while trailing ` *` allows the heredoc-redirect tail.
+        'Bash(node scripts/sentinel-write-listing-audit.mjs)',
         'Bash(node scripts/sentinel-write-listing-audit.mjs *)',
         'Bash(npm run compliance-check)',
         'Bash(npm run crm:check-build)',
@@ -185,6 +187,7 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
     test('writer-script Bash pattern is the narrow form (NOT Bash(node scripts/*))', () => {
       // Codex P0 #7 — the broader `Bash(node scripts/*)` would permit
       // invoking any node script under scripts/. We pin the exact writer.
+      expect(invokeStep.with.claude_args).toMatch(/Bash\(node scripts\/sentinel-write-listing-audit\.mjs\)/);
       expect(invokeStep.with.claude_args).toMatch(/Bash\(node scripts\/sentinel-write-listing-audit\.mjs \*\)/);
       // The broad form must be absent.
       expect(invokeStep.with.claude_args).not.toMatch(/Bash\(node scripts\/\*\)/);
@@ -447,6 +450,10 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(invokeStep.with.prompt).toMatch(/does NOT mean "do not write the audit report file"/);
     });
 
+    test('prompt does not use zero-Write language that could confuse Claude', () => {
+      expect(invokeStep.with.prompt).not.toMatch(/zero-Write/i);
+    });
+
     // Sentinel-L.2 patch (Maya's spec point 10) — when Claude does not
     // write, the workflow must compute a deterministic verdict from the
     // JSON facts. Any P0 risk => RED. No P0 risk + Claude exited
@@ -464,6 +471,12 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(postclaudeStep.run).toMatch(/det_verdict="YELLOW"/);
       // Default must remain RED — explicit assignment proves it.
       expect(postclaudeStep.run).toMatch(/det_verdict="RED"/);
+      // Exact failure-class taxonomy: skip/fail/no-write/invalid-output must be
+      // surfaced in fallback reports instead of generic "zero-write".
+      expect(postclaudeStep.run).toMatch(/claude_action_skipped_workflow_validation/);
+      expect(postclaudeStep.run).toMatch(/claude_action_failed/);
+      expect(postclaudeStep.run).toMatch(/writer_not_called_or_no_effect/);
+      expect(postclaudeStep.run).toMatch(/writer_rejected_or_invalid_output/);
       // The verdict swap (RED -> YELLOW) when synthesis chooses YELLOW
       // must happen via sed on the fallback file.
       expect(postclaudeStep.run).toMatch(/sed -i 's\/\^Final verdict: RED\$\/Final verdict: YELLOW\//);
@@ -494,6 +507,29 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(breadcrumbStep.if).toMatch(/always\(\)/);
       expect(breadcrumbStep.run).toMatch(/BEFORE Claude invocation/);
       expect(breadcrumbStep.run).toMatch(/Claude action outcome \(post-invoke\)/);
+      expect(breadcrumbStep.run).toMatch(/Claude workflow-validation expected_skip/);
+      expect(breadcrumbStep.run).toMatch(/Claude workflow-validation reason/);
+    });
+
+    test('workflow preflights claude-code-action self-modifying workflow skip', () => {
+      const preflightStep = doc.jobs.audit.steps.find(
+        (s) => s.name === 'Detect Claude workflow-validation skip risk',
+      );
+      const claudeIndex = doc.jobs.audit.steps.findIndex(
+        (s) => s.name === 'Invoke Claude — Sentinel-L listing-readiness audit',
+      );
+      const preflightIndex = doc.jobs.audit.steps.findIndex(
+        (s) => s.name === 'Detect Claude workflow-validation skip risk',
+      );
+      expect(preflightStep).toBeDefined();
+      expect(preflightIndex).toBeGreaterThan(-1);
+      expect(preflightIndex).toBeLessThan(claudeIndex);
+      expect(preflightStep.id).toBe('claude_preflight');
+      expect(preflightStep.run).toMatch(/origin\/main/);
+      expect(preflightStep.run).toMatch(/workflow_file_missing_on_default_branch/);
+      expect(preflightStep.run).toMatch(/workflow_file_differs_from_default_branch/);
+      expect(preflightStep.run).toMatch(/expected_skip=.*GITHUB_OUTPUT/);
+      expect(preflightStep.run).toMatch(/reason=.*GITHUB_OUTPUT/);
     });
 
     // Codex P0 #3 — extraction must reject duplicate verdict lines and

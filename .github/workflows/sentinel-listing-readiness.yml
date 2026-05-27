@@ -358,6 +358,37 @@ jobs:
           echo "skeleton_sha=$skeleton_sha" >> "$GITHUB_OUTPUT"
           echo "Skeleton: ${skeleton_bytes} bytes, sha256=${skeleton_sha:0:12}…"
 
+      - name: Detect Claude workflow-validation skip risk
+        id: claude_preflight
+        if: always()
+        run: |
+          set -euo pipefail
+
+          workflow_path=".github/workflows/sentinel-listing-readiness.yml"
+          expected_skip="false"
+          reason="none"
+
+          git fetch origin main --depth=1 >/dev/null 2>&1 || true
+
+          if ! git cat-file -e "origin/main:${workflow_path}" 2>/dev/null; then
+            expected_skip="true"
+            reason="workflow_file_missing_on_default_branch"
+          else
+            git show "origin/main:${workflow_path}" > /tmp/sentinel-l-main-workflow.yml
+            if ! cmp -s "$workflow_path" /tmp/sentinel-l-main-workflow.yml; then
+              expected_skip="true"
+              reason="workflow_file_differs_from_default_branch"
+            fi
+          fi
+
+          echo "Sentinel-L.2 Claude preflight:"
+          echo "  expected_skip=$expected_skip"
+          echo "  reason=$reason"
+          echo "  interpretation=claude-code-action workflow validation requires this workflow file to match the default branch before Claude reasoning runs"
+
+          echo "expected_skip=$expected_skip" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+
       - name: Invoke Claude — Sentinel-L listing-readiness audit
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -370,12 +401,12 @@ jobs:
           # NO Bash for write/exec operations outside the writer script.
           # Codex P0 #7 — narrowed the Bash entry from the broad
           # `Bash(node scripts/*)` (which would permit invoking ANY script
-          # under scripts/) to the exact writer command prefix. The trailing
-          # ` *` allows the heredoc-redirect tail (`<<'AUDIT_EOF' …`) the
-          # writer needs, but nothing else; any `node scripts/<other>` call
-          # is denied.
+          # under scripts/) to the exact writer command prefixes. The no-arg
+          # form proves the exact command is allowed; the trailing ` *` form
+          # allows the heredoc-redirect tail (`<<'AUDIT_EOF' …`) the writer
+          # needs, but nothing else; any `node scripts/<other>` call is denied.
           claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/sentinel-write-listing-audit.mjs *),Bash(git status),Bash(git diff *),Bash(git log *),Bash(gh pr view *),Bash(gh pr diff *)"
+            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/sentinel-write-listing-audit.mjs),Bash(node scripts/sentinel-write-listing-audit.mjs *),Bash(git status),Bash(git diff *),Bash(git log *),Bash(gh pr view *),Bash(gh pr diff *)"
           prompt: |
             STRICT REPORT-ONLY MODE.
 
@@ -391,6 +422,7 @@ jobs:
             audit report IS the deliverable; producing it is your job.
 
             The writer is explicitly permitted by your allow-list as:
+              `Bash(node scripts/sentinel-write-listing-audit.mjs)`
               `Bash(node scripts/sentinel-write-listing-audit.mjs *)`
 
             **WORKED EXAMPLE — invoke the writer via Bash + heredoc:**
@@ -700,12 +732,16 @@ jobs:
         if: always()
         env:
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          CLAUDE_PREFLIGHT_EXPECTED_SKIP: ${{ steps.claude_preflight.outputs.expected_skip }}
+          CLAUDE_PREFLIGHT_REASON: ${{ steps.claude_preflight.outputs.reason }}
           DET_INPUTS_DIR: ${{ steps.deterministic.outputs.inputs_dir }}
         run: |
           echo "Sentinel-L.2 breadcrumb: BEFORE Claude invocation @ $(date -u +%FT%TZ)"
           echo "Sentinel-L.2 breadcrumb: deterministic inputs available at $DET_INPUTS_DIR"
           ls -la "$DET_INPUTS_DIR" 2>&1 || true
           echo "Sentinel-L.2 breadcrumb: Claude action outcome (post-invoke) = $CLAUDE_OUTCOME"
+          echo "Sentinel-L.2 breadcrumb: Claude workflow-validation expected_skip = $CLAUDE_PREFLIGHT_EXPECTED_SKIP"
+          echo "Sentinel-L.2 breadcrumb: Claude workflow-validation reason = $CLAUDE_PREFLIGHT_REASON"
 
       - name: Verify Claude audit OR write fallback report (always runs)
         id: postclaude
@@ -714,6 +750,8 @@ jobs:
           REPORT_PATH: ${{ steps.pr.outputs.report_path }}
           SKELETON_SHA: ${{ steps.skeleton.outputs.skeleton_sha }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          CLAUDE_PREFLIGHT_EXPECTED_SKIP: ${{ steps.claude_preflight.outputs.expected_skip }}
+          CLAUDE_PREFLIGHT_REASON: ${{ steps.claude_preflight.outputs.reason }}
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
           PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -732,6 +770,7 @@ jobs:
 
           write_fallback_report() {
             local reason="$1"
+            local failure_class="$2"
             mkdir -p "$(dirname "$REPORT_PATH")"
             ny_iso=$(TZ=America/New_York date +"%Y-%m-%dT%H:%M:%S%z")
             utc_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -740,6 +779,7 @@ jobs:
 
           commit: ${PR_HEAD_SHA}
           status: FAILED
+          failure_class: ${failure_class}
           run_url: ${RUN_URL}
           timestamp_eastern: $ny_iso
           timestamp_utc:     $utc_iso
@@ -799,6 +839,8 @@ jobs:
 
           ## L. Evidence quality: live proof vs code-only inference
 
+          Failure class: ${failure_class}
+
           Reason: ${reason}.
 
           ${DETERMINISTIC_SUMMARY_MD}
@@ -816,14 +858,22 @@ jobs:
           #   was cancelled before the writer was invoked) ───────────────
           if [ ! -f "$REPORT_PATH" ]; then
             echo "::warning::Audit file missing (Claude outcome=$CLAUDE_OUTCOME). Writing fallback RED report."
-            write_fallback_report "Claude did not produce an audit file (outcome=$CLAUDE_OUTCOME)"
+            if [ "$CLAUDE_PREFLIGHT_EXPECTED_SKIP" = "true" ]; then
+              failure_class="claude_action_skipped_workflow_validation"
+              failure_reason="Claude action skipped before reasoning: claude-code-action workflow validation requires the workflow file to match the default branch; preflight detected ${CLAUDE_PREFLIGHT_REASON}. Writer was never called; allowed-tools were not evaluated."
+            else
+              failure_class="claude_action_failed_or_missing_output"
+              failure_reason="Claude did not produce an audit file (outcome=$CLAUDE_OUTCOME). Writer was not observed to write a report."
+            fi
+            write_fallback_report "$failure_reason" "$failure_class"
             echo "verdict=RED" >> "$GITHUB_OUTPUT"
             echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
             echo "fallback=true" >> "$GITHUB_OUTPUT"
+            echo "failure_class=$failure_class" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # ── Case 2: file exists but equals the skeleton (zero-Write
+          # ── Case 2: file exists but equals the skeleton (SHA-unchanged
           #   class failure — script was never invoked, OR every script
           #   call was rejected/parser-aborted, OR claude-code-action
           #   skipped due to workflow-validation on a self-modifying PR) ──
@@ -838,7 +888,15 @@ jobs:
             # occurred. RED is never weakened; YELLOW is only chosen when
             # every deterministic signal is benign AND Claude did not crash.
             det_verdict="RED"
-            det_reason="Claude did not update the skeleton (zero-Write; SHA unchanged from baseline)"
+            failure_class="writer_not_called_or_no_effect"
+            det_reason="Claude did not update the skeleton (SHA unchanged from baseline)"
+            if [ "$CLAUDE_PREFLIGHT_EXPECTED_SKIP" = "true" ]; then
+              failure_class="claude_action_skipped_workflow_validation"
+              det_reason="Claude action skipped before reasoning: claude-code-action workflow validation requires the workflow file to match the default branch; preflight detected ${CLAUDE_PREFLIGHT_REASON}. Writer was never called; allowed-tools were not evaluated."
+            elif [ "$CLAUDE_OUTCOME" != "success" ]; then
+              failure_class="claude_action_failed"
+              det_reason="Claude action did not complete successfully (outcome=$CLAUDE_OUTCOME). Writer was not observed to write a report."
+            fi
             field_path="${{ steps.deterministic.outputs.field_contract_path }}"
             language_path="${{ steps.deterministic.outputs.compliance_language_path }}"
             flow_path="${{ steps.deterministic.outputs.listing_flow_path }}"
@@ -869,19 +927,20 @@ jobs:
                 [ "$lang_max" = "P0" ] && triggers="$triggers P0 compliance-language violation;"
                 [ "$flow_max" = "P0" ] && triggers="$triggers P0 listing-flow risk;"
                 [ "$field_no_cov" != "0" ] && triggers="$triggers ${field_no_cov} touched field(s) with no observed coverage;"
-                det_reason="Claude reasoning layer did not run (zero-Write).${triggers} Deterministic-only signals require the Claude reasoning layer and/or live broker proof before this PR can be safely merged."
+                det_reason="${det_reason}${triggers} Deterministic-only signals require the Claude reasoning layer and/or live broker proof before this PR can be safely merged."
               fi
             else
+              failure_class="claude_action_failed_or_deterministic_inputs_missing"
               det_reason="Claude reasoning layer did not run (outcome=$CLAUDE_OUTCOME or deterministic inputs unavailable). RED forced because synthesis prerequisites are not met."
             fi
-            echo "::warning::Audit file SHA == skeleton SHA (zero-Write, outcome=$CLAUDE_OUTCOME). Deterministic synthesis verdict: $det_verdict."
+            echo "::warning::Audit file SHA == skeleton SHA (outcome=$CLAUDE_OUTCOME, failure_class=$failure_class, preflight_reason=$CLAUDE_PREFLIGHT_REASON). Deterministic synthesis verdict: $det_verdict."
             # Write the fallback with the computed verdict. The function
             # currently hardcodes RED — when synthesis chooses YELLOW we
             # post-process the file to replace `Final verdict: RED` with
             # `Final verdict: YELLOW` and prepend the synthesis reason
             # into section L. Doing it as a post-write swap keeps the
             # main fallback body single-sourced.
-            write_fallback_report "$det_reason"
+            write_fallback_report "$det_reason" "$failure_class"
             if [ "$det_verdict" = "YELLOW" ]; then
               # Replace the verdict line. The fallback body already cites
               # "deterministic static-code signals only" — that wording is
@@ -894,6 +953,7 @@ jobs:
             echo "verdict=$det_verdict" >> "$GITHUB_OUTPUT"
             echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
             echo "fallback=true" >> "$GITHUB_OUTPUT"
+            echo "failure_class=$failure_class" >> "$GITHUB_OUTPUT"
             echo "deterministic_synthesis=true" >> "$GITHUB_OUTPUT"
             echo "deterministic_lang_max=$lang_max" >> "$GITHUB_OUTPUT"
             echo "deterministic_flow_max=$flow_max" >> "$GITHUB_OUTPUT"
@@ -906,10 +966,11 @@ jobs:
           verdict_count=$(grep -cE '^Final verdict:\s+(GREEN|YELLOW|RED)\s*$' "$REPORT_PATH" || true)
           if [ "$verdict_count" -ne 1 ]; then
             echo "::warning::Found $verdict_count Final verdict lines (expected exactly 1). Writing fallback RED report."
-            write_fallback_report "Sentinel-L audit contained $verdict_count verdict lines (expected exactly 1)"
+            write_fallback_report "Writer output reached the workflow but was structurally invalid: Sentinel-L audit contained $verdict_count verdict lines (expected exactly 1)." "writer_rejected_or_invalid_output"
             echo "verdict=RED" >> "$GITHUB_OUTPUT"
             echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
             echo "fallback=true" >> "$GITHUB_OUTPUT"
+            echo "failure_class=writer_rejected_or_invalid_output" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -920,10 +981,11 @@ jobs:
           #   matches the script's contract regardless of source) ───────
           if ! grep -Fq 'Sentinel-L: report-only — no changes made.' "$REPORT_PATH"; then
             echo "::warning::Closing line missing from audit. Writing fallback RED report."
-            write_fallback_report "Sentinel-L audit was missing the literal closing line"
+            write_fallback_report "Writer output reached the workflow but was structurally invalid: Sentinel-L audit was missing the literal closing line." "writer_rejected_or_invalid_output"
             echo "verdict=RED" >> "$GITHUB_OUTPUT"
             echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
             echo "fallback=true" >> "$GITHUB_OUTPUT"
+            echo "failure_class=writer_rejected_or_invalid_output" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
