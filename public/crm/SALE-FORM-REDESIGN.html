@@ -8494,22 +8494,24 @@ function _populateSaleFormFromApi(listing) {
     setVal('saleStreetAddress', streetAddr);
 
     // ── Agent contact panel + company/agent search display ──
-    var companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || 'mallan';
+    // Fall back to logged-in user if saved agent data is empty (race condition on first save)
+    var _agentId = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || document.getElementById('saleUpdatingAgent')?.value || '';
+    var _agentName = agentInfo.ListAgentFullName || raw.ListAgentFullName || document.getElementById('saleUpdatingAgentName')?.value || '';
+    var _agentPhone = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || document.getElementById('saleUpdatingAgentPhone')?.value || '--';
+    var _agentEmail = agentInfo.ListAgentEmail || raw.ListAgentEmail || document.getElementById('saleUpdatingAgentEmail')?.value || '--';
+    var companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || document.getElementById('saleUpdatingAgentCompanyKey')?.value || 'mallan';
+    var _companyName = agentInfo.ListOfficeName || raw.ListOfficeName || document.getElementById('saleUpdatingAgentCompanyName')?.value || 'Mallan Real Estate Inc.';
     var companySearch = document.getElementById('saleListingCompanySearch');
-    if (companySearch) companySearch.value = agentInfo.ListOfficeName || raw.ListOfficeName || '';
+    if (companySearch) companySearch.value = _companyName;
     var agentHiddenEl = document.getElementById('saleListingAgent');
     if (agentHiddenEl) {
-        agentHiddenEl.value = agentInfo.ListAgentKey || agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
+        agentHiddenEl.value = _agentId;
         agentHiddenEl.dataset.company = companyKey;
     }
     setVal('saleListingCompany', companyKey);
     var agentSearchEl = document.getElementById('saleListingAgentSearch');
-    if (agentSearchEl) { agentSearchEl.value = agentInfo.ListAgentFullName || raw.ListAgentFullName || ''; agentSearchEl.disabled = false; }
+    if (agentSearchEl) { agentSearchEl.value = _agentName; agentSearchEl.disabled = false; }
     var agentPanel = document.getElementById('saleListingAgentInfo');
-    var _agentId = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
-    var _agentName = agentInfo.ListAgentFullName || raw.ListAgentFullName || '';
-    var _agentPhone = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
-    var _agentEmail = agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
     if (agentPanel) {
         agentPanel.style.display = 'block';
         var el;
@@ -8521,7 +8523,6 @@ function _populateSaleFormFromApi(listing) {
 
     // Populate agent contacts summary table for edit mode
     if (typeof updateSaleAgentTable === 'function' && _agentId) {
-        var _companyName = agentInfo.ListOfficeName || raw.ListOfficeName || rebnyCompanyNames[companyKey] || companyKey;
         updateSaleAgentTable('listing', _agentId, _agentName, _companyName, _agentPhone, _agentEmail);
     }
 
