@@ -8094,196 +8094,251 @@ function _checkSaleEditMode() {
     });
 }
 
+// ══════════════════════════════════════════════════════
+// FIELD MAP — single source of truth for save ↔ load
+// Each entry: { rls: 'RLSFieldName', form: 'formElementId', type: 'text'|'number'|'bool'|'radio'|'date'|'checked', src: 'raw'|'listing'|'addr'|'features'|'agentInfo' }
+// 'src' tells _populateSaleFormFromApi where to read the value from the API response.
+// ══════════════════════════════════════════════════════
+var SALE_FIELD_MAP = [
+  // ── Address ──
+  { rls: 'StreetNumber', form: 'saleStreetNumber', type: 'text', src: 'addr' },
+  { rls: 'StreetName', form: 'saleStreetName', type: 'text', src: 'addr' },
+  { rls: 'StreetSuffix', form: 'saleStreetSuffix', type: 'text', src: 'addr' },
+  { rls: 'StreetDirPrefix', form: 'saleStreetDirPrefix', type: 'text', src: 'addr' },
+  { rls: 'UnitNumber', form: 'saleUnitNumber', type: 'text', src: 'addr' },
+  { rls: 'City', form: 'saleCity', type: 'text', src: 'addr' },
+  { rls: 'CityRegion', form: 'saleBorough', type: 'text', src: 'addr' },
+  { rls: 'StateOrProvince', form: 'saleStateOrProvince', type: 'text', src: 'addr' },
+  { rls: 'PostalCode', form: 'saleZipCode', type: 'text', src: 'addr' },
+  { rls: 'PostalCity', form: 'salePostalCity', type: 'text', src: 'addr' },
+  { rls: 'CountyOrParish', form: 'saleCountyOrParish', type: 'text', src: 'addr' },
+  { rls: 'SubdivisionName', form: 'saleBldgNeighborhood', type: 'text', src: 'raw' },
+  { rls: 'UnParsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr' },
+
+  // ── Unit Details ──
+  { rls: 'ListPrice', form: 'salePrice', type: 'number', src: 'listing', listingKey: 'list_price' },
+  { rls: 'OriginalListPrice', form: 'saleOriginalPrice', type: 'number', src: 'raw' },
+  { rls: 'BedroomsTotal', form: 'saleBedrooms', type: 'number', src: 'listing', listingKey: 'bedrooms_total' },
+  { rls: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
+  { rls: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
+  { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+  { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
+  { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
+
+  // ── Description ──
+  { rls: 'PublicRemarks', form: 'saleDescription', type: 'text', src: 'raw' },
+  { rls: 'PrivateRemarks', form: 'saleBrokerComments', type: 'text', src: 'raw' },
+  { rls: 'ShowingInstructions', form: 'saleShowingInstructions', type: 'text', src: 'raw' },
+
+  // ── Financials ──
+  { rls: 'TaxAnnualAmount', form: 'saleRETaxes', type: 'number', src: 'raw' },
+  { rls: 'TaxDeductionPercent', form: 'saleTaxDeduction', type: 'number', src: 'raw' },
+  { rls: 'FlipTax', form: 'saleFlipTaxAmount', type: 'text', src: 'raw' },
+  { rls: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
+  { rls: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
+  { rls: 'ClosePrice', form: 'saleSoldPrice', type: 'number', src: 'raw' },
+  { rls: 'Concessions', form: 'saleConcessions', type: 'text', src: 'raw' },
+
+  // ── Dates ──
+  { rls: 'OnMarketDate', form: 'saleDateListed', type: 'date', src: 'raw' },
+  { rls: 'ExpirationDate', form: 'saleExclusiveExpires', type: 'date', src: 'raw' },
+  { rls: 'ListingContractDate', form: 'saleExclusiveStart', type: 'date', src: 'raw' },
+  { rls: 'FirstShowingDate', form: 'saleFirstShowingDate', type: 'date', src: 'raw' },
+  { rls: 'OffMarketDate', form: 'saleOffMarketDate', type: 'date', src: 'raw' },
+  { rls: 'WithdrawnDate', form: 'saleWithdrawnDate', type: 'date', src: 'raw' },
+  { rls: 'PurchaseContractDate', form: 'saleContractSignedDate', type: 'date', src: 'raw' },
+  { rls: 'CloseDate', form: 'saleSoldDate', type: 'date', src: 'raw' },
+  { rls: 'PossessionDate', form: 'saleAvailableOccupancy', type: 'date', src: 'raw' },
+
+  // ── Building ──
+  { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
+  { rls: 'StructureType', form: 'saleBldgType', type: 'text', src: 'raw' },
+  { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
+  { rls: 'YearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw' },
+  { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
+  { rls: 'NumberOfUnitsTotal', form: 'saleBldgTotalUnits', type: 'number', src: 'raw' },
+  { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
+  { rls: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
+  { rls: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
+  { rls: 'BuildingTaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw' },
+  { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
+  { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
+  { rls: 'NewDevelopmentYN', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw' },
+  { rls: 'SponsorUnitYN', form: 'saleBldgSponsorUnits', type: 'bool', src: 'raw' },
+  { rls: 'TaxAbatementYN', form: 'saleBldgTaxAbatementYN', type: 'bool', src: 'raw' },
+  { rls: 'TaxAbatementComments', form: 'saleBldgTaxAbatementComments', type: 'text', src: 'raw' },
+  { rls: 'RentingAllowedYN', form: 'saleBldgSublettingAllowed', type: 'bool', src: 'raw' },
+
+  // ── Distribution ──
+  { rls: 'IDXEntireListingDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn' },
+  { rls: 'InternetEntireListingDisplayYN', form: 'saleInternetEntireListingDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_entire_listing_display_yn' },
+  { rls: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn' },
+
+  // ── Agent (hidden fields populated by initLoggedInAgent) ──
+  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgent', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId' },
+  { rls: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName' },
+  { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail' },
+  { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone' },
+  { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName' },
+  { rls: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
+
+  // ── Team ──
+  { rls: 'ListTeamName', form: 'saleListTeamName', type: 'text', src: 'raw' },
+  { rls: 'ListTeamMlsId', form: 'saleListTeamMlsId', type: 'text', src: 'raw' },
+
+  // ── Townhouse ──
+  { rls: 'Stories', form: 'saleTHStories', type: 'number', src: 'raw' },
+  { rls: 'BuildingAreaTotal', form: 'saleTHBuildingArea', type: 'number', src: 'raw' },
+  { rls: 'Levels', form: 'saleTHLevels', type: 'text', src: 'raw' },
+  { rls: 'ZoningDescription', form: 'saleTHZoning', type: 'text', src: 'raw' },
+  { rls: 'GarageYN', form: 'saleTHGarageYN', type: 'bool', src: 'raw' },
+  { rls: 'GarageSpaces', form: 'saleTHGarageSpaces', type: 'number', src: 'raw' },
+  { rls: 'ParkingTotal', form: 'saleTHParkingTotal', type: 'number', src: 'raw' },
+  { rls: 'FoundationArea', form: 'saleTHFoundationArea', type: 'number', src: 'raw' },
+  { rls: 'BasementYN', form: 'saleTHBasementYN', type: 'bool', src: 'raw' },
+  { rls: 'LotSizeArea', form: 'saleTHLotSize', type: 'number', src: 'raw' },
+
+  // ── Media ──
+  { rls: 'VirtualTourURLUnbranded', form: 'saleVirtualTourUnbranded', type: 'text', src: 'raw' },
+
+  // ── Commercial ──
+  { rls: 'commercial_sub_type', form: 'saleCommSubtype', type: 'text', src: 'raw' },
+  { rls: 'commercial_ownership', form: 'saleCommercialOwnership', type: 'text', src: 'raw' },
+  { rls: 'LivingAreaSource', form: 'saleLivingAreaSource', type: 'text', src: 'raw' },
+
+  // ── Auction ──
+  { rls: 'auction_type', form: 'saleAuctionType', type: 'text', src: 'raw' },
+  { rls: 'auction_terms_url', form: 'saleAuctionTermsUrl', type: 'text', src: 'raw' },
+];
+
+// Checkbox-array fields (name-based groups)
+var SALE_CHECKBOX_ARRAY_MAP = [
+  { rls: 'PetsAllowed', name: 'salePetsAllowed' },
+  { rls: 'BuildingPetsAllowed', name: 'saleBuildingPetsAllowed' },
+  { rls: 'AttendanceType', name: 'saleAttendanceType' },
+  { rls: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
+];
+
+// Radio-button fields
+var SALE_RADIO_MAP = [
+  { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
+  { rls: 'PropertySubType', name: 'salePropertyType', src: 'raw' },
+];
+
 function _populateSaleFormFromApi(listing) {
+    _pendingMediaFiles = [];
     var raw = listing.raw_data || {};
     var addr = listing.address || {};
     var features = listing.features || {};
+    var agentInfo = listing.agent_info || {};
     var media = listing.media || [];
 
-    // Helper to set input value
     function setVal(id, val) {
         var el = document.getElementById(id);
         if (!el || val === undefined || val === null) return;
         el.value = String(val);
-        // Trigger change for selects/radios
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }
-
+    function setChecked(id, val) {
+        var el = document.getElementById(id);
+        if (el) { el.checked = !!val; el.dispatchEvent(new Event('change', { bubbles: true })); }
+    }
     function setRadio(name, val) {
         if (!val) return;
         var radio = document.querySelector('input[name="' + name + '"][value="' + val + '"]');
-        if (radio) {
-            radio.checked = true;
-            radio.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
     }
 
-    function setChecked(id, val) {
-        var el = document.getElementById(id);
-        if (el) el.checked = !!val;
-    }
-
-    // Status
+    // ── Status ──
     setVal('saleStatus', listing.status || raw.StandardStatus || 'Draft');
-
-    // Concessions, CoBrokeAgreement
-    if (raw.Concessions) setVal('saleConcessions', raw.Concessions);
+    // CoBrokeAgreement
     if (raw.CoBrokeAgreement) setVal('saleCoBrokeAgreementType', raw.CoBrokeAgreement);
 
-    // Address fields — saleStreetAddress is the main user-facing input
+    // ── Data-driven field restore ──
+    var sources = { raw: raw, listing: listing, addr: addr, features: features, agentInfo: agentInfo };
+
+    SALE_FIELD_MAP.forEach(function(f) {
+        var val;
+        if (f.src === 'listing' && f.listingKey) {
+            val = listing[f.listingKey];
+        } else if (f.src === 'agentInfo' && f.agentKey) {
+            val = agentInfo[f.agentKey] || raw[f.rls];
+        } else if (f.src === 'addr') {
+            val = addr[f.rls] || raw[f.rls];
+        } else {
+            val = raw[f.rls];
+        }
+        if (val === undefined || val === null) return;
+
+        if (f.type === 'date') {
+            setVal(f.form, String(val).split('T')[0]);
+        } else if (f.type === 'bool') {
+            setChecked(f.form, val === true || val === 'true');
+        } else if (f.type === 'checked') {
+            setChecked(f.form, val !== false);
+        } else if (f.type === 'number') {
+            setVal(f.form, val);
+        } else {
+            setVal(f.form, val);
+        }
+    });
+
+    // ── Radio buttons ──
+    SALE_RADIO_MAP.forEach(function(r) {
+        var val = raw[r.rawKey || r.rls] || (r.fallback ? raw[r.fallback] : null);
+        if (val) setRadio(r.name, val);
+    });
+
+    // ── Checkbox arrays ──
+    SALE_CHECKBOX_ARRAY_MAP.forEach(function(ca) {
+        var vals = raw[ca.rls];
+        if (!Array.isArray(vals)) return;
+        document.querySelectorAll('input[name="' + ca.name + '"]').forEach(function(cb) {
+            cb.checked = vals.includes(cb.value);
+        });
+    });
+
+    // ── Composite address field (the main input the user sees) ──
     var streetAddr = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
     if (!streetAddr) {
         var parts = [addr.StreetNumber || raw.StreetNumber, addr.StreetName || raw.StreetName, addr.StreetSuffix || raw.StreetSuffix].filter(Boolean);
         streetAddr = parts.join(' ');
     }
     setVal('saleStreetAddress', streetAddr);
-    setVal('saleUnparsedAddress', streetAddr);
-    setVal('saleStreetNumber', addr.StreetNumber || raw.StreetNumber || '');
-    setVal('saleStreetDirPrefix', addr.StreetDirPrefix || raw.StreetDirPrefix || '');
-    setVal('saleStreetName', addr.StreetName || raw.StreetName || '');
-    setVal('saleStreetSuffix', addr.StreetSuffix || raw.StreetSuffix || '');
-    setVal('saleUnitNumber', addr.UnitNumber || raw.UnitNumber || '');
-    setVal('saleCity', addr.City || raw.City || 'New York');
-    setVal('saleBorough', addr.CityRegion || raw.CityRegion || listing.borough || '');
-    setVal('saleCountyOrParish', addr.CountyOrParish || raw.CountyOrParish || '');
-    setVal('saleStateOrProvince', addr.StateOrProvince || raw.StateOrProvince || 'NY');
-    setVal('salePostalCity', addr.PostalCity || raw.PostalCity || '');
-    setVal('saleZipCode', addr.PostalCode || raw.PostalCode || listing.zip_code || '');
-    setVal('saleBldgNeighborhood', listing.neighborhood || raw.SubdivisionName || raw.MLSAreaMajor || '');
 
-    // Property type
-    setRadio('salePropertyType', raw.PropertySubType || listing.property_sub_type || '');
-
-    // Price — form field is salePrice, not saleListPrice
-    setVal('salePrice', listing.list_price || raw.ListPrice || '');
-    setVal('saleOriginalPrice', raw.OriginalListPrice || '');
-
-    // Unit details — match form field IDs from collectSaleFormData
-    setVal('saleBedrooms', listing.bedrooms_total || raw.BedroomsTotal || '');
-    setVal('saleFullBaths', listing.bathrooms_full || raw.BathroomsFull || '');
-    setVal('saleHalfBaths', listing.bathrooms_half || raw.BathroomsHalf || '');
-    setVal('saleLivingArea', listing.living_area || raw.LivingArea || '');
-    setVal('saleUnitSqFt', listing.living_area || raw.LivingArea || '');
-    setVal('saleTotalRooms', features.RoomsTotal || raw.RoomsTotal || '');
-
-    // Financial
-    setVal('saleMaintCC', raw.AssociationFee || '');
-    setVal('saleRETaxes', raw.TaxAnnualAmount || '');
-    setVal('saleFlipTaxAmount', raw.FlipTax || '');
-
-    // Description
-    setVal('saleDescription', raw.PublicRemarks || '');
-    setVal('saleBrokerComments', raw.PrivateRemarks || '');
-    setVal('saleShowingInstructions', raw.ShowingInstructions || '');
-
-    // Listing agreement — saleListingType stores the real type (InHouseWebOnly etc.)
-    // raw.saleListingType is the CRM type; raw.ListingAgreement is the RLS-canonical value
-    var realListingType = raw.saleListingType || raw.listingAgreement || raw.ListingAgreement || '';
-    setRadio('saleListingType', realListingType);
-
-    // Agent info — hidden field expects agent ID, display fields get text
-    var agentInfo = listing.agent_info || {};
+    // ── Agent contact panel + company/agent search display ──
     var companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || 'mallan';
-    setVal('saleListingAgent', agentInfo.ListAgentKey || agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '');
-    setVal('saleListingCompany', companyKey);
-    var agentHidden = document.getElementById('saleListingAgent');
-    if (agentHidden) agentHidden.dataset.company = companyKey;
     var companySearch = document.getElementById('saleListingCompanySearch');
     if (companySearch) companySearch.value = agentInfo.ListOfficeName || raw.ListOfficeName || '';
-    var agentSearch = document.getElementById('saleListingAgentSearch');
-    if (agentSearch) {
-        agentSearch.value = agentInfo.ListAgentFullName || raw.ListAgentFullName || '';
-        agentSearch.disabled = false;
+    var agentHiddenEl = document.getElementById('saleListingAgent');
+    if (agentHiddenEl) {
+        agentHiddenEl.value = agentInfo.ListAgentKey || agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
+        agentHiddenEl.dataset.company = companyKey;
     }
-    // Show agent info panel
+    setVal('saleListingCompany', companyKey);
+    var agentSearchEl = document.getElementById('saleListingAgentSearch');
+    if (agentSearchEl) { agentSearchEl.value = agentInfo.ListAgentFullName || raw.ListAgentFullName || ''; agentSearchEl.disabled = false; }
     var agentPanel = document.getElementById('saleListingAgentInfo');
     if (agentPanel) {
         agentPanel.style.display = 'block';
         var el;
-        el = document.getElementById('saleListingAgentId');
-        if (el) el.textContent = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '--';
-        el = document.getElementById('saleListingAgentPhone');
-        if (el) el.textContent = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
-        el = document.getElementById('saleListingAgentEmail');
-        if (el) el.textContent = agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
-        el = document.getElementById('saleListingAgentLicense');
-        if (el) el.textContent = '--';
+        el = document.getElementById('saleListingAgentId'); if (el) el.textContent = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '--';
+        el = document.getElementById('saleListingAgentPhone'); if (el) el.textContent = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
+        el = document.getElementById('saleListingAgentEmail'); if (el) el.textContent = agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
+        el = document.getElementById('saleListingAgentLicense'); if (el) el.textContent = '--';
     }
 
-    // Co-listing
-    setVal('saleCoListingAgent', raw.CoListAgentFullName || '');
-    setVal('saleCoListingCompany', raw.CoListOfficeName || '');
-
-    // Distribution flags — correct checkbox IDs
-    setChecked('saleDist_IDX', listing.idx_display_yn !== false);
-    setChecked('saleInternetEntireListingDisplayYN', listing.internet_entire_listing_display_yn !== false);
-    setChecked('saleInternetAddressDisplayYN', listing.internet_address_display_yn !== false);
-    setChecked('saleDist_VOW', listing.internet_entire_listing_display_yn !== false);
-
-    // Status-change dates
-    if (raw.OffMarketDate) setVal('saleOffMarketDate', String(raw.OffMarketDate).split('T')[0]);
-    if (raw.WithdrawnDate) setVal('saleWithdrawnDate', String(raw.WithdrawnDate).split('T')[0]);
-    if (raw.PurchaseContractDate) setVal('saleContractSignedDate', String(raw.PurchaseContractDate).split('T')[0]);
-    if (raw.CloseDate) setVal('saleSoldDate', String(raw.CloseDate).split('T')[0]);
-    if (raw.ClosePrice) setVal('saleSoldPrice', raw.ClosePrice);
-
-    // Additional fields
-    if (raw.Concessions) setVal('saleConcessions', raw.Concessions);
-    if (raw.saleCondition) setVal('saleCondition', raw.saleCondition);
-    if (raw.LivingAreaSource) setVal('saleLivingAreaSource', raw.LivingAreaSource);
-    if (raw.saleUnitShares) setVal('saleUnitShares', raw.saleUnitShares);
-    if (raw.AssociationFeeFrequency) setVal('saleMaintCCFreq', raw.AssociationFeeFrequency);
-    if (raw.saleFloorInBuilding || raw.EntryLevel) setVal('saleFloorInBuilding', raw.saleFloorInBuilding || raw.EntryLevel);
-
-    // Virtual tour URLs
-    if (raw.VirtualTourURLUnbranded) setVal('saleVirtualTourUnbranded', raw.VirtualTourURLUnbranded);
-
-    // Dates — match form IDs from collectSaleFormData
-    if (raw.ExpirationDate) setVal('saleExclusiveExpires', String(raw.ExpirationDate).split('T')[0]);
-    if (raw.ListingContractDate) setVal('saleExclusiveStart', String(raw.ListingContractDate).split('T')[0]);
-    if (listing.listing_contract_date) setVal('saleExclusiveStart', String(listing.listing_contract_date).split('T')[0]);
-    if (raw.OnMarketDate) setVal('saleDateListed', String(raw.OnMarketDate).split('T')[0]);
-    if (raw.FirstShowingDate) setVal('saleFirstShowingDate', String(raw.FirstShowingDate).split('T')[0]);
-
-    // Features from raw_data
-    if (raw.Appliances) setVal('saleAppliances', raw.Appliances);
-    if (raw.InteriorFeatures) setVal('saleInteriorFeatures', raw.InteriorFeatures);
-    if (raw.Heating) setVal('saleHeating', raw.Heating);
-    if (raw.Cooling) setVal('saleCooling', raw.Cooling);
-    if (raw.LaundryFeatures) setVal('saleLaundry', raw.LaundryFeatures);
-    if (raw.ParkingFeatures) setVal('saleParking', raw.ParkingFeatures);
-    if (raw.PetsAllowed) setVal('salePets', raw.PetsAllowed);
-    if (raw.Furnished) setVal('saleFurnished', raw.Furnished);
-
-    // Building — match form IDs from collectSaleFormData
-    if (raw.BuildingName) setVal('saleBldgName', raw.BuildingName);
-    if (raw.YearBuilt) setVal('saleBldgYearBuilt', raw.YearBuilt);
-    if (raw.NumberOfUnitsTotal) setVal('saleBldgTotalUnits', raw.NumberOfUnitsTotal);
-    if (raw.StoriesTotal) setVal('saleBldgTotalFloors', raw.StoriesTotal);
-    if (raw.StructureType) setVal('saleBldgType', raw.StructureType);
-    if (raw.TaxBlock) setVal('saleBldgTaxBlock', raw.TaxBlock);
-    if (raw.BuildingTaxLot) setVal('saleBldgTaxLot', raw.BuildingTaxLot);
-    if (raw.ElevatorsTotal) setVal('saleBldgNumElevators', raw.ElevatorsTotal);
-    if (raw.CrossStreet) setVal('saleBldgCrossStreet1', raw.CrossStreet);
-
-    // Auction (UCBA Art. I exception). MUST be hydrated in edit mode —
-    // collectSaleFormData() derives `auction_yn` solely from the toggle's
-    // checked state, then NULLS the other auction_* keys when off. Without
-    // this hydration, opening any existing auction listing for any edit
-    // (e.g. price change) and clicking Save silently erases the auction
-    // metadata. Read top-level columns first (post-PR-#74 persistence) and
-    // fall back to raw_data for legacy rows.
+    // ── Auction ──
     var auctionYn = (listing.auction_yn === true) || (raw.auction_yn === true);
     setChecked('saleAuctionYn', auctionYn);
     if (auctionYn) {
         setVal('saleAuctionType', listing.auction_type || raw.auction_type || '');
-        var dtLocal = function (iso) {
+        var dtLocal = function(iso) {
             if (!iso) return '';
             var d = new Date(iso);
             if (isNaN(d.getTime())) return '';
-            var pad = function (n) { return String(n).padStart(2, '0'); };
-            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
-                'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            var pad = function(n) { return String(n).padStart(2, '0'); };
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
         };
         setVal('saleAuctionStartDate', dtLocal(listing.auction_start_date || raw.auction_start_date));
         setVal('saleAuctionEndDate', dtLocal(listing.auction_end_date || raw.auction_end_date));
@@ -8291,10 +8346,7 @@ function _populateSaleFormFromApi(listing) {
         if (typeof toggleSaleAuctionFields === 'function') toggleSaleAuctionFields();
     }
 
-    // Update header bar with restored address
-    if (typeof updateListingHeaderBar === 'function') updateListingHeaderBar('sale');
-
-    // Render existing media into preview containers
+    // ── Render existing media previews ──
     if (media && media.length > 0) {
         var photoContainer = document.getElementById('salePhotoPreview');
         var floorContainer = document.getElementById('saleFloorplanPreview');
@@ -8307,8 +8359,7 @@ function _populateSaleFormFromApi(listing) {
             if (!container) return;
             var div = document.createElement('div');
             div.className = 'relative group';
-            div.innerHTML = '<img src="' + url + '" class="w-full h-24 object-cover rounded-lg border">' +
-                '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (idx + 1) + '</p>';
+            div.innerHTML = '<img src="' + url + '" class="w-full h-24 object-cover rounded-lg border"><p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (idx + 1) + '</p>';
             container.appendChild(div);
             if (!isFloor) photoCount++;
         });
@@ -8316,7 +8367,10 @@ function _populateSaleFormFromApi(listing) {
         if (countEl) countEl.textContent = photoCount + ' / 100 uploaded';
     }
 
-    // Trigger calculations
+    // ── Update header bar ──
+    if (typeof updateListingHeaderBar === 'function') updateListingHeaderBar('sale');
+
+    // ── Trigger calculations ──
     if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();
     if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
 }
