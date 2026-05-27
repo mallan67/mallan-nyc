@@ -7244,6 +7244,8 @@ async function manualSaveDraft() {
                 }
             }
 
+            // Cancel pending autosave so it doesn't re-write localStorage after removal
+            clearTimeout(autoSaveTimer);
             // Clear localStorage draft — now saved to DB, no longer "unsaved browser draft"
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
 
