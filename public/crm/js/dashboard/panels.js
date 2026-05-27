@@ -9363,6 +9363,11 @@ var Panels = (function () {
     var statusCounts = {};
     var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
     statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
+    // Include localStorage browser drafts in Draft count
+    try {
+      var _ldRaw = localStorage.getItem('mallan_draft_sale');
+      if (_ldRaw) { var _ld = JSON.parse(_ldRaw); if (_ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) { statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1; } }
+    } catch (e) {}
 
     // Expiring listings
     var expiringSoon = [];
@@ -9446,7 +9451,8 @@ var Panels = (function () {
       html += '</div></div>';
     }
 
-    // LocalStorage draft recovery — show unsaved browser drafts in the Draft tab
+    // LocalStorage draft recovery — inject as table row in Draft/All tabs
+    var _localDraftRow = '';
     if (statusTab === 'Draft' || statusTab === 'all') {
       try {
         var localDraftRaw = localStorage.getItem('mallan_draft_sale');
@@ -9455,17 +9461,23 @@ var Panels = (function () {
           if (localDraft && localDraft._savedAt) {
             var draftAge = Date.now() - new Date(localDraft._savedAt).getTime();
             if (draftAge < 7 * 24 * 60 * 60 * 1000) {
-              var draftAddr = localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || 'Untitled Draft';
+              var draftAddr = localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || localDraft.saleBuildingSearch || localDraft.unparsedAddress || 'Untitled';
+              var draftUnit = localDraft.saleUnitNumber || '';
+              if (draftUnit) draftAddr += ', #' + draftUnit;
+              var draftPrice = localDraft.salePrice ? '$' + Number(localDraft.salePrice).toLocaleString() : '—';
               var draftTime = new Date(localDraft._savedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-              html += '<div class="p-3 border-2 border-amber-400 rounded-lg bg-amber-50 mb-4">' +
-                '<div class="flex items-center justify-between">' +
-                '<div><p class="text-sm font-semibold text-amber-900"><i class="fas fa-file-alt mr-2"></i>Unsaved Browser Draft</p>' +
-                '<p class="text-xs text-amber-700 mt-0.5">' + E(draftAddr) + ' — saved ' + E(draftTime) + '</p>' +
-                '<p class="text-[10px] text-amber-600 mt-1">This draft was saved in your browser only (not yet in the database). Open it to continue editing and save to server.</p></div>' +
-                '<div class="flex gap-2">' +
-                '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing?restore=local\',\'_blank\')"><i class="fas fa-edit mr-1"></i>Open &amp; Restore</button>' +
-                '<button class="btn btn-sm btn-outline text-red-500" onclick="if(confirm(\'Discard this unsaved draft? This cannot be undone.\')){localStorage.removeItem(\'mallan_draft_sale\');Panels.myListings();}"><i class="fas fa-trash mr-1"></i>Discard</button>' +
-                '</div></div></div>';
+              _localDraftRow = '<tr class="border-b bg-amber-50 hover:bg-amber-100">' +
+                '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(draftAddr) + '</p><p class="text-[10px] text-amber-600">Browser draft — ' + E(draftTime) + '</p></td>' +
+                '<td class="px-3 py-2 text-xs text-gray-500">Sale</td>' +
+                '<td class="px-3 py-2 text-sm font-semibold">' + draftPrice + '</td>' +
+                '<td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-800">DRAFT (browser)</span></td>' +
+                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
+                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
+                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
+                '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
+                '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing?restore=local\',\'_blank\')" title="Continue editing this draft"><i class="fas fa-edit"></i></button>' +
+                '<button class="btn btn-sm btn-outline text-red-500" onclick="if(confirm(\'Discard this unsaved draft?\')){localStorage.removeItem(\'mallan_draft_sale\');Panels.myListings();}" title="Discard draft"><i class="fas fa-trash"></i></button>' +
+                '</div></td></tr>';
             }
           }
         }
@@ -9473,7 +9485,7 @@ var Panels = (function () {
     }
 
     // Listing table
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && !_localDraftRow) {
       html += '<div class="text-center py-12 text-gray-400">' +
         '<i class="fas fa-building text-3xl mb-3"></i>' +
         '<p class="text-sm">No listings to display.</p>' +
@@ -9489,6 +9501,7 @@ var Panels = (function () {
         '<th class="text-left px-3 py-2">Last Refreshed</th>' +
         '<th class="text-left px-3 py-2">Actions</th>' +
       '</tr></thead><tbody>';
+      if (_localDraftRow) html += _localDraftRow;
       filtered.forEach(function (l) {
         var addr = _resolveAddress(l);
         var dom = l.cumulative_dom || l.cumulative_days_on_market || l.days_on_market || 0;
