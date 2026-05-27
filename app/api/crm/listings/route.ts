@@ -126,12 +126,18 @@ async function generateListingId(
   const lockId = prefix === "RL" ? 200001 : 200002;
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockId})`;
 
+  // Use BIGINT to avoid integer overflow on timestamp-style IDs (SL-1779...).
+  // Filter to sequential IDs only (suffix <= 999999) — timestamp IDs are
+  // legacy from Date.now() fallbacks and must not pollute the sequence.
   const regexPattern = `${prefix}-(\\d+)`;
-  const result = await tx.$queryRaw<{ max_seq: number | null }[]>`
-    SELECT MAX(CAST(SUBSTRING(listing_id FROM ${regexPattern}) AS INTEGER)) AS max_seq
-    FROM listings WHERE listing_id LIKE ${pattern}`;
+  const result = await tx.$queryRaw<{ max_seq: bigint | null }[]>`
+    SELECT MAX(CAST(SUBSTRING(listing_id FROM ${regexPattern}) AS BIGINT)) AS max_seq
+    FROM listings
+    WHERE listing_id LIKE ${pattern}
+      AND LENGTH(SUBSTRING(listing_id FROM ${regexPattern})) <= 6`;
 
-  const nextSeq = ((result[0]?.max_seq ?? 0) + 1).toString().padStart(4, "0");
+  const maxSeq = result[0]?.max_seq ? Number(result[0].max_seq) : 0;
+  const nextSeq = (maxSeq + 1).toString().padStart(4, "0");
   return `${prefix}-${nextSeq}`;
 }
 

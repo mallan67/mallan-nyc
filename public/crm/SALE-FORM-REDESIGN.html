@@ -7000,7 +7000,7 @@ function submitSalesListing() {
     updateSaleAddressDerived();
 
     const formData = {
-        listingId: 'SL-' + Date.now(),
+        // Server generates the canonical listing ID (SL-XXXX) — do not send a client-side ID
         type: 'Sale',
         listingAgreement: document.querySelector('input[name="saleListingType"]:checked')?.value || 'ExclusiveRightToSell',
         structureType: document.getElementById('saleStructureType')?.value || '',
