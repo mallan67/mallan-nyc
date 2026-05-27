@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   // Re-classify RLS eligibility on update (unit count or property type may have changed)
   // InHouse listings are website-only — not on RLS.
-  const isInHouse = merged.saleListingType === "InHouse" || merged.listingAgreement === "InHouse";
+  const isInHouse = merged.saleListingType === "InHouse" || merged.saleListingType === "InHouseInternal" || merged.saleListingType === "InHouseWebOnly" || merged.listingAgreement === "InHouse";
   const eligibility = classifyRlsEligibility(merged, {
     explicitOptOut: body.rls_eligible === false || (!body.rls_eligible && !listing.rls_eligible) || isInHouse,
     commercialSubType: (body.commercial_sub_type as string) || (listing.commercial_sub_type as string | null) || undefined,
