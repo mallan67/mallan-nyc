@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
   // InHouse listings are website-only by definition — not on RLS.
-  const isInHouse = body.saleListingType === "InHouse" || body.listingAgreement === "InHouse";
+  const isInHouse = body.saleListingType === "InHouse" || body.saleListingType === "InHouseInternal" || body.saleListingType === "InHouseWebOnly" || body.listingAgreement === "InHouse";
   const eligibility = classifyRlsEligibility(body, {
     explicitOptOut: body.rls_eligible === false || isInHouse,
     commercialSubType: body.commercial_sub_type as string | undefined,

@@ -414,11 +414,17 @@ body { font-family: Manrope, sans-serif; }
                             <span class="text-[9px] text-gray-400">(CoExclusive)</span>
                         </label>
                         <!-- Non-RLS / Permission-based -->
-                        <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
+                        <div class="flex flex-col gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                            <p class="text-[9px] font-bold text-blue-600 uppercase tracking-wide">In-House (Not on RLS)</p>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="radio" name="saleListingType" value="InHouse" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> <span class="font-medium text-blue-700">In-House</span>
-                                <span class="text-[9px] text-blue-500 font-medium">(Company Private)</span>
+                                <input type="radio" name="saleListingType" value="InHouseInternal" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> <span class="font-medium text-gray-700">Internal Only</span>
+                                <span class="text-[9px] text-gray-500">(CRM only, not public)</span>
                             </label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                                <input type="radio" name="saleListingType" value="InHouseWebOnly" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> <span class="font-medium text-blue-700">Web Only</span>
+                                <span class="text-[9px] text-blue-500">(mallan.nyc only, not IDX/syndicated)</span>
+                            </label>
+                            <p class="text-[9px] text-red-600 mt-0.5">In-House does not mean automatically advertiseable. Choose Web Only only when seller has authorized public website advertising.</p>
                         </div>
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="saleListingType" value="OwnerOptOut" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Owner Opt-Out
@@ -459,10 +465,15 @@ body { font-family: Manrope, sans-serif; }
                                     <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both firms named on listing.</p>
                                 </div>
                                 <hr class="border-gray-200">
+                                <div class="border-l-4 border-gray-400 pl-3 bg-gray-50 py-2 pr-2 rounded-r">
+                                    <p class="font-bold text-gray-800">In-House — Internal Only <span class="text-[10px] text-red-500 font-semibold">NOT PUBLIC</span></p>
+                                    <p class="text-gray-600 mt-1">CRM/brokerage use only. <strong>Not visible on mallan.nyc or any public channel.</strong> Status must remain Draft. Cannot be featured. Use for pre-marketing prep, internal tracking, or listings not yet authorized for advertising.</p>
+                                    <p class="text-red-600 text-xs mt-1"><i class="fas fa-lock mr-1"></i>No RLS, no IDX, no syndication, no public website display.</p>
+                                </div>
                                 <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
-                                    <p class="font-bold text-blue-800">In-House (Company Private) <span class="text-[10px] text-red-500 font-semibold">NOT ON RLS</span></p>
-                                    <p class="text-gray-600 mt-1">A <strong>company-only private listing</strong> kept exclusively within Mallan Real Estate. Not submitted to REBNY RLS, not distributed to any portal. Only visible on mallan.nyc and marketed by our agents directly.</p>
-                                    <p class="text-red-600 text-xs mt-1"><i class="fas fa-lock mr-1"></i>No RLS, no IDX, no syndication. Internal use only.</p>
+                                    <p class="font-bold text-blue-800">In-House — Web Only <span class="text-[10px] text-blue-600 font-semibold">mallan.nyc ONLY</span></p>
+                                    <p class="text-gray-600 mt-1">Published on <strong>mallan.nyc only</strong>. Not submitted to REBNY RLS or any portal. Requires seller authorization to advertise. Can be featured on the homepage. Can be used as RealPlus Listing Url.</p>
+                                    <p class="text-blue-600 text-xs mt-1"><i class="fas fa-globe mr-1"></i>No RLS, no IDX, no syndication. Public on mallan.nyc only.</p>
                                 </div>
                                 <hr class="border-gray-200">
                                 <div class="border-l-4 border-gray-400 pl-3">
@@ -475,7 +486,7 @@ body { font-family: Manrope, sans-serif; }
                                 </div>
                             </div>
                             <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-                                <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to RESO standard. In-House listings are internal only and are never submitted to REBNY.</p>
+                                <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to RESO standard. In-House listings are never submitted to REBNY. Internal Only stays in CRM; Web Only publishes on mallan.nyc only.</p>
                             </div>
                         </div>
                     </div>
@@ -491,19 +502,27 @@ body { font-family: Manrope, sans-serif; }
                             <p class="mt-1 text-red-600 font-semibold">Violation = Incurable: $250 first offense, $500 each subsequent.</p>
                         </div>
                     </div>
-                    <!-- In-House Warning -->
-                    <div id="saleInHouseWarning" class="mt-3 warning-banner bg-blue-50 border border-blue-300" style="display:none;">
-                        <i class="fas fa-building text-blue-500 mt-0.5"></i>
+                    <!-- In-House Internal Only Warning -->
+                    <div id="saleInHouseInternalWarning" class="mt-3 warning-banner bg-gray-100 border border-gray-400" style="display:none;">
+                        <i class="fas fa-lock text-gray-600 mt-0.5"></i>
                         <div class="text-xs text-gray-700">
-                            <p class="font-semibold mb-1 text-blue-900">In-House — Company Private Listing</p>
-                            <p><strong>Definition:</strong> A listing kept exclusively within Mallan Real Estate. Not submitted to REBNY RLS or any external distribution channel.</p>
-                            <p class="mt-1"><strong>Distribution:</strong> This listing can ONLY appear on <strong>mallan.nyc (WWW)</strong> and be marketed directly by Mallan agents. All RLS, IDX, and syndication channels are disabled.</p>
-                            <p class="mt-1"><strong>Note:</strong></p>
+                            <p class="font-semibold mb-1 text-gray-900">Internal Only: Not Public</p>
+                            <p>This listing is for <strong>CRM/brokerage use only</strong>. It will NOT appear on mallan.nyc, will NOT be eligible for Featured Listings, and should NOT be used as a RealPlus Listing Url.</p>
+                            <p class="mt-1">Status will remain <strong>Draft</strong>. To make this listing public on mallan.nyc, change listing type to <strong>In-House — Web Only</strong>.</p>
+                        </div>
+                    </div>
+                    <!-- In-House Web Only Warning -->
+                    <div id="saleInHouseWebOnlyWarning" class="mt-3 warning-banner bg-blue-50 border border-blue-300" style="display:none;">
+                        <i class="fas fa-globe text-blue-500 mt-0.5"></i>
+                        <div class="text-xs text-gray-700">
+                            <p class="font-semibold mb-1 text-blue-900">Web Only: mallan.nyc Only</p>
+                            <p><strong>Requires seller authorization to advertise.</strong> This listing will be published on mallan.nyc only. Not submitted to REBNY RLS or any portal.</p>
                             <ul class="list-disc ml-4 mt-1 space-y-0.5">
                                 <li>Not on REBNY RLS — other brokers will NOT see this listing</li>
                                 <li>No IDX, no syndication to Realtor.com, Zillow, StreetEasy, or any portal</li>
-                                <li>UCBA co-brokerage rules do NOT apply (listing is not on the RLS)</li>
-                                <li>Fair Housing Act + NY DOS advertising laws STILL apply to all marketing</li>
+                                <li>Can be pinned to Featured Listings on mallan.nyc homepage</li>
+                                <li>Can be used as RealPlus Listing Url when Active</li>
+                                <li>Fair Housing Act + NY DOS advertising laws STILL apply</li>
                             </ul>
                         </div>
                     </div>
@@ -5229,7 +5248,7 @@ function parseSaleAddress() {
 // ══════════════════════════════════════════════════════
 function _isInHouseListingType(prefix) {
     var radio = document.querySelector('input[name="' + prefix + 'ListingType"]:checked');
-    return radio && radio.value === 'InHouse';
+    return radio && (radio.value === 'InHouse' || radio.value === 'InHouseInternal' || radio.value === 'InHouseWebOnly');
 }
 
 function _clearIdxMatchState(prefix) {
@@ -5246,17 +5265,42 @@ function _clearIdxMatchState(prefix) {
 // LISTING TYPE HANDLER
 // ══════════════════════════════════════════════════════
 function handleSaleListingTypeChange(value) {
-    const warning = document.getElementById('saleOwnerOptOutWarning');
-    const inHouse = document.getElementById('saleInHouseWarning');
-    const optOutSection = document.getElementById('saleOptOutFormSection');
-    const isOptOut = (value === 'OwnerOptOut' || value === 'ParticipantOnly');
+    var warning = document.getElementById('saleOwnerOptOutWarning');
+    var inHouseInternal = document.getElementById('saleInHouseInternalWarning');
+    var inHouseWebOnly = document.getElementById('saleInHouseWebOnlyWarning');
+    var optOutSection = document.getElementById('saleOptOutFormSection');
+    var isOptOut = (value === 'OwnerOptOut' || value === 'ParticipantOnly');
+    var isInHouseInternal = (value === 'InHouseInternal');
+    var isInHouseWebOnly = (value === 'InHouseWebOnly');
+    var isAnyInHouse = isInHouseInternal || isInHouseWebOnly;
 
     if (warning) warning.style.display = isOptOut ? '' : 'none';
-    if (inHouse) inHouse.style.display = value === 'InHouse' ? '' : 'none';
+    if (inHouseInternal) inHouseInternal.style.display = isInHouseInternal ? '' : 'none';
+    if (inHouseWebOnly) inHouseWebOnly.style.display = isInHouseWebOnly ? '' : 'none';
     if (optOutSection) optOutSection.style.display = value === 'OwnerOptOut' ? '' : 'none';
 
-    if (value === 'InHouse') {
+    if (isAnyInHouse) {
         _clearIdxMatchState('sale');
+    }
+
+    // Internal Only: force status=Draft and lock the status selector
+    var statusEl = document.getElementById('saleStatus');
+    if (statusEl) {
+        if (isInHouseInternal) {
+            statusEl.value = 'Draft';
+            statusEl.disabled = true;
+            var lockNotice = statusEl.parentElement?.querySelector('.internal-status-lock');
+            if (!lockNotice) {
+                var p = document.createElement('p');
+                p.className = 'text-[10px] text-red-600 mt-1 internal-status-lock';
+                p.innerHTML = '<i class="fas fa-lock mr-1"></i>Internal Only listings must remain Draft. Change to Web Only to allow Active status.';
+                statusEl.parentElement?.appendChild(p);
+            }
+        } else {
+            statusEl.disabled = false;
+            var lockNotice = statusEl.parentElement?.querySelector('.internal-status-lock');
+            if (lockNotice) lockNotice.remove();
+        }
     }
 
     // Re-evaluate InternetEntireListingDisplayYN lock when permissions change
@@ -5274,6 +5318,8 @@ function enforceSaleInternetDisplayRule() {
     // Permissions=Null (standard exclusive listings — no OwnerOptOut/Private) → MUST be True
     var isNullPermission = !permValue || permValue === '' ||
         ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'CoExclusive'].includes(permValue);
+    // InHouse types are not null-permission — they force distribution OFF separately
+    if (permValue === 'InHouseInternal' || permValue === 'InHouseWebOnly') isNullPermission = false;
 
     var container = internetCheckbox.closest('.border');
     if (isNullPermission) {
@@ -6597,21 +6643,32 @@ function collectSaleFormData() {
     var saleListType = data.saleListingType || '';
     var isOwnerOptOut = saleListType === 'OwnerOptOut';
     var isParticipantOnly = saleListType === 'ParticipantOnly';
-    var isInHouse = saleListType === 'InHouse';
+    var isInHouseInternal = saleListType === 'InHouseInternal';
+    var isInHouseWebOnly = saleListType === 'InHouseWebOnly';
+    var isInHouse = isInHouseInternal || isInHouseWebOnly || saleListType === 'InHouse';
     if (isOwnerOptOut || isParticipantOnly || isInHouse) {
         // These are permission flags, not agreement types — default to ExclusiveRightToSell
         data.ListingAgreement = 'ExclusiveRightToSell';
     } else {
         data.ListingAgreement = saleListType || 'ExclusiveRightToSell';
     }
+    // saleListingType sent to backend for InHouse detection
+    data.saleListingType = saleListType;
     // CoBrokeAgreement
     data.CoBrokeAgreement = data.saleCoBrokeAgreementType || 'Ucba';
+
+    // InHouse visibility distinction — stored in raw_data for future backend gating
+    if (isInHouseInternal) {
+        data.inHouseVisibility = 'internal_only';
+    } else if (isInHouseWebOnly) {
+        data.inHouseVisibility = 'web_only';
+    }
 
     // Permissions: OwnerOptOut = owner signed Exhibit B, listing on RLS but NOT public.
     // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
     data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
-    // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse
+    // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse (both types)
     if (isOwnerOptOut || isParticipantOnly || isInHouse) {
         data.IDXEntireListingDisplayYN = false;
         data.InternetEntireListingDisplayYN = false;

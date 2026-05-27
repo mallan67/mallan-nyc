@@ -168,9 +168,10 @@ describe('Form — Non-InHouse lookup behavior preserved', () => {
 
 describe('Form — handleSaleListingTypeChange clears stale state for InHouse', () => {
   it('handleSaleListingTypeChange calls _clearIdxMatchState when InHouse', () => {
-    const fnMatch = formHtml.match(/function handleSaleListingTypeChange\(value\)\s*\{([\s\S]{0,800}?)\n\}/);
-    expect(fnMatch).not.toBeNull();
-    expect(fnMatch![1]).toContain("_clearIdxMatchState('sale')");
+    const fnStart = formHtml.indexOf('function handleSaleListingTypeChange(value)');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnBody = formHtml.slice(fnStart, fnStart + 2500);
+    expect(fnBody).toContain("_clearIdxMatchState('sale')");
   });
 });
 
