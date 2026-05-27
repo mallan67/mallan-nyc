@@ -7011,13 +7011,17 @@ function submitSalesListing() {
         return;
     }
 
-    // Step 2: Check REBNY required fields
-    const saleMissing = validateREBNYRequired('sale');
-    if (saleMissing.length > 0) {
-        const summaryEl = document.getElementById('saleValidationSummary');
-        if (summaryEl) summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        alert('Cannot submit: ' + saleMissing.length + ' required REBNY field(s) missing.');
-        return;
+    // Step 2: Check REBNY required fields — skip for InHouse listings (not on RLS)
+    var listTypeRadio = document.querySelector('input[name="saleListingType"]:checked');
+    var isInHouseListing = listTypeRadio && (listTypeRadio.value === 'InHouseInternal' || listTypeRadio.value === 'InHouseWebOnly' || listTypeRadio.value === 'InHouse');
+    if (!isInHouseListing) {
+        const saleMissing = validateREBNYRequired('sale');
+        if (saleMissing.length > 0) {
+            const summaryEl = document.getElementById('saleValidationSummary');
+            if (summaryEl) summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            alert('Cannot submit: ' + saleMissing.length + ' required REBNY field(s) missing.');
+            return;
+        }
     }
 
     // Step 3: Check all description fields for compliance violations
