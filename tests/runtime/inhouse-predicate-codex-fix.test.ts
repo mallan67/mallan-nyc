@@ -93,7 +93,8 @@ describe('String() coercion safety', () => {
     expect(INHOUSE_VALUES.includes(String(null))).toBe(false);
   });
 
-  it('String("") via fallback does not match any inHouseValue', () => {
-    expect(INHOUSE_VALUES.includes(String("" || ""))).toBe(false);
+  it('empty string fallback does not match any inHouseValue', () => {
+    const empty = "";
+    expect(INHOUSE_VALUES.includes(String(empty || ""))).toBe(false);
   });
 });
