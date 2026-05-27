@@ -129,10 +129,12 @@ export async function PATCH(
     }
   }
 
-  // RLS Enforcement Gate — only for RLS-eligible listings.
-  // InHouseWebOnly/InHouseInternal/commercial listings (rls_eligible=false)
-  // skip the 48-field mandatory check. They publish to mallan.nyc only.
-  if (listing.rls_eligible) {
+  // RLS Enforcement Gate — only for Trestle-synced RLS-eligible listings.
+  // CRM-created listings (mls_id=null) are Mallan exclusives published to
+  // mallan.nyc only — they never go to Trestle, so skip the 48-field check.
+  // InHouseWebOnly/InHouseInternal/commercial (rls_eligible=false) also skip.
+  const isCrmCreated = !listing.mls_id;
+  if (listing.rls_eligible && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(
       { ...existingRaw, MlsStatus: newStatus },
       {

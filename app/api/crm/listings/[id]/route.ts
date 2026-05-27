@@ -121,7 +121,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
   const isDraft = effectiveStatus === "Draft";
 
-  if (effectiveRlsEligible && !isDraft) {
+  const isCrmCreated = !listing.mls_id;
+  if (effectiveRlsEligible && !isDraft && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(merged, {
       listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
       isNewDevelopment: merged.NewDevelopmentYN === true,
