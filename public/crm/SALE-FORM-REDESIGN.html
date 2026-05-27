@@ -7244,6 +7244,9 @@ async function manualSaveDraft() {
                 }
             }
 
+            // Clear localStorage draft — now saved to DB, no longer "unsaved browser draft"
+            try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+
             // Step 3: Show draft recovery info
             showToast('Draft saved: ' + listingId, 'success');
             var editUrl = window.location.pathname + '?id=' + encodeURIComponent(dbId || listingId);
