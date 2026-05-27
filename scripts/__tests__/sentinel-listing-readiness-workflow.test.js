@@ -367,6 +367,47 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(postclaudeStep.run).toMatch(/## L\. Evidence quality/);
     });
 
+    // Sentinel-L.2 (improvement) — fallback must embed deterministic
+    // findings so the PR comment surfaces real signals (touched fields,
+    // workflow risks, compliance violations) instead of generic boilerplate.
+    test('post-Claude step embeds the deterministic summary in the fallback (L.2 improvement)', () => {
+      expect(postclaudeStep.env).toBeDefined();
+      expect(postclaudeStep.env.DETERMINISTIC_SUMMARY_MD).toBe('${{ steps.deterministic.outputs.summary_md }}');
+      expect(postclaudeStep.env.FIELD_TOUCHED_COUNT).toBeDefined();
+      expect(postclaudeStep.env.FLOW_HIGHEST_RISK).toBeDefined();
+      expect(postclaudeStep.env.LANGUAGE_HIGHEST_SEVERITY).toBeDefined();
+      // The fallback body must reference the deterministic summary marker.
+      expect(postclaudeStep.run).toMatch(/\$\{DETERMINISTIC_SUMMARY_MD\}/);
+      // The fallback Finding matrix should include a deterministic-signals row.
+      expect(postclaudeStep.run).toMatch(/deterministic summary/i);
+      // Section L must cite the specific deterministic-only evidence quality.
+      expect(postclaudeStep.run).toMatch(/deterministic static-code signals only/);
+      // Sections B, F, H, I, J should reference the deterministic findings
+      // (not the generic "could not complete its investigation" boilerplate
+      // that was there pre-improvement).
+      expect(postclaudeStep.run).toMatch(/Deterministic field-contract scan/);
+      expect(postclaudeStep.run).toMatch(/Deterministic compliance-language scan/);
+      expect(postclaudeStep.run).toMatch(/Deterministic listing-flow scan/);
+    });
+
+    test('deterministic step emits summary_md as a multi-line output (L.2 improvement)', () => {
+      const detStep = doc.jobs.audit.steps.find(
+        (s) => s.name === 'Run Sentinel-L.2 deterministic audit scripts',
+      );
+      expect(detStep).toBeDefined();
+      // Must compute summary_md from the 3 JSON files and emit it as a
+      // multi-line GITHUB_OUTPUT using the heredoc-delimited syntax.
+      expect(detStep.run).toMatch(/summary_md=\$\(node -e/);
+      expect(detStep.run).toMatch(/summary_md<<SENTINEL_L2_MD_EOF/);
+      expect(detStep.run).toMatch(/SENTINEL_L2_MD_EOF/);
+      // The node-built summary must include all three deterministic
+      // dimensions so downstream consumers (the fallback report + the
+      // PR comment) have a meaningful payload.
+      expect(detStep.run).toMatch(/Field contract/);
+      expect(detStep.run).toMatch(/Compliance language/);
+      expect(detStep.run).toMatch(/Listing flow/);
+    });
+
     // Codex P0 #3 — extraction must reject duplicate verdict lines and
     // collapse to fallback RED.
     test('post-Claude step rejects duplicate verdict lines (Codex P0 #3)', () => {

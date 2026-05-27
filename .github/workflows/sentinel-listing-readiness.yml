@@ -207,6 +207,54 @@ jobs:
           echo "  compliance-language:   $language_total violations (highest: $language_max)"
           echo "  listing-flow:          $flow_count workflows touched (highest: $flow_max)"
 
+          # Sentinel-L.2 (improvement) — build a multi-line markdown summary
+          # that the fallback step can embed in the RED report when Claude
+          # skips. This turns the previously-generic "LIMITED — Sentinel-L
+          # could not complete its investigation" boilerplate into a real
+          # forensic report grounded in the deterministic JSON facts.
+          summary_md=$(node -e '
+            const fs = require("fs");
+            const f = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const c = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+            const w = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+            const out = [];
+            const ts = (n, max=8) => Array.from(new Set(n)).slice(0, max);
+            out.push("### Deterministic findings (from JSON inputs)");
+            out.push("");
+            out.push("**Field contract (" + f.summary.touched_count + " of " + f.summary.contract_fields_total + " contract fields touched):**");
+            const fieldNames = Object.keys(f.fields);
+            if (fieldNames.length) {
+              out.push("- Touched: " + ts(fieldNames).join(", ") + (fieldNames.length > 8 ? ", …" : ""));
+              out.push("- Full coverage: " + f.summary.fields_with_full_coverage + " | partial: " + f.summary.fields_with_partial_coverage + " | none: " + f.summary.fields_with_no_coverage);
+            } else {
+              out.push("- (none touched)");
+            }
+            out.push("");
+            out.push("**Compliance language (" + c.summary.total_violations + " violations, highest severity: " + c.summary.highest_severity + "):**");
+            if (c.violations.length) {
+              const seen = new Set();
+              for (const v of c.violations.slice(0, 6)) {
+                const k = v.rule_id + ":" + v.severity;
+                if (seen.has(k)) continue;
+                seen.add(k);
+                out.push("- " + v.severity + " " + v.rule_id + " at " + v.file + ":" + v.line);
+              }
+              if (c.violations.length > 6) out.push("- … (" + (c.violations.length - 6) + " more)");
+            } else {
+              out.push("- (no Fair Housing / advertising / REBNY/IDX violations detected by static scan)");
+            }
+            out.push("");
+            out.push("**Listing flow (" + w.summary.workflows_touched + " workflows touched, highest risk: " + w.summary.highest_risk + "):**");
+            if (w.workflows.length) {
+              for (const wf of w.workflows) {
+                out.push("- " + wf.risk + " `" + wf.workflow + "` (" + wf.user_roles.join("/") + ", " + wf.compliance_surfaces.join("/") + ") — " + wf.proof_level);
+              }
+            } else {
+              out.push("- (no listing-flow surfaces touched)");
+            }
+            console.log(out.join("\n"));
+          ' "$field_path" "$language_path" "$flow_path")
+
           echo "inputs_dir=$inputs_dir" >> "$GITHUB_OUTPUT"
           echo "field_contract_path=$field_path" >> "$GITHUB_OUTPUT"
           echo "compliance_language_path=$language_path" >> "$GITHUB_OUTPUT"
@@ -216,6 +264,12 @@ jobs:
           echo "language_highest_severity=$language_max" >> "$GITHUB_OUTPUT"
           echo "flow_workflows_touched=$flow_count" >> "$GITHUB_OUTPUT"
           echo "flow_highest_risk=$flow_max" >> "$GITHUB_OUTPUT"
+          # Multi-line output via heredoc-delimited GITHUB_OUTPUT syntax.
+          {
+            echo "summary_md<<SENTINEL_L2_MD_EOF"
+            echo "$summary_md"
+            echo "SENTINEL_L2_MD_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create listing-readiness audit skeleton
         id: skeleton
@@ -548,6 +602,16 @@ jobs:
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
           PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Sentinel-L.2 (improvement) — embed deterministic findings into
+          # the RED fallback so the PR comment surfaces real signals (29
+          # touched fields, P0 workflows, compliance violations) instead of
+          # generic "LIMITED — Sentinel-L could not complete" boilerplate.
+          DETERMINISTIC_SUMMARY_MD: ${{ steps.deterministic.outputs.summary_md }}
+          FIELD_TOUCHED_COUNT: ${{ steps.deterministic.outputs.field_touched_count }}
+          LANGUAGE_TOTAL_VIOLATIONS: ${{ steps.deterministic.outputs.language_total_violations }}
+          LANGUAGE_HIGHEST_SEVERITY: ${{ steps.deterministic.outputs.language_highest_severity }}
+          FLOW_WORKFLOWS_TOUCHED: ${{ steps.deterministic.outputs.flow_workflows_touched }}
+          FLOW_HIGHEST_RISK: ${{ steps.deterministic.outputs.flow_highest_risk }}
         run: |
           set -euo pipefail
 
@@ -571,55 +635,60 @@ jobs:
 
           | file | changed lines | affected workflow | field contracts touched | user role affected | compliance surface | risk | proof level | finding | required action |
           |------|---------------|-------------------|-------------------------|--------------------|--------------------|------|-------------|---------|-----------------|
-          | (Sentinel-L workflow itself) | n/a | sentinel-l audit production | n/a | broker | n/a | P0 | limited | Sentinel-L audit did not complete | Manual broker workflow verification required |
+          | (Sentinel-L workflow itself) | n/a | sentinel-l audit production | n/a | broker | n/a | P0 | limited | Claude reasoning layer did not run (see L. Evidence quality below) | Manual broker workflow verification required before merge |
+          | (deterministic summary) | n/a | field-contract / compliance-language / listing-flow scripts | ${FIELD_TOUCHED_COUNT} touched RESO fields | broker, agent, public | ${LANGUAGE_HIGHEST_SEVERITY} compliance, ${FLOW_HIGHEST_RISK} listing-flow | ${FLOW_HIGHEST_RISK} | static code | ${FIELD_TOUCHED_COUNT} fields / ${FLOW_WORKFLOWS_TOUCHED} workflows touched; ${LANGUAGE_TOTAL_VIOLATIONS} compliance-language signals | Review the deterministic findings below; live broker probe still required |
 
           ## A. Syntax / structural correctness
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Claude reasoning required. Deterministic scripts cannot evaluate lint/tsc/structural conventions; that lens needs the Claude layer that did not run on this PR.
 
           ## B. Field contract correctness
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Deterministic field-contract scan completed: ${FIELD_TOUCHED_COUNT} of the 29 contract fields are touched by this PR. Coverage breakdown is in the deterministic summary in section L. Full source → form → API → DB → reload/display proof for each touched field requires the Claude reasoning layer that did not run on this PR.
 
           ## C. Business logic correctness
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Claude reasoning required. REBNY UCBA invariants (Coop/Condop, Web Only vs Internal Only, Coming Soon, status transitions) cannot be evaluated by static scan alone.
 
           ## D. Broker / agent usability
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Claude reasoning required. End-to-end broker workflow verification requires live preview-deployment probe.
 
           ## E. Client-facing usability
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Claude reasoning required. Public listing surface verification requires live preview-deployment probe.
 
           ## F. REBNY / RLS / RESO / IDX Plus compliance
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Deterministic compliance-language scan found ${LANGUAGE_TOTAL_VIOLATIONS} violations across the rebny_idx category (see section L for breakdown). Full display-gate honoring + attribution + RESO field-name canonicality verification requires the Claude reasoning layer that did not run on this PR.
 
           ## G. Trestle / Cotality Web API contract
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Claude reasoning required. ResourceRecordKey vs ResourceRecordID + OData \$filter safety + idxPlusPreFiltered semantics cannot be evaluated by static scan alone.
 
           ## H. NYC / NYS real estate advertising law
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Deterministic compliance-language scan covers \§175.25 / FARE Act risk signals (see section L). Full attribution + EHO logo + AgencyDisclosure + AntiDiscriminationNotice verification requires the Claude reasoning layer that did not run on this PR.
 
           ## I. Fair Housing / advertising language
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Deterministic compliance-language scan covers 7 Fair Housing rules (familial status, source of income, criminal history, disability, national origin, sex, religion). Highest severity detected: ${LANGUAGE_HIGHEST_SEVERITY}. Full context-aware Fair Housing review requires the Claude reasoning layer that did not run on this PR.
 
           ## J. Data persistence and media integrity
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Deterministic listing-flow scan identified ${FLOW_WORKFLOWS_TOUCHED} workflow surface(s) touched, highest risk ${FLOW_HIGHEST_RISK} (see section L). Save Draft → DB → reload + media-upload → R2 → public-display end-to-end verification requires the Claude reasoning layer that did not run on this PR.
 
           ## K. Security / privacy / role access
 
-          LIMITED — Sentinel-L could not complete its investigation; static + live verification was not performed.
+          LIMITED — Claude reasoning required. Agent PII masking + broker-vs-agent role checks + audit-event logging cannot be evaluated by static scan alone.
 
           ## L. Evidence quality: live proof vs code-only inference
 
-          Reason: ${reason}. Manual broker workflow verification is required before this PR is merged. See workflow run for forensic detail.
+          Reason: ${reason}.
+
+          ${DETERMINISTIC_SUMMARY_MD}
+
+          **Evidence quality**: deterministic static-code signals only. No live preview-deployment probe was performed. No Claude reasoning was applied. Manual broker workflow verification is required before this PR is merged. See workflow run for forensic detail.
 
           Final verdict: RED
 
