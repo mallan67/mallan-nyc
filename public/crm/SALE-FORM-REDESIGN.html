@@ -5061,9 +5061,13 @@ async function fetchBuildingsFromAPI(query) {
         return buildings.map(function(b) {
             var ci = b.common_interest || b.property_type || '';
             var formType = _commonInterestToFormType(ci);
+            var rawAddr = b.address || b.street_address || '';
+            var bldgName = b.name || b.building_name || '';
+            var streetNum = rawAddr.match(/^\d+/);
+            var displayAddr = (bldgName && streetNum && bldgName.indexOf(streetNum[0]) !== -1) ? bldgName : rawAddr;
             return {
-                address: b.address || b.street_address || '',
-                name: b.name || b.building_name || '',
+                address: displayAddr,
+                name: bldgName,
                 borough: b.borough || b.city_region || '',
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
