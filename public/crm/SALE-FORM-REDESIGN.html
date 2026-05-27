@@ -8557,7 +8557,26 @@ function _populateSaleFormFromApi(listing) {
             if (!container) return;
             var div = document.createElement('div');
             div.className = 'relative group';
-            div.innerHTML = '<img src="' + url + '" class="w-full h-24 object-cover rounded-lg border"><p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (idx + 1) + '</p>';
+            div.draggable = true;
+            div.setAttribute('data-media-idx', String(idx));
+            div.ondragstart = function(e) { e.dataTransfer.setData('text/plain', String(idx)); };
+            div.ondragover = function(e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
+            div.ondragleave = function() { this.style.outline = ''; };
+            div.ondrop = function(e) {
+                e.preventDefault(); this.style.outline = '';
+                var fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                var toIdx = parseInt(this.getAttribute('data-media-idx'));
+                if (isNaN(fromIdx) || isNaN(toIdx) || fromIdx === toIdx) return;
+                var items = Array.from(container.children);
+                var fromEl = items[fromIdx];
+                var toEl = items[toIdx];
+                if (fromEl && toEl) { container.insertBefore(fromEl, fromIdx < toIdx ? toEl.nextSibling : toEl); }
+            };
+            var mediaId = m.id || m.media_id || m.MediaKey || '';
+            div.innerHTML = '<img src="' + url + '" class="w-full h-24 object-cover rounded-lg border">' +
+                '<div class="absolute top-0.5 left-0.5 bg-black/50 text-white text-[9px] px-1 rounded opacity-0 group-hover:opacity-100 cursor-grab"><i class="fas fa-grip-vertical"></i> ' + (idx + 1) + '</div>' +
+                '<button type="button" onclick="removeServerMedia(this,\'' + mediaId + '\')" class="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100">&times;</button>' +
+                '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (idx + 1) + '</p>';
             container.appendChild(div);
             if (!isFloor) photoCount++;
         });
@@ -8741,6 +8760,18 @@ function handleSaleMediaUpload(event, mediaType) {
 
     showToast(files.length + ' ' + mediaType + '(s) added. Save Draft to upload.', 'success');
     event.target.value = '';
+}
+
+function removeServerMedia(btn, mediaId) {
+    if (!confirm('Remove this photo?')) return;
+    var div = btn.closest('.group');
+    if (div) div.remove();
+    if (mediaId && _saleEditListingId) {
+        fetch('/api/crm/listings/' + encodeURIComponent(_saleEditListingId) + '/media/' + encodeURIComponent(mediaId), {
+            method: 'DELETE', credentials: 'same-origin'
+        }).catch(function() {});
+    }
+    showToast('Photo removed', 'success');
 }
 
 function removePendingMedia(index, btn) {
