@@ -8,6 +8,19 @@ var Workspace = (function () {
   'use strict';
 
   var E = Utils.esc;
+
+  function _resolveAddr(a) {
+    if (!a || typeof a !== 'object') return typeof a === 'string' ? a : 'No address';
+    if (a.street) return a.street;
+    if (a.UnparsedAddress || a.UnParsedAddress) {
+      var u = a.UnparsedAddress || a.UnParsedAddress;
+      if (a.UnitNumber && u.indexOf(a.UnitNumber) === -1) u += ', #' + a.UnitNumber;
+      return u;
+    }
+    var p = [a.StreetNumber, a.StreetDirPrefix, a.StreetName, a.StreetSuffix].filter(Boolean).join(' ');
+    if (a.UnitNumber) p += ', #' + a.UnitNumber;
+    return p.trim() || 'No address';
+  }
   var $ = Utils.formatMoney;
   var D = Utils.formatDate;
 
@@ -2001,7 +2014,7 @@ var Workspace = (function () {
               html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gold-bg transition-all cursor-pointer" ' +
                 'onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' +
                 '<div class="flex-1 min-w-0">' +
-                  '<p class="text-sm font-medium truncate">' + E(l.address || l.UnparsedAddress || 'Listing') + '</p>' +
+                  '<p class="text-sm font-medium truncate">' + E(_resolveAddr(l.address) || l.UnparsedAddress || 'Listing') + '</p>' +
                   '<p class="text-xs text-gray-500">Sent ' + (sentDateMap[lid] ? Utils.formatTimeAgo(sentDateMap[lid]) : '') + '</p>' +
                 '</div>' +
                 reactionBadge +
@@ -2090,7 +2103,7 @@ var Workspace = (function () {
       '<th class="text-left py-2">Address</th><th class="text-left py-2">Price</th><th class="text-left py-2">Beds/Baths</th><th class="py-2"></th></tr></thead><tbody>';
     listings.forEach(function (l) {
       var lid = l.id || l.listing_id || l.listingId || '';
-      var addr = l.address || l.UnparsedAddress || l.street_address || 'Listing';
+      var addr = _resolveAddr(l.address) || l.UnparsedAddress || l.street_address || 'Listing';
       html += '<tr class="border-b hover:bg-gray-50">' +
         '<td class="py-2 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' + E(addr) + '</td>' +
         '<td class="py-2">' + $(l.ListPrice || l.price || 0) + '</td>' +
@@ -4799,7 +4812,7 @@ var Workspace = (function () {
 
   function _renderListingWorkspace(c) {
     var l = _listing;
-    var address = l.address || l.UnparsedAddress || 'No address';
+    var address = _resolveAddr(l.address) || l.UnparsedAddress || 'No address';
     var price = l.ListPrice || l.price || l.list_price;
     var status = l.status || l.StandardStatus || 'Active';
 
