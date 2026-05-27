@@ -255,6 +255,7 @@ export async function GET(request: NextRequest) {
           'PropertyType', 'PropertySubType', 'StructureType',
           'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix',
           'PostalCode', 'UnitNumber', 'SubdivisionName',
+          'CityRegion', 'CountyOrParish',
           'BuildingFeatures', 'PetsAllowed', 'AttendanceType',
         ].join(',');
 
@@ -307,7 +308,7 @@ export async function GET(request: NextRequest) {
             buildings.push({
               address: fullAddr,
               name: String(r.BuildingName || ''),
-              borough: '',
+              borough: String(r.CityRegion || ''),
               zip: String(r.PostalCode || ''),
               neighborhood: String(r.SubdivisionName || ''),
               common_interest: String(r.CommonInterest || r.OwnershipType || ''),
