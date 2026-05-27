@@ -7084,6 +7084,9 @@ function submitSalesListing() {
     var fullData = collectSaleFormData();
     Object.assign(fullData, formData);
 
+    // Stop autosave during submit to prevent localStorage re-write
+    clearTimeout(autoSaveTimer);
+
     // Submit to API — create or update depending on edit mode
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         var apiCall;
@@ -7125,6 +7128,9 @@ function submitSalesListing() {
                     showToast('Listing saved but status change failed: ' + statusErr.message, 'warning');
                 }
             }
+            try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+            clearTimeout(autoSaveTimer);
+            _pendingMediaFiles = [];
             showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
             setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
             if (result.warnings && result.warnings.length > 0) {

@@ -310,7 +310,13 @@ export async function GET(request: Request) {
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams);
           if (excludeUndisclosed) {
-            (dbWhere as Record<string, unknown>).internet_address_display_yn = true;
+            const w = dbWhere as Record<string, unknown>;
+            const andClause = { OR: [
+              { listing_id: { startsWith: 'SL-' } },
+              { listing_id: { startsWith: 'RL-' } },
+              { internet_address_display_yn: true },
+            ] };
+            w.AND = Array.isArray(w.AND) ? [...w.AND, andClause] : w.AND ? [w.AND, andClause] : [andClause];
           }
           const dbTake = limit;
           const dbSkip = skip;
@@ -521,7 +527,7 @@ export async function GET(request: Request) {
             let annotatedListings = annotateCoListedSiblings(publicListings);
             if (excludeUndisclosed) {
               annotatedListings = annotatedListings.filter(
-                l => l.address?.streetName !== 'Address Undisclosed'
+                l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
               );
             }
 
@@ -1004,7 +1010,7 @@ export async function GET(request: Request) {
         let annotatedMerged = annotateCoListedSiblings(mergedListings);
         if (excludeUndisclosed) {
           annotatedMerged = annotatedMerged.filter(
-            l => l.address?.streetName !== 'Address Undisclosed'
+            l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
           );
         }
 
@@ -1143,10 +1149,11 @@ async function fetchExclusiveListings(
 ): Promise<PublicListingDTO[]> {
   try {
     const where: Prisma.ListingWhereInput = {
-      // Only Active statuses — Draft/Incomplete NEVER shown publicly
       status: buildSearchDisplayWhere().status,
-      // Distribution gates
-      ...SEARCH_DISPLAY_GATE,
+      OR: [
+        { rls_eligible: true, ...SEARCH_DISPLAY_GATE },
+        { rls_eligible: false, list_price: { gt: 0 }, address: { not: { equals: null } } },
+      ],
     };
 
     if (listingType === 'sale' || listingType === 'buy') where.listing_type = 'sale';
