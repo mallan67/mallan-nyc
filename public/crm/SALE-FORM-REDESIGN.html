@@ -4850,12 +4850,32 @@ function initLoggedInAgent() {
                 if (agentDisplay && data.user.id && data.user.name) {
                     agentDisplay.value = data.user.id + ' | ' + data.user.name;
                 }
+                // Auto-populate Listing Company and Listing Agent from logged-in user
+                var listingCompanyEl = document.getElementById('saleListingCompany');
+                if (listingCompanyEl && data.user.companyKey) {
+                    listingCompanyEl.value = data.user.companyKey;
+                    var companySearchEl = document.getElementById('saleListingCompanySearch');
+                    if (companySearchEl && data.user.companyName) {
+                        companySearchEl.value = data.user.companyName;
+                    }
+                }
+                var listingAgentEl = document.getElementById('saleListingAgent');
+                if (listingAgentEl && data.user.id) {
+                    listingAgentEl.value = data.user.id;
+                    var agentSearchEl = document.getElementById('saleListingAgentSearch');
+                    if (agentSearchEl) {
+                        agentSearchEl.value = data.user.name || '';
+                        agentSearchEl.disabled = false;
+                    }
+                }
             } else {
                 console.warn('[SaleForm] Not authenticated — agent fields left blank');
+                showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
             }
         });
     } else {
         console.warn('[SaleForm] MallanAPI not loaded — agent fields left blank');
+        showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
     }
 }
 
@@ -5325,6 +5345,40 @@ function handleSaleListingTypeChange(value) {
 
     if (isAnyInHouse) {
         _clearIdxMatchState('sale');
+    }
+
+    // InHouse (both types) + OwnerOptOut + ParticipantOnly: disable and uncheck IDX/RLS display toggles
+    var gateIds = ['saleInternetEntireListingDisplayYN', 'saleInternetAddressDisplayYN', 'saleDist_IDX', 'saleSyndicateYN'];
+    var forceGatesOff = isAnyInHouse || isOptOut;
+    gateIds.forEach(function(gid) {
+        var cb = document.getElementById(gid);
+        if (cb) {
+            if (forceGatesOff) {
+                cb.checked = false;
+                cb.disabled = true;
+            } else {
+                cb.disabled = false;
+            }
+        }
+    });
+    // Show/hide "Not applicable" notice on distribution tab
+    var distNotice = document.getElementById('saleDistNotApplicableNotice');
+    if (!distNotice) {
+        var distTab = document.getElementById('saleMainTab4');
+        if (distTab && forceGatesOff) {
+            var notice = document.createElement('div');
+            notice.id = 'saleDistNotApplicableNotice';
+            notice.className = 'mb-4 warning-banner bg-blue-50 border border-blue-300';
+            notice.innerHTML = '<i class="fas fa-info-circle text-blue-500 mt-0.5"></i><div class="text-xs text-gray-700"><p class="font-semibold text-blue-900">Distribution: Not Applicable</p><p>This listing is ' + (isAnyInHouse ? 'InHouse (mallan.nyc only)' : 'Owner Opt-Out / Participant Only') + '. IDX, RLS, and syndication controls are disabled. Distribution gates are forced OFF.</p></div>';
+            distTab.insertBefore(notice, distTab.firstChild);
+        }
+    } else {
+        if (forceGatesOff) {
+            distNotice.style.display = '';
+            distNotice.querySelector('p:last-child').textContent = 'This listing is ' + (isAnyInHouse ? 'InHouse (mallan.nyc only)' : 'Owner Opt-Out / Participant Only') + '. IDX, RLS, and syndication controls are disabled. Distribution gates are forced OFF.';
+        } else {
+            distNotice.style.display = 'none';
+        }
     }
 
     // Internal Only: force status=Draft and lock the status selector
@@ -7206,13 +7260,13 @@ const SALE_REQUIRED_FIELDS = [
     { name: 'fireplace', label: 'Fireplace', type: 'radio', tab: 2, section: 'Unit Information/Features' },
     // Tab 1: Conditional
     { id: 'saleLivingArea', label: 'Living Area (Sq Ft)', type: 'input', tab: 1, section: 'Listing Information/Condo Details', conditional: ['CONDO','COMMERCIAL_CONDO'] },
-    // Tab 3: Townhouse/Building
-    { id: 'saleTHStories', label: 'Stories (Property)', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials' },
-    { id: 'saleTHUnitsTotal', label: '# Residential Units', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials' },
-    { id: 'saleTHLotSize', label: 'Lot Size', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials' },
-    { id: 'saleTHLotSizeUnits', label: 'Lot Size Units', type: 'select', tab: 3, section: 'Townhouse-Building/Essentials' },
-    { id: 'saleTHLotDimensions', label: 'Lot Dimensions', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials' },
-    { id: 'saleTHBuildingArea', label: 'Building Area Total', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials' },
+    // Tab 3: Townhouse/Building — only required for whole-building property types
+    { id: 'saleTHStories', label: 'Stories (Property)', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING'] },
+    { id: 'saleTHUnitsTotal', label: '# Residential Units', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['MULTI_FAMILY_TOWNHOUSE','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING'] },
+    { id: 'saleTHLotSize', label: 'Lot Size', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
+    { id: 'saleTHLotSizeUnits', label: 'Lot Size Units', type: 'select', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
+    { id: 'saleTHLotDimensions', label: 'Lot Dimensions', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
+    { id: 'saleTHBuildingArea', label: 'Building Area Total', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING'] },
 ];
 
 // Check if a conditional field is relevant based on current property type
