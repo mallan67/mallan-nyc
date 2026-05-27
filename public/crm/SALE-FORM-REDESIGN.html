@@ -7202,6 +7202,8 @@ function performAutoSave() {
 }
 
 async function manualSaveDraft() {
+    // Capture the current autosave timer so we only cancel this one, not a newer one
+    var preFlightTimer = autoSaveTimer;
     // Step 1: Save/create listing via API
     parseSaleAddress();
     updateSaleAddressDerived();
@@ -7244,6 +7246,8 @@ async function manualSaveDraft() {
                 }
             }
 
+            // Cancel only the pre-flight autosave timer, not any newer one from edits during save
+            if (autoSaveTimer === preFlightTimer) clearTimeout(autoSaveTimer);
             // Clear localStorage draft — now saved to DB, no longer "unsaved browser draft"
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
 
@@ -8191,6 +8195,28 @@ function _populateSaleFormFromApi(listing) {
         setVal('saleAuctionEndDate', dtLocal(listing.auction_end_date || raw.auction_end_date));
         setVal('saleAuctionTermsUrl', listing.auction_terms_url || raw.auction_terms_url || '');
         if (typeof toggleSaleAuctionFields === 'function') toggleSaleAuctionFields();
+    }
+
+    // Render existing media into preview containers
+    if (media && media.length > 0) {
+        var photoContainer = document.getElementById('salePhotoPreview');
+        var floorContainer = document.getElementById('saleFloorplanPreview');
+        var photoCount = 0;
+        media.forEach(function(m, idx) {
+            var url = m.heroUrl || m.url || m.thumbUrl || '';
+            if (!url) return;
+            var isFloor = (m.type === 'floorplan' || m.type === 'FloorPlan' || (m.caption && m.caption.toLowerCase().includes('floor')));
+            var container = isFloor ? floorContainer : photoContainer;
+            if (!container) return;
+            var div = document.createElement('div');
+            div.className = 'relative group';
+            div.innerHTML = '<img src="' + url + '" class="w-full h-24 object-cover rounded-lg border">' +
+                '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (idx + 1) + '</p>';
+            container.appendChild(div);
+            if (!isFloor) photoCount++;
+        });
+        var countEl = document.getElementById('salePhotoCount');
+        if (countEl) countEl.textContent = photoCount + ' / 100 uploaded';
     }
 
     // Trigger calculations

@@ -396,7 +396,7 @@ export async function POST(req: NextRequest) {
     const meta = (dbErr as { meta?: unknown })?.meta;
     console.error('[POST /api/crm/listings] DB error:', { code, meta, message: msg });
     return NextResponse.json(
-      { error: 'Failed to create listing', detail: msg, prismaCode: code },
+      { error: 'Failed to create listing. Please try again or contact support.', prismaCode: code },
       { status: 500 }
     );
   }
