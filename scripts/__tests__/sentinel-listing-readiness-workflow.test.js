@@ -408,6 +408,85 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(detStep.run).toMatch(/Listing flow/);
     });
 
+    // Sentinel-L.2 patch (Maya's C+D) — prompt must explicitly tell Claude
+    // the writer is allowed and required. Previously the "report-only"
+    // framing was ambiguous; this pin asserts the explicit FIRST ACTION.
+    test('prompt has explicit FIRST REQUIRED ACTION naming the writer script', () => {
+      expect(invokeStep.with.prompt).toMatch(/FIRST REQUIRED ACTION/);
+      expect(invokeStep.with.prompt).toMatch(/You MUST call the writer script/);
+      expect(invokeStep.with.prompt).toMatch(/BOTH ALLOWED\s+AND REQUIRED/);
+      // The script name must be cited verbatim in the FIRST ACTION block.
+      expect(invokeStep.with.prompt).toMatch(/scripts\/sentinel-write-listing-audit\.mjs/);
+    });
+
+    test('prompt includes a worked example of the writer invocation', () => {
+      // The example uses the canonical heredoc shape so Claude can
+      // pattern-match it verbatim.
+      expect(invokeStep.with.prompt).toMatch(/WORKED EXAMPLE/);
+      expect(invokeStep.with.prompt).toMatch(/node scripts\/sentinel-write-listing-audit\.mjs <<'AUDIT_EOF'/);
+      expect(invokeStep.with.prompt).toMatch(/AUDIT_EOF/);
+      // The example must contain Finding matrix + 12 sections + verdict +
+      // closing line so Claude has a complete template to fill in.
+      expect(invokeStep.with.prompt).toMatch(/## Finding matrix/);
+      expect(invokeStep.with.prompt).toMatch(/Sentinel-L: report-only — no changes made/);
+    });
+
+    test('prompt clarifies that "report-only" does NOT mean "do not write audit"', () => {
+      // The previous prompt was ambiguous about what "report-only" meant.
+      // The L.2 patch makes the distinction explicit.
+      expect(invokeStep.with.prompt).toMatch(/"Report-only" means "do NOT modify production code"/);
+      expect(invokeStep.with.prompt).toMatch(/does NOT mean "do not write the audit report file"/);
+    });
+
+    // Sentinel-L.2 patch (Maya's spec point 10) — when Claude does not
+    // write, the workflow must compute a deterministic verdict from the
+    // JSON facts. Any P0 risk => RED. No P0 risk + Claude exited
+    // success => YELLOW. Anything else => RED (fail-closed).
+    test('post-Claude step computes a deterministic verdict when SHA == skeleton', () => {
+      // The synthesis logic must inspect all 3 deterministic JSONs.
+      expect(postclaudeStep.run).toMatch(/deterministic synthesis/i);
+      expect(postclaudeStep.run).toMatch(/Sentinel-L\.2 deterministic synthesis inputs:/);
+      // P0-or-no-coverage policy must be cited explicitly.
+      expect(postclaudeStep.run).toMatch(/lang_max.*P0/);
+      expect(postclaudeStep.run).toMatch(/flow_max.*P0/);
+      expect(postclaudeStep.run).toMatch(/field_no_cov/);
+      // YELLOW path must be guarded by CLAUDE_OUTCOME=success AND no-P0.
+      expect(postclaudeStep.run).toMatch(/CLAUDE_OUTCOME.*=.*success/);
+      expect(postclaudeStep.run).toMatch(/det_verdict="YELLOW"/);
+      // Default must remain RED — explicit assignment proves it.
+      expect(postclaudeStep.run).toMatch(/det_verdict="RED"/);
+      // The verdict swap (RED -> YELLOW) when synthesis chooses YELLOW
+      // must happen via sed on the fallback file.
+      expect(postclaudeStep.run).toMatch(/sed -i 's\/\^Final verdict: RED\$\/Final verdict: YELLOW\//);
+    });
+
+    test('post-Claude step emits deterministic-synthesis outputs for downstream visibility', () => {
+      expect(postclaudeStep.run).toMatch(/deterministic_synthesis=true/);
+      expect(postclaudeStep.run).toMatch(/deterministic_lang_max/);
+      expect(postclaudeStep.run).toMatch(/deterministic_flow_max/);
+      expect(postclaudeStep.run).toMatch(/deterministic_field_no_cov/);
+    });
+
+    // Sentinel-L.2 patch (Maya's spec point 9) — breadcrumbs around the
+    // major phases so the workflow log makes forensic investigation
+    // self-service.
+    test('workflow has log breadcrumbs around deterministic + pre-Claude phases', () => {
+      const detStep = doc.jobs.audit.steps.find(
+        (s) => s.name === 'Run Sentinel-L.2 deterministic audit scripts',
+      );
+      const breadcrumbStep = doc.jobs.audit.steps.find(
+        (s) => s.name === 'Sentinel-L.2 breadcrumb — pre-Claude',
+      );
+      // Deterministic step has start + end breadcrumbs.
+      expect(detStep.run).toMatch(/Sentinel-L\.2 breadcrumb: BEGIN deterministic scripts/);
+      expect(detStep.run).toMatch(/Sentinel-L\.2 breadcrumb: END deterministic scripts/);
+      // Pre-Claude breadcrumb step exists with if: always().
+      expect(breadcrumbStep).toBeDefined();
+      expect(breadcrumbStep.if).toMatch(/always\(\)/);
+      expect(breadcrumbStep.run).toMatch(/BEFORE Claude invocation/);
+      expect(breadcrumbStep.run).toMatch(/Claude action outcome \(post-invoke\)/);
+    });
+
     // Codex P0 #3 — extraction must reject duplicate verdict lines and
     // collapse to fallback RED.
     test('post-Claude step rejects duplicate verdict lines (Codex P0 #3)', () => {

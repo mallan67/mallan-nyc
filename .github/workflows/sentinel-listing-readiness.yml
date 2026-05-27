@@ -165,6 +165,9 @@ jobs:
           SHORT_SHA: ${{ steps.pr.outputs.short_sha }}
         run: |
           set -euo pipefail
+          echo "::group::Sentinel-L.2 breadcrumb — deterministic step START"
+          echo "Sentinel-L.2 breadcrumb: BEGIN deterministic scripts @ $(date -u +%FT%TZ)"
+          echo "::endgroup::"
 
           # Find the merge-base with main so we diff against the PR's actual
           # changes, not the whole branch history.
@@ -206,6 +209,9 @@ jobs:
           echo "  field-contract:        $field_touched touched fields"
           echo "  compliance-language:   $language_total violations (highest: $language_max)"
           echo "  listing-flow:          $flow_count workflows touched (highest: $flow_max)"
+          echo ""
+          echo "Sentinel-L.2 breadcrumb: END deterministic scripts @ $(date -u +%FT%TZ)"
+          echo "Sentinel-L.2 breadcrumb: JSON artifacts written to $inputs_dir"
 
           # Sentinel-L.2 (improvement) — build a multi-line markdown summary
           # that the fallback step can embed in the RED report when Claude
@@ -375,6 +381,87 @@ jobs:
 
             You are running Sentinel-L: Listing Workflow Readiness audit on
             PR #${{ steps.pr.outputs.pr_number }} at commit ${{ steps.pr.outputs.pr_head_sha }}.
+
+            ### FIRST REQUIRED ACTION — MANDATORY
+
+            **You MUST call the writer script `scripts/sentinel-write-listing-audit.mjs`.**
+            Writing the audit report file via this script is BOTH ALLOWED
+            AND REQUIRED. "Report-only" means "do NOT modify production code"
+            — it does NOT mean "do not write the audit report file". The
+            audit report IS the deliverable; producing it is your job.
+
+            The writer is explicitly permitted by your allow-list as:
+              `Bash(node scripts/sentinel-write-listing-audit.mjs *)`
+
+            **WORKED EXAMPLE — invoke the writer via Bash + heredoc:**
+
+                node scripts/sentinel-write-listing-audit.mjs <<'AUDIT_EOF'
+                # Sentinel-L — Listing Workflow Readiness PR #${{ steps.pr.outputs.pr_number }}
+
+                commit: ${{ steps.pr.outputs.pr_head_sha }}
+                status: COMPLETE
+
+                ---
+
+                ## Finding matrix
+
+                | file | changed lines | affected workflow | field contracts touched | user role affected | compliance surface | risk | proof level | finding | required action |
+                |------|---------------|-------------------|-------------------------|--------------------|--------------------|------|-------------|---------|-----------------|
+                | <file>      | <n>         | <wf>              | <fields>                | broker             | REBNY              | P1   | static code | <one-line finding> | <one-line action> |
+
+                ## A. Syntax / structural correctness
+                <one paragraph + file:line>
+
+                ## B. Field contract correctness
+                <one paragraph + file:line>
+
+                ## C. Business logic correctness
+                <one paragraph + file:line>
+
+                ## D. Broker / agent usability
+                <one paragraph + file:line>
+
+                ## E. Client-facing usability
+                <one paragraph + file:line>
+
+                ## F. REBNY / RLS / RESO / IDX Plus compliance
+                <one paragraph + file:line>
+
+                ## G. Trestle / Cotality Web API contract
+                <one paragraph + file:line>
+
+                ## H. NYC / NYS real estate advertising law
+                <one paragraph + file:line>
+
+                ## I. Fair Housing / advertising language
+                <one paragraph + file:line>
+
+                ## J. Data persistence and media integrity
+                <one paragraph + file:line>
+
+                ## K. Security / privacy / role access
+                <one paragraph + file:line>
+
+                ## L. Evidence quality: live proof vs code-only inference
+                <one paragraph + file:line>
+
+                Final verdict: GREEN
+                <or YELLOW / RED — exactly one verdict line>
+
+                Sentinel-L: report-only — no changes made.
+                AUDIT_EOF
+
+            On success the script prints one JSON line to stdout (path,
+            sha256, bytes, verdict). On failure it writes an ERROR_CODE
+            to stderr and exits non-zero. Read stderr, fix the structural
+            issue, and re-invoke.
+
+            **If you do NOT call the writer, the workflow's post-Claude
+            diagnostic will fire RED with the deterministic JSON findings
+            embedded as the only evidence — and the PR comment will show
+            that no Claude reasoning occurred. That is the correct
+            outcome for a non-functioning audit. Do not avoid it by
+            pretending to audit; just call the writer with what you have.**
 
             ### ABSOLUTE RESTRICTIONS
 
@@ -592,6 +679,17 @@ jobs:
       # must still produce a RED/LIMITED report even when Claude never
       # invokes the writer" rule.
       # ----------------------------------------------------------------------
+      - name: Sentinel-L.2 breadcrumb — pre-Claude
+        if: always()
+        env:
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          DET_INPUTS_DIR: ${{ steps.deterministic.outputs.inputs_dir }}
+        run: |
+          echo "Sentinel-L.2 breadcrumb: BEFORE Claude invocation @ $(date -u +%FT%TZ)"
+          echo "Sentinel-L.2 breadcrumb: deterministic inputs available at $DET_INPUTS_DIR"
+          ls -la "$DET_INPUTS_DIR" 2>&1 || true
+          echo "Sentinel-L.2 breadcrumb: Claude action outcome (post-invoke) = $CLAUDE_OUTCOME"
+
       - name: Verify Claude audit OR write fallback report (always runs)
         id: postclaude
         if: always()
@@ -710,14 +808,79 @@ jobs:
 
           # ── Case 2: file exists but equals the skeleton (zero-Write
           #   class failure — script was never invoked, OR every script
-          #   call was rejected/parser-aborted) ──────────────────────────
+          #   call was rejected/parser-aborted, OR claude-code-action
+          #   skipped due to workflow-validation on a self-modifying PR) ──
           current_sha=$(sha256sum "$REPORT_PATH" | awk '{print $1}')
           if [ "$current_sha" = "$SKELETON_SHA" ]; then
-            echo "::warning::Audit file SHA == skeleton SHA (zero-Write, outcome=$CLAUDE_OUTCOME). Writing fallback RED report."
-            write_fallback_report "Claude did not update the skeleton (zero-Write; SHA unchanged from baseline)"
-            echo "verdict=RED" >> "$GITHUB_OUTPUT"
+            # Sentinel-L.2 deterministic synthesis fallback (per Maya's spec
+            # point 10): when Claude does not write, compute a deterministic
+            # verdict from the JSON facts the static scripts already produced.
+            # The policy is fail-closed: any P0 risk signal in any of the 3
+            # deterministic dimensions => RED. Otherwise YELLOW with the
+            # explicit caveat that no Claude reasoning + no live proof
+            # occurred. RED is never weakened; YELLOW is only chosen when
+            # every deterministic signal is benign AND Claude did not crash.
+            det_verdict="RED"
+            det_reason="Claude did not update the skeleton (zero-Write; SHA unchanged from baseline)"
+            field_path="${{ steps.deterministic.outputs.field_contract_path }}"
+            language_path="${{ steps.deterministic.outputs.compliance_language_path }}"
+            flow_path="${{ steps.deterministic.outputs.listing_flow_path }}"
+            # Only consider YELLOW if Claude exited cleanly (success) AND we
+            # have all 3 deterministic JSONs to inspect. Any other state is
+            # RED — including crash, timeout, or partial deterministic data.
+            if [ "$CLAUDE_OUTCOME" = "success" ] \
+              && [ -f "$field_path" ] \
+              && [ -f "$language_path" ] \
+              && [ -f "$flow_path" ]; then
+              # All three highest-risk / no-coverage signals must be clean
+              # to qualify for the deterministic YELLOW path.
+              lang_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_severity||'none')" "$language_path")
+              flow_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_risk||'none')" "$flow_path")
+              field_no_cov=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.fields_with_no_coverage||0)" "$field_path")
+              echo "Sentinel-L.2 deterministic synthesis inputs:"
+              echo "  compliance-language highest_severity: $lang_max"
+              echo "  listing-flow highest_risk:            $flow_max"
+              echo "  field-contract fields_with_no_coverage: $field_no_cov"
+              # P0 in either dimension OR any uncovered touched field => RED.
+              if [ "$lang_max" != "P0" ] && [ "$flow_max" != "P0" ] && [ "$field_no_cov" = "0" ]; then
+                det_verdict="YELLOW"
+                det_reason="Claude reasoning layer did not run on this PR (deterministic-only synthesis); no P0 deterministic signals were detected. YELLOW because no live broker probe occurred and the audit lacks the Claude reasoning layer — broker must manually verify the workflow."
+              else
+                det_verdict="RED"
+                # Build a specific RED reason citing the triggering signal.
+                triggers=""
+                [ "$lang_max" = "P0" ] && triggers="$triggers P0 compliance-language violation;"
+                [ "$flow_max" = "P0" ] && triggers="$triggers P0 listing-flow risk;"
+                [ "$field_no_cov" != "0" ] && triggers="$triggers ${field_no_cov} touched field(s) with no observed coverage;"
+                det_reason="Claude reasoning layer did not run (zero-Write).${triggers} Deterministic-only signals require the Claude reasoning layer and/or live broker proof before this PR can be safely merged."
+              fi
+            else
+              det_reason="Claude reasoning layer did not run (outcome=$CLAUDE_OUTCOME or deterministic inputs unavailable). RED forced because synthesis prerequisites are not met."
+            fi
+            echo "::warning::Audit file SHA == skeleton SHA (zero-Write, outcome=$CLAUDE_OUTCOME). Deterministic synthesis verdict: $det_verdict."
+            # Write the fallback with the computed verdict. The function
+            # currently hardcodes RED — when synthesis chooses YELLOW we
+            # post-process the file to replace `Final verdict: RED` with
+            # `Final verdict: YELLOW` and prepend the synthesis reason
+            # into section L. Doing it as a post-write swap keeps the
+            # main fallback body single-sourced.
+            write_fallback_report "$det_reason"
+            if [ "$det_verdict" = "YELLOW" ]; then
+              # Replace the verdict line. The fallback body already cites
+              # "deterministic static-code signals only" — that wording is
+              # correct for YELLOW.
+              sed -i 's/^Final verdict: RED$/Final verdict: YELLOW/' "$REPORT_PATH"
+              echo "Sentinel-L.2 deterministic synthesis: chose YELLOW (no P0 signals; live proof still missing)."
+            else
+              echo "Sentinel-L.2 deterministic synthesis: chose RED ($det_reason)."
+            fi
+            echo "verdict=$det_verdict" >> "$GITHUB_OUTPUT"
             echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
             echo "fallback=true" >> "$GITHUB_OUTPUT"
+            echo "deterministic_synthesis=true" >> "$GITHUB_OUTPUT"
+            echo "deterministic_lang_max=$lang_max" >> "$GITHUB_OUTPUT"
+            echo "deterministic_flow_max=$flow_max" >> "$GITHUB_OUTPUT"
+            echo "deterministic_field_no_cov=$field_no_cov" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
