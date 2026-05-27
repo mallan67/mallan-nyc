@@ -8197,8 +8197,99 @@ var SALE_FIELD_MAP = [
   { rls: 'BasementYN', form: 'saleTHBasementYN', type: 'bool', src: 'raw' },
   { rls: 'LotSizeArea', form: 'saleTHLotSize', type: 'number', src: 'raw' },
 
-  // ── Media ──
+  // ── Townhouse additional ──
+  { rls: 'saleTHDescription', form: 'saleTHDescription', type: 'text', src: 'raw' },
+  { rls: 'saleTHLayout', form: 'saleTHLayout', type: 'text', src: 'raw' },
+  { rls: 'saleTHFinancing', form: 'saleTHFinancing', type: 'text', src: 'raw' },
+  { rls: 'saleTHNotes', form: 'saleTHNotes', type: 'text', src: 'raw' },
+  { rls: 'saleTHUnitsTotal', form: 'saleTHUnitsTotal', type: 'number', src: 'raw' },
+  { rls: 'saleTHNumBuildings', form: 'saleTHNumBuildings', type: 'number', src: 'raw' },
+  { rls: 'saleTHLotDimensions', form: 'saleTHLotDimensions', type: 'text', src: 'raw' },
+  { rls: 'saleTHLotFeatures', form: 'saleTHLotFeatures', type: 'text', src: 'raw' },
+  { rls: 'saleTHLotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw' },
+  { rls: 'saleTHLotSizeSource', form: 'saleTHLotSizeSource', type: 'text', src: 'raw' },
+  { rls: 'saleTHGrossSqFt', form: 'saleTHGrossSqFt', type: 'number', src: 'raw' },
+  { rls: 'saleTHNetSqFt', form: 'saleTHNetSqFt', type: 'number', src: 'raw' },
+  { rls: 'saleTHFoundation', form: 'saleTHFoundation', type: 'text', src: 'raw' },
+  { rls: 'saleTHOverFAR', form: 'saleTHOverFAR', type: 'text', src: 'raw' },
+  { rls: 'saleTHUnderFAR', form: 'saleTHUnderFAR', type: 'text', src: 'raw' },
+  { rls: 'saleTHLandLeaseYN', form: 'saleTHLandLeaseYN', type: 'text', src: 'raw' },
+  { rls: 'saleTHLandLeaseAmt', form: 'saleTHLandLeaseAmt', type: 'number', src: 'raw' },
+  { rls: 'saleTHLandLeaseFreq', form: 'saleTHLandLeaseFreq', type: 'text', src: 'raw' },
+  { rls: 'saleTHLandLeaseExp', form: 'saleTHLandLeaseExp', type: 'date', src: 'raw' },
+  { rls: 'saleTHAttachedGarage', form: 'saleTHAttachedGarage', type: 'text', src: 'raw' },
+  { rls: 'saleTHOpenParkingYN', form: 'saleTHOpenParkingYN', type: 'text', src: 'raw' },
+  { rls: 'saleTHOpenSpaces', form: 'saleTHOpenSpaces', type: 'number', src: 'raw' },
+  { rls: 'saleTHLandmark', form: 'saleTHLandmark', type: 'text', src: 'raw' },
+  { rls: 'saleTHBuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw' },
+  { rls: 'saleTHCommercialYN', form: 'saleTHCommercialYN', type: 'text', src: 'raw' },
+  { rls: 'saleTHDevStatus', form: 'saleTHDevStatus', type: 'text', src: 'raw' },
+  { rls: 'saleTHCapRate', form: 'saleTHCapRate', type: 'number', src: 'raw' },
+  { rls: 'saleTHProfUnits', form: 'saleTHProfUnits', type: 'number', src: 'raw' },
+  { rls: 'saleTHRetailUnits', form: 'saleTHRetailUnits', type: 'number', src: 'raw' },
+  { rls: 'saleTHVacantUnits', form: 'saleTHVacantUnits', type: 'number', src: 'raw' },
+
+  // ── Unit additional ──
+  { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw' },
+  { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
+  { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
+  { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
+  { rls: 'saleUnitShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
+  { rls: 'salePercentCommon', form: 'salePercentCommon', type: 'number', src: 'raw' },
+  { rls: 'saleLivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw' },
+
+  // ── Selects not yet mapped ──
+  { rls: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
+  { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw' },
+
+  // ── Financial additional ──
+  { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
+  { rls: 'saleConcessionComments', form: 'saleConcessionComments', type: 'text', src: 'raw' },
+  { rls: 'saleExclusiveCommission', form: 'saleExclusiveCommission', type: 'text', src: 'raw' },
+  { rls: 'saleCommissionType', form: 'saleCommissionType', type: 'text', src: 'raw' },
+
+  // ── Distribution additional ──
+  { rls: 'saleListingUrl', form: 'saleListingUrl', type: 'text', src: 'raw' },
+  { rls: 'saleWebDisplayAddress', form: 'saleWebDisplayAddress', type: 'text', src: 'raw' },
+  { rls: 'saleWebHeadline', form: 'saleWebHeadline', type: 'text', src: 'raw' },
+
+  // ── Building additional ──
+  { rls: 'saleBldgBorough', form: 'saleBldgBorough', type: 'text', src: 'raw' },
+  { rls: 'saleBldgCity', form: 'saleBldgCity', type: 'text', src: 'raw' },
+  { rls: 'saleBldgState', form: 'saleBldgState', type: 'text', src: 'raw' },
+  { rls: 'saleBldgZip', form: 'saleBldgZip', type: 'text', src: 'raw' },
+  { rls: 'saleBldgCrossStreet2', form: 'saleBldgCrossStreet2', type: 'text', src: 'raw' },
+  { rls: 'saleBldgResidentialUnits', form: 'saleBldgResidentialUnits', type: 'number', src: 'raw' },
+  { rls: 'saleBldgCommercialUnits', form: 'saleBldgCommercialUnits', type: 'number', src: 'raw' },
+  { rls: 'saleBldgParkingSpaces', form: 'saleBldgParkingSpaces', type: 'number', src: 'raw' },
+  { rls: 'saleBldgTotalShares', form: 'saleBldgTotalShares', type: 'number', src: 'raw' },
+  { rls: 'saleBldgUnderlyingMortgage', form: 'saleBldgUnderlyingMortgage', type: 'text', src: 'raw' },
+  { rls: 'saleBldgCapitalReserves', form: 'saleBldgCapitalReserves', type: 'text', src: 'raw' },
+  { rls: 'saleBldgAnnualTaxes', form: 'saleBldgAnnualTaxes', type: 'number', src: 'raw' },
+  { rls: 'saleBldgTaxAbatementExpYear', form: 'saleBldgTaxAbatementExpYear', type: 'text', src: 'raw' },
+  { rls: 'saleBldgDescription', form: 'saleBldgDescription', type: 'text', src: 'raw' },
+  { rls: 'saleBldgWebsite', form: 'saleBldgWebsite', type: 'text', src: 'raw' },
+  { rls: 'saleBldgMaxSubletYears', form: 'saleBldgMaxSubletYears', type: 'number', src: 'raw' },
+  { rls: 'saleBldgSubletFee', form: 'saleBldgSubletFee', type: 'text', src: 'raw' },
+  { rls: 'saleBldgMaxFinancing', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
+  { rls: 'saleBldgMinDownPayment', form: 'saleBldgMinDownPayment', type: 'text', src: 'raw' },
+  { rls: 'saleBldgDTIRatio', form: 'saleBldgDTIRatio', type: 'text', src: 'raw' },
+  { rls: 'saleBldgPostCloseLiquidity', form: 'saleBldgPostCloseLiquidity', type: 'text', src: 'raw' },
+  { rls: 'saleBldgBoardApproval', form: 'saleBldgBoardApproval', type: 'text', src: 'raw' },
+  { rls: 'saleBldgPetWeightLimit', form: 'saleBldgPetWeightLimit', type: 'number', src: 'raw' },
+  { rls: 'saleBldgPetNotes', form: 'saleBldgPetNotes', type: 'text', src: 'raw' },
+
+  // ── Dates additional ──
+  { rls: 'saleFirstCoBroke', form: 'saleFirstCoBroke', type: 'date', src: 'raw' },
+  { rls: 'saleAvailableOccupancy', form: 'saleAvailableOccupancy', type: 'date', src: 'raw' },
+
+  // ── Media / Virtual Tours ──
   { rls: 'VirtualTourURLUnbranded', form: 'saleVirtualTourUnbranded', type: 'text', src: 'raw' },
+  { rls: 'saleVirtualTourUnbranded2', form: 'saleVirtualTourUnbranded2', type: 'text', src: 'raw' },
+  { rls: 'saleVirtualTourUnbranded3', form: 'saleVirtualTourUnbranded3', type: 'text', src: 'raw' },
+  { rls: 'saleVideoUrl', form: 'saleVideoUrl', type: 'text', src: 'raw' },
+  { rls: 'saleVideoTourUrl', form: 'saleVideoTourUrl', type: 'text', src: 'raw' },
+  { rls: 'saleMatterportUrl', form: 'saleMatterportUrl', type: 'text', src: 'raw' },
 
   // ── Commercial ──
   { rls: 'commercial_sub_type', form: 'saleCommSubtype', type: 'text', src: 'raw' },
@@ -8216,12 +8307,37 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   { rls: 'BuildingPetsAllowed', name: 'saleBuildingPetsAllowed' },
   { rls: 'AttendanceType', name: 'saleAttendanceType' },
   { rls: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
+  { rls: 'Heating', name: 'saleHeating' },
+  { rls: 'Cooling', name: 'saleCooling' },
+  { rls: 'saleCommSubtype', name: 'saleCommSubtype' },
+];
+
+// Building feature checkboxes (individual IDs → BuildingFeatures array)
+var SALE_BUILDING_FEATURE_IDS = [
+  'saleBldgElevator', 'saleBldgGym', 'saleBldgPool', 'saleBldgRoofDeck',
+  'saleBldgCourtyard', 'saleBldgPlayroom', 'saleBldgLounge', 'saleBldgBusinessCenter',
+  'saleBldgConferenceRoom', 'saleBldgBikeRoom', 'saleBldgStorage', 'saleBldgParking',
+  'saleBldgValet', 'saleBldgPackageRoom', 'saleBldgColdStorage', 'saleBldgLiveInSuper',
+  'saleBldgOnSiteManager', 'saleBldgWheelchairAccess', 'saleBldgSpa',
+];
+
+// Syndication checkboxes (individual IDs)
+var SALE_SYNDICATION_IDS = [
+  'saleDist_Listhub', 'saleDist_NYMLS', 'saleDist_Realtor',
+  'saleDist_RLS', 'saleDist_RPX', 'saleDist_WWW', 'saleSendToAll',
 ];
 
 // Radio-button fields
 var SALE_RADIO_MAP = [
   { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
   { rls: 'PropertySubType', name: 'salePropertyType', src: 'raw' },
+  { rls: 'saleBuildingStatus', name: 'saleBuildingStatus', src: 'raw' },
+  { rls: 'saleCoolingYN', name: 'saleCoolingYN', src: 'raw' },
+  { rls: 'saleWasherDryerAllowed', name: 'saleWasherDryerAllowed', src: 'raw' },
+  { rls: 'saleHasViews', name: 'saleHasViews', src: 'raw' },
+  { rls: 'saleGarageSpaces', name: 'saleGarageSpaces', src: 'raw' },
+  { rls: 'fireplace', name: 'fireplace', src: 'raw' },
+  { rls: 'saleCommercialOwnership', name: 'saleCommercialOwnership', src: 'raw' },
 ];
 
 function _populateSaleFormFromApi(listing) {
@@ -8296,6 +8412,31 @@ function _populateSaleFormFromApi(listing) {
             cb.checked = vals.includes(cb.value);
         });
     });
+
+    // ── Building feature checkboxes ──
+    var bldgFeatures = raw.BuildingFeatures;
+    if (Array.isArray(bldgFeatures)) {
+        SALE_BUILDING_FEATURE_IDS.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var label = el.parentElement ? el.parentElement.textContent.trim() : el.value;
+            el.checked = bldgFeatures.includes(label) || bldgFeatures.includes(el.value);
+        });
+    }
+
+    // ── Syndication checkboxes ──
+    var syndTargets = raw.SyndicateTo;
+    if (Array.isArray(syndTargets)) {
+        SALE_SYNDICATION_IDS.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.checked = true;
+        });
+    }
+    if (raw.SyndicateYN !== undefined) setChecked('saleSyndicateYN', raw.SyndicateYN);
+    if (raw.saleDist_VOW !== undefined) setChecked('saleDist_VOW', raw.saleDist_VOW);
+
+    // ── Status dropdown ──
+    setVal('saleStatus', listing.status || raw.StandardStatus || raw.MlsStatus || 'Draft');
 
     // ── Composite address field (the main input the user sees) ──
     var streetAddr = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
