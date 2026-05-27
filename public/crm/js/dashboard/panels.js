@@ -9538,7 +9538,8 @@ var Panels = (function () {
               ? '<button class="btn btn-sm btn-outline" onclick="Panels._editPastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Edit Past Deal"><i class="fas fa-edit"></i></button>' +
                 '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
               : '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>') +
+                '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
+                '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Delete Listing"><i class="fas fa-trash"></i></button>') +
           '</div></td>' +
         '</tr>';
       });
@@ -9564,6 +9565,28 @@ var Panels = (function () {
   function _switchMyListingsStatus(status) {
     _myListingsStatus = status;
     _renderMyListings(_container());
+  }
+
+  function _deleteListing(listingId, address) {
+    CRM.openModal('Delete Listing', '<div class="space-y-4">' +
+      '<p class="text-sm text-gray-700">Are you sure you want to delete <strong>' + E(address) + '</strong>?</p>' +
+      '<p class="text-xs text-gray-500">The listing will be set to Withdrawn status. This action is recorded in the audit log.</p>' +
+      '<div class="flex gap-3 justify-end mt-4">' +
+        '<button class="btn btn-sm btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
+        '<button class="btn btn-sm bg-red-600 text-white hover:bg-red-700" onclick="Panels._confirmDeleteListing(\'' + E(listingId) + '\')">Delete</button>' +
+      '</div>' +
+    '</div>');
+  }
+
+  function _confirmDeleteListing(listingId) {
+    MallanAPI.listings.remove(listingId).then(function () {
+      CRM.closeModal();
+      showToast('Listing deleted (set to Withdrawn).', 'success');
+      _renderMyListings(_container());
+    }).catch(function (err) {
+      CRM.closeModal();
+      showToast('Failed to delete listing: ' + (err.error || err.message || 'Unknown error'), 'error');
+    });
   }
 
   function _addOpenHouse(listingId, address) {
@@ -13366,6 +13389,8 @@ var Panels = (function () {
     _switchMyListingsStatus: _switchMyListingsStatus,
     _addOpenHouse: _addOpenHouse,
     _submitOpenHouse: _submitOpenHouse,
+    _deleteListing: _deleteListing,
+    _confirmDeleteListing: _confirmDeleteListing,
     _switchMyClientsView: _switchMyClientsView,
     _searchMyClients: _searchMyClients,
     _toggleSection: _toggleSection,
