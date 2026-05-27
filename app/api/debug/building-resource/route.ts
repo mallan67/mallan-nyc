@@ -1,13 +1,13 @@
 // TEMPORARY DIAGNOSTIC — Probes /odata/Building to determine what REBNY's
 // IDX Plus feed actually returns. Broker-only. Remove after investigation.
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
+import { requireBroker, isAuthError } from '@/lib/auth';
 import { getAccessToken } from '@/lib/idx/auth';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAgentOrBroker(request);
+  const auth = await requireBroker(request);
   if (isAuthError(auth)) return auth;
 
   const results: Record<string, unknown> = {
