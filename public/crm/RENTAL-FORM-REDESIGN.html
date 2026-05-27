@@ -4331,21 +4331,53 @@ let buildingDatabase = [];
 let _buildingSearchTimeout = null;
 
 // Fetch buildings from API by address query
+// Map RESO CommonInterest enum values to rental form rentalPropertyType radio values.
+// Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §5, §11
+function _commonInterestToFormType(ci) {
+    if (!ci) return '';
+    var map = {
+        'Condominium': 'Condo',
+        'StockCooperative': 'Coop',
+        'Condop': 'Condop',
+        'Condo': 'Condo',
+        'Co-op': 'Coop',
+        'Coop': 'Coop',
+    };
+    return map[ci] || ci;
+}
+
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
     try {
         var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
-        if (!resp.ok) return [];
-        var results = await resp.json();
-        return (results.buildings || results || []).map(function(b) {
+        var body;
+        try { body = await resp.json(); } catch (_) { body = {}; }
+        var hint = body._errorHint || null;
+
+        if (resp.status === 401) {
+            showToast(hint || 'Session expired. Please log in again.', 'error');
+            return [];
+        }
+        if (!resp.ok) {
+            showToast(hint || 'Building lookup temporarily unavailable.', 'warning');
+            return [];
+        }
+        var buildings = body.buildings || [];
+        if (buildings.length === 0 && hint) {
+            showToast(hint, 'warning');
+        }
+        return buildings.map(function(b) {
+            var ci = b.common_interest || b.property_type || '';
+            var formType = _commonInterestToFormType(ci);
             return {
                 address: b.address || b.street_address || '',
                 name: b.name || b.building_name || '',
                 borough: b.borough || b.city_region || '',
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
-                type: b.common_interest || b.property_type || '',
-                model: b.common_interest || '',
+                type: formType,
+                model: formType,
+                commonInterestRaw: ci,
                 structureType: b.structure_type || '',
                 yearBuilt: b.year_built || null,
                 totalFloors: b.stories_total || null,
@@ -4362,6 +4394,7 @@ async function fetchBuildingsFromAPI(query) {
         });
     } catch (e) {
         console.warn('[Building Search] API error:', e.message);
+        showToast('Building lookup temporarily unavailable.', 'warning');
         return [];
     }
 }
@@ -4387,13 +4420,19 @@ function searchBuildingForListing(query, prefix) {
 
         results.innerHTML = matches.map(function(b) {
             var escapedAddr = b.address.replace(/'/g, "\\'");
+            var details = [b.neighborhood, b.borough].filter(Boolean).join(', ');
+            var buildingFacts = [
+                b.totalFloors ? b.totalFloors + ' stories' : '',
+                b.yearBuilt ? 'built ' + b.yearBuilt : '',
+            ].filter(Boolean).join(' · ');
+            var subtitle = [b.name, details, buildingFacts].filter(Boolean).join(' — ');
             return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'' + prefix + '\', \'' + escapedAddr + '\')">' +
                 '<div class="flex justify-between items-center"><div>' +
                 '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
-                '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
+                '<p class="text-xs text-gray-500">' + subtitle + '</p>' +
                 '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
-                (b.model === 'Coop' || b.model === 'StockCooperative' ? 'bg-purple-100 text-purple-700' :
-                 b.model === 'Condo' || b.model === 'Condominium' ? 'bg-blue-100 text-blue-700' :
+                (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
+                 b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
                  b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
                  'bg-green-100 text-green-700') +
                 '">' + b.model + '</span></div></div>';
@@ -4402,20 +4441,22 @@ function searchBuildingForListing(query, prefix) {
 }
 
 function selectBuildingFromIDX(prefix, address) {
-    const building = buildingDatabase.find(b => b.address === address);
+    var building = buildingDatabase.find(function(b) { return b.address === address; });
     if (!building) return;
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
     setVal(prefix + 'StreetAddress', building.address);
     setVal(prefix + 'Borough', building.borough);
     setVal(prefix + 'ZipCode', building.zip);
     setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+    parseRentalAddress();
+    updateRentalAddressDerived();
 
     // Auto-detect property type from IDX
-    const typeRadio = document.querySelector(`input[name="${prefix}PropertyType"][value="${building.type}"]`);
+    var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
     if (typeRadio) { typeRadio.checked = true; applyRentalFieldRules(); }
 
     // Show IDX match banner
-    const banner = document.getElementById(prefix + 'IdxMatchBanner');
+    var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
         document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
@@ -4424,7 +4465,7 @@ function selectBuildingFromIDX(prefix, address) {
 
     // Auto-set StructureType from IDX building data
     if (building.structureType) {
-        const stEl = document.getElementById(prefix + 'StructureType');
+        var stEl = document.getElementById(prefix + 'StructureType');
         if (stEl) stEl.value = building.structureType;
     }
 
@@ -4472,13 +4513,38 @@ function autoDeriveRentalStructureType() {
     if (map[propType]) stEl.value = map[propType];
 }
 
-// Address field onblur — exact-match auto-populate from IDX
+// Address field onblur — check cache first, then API fallback
 function rentalAddressBlurLookup() {
-    const addr = document.getElementById('rentalStreetAddress')?.value?.trim();
-    if (!addr || addr.length < 5) return;
-    const match = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
-    if (match) selectBuildingFromIDX('rental', match.address);
-    parseRentalAddress();
+    var addr = document.getElementById('rentalStreetAddress')?.value?.trim();
+    if (!addr || addr.length < 5) { parseRentalAddress(); return; }
+    var localMatch = buildingDatabase.find(function(b) { return b.address.toLowerCase() === addr.toLowerCase(); });
+    if (localMatch) {
+        selectBuildingFromIDX('rental', localMatch.address);
+        parseRentalAddress();
+        return;
+    }
+    fetchBuildingsFromAPI(addr).then(function(matches) {
+        if (!matches || matches.length === 0) {
+            var stale = document.getElementById('rentalBuildingSearchResults');
+            if (stale) stale.classList.add('hidden');
+            parseRentalAddress();
+            return;
+        }
+        buildingDatabase = matches;
+        var results = document.getElementById('rentalBuildingSearchResults');
+        if (results && matches.length === 1) {
+            selectBuildingFromIDX('rental', matches[0].address);
+        } else if (results && matches.length > 1) {
+            results.innerHTML = matches.map(function(b) {
+                var escapedAddr = b.address.replace(/'/g, "\\'");
+                return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'rental\', \'' + escapedAddr + '\')">' +
+                    '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
+                    '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p></div>';
+            }).join('');
+            results.classList.remove('hidden');
+        }
+        parseRentalAddress();
+    }).catch(function() { parseRentalAddress(); });
 }
 
 // ══════════════════════════════════════════════════════

@@ -5095,6 +5095,7 @@ function selectBuildingFromIDX(prefix, address) {
                 setVal(prefix + 'Borough', building.borough);
                 setVal(prefix + 'ZipCode', building.zip);
                 setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+                parseSaleAddress();
                 updateSaleAddressDerived();
                 var keptTypeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
                 if (keptTypeRadio) { keptTypeRadio.checked = true; applySalesFieldRules(); }
