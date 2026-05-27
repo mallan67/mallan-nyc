@@ -7056,10 +7056,12 @@ function submitSalesListing() {
                     showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
                 }
             }
-            // Transition status from Draft to Active
+            // Transition status from Draft to Active (except InHouseInternal — stays Draft)
             var dbId = result.id || _saleEditDbId;
             var finalStatus = result.status || 'Draft';
-            if (finalStatus === 'Draft' && dbId) {
+            var listType = document.querySelector('input[name="saleListingType"]:checked');
+            var isInternalOnly = listType && listType.value === 'InHouseInternal';
+            if (finalStatus === 'Draft' && dbId && !isInternalOnly) {
                 try {
                     var statusResult = await MallanAPI.listings.updateStatus(dbId, 'Active');
                     finalStatus = statusResult.status || 'Active';
