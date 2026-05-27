@@ -34,11 +34,12 @@ export async function GET(req: NextRequest) {
   // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
   // are managed via REBNY RLS directly, not through the CRM.
   const TRESTLE_TERMINAL = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"];
-  const crmCreated = { mls_id: null };
+  const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" } };
+  const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" } };
   const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_TERMINAL } };
 
   const where: Record<string, unknown> = {
-    OR: [crmCreated, trestleClosed],
+    OR: [crmCreated, crmCreatedRental, trestleClosed],
   };
 
   // Ownership: agent sees only their own, broker sees all

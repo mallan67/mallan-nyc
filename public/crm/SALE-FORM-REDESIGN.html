@@ -7060,7 +7060,9 @@ function submitSalesListing() {
             var dbId = result.id || _saleEditDbId;
             var finalStatus = result.status || 'Draft';
             var listType = document.querySelector('input[name="saleListingType"]:checked');
-            var isInternalOnly = listType && listType.value === 'InHouseInternal';
+            var isInternalOnly = (listType && listType.value === 'InHouseInternal') ||
+                fullData.inHouseVisibility === 'internal_only' ||
+                fullData.saleListingType === 'InHouseInternal';
             if (finalStatus === 'Draft' && dbId && !isInternalOnly) {
                 try {
                     var statusResult = await MallanAPI.listings.updateStatus(dbId, 'Active');
