@@ -85,7 +85,9 @@ describe('Backend — InHouse RLS eligibility', () => {
       path.resolve(__dirname, '../../app/api/crm/listings/route.ts'),
       'utf8'
     );
-    expect(postRoute).toContain('body.saleListingType === "InHouse"');
+    expect(postRoute).toContain('"InHouse", "InHouseInternal", "InHouseWebOnly"');
+    expect(postRoute).toContain('inHouseValues.includes(String(body.saleListingType');
+    expect(postRoute).toContain('inHouseValues.includes(String(body.listingAgreement');
     expect(postRoute).toMatch(/explicitOptOut:.*isInHouse/);
   });
 
@@ -94,7 +96,9 @@ describe('Backend — InHouse RLS eligibility', () => {
       path.resolve(__dirname, '../../app/api/crm/listings/[id]/route.ts'),
       'utf8'
     );
-    expect(patchRoute).toContain('merged.saleListingType === "InHouse"');
+    expect(patchRoute).toContain('"InHouse", "InHouseInternal", "InHouseWebOnly"');
+    expect(patchRoute).toContain('inHouseValues.includes(String(merged.saleListingType');
+    expect(patchRoute).toContain('inHouseValues.includes(String(merged.listingAgreement');
     expect(patchRoute).toMatch(/explicitOptOut:.*isInHouse/);
   });
 });
