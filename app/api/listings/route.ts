@@ -309,6 +309,15 @@ export async function GET(request: Request) {
           // Two display paths: RLS listings (must pass 6 distribution gates) OR
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams);
+          if (excludeUndisclosed) {
+            const w = dbWhere as Record<string, unknown>;
+            const andClause = { OR: [
+              { listing_id: { startsWith: 'SL-' } },
+              { listing_id: { startsWith: 'RL-' } },
+              { internet_address_display_yn: true },
+            ] };
+            w.AND = Array.isArray(w.AND) ? [...w.AND, andClause] : w.AND ? [w.AND, andClause] : [andClause];
+          }
           const dbTake = limit;
           const dbSkip = skip;
 
