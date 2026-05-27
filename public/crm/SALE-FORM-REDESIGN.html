@@ -4829,7 +4829,20 @@ body { font-family: Manrope, sans-serif; }
 // NO URL PARAMETERS. NO PII IN URLS.
 // ══════════════════════════════════════════════════════
 function initLoggedInAgent() {
-    function populate(u) {
+    // Uses MallanAPI.onReady() instead of a redundant MallanAPI.init() call.
+    // The auth gate in <head> already called init(); onReady() fires
+    // synchronously if already resolved, or queues for when it does.
+    // This eliminates the duplicate /api/auth/me fetch and the race condition
+    // where _populateSaleFormFromApi() and initLoggedInAgent() competed
+    // to set Contacts tab fields in edit mode.
+    function _applyAgentData(u) {
+        if (!u) {
+            console.warn('[SaleForm] Not authenticated — agent fields left blank');
+            showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
+            return;
+        }
+
+        // ── 1. Hidden payload fields (always, even in edit mode) ──
         var setVal = function(id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
         setVal('saleUpdatingAgent', u.id);
         setVal('saleUpdatingAgentName', u.name);
@@ -4838,55 +4851,74 @@ function initLoggedInAgent() {
         setVal('saleUpdatingAgentLicense', u.license);
         setVal('saleUpdatingAgentCompanyKey', u.companyKey);
         setVal('saleUpdatingAgentCompanyName', u.companyName);
+
+        // ── 2. Header bar (always) ──
         var headerName = document.getElementById('headerAgentName');
         var headerCompany = document.getElementById('headerCompanyName');
         if (headerName && u.name) headerName.textContent = u.name;
         if (headerCompany && u.companyName) headerCompany.textContent = u.companyName;
+
+        // ── 3. Agent & Dates display on Essentials tab (always) ──
+        var agentDisplay = document.getElementById('saleUpdatingAgentDisplay');
+        if (agentDisplay && u.id && u.name) {
+            agentDisplay.value = u.id + ' | ' + u.name;
+        }
+
+        // ── 4. Contacts tab — only for NEW listings ──
+        // In edit mode _populateSaleFormFromApi() restores the listing's
+        // original agent from saved data; we must not overwrite that.
+        if (typeof _saleEditMode !== 'undefined' && _saleEditMode) return;
+
+        // Company dropdown (hidden value + search display)
+        var listingCompanyEl = document.getElementById('saleListingCompany');
+        if (listingCompanyEl && u.companyKey) {
+            listingCompanyEl.value = u.companyKey;
+            var companySearchEl = document.getElementById('saleListingCompanySearch');
+            if (companySearchEl && u.companyName) {
+                companySearchEl.value = u.companyName;
+            }
+        }
+
+        // Agent dropdown (hidden value + search display + dataset.company)
+        var listingAgentEl = document.getElementById('saleListingAgent');
+        if (listingAgentEl && u.id) {
+            listingAgentEl.value = u.id;
+            listingAgentEl.dataset.company = u.companyKey || 'mallan';
+
+            var agentSearchEl = document.getElementById('saleListingAgentSearch');
+            if (agentSearchEl) {
+                agentSearchEl.value = u.name || '';
+                agentSearchEl.disabled = false;
+            }
+
+            // Show agent contact info panel
+            var infoPanel = document.getElementById('saleListingAgentInfo');
+            if (infoPanel) {
+                infoPanel.style.display = 'block';
+                var idEl = document.getElementById('saleListingAgentId');
+                if (idEl) idEl.textContent = u.id;
+                var phoneEl = document.getElementById('saleListingAgentPhone');
+                if (phoneEl) phoneEl.textContent = u.phone || '--';
+                var emailEl = document.getElementById('saleListingAgentEmail');
+                if (emailEl) emailEl.textContent = u.email || '--';
+                var licenseEl = document.getElementById('saleListingAgentLicense');
+                if (licenseEl) licenseEl.textContent = u.license || '--';
+            }
+
+            // Populate agent contacts summary table
+            if (typeof updateSaleAgentTable === 'function') {
+                var cName = u.companyName || 'Mallan Real Estate Inc.';
+                updateSaleAgentTable('listing', u.id, u.name, cName, u.phone || '--', u.email || '--');
+            }
+        }
     }
 
-    if (typeof MallanAPI !== 'undefined') {
+    if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+        MallanAPI.onReady(_applyAgentData);
+    } else if (typeof MallanAPI !== 'undefined') {
+        // Fallback: onReady not available — use init()
         MallanAPI.init().then(function(data) {
-            if (data.authenticated && data.user) {
-                populate(data.user);
-                var agentDisplay = document.getElementById('saleUpdatingAgentDisplay');
-                if (agentDisplay && data.user.id && data.user.name) {
-                    agentDisplay.value = data.user.id + ' | ' + data.user.name;
-                }
-                // Auto-populate Listing Company and Listing Agent from logged-in user
-                var listingCompanyEl = document.getElementById('saleListingCompany');
-                if (listingCompanyEl && data.user.companyKey) {
-                    listingCompanyEl.value = data.user.companyKey;
-                    var companySearchEl = document.getElementById('saleListingCompanySearch');
-                    if (companySearchEl && data.user.companyName) {
-                        companySearchEl.value = data.user.companyName;
-                    }
-                }
-                var listingAgentEl = document.getElementById('saleListingAgent');
-                if (listingAgentEl && data.user.id) {
-                    listingAgentEl.value = data.user.id;
-                    var agentSearchEl = document.getElementById('saleListingAgentSearch');
-                    if (agentSearchEl) {
-                        agentSearchEl.value = data.user.name || '';
-                        agentSearchEl.disabled = false;
-                    }
-                    // Show agent contact info panel
-                    var infoPanel = document.getElementById('saleListingAgentInfo');
-                    if (infoPanel) {
-                        infoPanel.style.display = 'block';
-                        var idEl = document.getElementById('saleListingAgentId');
-                        if (idEl) idEl.textContent = data.user.id;
-                        var phoneEl = document.getElementById('saleListingAgentPhone');
-                        if (phoneEl) phoneEl.textContent = data.user.phone || '--';
-                        var emailEl = document.getElementById('saleListingAgentEmail');
-                        if (emailEl) emailEl.textContent = data.user.email || '--';
-                        var licenseEl = document.getElementById('saleListingAgentLicense');
-                        if (licenseEl) licenseEl.textContent = data.user.license || '--';
-                    }
-                }
-            } else {
-                console.warn('[SaleForm] Not authenticated — agent fields left blank');
-                showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
-            }
+            _applyAgentData(data && data.user ? data.user : null);
         });
     } else {
         console.warn('[SaleForm] MallanAPI not loaded — agent fields left blank');
@@ -8459,13 +8491,23 @@ function _populateSaleFormFromApi(listing) {
     var agentSearchEl = document.getElementById('saleListingAgentSearch');
     if (agentSearchEl) { agentSearchEl.value = agentInfo.ListAgentFullName || raw.ListAgentFullName || ''; agentSearchEl.disabled = false; }
     var agentPanel = document.getElementById('saleListingAgentInfo');
+    var _agentId = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
+    var _agentName = agentInfo.ListAgentFullName || raw.ListAgentFullName || '';
+    var _agentPhone = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
+    var _agentEmail = agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
     if (agentPanel) {
         agentPanel.style.display = 'block';
         var el;
-        el = document.getElementById('saleListingAgentId'); if (el) el.textContent = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '--';
-        el = document.getElementById('saleListingAgentPhone'); if (el) el.textContent = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
-        el = document.getElementById('saleListingAgentEmail'); if (el) el.textContent = agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
+        el = document.getElementById('saleListingAgentId'); if (el) el.textContent = _agentId || '--';
+        el = document.getElementById('saleListingAgentPhone'); if (el) el.textContent = _agentPhone;
+        el = document.getElementById('saleListingAgentEmail'); if (el) el.textContent = _agentEmail;
         el = document.getElementById('saleListingAgentLicense'); if (el) el.textContent = '--';
+    }
+
+    // Populate agent contacts summary table for edit mode
+    if (typeof updateSaleAgentTable === 'function' && _agentId) {
+        var _companyName = agentInfo.ListOfficeName || raw.ListOfficeName || rebnyCompanyNames[companyKey] || companyKey;
+        updateSaleAgentTable('listing', _agentId, _agentName, _companyName, _agentPhone, _agentEmail);
     }
 
     // ── Auction ──
