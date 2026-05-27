@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
 import {
   buildSearchDisplayWhere,
@@ -183,6 +183,9 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       },
       {
         rls_eligible: false,
+        status: { in: ALLOWED_PUBLIC_STATUSES },
+        list_price: { gt: 0 },
+        address: { not: Prisma.DbNull },
       },
     ],
   };
