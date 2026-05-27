@@ -9446,6 +9446,32 @@ var Panels = (function () {
       html += '</div></div>';
     }
 
+    // LocalStorage draft recovery — show unsaved browser drafts in the Draft tab
+    if (statusTab === 'Draft' || statusTab === 'all') {
+      try {
+        var localDraftRaw = localStorage.getItem('mallan_draft_sale');
+        if (localDraftRaw) {
+          var localDraft = JSON.parse(localDraftRaw);
+          if (localDraft && localDraft._savedAt) {
+            var draftAge = Date.now() - new Date(localDraft._savedAt).getTime();
+            if (draftAge < 7 * 24 * 60 * 60 * 1000) {
+              var draftAddr = localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || 'Untitled Draft';
+              var draftTime = new Date(localDraft._savedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+              html += '<div class="p-3 border-2 border-amber-400 rounded-lg bg-amber-50 mb-4">' +
+                '<div class="flex items-center justify-between">' +
+                '<div><p class="text-sm font-semibold text-amber-900"><i class="fas fa-file-alt mr-2"></i>Unsaved Browser Draft</p>' +
+                '<p class="text-xs text-amber-700 mt-0.5">' + E(draftAddr) + ' — saved ' + E(draftTime) + '</p>' +
+                '<p class="text-[10px] text-amber-600 mt-1">This draft was saved in your browser only (not yet in the database). Open it to continue editing and save to server.</p></div>' +
+                '<div class="flex gap-2">' +
+                '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing?restore=local\',\'_blank\')"><i class="fas fa-edit mr-1"></i>Open &amp; Restore</button>' +
+                '<button class="btn btn-sm btn-outline text-red-500" onclick="if(confirm(\'Discard this unsaved draft? This cannot be undone.\')){localStorage.removeItem(\'mallan_draft_sale\');Panels.myListings();}"><i class="fas fa-trash mr-1"></i>Discard</button>' +
+                '</div></div></div>';
+            }
+          }
+        }
+      } catch (e) { /* localStorage unavailable */ }
+    }
+
     // Listing table
     if (filtered.length === 0) {
       html += '<div class="text-center py-12 text-gray-400">' +
