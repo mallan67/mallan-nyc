@@ -4869,6 +4869,19 @@ function initLoggedInAgent() {
                         agentSearchEl.value = data.user.name || '';
                         agentSearchEl.disabled = false;
                     }
+                    // Show agent contact info panel
+                    var infoPanel = document.getElementById('saleListingAgentInfo');
+                    if (infoPanel) {
+                        infoPanel.style.display = 'block';
+                        var idEl = document.getElementById('saleListingAgentId');
+                        if (idEl) idEl.textContent = data.user.id;
+                        var phoneEl = document.getElementById('saleListingAgentPhone');
+                        if (phoneEl) phoneEl.textContent = data.user.phone || '--';
+                        var emailEl = document.getElementById('saleListingAgentEmail');
+                        if (emailEl) emailEl.textContent = data.user.email || '--';
+                        var licenseEl = document.getElementById('saleListingAgentLicense');
+                        if (licenseEl) licenseEl.textContent = data.user.license || '--';
+                    }
                 }
             } else {
                 console.warn('[SaleForm] Not authenticated — agent fields left blank');
