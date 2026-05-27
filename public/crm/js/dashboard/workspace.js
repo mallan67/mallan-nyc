@@ -10,7 +10,7 @@ var Workspace = (function () {
   var E = Utils.esc;
 
   function _resolveAddr(a) {
-    if (!a || typeof a !== 'object') return typeof a === 'string' ? a : 'No address';
+    if (!a || typeof a !== 'object') return typeof a === 'string' ? a : '';
     if (a.street) return a.street;
     if (a.UnparsedAddress || a.UnParsedAddress) {
       var u = a.UnparsedAddress || a.UnParsedAddress;
@@ -19,7 +19,7 @@ var Workspace = (function () {
     }
     var p = [a.StreetNumber, a.StreetDirPrefix, a.StreetName, a.StreetSuffix].filter(Boolean).join(' ');
     if (a.UnitNumber) p += ', #' + a.UnitNumber;
-    return p.trim() || 'No address';
+    return p.trim() || '';
   }
   var $ = Utils.formatMoney;
   var D = Utils.formatDate;

@@ -25,6 +25,8 @@ import {
   type ListingMediaTableRow,
 } from '@/lib/media/listing-media-resolver';
 
+import { normalizeStreetCase } from './normalize-street-case';
+
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
   manhattan: 'New York',
@@ -261,14 +263,13 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const mediaArr = (Array.isArray(listing.media) ? listing.media : []) as DbMediaItem[];
 
   const streetNumber = addr.StreetNumber || '';
-  // Build full street name: StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix
-  // e.g. "W" + "END" + "Avenue" + "" = "W END Avenue"
-  const streetName = [
+  const streetNameRaw = [
     addr.StreetDirPrefix,
     addr.StreetName,
     addr.StreetSuffix,
     addr.StreetDirSuffix,
   ].filter(Boolean).join(' ') || '';
+  const streetName = normalizeStreetCase(streetNameRaw);
   const unitNumber = addr.UnitNumber || null;
   const city = addr.City || listing.borough || 'New York';
   const postalCode = addr.PostalCode || '';
@@ -277,11 +278,10 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   // Neighborhood: SubdivisionName (Trestle) > Neighborhood (legacy) > DB column
   const neighborhood = addr.SubdivisionName || addr.Neighborhood || listing.neighborhood || undefined;
 
-  // Address display cascades through internet-entire-listing gate;
-  // any null/undefined permission = suppress (fail-closed).
-  // CRM-created web-only exclusives (no mls_id) always show address —
-  // the IDX gate cascade is for RLS-distributed listings, not website-only.
-  const isCrmExclusive = !listing.mls_id;
+  // CRM-created exclusives always show address — IDX gate is for RLS-distributed only.
+  // Use listing_id prefix (always selected, always present) instead of mls_id
+  // which may not be selected by every caller.
+  const isCrmExclusive = listing.listing_id.startsWith('SL-') || listing.listing_id.startsWith('RL-');
   const suppressAddress = isCrmExclusive ? false : !isAddressDisplayable(listing);
   const isComingSoon = listing.status === 'ComingSoon';
   const rawData = (listing.raw_data || {}) as Record<string, unknown>;

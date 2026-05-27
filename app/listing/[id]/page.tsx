@@ -28,6 +28,7 @@ import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal } from '@/lib/idx/mapping';
+import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
 import { toPublicDTO, buildAuctionPublic, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
@@ -258,6 +259,7 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
 interface ListingFetchResult {
   listing: PublicListingDTO;
   tax: TrestleExtraFields;
+  rawStreetName?: string;
 }
 
 /**
@@ -419,7 +421,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       slug: generateListingSlug({
         address: {
           streetNumber: addr.StreetNumber || '',
-          streetName: suppressAddress ? 'Address Undisclosed' : (addr.StreetName || ''),
+          streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
           unitNumber: addr.UnitNumber || null,
           city: addr.City || '',
           stateOrProvince: addr.StateOrProvince || 'NY',
@@ -444,7 +446,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
           }
         : {
             streetNumber: addr.StreetNumber || '',
-            streetName: addr.StreetName || '',
+            streetName: normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
             unitNumber: addr.UnitNumber || null,
             city: addr.City || '',
             stateOrProvince: addr.StateOrProvince || 'NY',
@@ -511,6 +513,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     return {
       listing: dto,
       tax: { taxBlock: null, taxLot: null },
+      rawStreetName: addr.StreetName || '',
     };
   } catch {
     return null;
@@ -682,7 +685,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     : `$${listing.listPrice.toLocaleString()}`;
   const fullAddress = listing.address.streetName === 'Address Undisclosed'
     ? 'Address Undisclosed'
-    : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? ` ${listing.address.unitNumber}` : ''}`;
+    : `${listing.address.streetNumber} ${listing.address.streetName}`.trim() + (listing.address.unitNumber ? `, #${listing.address.unitNumber}` : '');
   // Canonical URL uses the address slug (or MLS-ID slug if address suppressed)
   const canonicalUrl = `https://mallan.nyc/listing/${listing.slug}`;
   const ogImage = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url || '/images/og-default.png';
@@ -759,7 +762,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
   }
 
   const listing = result.listing;
-  const { tax } = result;
+  const { tax, rawStreetName } = result;
 
   const isRental = listing.listingType === 'rent';
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
@@ -774,7 +777,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   const fullAddress = listing.address.streetName === 'Address Undisclosed'
     ? 'Address Undisclosed'
-    : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
+    : `${listing.address.streetNumber} ${listing.address.streetName}`.trim() + (listing.address.unitNumber ? `, #${listing.address.unitNumber}` : '');
 
   // Run ALL supplementary fetches in parallel (geocoding + last-sale lookups).
   // Previously these ran sequentially after fetchListing, adding 4-8s per page.
@@ -794,7 +797,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       ? Promise.all([
           fetchLastUnitSale(
             listing.address.streetNumber,
-            listing.address.streetName,
+            rawStreetName || listing.address.streetName,
             listing.address.unitNumber,
             listing.address.postalCode,
           ).catch(() => null),

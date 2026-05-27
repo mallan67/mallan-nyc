@@ -10,6 +10,7 @@
 
 import type { IDXListing } from './types';
 import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
+import { normalizeStreetCase } from './normalize-street-case';
 
 /**
  * RESO Data Dictionary field names — complete set.
@@ -276,7 +277,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     normalized.StreetSuffix,
     normalized.StreetDirSuffix,
   ].filter(Boolean).map(String);
-  const fullStreetName = streetNameParts.join(' ') || '';
+  const fullStreetName = normalizeStreetCase(streetNameParts.join(' ') || '');
 
   const addr = {
     streetNumber: String(normalized.StreetNumber || ''),

@@ -253,7 +253,7 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <h3 className="font-display font-semibold text-base md:text-[17px] truncate text-brand-dark">
-                {listing.address.streetNumber} {listing.address.streetName}{listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}
+                {listing.address.streetNumber} {listing.address.streetName}{listing.address.unitNumber ? `, #${listing.address.unitNumber}` : ''}
               </h3>
               <p className="text-brand-dark/90 text-[13px] font-light">
                 {listing.propertySubType || listing.propertyType}{listing.address.neighborhood ? ` in ${listing.address.neighborhood}` : ''}
@@ -366,6 +366,7 @@ export default function FeaturedListings() {
         const params = new URLSearchParams();
         params.set('type', filters.type === 'rent' ? 'rent' : 'sale');
         params.set('limit', String(Math.max(limit * 3, 30)));
+        params.set('excludeUndisclosed', 'true');
         params.set('sort', config.sort || 'price-desc');
         if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
         if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice));
@@ -379,9 +380,7 @@ export default function FeaturedListings() {
 
         if (cancelled || !data.listings || data.listings.length === 0) return;
 
-        const all: FeaturedListing[] = data.listings.filter(
-          (l: FeaturedListing) => l.address?.streetName !== 'Address Undisclosed'
-        );
+        const all: FeaturedListing[] = data.listings;
 
         // Separate pinned (exclusives) from rest — pinned always first
         const pinned = all.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
