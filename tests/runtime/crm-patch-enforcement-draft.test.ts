@@ -21,8 +21,8 @@ const ROUTE_PATH = path.resolve(
 const routeSource = readFileSync(ROUTE_PATH, 'utf-8');
 
 describe('PATCH enforcement Draft/WebOnly bypass (P0 fix)', () => {
-  test('enforcement gate is wrapped in rlsEligible AND !isDraft guard', () => {
-    expect(routeSource).toMatch(/if\s*\(\s*effectiveRlsEligible\s*&&\s*!isDraft\s*\)/);
+  test('enforcement gate is wrapped in rlsEligible AND !isDraft AND !isCrmCreated guard', () => {
+    expect(routeSource).toMatch(/if\s*\(\s*effectiveRlsEligible\s*&&\s*!isDraft\s*&&\s*!isCrmCreated\s*\)/);
   });
 
   test('isDraft is derived from effectiveStatus', () => {
