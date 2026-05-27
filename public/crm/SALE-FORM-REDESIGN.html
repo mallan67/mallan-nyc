@@ -110,12 +110,12 @@ body { font-family: Manrope, sans-serif; }
 (function() {
     if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/crm/login.html;
+            if (!d.authenticated) window.location.href = '/crm/login.html';
         }).catch(function() {
-            window.location.href = '/crm/login.html;
+            window.location.href = '/crm/login.html';
         });
     } else {
-        window.location.href = '/crm/login.html;
+        window.location.href = '/crm/login.html';
     }
     window.addEventListener('mallan:auth:unauthorized', function() {
         window.location.href = '/crm/login.html;
@@ -7175,7 +7175,8 @@ function performAutoSave() {
     // Also persist to server if connected and listing has an ID
     var listingIdEl = document.getElementById('saleListingIdDisplay');
     var existingId = listingIdEl ? listingIdEl.textContent.trim() : '';
-    if (existingId && existingId !== '--' && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+    var isRealId = existingId && existingId !== '--' && existingId !== 'New' && /^(SL-|RL-|\d)/.test(existingId);
+    if (isRealId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         var resoData = collectSaleFormData();
         MallanAPI.listings.update(existingId, resoData).catch(function(err) {
             console.warn('[AutoSave] Server save failed:', err.message);
