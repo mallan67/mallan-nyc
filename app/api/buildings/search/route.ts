@@ -96,7 +96,15 @@ interface DiagnosticInfo {
 }
 
 function formatAddress(r: Record<string, unknown>): string {
-  return `${r.StreetNumber || ''} ${r.StreetDirPrefix ? r.StreetDirPrefix + ' ' : ''}${r.StreetName || ''} ${r.StreetSuffix || ''}`.trim();
+  const num = String(r.StreetNumber || '');
+  const dir = String(r.StreetDirPrefix || '');
+  const name = String(r.StreetName || '');
+  const suffix = String(r.StreetSuffix || '');
+  // Some DB records have the direction already inside StreetName (e.g., "E 46TH")
+  // Don't duplicate the direction if StreetName already starts with it
+  const nameAlreadyHasDir = dir && name.toUpperCase().startsWith(dir.toUpperCase() + ' ');
+  const dirPart = dir && !nameAlreadyHasDir ? dir + ' ' : '';
+  return `${num} ${dirPart}${name} ${suffix}`.replace(/\s+/g, ' ').trim();
 }
 
 interface TrestleRecord {
