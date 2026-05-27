@@ -3880,7 +3880,7 @@ body { font-family: Manrope, sans-serif; }
             <!-- Photos -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-3">
-                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(Up to 100 photos, min 1024x768px, recommended 2048x1365px, JPEG/PNG, max 20MB each)</span></h4>
+                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(Up to 100 photos, min 1024x768px, recommended 2048x1365px, JPEG/PNG, max 10MB each)</span></h4>
                     <span id="salePhotoCount" class="text-xs font-semibold text-gray-500">0 / 100 uploaded</span>
                 </div>
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('salePhotoInput').click()">
@@ -3941,7 +3941,7 @@ body { font-family: Manrope, sans-serif; }
 
             <!-- Floor Plans -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans <span class="text-xs text-gray-500 font-normal">(max 20MB each, 150 dpi recommended)</span></h4>
+                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans <span class="text-xs text-gray-500 font-normal">(max 10MB each, JPG/PNG only, 150 dpi recommended)</span></h4>
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('saleFloorplanInput').click()">
                     <i class="fas fa-drafting-compass text-3xl text-gray-400 mb-2"></i>
                     <p class="text-sm text-gray-600">Upload Floor Plan</p>
@@ -8210,9 +8210,15 @@ function handleSaleMediaUpload(event, mediaType) {
 
     for (var i = 0; i < files.length; i++) {
         var file = files[i];
-        if (file.size > 20 * 1024 * 1024) {
-            showToast('File "' + file.name + '" exceeds 20MB limit.', 'error');
+        // Backend validateImage limit is 10MB
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('File "' + file.name + '" exceeds 10MB limit.', 'error');
             continue;
+        }
+        // PDFs are preview-only — the upload endpoint only accepts images (JPEG/PNG/WebP)
+        var isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        if (isPdf && mediaType === 'floorplan') {
+            showToast('PDF floor plans are preview-only. Upload as JPG/PNG image for full support.', 'warning');
         }
 
         var entry = { file: file, type: mediaType, order: _pendingMediaFiles.length, uploaded: false, url: null };
@@ -8268,6 +8274,13 @@ async function uploadPendingMedia(listingId) {
     var uploaded = 0, failed = 0;
     for (var i = 0; i < pending.length; i++) {
         var entry = pending[i];
+        // Skip PDF files — backend validateImage only accepts image MIME types
+        var entryIsPdf = entry.file.type === 'application/pdf' || entry.file.name.toLowerCase().endsWith('.pdf');
+        if (entryIsPdf) {
+            showToast('Skipping PDF "' + entry.file.name + '" — upload as JPG/PNG image instead.', 'warning');
+            entry._removed = true;
+            continue;
+        }
         var formData = new FormData();
         formData.append('file', entry.file);
         formData.append('order', String(entry.order));
