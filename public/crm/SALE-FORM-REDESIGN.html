@@ -8353,10 +8353,14 @@ var SALE_BUILDING_FEATURE_IDS = [
   'saleBldgOnSiteManager', 'saleBldgWheelchairAccess', 'saleBldgSpa',
 ];
 
-// Syndication checkboxes (individual IDs)
-var SALE_SYNDICATION_IDS = [
-  'saleDist_Listhub', 'saleDist_NYMLS', 'saleDist_Realtor',
-  'saleDist_RLS', 'saleDist_RPX', 'saleDist_WWW', 'saleSendToAll',
+// Syndication checkboxes — id → SyndicateTo target name
+var SALE_SYNDICATION_MAP = [
+  { id: 'saleDist_Listhub', target: 'Listhub' },
+  { id: 'saleDist_NYMLS', target: 'NYMLS' },
+  { id: 'saleDist_Realtor', target: 'Realtor' },
+  { id: 'saleDist_RLS', target: 'RLS' },
+  { id: 'saleDist_RPX', target: 'RPX' },
+  { id: 'saleDist_WWW', target: 'WWW' },
 ];
 
 // Radio-button fields
@@ -8456,13 +8460,19 @@ function _populateSaleFormFromApi(listing) {
         });
     }
 
-    // ── Syndication checkboxes ──
+    // ── Syndication checkboxes — match each checkbox against SyndicateTo targets ──
     var syndTargets = raw.SyndicateTo;
     if (Array.isArray(syndTargets)) {
-        SALE_SYNDICATION_IDS.forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.checked = true;
+        var normalizedTargets = syndTargets.map(function(t) { return String(t).toLowerCase(); });
+        SALE_SYNDICATION_MAP.forEach(function(entry) {
+            var el = document.getElementById(entry.id);
+            if (!el) return;
+            el.checked = normalizedTargets.includes(entry.target.toLowerCase());
         });
+        var allIndividualChecked = SALE_SYNDICATION_MAP.every(function(entry) {
+            return normalizedTargets.includes(entry.target.toLowerCase());
+        });
+        setChecked('saleSendToAll', allIndividualChecked);
     }
     if (raw.SyndicateYN !== undefined) setChecked('saleSyndicateYN', raw.SyndicateYN);
     if (raw.saleDist_VOW !== undefined) setChecked('saleDist_VOW', raw.saleDist_VOW);
