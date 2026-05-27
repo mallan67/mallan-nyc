@@ -5413,11 +5413,16 @@ function enforceSaleInternetDisplayRule() {
     if (!internetCheckbox) return;
 
     var permValue = listingType ? listingType.value : '';
-    // Permissions=Null (standard exclusive listings — no OwnerOptOut/Private) → MUST be True
+
+    // Gates-forced-off types: InHouse, OwnerOptOut, ParticipantOnly.
+    // handleSaleListingTypeChange already disabled + unchecked all gate checkboxes.
+    // Do NOT re-enable them here. (Codex finding on PR #204)
+    var gatesForced = ['InHouseInternal', 'InHouseWebOnly', 'InHouse', 'OwnerOptOut', 'ParticipantOnly'];
+    if (gatesForced.includes(permValue)) return;
+
+    // Permissions=Null (standard exclusive listings) → MUST be True
     var isNullPermission = !permValue || permValue === '' ||
         ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'CoExclusive'].includes(permValue);
-    // InHouse types are not null-permission — they force distribution OFF separately
-    if (permValue === 'InHouseInternal' || permValue === 'InHouseWebOnly') isNullPermission = false;
 
     var container = internetCheckbox.closest('.border');
     if (isNullPermission) {
