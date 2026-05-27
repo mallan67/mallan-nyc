@@ -21,9 +21,9 @@ describe('CRM My Listings filter', () => {
     expect(routeSource).toMatch(/OR:\s*\[crmCreated,\s*crmCreatedRental,\s*trestleClosed\]/);
   });
 
-  test('CRM-created filter checks mls_id: null + SL-/RL- prefix', () => {
-    expect(routeSource).toMatch(/crmCreated\s*=.*mls_id:\s*null.*listing_id.*startsWith.*SL-/s);
-    expect(routeSource).toMatch(/crmCreatedRental\s*=.*mls_id:\s*null.*listing_id.*startsWith.*RL-/s);
+  test('CRM-created filter checks mls_id: null + SL-/RL- prefix + excludes Withdrawn', () => {
+    expect(routeSource).toMatch(/crmCreated\s*=.*mls_id:\s*null.*listing_id.*startsWith.*SL-.*status.*notIn.*CRM_HIDDEN/s);
+    expect(routeSource).toMatch(/crmCreatedRental\s*=.*mls_id:\s*null.*listing_id.*startsWith.*RL-.*status.*notIn.*CRM_HIDDEN/s);
   });
 
   test('Trestle-closed filter requires mls_id not null + terminal status', () => {
