@@ -82,7 +82,7 @@ describe('Sale form save/load retention — PR-A/F backend address persistence',
 
 describe('Sale form save/load retention — PR-B saleStatus overwrite removed', () => {
   // ── Test 7: populate does NOT unconditionally overwrite saleStatus with canonical ──
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 17500);
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
 
   it('populate restores saleStatus via the workflow-priority chain (raw._crmWorkflowStatus first)', () => {
     expect(populateBody).toMatch(
@@ -174,7 +174,7 @@ describe('Sale form save/load retention — PR-D checkbox-array collector', () =
 
 describe('Sale form save/load retention — PR-E populate/autosave race hardening', () => {
   // ── Test 10: populate setters do not dispatch change events during populate ──
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 17500);
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
 
   it('setVal inside populate gates the change-event dispatch on !_salePopulateInProgress (PR-E C9)', () => {
     // Helper is local to _populateSaleFormFromApi; assert it is gated.
@@ -231,7 +231,7 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
   // Round-trip-shape sanity. If anyone ever changes collect to emit a key the
   // populate side cannot read (or vice-versa), this catches it.
   const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 20000);
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 17500);
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
 
   it('every checkbox-array group collect emits has a populate-side restorer in SALE_CHECKBOX_ARRAY_MAP', () => {
     // Heating/Cooling/saleCommSubtype groups newly added by PR-D must have
