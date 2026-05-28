@@ -32,13 +32,23 @@ describe('CRM form save/load field parity', () => {
         'IDXEntireListingDisplayYN', 'SyndicateYN', 'BathroomsTotal',
         'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
         'ListingAgreement', 'BuildingFeatures', 'CoBrokeAgreement',
-        // Checkbox-array groups newly added by PR #268. These are restored
-        // via SALE_CHECKBOX_ARRAY_MAP (line ~8487), NOT SALE_FIELD_MAP, so
-        // they have no `rls: 'X'` entry in SALE_FIELD_MAP. SALE_CHECKBOX_ARRAY_MAP
-        // already maps {rls:'Heating',name:'saleHeating'} etc., providing
-        // the round-trip restore. See sale-form-save-load-retention.test.ts
-        // for the dedicated round-trip coverage.
-        'Heating', 'Cooling', 'SyndicateTo'].includes(f)
+        // Checkbox-array groups newly added by PR #268 + this PR. These are
+        // restored via SALE_CHECKBOX_ARRAY_MAP, NOT SALE_FIELD_MAP, so they
+        // have no `rls: 'X'` entry in SALE_FIELD_MAP. The corresponding
+        // CHECKBOX_ARRAY_MAP entries (e.g. {rls:'Heating',name:'saleHeating'},
+        // {rls:'BuildingHeating',name:'saleBldgHeating'}, etc.) provide the
+        // round-trip restore. See:
+        //   - sale-form-save-load-retention.test.ts (PR #268 fields)
+        //   - sale-form-all-radio-checkbox-coverage.test.ts (this PR — full
+        //     parametrized inventory + restore-map contract for ALL groups)
+        'Heating', 'Cooling', 'SyndicateTo',
+        'BuildingHeating', 'BuildingCooling', 'Flooring',
+        // Canonical RESO writes from form radios / single-id booleans.
+        // saleInternetAVMDisplayYN radio → InternetAutomatedValuationDisplayYN
+        // canonical (per-row opt-out, fail-CLOSED). Same for ConsumerComment.
+        // Both restored via SALE_RADIO_MAP / SALE_FIELD_MAP fallbackRls keys.
+        'InternetAutomatedValuationDisplayYN', 'InternetConsumerCommentYN',
+      ].includes(f)
     );
     for (const field of uniqueRls) {
       expect(formSource).toContain("rls: '" + field + "'");
