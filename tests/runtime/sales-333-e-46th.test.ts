@@ -171,11 +171,13 @@ describe('detail route DB matching — separate StreetDirPrefix', () => {
   });
 });
 
-describe('canonical URL — buildListingUrls refuses to advertise generic slug', () => {
+describe('canonical URL — buildListingUrls returns separated /address/id form', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { buildListingUrls } = require('@/lib/crm/listing-urls');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { buildCanonicalListingPath } = require('@/lib/listing-canonical-url');
 
-  test('Active CRM listing with full address returns canonical address URL', () => {
+  test('Active CRM listing with full address returns /address-slug/sl-XXXX (two segments)', () => {
     const urls = buildListingUrls({
       listing_id: 'SL-0004',
       status: 'Active',
@@ -195,7 +197,34 @@ describe('canonical URL — buildListingUrls refuses to advertise generic slug',
     expect(urls.publicUrl).not.toMatch(/\/listing\/listing-/);
     expect(urls.publicUrl).toContain('333');
     expect(urls.publicUrl).toContain('46th');
+    // Separated canonical: must end with /sl-0004 (path segment, not hybrid suffix)
+    expect(urls.publicUrl).toMatch(/\/sl-0004$/);
+    // Must NOT contain hybrid suffix `-sl-0004` in the address slug
+    expect(urls.publicUrl).not.toMatch(/-sl-0004\//);
+    expect(urls.publicUrl).not.toMatch(/-sl-0004$/);  // would mean trailing hybrid
     expect(urls.realPlusUrl).toBe(urls.publicUrl);
+  });
+
+  test('buildCanonicalListingPath strips hybrid suffix → /address/id', () => {
+    // Input slug from generateListingSlug includes the hybrid suffix.
+    expect(buildCanonicalListingPath({
+      slug: '333-east-46th-street-apt-2g-new-york-ny-10017-sl-0004',
+      id: 'SL-0004',
+    })).toBe('/listing/333-east-46th-street-apt-2g-new-york-ny-10017/sl-0004');
+  });
+
+  test('buildCanonicalListingPath preserves UCBA-suppressed id-only canonical', () => {
+    expect(buildCanonicalListingPath({
+      slug: 'listing-rls20061539',
+      id: 'RLS20061539',
+    })).toBe('/listing/listing-rls20061539');
+  });
+
+  test('buildCanonicalListingPath handles legacy address-only slug (no hybrid suffix)', () => {
+    expect(buildCanonicalListingPath({
+      slug: '400-east-90th-street-apt-17c-new-york-ny-10128',
+      id: 'RLS20061539',
+    })).toBe('/listing/400-east-90th-street-apt-17c-new-york-ny-10128/rls20061539');
   });
 
   test('Active CRM listing with empty address never returns generic /listing/sl-XXXX URL', () => {

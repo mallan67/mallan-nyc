@@ -185,9 +185,45 @@ async function fetchLastSaleFromACRIS(
 }
 
 type Props = {
-  params: Promise<{ id: string }>;
+  // Catch-all route — params.slug can be:
+  //   ['sl-0004']                            (legacy ID-only — redirects)
+  //   ['333-east-46th-street-...-sl-0004']   (legacy hybrid — redirects)
+  //   ['333-east-46th-street-...', 'sl-0004'] (canonical)
+  params: Promise<{ slug: string[] }>;
   searchParams: Promise<{ key?: string; ref?: string; t?: string }>;
 };
+
+/**
+ * Resolve the catch-all params into a single lookup key for fetchListing.
+ *
+ * Backward-compatibility matters here — every existing IDX/RLS URL must
+ * still resolve. Existing single-segment shapes:
+ *   - `333-east-46th-street-apt-2g-new-york-ny-10017-rls20061539` (IDX hybrid with rls id suffix)
+ *   - `400-east-90th-street-apt-17c-new-york-ny-10128`            (legacy address-only, no id)
+ *   - `listing-rls20061539`                                       (UCBA-suppressed)
+ *   - `RLS20061539`                                               (raw listing id)
+ *   - `sl-0004` / `rl-0099`                                       (CRM exclusive id-only — will redirect)
+ *
+ * New two-segment shape:
+ *   - `333-east-46th-street-.../sl-0004`                          (canonical CRM exclusive)
+ *
+ * fetchFromDB / fetchFromTrestleDirect already have multiple resolution
+ * strategies that handle each of these shapes, so we just join the catch-all
+ * back into a single string for one-segment URLs, or pass the id-only
+ * segment when it's clearly the trailing path piece.
+ */
+function resolveLookupKey(slug: string[] | string | undefined): string {
+  // Normalize defensively — Next.js catch-all returns string[], but be safe.
+  const parts = Array.isArray(slug) ? slug : (slug ? [slug] : []);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  // Two+ segments — last segment is the listing id (canonical form).
+  // fetchFromDB Strategy 3 (treat slug as listing_id) handles it directly.
+  return parts[parts.length - 1];
+}
+
+// Canonical URL builder — single source of truth at lib/listing-canonical-url.ts
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
@@ -702,7 +738,9 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
 });
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { slug } = await params;
+  const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
+  const id = resolveLookupKey(slugParts);
   const { key } = await searchParams;
 
   let result: ListingFetchResult | null = null;
@@ -785,7 +823,9 @@ function formatPrice(price: number, isRental: boolean): string {
 }
 
 export default async function ListingPage({ params, searchParams }: Props) {
-  const { id } = await params;
+  const { slug } = await params;
+  const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
+  const id = resolveLookupKey(slugParts);
   const { key, ref: refSource, t: trackToken } = await searchParams;
 
   let result: ListingFetchResult | null = null;
@@ -802,14 +842,21 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const listing = result.listing;
   const { tax, rawStreetName } = result;
 
-  // CANONICAL URL ENFORCEMENT — one listing, one slug.
-  // If the user reached this page via a non-canonical URL (e.g. /listing/sl-0004
-  // ID-only, or an older address-only slug without the id suffix), 308 redirect
-  // to the listing's canonical slug. Prevents SEO dilution and ensures one
-  // public point of reference per listing. UCBA-suppressed listings (their
-  // canonical IS the listing-XXX ID slug) are exempt.
-  if (listing.slug && id !== listing.slug && !key) {
-    redirect(`/listing/${listing.slug}`);
+  // CANONICAL URL ENFORCEMENT — one listing, one canonical path.
+  // Canonical shape: /listing/{address-slug}/{listing-id}
+  //   /listing/sl-0004                                          → 308 to canonical
+  //   /listing/333-east-...-sl-0004 (legacy hybrid)             → 308 to canonical
+  //   /listing/333-east-.../sl-0004 (already canonical)         → render
+  // UCBA-suppressed listings have id-only canonical (slug starts with `listing-`).
+  // The ?key= branch is exempt (internal debug lookup via Trestle ListingKey).
+  // Legacy IDX/RLS hybrid slugs (rls20061539 suffix) and address-only legacy
+  // slugs also redirect to the new separated canonical shape for SEO consolidation.
+  if (!key) {
+    const canonicalPath = buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' });
+    const currentPath = `/listing/${slugParts.join('/')}`;
+    if (currentPath !== canonicalPath) {
+      redirect(canonicalPath);
+    }
   }
 
   const isRental = listing.listingType === 'rent';

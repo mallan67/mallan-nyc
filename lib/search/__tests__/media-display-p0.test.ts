@@ -114,7 +114,7 @@ describe("Media Display P0", () => {
   });
 
   it("listing detail gallery separates photos and floorplans through the shared resolver", () => {
-    const detailSource = source("app/listing/[id]/page.tsx");
+    const detailSource = source("app/listing/[...slug]/page.tsx");
     expect(detailSource).toContain("resolveListingMedia");
 
     const media = resolveListingMedia([

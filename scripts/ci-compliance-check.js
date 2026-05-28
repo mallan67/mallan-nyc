@@ -698,7 +698,7 @@ for (const rel of FORMS_TO_CHECK) {
 const FARE_SURFACES = [
   'app/components/SearchListingCard.tsx',
   'app/search/page.tsx',
-  'app/listing/[id]/page.tsx',
+  'app/listing/[...slug]/page.tsx',
 ];
 for (const rel of FARE_SURFACES) {
   const full = path.join(ROOT, rel);

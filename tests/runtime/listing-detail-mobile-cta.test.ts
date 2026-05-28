@@ -46,7 +46,7 @@ import * as path from 'path';
 import { INTENT_ALLOWLIST } from '@/lib/leads/intent';
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const PAGE_PATH = path.join(REPO_ROOT, 'app', 'listing', '[id]', 'page.tsx');
+const PAGE_PATH = path.join(REPO_ROOT, 'app', 'listing', '[...slug]', 'page.tsx');
 const COMPONENT_PATH = path.join(
   REPO_ROOT,
   'app',

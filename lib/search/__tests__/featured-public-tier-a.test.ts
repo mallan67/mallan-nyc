@@ -33,7 +33,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
-const LISTING_PAGE = path.join(REPO_ROOT, "app", "listing", "[id]", "page.tsx");
+const LISTING_PAGE = path.join(REPO_ROOT, "app", "listing", "[...slug]", "page.tsx");
 const DBDTO = path.join(REPO_ROOT, "lib", "idx", "db-to-public-dto.ts");
 const PUBDTO = path.join(REPO_ROOT, "lib", "idx", "public-dto.ts");
 const IDXDISCLAIMER = path.join(REPO_ROOT, "app", "components", "IDXDisclaimer.tsx");
@@ -84,7 +84,7 @@ describe("Featured/Public Tier A P0 — A-2 unitNumber suppressed when address i
     );
   });
 
-  it("app/listing/[id]/page.tsx DB-direct suppressed branch sets unitNumber: null", () => {
+  it("app/listing/[...slug]/page.tsx DB-direct suppressed branch sets unitNumber: null", () => {
     const src = readFile(LISTING_PAGE);
     expect(src).toMatch(
       /streetName:\s*['"]Address Undisclosed['"][\s\S]{0,160}?unitNumber:\s*null/

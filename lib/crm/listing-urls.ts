@@ -5,6 +5,7 @@
  */
 
 import { generateListingSlug } from '@/lib/listing-slug';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mallan.nyc';
 
@@ -49,7 +50,11 @@ export function buildListingUrls(listing: ListingForUrl): {
     return { publicUrl: null, realPlusUrl: null };
   }
 
-  const publicUrl = `${SITE_URL}/listing/${slug}`;
+  // Build the SEPARATED canonical URL via the shared helper. Single source
+  // of truth — same logic used by the detail page redirect check and by
+  // any other surface that links to a listing.
+  const canonicalPath = buildCanonicalListingPath({ slug, id: listing.listing_id });
+  const publicUrl = `${SITE_URL}${canonicalPath}`;
   const realPlusUrl = isActive ? publicUrl : null;
 
   return { publicUrl, realPlusUrl };
