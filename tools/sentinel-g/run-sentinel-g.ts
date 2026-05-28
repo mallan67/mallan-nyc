@@ -19,10 +19,11 @@ const miss = (c:string,n:string[])=>n.filter(x=>!c.includes(x));
 const set = (x:string[])=>new Set(x.map(s=>s.trim()).filter(Boolean));
 const sample = (x:string[],n=25)=>x.slice(0,n).join(', ')+(x.length>n?` ... +${x.length-n} more`:'');
 const overall = ():Status=>checks.some(c=>c.status==='FAIL')?'FAIL':checks.some(c=>c.status==='YELLOW')?'YELLOW':'PASS';
-const lits = (block:string)=>uniq([...block.matchAll(/["']([A-Za-z0-9_]+)["']/g)].map(m=>m[1]));
+const stripComments = (s:string)=>s.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+const lits = (block:string)=>uniq([...stripComments(block).matchAll(/["']([A-Za-z0-9_]+)["']/g)].map(m=>m[1]));
 function bFields(mapper:string){const out:string[]=[]; for(const m of mapper.matchAll(/const\s+B[A-Z0-9_]+\s*=\s*\[([\s\S]*?)\];/g)) out.push(...lits(m[1])); return uniq(out)}
 function excluded(mapper:string){const m=mapper.match(/IDX_PLUS_EXCLUDED_FIELDS\s*=\s*new\s+Set\s*\(\s*\[([\s\S]*?)\]\s*\)/); return m?lits(m[1]):[]}
-function renames(mapper:string){const m=mapper.match(/RESO_TO_RLS_RENAMES[^{]*\{([\s\S]*?)\};/); const out:Record<string,string>={}; if(!m)return out; for(const row of m[1].matchAll(/([A-Za-z0-9_]+)\s*:\s*["']([A-Za-z0-9_]+)["']/g)) out[row[1]]=row[2]; return out}
+function renames(mapper:string){const m=mapper.match(/RESO_TO_RLS_RENAMES[^{]*\{([\s\S]*?)\};/); const out:Record<string,string>={}; if(!m)return out; for(const row of stripComments(m[1]).matchAll(/([A-Za-z0-9_]+)\s*:\s*["']([A-Za-z0-9_]+)["']/g)) out[row[1]]=row[2]; return out}
 function metaFields(xml:string){if(!xml)return[]; const m=xml.match(/<EntityType\s+Name=["']Property["'][^>]*>([\s\S]*?)<\/EntityType>/); const scope=m?m[1]:xml; return uniq([...scope.matchAll(/<Property\s+Name=["']([^"']+)["']/g)].map(x=>x[1]))}
 function csvFields(csv:string){const out:string[]=[]; for(const line of csv.split(/\r?\n/).slice(1)){ if(!line.trim())continue; const cells=line.split(',').map(c=>c.trim().replace(/^"|"$/g,'')); if(cells[1])out.push(cells[1]); if(cells[3])out.push(cells[3]); } return uniq(out)}
 function mdFields(md:string){const allowed=(md.split('### Fields NOT on Trestle')[0]||md); return uniq([...allowed.matchAll(/`([A-Za-z0-9_]+)`/g)].map(m=>m[1]))}
