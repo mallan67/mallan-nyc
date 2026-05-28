@@ -52,6 +52,17 @@ type Rule = {
   requiredFix: string;
   proofRequired: string;
   lineHint?: RegExp;
+  /** Negative evidence — if this regex matches within ±exclusionWindow
+   *  lines of the primary pattern match, the rule is suppressed.
+   *  Used to skip false positives where mitigation code lives next to the
+   *  pattern (e.g. localStorage.setItem next to a DB-match removeItem). */
+  excludeIfNear?: RegExp;
+  /** Negative evidence — if this regex matches anywhere in the file, the
+   *  rule is suppressed for that file. Used for whole-file guards like
+   *  "this file is a TypeScript interface module, not runtime code." */
+  excludeIfFilePresent?: RegExp;
+  /** Override default ±20-line exclusion window. */
+  exclusionWindow?: number;
 };
 
 const HOT_PATHS = [
@@ -195,7 +206,16 @@ const RULES: Rule[] = [
     code: 'S-DB-008',
     severity: 'P0',
     filePattern: /public\/crm\/(?:SALE|RENTAL)-FORM-REDESIGN\.html|public\/crm\/js\/dashboard\/panels\.js$/,
-    pattern: /localStorage\.(?:setItem|getItem)[\s\S]{0,420}(?:draft|listingDraft|crmDraft)/i,
+    // Tightened (2026-05-28): only flag localStorage WRITES (setItem) of
+    // draft data, AND require absence of nearby mitigation evidence.
+    // Prior pattern flagged:
+    //   - The DB-match suppression block itself (panels.js, where the
+    //     localStorage.getItem is followed by removeItem when match found)
+    //   - Offline fallback paths that only run when MallanAPI is unreachable
+    pattern: /localStorage\.setItem\(\s*['"](?:mallan_draft_sale|rentalListingDraft|saleListings|crmDraft|mallan_draft_rental)['"]/,
+    // Skip when nearby code shows the mitigation OR it's an offline fallback.
+    excludeIfNear: /(?:_saleEditMode\s*&&\s*_saleEditDbId|_rentalEditMode\s*&&\s*_rentalEditDbId|typeof\s+MallanAPI\s*===\s*['"]undefined|!\s*MallanAPI|MallanAPI\.isReady\s*===\s*false|_dbHasMatch|_ldDbMatch|removeItem\s*\(\s*['"](?:mallan_draft_sale|rentalListingDraft|saleListings)|Offline\s*[—-]|offline fallback|fallback to localStorage)/i,
+    exclusionWindow: 15,
     failingPattern: 'Browser localStorage draft path can affect listing persistence/search.',
     actualFailure: 'Browser localStorage draft reads/writes are present in listing persistence or dashboard paths without proven DB-listing suppression.',
     impact: 'Browser drafts can override, duplicate, or visually shadow real database listings in edit mode and My Listings.',
@@ -206,9 +226,16 @@ const RULES: Rule[] = [
     code: 'S-AGENT-006',
     severity: 'P0',
     filePattern: /public\/crm\/(?:SALE|RENTAL)-FORM-REDESIGN\.html$/,
-    pattern: /(?:currentUser|loggedInAgent|sessionAgent)[\s\S]{0,600}(?:ListAgentMlsId|listingAgent|agentMlsId)/i,
-    failingPattern: 'Logged-in agent fallback appears near listing-agent fields.',
-    actualFailure: 'Logged-in/session agent fallback appears near saved listing-agent fields, the pattern that can replace the listing agent during edit.',
+    // Tightened (2026-05-28): require the field to be the LEFT side of an
+    // assignment (write), not a comment or read. The prior pattern matched
+    // a comment that mentioned "session-populated" near a write 8 lines
+    // later, even though the write was already guarded.
+    pattern: /(?:ListAgentMlsId|saleListingAgent|rentalListingAgent)\s*=\s*(?:saleUpdatingAgent|rentalUpdatingAgent|currentUser|loggedInAgent|sessionAgent|u\.id|user\.id)/,
+    // Skip when the empty-check guard from PR #261 lives nearby.
+    excludeIfNear: /if\s*\(\s*existingAgent\s*&&\s*existingAgent\.value\s*\)\s*return|if\s*\(\s*!listingAgentEl\s*\|\|\s*!listingAgentEl\.value\s*\)/,
+    exclusionWindow: 30,
+    failingPattern: 'Logged-in agent fallback overwrites listing-agent field without guard.',
+    actualFailure: 'Logged-in/session agent assignment writes to listing-agent field without an empty-check guard, allowing the saved listing agent to be replaced by the editor.',
     impact: 'Saved listing agent can be overwritten by the logged-in user during edit reload/autosave.',
     requiredFix: 'Preserve saved listing agent fields on edit and require an explicit visible Validate Agent action before submit.',
     proofRequired: 'Edit-mode test preserves ListAgentMlsId, ListAgentFullName, ListAgentEmail, ListAgentDirectPhone, ListOfficeName, ListOfficeMlsId, and ListOfficeKey.',
@@ -261,7 +288,16 @@ const RULES: Rule[] = [
     code: 'S-BACKSEARCH-009',
     severity: 'P0',
     filePattern: /app\/api\/crm\/listings|public\/crm\/js\/dashboard|public\/crm\/js\/manage/,
-    pattern: /(?:InternetEntireListingDisplayYN|InternetAddressDisplayYN|ownerOptOut|ParticipantOnly|InHouseInternal)[\s\S]{0,500}(?:where|filter|return\s+\[\]|continue)/i,
+    // Tightened (2026-05-28): only flag display-gate fields appearing AS A
+    // KEY inside a Prisma `where:` clause OR a search-filter callback. The
+    // prior pattern matched bare field-name appearances within 500 chars of
+    // any "where" or "filter" word, producing false positives on:
+    //   - input to computeGateColumns({ internetEntireListingDisplayYN: ... })
+    //   - compliance violation counters like `if (l.OwnerOptOut) violations++`
+    //   - comments mentioning display gates
+    // Now requires `where: { ... fieldName:` shape, the actual filter
+    // signature where misuse would hide CRM records from authorized brokers.
+    pattern: /where\s*:\s*\{[\s\S]{0,800}(?:internet_entire_listing_display_yn|internet_address_display_yn|InternetEntireListingDisplayYN|InternetAddressDisplayYN|owner_opt_out|OwnerOptOut|participant_only|ParticipantOnly|InHouseInternal)\s*:/,
     failingPattern: 'Backend/CRM search code references public display-gate fields in filtering logic.',
     actualFailure: 'Backend/CRM search path filters on public display-gate fields, which can hide authorized internal CRM records.',
     impact: 'Backend/CRM search may reuse public display gates as access gates, hiding drafts/internal listings from authorized brokers.',
@@ -272,11 +308,15 @@ const RULES: Rule[] = [
     code: 'S-BACKSEARCH-012',
     severity: 'P0',
     filePattern: /public\/crm\/(?:SALE|RENTAL)-FORM-REDESIGN\.html|app\/api\/crm\/agents\/route\.ts/,
-    pattern: /(?:agentName|ListAgentFullName)[\s\S]{0,500}(?:ListAgentMlsId|agentId)[\s\S]{0,200}(?:''|""|null|undefined)/i,
-    failingPattern: 'Visible agent field can be populated while stable hidden agent ID is empty.',
-    actualFailure: 'Agent UI/name fields appear near an empty/null stable agent ID path, meaning visible selection can pass while hidden identity fails.',
+    // Tightened (2026-05-28): require an actual assignment where the hidden
+    // agent ID receives an explicit empty/null/undefined fallback (the real
+    // bug shape). Prior pattern matched a bare `var _agentId, ...` declaration
+    // because "ListAgentMlsId" appeared 1 line above and `''` appeared later.
+    pattern: /(?:saleListingAgent|rentalListingAgent|ListAgentMlsId)\s*=\s*(?:agentInfo\.ListAgentMlsId|raw\.ListAgentMlsId)\s*\|\|\s*['"]\s*['"]/,
+    failingPattern: 'Hidden agent ID assigned with empty-string fallback (visible selection can pass while hidden identity fails).',
+    actualFailure: 'Agent ID assigned with `... || ""` fallback — visible name field can fill while hidden stable ID stays empty.',
     impact: 'Agent can appear selected in the UI while the hidden stable ID remains empty, breaking submit validation and attribution.',
-    requiredFix: 'Require visible Validate Agent action to populate and persist stable agent and office IDs before publish.',
+    requiredFix: 'Require visible Validate Agent action to populate and persist stable agent and office IDs before publish; remove silent empty-string fallback.',
     proofRequired: 'Agent validation persistence test blocks submit with missing hidden IDs and passes after explicit validation.',
   },
   {
@@ -316,7 +356,20 @@ const RULES: Rule[] = [
     code: 'S-COMP-001',
     severity: 'P0',
     filePattern: /lib\/listing-slug\.ts|lib\/listing-canonical-url\.ts|app\/api\/listings|app\/listing/,
-    pattern: /InternetAddressDisplayYN[\s\S]{0,900}(?:\/listing\/|buildCanonical|slug)(?![\s\S]{0,900}(?:false|suppressed|id-only|id only))/i,
+    // Tightened (2026-05-28): require the field appears in actual URL or
+    // slug WRITE context (template literal building a /listing/ URL, or
+    // returning a slug string). The prior pattern flagged:
+    //   - TypeScript interface declarations (`internetAddressDisplayYN?: boolean`)
+    //   - bare comments mentioning the field
+    //   - code where the field is read but a proper guard exists nearby
+    // The excludeIfNear guards skip the rule when affirmPermission(...) or
+    // a `=== false` short-circuit lives within ±15 lines of the match.
+    pattern: /InternetAddressDisplayYN[\s\S]{0,400}(?:`\/listing\/|return\s+['"`]?\/listing\/|buildCanonical|return\s+mlsIdSlug|return\s+addressSlug)/,
+    excludeIfNear: /affirmPermission\s*\(|InternetAddressDisplayYN\s*===\s*false|internetAddressDisplayYN\s*===\s*false|InternetAddressDisplayYN\s*!==\s*true|internetAddressDisplayYN\s*!==\s*true|mlsIdSlug\(|generic.*listing-XXX|suppress|isAddressDisplayable/i,
+    exclusionWindow: 15,
+    // Skip the rule entirely for files that ARE the interface declaration
+    // module (lib/listing-slug.ts has the type interface — the gate logic
+    // lives in the function body which we already exclude via excludeIfNear).
     failingPattern: 'Address URL generation near InternetAddressDisplayYN lacks clear suppressed-address fallback.',
     actualFailure: 'Address URL generation references InternetAddressDisplayYN without nearby suppressed-address/id-only fallback evidence.',
     impact: 'Suppressed-address listings can leak address atoms in public URL or metadata.',
@@ -466,6 +519,50 @@ function buildError(rule: Rule, file: string, source: string): SentinelLError {
   };
 }
 
+/**
+ * Returns true if any match of `re` lies within `windowLines` lines of
+ * `centerIndex`. Used to suppress detector findings when nearby negative
+ * evidence (a guard, a fallback, a suppression block) proves the flagged
+ * pattern is already mitigated. Window is symmetric (±windowLines).
+ */
+function hasNearbyMatch(
+  source: string,
+  centerIndex: number,
+  re: RegExp,
+  windowLines: number,
+): boolean {
+  const lineStarts = computeLineStarts(source);
+  const centerLine = lineForIndex(lineStarts, centerIndex);
+  const minLine = Math.max(0, centerLine - windowLines);
+  const maxLine = Math.min(lineStarts.length - 1, centerLine + windowLines);
+  const startIdx = lineStarts[minLine];
+  const endIdx = maxLine + 1 < lineStarts.length
+    ? lineStarts[maxLine + 1]
+    : source.length;
+  const window = source.slice(startIdx, endIdx);
+  re.lastIndex = 0;
+  return re.test(window);
+}
+
+function computeLineStarts(source: string): number[] {
+  const starts = [0];
+  for (let i = 0; i < source.length; i += 1) {
+    if (source[i] === '\n') starts.push(i + 1);
+  }
+  return starts;
+}
+
+function lineForIndex(lineStarts: number[], index: number): number {
+  let lo = 0;
+  let hi = lineStarts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1;
+    if (lineStarts[mid] <= index) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
 function evidenceSnippet(source: string, index: number): string {
   const lines = source.split(/\r?\n/);
   const before = source.slice(0, Math.max(0, index));
@@ -495,7 +592,23 @@ export function runSentinelL(repoRoot = process.cwd()): {
     for (const rule of RULES) {
       if (!rule.filePattern.test(file)) continue;
       rule.pattern.lastIndex = 0;
-      if (rule.pattern.test(source)) errors.push(buildError(rule, file, source));
+      const match = rule.pattern.exec(source);
+      if (!match) continue;
+      // Whole-file exclusion: skip the rule for this file if any of the
+      // file-level negative-evidence regexes match.
+      if (rule.excludeIfFilePresent) {
+        rule.excludeIfFilePresent.lastIndex = 0;
+        if (rule.excludeIfFilePresent.test(source)) continue;
+      }
+      // Window exclusion: skip if nearby negative evidence appears within
+      // ±exclusionWindow lines of the primary match.
+      if (rule.excludeIfNear && hasNearbyMatch(
+        source,
+        match.index,
+        rule.excludeIfNear,
+        rule.exclusionWindow ?? 20,
+      )) continue;
+      errors.push(buildError(rule, file, source));
     }
   }
 
