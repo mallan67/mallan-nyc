@@ -8224,7 +8224,15 @@ function _checkSaleEditMode() {
         }
         // Enable autosave AFTER the populate completes so we don't overwrite
         // the just-loaded data with form defaults that haven't yet been set.
-        setTimeout(function() { window._saleAutoSaveReady = true; }, 500);
+        // Defer to next microtask to let any change handlers fired by
+        // _populateSaleFormFromApi / initLoggedInAgent settle without
+        // triggering a re-autosave.
+        Promise.resolve().then(function() {
+            // Also clear any autosave that was scheduled during populate so
+            // the next user edit starts the 2s debounce fresh.
+            clearTimeout(autoSaveTimer);
+            window._saleAutoSaveReady = true;
+        });
         showToast('Listing loaded: ' + (_saleEditListingId || id), 'success');
 
         // Update header to show edit mode
