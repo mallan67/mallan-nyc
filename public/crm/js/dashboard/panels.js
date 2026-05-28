@@ -9397,13 +9397,17 @@ var Panels = (function () {
         var _ldStreet = (_ld && (_ld.saleStreetAddress || _ld.saleUnparsedAddress || '')).toString().trim().toLowerCase();
         var _ldUnit = (_ld && (_ld.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
         var _ldDbAddrMatch = false;
-        if (_ldStreet) {
+        // Require BOTH street AND unit present in the draft before treating an
+        // address+unit DB match as proof the draft is stale. A draft with only
+        // the building street and no unit could otherwise be wrongly auto-
+        // cleared just because another unit at the same building exists.
+        if (_ldStreet && _ldUnit) {
           _ldDbAddrMatch = typeListings.some(function (l) {
             var addr = l.address || {};
             var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
             var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
             var streetMatch = dbStreet && (dbStreet.indexOf(_ldStreet.replace(/\s+/g, ' ')) >= 0 || _ldStreet.indexOf(dbStreet) >= 0);
-            var unitMatch = !_ldUnit || dbUnit === _ldUnit;
+            var unitMatch = dbUnit && dbUnit === _ldUnit;
             return streetMatch && unitMatch;
           });
         }
@@ -9514,13 +9518,17 @@ var Panels = (function () {
           var _draftStreet = (localDraft && (localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || '')).toString().trim().toLowerCase();
           var _draftUnit = (localDraft && (localDraft.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
           var _dbHasAddrMatch = false;
-          if (_draftStreet) {
+          // Require BOTH street AND unit present in the draft (see count-block
+          // comment above) — empty draft unit must NOT collapse to "matches any
+          // unit at this building" or a new-listing draft would be wrongly
+          // cleared just because another unit at the same address exists.
+          if (_draftStreet && _draftUnit) {
             _dbHasAddrMatch = filtered.some(function (l) {
               var addr = l.address || {};
               var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
               var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
               var streetMatch = dbStreet && (dbStreet.indexOf(_draftStreet.replace(/\s+/g, ' ')) >= 0 || _draftStreet.indexOf(dbStreet) >= 0);
-              var unitMatch = !_draftUnit || dbUnit === _draftUnit;
+              var unitMatch = dbUnit && dbUnit === _draftUnit;
               return streetMatch && unitMatch;
             });
           }
