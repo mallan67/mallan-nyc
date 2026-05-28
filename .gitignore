@@ -220,5 +220,7 @@ report-*
 out.txt
 dump-*
 
+# Sentinel-L scanner outputs (timestamped per run, never committed)
+ops/audit/sentinel-l/
 # Smoke runner reports (timestamped per run, never committed)
 ops/audit/sales-smoke/
