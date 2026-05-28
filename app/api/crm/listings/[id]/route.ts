@@ -169,8 +169,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.BathroomsFull !== undefined) update.bathrooms_full = Number(body.BathroomsFull);
   if (body.BathroomsHalf !== undefined) update.bathrooms_half = Number(body.BathroomsHalf);
   if (body.LivingArea !== undefined) update.living_area = Number(body.LivingArea);
+  // borough/neighborhood column mirroring — accept canonical (Borough/Neighborhood)
+  // OR the alias keys (CityRegion/SubdivisionName) the CRM sale form actually
+  // emits in collectSaleFormData (see normalizer.ts aliasToCanonical: the form
+  // sends Borough→CityRegion + Neighborhood→SubdivisionName). Before this fix
+  // PATCH only mirrored when body sent the canonical names, so column-side
+  // borough/neighborhood drifted on every edit-save (gap report 2026-05-28 C2).
   if (body.Borough !== undefined) update.borough = String(body.Borough);
+  else if (body.CityRegion !== undefined) update.borough = String(body.CityRegion);
   if (body.Neighborhood !== undefined) update.neighborhood = String(body.Neighborhood);
+  else if (body.SubdivisionName !== undefined) update.neighborhood = String(body.SubdivisionName);
   if (body.City !== undefined) update.city = String(body.City);
   if (body.PostalCode !== undefined) update.postal_code = String(body.PostalCode);
   // Distribution gates — all use canonical RESO/RLS field names (YN suffix).
@@ -268,15 +276,37 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const existingFeatures = (listing.features as Record<string, unknown>) ?? {};
   const existingAgentInfo = (listing.agent_info as Record<string, unknown>) ?? {};
 
+  // Address bucket key allowlist. Includes both canonical RESO names AND the
+  // CRM-form alias keys (CityRegion/SubdivisionName/CountyOrParish/PostalCity)
+  // that collectSaleFormData emits. Before adding the aliases, those four
+  // fields landed only in raw_data on PATCH — the structured address bucket
+  // stayed stale and the building-validator re-fired on every edit-save
+  // (gap report 2026-05-28 §1.3, root cause C2).
   const addressKeys = [
     "StreetNumber", "StreetDirPrefix", "StreetName", "StreetSuffix",
     "StreetDirSuffix", "UnitNumber",
     "City", "StateOrProvince", "PostalCode", "Borough",
     "Neighborhood", "BuildingName", "UnparsedAddress",
+    // Alias keys the CRM sale form emits via collectSaleFormData (these are
+    // the same fields under different RESO/REBNY names — see
+    // lib/compliance/normalizer.ts aliasToCanonical).
+    "CityRegion", "SubdivisionName", "CountyOrParish", "PostalCity",
   ];
   const updatedAddress = { ...existingAddress };
   for (const k of addressKeys) {
     if (body[k] !== undefined) updatedAddress[k] = body[k];
+  }
+  // UnparsedAddress case normalization: the CRM sale form's
+  // collectSaleFormData emits `UnParsedAddress` (capital P, the spelling on
+  // Trestle's $metadata for OData $orderby), while existing Trestle-mapped
+  // rows and most internal callers use `UnparsedAddress` (lowercase p). Accept
+  // either casing and store under the lowercase-p canonical so the public-DTO
+  // builders + slug + address validator (which all read `UnparsedAddress`)
+  // get the fresh value on every edit. Without this, the structured bucket
+  // kept the stale UnparsedAddress while raw_data.UnParsedAddress drifted
+  // separately (gap report 2026-05-28 §1.3, root cause C2 + PR-F).
+  if (body.UnParsedAddress !== undefined && body.UnparsedAddress === undefined) {
+    updatedAddress.UnparsedAddress = body.UnParsedAddress;
   }
   update.address = updatedAddress as Prisma.InputJsonValue;
 
