@@ -37,6 +37,18 @@ export function buildListingUrls(listing: ListingForUrl): {
     internetAddressDisplayYN: listing.internet_address_display_yn !== false,
   });
 
+  // Canonical URL guard: a published CRM listing with displayable address
+  // must NEVER expose a generic `listing-XXX` URL publicly. If we got one,
+  // return null for both URLs so the form shows "URL pending" instead of
+  // a broken canonical that would dilute SEO and confuse RealPlus.
+  const isGenericSlug = slug.startsWith('listing-');
+  const addressDisplayable = listing.internet_address_display_yn !== false;
+  if (isGenericSlug && addressDisplayable && isActive) {
+    // eslint-disable-next-line no-console
+    console.error(`[listing-urls] Refusing to advertise generic slug for ${listing.listing_id} — address incomplete`);
+    return { publicUrl: null, realPlusUrl: null };
+  }
+
   const publicUrl = `${SITE_URL}/listing/${slug}`;
   const realPlusUrl = isActive ? publicUrl : null;
 

@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
@@ -801,6 +801,16 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   const listing = result.listing;
   const { tax, rawStreetName } = result;
+
+  // CANONICAL URL ENFORCEMENT — one listing, one slug.
+  // If the user reached this page via a non-canonical URL (e.g. /listing/sl-0004
+  // ID-only, or an older address-only slug without the id suffix), 308 redirect
+  // to the listing's canonical slug. Prevents SEO dilution and ensures one
+  // public point of reference per listing. UCBA-suppressed listings (their
+  // canonical IS the listing-XXX ID slug) are exempt.
+  if (listing.slug && id !== listing.slug && !key) {
+    redirect(`/listing/${listing.slug}`);
+  }
 
   const isRental = listing.listingType === 'rent';
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';

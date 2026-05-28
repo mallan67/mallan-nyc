@@ -171,6 +171,65 @@ describe('detail route DB matching — separate StreetDirPrefix', () => {
   });
 });
 
+describe('canonical URL — buildListingUrls refuses to advertise generic slug', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { buildListingUrls } = require('@/lib/crm/listing-urls');
+
+  test('Active CRM listing with full address returns canonical address URL', () => {
+    const urls = buildListingUrls({
+      listing_id: 'SL-0004',
+      status: 'Active',
+      address: {
+        StreetNumber: '333',
+        StreetDirPrefix: 'E',
+        StreetName: '46th',
+        StreetSuffix: 'St',
+        UnitNumber: '2G',
+        City: 'New York',
+        StateOrProvince: 'NY',
+        PostalCode: '10017',
+      },
+      internet_address_display_yn: true,
+    });
+    expect(urls.publicUrl).not.toBeNull();
+    expect(urls.publicUrl).not.toMatch(/\/listing\/listing-/);
+    expect(urls.publicUrl).toContain('333');
+    expect(urls.publicUrl).toContain('46th');
+    expect(urls.realPlusUrl).toBe(urls.publicUrl);
+  });
+
+  test('Active CRM listing with empty address never returns generic /listing/sl-XXXX URL', () => {
+    const urls = buildListingUrls({
+      listing_id: 'SL-9999',
+      status: 'Active',
+      address: {},
+      internet_address_display_yn: true,
+    });
+    // Either null (refused) or a best-effort address slug — but NEVER /listing/sl-9999
+    if (urls.publicUrl !== null) {
+      expect(urls.publicUrl).not.toMatch(/\/listing\/sl-\d+$/i);
+      expect(urls.publicUrl).not.toMatch(/\/listing\/listing-/);
+    }
+  });
+
+  test('realPlusUrl never equals generic /listing/sl-XXXX', () => {
+    const urls = buildListingUrls({
+      listing_id: 'SL-0004',
+      status: 'Active',
+      address: {
+        StreetNumber: '333',
+        StreetName: 'East 46th Street',
+        UnitNumber: '2G',
+        City: 'New York',
+        PostalCode: '10017',
+      },
+      internet_address_display_yn: true,
+    });
+    expect(urls.realPlusUrl).not.toBe('https://www.mallan.nyc/listing/sl-0004');
+    expect(urls.realPlusUrl).not.toBe('https://www.mallan.nyc/listing/listing-sl-0004');
+  });
+});
+
 describe('SEO guard — CRM exclusives must NEVER get generic listing-XXX slug', () => {
   test('SL- listing with full address produces address slug, not listing-sl-XXXX', () => {
     const slug = generateListingSlug({
