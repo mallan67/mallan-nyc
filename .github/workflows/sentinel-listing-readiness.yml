@@ -1,95 +1,55 @@
-name: Sentinel-L — Listing Workflow Readiness (report-only)
-
-# Sentinel-L is a PR-scoped companion to the daily Sentinel-D repo audit.
-# Where Sentinel-D answers "does the codebase still pass compliance gates",
-# Sentinel-L answers "would this listing workflow be safe against the
-# current production deployment on mallan.nyc/main?"
-#
-# Absolute restrictions (REPORT-ONLY — same as the repo-audit-bot agent):
-#   - Do not patch code. Do not auto-fix anything.
-#   - Do not edit any file except the per-PR audit report under
-#     memory/audits/listing-readiness/.
-#   - Do not open / merge / close / reopen PRs. The workflow posts ONE
-#     PR comment on the PR being audited; Claude does not call gh pr
-#     comment directly.
-#   - Do not trigger production crons. Do not run prisma migrate.
-#   - Do not change Neon / Vercel / Cloudflare / REBNY / Trestle settings.
-#   - Do not start JSON-drop work. Do not alter production data.
-#   - Do not merge any PR — verdict GREEN / YELLOW / RED is informational.
+name: Sentinel-L - Platform Actionable Error Scanner
 
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
-    # Mandatory trigger surfaces per Maya's Sentinel-L spec (Codex P0 #5
-    # added the media + syndication + public-listing-filter + search-reader
-    # + idx/** + app/listing/** + listing display components + self-paths).
     paths:
-      # ── CRM forms + dashboard ──────────────────────────────────────────
-      - 'public/crm/SALE-FORM-REDESIGN.html'
-      - 'public/crm/RENTAL-FORM-REDESIGN.html'
-      - 'public/crm/js/dashboard/**'
-      # ── API surfaces ───────────────────────────────────────────────────
+      - 'public/crm/**'
+      - 'app/api/listings/**'
       - 'app/api/buildings/**'
-      - 'app/api/crm/listings/**'
-      - 'app/api/crm/documents/upload/**'
-      - 'app/api/media/**'
-      - 'app/api/cron/media-sync/**'
-      - 'app/api/cron/media-backfill/**'
-      # ── Listing detail page + listing display components ───────────────
+      - 'app/api/crm/**'
+      - 'app/api/email/**'
+      - 'app/api/reports/**'
       - 'app/listing/**'
-      - 'app/components/Listing*.tsx'
+      - 'app/sitemap.ts'
       - 'app/components/FeaturedListings.tsx'
-      - 'app/components/IDX*.tsx'
-      - 'app/components/FareAct*.tsx'
-      - 'app/components/SearchMap.tsx'
-      - 'app/components/AgencyDisclosure.tsx'
-      - 'app/components/AntiDiscriminationNotice.tsx'
-      # ── lib/idx (Trestle/Cotality mapping, sync, media-sync) ───────────
+      - 'app/components/SearchListingCard.tsx'
+      - 'app/components/IDXImage.tsx'
+      - 'lib/search/**'
       - 'lib/idx/**'
-      # ── lib/media (media resolver, fallback chain) ─────────────────────
+      - 'lib/crm/**'
       - 'lib/media/**'
-      # ── lib/syndication (Mallan exclusives, partner export) ────────────
-      - 'lib/syndication/**'
-      # ── lib/compliance (display gates, DTOs, public-listing filter) ────
-      - 'lib/compliance/gates.ts'
-      - 'lib/compliance/idx-display-gate.ts'
-      - 'lib/compliance/dto.ts'
-      - 'lib/compliance/public-listing-filter.ts'
-      # ── lib/search (public readers + projection) ───────────────────────
-      - 'lib/search/public-listing-db.ts'
-      - 'lib/search/public-listing-trestle.ts'
-      - 'lib/search/listing-search-projection.ts'
-      # ── Sentinel-L self-paths (any change to L infra must re-run L) ────
+      - 'lib/compliance/**'
+      - 'lib/address/**'
+      - 'lib/email/**'
+      - 'lib/reports/**'
+      - 'lib/market-report/**'
+      - 'lib/cma/**'
+      - 'lib/listing-slug.ts'
+      - 'lib/listing-canonical-url.ts'
+      - 'tools/sentinel-l/**'
       - '.github/workflows/sentinel-listing-readiness.yml'
-      - 'scripts/sentinel-write-listing-audit.mjs'
-      - 'scripts/__tests__/sentinel-listing-readiness-workflow.test.js'
-      - 'scripts/__tests__/sentinel-write-listing-audit.test.js'
+      - 'tests/runtime/sentinel-l-platform-scanner.test.ts'
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'PR number to audit'
+        description: 'PR number to scan'
         required: true
         type: string
 
 permissions:
   contents: read
-  # Codex P0 #6 — `gh pr comment` posts via the issues-comments REST
-  # endpoint, so `issues: write` is required alongside `pull-requests: write`
-  # for the comment-posting step to succeed across all GitHub-token
-  # variants. Both stay scoped to commenting only; neither permits merging,
-  # closing, reopening, or assigning.
   pull-requests: write
   issues: write
-  id-token: write         # required by anthropics/claude-code-action
 
 concurrency:
   group: sentinel-l-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
-  audit:
+  scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - name: Resolve PR metadata
         id: pr
@@ -105,31 +65,24 @@ jobs:
             echo "::error::No PR number resolvable from event or workflow_dispatch input."
             exit 1
           fi
-          # Validate digits-only — defensive guard against any unexpected
-          # string that could slip into a downstream path.
           if ! echo "$pr_number" | grep -Eq '^[0-9]+$'; then
             echo "::error::PR number '$pr_number' is not numeric."
             exit 1
           fi
-          # Pull head SHA from the GitHub API (works for both trigger types).
           pr_head_sha=$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.head.sha')
           if ! echo "$pr_head_sha" | grep -Eq '^[a-f0-9]{40}$'; then
             echo "::error::PR head SHA '$pr_head_sha' is not a valid 40-char lowercase hex."
             exit 1
           fi
-          pr_head_ref=$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.head.ref')
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           echo "pr_head_sha=$pr_head_sha" >> "$GITHUB_OUTPUT"
-          echo "pr_head_ref=$pr_head_ref" >> "$GITHUB_OUTPUT"
           echo "short_sha=${pr_head_sha:0:8}" >> "$GITHUB_OUTPUT"
-          echo "report_path=memory/audits/listing-readiness/PR-${pr_number}-${pr_head_sha:0:8}.md" >> "$GITHUB_OUTPUT"
-          echo "Resolved PR #${pr_number} head ${pr_head_sha:0:8} (ref: ${pr_head_ref})"
 
       - name: Checkout PR head
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.pr_head_sha }}
-          fetch-depth: 0    # fetch main too so Claude can diff against it
+          fetch-depth: 0
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
@@ -137,917 +90,88 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies (read-only validators only)
+      - name: Install dependencies
         run: npm ci
 
-      # ----------------------------------------------------------------------
-      # PRE-CREATE the audit skeleton (same pattern as Sentinel-D).
-      # Claude updates this file by invoking
-      # `node scripts/sentinel-write-listing-audit.mjs` via Bash. The script
-      # enforces the 6 KB cap, the 5 required sections (A–E), the verdict
-      # marker, and the closing line. No Write/Edit tool needed.
-      # ----------------------------------------------------------------------
-      # ----------------------------------------------------------------------
-      # Sentinel-L.2 — run the 3 deterministic JSON-producing audit scripts
-      # BEFORE Claude. The scripts inspect the PR diff and emit structured
-      # signals about field-contract coverage, compliance-language risk, and
-      # listing-flow surfaces touched. Claude then consumes these JSONs via
-      # the Read tool and uses them to populate the Finding matrix + the
-      # 12-lens A–L audit body. The scripts ship signals, not verdicts;
-      # Claude's judgment plus the writer's GREEN-blocker rules produce the
-      # final verdict.
-      # ----------------------------------------------------------------------
-      - name: Run Sentinel-L.2 deterministic audit scripts
-        id: deterministic
-        env:
-          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
-          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
-          SHORT_SHA: ${{ steps.pr.outputs.short_sha }}
+      - name: Run Sentinel-L actionable scanner
+        id: scanner
         run: |
           set -euo pipefail
-          echo "::group::Sentinel-L.2 breadcrumb — deterministic step START"
-          echo "Sentinel-L.2 breadcrumb: BEGIN deterministic scripts @ $(date -u +%FT%TZ)"
-          echo "::endgroup::"
+          npm run sentinel:l
+          latest_json=$(ls -t ops/audit/sentinel-l/*-errors.json | head -1)
+          latest_md="${latest_json%.json}.md"
+          status=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).status)" "$latest_json")
+          count=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).actionable_errors)" "$latest_json")
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "json_path=$latest_json" >> "$GITHUB_OUTPUT"
+          echo "markdown_path=$latest_md" >> "$GITHUB_OUTPUT"
+          echo "Sentinel-L status: $status"
+          echo "Actionable errors: $count"
 
-          # Find the merge-base with main so we diff against the PR's actual
-          # changes, not the whole branch history.
-          git fetch origin main --depth=100 >/dev/null 2>&1 || true
-          base_ref=$(git merge-base origin/main HEAD 2>/dev/null || true)
-          if [ -z "$base_ref" ]; then
-            echo "::warning::No merge-base with origin/main; falling back to HEAD~1"
-            base_ref="HEAD~1"
-          fi
-
-          changed_files=$(git diff --name-only "$base_ref" HEAD || true)
-          changed_files_numstat=$(git diff --numstat "$base_ref" HEAD || true)
-
-          inputs_dir="memory/audits/listing-readiness/inputs"
-          mkdir -p "$inputs_dir"
-          field_path="$inputs_dir/PR-${PR_NUMBER}-${SHORT_SHA}-field-contract.json"
-          language_path="$inputs_dir/PR-${PR_NUMBER}-${SHORT_SHA}-compliance-language.json"
-          flow_path="$inputs_dir/PR-${PR_NUMBER}-${SHORT_SHA}-listing-flow.json"
-
-          echo "Running sentinel-field-contract-audit.mjs..."
-          CHANGED_FILES="$changed_files" \
-            node scripts/sentinel-field-contract-audit.mjs > "$field_path"
-          echo "Running sentinel-compliance-language-audit.mjs..."
-          CHANGED_FILES="$changed_files" \
-            node scripts/sentinel-compliance-language-audit.mjs > "$language_path"
-          echo "Running sentinel-listing-flow-static-audit.mjs..."
-          CHANGED_FILES="$changed_files" \
-          CHANGED_FILES_NUMSTAT="$changed_files_numstat" \
-            node scripts/sentinel-listing-flow-static-audit.mjs > "$flow_path"
-
-          # One-line rollup per JSON to make the workflow log self-auditable.
-          field_touched=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.touched_count)" "$field_path")
-          language_total=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.total_violations)" "$language_path")
-          language_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_severity)" "$language_path")
-          flow_count=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.workflows_touched)" "$flow_path")
-          flow_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_risk)" "$flow_path")
-
-          echo "Sentinel-L.2 deterministic rollup:"
-          echo "  field-contract:        $field_touched touched fields"
-          echo "  compliance-language:   $language_total violations (highest: $language_max)"
-          echo "  listing-flow:          $flow_count workflows touched (highest: $flow_max)"
-          echo ""
-          echo "Sentinel-L.2 breadcrumb: END deterministic scripts @ $(date -u +%FT%TZ)"
-          echo "Sentinel-L.2 breadcrumb: JSON artifacts written to $inputs_dir"
-
-          # Sentinel-L.2 (improvement) — build a multi-line markdown summary
-          # that the fallback step can embed in the RED report when Claude
-          # skips. This turns the previously-generic "LIMITED — Sentinel-L
-          # could not complete its investigation" boilerplate into a real
-          # forensic report grounded in the deterministic JSON facts.
-          summary_md=$(node -e '
-            const fs = require("fs");
-            const f = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-            const c = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-            const w = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-            const out = [];
-            const ts = (n, max=8) => Array.from(new Set(n)).slice(0, max);
-            out.push("### Deterministic findings (from JSON inputs)");
-            out.push("");
-            out.push("**Field contract (" + f.summary.touched_count + " of " + f.summary.contract_fields_total + " contract fields touched):**");
-            const fieldNames = Object.keys(f.fields);
-            if (fieldNames.length) {
-              out.push("- Touched: " + ts(fieldNames).join(", ") + (fieldNames.length > 8 ? ", …" : ""));
-              out.push("- Full coverage: " + f.summary.fields_with_full_coverage + " | partial: " + f.summary.fields_with_partial_coverage + " | none: " + f.summary.fields_with_no_coverage);
-            } else {
-              out.push("- (none touched)");
-            }
-            out.push("");
-            out.push("**Compliance language (" + c.summary.total_violations + " violations, highest severity: " + c.summary.highest_severity + "):**");
-            if (c.violations.length) {
-              const seen = new Set();
-              for (const v of c.violations.slice(0, 6)) {
-                const k = v.rule_id + ":" + v.severity;
-                if (seen.has(k)) continue;
-                seen.add(k);
-                out.push("- " + v.severity + " " + v.rule_id + " at " + v.file + ":" + v.line);
-              }
-              if (c.violations.length > 6) out.push("- … (" + (c.violations.length - 6) + " more)");
-            } else {
-              out.push("- (no Fair Housing / advertising / REBNY/IDX violations detected by static scan)");
-            }
-            out.push("");
-            out.push("**Listing flow (" + w.summary.workflows_touched + " workflows touched, highest risk: " + w.summary.highest_risk + "):**");
-            if (w.workflows.length) {
-              for (const wf of w.workflows) {
-                out.push("- " + wf.risk + " `" + wf.workflow + "` (" + wf.user_roles.join("/") + ", " + wf.compliance_surfaces.join("/") + ") — " + wf.proof_level);
-              }
-            } else {
-              out.push("- (no listing-flow surfaces touched)");
-            }
-            console.log(out.join("\n"));
-          ' "$field_path" "$language_path" "$flow_path")
-
-          echo "inputs_dir=$inputs_dir" >> "$GITHUB_OUTPUT"
-          echo "field_contract_path=$field_path" >> "$GITHUB_OUTPUT"
-          echo "compliance_language_path=$language_path" >> "$GITHUB_OUTPUT"
-          echo "listing_flow_path=$flow_path" >> "$GITHUB_OUTPUT"
-          echo "field_touched_count=$field_touched" >> "$GITHUB_OUTPUT"
-          echo "language_total_violations=$language_total" >> "$GITHUB_OUTPUT"
-          echo "language_highest_severity=$language_max" >> "$GITHUB_OUTPUT"
-          echo "flow_workflows_touched=$flow_count" >> "$GITHUB_OUTPUT"
-          echo "flow_highest_risk=$flow_max" >> "$GITHUB_OUTPUT"
-          # Multi-line output via heredoc-delimited GITHUB_OUTPUT syntax.
-          {
-            echo "summary_md<<SENTINEL_L2_MD_EOF"
-            echo "$summary_md"
-            echo "SENTINEL_L2_MD_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create listing-readiness audit skeleton
-        id: skeleton
-        env:
-          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
-          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
-          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$(dirname "$REPORT_PATH")"
-          ny_iso=$(TZ=America/New_York date +"%Y-%m-%dT%H:%M:%S%z")
-          utc_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          cat > "$REPORT_PATH" <<EOF
-          # Sentinel-L — Listing Workflow Readiness PR #${PR_NUMBER}
-
-          commit: ${PR_HEAD_SHA}
-          ref:    ${{ steps.pr.outputs.pr_head_ref }}
-          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          timestamp_eastern: $ny_iso
-          timestamp_utc:     $utc_iso
-          status: IN PROGRESS
-
-          ---
-
-          ## Finding matrix
-
-          _TODO_
-
-          ## A. Syntax / structural correctness
-
-          _TODO_
-
-          ## B. Field contract correctness
-
-          _TODO_
-
-          ## C. Business logic correctness
-
-          _TODO_
-
-          ## D. Broker / agent usability
-
-          _TODO_
-
-          ## E. Client-facing usability
-
-          _TODO_
-
-          ## F. REBNY / RLS / RESO / IDX Plus compliance
-
-          _TODO_
-
-          ## G. Trestle / Cotality Web API contract
-
-          _TODO_
-
-          ## H. NYC / NYS real estate advertising law
-
-          _TODO_
-
-          ## I. Fair Housing / advertising language
-
-          _TODO_
-
-          ## J. Data persistence and media integrity
-
-          _TODO_
-
-          ## K. Security / privacy / role access
-
-          _TODO_
-
-          ## L. Evidence quality: live proof vs code-only inference
-
-          _TODO_
-          EOF
-          skeleton_bytes=$(wc -c < "$REPORT_PATH")
-          skeleton_sha=$(sha256sum "$REPORT_PATH" | awk '{print $1}')
-          echo "skeleton_bytes=$skeleton_bytes" >> "$GITHUB_OUTPUT"
-          echo "skeleton_sha=$skeleton_sha" >> "$GITHUB_OUTPUT"
-          echo "Skeleton: ${skeleton_bytes} bytes, sha256=${skeleton_sha:0:12}…"
-
-      - name: Detect Claude workflow-validation skip risk
-        id: claude_preflight
+      - name: Upload Sentinel-L artifacts
         if: always()
-        run: |
-          set -euo pipefail
-
-          workflow_path=".github/workflows/sentinel-listing-readiness.yml"
-          expected_skip="false"
-          reason="none"
-
-          git fetch origin main --depth=1 >/dev/null 2>&1 || true
-
-          if ! git cat-file -e "origin/main:${workflow_path}" 2>/dev/null; then
-            expected_skip="true"
-            reason="workflow_file_missing_on_default_branch"
-          else
-            git show "origin/main:${workflow_path}" > /tmp/sentinel-l-main-workflow.yml
-            if ! cmp -s "$workflow_path" /tmp/sentinel-l-main-workflow.yml; then
-              expected_skip="true"
-              reason="workflow_file_differs_from_default_branch"
-            fi
-          fi
-
-          echo "Sentinel-L.2 Claude preflight:"
-          echo "  expected_skip=$expected_skip"
-          echo "  reason=$reason"
-          echo "  interpretation=claude-code-action workflow validation requires this workflow file to match the default branch before Claude reasoning runs"
-
-          echo "expected_skip=$expected_skip" >> "$GITHUB_OUTPUT"
-          echo "reason=$reason" >> "$GITHUB_OUTPUT"
-
-      - name: Invoke Claude — Sentinel-L listing-readiness audit
-        id: claude
-        uses: anthropics/claude-code-action@v1
+        uses: actions/upload-artifact@v4
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # show_full_output: surfaces permission_denials + script ERROR codes
-          # in the workflow log for forensic debugging (same as Sentinel-D).
-          show_full_output: true
-          # Allow-list shape mirrors Sentinel-D.1.1's. NO Write tool. NO Edit.
-          # NO Bash for write/exec operations outside the writer script.
-          # Codex P0 #7 — narrowed the Bash entry from the broad
-          # `Bash(node scripts/*)` (which would permit invoking ANY script
-          # under scripts/) to the exact writer command prefixes. The no-arg
-          # form proves the exact command is allowed; the trailing ` *` form
-          # allows the heredoc-redirect tail (`<<'AUDIT_EOF' …`) the writer
-          # needs, but nothing else; any `node scripts/<other>` call is denied.
-          claude_args: >-
-            --allowed-tools "Read,Glob,Grep,WebFetch,WebSearch,Bash(npm run type-check),Bash(npm run lint),Bash(npm run compliance-check),Bash(npm run idx:validate),Bash(npm run rls:validate),Bash(npm run ucba:audit),Bash(npm run crm:check-build),Bash(curl -fsSL *),Bash(curl -sS *),Bash(node scripts/sentinel-write-listing-audit.mjs),Bash(node scripts/sentinel-write-listing-audit.mjs *),Bash(git status),Bash(git diff *),Bash(git log *),Bash(gh pr view *),Bash(gh pr diff *)"
-          prompt: |
-            STRICT REPORT-ONLY MODE.
-
-            You are running Sentinel-L: Listing Workflow Readiness audit on
-            PR #${{ steps.pr.outputs.pr_number }} at commit ${{ steps.pr.outputs.pr_head_sha }}.
-
-            ### FIRST REQUIRED ACTION — MANDATORY
-
-            **You MUST call the writer script `scripts/sentinel-write-listing-audit.mjs`.**
-            Writing the audit report file via this script is BOTH ALLOWED
-            AND REQUIRED. "Report-only" means "do NOT modify production code"
-            — it does NOT mean "do not write the audit report file". The
-            audit report IS the deliverable; producing it is your job.
-
-            The writer is explicitly permitted by your allow-list as:
-              `Bash(node scripts/sentinel-write-listing-audit.mjs)`
-              `Bash(node scripts/sentinel-write-listing-audit.mjs *)`
-
-            **WORKED EXAMPLE — invoke the writer via Bash + heredoc:**
-
-                node scripts/sentinel-write-listing-audit.mjs <<'AUDIT_EOF'
-                # Sentinel-L — Listing Workflow Readiness PR #${{ steps.pr.outputs.pr_number }}
-
-                commit: ${{ steps.pr.outputs.pr_head_sha }}
-                status: COMPLETE
-
-                ---
-
-                ## Finding matrix
-
-                | file | changed lines | affected workflow | field contracts touched | user role affected | compliance surface | risk | proof level | finding | required action |
-                |------|---------------|-------------------|-------------------------|--------------------|--------------------|------|-------------|---------|-----------------|
-                | <file>      | <n>         | <wf>              | <fields>                | broker             | REBNY              | P1   | static code | <one-line finding> | <one-line action> |
-
-                ## A. Syntax / structural correctness
-                <one paragraph + file:line>
-
-                ## B. Field contract correctness
-                <one paragraph + file:line>
-
-                ## C. Business logic correctness
-                <one paragraph + file:line>
-
-                ## D. Broker / agent usability
-                <one paragraph + file:line>
-
-                ## E. Client-facing usability
-                <one paragraph + file:line>
-
-                ## F. REBNY / RLS / RESO / IDX Plus compliance
-                <one paragraph + file:line>
-
-                ## G. Trestle / Cotality Web API contract
-                <one paragraph + file:line>
-
-                ## H. NYC / NYS real estate advertising law
-                <one paragraph + file:line>
-
-                ## I. Fair Housing / advertising language
-                <one paragraph + file:line>
-
-                ## J. Data persistence and media integrity
-                <one paragraph + file:line>
-
-                ## K. Security / privacy / role access
-                <one paragraph + file:line>
-
-                ## L. Evidence quality: live proof vs code-only inference
-                <one paragraph + file:line>
-
-                Final verdict: GREEN
-                <or YELLOW / RED — exactly one verdict line>
-
-                Sentinel-L: report-only — no changes made.
-                AUDIT_EOF
-
-            On success the script prints one JSON line to stdout (path,
-            sha256, bytes, verdict). On failure it writes an ERROR_CODE
-            to stderr and exits non-zero. Read stderr, fix the structural
-            issue, and re-invoke.
-
-            **If you do NOT call the writer, the workflow's post-Claude
-            diagnostic will fire RED with the deterministic JSON findings
-            embedded as the only evidence — and the PR comment will show
-            that no Claude reasoning occurred. That is the correct
-            outcome for a non-functioning audit. Do not avoid it by
-            pretending to audit; just call the writer with what you have.**
-
-            ### ABSOLUTE RESTRICTIONS
-
-              - You may NOT patch code, auto-fix anything, push, commit,
-                merge, open/close/reopen PRs, run `prisma migrate`, trigger
-                crons, delete media, change Neon/Vercel/Cloudflare/REBNY/
-                Trestle settings, release the external-inventory hold,
-                start JSON-drop work, or alter production data.
-              - You may NOT use the Write tool. You may NOT use the Edit
-                tool. You may NOT use filesystem-write Bash workarounds
-                (no `cat >`, no `tee`, no `sed -i`, no `python -c`/`node -e`
-                with fs writes). The Write and Edit tools are NOT in your
-                allow-list — calls will be denied.
-              - You may produce EXACTLY ONE output file:
-                ${{ steps.pr.outputs.report_path }}
-              - The ONLY supported way to produce this file is to invoke
-                `node scripts/sentinel-write-listing-audit.mjs` via Bash
-                with the full audit content on stdin (heredoc). The script
-                reads PR_NUMBER and PR_HEAD_SHA from env, computes the
-                output path internally, and rejects any positional args.
-              - The workflow handles the PR comment after you finish. Do
-                NOT attempt `gh pr comment` yourself — it is not allowed.
-
-            ### PAYLOAD BUDGET RULE (Sentinel-D.1.1 parser cap applies)
-
-            Each `node scripts/sentinel-write-listing-audit.mjs` call's
-            heredoc payload MUST stay under 6 KB (6,144 bytes total). The
-            Claude SDK tool-input parser aborts with
-            `Parser aborted (timeout, resource limit, or over-length)`
-            on larger payloads. Compact-report rules:
-
-              - One concise paragraph per A–E section. Bullets only when
-                listing 3+ items.
-              - No giant evidence dumps. Use `file:line` references, not
-                pasted source. No full command output. No multi-line log
-                paste.
-              - No new tables anywhere in the report.
-              - No repeated command outputs. Cite a finding once.
-              - No verbose raw logs. Stack traces → "TypeError at file:42".
-
-            ### FIRST-CALL = COMPACT COMPLETE AUDIT
-
-            **The first successful script invocation must already produce
-            a compact complete audit.** That call is the safety net — if
-            a later refinement parser-aborts or the job times out, the
-            artifact + PR comment still contain a real audit. Required
-            ordered procedure:
-
-              1. Read the skeleton at ${{ steps.pr.outputs.report_path }}.
-              2. Read the THREE Sentinel-L.2 deterministic JSON inputs the
-                 workflow already produced (read each with the Read tool):
-                   - ${{ steps.deterministic.outputs.field_contract_path }}
-                   - ${{ steps.deterministic.outputs.compliance_language_path }}
-                   - ${{ steps.deterministic.outputs.listing_flow_path }}
-                 These are deterministic signals. Use them to populate the
-                 Finding matrix and to assign per-section verdicts.
-              3. Read the PR diff:
-                 `gh pr diff ${{ steps.pr.outputs.pr_number }} --patch`
-                 to know exactly which lines changed.
-              4. Investigate the 12 A–L lenses below at compact resolution.
-                 For each lens, assign a verdict (`PASS / FAIL / LIMITED /
-                 NOT VERIFIED / BLOCKED`) + at least one `file:line`
-                 citation. Aggregate per-file findings into the Finding
-                 matrix table.
-              5. First script call: submit a STRUCTURALLY COMPLETE report
-                 (Finding matrix + all 12 sections filled, one explicit
-                 `Final verdict: GREEN`/`YELLOW`/`RED` line, closing line).
-                 Stay under 10 KB.
-
-            ### LIMITED FALLBACK RULE
-
-            When detail does not fit under 10 KB, do NOT expand the heredoc.
-            Instead, summarize that section in one sentence with the
-            evidence gap explicitly stated (e.g. "Coop/Condop logic: code
-            present at `SALE-FORM-REDESIGN.html:8421` but live form behavior
-            not probed — preview-auth required."). A clearly-marked
-            evidence gap is a valid Sentinel-L outcome; a parser-aborted
-            heredoc is not.
-
-            ### STOP-EXPAND + POST-ABORT RECOVERY RULE
-
-              1. Once the first script call succeeds (writer prints JSON to
-                 stdout), the run already has a usable audit. Continuing to
-                 grow the heredoc is risk-for-no-reward.
-              2. Never retry with larger content after a parser abort.
-              3. If you must retry after a parser abort, the next payload
-                 MUST be at least 40% smaller. Drop an evidence block, mark
-                 a section LIMITED, collapse paragraphs to bullets.
-
-            ### FINDING MATRIX (REQUIRED — Sentinel-L.2)
-
-            Before the A–L sections, emit a `## Finding matrix` heading
-            followed by a pipe-table with these 10 columns:
-
-              | file | changed lines | affected workflow | field contracts touched | user role affected | compliance surface | risk | proof level | finding | required action |
-
-            One row per touched file (deduplicate where multiple workflows
-            apply to the same file). Use the deterministic JSON inputs to
-            populate `affected workflow`, `field contracts touched`,
-            `compliance surface`, `risk`, and `proof level`. The writer
-            REJECTS any report missing this matrix or with zero data rows.
-
-            ### 12-LENS A–L CHECKLIST (Sentinel-L.2 multi-lens spec)
-
-            For each lens below, write one concise paragraph (no bullets
-            unless 3+ items). Assign a verdict and at least one
-            `file:line` citation per lens.
-
-            **A. Syntax / structural correctness** — does the change parse,
-            type-check, and follow the project's structural conventions?
-            Lint + tsc results; not "tests pass" alone.
-
-            **B. Field contract correctness** — for each touched listing
-            field (see field-contract JSON), is the source → form → API →
-            DB → reload/display path complete? Missing coverage on
-            display gates / address atoms / status / display flags is P0.
-
-            **C. Business logic correctness** — does the changed code
-            preserve REBNY UCBA invariants (Coop/Condop, Web Only vs
-            Internal Only, Coming Soon rules, status transitions)?
-
-            **D. Broker / agent usability** — can a broker complete the
-            workflow end-to-end without manual workarounds, hidden state,
-            or surprising failure modes?
-
-            **E. Client-facing usability** — does the public listing page,
-            search result, or portal flow render correctly without exposing
-            internal-only data or stale state?
-
-            **F. REBNY / RLS / RESO / IDX Plus compliance** — display
-            gates (InternetEntireListingDisplayYN, InternetAddressDisplayYN)
-            honored, attribution present, RESO field names canonical, no
-            phantom fields (IDXEntireListingDisplayYN, ParticipantOnlyYN,
-            VOW* gates).
-
-            **G. Trestle / Cotality Web API contract** — ResourceRecordKey
-            (not ResourceRecordID) for Media, OData $filter syntax safe,
-            no `$filter=InternetEntireListingDisplayYN eq true` (HTTP 400),
-            idxPlusPreFiltered semantics preserved.
-
-            **H. NYC / NYS real estate advertising law** — 19 NYCRR §175.25
-            brokerage attribution + EHO logo + AgencyDisclosure + Anti-
-            DiscriminationNotice; FARE Act (NYC LL 119/2024) disclosure on
-            rentals; no misleading availability claims.
-
-            **I. Fair Housing / advertising language** — protected-class
-            steering, source-of-income exclusion, criminal-history rules
-            (NYC Fair Chance LL 24/2023), disability exclusion, national-
-            origin preference. Use the compliance-language JSON's
-            violations as P0/P1 signals.
-
-            **J. Data persistence and media integrity** — Save Draft → DB
-            record, Edit → reload from DB, media upload → R2 → public
-            display chain, listing_media parity, ResourceRecordKey
-            usage. Missing media persistence is P0.
-
-            **K. Security / privacy / role access** — agent PII masking in
-            portal/public DTOs, broker-vs-agent role checks, audit-event
-            logging, no internal-only data exposed publicly.
-
-            **L. Evidence quality: live proof vs code-only inference** —
-            explicitly state per finding whether evidence is `live proof`
-            (production mallan.nyc/main probe) / `deterministic test` / `static code`
-            / `limited`. The writer rejects GREEN if any P0/P1 lens
-            shows LIMITED, BLOCKED, NOT VERIFIED, evidence gap, or
-            cannot verify markers.
-
-            ### PRODUCTION-ONLY LIVE PROOF RULE
-
-            Do NOT assume preview deployment behavior proves production behavior.
-            Vercel support confirmed the current preview/branch-alias issue is not
-            caching: branch aliases may not apply when jobs are stuck or non-
-            finished. Until Vercel/Neon resolves branch alias / non-finished-job
-            drift, preview URLs are unreliable for Sentinel-L proof.
-
-            For live listing workflow testing, use Production only:
-              - host: `https://mallan.nyc`
-              - branch: `main`
-              - deployment: current production deployment
-
-            Any check that depends on a preview URL must be `LIMITED` unless the
-            same behavior is proven against `mallan.nyc` on `main`. Preview-only
-            evidence can inform the audit, but it is never enough for GREEN.
-            ### HARD RULE — "code exists" is not proof
-
-            "Tests pass" is not proof. "CI green" is not proof. "Code
-            exists" is not proof. A check is only PASS when the live user
-            path is proven on production (`mallan.nyc`, `main`, current
-            production deployment). If you cannot prove a step end-to-end
-            against production, the check is
-            `LIMITED` with the evidence gap stated, not `PASS`.
-
-            ### VERDICT SEMANTICS
-
-            Emit exactly one line of the form:
-              `Final verdict: GREEN`  — broker can use flow end-to-end
-              `Final verdict: YELLOW` — usable with named caveats / manual steps
-              `Final verdict: RED`    — do not use (illegal, misleading,
-                                        data-losing, nonfunctional, unsafe,
-                                        or unverified core workflows)
-
-            The writer rejects GREEN if any P0/P1 finding shows LIMITED,
-            BLOCKED, NOT VERIFIED, "evidence gap", or "cannot verify"
-            markers. Use YELLOW when the workflow is usable but requires
-            manual steps or has named limitations. RED is the correct
-            verdict when any of the L.2 GREEN-blocker conditions apply.
-
-            ### FINISH STATE
-
-            Before your final script call:
-              - `## Finding matrix` section present with ≥ 1 data row.
-              - All 12 A–L sections filled (no `_TODO_` remaining).
-              - Exactly one `Final verdict: GREEN|YELLOW|RED` line.
-              - Last non-blank line is:
-                `Sentinel-L: report-only — no changes made.`
-              - Payload < 10 KB.
-
-            Never auto-fix anything. Never invent commands not in your
-            allow-list. Report-only.
+          name: sentinel-l-actionable-errors-${{ steps.pr.outputs.short_sha }}
+          path: ops/audit/sentinel-l/*-errors.*
+          if-no-files-found: error
+
+      # Build the actionable summary as TOP-5 P0/P1 ONLY (no green/yellow
+      # essays, no P2/P3 noise). Written to /tmp for the (disabled) comment
+      # step and echoed to the GitHub Step Summary so the findings are visible
+      # in the Actions UI WITHOUT generating a PR comment / email notification.
+      - name: Build short actionable summary (top 5 P0/P1)
+        if: steps.scanner.outputs.count != '0'
         env:
-          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
-          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
-
-      # ----------------------------------------------------------------------
-      # Codex P0 #1 + #2 — Post-Claude verification runs UNCONDITIONALLY
-      # (`if: always()`) so that a Claude failure / timeout / cancellation
-      # still surfaces a RED report on the PR. If Claude did not write a
-      # valid audit (file missing, SHA unchanged, verdict missing,
-      # duplicate verdict, closing line missing), the workflow writes its
-      # own independent fallback RED report so the PR-comment + artifact-
-      # upload steps still have content to publish. This is the "Sentinel-L
-      # must still produce a RED/LIMITED report even when Claude never
-      # invokes the writer" rule.
-      # ----------------------------------------------------------------------
-      - name: Sentinel-L.2 breadcrumb — pre-Claude
-        if: always()
-        env:
-          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
-          CLAUDE_PREFLIGHT_EXPECTED_SKIP: ${{ steps.claude_preflight.outputs.expected_skip }}
-          CLAUDE_PREFLIGHT_REASON: ${{ steps.claude_preflight.outputs.reason }}
-          DET_INPUTS_DIR: ${{ steps.deterministic.outputs.inputs_dir }}
-        run: |
-          echo "Sentinel-L.2 breadcrumb: BEFORE Claude invocation @ $(date -u +%FT%TZ)"
-          echo "Sentinel-L.2 breadcrumb: deterministic inputs available at $DET_INPUTS_DIR"
-          ls -la "$DET_INPUTS_DIR" 2>&1 || true
-          echo "Sentinel-L.2 breadcrumb: Claude action outcome (post-invoke) = $CLAUDE_OUTCOME"
-          echo "Sentinel-L.2 breadcrumb: Claude workflow-validation expected_skip = $CLAUDE_PREFLIGHT_EXPECTED_SKIP"
-          echo "Sentinel-L.2 breadcrumb: Claude workflow-validation reason = $CLAUDE_PREFLIGHT_REASON"
-
-      - name: Verify Claude audit OR write fallback report (always runs)
-        id: postclaude
-        if: always()
-        env:
-          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
-          SKELETON_SHA: ${{ steps.skeleton.outputs.skeleton_sha }}
-          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
-          CLAUDE_PREFLIGHT_EXPECTED_SKIP: ${{ steps.claude_preflight.outputs.expected_skip }}
-          CLAUDE_PREFLIGHT_REASON: ${{ steps.claude_preflight.outputs.reason }}
-          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
-          PR_HEAD_SHA: ${{ steps.pr.outputs.pr_head_sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          # Sentinel-L.2 (improvement) — embed deterministic findings into
-          # the RED fallback so the PR comment surfaces real signals (29
-          # touched fields, P0 workflows, compliance violations) instead of
-          # generic "LIMITED — Sentinel-L could not complete" boilerplate.
-          DETERMINISTIC_SUMMARY_MD: ${{ steps.deterministic.outputs.summary_md }}
-          FIELD_TOUCHED_COUNT: ${{ steps.deterministic.outputs.field_touched_count }}
-          LANGUAGE_TOTAL_VIOLATIONS: ${{ steps.deterministic.outputs.language_total_violations }}
-          LANGUAGE_HIGHEST_SEVERITY: ${{ steps.deterministic.outputs.language_highest_severity }}
-          FLOW_WORKFLOWS_TOUCHED: ${{ steps.deterministic.outputs.flow_workflows_touched }}
-          FLOW_HIGHEST_RISK: ${{ steps.deterministic.outputs.flow_highest_risk }}
+          JSON_PATH: ${{ steps.scanner.outputs.json_path }}
         run: |
           set -euo pipefail
-
-          write_fallback_report() {
-            local reason="$1"
-            local failure_class="$2"
-            mkdir -p "$(dirname "$REPORT_PATH")"
-            ny_iso=$(TZ=America/New_York date +"%Y-%m-%dT%H:%M:%S%z")
-            utc_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            cat > "$REPORT_PATH" <<EOF
-          # Sentinel-L — Listing Workflow Readiness PR #${PR_NUMBER}
-
-          commit: ${PR_HEAD_SHA}
-          status: FAILED
-          failure_class: ${failure_class}
-          run_url: ${RUN_URL}
-          timestamp_eastern: $ny_iso
-          timestamp_utc:     $utc_iso
-
-          ---
-
-          ## Finding matrix
-
-          | file | changed lines | affected workflow | field contracts touched | user role affected | compliance surface | risk | proof level | finding | required action |
-          |------|---------------|-------------------|-------------------------|--------------------|--------------------|------|-------------|---------|-----------------|
-          | (Sentinel-L workflow itself) | n/a | sentinel-l audit production | n/a | broker | n/a | P0 | limited | Claude reasoning layer did not run (see L. Evidence quality below) | Manual broker workflow verification required before merge |
-          | (deterministic summary) | n/a | field-contract / compliance-language / listing-flow scripts | ${FIELD_TOUCHED_COUNT} touched RESO fields | broker, agent, public | ${LANGUAGE_HIGHEST_SEVERITY} compliance, ${FLOW_HIGHEST_RISK} listing-flow | ${FLOW_HIGHEST_RISK} | static code | ${FIELD_TOUCHED_COUNT} fields / ${FLOW_WORKFLOWS_TOUCHED} workflows touched; ${LANGUAGE_TOTAL_VIOLATIONS} compliance-language signals | Review the deterministic findings below; live broker probe still required |
-
-          ## A. Syntax / structural correctness
-
-          LIMITED — Claude reasoning required. Deterministic scripts cannot evaluate lint/tsc/structural conventions; that lens needs the Claude layer that did not run on this PR.
-
-          ## B. Field contract correctness
-
-          LIMITED — Deterministic field-contract scan completed: ${FIELD_TOUCHED_COUNT} of the 29 contract fields are touched by this PR. Coverage breakdown is in the deterministic summary in section L. Full source → form → API → DB → reload/display proof for each touched field requires the Claude reasoning layer that did not run on this PR.
-
-          ## C. Business logic correctness
-
-          LIMITED — Claude reasoning required. REBNY UCBA invariants (Coop/Condop, Web Only vs Internal Only, Coming Soon, status transitions) cannot be evaluated by static scan alone.
-
-          ## D. Broker / agent usability
-
-          LIMITED — Claude reasoning required. End-to-end broker workflow verification requires a production probe against mallan.nyc/main/current production deployment.
-
-          ## E. Client-facing usability
-
-          LIMITED — Claude reasoning required. Public listing surface verification requires a production probe against mallan.nyc/main/current production deployment.
-
-          ## F. REBNY / RLS / RESO / IDX Plus compliance
-
-          LIMITED — Deterministic compliance-language scan found ${LANGUAGE_TOTAL_VIOLATIONS} violations across the rebny_idx category (see section L for breakdown). Full display-gate honoring + attribution + RESO field-name canonicality verification requires the Claude reasoning layer that did not run on this PR.
-
-          ## G. Trestle / Cotality Web API contract
-
-          LIMITED — Claude reasoning required. ResourceRecordKey vs ResourceRecordID + OData \$filter safety + idxPlusPreFiltered semantics cannot be evaluated by static scan alone.
-
-          ## H. NYC / NYS real estate advertising law
-
-          LIMITED — Deterministic compliance-language scan covers \§175.25 / FARE Act risk signals (see section L). Full attribution + EHO logo + AgencyDisclosure + AntiDiscriminationNotice verification requires the Claude reasoning layer that did not run on this PR.
-
-          ## I. Fair Housing / advertising language
-
-          LIMITED — Deterministic compliance-language scan covers 7 Fair Housing rules (familial status, source of income, criminal history, disability, national origin, sex, religion). Highest severity detected: ${LANGUAGE_HIGHEST_SEVERITY}. Full context-aware Fair Housing review requires the Claude reasoning layer that did not run on this PR.
-
-          ## J. Data persistence and media integrity
-
-          LIMITED — Deterministic listing-flow scan identified ${FLOW_WORKFLOWS_TOUCHED} workflow surface(s) touched, highest risk ${FLOW_HIGHEST_RISK} (see section L). Save Draft → DB → reload + media-upload → R2 → public-display end-to-end verification requires the Claude reasoning layer that did not run on this PR.
-
-          ## K. Security / privacy / role access
-
-          LIMITED — Claude reasoning required. Agent PII masking + broker-vs-agent role checks + audit-event logging cannot be evaluated by static scan alone.
-
-          ## L. Evidence quality: live proof vs code-only inference
-
-          Failure class: ${failure_class}
-
-          Reason: ${reason}.
-
-          ${DETERMINISTIC_SUMMARY_MD}
-
-          **Evidence quality**: deterministic static-code signals only. No production mallan.nyc/main live probe was performed. No Claude reasoning was applied. Manual broker workflow verification is required before this PR is merged. See workflow run for forensic detail.
-
-          Final verdict: RED
-
-          Sentinel-L: report-only — no changes made.
-          EOF
-            echo "Wrote fallback RED report (reason: $reason)"
+          node <<'NODE' > /tmp/sentinel-l-comment.md
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync(process.env.JSON_PATH, 'utf8'));
+          const all = data.errors || [];
+          const blocking = all.filter((e) => e.severity === 'P0' || e.severity === 'P1');
+          const top = blocking.slice(0, 5);
+          console.log(`Sentinel-L: ${blocking.length} P0/P1 actionable errors (${all.length} total).`);
+          console.log('');
+          for (const error of top) {
+            console.log(`${error.severity} ${error.code} ${error.file}:${error.line}`);
+            if (error.searchSystem) console.log(`Search system: ${error.searchSystem}`);
+            console.log(`Actual failure: ${error.actualFailure}`);
+            console.log(`Impact: ${error.impact}`);
+            console.log(`Fix: ${error['required fix']}`);
+            console.log(`Proof required: ${error['proof required']}`);
+            console.log('');
           }
+          if (blocking.length > top.length) {
+            console.log(`... ${blocking.length - top.length} more P0/P1 in the Sentinel-L artifact.`);
+          }
+          NODE
+          {
+            echo "## Sentinel-L — top 5 P0/P1"
+            echo ''
+            echo '```'
+            cat /tmp/sentinel-l-comment.md
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          # ── Case 1: report file missing entirely (Claude never ran or
-          #   was cancelled before the writer was invoked) ───────────────
-          if [ ! -f "$REPORT_PATH" ]; then
-            echo "::warning::Audit file missing (Claude outcome=$CLAUDE_OUTCOME). Writing fallback RED report."
-            if [ "$CLAUDE_PREFLIGHT_EXPECTED_SKIP" = "true" ]; then
-              failure_class="claude_action_skipped_workflow_validation"
-              failure_reason="Claude action skipped before reasoning: claude-code-action workflow validation requires the workflow file to match the default branch; preflight detected ${CLAUDE_PREFLIGHT_REASON}. Writer was never called; allowed-tools were not evaluated."
-            else
-              failure_class="claude_action_failed_or_missing_output"
-              failure_reason="Claude did not produce an audit file (outcome=$CLAUDE_OUTCOME). Writer was not observed to write a report."
-            fi
-            write_fallback_report "$failure_reason" "$failure_class"
-            echo "verdict=RED" >> "$GITHUB_OUTPUT"
-            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
-            echo "fallback=true" >> "$GITHUB_OUTPUT"
-            echo "failure_class=$failure_class" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # ── Case 2: file exists but equals the skeleton (SHA-unchanged
-          #   class failure — script was never invoked, OR every script
-          #   call was rejected/parser-aborted, OR claude-code-action
-          #   skipped due to workflow-validation on a self-modifying PR) ──
-          current_sha=$(sha256sum "$REPORT_PATH" | awk '{print $1}')
-          if [ "$current_sha" = "$SKELETON_SHA" ]; then
-            # Sentinel-L.2 deterministic synthesis fallback (per Maya's spec
-            # point 10): when Claude does not write, compute a deterministic
-            # verdict from the JSON facts the static scripts already produced.
-            # The policy is fail-closed: any P0 risk signal in any of the 3
-            # deterministic dimensions => RED. Otherwise YELLOW with the
-            # explicit caveat that no Claude reasoning + no live proof
-            # occurred. RED is never weakened; YELLOW is only chosen when
-            # every deterministic signal is benign AND Claude did not crash.
-            det_verdict="RED"
-            failure_class="writer_not_called_or_no_effect"
-            det_reason="Claude did not update the skeleton (SHA unchanged from baseline)"
-            if [ "$CLAUDE_PREFLIGHT_EXPECTED_SKIP" = "true" ]; then
-              failure_class="claude_action_skipped_workflow_validation"
-              det_reason="Claude action skipped before reasoning: claude-code-action workflow validation requires the workflow file to match the default branch; preflight detected ${CLAUDE_PREFLIGHT_REASON}. Writer was never called; allowed-tools were not evaluated."
-            elif [ "$CLAUDE_OUTCOME" != "success" ]; then
-              failure_class="claude_action_failed"
-              det_reason="Claude action did not complete successfully (outcome=$CLAUDE_OUTCOME). Writer was not observed to write a report."
-            fi
-            field_path="${{ steps.deterministic.outputs.field_contract_path }}"
-            language_path="${{ steps.deterministic.outputs.compliance_language_path }}"
-            flow_path="${{ steps.deterministic.outputs.listing_flow_path }}"
-            # Only consider YELLOW if Claude exited cleanly (success) AND we
-            # have all 3 deterministic JSONs to inspect. Any other state is
-            # RED — including crash, timeout, or partial deterministic data.
-            if [ "$CLAUDE_OUTCOME" = "success" ] \
-              && [ -f "$field_path" ] \
-              && [ -f "$language_path" ] \
-              && [ -f "$flow_path" ]; then
-              # All three highest-risk / no-coverage signals must be clean
-              # to qualify for the deterministic YELLOW path.
-              lang_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_severity||'none')" "$language_path")
-              flow_max=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.highest_risk||'none')" "$flow_path")
-              field_no_cov=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).summary.fields_with_no_coverage||0)" "$field_path")
-              echo "Sentinel-L.2 deterministic synthesis inputs:"
-              echo "  compliance-language highest_severity: $lang_max"
-              echo "  listing-flow highest_risk:            $flow_max"
-              echo "  field-contract fields_with_no_coverage: $field_no_cov"
-              # P0 in either dimension OR any uncovered touched field => RED.
-              if [ "$lang_max" != "P0" ] && [ "$flow_max" != "P0" ] && [ "$field_no_cov" = "0" ]; then
-                det_verdict="YELLOW"
-                det_reason="Claude reasoning layer did not run on this PR (deterministic-only synthesis); no P0 deterministic signals were detected. YELLOW because no production live broker probe occurred and the audit lacks the Claude reasoning layer — broker must manually verify the workflow."
-              else
-                det_verdict="RED"
-                # Build a specific RED reason citing the triggering signal.
-                triggers=""
-                [ "$lang_max" = "P0" ] && triggers="$triggers P0 compliance-language violation;"
-                [ "$flow_max" = "P0" ] && triggers="$triggers P0 listing-flow risk;"
-                [ "$field_no_cov" != "0" ] && triggers="$triggers ${field_no_cov} touched field(s) with no observed coverage;"
-                det_reason="${det_reason}${triggers} Deterministic-only signals require the Claude reasoning layer and/or live broker proof before this PR can be safely merged."
-              fi
-            else
-              failure_class="claude_action_failed_or_deterministic_inputs_missing"
-              det_reason="Claude reasoning layer did not run (outcome=$CLAUDE_OUTCOME or deterministic inputs unavailable). RED forced because synthesis prerequisites are not met."
-            fi
-            echo "::warning::Audit file SHA == skeleton SHA (outcome=$CLAUDE_OUTCOME, failure_class=$failure_class, preflight_reason=$CLAUDE_PREFLIGHT_REASON). Deterministic synthesis verdict: $det_verdict."
-            # Write the fallback with the computed verdict. The function
-            # currently hardcodes RED — when synthesis chooses YELLOW we
-            # post-process the file to replace `Final verdict: RED` with
-            # `Final verdict: YELLOW` and prepend the synthesis reason
-            # into section L. Doing it as a post-write swap keeps the
-            # main fallback body single-sourced.
-            write_fallback_report "$det_reason" "$failure_class"
-            if [ "$det_verdict" = "YELLOW" ]; then
-              # Replace the verdict line. The fallback body already cites
-              # "deterministic static-code signals only" — that wording is
-              # correct for YELLOW.
-              sed -i 's/^Final verdict: RED$/Final verdict: YELLOW/' "$REPORT_PATH"
-              echo "Sentinel-L.2 deterministic synthesis: chose YELLOW (no P0 signals; production live proof still missing)."
-            else
-              echo "Sentinel-L.2 deterministic synthesis: chose RED ($det_reason)."
-            fi
-            echo "verdict=$det_verdict" >> "$GITHUB_OUTPUT"
-            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
-            echo "fallback=true" >> "$GITHUB_OUTPUT"
-            echo "failure_class=$failure_class" >> "$GITHUB_OUTPUT"
-            echo "deterministic_synthesis=true" >> "$GITHUB_OUTPUT"
-            echo "deterministic_lang_max=$lang_max" >> "$GITHUB_OUTPUT"
-            echo "deterministic_flow_max=$flow_max" >> "$GITHUB_OUTPUT"
-            echo "deterministic_field_no_cov=$field_no_cov" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # ── Case 3: file was modified; enforce exactly-one verdict ───
-          # Codex P0 #3: count ALL Final-verdict lines and reject if !=1.
-          verdict_count=$(grep -cE '^Final verdict:\s+(GREEN|YELLOW|RED)\s*$' "$REPORT_PATH" || true)
-          if [ "$verdict_count" -ne 1 ]; then
-            echo "::warning::Found $verdict_count Final verdict lines (expected exactly 1). Writing fallback RED report."
-            write_fallback_report "Writer output reached the workflow but was structurally invalid: Sentinel-L audit contained $verdict_count verdict lines (expected exactly 1)." "writer_rejected_or_invalid_output"
-            echo "verdict=RED" >> "$GITHUB_OUTPUT"
-            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
-            echo "fallback=true" >> "$GITHUB_OUTPUT"
-            echo "failure_class=writer_rejected_or_invalid_output" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          verdict=$(grep -oE '^Final verdict:\s+(GREEN|YELLOW|RED)\s*$' "$REPORT_PATH" | head -1 | sed -E 's/^Final verdict:\s+(GREEN|YELLOW|RED).*/\1/')
-
-          # ── Case 4: closing line check (defensive — script already
-          #   validates, but a fallback path here means the workflow
-          #   matches the script's contract regardless of source) ───────
-          if ! grep -Fq 'Sentinel-L: report-only — no changes made.' "$REPORT_PATH"; then
-            echo "::warning::Closing line missing from audit. Writing fallback RED report."
-            write_fallback_report "Writer output reached the workflow but was structurally invalid: Sentinel-L audit was missing the literal closing line." "writer_rejected_or_invalid_output"
-            echo "verdict=RED" >> "$GITHUB_OUTPUT"
-            echo "audit_written=fallback" >> "$GITHUB_OUTPUT"
-            echo "fallback=true" >> "$GITHUB_OUTPUT"
-            echo "failure_class=writer_rejected_or_invalid_output" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "Audit verified. verdict=$verdict"
-          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
-          echo "audit_written=true" >> "$GITHUB_OUTPUT"
-          echo "fallback=false" >> "$GITHUB_OUTPUT"
-
-      # ────────────────────────────────────────────────────────────────
-      # HOTFIX 2026-05-28 — legacy narrative PR comments disabled.
-      #
-      # The long "Sentinel-L — Listing Workflow Readiness" GREEN/YELLOW/RED
-      # narrative comment was triggering email notifications on every PR
-      # update. Comment-posting is hard-disabled here (`if: ${{ false }}`)
-      # until the new actionable-error scanner replaces this behavior.
-      # The workflow still runs, still writes the audit report artifact,
-      # and still writes a GitHub Step Summary (see step below).
-      # ────────────────────────────────────────────────────────────────
-      - name: Post audit summary as PR comment
-        # HOTFIX 2026-05-28 — hard-disabled. See block comment above.
+      # PR-comment posting is INTENTIONALLY DISABLED (if: false).
+      # Rationale: PR #266 hard-disabled Sentinel-L PR comments because they
+      # fired an email notification on every PR synchronize (mailbox spam).
+      # The actionable findings are surfaced via (a) the CI red check below,
+      # (b) the uploaded artifact, and (c) the Step Summary above — none of
+      # which generate email. To re-enable PR comments (already trimmed to
+      # top-5 P0/P1), flip the `if:` below to `steps.scanner.outputs.count != '0'`.
+      - name: Post actionable PR comment (disabled — anti-spam per PR 266)
         if: ${{ false }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
-          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
-          VERDICT: ${{ steps.postclaude.outputs.verdict }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          {
-            echo "## Sentinel-L — Listing Workflow Readiness"
-            echo ""
-            echo "**Final verdict: ${VERDICT}**"
-            echo ""
-            echo "[Run details](${{ github.server_url }}/${REPO}/actions/runs/${{ github.run_id }})"
-            echo ""
-            echo "---"
-            echo ""
-            cat "$REPORT_PATH"
-          } > /tmp/sentinel-l-comment.md
-          gh pr comment "$PR_NUMBER" --body-file /tmp/sentinel-l-comment.md
+        run: gh pr comment "$PR_NUMBER" --body-file /tmp/sentinel-l-comment.md
 
-      - name: Write Step Summary (legacy narrative disabled notice)
-        if: always()
-        env:
-          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
+      - name: Fail on actionable errors
+        if: steps.scanner.outputs.count != '0'
         run: |
-          set -euo pipefail
-          {
-            echo "Sentinel-L legacy narrative comments are disabled."
-            if [ -n "${REPORT_PATH:-}" ] && [ -f "$REPORT_PATH" ]; then
-              echo "Report artifact path: $REPORT_PATH"
-            else
-              echo "Report artifact path: (no audit report produced on this run)"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload audit artifact (always, when audit exists)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sentinel-l-pr-${{ steps.pr.outputs.pr_number }}-${{ steps.pr.outputs.short_sha }}
-          path: ${{ steps.pr.outputs.report_path }}
-          retention-days: 30
-          if-no-files-found: warn
+          echo "::error::Sentinel-L found ${{ steps.scanner.outputs.count }} actionable errors."
+          exit 1
