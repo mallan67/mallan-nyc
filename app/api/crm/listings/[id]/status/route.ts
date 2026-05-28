@@ -22,9 +22,10 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   Draft: ["Active", "ComingSoon"],
   ComingSoon: ["Active", "Withdrawn"],
-  Active: ["ActiveUnderContract", "Pending", "Withdrawn", "Expired"],
-  ActiveUnderContract: ["Active", "Pending", "Withdrawn"],
+  Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired"],
+  ActiveUnderContract: ["Active", "Pending", "Hold", "Withdrawn"],
   Pending: ["Sold", "Rented", "Active", "Withdrawn"],
+  Hold: ["Active", "Draft"],
   Sold: [], // Terminal
   Rented: [], // Terminal
   Withdrawn: ["Active", "Draft"],

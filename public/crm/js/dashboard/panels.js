@@ -362,9 +362,32 @@ var Panels = (function () {
 
       // ── Helper: status badge ──────────────────────────────────────
       function _statusBadge(status) {
-        var colors = { Active: '#2563EB', active: '#2563EB', Pending: '#F59E0B', pending: '#F59E0B', offer: '#F59E0B', ActiveUnderContract: '#7C3AED', contract: '#7C3AED', Closed: '#374151', closed: '#374151', Sold: '#374151', sold: '#374151' };
+        var colors = {
+          Draft: '#9CA3AF', draft: '#9CA3AF', Future: '#9CA3AF',
+          Active: '#2563EB', active: '#2563EB', BackOnMarket: '#2563EB',
+          ComingSoon: '#0891B2', comingsoon: '#0891B2',
+          Pending: '#F59E0B', pending: '#F59E0B',
+          OfferOut: '#F59E0B', OfferThruUs: '#F59E0B', OfferAccepted: '#D97706', OAThruUs: '#D97706',
+          ActiveUnderContract: '#7C3AED', ContractOut: '#7C3AED', COThruUs: '#7C3AED',
+          ContractSigned: '#6D28D9', ContractSignedThruUs: '#6D28D9', BoardApproved: '#4C1D95',
+          Closed: '#374151', closed: '#374151', Sold: '#374151', sold: '#374151', SoldThruUs: '#374151',
+          Withdrawn: '#991B1B', withdrawn: '#991B1B', PermOffMarket: '#991B1B',
+          Expired: '#DC2626', expired: '#DC2626',
+          TempOffMarket: '#78716C', Hold: '#78716C', hold: '#78716C',
+          Cancelled: '#6B7280', cancelled: '#6B7280',
+        };
+        var labels = {
+          BackOnMarket: 'Back On Market', ComingSoon: 'Coming Soon', OfferOut: 'Offer Out',
+          OfferThruUs: 'Offer Thru Us', OfferAccepted: 'Offer Accepted', OAThruUs: 'OA Thru Us',
+          ContractOut: 'Contract Out', COThruUs: 'CO Thru Us',
+          ContractSigned: 'Contract Signed', ContractSignedThruUs: 'CS Thru Us',
+          BoardApproved: 'Board Approved', SoldThruUs: 'Sold Thru Us',
+          ActiveUnderContract: 'Under Contract', TempOffMarket: 'Temp Off Mkt',
+          PermOffMarket: 'Perm Off Mkt',
+        };
         var bg = colors[status] || '#6B7280';
-        return '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white" style="background:' + bg + '">' + E(status || 'Unknown') + '</span>';
+        var label = labels[status] || status || 'Unknown';
+        return '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white" style="background:' + bg + '">' + E(label) + '</span>';
       }
 
       // ── BUILD HTML ────────────────────────────────────────────────
