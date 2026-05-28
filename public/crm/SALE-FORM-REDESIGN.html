@@ -2296,11 +2296,11 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-square"></i> Flooring</div>
             <div class="flex flex-wrap gap-6">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Concrete" class="w-4 h-4"> Concrete</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Hardwood" class="w-4 h-4"> Hardwood</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Herringbone" class="w-4 h-4"> Herringbone</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Marble" class="w-4 h-4"> Marble</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Parquet" class="w-4 h-4"> Parquet</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Concrete" class="w-4 h-4" data-rls-ignore="true"> Concrete</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Hardwood" class="w-4 h-4" data-rls-ignore="true"> Hardwood</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Herringbone" class="w-4 h-4" data-rls-ignore="true"> Herringbone</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Marble" class="w-4 h-4" data-rls-ignore="true"> Marble</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Parquet" class="w-4 h-4" data-rls-ignore="true"> Parquet</label>
             </div>
         </div>
 
@@ -7224,11 +7224,20 @@ function collectSaleFormData() {
     document.querySelectorAll('input[name="saleWindows"]:checked').forEach(function(cb) { data.saleWindows.push(cb.value); });
     data.saleCeilings = [];
     document.querySelectorAll('input[name="saleCeilings"]:checked').forEach(function(cb) { data.saleCeilings.push(cb.value); });
-    // Flooring: RESO canonical (confirmed in lib/idx/db-to-public-dto.ts:428).
-    // The SALE_CHECKBOX_ARRAY_MAP entry maps {rls:'Flooring',name:'saleFlooring'}
-    // so restore reads raw.Flooring → setChecked by value match.
-    data.Flooring = [];
-    document.querySelectorAll('input[name="saleFlooring"]:checked').forEach(function(cb) { data.Flooring.push(cb.value); });
+    // Flooring: demoted to Mallan internal in this PR per Codex review.
+    // The visible options include "Herringbone" which is NOT in the REBNY
+    // RLS Flooring enum (`data/rebny-rls-property-lookup.csv` — valid
+    // values are Adobe, Bamboo, Brick, Carpet, CeramicTile, Concrete,
+    // Cork, Hardwood, Laminate, Linoleum, Marble, Parquet, etc.).
+    // Writing the raw checkbox values to canonical `Flooring` would
+    // emit a non-compliant enum value on every save where Herringbone
+    // is selected. Persist as Mallan internal raw_data.saleFlooring so
+    // the field is preserved without polluting the RESO field. Future
+    // PR can wire a value-mapping layer to migrate the valid options to
+    // canonical while preserving Herringbone in a separate Mallan
+    // internal extension key.
+    data.saleFlooring = [];
+    document.querySelectorAll('input[name="saleFlooring"]:checked').forEach(function(cb) { data.saleFlooring.push(cb.value); });
     data.saleStorage = [];
     document.querySelectorAll('input[name="saleStorage"]:checked').forEach(function(cb) { data.saleStorage.push(cb.value); });
     data.saleWasherDryerBrand = [];
@@ -8891,7 +8900,7 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   { rls: 'saleFeatureDetails', name: 'saleFeatureDetails' },
   { rls: 'saleWindows', name: 'saleWindows' },
   { rls: 'saleCeilings', name: 'saleCeilings' },
-  { rls: 'Flooring', name: 'saleFlooring' }, // RESO canonical (confirmed in lib/idx/db-to-public-dto.ts:428)
+  { rls: 'saleFlooring', name: 'saleFlooring' }, // Mallan internal — RESO Flooring enum doesn't include "Herringbone" (Codex PR #270 review). Future migration in separate PR.
   { rls: 'saleStorage', name: 'saleStorage' },
   { rls: 'saleWasherDryerBrand', name: 'saleWasherDryerBrand' },
   { rls: 'saleFreshAirSystem', name: 'saleFreshAirSystem' },
@@ -8954,9 +8963,12 @@ var SALE_RADIO_MAP = [
   // saleInternetAVMDisplayYN: the FORM key. The canonical RESO key is
   // `InternetAutomatedValuationDisplayYN` (per-row opt-out, fail-CLOSED
   // semantics per REBNY compliance index §7). Restore reads the CRM raw
-  // key first, falls back to canonical so a row written by Trestle sync
-  // (canonical only) still restores.
-  { rls: 'saleInternetAVMDisplayYN', name: 'saleInternetAVMDisplayYN', src: 'raw', rawKey: 'saleInternetAVMDisplayYN', fallback: 'InternetAutomatedValuationDisplayYN' },
+  // key first ('Yes'/'No' string), falls back to canonical (boolean
+  // true/false) so a row written by Trestle sync still restores. The
+  // valueMap translates both literal booleans (Trestle write) and
+  // stringified 'true'/'false' (JSON serialization edge case) to the
+  // radio's 'Yes'/'No' option values.
+  { rls: 'saleInternetAVMDisplayYN', name: 'saleInternetAVMDisplayYN', src: 'raw', rawKey: 'saleInternetAVMDisplayYN', fallback: 'InternetAutomatedValuationDisplayYN', valueMap: { true: 'Yes', false: 'No', 'true': 'Yes', 'false': 'No' } },
   { rls: 'saleLandLease', name: 'saleLandLease', src: 'raw' },
   { rls: 'saleLight', name: 'saleLight', src: 'raw' },
   { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
@@ -9071,10 +9083,25 @@ function _populateSaleFormFromApi(listing) {
 
     // ── Radio buttons ──
     SALE_RADIO_MAP.forEach(function(r) {
-        var val = raw[r.rawKey || r.rls] || (r.fallback ? raw[r.fallback] : null);
-        if (!val) return;
-        // Apply valueMap if defined (e.g. CommonInterest "Condominium" → CRM "Condo")
-        if (r.valueMap && r.valueMap[val]) val = r.valueMap[val];
+        // Codex PR #270 fix: original `raw[k] || raw[fallback]` short-circuited
+        // on any falsy value, dropping the booleans `false` / 0 entirely. For
+        // the InternetAutomatedValuationDisplayYN (RESO canonical boolean)
+        // fallback, a saved `false` (per-row AVM opt-out) was silently lost
+        // and the radio reverted to HTML default. Use explicit undefined/null
+        // check so booleans survive, and apply valueMap from String(val) too
+        // so {true:'Yes',false:'No'} maps both literal booleans and string
+        // 'true'/'false' (Trestle sync can write either shape).
+        var val = raw[r.rawKey || r.rls];
+        if ((val === undefined || val === null) && r.fallback) {
+            val = raw[r.fallback];
+        }
+        if (val === undefined || val === null) return;
+        if (r.valueMap) {
+            var mapped = r.valueMap[val] !== undefined
+                ? r.valueMap[val]
+                : r.valueMap[String(val)];
+            if (mapped !== undefined) val = mapped;
+        }
         setRadio(r.name, val);
     });
 

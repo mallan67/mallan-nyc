@@ -42,7 +42,14 @@ describe('CRM form save/load field parity', () => {
         //   - sale-form-all-radio-checkbox-coverage.test.ts (this PR — full
         //     parametrized inventory + restore-map contract for ALL groups)
         'Heating', 'Cooling', 'SyndicateTo',
-        'BuildingHeating', 'BuildingCooling', 'Flooring',
+        'BuildingHeating', 'BuildingCooling',
+        // Note: 'Flooring' was previously in this skip-list because the
+        // form was writing data.Flooring as a canonical RESO array.
+        // Codex PR #270 review caught that "Herringbone" (a visible
+        // Flooring option) is not in REBNY's Flooring enum — writing it
+        // to canonical would emit a non-compliant value. Flooring is
+        // now persisted as Mallan internal (data.saleFlooring), so it
+        // no longer appears in collect as a capital-letter RLS key.
         // Canonical RESO writes from form radios / single-id booleans.
         // saleInternetAVMDisplayYN radio → InternetAutomatedValuationDisplayYN
         // canonical (per-row opt-out, fail-CLOSED). Same for ConsumerComment.
