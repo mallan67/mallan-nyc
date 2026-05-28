@@ -31,7 +31,14 @@ describe('CRM form save/load field parity', () => {
       !['listing_type', 'type', 'status', 'saleListingType', 'inHouseVisibility', 'Permissions',
         'IDXEntireListingDisplayYN', 'SyndicateYN', 'BathroomsTotal',
         'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
-        'ListingAgreement', 'BuildingFeatures', 'CoBrokeAgreement'].includes(f)
+        'ListingAgreement', 'BuildingFeatures', 'CoBrokeAgreement',
+        // Checkbox-array groups newly added by PR #268. These are restored
+        // via SALE_CHECKBOX_ARRAY_MAP (line ~8487), NOT SALE_FIELD_MAP, so
+        // they have no `rls: 'X'` entry in SALE_FIELD_MAP. SALE_CHECKBOX_ARRAY_MAP
+        // already maps {rls:'Heating',name:'saleHeating'} etc., providing
+        // the round-trip restore. See sale-form-save-load-retention.test.ts
+        // for the dedicated round-trip coverage.
+        'Heating', 'Cooling', 'SyndicateTo'].includes(f)
     );
     for (const field of uniqueRls) {
       expect(formSource).toContain("rls: '" + field + "'");

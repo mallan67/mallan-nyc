@@ -7028,8 +7028,23 @@ function collectSaleFormData() {
     // Media fields
     data.VirtualTourURLUnbranded = data.saleVirtualTourUnbranded || '';
 
-    // Commercial fields (website-only, not RLS)
-    data.commercial_sub_type = data.saleCommSubtype || '';
+    // Commercial fields (website-only, not RLS).
+    //
+    // listings.commercial_sub_type is a Prisma STRING scalar column —
+    // classifyRlsEligibility only does a truthy check on it (not value
+    // parsing). PR-D made data.saleCommSubtype an ARRAY (the checkbox group
+    // shares `name="saleCommSubtype"` across many options), so we MUST
+    // serialize it back to a scalar here before assignment or the create
+    // API will reject the payload with a Prisma type error (Codex review
+    // on PR #268 flagged this). Round-trip restore still uses the array
+    // form via SALE_CHECKBOX_ARRAY_MAP reading raw_data.saleCommSubtype.
+    // First-checked value preserves the old single-value semantics; the
+    // pre-PR-D collector emitted whichever checkbox happened to be visited
+    // last in DOM order, so first-checked is no less stable than what
+    // shipped before.
+    data.commercial_sub_type = Array.isArray(data.saleCommSubtype)
+      ? (data.saleCommSubtype[0] || '')
+      : (data.saleCommSubtype || '');
     data.commercial_ownership = data.saleCommercialOwnership || '';
 
     // Living area source
