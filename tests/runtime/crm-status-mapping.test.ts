@@ -49,7 +49,7 @@ describe('CRM status mapping — two-layer model', () => {
       expect(mapCrmStatusToCanonicalStatus('BackOnMarket')).toBe('Active');
       expect(mapCrmStatusToCanonicalStatus('OfferOut')).toBe('ActiveUnderContract');
       expect(mapCrmStatusToCanonicalStatus('OfferThruUs')).toBe('ActiveUnderContract');
-      expect(mapCrmStatusToCanonicalStatus('OfferAccepted')).toBe('Pending');
+      expect(mapCrmStatusToCanonicalStatus('OfferAccepted')).toBe('ActiveUnderContract');
       expect(mapCrmStatusToCanonicalStatus('ContractSigned')).toBe('Pending');
       expect(mapCrmStatusToCanonicalStatus('BoardApproved')).toBe('Pending');
       expect(mapCrmStatusToCanonicalStatus('Sold')).toBe('Sold');
