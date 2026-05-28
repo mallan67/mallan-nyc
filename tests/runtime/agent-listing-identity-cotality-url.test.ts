@@ -167,6 +167,17 @@ describe('URL emitters — canonical only, no hybrid slug + ?key=', () => {
   });
 });
 
+// ── SOURCE: canonical lowercase id resolves (Codex PR #272) ──
+describe('detail route — canonical lowercase listing id resolves', () => {
+  const page = read('app/listing/[...slug]/page.tsx');
+  it('normalizes the listing_id lookup to uppercase (canonical URLs lowercase it)', () => {
+    // Both the keyOverride/MLS-ID path and the trailing-segment path must
+    // upper-normalize so /listing/{address}/sl-0004 resolves to SL-0004.
+    expect(page).toMatch(/listing_id:\s*lookupId\.toUpperCase\(\)/);
+    expect(page).toMatch(/listing_id:\s*slug\.toUpperCase\(\)/);
+  });
+});
+
 // ── SOURCE: backfill is safe (dry-run default, canonical office, fill-only-blank) ──
 describe('backfill script — controlled + idempotent', () => {
   const bf = read('scripts/backfill-crm-exclusive-cotality-identity.mjs');
