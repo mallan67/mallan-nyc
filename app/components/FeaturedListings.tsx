@@ -378,9 +378,13 @@ export default function FeaturedListings() {
         if (filters.boroughs.length === 1) params.set('borough', filters.boroughs[0]);
         if (filters.neighborhoods.length === 1) params.set('neighborhood', filters.neighborhoods[0]);
 
+        const exclParams = new URLSearchParams(params.toString());
+        exclParams.set('exclusive', 'mallan');
+        exclParams.set('excludeUndisclosed', 'true');
+        exclParams.set('limit', '12');
         const [res, exclRes] = await Promise.all([
           fetch(`/api/listings?${params.toString()}`),
-          fetch(`/api/listings?type=${filters.type === 'rent' ? 'rent' : 'sale'}&exclusive=mallan&excludeUndisclosed=true&limit=12`),
+          fetch(`/api/listings?${exclParams.toString()}`),
         ]);
         if (!res.ok) throw new Error('Failed to fetch');
         const data = await res.json();
