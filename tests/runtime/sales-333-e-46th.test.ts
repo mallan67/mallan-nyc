@@ -171,6 +171,89 @@ describe('detail route DB matching — separate StreetDirPrefix', () => {
   });
 });
 
+describe('SEO guard — CRM exclusives must NEVER get generic listing-XXX slug', () => {
+  test('SL- listing with full address produces address slug, not listing-sl-XXXX', () => {
+    const slug = generateListingSlug({
+      address: {
+        streetNumber: '333',
+        streetDirPrefix: 'E',
+        streetName: '46th St',
+        unitNumber: '2G',
+        city: 'New York',
+        stateOrProvince: 'NY',
+        postalCode: '10017',
+      },
+      id: 'SL-0004',
+    });
+    expect(slug).not.toMatch(/^listing-/);
+    expect(slug).toContain('333');
+    expect(slug).toContain('46th');
+  });
+
+  test('RL- rental listing with full address produces address slug', () => {
+    const slug = generateListingSlug({
+      address: {
+        streetNumber: '400',
+        streetName: 'Park Avenue',
+        unitNumber: '5A',
+        city: 'New York',
+        stateOrProvince: 'NY',
+        postalCode: '10022',
+      },
+      id: 'RL-0099',
+    });
+    expect(slug).not.toMatch(/^listing-/);
+  });
+
+  test('SL- with empty streetName falls back to best-effort address slug, not generic', () => {
+    const slug = generateListingSlug({
+      address: {
+        streetNumber: '333',
+        streetName: '',
+        unitNumber: '2G',
+        city: 'New York',
+        stateOrProvince: 'NY',
+        postalCode: '10017',
+      },
+      id: 'SL-0004',
+    });
+    // Should NOT be generic listing-sl-0004
+    expect(slug).not.toMatch(/^listing-/);
+    // Should contain some address-derived content
+    expect(slug.length).toBeGreaterThan(10);
+  });
+
+  test('SL- with NO usable address data falls back to generic (last resort)', () => {
+    const slug = generateListingSlug({
+      address: {
+        streetName: '',
+      },
+      id: 'SL-0004',
+      mlsId: 'SL-0004',
+    });
+    // Truly empty address — generic is the only option
+    expect(slug).toBe('listing-sl-0004');
+  });
+
+  test('InternetAddressDisplayYN=false ALWAYS produces generic (UCBA compliance)', () => {
+    // This is intentional — when seller opts out of address display, the URL
+    // CANNOT contain the address. Compliance trumps SEO.
+    const slug = generateListingSlug({
+      address: {
+        streetNumber: '333',
+        streetName: '46th St',
+        city: 'New York',
+        stateOrProvince: 'NY',
+        postalCode: '10017',
+      },
+      id: 'SL-0004',
+      mlsId: 'SL-0004',
+      internetAddressDisplayYN: false,
+    });
+    expect(slug).toBe('listing-sl-0004');
+  });
+});
+
 describe('search type isolation — sale vs rent', () => {
   test('sale listing address data should not produce rental result', () => {
     // This test verifies the search params logic: type=sale vs type=rent
