@@ -8381,7 +8381,7 @@ var SALE_FIELD_MAP = [
 
   // ── Selects not yet mapped ──
   { rls: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
-  { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw' },
+  { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw', fallbackRls: 'CommonInterest' },
 
   // ── Financial additional ──
   { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
@@ -8475,7 +8475,11 @@ var SALE_SYNDICATION_MAP = [
 // Radio-button fields
 var SALE_RADIO_MAP = [
   { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
-  { rls: 'PropertySubType', name: 'salePropertyType', src: 'raw' },
+  // PropertyType radio uses CRM-specific values (Condo/Coop/Condop/...) that
+  // do NOT match RESO PropertySubType ("Apartment" for all three). Restore
+  // from the form's own saved salePropertyType field first, falling back to
+  // CommonInterest (Condominium/StockCooperative/Condop) → CRM radio value.
+  { rls: 'salePropertyType', name: 'salePropertyType', src: 'raw', rawKey: 'salePropertyType', fallback: 'CommonInterest', valueMap: { Condominium: 'Condo', StockCooperative: 'Coop', Condop: 'Condop' } },
   { rls: 'saleBuildingStatus', name: 'saleBuildingStatus', src: 'raw' },
   { rls: 'saleCoolingYN', name: 'saleCoolingYN', src: 'raw' },
   { rls: 'saleWasherDryerAllowed', name: 'saleWasherDryerAllowed', src: 'raw' },
@@ -8529,6 +8533,10 @@ function _populateSaleFormFromApi(listing) {
         } else {
             val = raw[f.rls];
         }
+        // Fall back to fallbackRls if primary key is missing
+        if ((val === undefined || val === null || val === '') && f.fallbackRls) {
+            val = raw[f.fallbackRls];
+        }
         if (val === undefined || val === null) return;
 
         if (f.type === 'date') {
@@ -8547,7 +8555,10 @@ function _populateSaleFormFromApi(listing) {
     // ── Radio buttons ──
     SALE_RADIO_MAP.forEach(function(r) {
         var val = raw[r.rawKey || r.rls] || (r.fallback ? raw[r.fallback] : null);
-        if (val) setRadio(r.name, val);
+        if (!val) return;
+        // Apply valueMap if defined (e.g. CommonInterest "Condominium" → CRM "Condo")
+        if (r.valueMap && r.valueMap[val]) val = r.valueMap[val];
+        setRadio(r.name, val);
     });
 
     // ── Checkbox arrays ──
