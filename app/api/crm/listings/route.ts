@@ -12,6 +12,7 @@ import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } fr
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
+import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -478,6 +479,17 @@ export async function POST(req: NextRequest) {
     ? buildListingUrls(createdListing as { listing_id: string; status: string; address: Record<string, unknown>; internet_address_display_yn?: boolean })
     : { publicUrl: null, realPlusUrl: null };
 
+  // S-BE-006 — return the full URL + eligibility contract so the form and
+  // dashboard can explain Featured / Exclusive availability after publish
+  // (not just publicUrl/realPlusUrl). A freshly created listing is a Mallan
+  // exclusive (CRM-created) but is created as Draft, so it is not yet
+  // Featured-eligible until it is published Active.
+  const publishContract = buildPublishContract({
+    status: STATUS_INITIAL,
+    rlsReason: eligibility.reason,
+    internetAddressDisplayYN: createdListing?.internet_address_display_yn ?? null,
+  });
+
   return NextResponse.json(
     {
       id: result.id,
@@ -485,6 +497,9 @@ export async function POST(req: NextRequest) {
       status: STATUS_INITIAL,
       publicUrl: urls.publicUrl,
       realPlusUrl: urls.realPlusUrl,
+      featuredEligible: publishContract.featuredEligible,
+      exclusiveEligible: publishContract.exclusiveEligible,
+      eligibilityReason: publishContract.eligibilityReason,
       warnings: validation.warnings,
       suggestions: validation.suggestions,
     },
