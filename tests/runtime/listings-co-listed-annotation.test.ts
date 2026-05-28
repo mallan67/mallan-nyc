@@ -25,6 +25,7 @@ function listingFixture(overrides: Partial<PublicListingDTO> = {}): PublicListin
     id: 'RLS00000000',
     mlsId: '0',
     slug: 'foo-bar-rls00000000',
+    url: '/listing/foo-bar/rls00000000',
     status: 'Active',
     listingType: 'sale',
     address: {

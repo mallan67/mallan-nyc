@@ -148,6 +148,7 @@ body { font-family: Manrope, sans-serif; }
 <input type="hidden" id="saleUpdatingAgentPhone" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentEmail" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentLicense" value="" data-rls-ignore="true">
+<input type="hidden" id="saleUpdatingAgentMlsId" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentCompanyKey" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentCompanyName" value="" data-rls-ignore="true">
 
@@ -4849,6 +4850,7 @@ function initLoggedInAgent() {
         setVal('saleUpdatingAgentPhone', u.phone);
         setVal('saleUpdatingAgentEmail', u.email);
         setVal('saleUpdatingAgentLicense', u.license);
+        setVal('saleUpdatingAgentMlsId', u.mlsId); // Cotality ListAgentMlsId (Agent.trestle_mls_id) — NOT the internal id
         setVal('saleUpdatingAgentCompanyKey', u.companyKey);
         setVal('saleUpdatingAgentCompanyName', u.companyName);
 
@@ -6723,7 +6725,16 @@ function generateListingUrl(formType) {
         .replace(/-{2,}/g, '-')
         .replace(/^-|-$/g, '');
 
-    urlField.value = slug ? ('https://www.mallan.nyc/listing/' + slug) : '';
+    // Canonical two-segment preview: /listing/{address-slug}/{listing-id-lowercase}.
+    // In edit mode the listing id is known, so we show the exact canonical URL
+    // (matches the API-returned publicUrl). For a brand-new listing (no id yet)
+    // we show the address-only path; the real published URL — always canonical —
+    // is built server-side via lib/crm/listing-urls.ts and surfaced on save.
+    // Never emit the hybrid `{address}-{id}` form or a `?key=` query. (2026-05-28)
+    var canonId = (window._saleEditListingId || '').toString().trim().toLowerCase();
+    urlField.value = slug
+        ? ('https://www.mallan.nyc/listing/' + slug + (canonId ? '/' + canonId : ''))
+        : '';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -7086,12 +7097,25 @@ function collectSaleFormData() {
     // affirmPermission() treats undefined/null as fail-closed.)
 
     // Agent identity from session (hidden fields populated by initLoggedInAgent)
-    data.ListAgentMlsId = data.saleUpdatingAgent || '';
+    // Cotality-authoritative agent identity (2026-05-28). ListAgentMlsId MUST
+    // be the REBNY/Trestle MLS member id (Agent.trestle_mls_id), surfaced by
+    // /api/auth/me as `mlsId` → hidden saleUpdatingAgentMlsId. The prior code
+    // wrote the INTERNAL Agent.id (saleUpdatingAgent) here, which is NOT a
+    // Cotality identifier and left CRM exclusives un-matchable by ListAgentMlsId.
+    data.ListAgentMlsId = data.saleUpdatingAgentMlsId || '';
     data.ListAgentFullName = data.saleUpdatingAgentName || '';
     data.ListAgentEmail = data.saleUpdatingAgentEmail || '';
     data.ListAgentDirectPhone = data.saleUpdatingAgentPhone || '';
-    data.ListOfficeName = data.saleUpdatingAgentCompanyName || '';
-    data.ListOfficeKey = data.saleUpdatingAgentCompanyKey || '';
+    // CRM-owned Mallan rows use the canonical office NAME. Office MLS id/key are
+    // intentionally left blank until verified from a trusted canonical source
+    // (REBNY/Cotality/RealPlus) — never the "mallan" slug, never the REBNY
+    // "MAllan" typo. (Maya decision, 2026-05-28.)
+    data.ListOfficeName = data.saleUpdatingAgentCompanyName || 'Mallan Real Estate Inc.';
+    // ListOfficeKey / ListOfficeMlsId are intentionally NOT written here: the
+    // form has no verified Cotality office id/key (only the "mallan" company-key
+    // slug, which must NEVER be persisted as an office key). They stay blank
+    // until verified from a trusted canonical source — the prior code wrote the
+    // slug into ListOfficeKey, which this removal stops. (Maya decision, 2026-05-28.)
 
     // Collect building modal fields (outside main container)
     var bldgModal = document.getElementById('saleBuildingModal');

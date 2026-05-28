@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
 import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
 import { generateListingSlug } from '@/lib/listing-slug';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
 const BASE_URL = 'https://mallan.nyc';
@@ -121,7 +122,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
 
       return {
-        url: `${BASE_URL}/listing/${slug}`,
+        url: `${BASE_URL}${buildCanonicalListingPath({ slug, id: l.listing_id })}`,
         lastModified: l.modification_timestamp || now,
         changeFrequency: 'daily' as const,
         priority: 0.7,

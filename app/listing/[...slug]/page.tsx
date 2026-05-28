@@ -330,8 +330,14 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // Strategy 1: Key override or MLS-ID slug
     const lookupId = keyOverride || (isMlsIdSlug(slug) ? extractMlsIdFromSlug(slug) : null);
     if (lookupId) {
+      // Canonical URLs lowercase the listing id (e.g. /listing/.../sl-0004 and
+      // the `listing-sl-0004` MLS-ID-slug form); listing_id is stored uppercase
+      // (SL-0004) and findUnique is case-SENSITIVE. All REBNY/CRM ids are
+      // uppercase, so normalizing to upper recovers the exact id and keeps the
+      // unique-index lookup. Without this the emitted canonical URL 404s.
+      // (Codex review, PR #272.)
       dbListing = await prisma.listing.findUnique({
-        where: { listing_id: lookupId },
+        where: { listing_id: lookupId.toUpperCase() },
         include: LISTING_MEDIA_INCLUDE,
       });
     }
@@ -438,10 +444,14 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       }
     }
 
-    // Strategy 3: Treat slug as listing_id
+    // Strategy 3: Treat slug as listing_id. The canonical two-segment URL
+    // passes the lowercased id as the trailing segment (e.g. `.../sl-0004`),
+    // so normalize to uppercase to match the case-sensitive stored listing_id.
+    // (An address slug that reaches here simply won't match a listing_id either
+    // way, so uppercasing is safe.) (Codex review, PR #272.)
     if (!dbListing) {
       dbListing = await prisma.listing.findUnique({
-        where: { listing_id: slug },
+        where: { listing_id: slug.toUpperCase() },
         include: LISTING_MEDIA_INCLUDE,
       }).catch(() => null);
     }
@@ -499,22 +509,24 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
     const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
+    const dtoSlug = generateListingSlug({
+      address: {
+        streetNumber: addr.StreetNumber || '',
+        streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
+        unitNumber: addr.UnitNumber || null,
+        city: addr.City || '',
+        stateOrProvince: addr.StateOrProvince || 'NY',
+        postalCode: addr.PostalCode || dbListing.postal_code || '',
+      },
+      id: dbListing.listing_id,
+      mlsId: dbListing.mls_id || undefined,
+      internetAddressDisplayYN: dbListing.internet_address_display_yn,
+    });
     const dto: PublicListingDTO = {
       id: dbListing.listing_id,
       mlsId: dbListing.mls_id || dbListing.listing_id,
-      slug: generateListingSlug({
-        address: {
-          streetNumber: addr.StreetNumber || '',
-          streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
-          unitNumber: addr.UnitNumber || null,
-          city: addr.City || '',
-          stateOrProvince: addr.StateOrProvince || 'NY',
-          postalCode: addr.PostalCode || dbListing.postal_code || '',
-        },
-        id: dbListing.listing_id,
-        mlsId: dbListing.mls_id || undefined,
-        internetAddressDisplayYN: dbListing.internet_address_display_yn,
-      }),
+      slug: dtoSlug,
+      url: buildCanonicalListingPath({ slug: dtoSlug, id: dbListing.listing_id }),
       status: dbListing.status,
       listingType: dbListing.listing_type as 'sale' | 'rent',
       address: suppressAddress

@@ -33,7 +33,7 @@ export async function GET(
           { full_name: { equals: slug.replace(/-/g, ' '), mode: 'insensitive' } },
         ],
       },
-      select: { id: true, full_name: true, first_name: true, last_name: true },
+      select: { id: true, full_name: true, first_name: true, last_name: true, trestle_mls_id: true },
     });
 
     if (!agent) {
@@ -45,7 +45,7 @@ export async function GET(
 
     // Fetch from both sources in parallel
     const [trestleResults, dbResults] = await Promise.all([
-      useIDX ? fetchTrestleAgentListings(agentName) : { active: [], closed: [] },
+      useIDX ? fetchTrestleAgentListings(agentName, agent.trestle_mls_id) : { active: [], closed: [] },
       fetchDbAgentListings(agent.id),
     ]);
 
@@ -56,8 +56,15 @@ export async function GET(
     const dbActiveNew = dbResults.active.filter((l) => !trestleActiveIds.has(l.id));
     const dbClosedNew = dbResults.closed.filter((l) => !trestleClosedIds.has(l.id));
 
-    const allActive = [...dbActiveNew, ...trestleResults.active];
-    const allClosed = [...dbClosedNew, ...trestleResults.closed];
+    // Cross-source dedupe (2026-05-28): after merging the DB branch (CRM
+    // exclusives, matched by agent_id) and the Trestle branch (matched by
+    // ListAgentMlsId), collapse same-physical-unit duplicates, preferring the
+    // CRM SL-/RL- row over the Trestle/IDX copy. The per-branch dedupe inside
+    // fetchDbAgentListings only sees DB rows; the Trestle copy (e.g.
+    // RLS20093870) arrives via the Trestle branch, so the cross-source
+    // suppression MUST happen here, after the merge.
+    const allActive = preferCrmExclusiveOverIdxDuplicate([...dbActiveNew, ...trestleResults.active]);
+    const allClosed = preferCrmExclusiveOverIdxDuplicate([...dbClosedNew, ...trestleResults.closed]);
 
     // Split by listing type
     const activeSales = allActive.filter((l) => l.listingType === 'sale');
@@ -92,16 +99,25 @@ export async function GET(
  * Fetch agent's listings from Trestle IDX by ListAgentFullName.
  * Returns active and closed listings separately.
  */
-async function fetchTrestleAgentListings(agentName: string): Promise<{
+async function fetchTrestleAgentListings(agentName: string, trestleMlsId?: string | null): Promise<{
   active: PublicListingDTO[];
   closed: PublicListingDTO[];
 }> {
   try {
     const safeName = agentName.replace(/'/g, "''");
+    // Cotality-authoritative agent matching (2026-05-28): match by the agent's
+    // REBNY/Trestle MLS member id (ListAgentMlsId = Agent.trestle_mls_id) when
+    // we have it — stable across the "MAllan" vs "Maya Allan" source-spelling
+    // variance, and required by REBNY syndication invariant I.4 (full-name
+    // matching is fallback ONLY, never primary when a stronger id exists).
+    const mlsId = (trestleMlsId || '').trim();
+    const agentMatch = mlsId
+      ? `ListAgentMlsId eq '${mlsId.replace(/'/g, "''")}'`
+      : `ListAgentFullName eq '${safeName}'`;
 
     // Fetch active listings
     const activeResult = await fetchFromTrestle({
-      filter: `ListAgentFullName eq '${safeName}' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')`,
+      filter: `${agentMatch} and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')`,
       top: 50,
       maxTotal: 50,
       orderby: 'ModificationTimestamp desc',
@@ -110,7 +126,7 @@ async function fetchTrestleAgentListings(agentName: string): Promise<{
 
     // Fetch closed listings
     const closedResult = await fetchFromTrestle({
-      filter: `ListAgentFullName eq '${safeName}' and StandardStatus eq 'Closed'`,
+      filter: `${agentMatch} and StandardStatus eq 'Closed'`,
       top: 50,
       maxTotal: 50,
       orderby: 'CloseDate desc',
@@ -177,6 +193,15 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         internet_address_display_yn: true,
         owner_opt_out: true,
         participant_only: true,
+        // rls_eligible drives the website-only / Mallan-exclusive bypass in
+        // filterDisplayableDbListings (rls_eligible===false → displayable on
+        // Mallan's own surfaces regardless of idx_display_yn). Omitting it from
+        // this select (the bug) left it undefined, so `l.rls_eligible === false`
+        // was never true, the bypass silently failed, and Mallan exclusives
+        // with idx_display_yn=false (e.g. SL-0004) were dropped from the agent
+        // page — while /api/listings (which gates in SQL via buildPublicListingDbSearch
+        // where rls_eligible IS evaluated) correctly showed them. (2026-05-28)
+        rls_eligible: true,
         listing_contract_date: true,
         modification_timestamp: true,
         created_at: true,

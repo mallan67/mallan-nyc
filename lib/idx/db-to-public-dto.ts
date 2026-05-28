@@ -18,6 +18,7 @@
 import type { PublicListingDTO } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
   resolveListingMedia,
@@ -330,6 +331,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     id: listing.listing_id,
     mlsId: listing.listing_id,
     slug,
+    url: buildCanonicalListingPath({ slug, id: listing.listing_id }),
     status: STATUS_DISPLAY[listing.status] || listing.status,
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress

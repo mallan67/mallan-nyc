@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 interface ListingDTO {
   id: string;
@@ -45,7 +46,7 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
 
   return (
     <Link
-      href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`}
+      href={buildCanonicalListingPath({ slug: listing.slug, id: listing.id })}
       className="group block rounded-xl border border-gray-200 bg-white overflow-hidden hover:shadow-lg transition-shadow"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">

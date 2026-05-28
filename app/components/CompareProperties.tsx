@@ -5,6 +5,7 @@ import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import { type FavoriteEntry } from '@/lib/hooks/useFavorites';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 interface ListingDetail {
   id: string;
@@ -183,7 +184,7 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   )}
-                  <Link href={`/listing/${entry.slug}?key=${encodeURIComponent(entry.id)}`} className="block">
+                  <Link href={buildCanonicalListingPath({ slug: entry.slug, id: entry.id })} className="block">
                     <div className="aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-3">
                       <IDXImage
                         src={entry.photoUrl || '/images/listing-placeholder.svg'}

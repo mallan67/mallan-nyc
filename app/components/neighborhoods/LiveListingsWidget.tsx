@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 interface ListingItem {
   id: string;
@@ -181,7 +182,7 @@ function ListingCard({ listing }: { listing: ListingItem }) {
 
   return (
     <Link
-      href={`/listing/${listing.slug || listing.mlsId}?key=${encodeURIComponent(listing.mlsId || listing.id)}`}
+      href={buildCanonicalListingPath({ slug: listing.slug || listing.mlsId, id: listing.mlsId || listing.id })}
       className="glass-card rounded-3xl overflow-hidden hover:shadow-md transition-shadow block"
     >
       {/* Image */}

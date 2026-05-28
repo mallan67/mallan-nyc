@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { getRecentlyViewed } from './RecentlyViewedTracker';
 import { useClientOnly } from '@/lib/hooks/useClientOnly';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 type RecentItems = ReturnType<typeof getRecentlyViewed>;
 
@@ -82,7 +83,7 @@ export default function RecentlyViewed() {
           {items.map((item) => (
             <Link
               key={item.id}
-              href={`/listing/${item.slug}?key=${encodeURIComponent(item.id)}`}
+              href={buildCanonicalListingPath({ slug: item.slug, id: item.id })}
               className="flex-shrink-0 group flex items-center gap-2 bg-white rounded-lg ring-1 ring-black/5 hover:ring-brand-gold/30 transition-all pr-3"
             >
               {item.photo ? (

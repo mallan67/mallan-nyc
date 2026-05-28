@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
         role: true,
         license_no: true,
         license_type: true,
+        trestle_mls_id: true,
         phone: true,
       },
     });
@@ -114,6 +115,11 @@ export async function GET(req: NextRequest) {
         phone: agent.phone || null,
         license: agent.license_no || null,
         licenseTitle: licenseTitle(agent.license_type),
+        // Cotality/Trestle MLS member id (RESO ListAgentMlsId). This — NOT the
+        // NY State `license` and NOT the internal `id` — is the authoritative
+        // cross-source agent identifier. The sale form stamps it onto
+        // agent_info.ListAgentMlsId so CRM exclusives are Cotality-matchable.
+        mlsId: agent.trestle_mls_id || null,
         companyKey: "mallan",
         companyName: "Mallan Real Estate Inc.",
         companyLicense: company.companyLicense,
