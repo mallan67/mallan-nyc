@@ -93,15 +93,15 @@ body { font-family: Manrope, sans-serif; }
 (function() {
     if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/crm/login.html;
+            if (!d.authenticated) window.location.href = '/crm/login.html';
         }).catch(function() {
-            window.location.href = '/crm/login.html;
+            window.location.href = '/crm/login.html';
         });
     } else {
-        window.location.href = '/crm/login.html;
+        window.location.href = '/crm/login.html';
     }
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login.html;
+        window.location.href = '/crm/login.html';
     });
 })();
 </script>
@@ -5503,6 +5503,25 @@ function _collectRentalFormDataLegacy() {
 // ══════════════════════════════════════════════════════
 function saveRentalDraft() {
     var data = collectRentalFormData();
+
+    // S-DB-008 phantom-draft guard (parity with the sales form's
+    // _saleEditMode && _saleEditDbId guard): when editing an existing DB
+    // listing, the browser localStorage draft must NOT be written — it would
+    // shadow/overwrite the authoritative DB row on the next load. Persist
+    // straight to the server instead, and clear any stale browser draft so it
+    // can never shadow the DB listing.
+    if (_rentalEditMode && _rentalEditDbId) {
+        try { localStorage.removeItem('rentalListingDraft'); } catch (e) {}
+        if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+            MallanAPI.listings.update(_rentalEditDbId, data).catch(function(err) {
+                console.warn('[AutoSave] Server save failed:', err.message);
+            });
+        }
+        showToast('Saved to listing ' + (_rentalEditListingId || _rentalEditDbId), 'success');
+        return;
+    }
+
+    // New, unsaved listing (no DB id yet) — a browser draft is safe here.
     try {
         localStorage.setItem('rentalListingDraft', JSON.stringify(data));
         showToast('Draft saved successfully', 'success');
@@ -5510,10 +5529,10 @@ function saveRentalDraft() {
         showToast('Failed to save draft: ' + e.message, 'error');
     }
 
-    // Also persist to server if connected and listing has an ID
+    // Also persist to server if connected and listing already has an ID
     var listingIdEl = document.getElementById('rentalListingIdDisplay');
     var existingId = listingIdEl ? listingIdEl.textContent.trim() : '';
-    if (existingId && existingId !== '--' && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+    if (existingId && existingId !== '--' && existingId !== 'New' && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         MallanAPI.listings.update(existingId, data).catch(function(err) {
             console.warn('[AutoSave] Server save failed:', err.message);
         });
@@ -5521,6 +5540,16 @@ function saveRentalDraft() {
 }
 
 function loadRentalDraft() {
+    // S-DB-008 phantom-draft guard: when editing an existing DB listing
+    // (?id= present in the URL — this runs at init BEFORE _rentalEditMode is
+    // set), never restore a browser draft over the authoritative DB row.
+    // Clear any stale draft so it cannot shadow the DB listing now or later.
+    try {
+        if (new URLSearchParams(window.location.search).get('id')) {
+            try { localStorage.removeItem('rentalListingDraft'); } catch (e) {}
+            return false;
+        }
+    } catch (e) {}
     try {
         var saved = localStorage.getItem('rentalListingDraft');
         if (!saved) return false;
