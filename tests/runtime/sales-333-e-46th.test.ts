@@ -342,6 +342,92 @@ describe('SEO guard — CRM exclusives must NEVER get generic listing-XXX slug',
   });
 });
 
+describe('detail page hardening (source-pin) — Maya audit follow-ups', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fs = require('fs');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const path = require('path');
+  const PAGE = fs.readFileSync(
+    path.resolve(__dirname, '../../app/listing/[...slug]/page.tsx'),
+    'utf8',
+  );
+
+  test('generateMetadata canonical URL uses buildCanonicalListingPath (not raw listing.slug)', () => {
+    // The og:url, twitter URL, and alternates.canonical must match the
+    // separated /listing/{address}/{id} route the page redirects to.
+    expect(PAGE).toMatch(/const canonicalPath = buildCanonicalListingPath\(\{\s*slug:\s*listing\.slug \|\| '',\s*id:\s*listing\.id \|\| '',?\s*\}\);/);
+    expect(PAGE).toMatch(/const canonicalUrl = `https:\/\/mallan\.nyc\$\{canonicalPath\}`/);
+    // The old hybrid form must be gone.
+    expect(PAGE).not.toMatch(/canonicalUrl = `https:\/\/mallan\.nyc\/listing\/\$\{listing\.slug\}`/);
+  });
+
+  test('fetchFromDB Strategy 2 does NOT short-circuit on candidates.length === 1', () => {
+    // The legacy `if (candidates.length === 1) dbListing = candidates[0];`
+    // shortcut bypassed unit/direction matching. Must be replaced by a
+    // validator that applies to every candidate, including the single-
+    // candidate case.
+    expect(PAGE).not.toMatch(/if\s*\(\s*candidates\.length\s*===\s*1\s*\)\s*\{[\s\S]{0,60}?dbListing\s*=\s*candidates\[0\]/);
+    expect(PAGE).toMatch(/matchesParsedAddress/);
+  });
+
+  test('fetchFromDB validator enforces UnitNumber match when slug has unit', () => {
+    expect(PAGE).toMatch(/if \(parsedUnit && dbUnit !== parsedUnit\) return false;/);
+  });
+
+  test('fetchFromDB validator enforces StreetDirPrefix match when slug has direction', () => {
+    expect(PAGE).toMatch(/if \(parsedDir\)[\s\S]{0,300}?if \(!dirMatch\) return false;/);
+  });
+
+  test('fetchFromDB broad fallback also uses the same validator (includes unit check)', () => {
+    expect(PAGE).toMatch(/broadCandidates\.find\(matchesParsedAddress\)/);
+  });
+});
+
+describe('sale form hardening (source-pin) — Maya audit follow-ups', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fs = require('fs');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const path = require('path');
+  const FORM = fs.readFileSync(
+    path.resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'),
+    'utf8',
+  );
+
+  test('Fix 1: address composite fallback includes StreetDirPrefix', () => {
+    // The composite fallback in _populateSaleFormFromApi must include
+    // StreetDirPrefix or "333 E 46th St" reloads as "333 46th St" (the
+    // exact bug that broke RealPlus lookup).
+    expect(FORM).toMatch(
+      /addr\.StreetNumber[\s\S]{0,200}?addr\.StreetDirPrefix[\s\S]{0,200}?addr\.StreetName[\s\S]{0,200}?addr\.StreetSuffix/,
+    );
+  });
+
+  test('Fix 2: autosave server PATCH prefers _saleEditDbId over display text', () => {
+    expect(FORM).toMatch(/var updateId = _saleEditDbId \|\| _saleEditListingId \|\| displayId/);
+  });
+
+  test('Fix 3: manualSaveDraft catch does not call performAutoSave in edit mode', () => {
+    // Look for the guard `if (!_saleEditMode)` before performAutoSave within
+    // the manual-save catch handler (allow whitespace, comments, multiline).
+    expect(FORM).toMatch(/Save failed:[\s\S]{0,800}?if \(!_saleEditMode\)[\s\S]{0,200}?performAutoSave\(\)/);
+  });
+
+  test('Fix 4: autosave gate uses both _saleAutoSaveReady and _salePopulateInProgress', () => {
+    expect(FORM).toMatch(/window\._salePopulateInProgress = false;/);
+    expect(FORM).toMatch(/if \(!window\._saleAutoSaveReady \|\| window\._salePopulateInProgress\) return;/);
+  });
+
+  test('Fix 4: edit-mode populate holds the lock through agent fallback + field rules', () => {
+    expect(FORM).toMatch(/window\._salePopulateInProgress = true;[\s\S]{0,1500}?applySalesFieldRules\(\)[\s\S]{0,500}?window\._salePopulateInProgress = false;/);
+  });
+
+  test('Fix 5: media-order PATCH surfaces non-OK status and network errors', () => {
+    expect(FORM).toMatch(/Photo order NOT saved/);
+    // The old silent-catch comment must be gone.
+    expect(FORM).not.toMatch(/\/\* silent — order change is best-effort \*\//);
+  });
+});
+
 describe('search type isolation — sale vs rent', () => {
   test('sale listing address data should not produce rental result', () => {
     // This test verifies the search params logic: type=sale vs type=rent

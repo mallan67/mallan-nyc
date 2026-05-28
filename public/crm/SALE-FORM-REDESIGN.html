@@ -7282,13 +7282,18 @@ function syncBuildingTypeToPropertyForm(formType, buildingType) {
 // ═══════════════════════════════════════════════════════════
 
 let autoSaveTimer = null;
-// Suppress autosave until edit-mode populate completes; otherwise autosave
-// captures the form's default state and overwrites the saved DB row with
-// blanks/defaults before the saved data finishes loading.
+// Two-flag autosave gate:
+//   _salePopulateInProgress: true while edit-mode populate + agent fallback +
+//     field-rule cascade are running. Blocks autosave even if it tries to fire
+//     from a cascaded change event during populate.
+//   _saleAutoSaveReady: true once populate is fully settled. Stays false for
+//     edit listings until the API fetch + populate + agent fallback all return.
+// Autosave runs only when (saleAutoSaveReady && !salePopulateInProgress).
 window._saleAutoSaveReady = false;
+window._salePopulateInProgress = false;
 
 function autoSaveDraft() {
-    if (!window._saleAutoSaveReady) return;
+    if (!window._saleAutoSaveReady || window._salePopulateInProgress) return;
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
         performAutoSave();
@@ -7296,7 +7301,7 @@ function autoSaveDraft() {
 }
 
 function performAutoSave() {
-    if (!window._saleAutoSaveReady) return;
+    if (!window._saleAutoSaveReady || window._salePopulateInProgress) return;
     const indicator = document.getElementById('saleAutoSaveIndicator');
     const textEl = document.getElementById('saleAutoSaveText');
     if (indicator) {
@@ -7341,14 +7346,18 @@ function performAutoSave() {
         }
     }
 
-    // Also persist to server if connected and listing has an ID
+    // Also persist to server if connected and listing has an ID.
+    // Prefer authoritative state variables (_saleEditDbId, _saleEditListingId)
+    // over the visible DOM text — the display can be stale or formatted with
+    // extra characters that break id resolution on the server.
     var listingIdEl = document.getElementById('saleListingIdDisplay');
-    var existingId = listingIdEl ? listingIdEl.textContent.trim() : '';
-    var isRealId = existingId && existingId !== '--' && existingId !== 'New' && /^(SL-|RL-|\d)/.test(existingId);
+    var displayId = listingIdEl ? listingIdEl.textContent.trim() : '';
+    var updateId = _saleEditDbId || _saleEditListingId || displayId;
+    var isRealId = updateId && updateId !== '--' && updateId !== 'New' && /^(SL-|RL-|\d)/.test(String(updateId));
     if (isRealId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         var resoData = collectSaleFormData();
-        MallanAPI.listings.update(existingId, resoData).catch(function(err) {
-            console.warn('[AutoSave] Server save failed:', err.message);
+        MallanAPI.listings.update(updateId, resoData).catch(function(err) {
+            console.warn('[AutoSave] Server save failed (id=' + updateId + '):', err.message);
         });
     }
 
@@ -7442,7 +7451,13 @@ async function manualSaveDraft() {
             setTimeout(function() { var el = document.getElementById('saleDraftRecovery'); if (el) el.remove(); }, 15000);
         } catch (err) {
             showToast('Save failed: ' + err.message, 'error');
-            performAutoSave();
+            // Do NOT call performAutoSave() in edit mode after a failed save —
+            // the form state that just failed is what would be pushed again,
+            // potentially overwriting good DB data with bad/default values.
+            // For new (non-edit) listings, autosave to localStorage is safe.
+            if (!_saleEditMode) {
+                performAutoSave();
+            }
         }
     } else {
         performAutoSave();
@@ -8215,21 +8230,30 @@ function _checkSaleEditMode() {
 
     MallanAPI.listings.get(id).then(function(listing) {
         _saleEditListingId = listing.listing_id || listing.id;
-        _populateSaleFormFromApi(listing);
-        // Auto-confirm logged-in agent if saved data left the agent fields empty
-        // (server enforces agent_id === auth.userId so editor IS the listing owner)
-        var listingAgentEl = document.getElementById('saleListingAgent');
-        if (!listingAgentEl || !listingAgentEl.value) {
-            if (typeof initLoggedInAgent === 'function') initLoggedInAgent();
+        // Hold populate lock for the FULL load sequence: form populate +
+        // agent fallback + field-rule cascade. Autosave is blocked the
+        // entire time, even if cascaded change events would otherwise fire it.
+        window._salePopulateInProgress = true;
+        try {
+            _populateSaleFormFromApi(listing);
+            // Auto-confirm logged-in agent if saved data left fields empty.
+            // initLoggedInAgent uses MallanAPI.onReady which is synchronous
+            // when the auth gate already resolved (it always has by the time
+            // we reach this branch — the page would have redirected to login
+            // otherwise). The fallback runs in-thread; no race.
+            var listingAgentEl = document.getElementById('saleListingAgent');
+            if (!listingAgentEl || !listingAgentEl.value) {
+                if (typeof initLoggedInAgent === 'function') initLoggedInAgent();
+            }
+            // Run field rules so conditional sections settle before autosave.
+            if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
+        } finally {
+            // Always release the lock, even if any step above threw.
+            window._salePopulateInProgress = false;
         }
-        // Enable autosave AFTER the populate completes so we don't overwrite
-        // the just-loaded data with form defaults that haven't yet been set.
-        // Defer to next microtask to let any change handlers fired by
-        // _populateSaleFormFromApi / initLoggedInAgent settle without
-        // triggering a re-autosave.
+        // Enable autosave AFTER lock is released, in a microtask, and clear
+        // any timer that change handlers may have scheduled during populate.
         Promise.resolve().then(function() {
-            // Also clear any autosave that was scheduled during populate so
-            // the next user edit starts the 2s debounce fresh.
             clearTimeout(autoSaveTimer);
             window._saleAutoSaveReady = true;
         });
@@ -8619,9 +8643,16 @@ function _populateSaleFormFromApi(listing) {
     setVal('saleStatus', listing.status || raw.StandardStatus || raw.MlsStatus || 'Draft');
 
     // ── Composite address field (the main input the user sees) ──
+    // Fallback MUST include StreetDirPrefix (E/W/N/S) or "333 E 46th St" would
+    // restore as "333 46th St" — the exact bug that broke RealPlus URL lookup.
     var streetAddr = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
     if (!streetAddr) {
-        var parts = [addr.StreetNumber || raw.StreetNumber, addr.StreetName || raw.StreetName, addr.StreetSuffix || raw.StreetSuffix].filter(Boolean);
+        var parts = [
+            addr.StreetNumber || raw.StreetNumber,
+            addr.StreetDirPrefix || raw.StreetDirPrefix,
+            addr.StreetName || raw.StreetName,
+            addr.StreetSuffix || raw.StreetSuffix,
+        ].filter(Boolean);
         streetAddr = parts.join(' ');
     }
     setVal('saleStreetAddress', streetAddr);
@@ -8726,8 +8757,17 @@ function _populateSaleFormFromApi(listing) {
                             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ ordered_media_ids: orderedIds }),
                             credentials: 'include'
-                        }).then(function(r) { if (r.ok) showToast('Photo order saved', 'success'); })
-                          .catch(function() { /* silent — order change is best-effort */ });
+                        }).then(function(r) {
+                            if (r.ok) {
+                                showToast('Photo order saved', 'success');
+                            } else {
+                                // Surface non-OK status so the user knows the
+                                // visible reorder did NOT persist server-side.
+                                showToast('Photo order NOT saved (HTTP ' + r.status + '). Reload to see actual order.', 'error');
+                            }
+                        }).catch(function(err) {
+                            showToast('Photo order NOT saved: ' + (err && err.message ? err.message : 'network error') + '. Reload to see actual order.', 'error');
+                        });
                     }
                 }
             };
