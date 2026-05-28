@@ -1184,7 +1184,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 mb-3">
                 <div id="saleBoardApprovalField" class="flex items-center gap-3">
                     <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Board Approval</span>
-                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleBoardApproval" value="Yes" class="w-4 h-4" data-rls-field="BuildingFeatures"> Yes</label>
+                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleBoardApproval" value="Yes" class="w-4 h-4" data-rls-ignore="true"> Yes</label>
                     <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleBoardApproval" value="No" class="w-4 h-4"> No</label>
                 </div>
                 <div id="saleBoardInterviewField" class="flex items-center gap-3">
@@ -4265,10 +4265,10 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-rls-field="LandmarkStatusYN"> Landmark Building
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgHistoric" class="w-4 h-4" data-rls-field="BuildingFeatures"> Historic District
+                                <input type="checkbox" id="saleBldgHistoric" class="w-4 h-4" data-rls-ignore="true"> Historic District
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgLEED" class="w-4 h-4" data-rls-field="BuildingFeatures"> LEED Certified
+                                <input type="checkbox" id="saleBldgLEED" class="w-4 h-4" data-rls-ignore="true"> LEED Certified
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgNewConstruction" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Construction
@@ -4277,7 +4277,7 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="checkbox" id="saleBldgNewDevelopment" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Development
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-rls-field="BuildingFeatures"> Conversion
+                                <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-rls-ignore="true"> Conversion
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-rls-field="SponsorUnitYN"> Has Sponsor Units
@@ -4642,10 +4642,10 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-rls-field="LaundryFeatures"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgPiedATerre" class="w-4 h-4" data-rls-ignore="true"> Pied-a-Terre Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgParentsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Parents Buying Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Co-Buyers Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCorpOwnAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Corp/LLC Purchase Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgGiftsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gifts Allowed for Down Payment</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgParentsAllowed" class="w-4 h-4" data-rls-ignore="true"> Parents Buying Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-rls-ignore="true"> Co-Buyers Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCorpOwnAllowed" class="w-4 h-4" data-rls-ignore="true"> Corp/LLC Purchase Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgGiftsAllowed" class="w-4 h-4" data-rls-ignore="true"> Gifts Allowed for Down Payment</label>
                         </div>
                     </div>
 
@@ -4713,7 +4713,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-users"></i> Board Process</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgBoardApproval" class="w-4 h-4" data-rls-field="BuildingFeatures"> Board Approval Required</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgBoardApproval" class="w-4 h-4" data-rls-ignore="true"> Board Approval Required</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgBoardInterview" class="w-4 h-4" data-rls-ignore="true"> Board Interview Required</label>
                         </div>
                     </div>
@@ -7131,10 +7131,35 @@ function collectSaleFormData() {
     document.querySelectorAll('input[name="salePetsAllowed"]:checked').forEach(function(cb) { data.PetsAllowed.push(cb.value); });
     data.BuildingPetsAllowed = [];
     document.querySelectorAll('input[name="saleBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
+    // BuildingFeatures — translate to canonical IDX Plus / RESO enum
+    // (only 8 unambiguous mappings per BUILDING_FEATURES_LABEL_TO_CANONICAL).
+    // Untranslatable labels go to Mallan internal saleBuildingFeaturesInternal
+    // so the agent's selection is preserved without polluting the canonical
+    // BuildingFeatures field with non-enum strings.
+    //
+    // This was the Herringbone-class bug Codex flagged on PR #270: the
+    // previous collector pushed all 19 amenity LABEL TEXTS ("Elevator",
+    // "Gym/Fitness Center", …) into canonical BuildingFeatures — none of
+    // which are in the Cotality normalized registry. Building auto-fill
+    // from a selected address would also have written these invalid labels
+    // as soon as the building was selected.
+    //
+    // The mis-tag cleanup codemod removed `data-rls-field="BuildingFeatures"`
+    // from the 9 non-amenity inputs (Historic/LEED/Conversion + 5 building
+    // policies + 1 mis-tagged Yes/No radio) that don't belong in this
+    // canonical array. They have their own SALE_FIELD_MAP / SALE_RADIO_MAP
+    // entries.
     data.BuildingFeatures = [];
+    data.saleBuildingFeaturesInternal = [];
     document.querySelectorAll('#saleBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
         var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.value;
-        data.BuildingFeatures.push(label);
+        if (!label) return;
+        var canonical = BUILDING_FEATURES_LABEL_TO_CANONICAL[label];
+        if (canonical) {
+            data.BuildingFeatures.push(canonical);
+        } else {
+            data.saleBuildingFeaturesInternal.push(label);
+        }
     });
     // AttendanceType — multi-value checkbox array
     data.AttendanceType = [];
@@ -8908,6 +8933,44 @@ var SALE_CHECKBOX_ARRAY_MAP = [
 ];
 
 // Building feature checkboxes (individual IDs → BuildingFeatures array)
+// Translation table — form-label → canonical IDX Plus / RESO
+// `BuildingFeatures` enum value. Only includes UNAMBIGUOUS matches
+// verified against data/rebny-rls-property-lookup.csv (BuildingFeatures
+// rows). Labels NOT in this map are persisted to Mallan internal
+// `raw_data.saleBuildingFeaturesInternal` so the agent's selection
+// survives without polluting the canonical IDX field with non-enum
+// values.
+//
+// Fail-closed: ambiguous labels (Spa → SpaHotTub/Sauna/SteamRoom?,
+// Pool → IndoorPool/ColdPlungePool?, Live-In Super → Concierge/
+// Maintenance/Management?, Wheelchair Access → AccessibilityFeatures
+// is a different RESO field entirely, etc.) all go to internal until
+// the Cotality normalized registry confirms the right mapping in a
+// future PR.
+//
+// This table is REQUIRED because building auto-fill from a selected
+// address writes amenity checkbox state from Cotality data; without
+// translation, even auto-filled selections would push non-canonical
+// label text into the public DTO's BuildingFeatures field.
+var BUILDING_FEATURES_LABEL_TO_CANONICAL = {
+  'Elevator': 'Elevators',
+  'Gym/Fitness Center': 'FitnessCenter',
+  "Children's Playroom": 'CommonPlayroom',
+  'Resident Lounge': 'CommonLounge',
+  'Bike Room': 'BikeStorage',
+  'Storage Available': 'Storage',
+  'Package Room': 'PackageRoom',
+  'Cold Storage': 'ColdStorage',
+};
+// Inverse map for restore-side lookup (canonical → form-label).
+var BUILDING_FEATURES_CANONICAL_TO_LABEL = (function() {
+  var inv = {};
+  for (var label in BUILDING_FEATURES_LABEL_TO_CANONICAL) {
+    inv[BUILDING_FEATURES_LABEL_TO_CANONICAL[label]] = label;
+  }
+  return inv;
+})();
+
 var SALE_BUILDING_FEATURE_IDS = [
   'saleBldgElevator', 'saleBldgGym', 'saleBldgPool', 'saleBldgRoofDeck',
   'saleBldgCourtyard', 'saleBldgPlayroom', 'saleBldgLounge', 'saleBldgBusinessCenter',
@@ -9115,13 +9178,28 @@ function _populateSaleFormFromApi(listing) {
     });
 
     // ── Building feature checkboxes ──
-    var bldgFeatures = raw.BuildingFeatures;
-    if (Array.isArray(bldgFeatures)) {
+    // Restore BuildingFeatures amenity checkboxes from BOTH the canonical
+    // IDX Plus array AND the Mallan internal labels array (the PR #270
+    // BuildingFeatures fix split them — see comment in collectSaleFormData).
+    // For canonical values, translate back to the form label via the
+    // inverse map. For internal labels, match directly. Legacy data with
+    // raw labels in BuildingFeatures still restores via the label fallback
+    // (covers rows saved before this fix).
+    var bldgFeaturesCanonical = Array.isArray(raw.BuildingFeatures) ? raw.BuildingFeatures : [];
+    var bldgFeaturesInternal = Array.isArray(raw.saleBuildingFeaturesInternal) ? raw.saleBuildingFeaturesInternal : [];
+    var canonicalSet = new Set(bldgFeaturesCanonical);
+    var internalSet = new Set(bldgFeaturesInternal);
+    if (canonicalSet.size > 0 || internalSet.size > 0) {
         SALE_BUILDING_FEATURE_IDS.forEach(function(id) {
             var el = document.getElementById(id);
             if (!el) return;
             var label = el.parentElement ? el.parentElement.textContent.trim() : el.value;
-            el.checked = bldgFeatures.includes(label) || bldgFeatures.includes(el.value);
+            var canonical = BUILDING_FEATURES_LABEL_TO_CANONICAL[label];
+            el.checked =
+                (canonical && canonicalSet.has(canonical)) ||
+                internalSet.has(label) ||
+                canonicalSet.has(label) ||              // legacy pre-PR-#270 rows with labels in canonical
+                canonicalSet.has(el.value);             // legacy rows with value attr in canonical
         });
     }
 

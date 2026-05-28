@@ -152,6 +152,63 @@ Per Maya's mandate: every entry below is **either persisted (Mallan internal or 
 
 - **35 radio groups (25 broken) + 12 named checkbox groups (5 broken) + 20 unnamed-checkbox sections (147 inputs, 100% invisible at save).**
 - **All 20 unnamed sections turn out to be real data fields** — no vestigial UI to remove.
-- **Class C persistence: 1 RESO mapping confirmed (Flooring), 19 defaulted to Mallan internal** per fail-closed rule.
+- **Class C persistence: 1 RESO mapping initially confirmed (Flooring) then demoted to Mallan internal** (Codex review — see §7); the remaining 19 default to Mallan internal per fail-closed rule.
 - **2 sections flagged for follow-up** (Important Dates → may overlap with existing distribution flags; Washer/Dryer → split into 3 distinct keys).
 - Audit committed first; implementation in subsequent commits on the same branch.
+
+---
+
+## 7 · Codex review findings (added 2026-05-28, before merge)
+
+Codex caught **two Herringbone-class bugs** post-initial-implementation. Both fixed in PR #270 before merge per Maya's direction.
+
+### 7.1 Flooring canonical write included a non-enum value
+- **Bug:** `data.Flooring = [...form values...]` included "Herringbone" — not present in the Cotality normalized registry for IDX Plus `Flooring` (`data/rebny-rls-property-lookup.csv` Flooring rows: Adobe / Bamboo / Brick / Carpet / CeramicTile / Concrete / Cork / Hardwood / Laminate / Linoleum / Marble / Parquet / etc.).
+- **Fix:** demoted Flooring from RESO canonical to Mallan internal. Collector writes `data.saleFlooring` (raw_data). 5 Flooring inputs marked with the legacy validator attribute `data-rls-ignore="true"` (Layer 0 — Mallan internal).
+- **Note on language:** `data-rls-ignore` is a legacy validator attribute name only; it tells the in-repo validator the field is not in scope for the Cotality/RESO normalized registry check. It does NOT control any external RLS submission behavior.
+
+### 7.2 BuildingFeatures canonical write was systematically non-compliant
+- **Bug discovered during the §7.1 enum audit:** the existing `collectSaleFormData` logic pushed **label text** (not the input's `value` attribute) into canonical `data.BuildingFeatures`. None of the 19 amenity labels ("Elevator", "Gym/Fitness Center", "Bike Room", "Cold Storage", …) match REBNY's `BuildingFeatures` enum (which uses CamelCase: `Elevators`, `FitnessCenter`, `BikeStorage`, `ColdStorage`, …). Every save with any building amenity checked emitted invalid canonical values.
+- **Why this was blocking** (per Maya): building auto-fill from a selected address writes amenity checkbox state from Cotality-supplied building data (`populateBuildingFromIDX` at line ~5287). Without the canonical-write fix, every auto-filled selection would have pushed non-compliant labels into `BuildingFeatures` as soon as the agent selected a building from the dropdown — bad data would be created automatically, not just on manual checkbox interaction.
+- **Fix — translation table:**
+  - New `BUILDING_FEATURES_LABEL_TO_CANONICAL` map with **8 unambiguous translations** verified against the Cotality normalized registry:
+
+    | Form label | IDX Plus canonical |
+    |---|---|
+    | `Elevator` | `Elevators` |
+    | `Gym/Fitness Center` | `FitnessCenter` |
+    | `Children's Playroom` | `CommonPlayroom` |
+    | `Resident Lounge` | `CommonLounge` |
+    | `Bike Room` | `BikeStorage` |
+    | `Storage Available` | `Storage` |
+    | `Package Room` | `PackageRoom` |
+    | `Cold Storage` | `ColdStorage` |
+
+  - **11 ambiguous / not-in-enum labels go to Mallan internal** `raw_data.saleBuildingFeaturesInternal`: Pool, Roof Deck, Courtyard/Garden, Business Center, Conference Room, Parking Garage, Valet Parking, Live-In Super, On-Site Manager, Wheelchair Access (would belong in `AccessibilityFeatures` — different RESO field), Spa (ambiguous: SpaHotTub / Sauna / SteamRoom).
+  - **Collector** (`collectSaleFormData`): translates via the map. Untranslatable labels → `saleBuildingFeaturesInternal` array. **Canonical `data.BuildingFeatures` only ever contains values verified-present in the IDX Plus enum.**
+  - **Restore** (`_populateSaleFormFromApi`): reads BOTH `raw.BuildingFeatures` (canonical) AND `raw.saleBuildingFeaturesInternal` (Mallan internal labels). Inverse-translates canonical values back to form labels for setChecked. Also handles legacy pre-PR-#270 data where labels were stored in the canonical field directly (label fallback in the matcher).
+  - **Mis-tag cleanup:** 9 inputs were incorrectly tagged `data-rls-field="BuildingFeatures"` (Historic / LEED / Conversion building characteristics + 5 building purchasing policies + 1 mis-tagged Yes/No radio). All 9 had `data-rls-field` removed AND `data-rls-ignore="true"` added. These inputs have their own SALE_FIELD_MAP / SALE_RADIO_MAP entries from earlier in PR #270 and don't belong in the BuildingFeatures canonical array.
+  - **Auto-fill rule** (per Maya): Cotality/IDX Plus normalized values may write to canonical `BuildingFeatures` only if already valid in the registry. UI / custom / Mallan labels go through the translation table. Unknown labels are internal-only.
+
+### 7.3 Regression guard
+
+New test file `tests/runtime/sale-form-canonical-enum-compliance.test.ts` (18 cases) cross-checks every canonical-array write in `collectSaleFormData` against the Cotality normalized registry on every CI run:
+
+- 8 direct-write canonical fields (Heating / Cooling / BuildingHeating / BuildingCooling / PetsAllowed / BuildingPetsAllowed / AttendanceType / BuildingLaundryFeatures): all 100% enum-compliant.
+- BuildingFeatures: translation map verified; every mapped canonical value present in enum; routing split (canonical+internal) verified in collect; restore reads both buckets.
+- Flooring: verified demoted (no `data.Flooring` write in collect code; 5 inputs marked legacy validator attribute).
+
+Any future PR that adds a new canonical-array write whose form values diverge from the Cotality normalized registry fails CI before the bad data ships.
+
+---
+
+## 8 · Implementation order (final, with Codex follow-ups)
+
+1. ✅ Commit audit doc (first commit on the branch — `7cf537a9`)
+2. ✅ Class A + B + C implementation (second commit — `b2be0607`)
+3. ✅ Codex review §7.1 — AVM canonical-only restore + Flooring demotion (third commit — `aa66934c`)
+4. ✅ Codex review §7.2 — BuildingFeatures translation table + mis-tag cleanup + 18 enum-compliance guard tests (this commit)
+5. Validation chain → all green
+6. Push + await CI re-green
+7. Do not merge until BuildingFeatures is enum-safe (CI proof)
+
