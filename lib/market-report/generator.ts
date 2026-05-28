@@ -166,7 +166,7 @@ async function fetchTrestleStats(
         "ListingId", "ListPrice", "ClosePrice", "OriginalListPrice",
         "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
         "LivingArea", "DaysOnMarket", "CumulativeDaysOnMarket",
-        "StreetNumber", "StreetName", "UnitNumber",
+        "StreetNumber", "StreetDirPrefix", "StreetName", "StreetSuffix", "UnitNumber",
         "MLSAreaMajor", "PropertySubType",
         "AssociationFee", "ListOfficeName",
         "ModificationTimestamp", "OnMarketDate",
@@ -235,7 +235,8 @@ async function fetchTrestleStats(
 
     // Sample listings (top 5 by price)
     const samples = listings.slice(0, 5).map((l) => ({
-      address: `${l.StreetNumber || ''} ${l.StreetName || ''}${l.UnitNumber ? ` #${l.UnitNumber}` : ''}`.trim(),
+      address: [l.StreetNumber, l.StreetDirPrefix, l.StreetName, l.StreetSuffix]
+        .filter(Boolean).join(' ').trim() + (l.UnitNumber ? ` #${l.UnitNumber}` : ''),
       price: Number(l.ListPrice) || 0,
       beds: Number(l.BedroomsTotal) || 0,
       baths: Number(l.BathroomsFull) || 0,

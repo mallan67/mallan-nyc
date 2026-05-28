@@ -179,7 +179,8 @@ export async function findComps(
 
     const addr = l.address as Record<string, string> | null;
     const displayAddr = canDisplayListingAddress(l) && addr
-      ? `${addr.StreetNumber || ''} ${addr.StreetName || ''}`.trim() || null
+      ? [addr.StreetNumber, addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix]
+          .filter(Boolean).join(' ').trim() || null
       : null;
 
     return {

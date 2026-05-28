@@ -32,7 +32,14 @@ function _mapApiListingToManage(api) {
     var features = api.features || {};
     var media = api.media || [];
     var isSale = api.listing_type === 'sale';
-    var addressStr = (addr.StreetNumber ? addr.StreetNumber + ' ' : '') + (addr.StreetName || '') + (addr.StreetSuffix ? ' ' + addr.StreetSuffix : '');
+    // Include StreetDirPrefix (E/W/N/S) — without it "333 E 46th St" displays
+    // as "333 46th St" in CRM listing tables.
+    var addressStr = [
+        addr.StreetNumber || '',
+        addr.StreetDirPrefix || '',
+        addr.StreetName || '',
+        addr.StreetSuffix || '',
+    ].filter(Boolean).join(' ').trim();
     if (!addressStr.trim()) addressStr = addr.UnparsedAddress || api.borough || 'Unknown';
     var unitStr = addr.UnitNumber || '';
 

@@ -146,6 +146,25 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
         { address: { path: ["streetNumber"], equals: num } },
       ],
     });
+
+    // Extract direction prefix BEFORE stripping it from streetPart so we can
+    // narrow the match by StreetDirPrefix. Without this, a search for
+    // "333 e 46th st" matches every "333 ... 46th" in any borough/direction
+    // and silently surfaces the wrong cross street.
+    const dirMatch = numMatch[2].match(/^([ensw])\s+/i);
+    const dirUpper = dirMatch ? dirMatch[1].toUpperCase() : "";
+    if (dirUpper) {
+      conditions.push({
+        OR: [
+          { address: { path: ["StreetDirPrefix"], equals: dirUpper } },
+          // Some DB rows have direction baked into StreetName ("E 46TH") —
+          // accept both shapes so the gate doesn't false-negative.
+          { address: { path: ["StreetName"], string_contains: dirUpper + " " } },
+          { address: { path: ["StreetName"], string_contains: dirUpper.toLowerCase() + " " } },
+        ],
+      });
+    }
+
     const streetPart = numMatch[2]
       .replace(/\b[ensw]\b/gi, "")
       .trim()

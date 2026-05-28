@@ -231,7 +231,12 @@ export async function GET(request: NextRequest) {
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
-        const fullAddr = `${addr.StreetNumber || ''} ${addr.StreetName || ''} ${addr.StreetSuffix || ''}`.trim();
+        // Use the shared formatAddress helper — it preserves StreetDirPrefix
+        // (E/W/N/S). The prior inline concatenation dropped direction, which
+        // is how SL-0004 ("333 East 46th Street") was saved into the CRM as
+        // "333 46th Street" (no E) — the form's building-search dropdown
+        // pulled this branch's response and stored the malformed address.
+        const fullAddr = formatAddress(addr);
         const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
         if (seenAddresses.has(key)) continue;
         seenAddresses.add(key);

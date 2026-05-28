@@ -224,7 +224,9 @@
 
             return {
                 id: parseInt(apiListing.id) || (index + 1),
-                address: (addr.StreetNumber ? addr.StreetNumber + ' ' : '') + (addr.StreetName || '') + (addr.StreetSuffix ? ' ' + addr.StreetSuffix : ''),
+                // Include StreetDirPrefix so "333 E 46th St" doesn't show as
+                // "333 46th St" in CRM data loaders and downstream consumers.
+                address: [addr.StreetNumber || '', addr.StreetDirPrefix || '', addr.StreetName || '', addr.StreetSuffix || ''].filter(Boolean).join(' ').trim(),
                 unit: addr.UnitNumber || '',
                 price: price,
                 totalMonthly: isRental ? price : (parseFloat(feat.RealEstateTax || 0) / 12 + parseFloat(feat.AssociationFee || 0)),

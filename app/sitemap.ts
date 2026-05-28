@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
 import { generateListingSlug } from '@/lib/listing-slug';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
 const BASE_URL = 'https://mallan.nyc';
@@ -101,6 +102,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const slug = generateListingSlug({
         address: {
           streetNumber: addr.StreetNumber || addr.streetNumber || '',
+          // Include StreetDirPrefix — without it "333 E 46th St" sitemap entry
+          // becomes "333 46th St", indexing the wrong canonical URL.
+          streetDirPrefix: addr.StreetDirPrefix || addr.streetDirPrefix || '',
           streetName: addr.StreetName || addr.streetName || '',
           unitNumber: addr.UnitNumber || addr.unitNumber || null,
           city: addr.City || addr.city || 'New York',
@@ -112,8 +116,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         internetAddressDisplayYN: l.internet_address_display_yn,
       });
 
+      // Use the canonical helper — sitemap URL must match the separated
+      // /listing/{address}/{id} form the page redirects to, otherwise
+      // Google indexes the wrong URL and the 308 redirect just bounces it.
+      const canonicalPath = buildCanonicalListingPath({ slug, id: l.listing_id });
       return {
-        url: `${BASE_URL}/listing/${slug}`,
+        url: `${BASE_URL}${canonicalPath}`,
         lastModified: l.modification_timestamp || now,
         changeFrequency: 'daily' as const,
         priority: 0.7,
