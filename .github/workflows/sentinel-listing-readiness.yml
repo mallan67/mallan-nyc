@@ -163,7 +163,7 @@ jobs:
       # (b) the uploaded artifact, and (c) the Step Summary above — none of
       # which generate email. To re-enable PR comments (already trimmed to
       # top-5 P0/P1), flip the `if:` below to `steps.scanner.outputs.count != '0'`.
-      - name: Post actionable PR comment (disabled — anti-spam, see PR #266)
+      - name: Post actionable PR comment (disabled — anti-spam per PR 266)
         if: ${{ false }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

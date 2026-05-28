@@ -37,7 +37,7 @@ describe('sentinel-listing-readiness.yml - platform actionable scanner', () => {
       (step) => step.name === 'Build short actionable summary (top 5 P0/P1)',
     );
     const postComment = steps.find(
-      (step) => step.name === 'Post actionable PR comment (disabled — anti-spam, see PR #266)',
+      (step) => step.name === 'Post actionable PR comment (disabled — anti-spam per PR 266)',
     );
     const failStep = steps.find((step) => step.name === 'Fail on actionable errors');
 

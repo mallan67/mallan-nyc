@@ -3,9 +3,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { SENTINEL_L_CONTRACT } from '../../tools/sentinel-l/run-sentinel-l';
+import { SENTINEL_L_CONTRACT, evaluateSource } from '../../tools/sentinel-l/run-sentinel-l';
+import type { SentinelLError } from '../../tools/sentinel-l/run-sentinel-l';
 
 const repoRoot = path.resolve(__dirname, '..', '..');
+
+function codes(errors: SentinelLError[]): string[] {
+  return errors.map((e) => e.code);
+}
+
+function find(errors: SentinelLError[], code: string): SentinelLError | undefined {
+  return errors.find((e) => e.code === code);
+}
 
 describe('Sentinel-L platform actionable error scanner', () => {
   test('package exposes npm run sentinel:l', () => {
@@ -117,5 +126,219 @@ describe('Sentinel-L platform actionable error scanner', () => {
     expect(source).toContain('Only post a short PR comment when actionable errors exist');
     expect(source).not.toMatch(/Final verdict:\s*YELLOW/);
     expect(source).not.toMatch(new RegExp('LIMITED\\s+[\\u2014-]'));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Detector PRECISION — a finding is valid only with positive evidence of
+// broken behavior. These tests prove the scanner does NOT flag safe code
+// (comments, interfaces, helpers, counters, offline fallback, guards,
+// suppression, validated paths) and DOES flag the real failure shapes.
+// ─────────────────────────────────────────────────────────────────────
+describe('Sentinel-L detector precision — negative (safe code must NOT be flagged)', () => {
+  test('computeGateColumns display-gate helper is safe (no S-BACKSEARCH-009)', () => {
+    const src = [
+      'const gate = computeGateColumns({',
+      '  internetEntireListingDisplayYN: raw.InternetEntireListingDisplayYN,',
+      '  internetAddressDisplayYN: raw.InternetAddressDisplayYN,',
+      '  ownerOptOut: raw.OwnerOptOut,',
+      '});',
+      'const listing = await prisma.listing.create({ data: { ...gate } });',
+    ].join('\n');
+    const out = evaluateSource('app/api/crm/listings/route.ts', src);
+    expect(codes(out)).not.toContain('S-BACKSEARCH-009');
+  });
+
+  test('dashboard compliance counter is safe (no S-BACKSEARCH-009)', () => {
+    const src = [
+      'let violations = 0;',
+      'for (const l of listings) {',
+      '  if (l.OwnerOptOut) violations++;',
+      '  if (l.InternetEntireListingDisplayYN === false) suppressedCount++;',
+      '}',
+    ].join('\n');
+    const out = evaluateSource('public/crm/js/dashboard/panels.js', src);
+    expect(codes(out)).not.toContain('S-BACKSEARCH-009');
+  });
+
+  test('select clause containing a display-gate column is safe (no S-BACKSEARCH-009)', () => {
+    const src = [
+      'const createdListing = await prisma.listing.findUnique({',
+      '  where: { listing_id: result.listingId },',
+      '  select: { listing_id: true, status: true, internet_address_display_yn: true },',
+      '});',
+    ].join('\n');
+    const out = evaluateSource('app/api/crm/listings/route.ts', src);
+    expect(codes(out)).not.toContain('S-BACKSEARCH-009');
+  });
+
+  test('TypeScript interface with InternetAddressDisplayYN is safe (no S-COMP-001, no S-URL-001)', () => {
+    const src = [
+      'export interface ListingSlugInput {',
+      '  listingId: string;',
+      '  internetAddressDisplayYN?: boolean;',
+      '  streetDirPrefix?: string;',
+      '}',
+    ].join('\n');
+    const out = evaluateSource('lib/listing-slug.ts', src);
+    expect(codes(out)).not.toContain('S-COMP-001');
+    expect(codes(out)).not.toContain('S-URL-001');
+  });
+
+  test('comment mentioning InternetAddressDisplayYN is safe (no S-COMP-001)', () => {
+    const src = [
+      '// The canonical /listing/ URL is gated on InternetAddressDisplayYN.',
+      '// We call affirmPermission(raw.InternetAddressDisplayYN) before emitting.',
+      'const canonicalUrl = buildCanonical(listing);',
+    ].join('\n');
+    const out = evaluateSource('lib/listing-canonical-url.ts', src);
+    expect(codes(out)).not.toContain('S-COMP-001');
+  });
+
+  test('affirmPermission(raw.InternetAddressDisplayYN) guard is safe (no S-COMP-001)', () => {
+    const src = [
+      'const showAddress = affirmPermission(raw.InternetAddressDisplayYN);',
+      "const addressSlug = generateListingSlug(listing.address);",
+      "const canonicalUrl = showAddress ? '/listing/' + addressSlug : '/listing/listing-' + id;",
+    ].join('\n');
+    const out = evaluateSource('app/listing/[...slug]/page.tsx', src);
+    expect(codes(out)).not.toContain('S-COMP-001');
+  });
+
+  test('InternetAddressDisplayYN === false guard is safe (no S-COMP-001)', () => {
+    const src = [
+      'if (raw.InternetAddressDisplayYN === false) {',
+      "  return '/listing/listing-' + listingId.toLowerCase();",
+      '}',
+      "const addressSlug = generateListingSlug(listing.address);",
+      "const canonicalUrl = '/listing/' + addressSlug + '/' + listingId.toLowerCase();",
+    ].join('\n');
+    const out = evaluateSource('lib/listing-canonical-url.ts', src);
+    expect(codes(out)).not.toContain('S-COMP-001');
+  });
+
+  test('stale draft suppression is safe (no S-DB-008)', () => {
+    const src = [
+      '// When a DB match exists, clear the stale browser draft.',
+      'if (_dbHasMatch) {',
+      "  localStorage.removeItem('saleListings');",
+      '}',
+    ].join('\n');
+    const out = evaluateSource('public/crm/js/dashboard/panels.js', src);
+    expect(codes(out)).not.toContain('S-DB-008');
+  });
+
+  test('offline fallback localStorage write is safe (no S-DB-008)', () => {
+    const src = [
+      "if (typeof MallanAPI === 'undefined' || !MallanAPI) {",
+      '  // Offline — fall back to localStorage only when the server is unreachable.',
+      "  localStorage.setItem('saleListings', JSON.stringify(payload));",
+      '}',
+    ].join('\n');
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', src);
+    expect(codes(out)).not.toContain('S-DB-008');
+  });
+
+  test('new unsaved draft localStorage write is safe (no S-DB-008)', () => {
+    const src = [
+      'function saveNewDraft(data) {',
+      '  // Brand-new listing with no DB id yet; safe to keep a local draft.',
+      "  localStorage.setItem('mallan_draft_sale', JSON.stringify(data));",
+      '}',
+    ].join('\n');
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', src);
+    expect(codes(out)).not.toContain('S-DB-008');
+  });
+
+  test('validated agent path is safe (no S-AGENT-006, no S-BACKSEARCH-012)', () => {
+    const src = [
+      'function onValidateAgent(agentInfo) {',
+      "  if (!agentInfo || !agentInfo.ListAgentMlsId) { blockSubmit('Validate agent first'); return; }",
+      "  document.getElementById('saleListingAgentId').value = agentInfo.ListAgentMlsId;",
+      "  document.getElementById('saleListOfficeKey').value = agentInfo.ListOfficeKey;",
+      '}',
+    ].join('\n');
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', src);
+    expect(codes(out)).not.toContain('S-AGENT-006');
+    expect(codes(out)).not.toContain('S-BACKSEARCH-012');
+  });
+
+  test('OData/CSV escaping and bounds parsing are safe (no S-PUBSEARCH-001)', () => {
+    const escape = "export function escapeOData(value) { return value.replace(/'/g, \"''\"); }";
+    const bounds = "const [south, west, north, east] = boundsParam.split(',').map(Number);";
+    expect(codes(evaluateSource('lib/search/crm-idx-filter.ts', escape))).not.toContain('S-PUBSEARCH-001');
+    expect(codes(evaluateSource('app/api/listings/route.ts', bounds))).not.toContain('S-PUBSEARCH-001');
+  });
+});
+
+describe('Sentinel-L detector precision — positive (real failures MUST be flagged)', () => {
+  test('backend search wrongly filters by a public display gate (S-BACKSEARCH-009)', () => {
+    const src = [
+      'const rows = await prisma.listing.findMany({',
+      '  where: {',
+      '    agent_id: brokerId,',
+      '    internet_entire_listing_display_yn: true,',
+      '  },',
+      '});',
+    ].join('\n');
+    const out = evaluateSource('app/api/crm/listings/route.ts', src);
+    const hit = find(out, 'S-BACKSEARCH-009');
+    expect(hit).toBeDefined();
+    expect(hit!.actualFailure).toContain('public display gates as broker access gates');
+  });
+
+  test('public URL emits address atoms without an address-display guard (S-COMP-001)', () => {
+    const src = [
+      'export function buildCanonical(listing) {',
+      '  const addressSlug = generateListingSlug(listing.address);',
+      "  const canonicalUrl = '/listing/' + addressSlug + '/' + listing.id.toLowerCase();",
+      '  return canonicalUrl;',
+      '}',
+    ].join('\n');
+    const out = evaluateSource('lib/listing-canonical-url.ts', src);
+    const hit = find(out, 'S-COMP-001');
+    expect(hit).toBeDefined();
+    expect(hit!.actualFailure).toContain('leak address atoms publicly');
+  });
+
+  test('edit autosave writes localStorage while a DB id exists (S-DB-008)', () => {
+    const src = [
+      'function autosaveSaleListing() {',
+      '  var editId = _saleEditDbId || currentListingId;',
+      "  localStorage.setItem('saleListings', JSON.stringify(collect()));",
+      '}',
+    ].join('\n');
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', src);
+    const hit = find(out, 'S-DB-008');
+    expect(hit).toBeDefined();
+    expect(hit!.actualFailure).toContain('shadow or overwrite a real DB listing');
+  });
+
+  test('success response omits the URL/eligibility contract (S-BE-006)', () => {
+    const src = [
+      'return NextResponse.json({',
+      '  id: result.id,',
+      '  listing_id: result.listingId,',
+      "  status: 'Incomplete',",
+      '  publicUrl: urls.publicUrl,',
+      '  realPlusUrl: urls.realPlusUrl,',
+      '}, { status: 201 });',
+    ].join('\n');
+    const out = evaluateSource('app/api/crm/listings/route.ts', src);
+    const hit = find(out, 'S-BE-006');
+    expect(hit).toBeDefined();
+    expect(hit!.actualFailure).toContain('without returning the URL and eligibility contract');
+  });
+
+  test('visible agent selected but hidden stable ID falls back to empty (S-BACKSEARCH-012)', () => {
+    const src = [
+      "saleListingAgent = agentInfo.ListAgentMlsId || '';",
+      "document.getElementById('saleListingAgentName').value = agentInfo.name;",
+      'submitListing();',
+    ].join('\n');
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', src);
+    const hit = find(out, 'S-BACKSEARCH-012');
+    expect(hit).toBeDefined();
+    expect(hit!.actualFailure).toContain('missing stable agent/office IDs');
   });
 });

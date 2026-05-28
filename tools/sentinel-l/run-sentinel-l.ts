@@ -61,6 +61,14 @@ type Rule = {
    *  rule is suppressed for that file. Used for whole-file guards like
    *  "this file is a TypeScript interface module, not runtime code." */
   excludeIfFilePresent?: RegExp;
+  /** POSITIVE evidence — the rule only fires when this regex ALSO matches
+   *  within ±requireNearWindow lines of the primary match. Used to require
+   *  proof of a broken behavior (e.g. an edit/autosave context next to a
+   *  localStorage write) rather than flagging the bare pattern. A finding
+   *  is valid only if it has positive evidence of broken behavior. */
+  requireNear?: RegExp;
+  /** Window for requireNear (defaults to exclusionWindow, then ±20). */
+  requireNearWindow?: number;
   /** Override default ±20-line exclusion window. */
   exclusionWindow?: number;
 };
@@ -151,7 +159,12 @@ const RULES: Rule[] = [
     code: 'S-SALE-006',
     severity: 'P0',
     filePattern: /public\/crm\/SALE-FORM-REDESIGN\.html$/,
-    pattern: /(StreetDirPrefix|streetDirPrefix)[\s\S]{0,220}(?:delete|''|""|null|undefined)|(?:splitAddress|parseAddress)[\s\S]{0,220}\b(?:East|West|North|South|E|W|N|S)\b[\s\S]{0,220}(?:drop|omit|ignore)/i,
+    // Tightened (2026-05-28): the prior pattern matched the empty HTML
+    // attribute `value=""` next to a `data-rls-field="StreetDirPrefix"`
+    // hidden-input declaration (a default value, not address logic). Now
+    // requires an actual JS clear/delete of the prefix atom, or a
+    // splitAddress/parseAddress branch that drops a spelled-out direction.
+    pattern: /delete\s+[\w.[\]'"]*(?:StreetDirPrefix|streetDirPrefix)\b|(?:StreetDirPrefix|streetDirPrefix)['"]?\s*[:=]\s*(?:''|""|null|undefined)|(?:splitAddress|parseAddress)[\s\S]{0,220}\b(?:East|West|North|South)\b[\s\S]{0,220}(?:drop|omit|ignore)/i,
     failingPattern: 'Sale address parsing/serialization can drop StreetDirPrefix.',
     actualFailure: 'Sale form address logic has a direction-adjacent branch that can clear, omit, or ignore StreetDirPrefix instead of preserving it as its own atom.',
     impact: 'Sale listings can lose the E/W/N/S direction atom, causing RealPlus URLs, search, dashboard matching, and edit reloads to target the wrong address.',
@@ -162,8 +175,12 @@ const RULES: Rule[] = [
     code: 'S-RENT-005',
     severity: 'P1',
     filePattern: /public\/crm\/RENTAL-FORM-REDESIGN\.html$/,
-    pattern: /(?:raw_data|rawData)[\s\S]{0,1200}(?:StreetDirPrefix|streetDirPrefix)[\s\S]{0,1200}(?:StreetName|streetName)/i,
-    failingPattern: 'Rental reload mixes raw_data/canonical address keys around StreetDirPrefix.',
+    // Tightened (2026-05-28): the prior pattern fired on the SAFE
+    // canonical-first precedence `addr.StreetDirPrefix || raw.StreetDirPrefix
+    // || ''`. The real lossy shape is raw_data PREFERRED over canonical, or
+    // a setVal that reads only raw_data for the direction/street atom.
+    pattern: /(?:raw|raw_data|rawData)\.(?:StreetDirPrefix|streetDirPrefix|StreetName|streetName)\s*\|\|\s*(?:addr|address|canonical)\b|setVal\(\s*['"]rental(?:StreetDirPrefix|StreetName)['"]\s*,\s*(?:raw|raw_data|rawData)\.[\w]+\s*\)/,
+    failingPattern: 'Rental reload prefers lossy raw_data address values over canonical.',
     actualFailure: 'Rental edit reload reads mixed raw_data and canonical address fields around StreetDirPrefix/StreetName, which can repopulate a saved rental with lossy address values.',
     impact: 'Rental edit reload can prefer lossy canonical values or mixed raw_data keys, then repopulate the form with a different address than was saved.',
     requiredFix: 'Use the same canonical address normalizer and value precedence as the sale form, preserving CRM raw keys only as compatibility aliases.',
@@ -173,9 +190,13 @@ const RULES: Rule[] = [
     code: 'S-BE-006',
     severity: 'P0',
     filePattern: /app\/api\/crm\/listings\/(?:route|\[id\]\/status)\.ts$/,
-    pattern: /return\s+NextResponse\.json\([\s\S]{0,900}publicUrl[\s\S]{0,240}realPlusUrl(?![\s\S]{0,900}(?:featuredEligible|exclusiveEligible|eligibilityReason))/,
+    // Inspects SUCCESSFUL create/update/publish responses only: the object
+    // must carry listing_id + publicUrl + realPlusUrl (the success contract
+    // markers). 404, validation-error, and exception responses return
+    // `{ error: ... }` and never reach this shape, so they are not matched.
+    pattern: /return\s+NextResponse\.json\(\s*\{[\s\S]{0,300}listing_id[\s\S]{0,600}publicUrl[\s\S]{0,240}realPlusUrl(?![\s\S]{0,900}(?:featuredEligible|exclusiveEligible|eligibilityReason))/,
     failingPattern: 'Successful CRM listing response missing URL/eligibility contract.',
-    actualFailure: 'CRM listing API returns publicUrl/realPlusUrl but omits featuredEligible, exclusiveEligible, and eligibilityReason, so the UI cannot explain Featured/Exclusive availability after publish.',
+    actualFailure: 'CRM submit/publish can report success without returning the URL and eligibility contract the form/dashboard needs (featuredEligible, exclusiveEligible, eligibilityReason are omitted alongside publicUrl/realPlusUrl).',
     impact: 'CRM create/update/publish can report success without returning the public URL, RealPlus URL, listing_id/status, or featured/exclusive eligibility contract.',
     requiredFix: 'Return listing_id, status, publicUrl, realPlusUrl, featuredEligible, exclusiveEligible, and eligibilityReason from successful submit/publish paths.',
     proofRequired: 'Sale and rental submit tests assert the response contract and UI shows Copy/Open URL actions only after publish succeeds.',
@@ -213,11 +234,19 @@ const RULES: Rule[] = [
     //     localStorage.getItem is followed by removeItem when match found)
     //   - Offline fallback paths that only run when MallanAPI is unreachable
     pattern: /localStorage\.setItem\(\s*['"](?:mallan_draft_sale|rentalListingDraft|saleListings|crmDraft|mallan_draft_rental)['"]/,
-    // Skip when nearby code shows the mitigation OR it's an offline fallback.
+    // POSITIVE evidence: the write must sit in an edit/autosave context (an
+    // edit-mode flag, a persisted DB id, or an autosave routine). A brand-new
+    // unsaved-draft write (no DB id, no edit flag) is NOT a shadow/overwrite
+    // risk and must not be flagged.
+    requireNear: /_saleEditMode|_rentalEditMode|_saleEditDbId|_rentalEditDbId|editMode|editId|isEditing|existingId|currentListingId|autosave|autoSave|listingId/i,
+    requireNearWindow: 15,
+    // NEGATIVE evidence: skip when the DB-id edit guard is present, when it is
+    // an offline fallback (server unreachable), or when a DB-match suppression
+    // (removeItem on a real match) lives next to the write.
     excludeIfNear: /(?:_saleEditMode\s*&&\s*_saleEditDbId|_rentalEditMode\s*&&\s*_rentalEditDbId|typeof\s+MallanAPI\s*===\s*['"]undefined|!\s*MallanAPI|MallanAPI\.isReady\s*===\s*false|_dbHasMatch|_ldDbMatch|removeItem\s*\(\s*['"](?:mallan_draft_sale|rentalListingDraft|saleListings)|Offline\s*[—-]|offline fallback|fallback to localStorage)/i,
     exclusionWindow: 15,
-    failingPattern: 'Browser localStorage draft path can affect listing persistence/search.',
-    actualFailure: 'Browser localStorage draft reads/writes are present in listing persistence or dashboard paths without proven DB-listing suppression.',
+    failingPattern: 'Browser localStorage draft write in an edit/autosave path without a DB-id guard.',
+    actualFailure: 'Browser draft storage can shadow or overwrite a real DB listing during edit mode, causing phantom drafts or stale values.',
     impact: 'Browser drafts can override, duplicate, or visually shadow real database listings in edit mode and My Listings.',
     requiredFix: 'Limit localStorage fallback to unsaved new listings and suppress/delete matching browser drafts after DB save or Active publish.',
     proofRequired: 'No phantom draft after Active publish; dashboard count excludes stale browser drafts beside DB listings.',
@@ -235,7 +264,7 @@ const RULES: Rule[] = [
     excludeIfNear: /if\s*\(\s*existingAgent\s*&&\s*existingAgent\.value\s*\)\s*return|if\s*\(\s*!listingAgentEl\s*\|\|\s*!listingAgentEl\.value\s*\)/,
     exclusionWindow: 30,
     failingPattern: 'Logged-in agent fallback overwrites listing-agent field without guard.',
-    actualFailure: 'Logged-in/session agent assignment writes to listing-agent field without an empty-check guard, allowing the saved listing agent to be replaced by the editor.',
+    actualFailure: 'Listing can appear to have an agent in the UI while missing stable agent/office IDs, breaking attribution and validation: a logged-in/session agent is written into the listing-agent field without an empty-check guard.',
     impact: 'Saved listing agent can be overwritten by the logged-in user during edit reload/autosave.',
     requiredFix: 'Preserve saved listing agent fields on edit and require an explicit visible Validate Agent action before submit.',
     proofRequired: 'Edit-mode test preserves ListAgentMlsId, ListAgentFullName, ListAgentEmail, ListAgentDirectPhone, ListOfficeName, ListOfficeMlsId, and ListOfficeKey.',
@@ -244,8 +273,13 @@ const RULES: Rule[] = [
     code: 'S-MEDIA-004',
     severity: 'P0',
     filePattern: /public\/crm\/(?:SALE|RENTAL)-FORM-REDESIGN\.html$/,
-    pattern: /(?:existingMedia|serverMedia)[\s\S]{0,900}(?:upload|FormData|media\/upload)/i,
-    failingPattern: 'Existing/server media appears in upload path.',
+    // Tightened (2026-05-28): the prior pattern matched `removeServerMedia`
+    // (a DELETE-button handler) because `serverMedia` lacked a word boundary,
+    // and "upload" appeared elsewhere within 900 chars. Now requires the
+    // existing-media collection as a standalone identifier feeding an actual
+    // upload verb (FormData.append / a POST to media/upload).
+    pattern: /\b(?:existingMedia|serverMedia)\b[\s\S]{0,400}(?:new\s+FormData|\.append\(|fetch\([^)]*media\/upload|method:\s*['"]POST['"][\s\S]{0,160}media\/upload)/,
+    failingPattern: 'Existing/server media collection feeds a FormData/upload path.',
     actualFailure: 'Existing server media appears in a FormData/upload path, which can re-upload already-saved media as new pending media.',
     impact: 'Existing server media can be treated as new pending media and uploaded again, creating duplicate photos after edit/save.',
     requiredFix: 'Separate existing server media from new pending uploads and only upload files/blobs that do not already have a stable server key or canonical URL.',
@@ -266,9 +300,17 @@ const RULES: Rule[] = [
     code: 'S-PUBSEARCH-001',
     severity: 'P0',
     filePattern: /(?:app\/api\/listings|lib\/search|app\/components\/SearchListingCard|app\/listing)/,
-    pattern: /(?:replace|split|normalize)[\s\S]{0,260}(?:\bE\b|\bW\b|\bN\b|\bS\b|East|West|North|South)[\s\S]{0,260}(?:''|""|drop|omit|remove|filter)/i,
-    failingPattern: 'Public search/address normalization can remove E/W/N/S direction.',
-    actualFailure: 'Public search normalization has a direction-adjacent remove/omit/filter path, the exact failure class that loses the E in 333 E 46th St.',
+    // Tightened (2026-05-28): the prior pattern matched any `replace`/`split`
+    // near a stray single letter E/W/N/S and any quote/`filter` word, so it
+    // fired on OData escaping (`replace(/'/g, "''")`), map-bounds destructuring
+    // (`[south, west, north, east] = boundsParam.split(',')`), price/whitespace
+    // normalization, title-casing, and regex escaping — 10 false positives,
+    // zero real bugs. Now requires the StreetDirPrefix atom to be explicitly
+    // cleared/deleted, or a `.replace()` whose REGEX literal strips a
+    // spelled-out direction word to an empty string.
+    pattern: /delete\s+[\w.[\]'"]*(?:StreetDirPrefix|streetDirPrefix)\b|(?:StreetDirPrefix|streetDirPrefix)\s*[:=]\s*(?:''|""|null|undefined)|\.replace\(\s*\/[^/\n]*\b(?:East|West|North|South)\b[^/\n]*\/[gimsuy]*\s*,\s*(?:''|""|' '|" ")\s*\)/,
+    failingPattern: 'Public search/address normalization explicitly clears or strips the StreetDirPrefix direction atom.',
+    actualFailure: 'Public search normalization clears or strips the StreetDirPrefix direction atom, the exact failure class that loses the E in 333 E 46th St.',
     impact: 'Public search can drop StreetDirPrefix, so 333 E 46th St may fail or match the wrong address.',
     requiredFix: 'Search by structured address atoms and keep StreetDirPrefix in normalization, matching, and canonical URL generation.',
     proofRequired: '/api/listings?type=sale&address=333%20E%2046th%20St returns the sale listing; 333 East 46th Street resolves to the same canonical URL.',
@@ -297,9 +339,13 @@ const RULES: Rule[] = [
     //   - comments mentioning display gates
     // Now requires `where: { ... fieldName:` shape, the actual filter
     // signature where misuse would hide CRM records from authorized brokers.
-    pattern: /where\s*:\s*\{[\s\S]{0,800}(?:internet_entire_listing_display_yn|internet_address_display_yn|InternetEntireListingDisplayYN|InternetAddressDisplayYN|owner_opt_out|OwnerOptOut|participant_only|ParticipantOnly|InHouseInternal)\s*:/,
-    failingPattern: 'Backend/CRM search code references public display-gate fields in filtering logic.',
-    actualFailure: 'Backend/CRM search path filters on public display-gate fields, which can hide authorized internal CRM records.',
+    // The tempered `(?!\bselect\b|\}...)` stops the scan at the end of the
+    // where object or the start of a `select:` clause, so a display-gate
+    // column that merely appears in `select: { ... }` (a returned column,
+    // not a filter) is NOT matched. That was the route.ts:474 false positive.
+    pattern: /where\s*:\s*\{(?:(?!\bselect\b|\}\s*[,)])[\s\S]){0,300}(?:internet_entire_listing_display_yn|internet_address_display_yn|InternetEntireListingDisplayYN|InternetAddressDisplayYN|owner_opt_out|OwnerOptOut|participant_only|ParticipantOnly|InHouseInternal)\s*:/,
+    failingPattern: 'Backend/CRM search query filters on a public display-gate column.',
+    actualFailure: 'Backend/CRM search is using public display gates as broker access gates, so authorized users may not find internal/draft/listing records.',
     impact: 'Backend/CRM search may reuse public display gates as access gates, hiding drafts/internal listings from authorized brokers.',
     requiredFix: 'Separate role-gated backend visibility from public display-gated search visibility.',
     proofRequired: 'Broker/admin can find office/internal drafts while public search still suppresses display-blocked listings.',
@@ -314,7 +360,7 @@ const RULES: Rule[] = [
     // because "ListAgentMlsId" appeared 1 line above and `''` appeared later.
     pattern: /(?:saleListingAgent|rentalListingAgent|ListAgentMlsId)\s*=\s*(?:agentInfo\.ListAgentMlsId|raw\.ListAgentMlsId)\s*\|\|\s*['"]\s*['"]/,
     failingPattern: 'Hidden agent ID assigned with empty-string fallback (visible selection can pass while hidden identity fails).',
-    actualFailure: 'Agent ID assigned with `... || ""` fallback — visible name field can fill while hidden stable ID stays empty.',
+    actualFailure: 'Listing can appear to have an agent in the UI while missing stable agent/office IDs, breaking attribution and validation: the hidden ID is assigned `agentInfo.ListAgentMlsId || ""`, so the visible name can fill while the stable ID stays empty.',
     impact: 'Agent can appear selected in the UI while the hidden stable ID remains empty, breaking submit validation and attribution.',
     requiredFix: 'Require visible Validate Agent action to populate and persist stable agent and office IDs before publish; remove silent empty-string fallback.',
     proofRequired: 'Agent validation persistence test blocks submit with missing hidden IDs and passes after explicit validation.',
@@ -334,9 +380,14 @@ const RULES: Rule[] = [
     code: 'S-SAVED-012',
     severity: 'P1',
     filePattern: /app\/api\/crm\/saved-searches|lib\/email|app\/api\/email/,
-    pattern: /savedSearch[\s\S]{0,900}(?:listing|alert|email)(?![\s\S]{0,900}(?:InternetEntireListingDisplayYN|isPubliclyDisplayable|display gate))/i,
-    failingPattern: 'Saved-search alert/listing path lacks public display-gate evidence.',
-    actualFailure: 'Saved-search alert path touches listings/email without nearby public display-gate evidence, risking blocked listings in alerts.',
+    // Tightened (2026-05-28): the prior pattern fired on any savedSearch CRUD
+    // route or `type SavedSearchCountStatus` declaration that merely mentioned
+    // "listing"/"email" within 900 chars. Now requires an actual alert/email
+    // SEND of saved-search listings, AND no public display-gate evidence
+    // nearby. GET/DELETE-by-id and type declarations no longer match.
+    pattern: /savedSearch[\s\S]{0,600}(?:sendEmail|sendAlert|sendListingAlert|mailer\.|deliverAlert|notifySavedSearch)[\s\S]{0,400}listing(?![\s\S]{0,900}(?:InternetEntireListingDisplayYN|isPubliclyDisplayable|display.?gate|displayable))/i,
+    failingPattern: 'Saved-search alert SEND path lacks public display-gate evidence.',
+    actualFailure: 'Saved-search alert path sends listing emails without nearby public display-gate evidence, risking display-blocked listings in alerts.',
     impact: 'Saved search alerts may include display-blocked listings or use different public filters than the original search.',
     requiredFix: 'Run saved-search alerts through the public display-gated listing query and canonical URL builder.',
     proofRequired: 'Saved-search alert test excludes internal/display-blocked listings and sends canonical URLs.',
@@ -345,9 +396,17 @@ const RULES: Rule[] = [
     code: 'S-URL-001',
     severity: 'P0',
     filePattern: /lib\/listing-slug\.ts|lib\/listing-canonical-url\.ts|app\/sitemap\.ts|app\/listing/,
-    pattern: /\/listing\/(?:\$\{)?(?:id|listingId|ListingId|listing\.id|listing_id)|idSuffix|slug.*id/i,
-    failingPattern: 'Canonical URL path can use listing ID or hybrid address-id slug.',
-    actualFailure: 'Canonical URL code can include listing ID/idSuffix in the public slug path for address-displayable listings.',
+    // Tightened (2026-05-28): the prior `slug.*id` / bare `/listing/{id}`
+    // pattern matched import lines (`extractListingIdFromSlug`) and prose
+    // comments describing the canonical shape. This repo's canonical URL
+    // INTENTIONALLY includes a listing-id suffix after the address slug, so
+    // an id suffix is not itself a bug. Now flags only an id-ONLY URL emitted
+    // as a real string/template value: `'/listing/' + id` or `/listing/${id}`
+    // with no address segment. Quote/backtick delimiters keep comments and
+    // imports (which lack `'/listing/' +` or a quoted `/listing/${id}`) out.
+    pattern: /[`'"]\/listing\/\$\{\s*(?:id|listingId|listing_id|listing\.id|l\.id|row\.id)\s*\}[`'"\/]|['"]\/listing\/['"]\s*\+\s*(?:id|listingId|listing_id|listing\.id|l\.id)\b/,
+    failingPattern: 'Canonical URL path emits an id-only /listing/{id} value with no address segment.',
+    actualFailure: 'Canonical URL code emits an id-only /listing/{id} value (no address slug) for an address-displayable listing, instead of the address-based canonical URL.',
     impact: 'Address-displayable listings can use /listing/{id} or hybrid address-id URLs as canonical, blocking RealPlus address-based handoff.',
     requiredFix: 'Use address-based canonical URLs when InternetAddressDisplayYN=true; ID-only fallback only when the address is legally suppressed.',
     proofRequired: 'Canonical URL for 333 E 46th St is https://www.mallan.nyc/listing/333-e-46th-st-new-york-ny-10017.',
@@ -356,24 +415,22 @@ const RULES: Rule[] = [
     code: 'S-COMP-001',
     severity: 'P0',
     filePattern: /lib\/listing-slug\.ts|lib\/listing-canonical-url\.ts|app\/api\/listings|app\/listing/,
-    // Tightened (2026-05-28): require the field appears in actual URL or
-    // slug WRITE context (template literal building a /listing/ URL, or
-    // returning a slug string). The prior pattern flagged:
-    //   - TypeScript interface declarations (`internetAddressDisplayYN?: boolean`)
-    //   - bare comments mentioning the field
-    //   - code where the field is read but a proper guard exists nearby
-    // The excludeIfNear guards skip the rule when affirmPermission(...) or
-    // a `=== false` short-circuit lives within ±15 lines of the match.
-    pattern: /InternetAddressDisplayYN[\s\S]{0,400}(?:`\/listing\/|return\s+['"`]?\/listing\/|buildCanonical|return\s+mlsIdSlug|return\s+addressSlug)/,
-    excludeIfNear: /affirmPermission\s*\(|InternetAddressDisplayYN\s*===\s*false|internetAddressDisplayYN\s*===\s*false|InternetAddressDisplayYN\s*!==\s*true|internetAddressDisplayYN\s*!==\s*true|mlsIdSlug\(|generic.*listing-XXX|suppress|isAddressDisplayable/i,
+    // Tightened (2026-05-28): only flag a REAL public address leak — a
+    // `/listing/` URL (or page metadata) built DIRECTLY from raw address
+    // atoms, with no address-display gate guard nearby. The prior pattern
+    // keyed off the bare token `InternetAddressDisplayYN`, so it flagged
+    // TypeScript interfaces, prose comments, and already-guarded reads.
+    // Now the positive evidence is the address-slug emission itself; the
+    // excludeIfNear guards suppress when affirmPermission(...), an
+    // `InternetAddressDisplayYN === false` short-circuit, isAddressDisplayable,
+    // or the gated canonical builder lives within ±15 lines.
+    pattern: /['"]\/listing\/['"]\s*\+\s*(?:addressSlug|addrSlug|slug)\b|`\/listing\/\$\{\s*(?:addressSlug|addrSlug|slug)\s*\}|(?:canonicalUrl|canonical|ogUrl|metaTitle|metaDescription)\s*[:=][\s\S]{0,80}\b(?:addressSlug|StreetName|UnparsedAddress|unparsedAddress)\b/,
+    excludeIfNear: /affirmPermission\s*\(|InternetAddressDisplayYN\s*===\s*false|internetAddressDisplayYN\s*===\s*false|InternetAddressDisplayYN\s*!==\s*true|internetAddressDisplayYN\s*!==\s*true|isAddressDisplayable|mlsIdSlug\(|buildCanonicalListingPath\(|suppress/i,
     exclusionWindow: 15,
-    // Skip the rule entirely for files that ARE the interface declaration
-    // module (lib/listing-slug.ts has the type interface — the gate logic
-    // lives in the function body which we already exclude via excludeIfNear).
-    failingPattern: 'Address URL generation near InternetAddressDisplayYN lacks clear suppressed-address fallback.',
-    actualFailure: 'Address URL generation references InternetAddressDisplayYN without nearby suppressed-address/id-only fallback evidence.',
+    failingPattern: 'Public /listing/ URL or metadata built from address atoms with no address-display guard nearby.',
+    actualFailure: 'Suppressed-address listing can leak address atoms publicly because URL/metadata generation happens without checking address-display permission.',
     impact: 'Suppressed-address listings can leak address atoms in public URL or metadata.',
-    requiredFix: 'Gate address-based URL generation on InternetAddressDisplayYN and address suppression rules.',
+    requiredFix: 'Gate address-based URL/metadata generation on InternetAddressDisplayYN (or the gated canonical builder) and fall back to an id-only URL when the address is suppressed.',
     proofRequired: 'Suppressed-address fixture renders ID-only canonical URL and does not leak address in sitemap, metadata, cards, or emails.',
   },
 ];
@@ -575,6 +632,47 @@ function evidenceSnippet(source: string, index: number): string {
     .join('\n');
 }
 
+/**
+ * Evaluate every applicable rule against an in-memory (file, source) pair and
+ * return the resulting findings. Pure: no disk access. Shared by runSentinelL
+ * (over real files) and by the precision tests (over fixtures), so the live
+ * scan and the negative/positive tests exercise the exact same match,
+ * requireNear, excludeIfNear, and excludeIfFilePresent logic.
+ */
+export function evaluateSource(file: string, source: string): SentinelLError[] {
+  const out: SentinelLError[] = [];
+  for (const rule of RULES) {
+    if (!rule.filePattern.test(file)) continue;
+    rule.pattern.lastIndex = 0;
+    const match = rule.pattern.exec(source);
+    if (!match) continue;
+    // Whole-file exclusion: skip the rule for this file if the file-level
+    // negative-evidence regex matches anywhere.
+    if (rule.excludeIfFilePresent) {
+      rule.excludeIfFilePresent.lastIndex = 0;
+      if (rule.excludeIfFilePresent.test(source)) continue;
+    }
+    // POSITIVE evidence: require corroborating proof within the window, or the
+    // finding is not actionable and is dropped.
+    if (rule.requireNear && !hasNearbyMatch(
+      source,
+      match.index,
+      rule.requireNear,
+      rule.requireNearWindow ?? rule.exclusionWindow ?? 20,
+    )) continue;
+    // NEGATIVE evidence: skip if a guard/mitigation appears within
+    // ±exclusionWindow lines of the primary match.
+    if (rule.excludeIfNear && hasNearbyMatch(
+      source,
+      match.index,
+      rule.excludeIfNear,
+      rule.exclusionWindow ?? 20,
+    )) continue;
+    out.push(buildError(rule, file, source));
+  }
+  return out;
+}
+
 export function runSentinelL(repoRoot = process.cwd()): {
   status: 'PASS' | 'FAIL';
   errors: SentinelLError[];
@@ -589,27 +687,7 @@ export function runSentinelL(repoRoot = process.cwd()): {
     const full = path.join(repoRoot, file);
     if (!existsSync(full) || statSync(full).isDirectory()) continue;
     const source = readFileSync(full, 'utf8');
-    for (const rule of RULES) {
-      if (!rule.filePattern.test(file)) continue;
-      rule.pattern.lastIndex = 0;
-      const match = rule.pattern.exec(source);
-      if (!match) continue;
-      // Whole-file exclusion: skip the rule for this file if any of the
-      // file-level negative-evidence regexes match.
-      if (rule.excludeIfFilePresent) {
-        rule.excludeIfFilePresent.lastIndex = 0;
-        if (rule.excludeIfFilePresent.test(source)) continue;
-      }
-      // Window exclusion: skip if nearby negative evidence appears within
-      // ±exclusionWindow lines of the primary match.
-      if (rule.excludeIfNear && hasNearbyMatch(
-        source,
-        match.index,
-        rule.excludeIfNear,
-        rule.exclusionWindow ?? 20,
-      )) continue;
-      errors.push(buildError(rule, file, source));
-    }
+    errors.push(...evaluateSource(file, source));
   }
 
   const sortedErrors = dedupeErrors(errors).sort((a, b) => {
