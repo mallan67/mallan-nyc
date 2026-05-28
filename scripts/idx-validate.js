@@ -781,7 +781,7 @@ function section16() {
   if (gate && /formatComingSoonBadge/.test(gate)) pass(s, 'formatComingSoonBadge() defined');
   else critical(s, 'formatComingSoonBadge() MISSING', '');
 
-  const listing = readFile('app/listing/[id]/page.tsx');
+  const listing = readFile('app/listing/[...slug]/page.tsx');
   if (listing && /coming.?soon|comingSoon/i.test(listing)) pass(s, 'Listing page: Coming Soon badge');
   else critical(s, 'Listing page: NO Coming Soon badge', 'UCBA $250 first offense');
 
@@ -837,7 +837,7 @@ function section18() {
   if (disclaimer) pass(s, 'IDXDisclaimer component exists');
   else { critical(s, 'No IDXDisclaimer component', 'REBNY requires attribution on all IDX pages'); return; }
 
-  const pages = ['app/search/page.tsx', 'app/listing/[id]/page.tsx', 'app/manhattan/page.tsx'];
+  const pages = ['app/search/page.tsx', 'app/listing/[...slug]/page.tsx', 'app/manhattan/page.tsx'];
   for (const page of pages) {
     const content = readFile(page);
     if (!content) continue;
@@ -1346,7 +1346,7 @@ function section30() {
 
   const mapper = readFile('lib/idx/trestle-mapper.ts');
   const dto = readFile('lib/idx/db-to-public-dto.ts') || readFile('lib/idx/public-dto.ts');
-  const listingPage = readFile('app/listing/[id]/page.tsx');
+  const listingPage = readFile('app/listing/[...slug]/page.tsx');
   if (!mapper || !dto) { warning(s, 'Required files', 'Cannot read mapper or DTO'); return; }
 
   // Critical fields that must survive the full chain

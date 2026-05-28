@@ -64,8 +64,27 @@ export function generateListingSlug(listing: {
 
   const { streetNumber, streetDirPrefix, streetName, unitNumber, city, stateOrProvince, postalCode } = listing.address;
 
-  // If no meaningful address data, fall back to MLS ID
+  // SEO guard: Mallan exclusives (SL-/RL- listing IDs) should NEVER fall
+  // back to the generic `listing-XXX` slug because that URL pattern destroys
+  // search-engine value. If a CRM exclusive somehow reaches this code path
+  // with empty streetName, log to the console (visible in Vercel logs) and
+  // try one more time to compose ANY address-derived slug from whatever
+  // fields are present. Only fall back to generic for non-CRM listings.
+  const idStr = String(listing.id || listing.mlsId || '');
+  const isCrmExclusive = /^(SL|RL)-/i.test(idStr);
+
+  // If no meaningful address data, fall back to MLS ID (except CRM exclusives)
   if (!streetName || streetName === 'Address Undisclosed') {
+    if (isCrmExclusive) {
+      // eslint-disable-next-line no-console
+      console.warn(`[listing-slug] CRM exclusive ${idStr} has empty streetName — attempting best-effort slug from other fields`);
+      const altParts = [streetNumber, streetDirPrefix, city, stateOrProvince, postalCode].filter(Boolean);
+      if (altParts.length >= 2) {
+        const altSlug = slugify(altParts.join(' '));
+        const idSuffix = listing.id ? `-${slugify(listing.id)}` : '';
+        if (altSlug) return `${altSlug}${idSuffix}`;
+      }
+    }
     return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
   }
 
@@ -94,8 +113,14 @@ export function generateListingSlug(listing: {
   // pattern (`/-rls\d+$/i`) to round-trip the listing_id.
   const idSuffix = listing.id ? `-${slugify(listing.id)}` : '';
 
-  // Ensure slug is non-empty after sanitization
-  return addressSlug ? `${addressSlug}${idSuffix}` : mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+  // Ensure slug is non-empty after sanitization. For CRM exclusives, never
+  // fall back to the generic `listing-XXX` slug — log a warning instead.
+  if (addressSlug) return `${addressSlug}${idSuffix}`;
+  if (isCrmExclusive) {
+    // eslint-disable-next-line no-console
+    console.warn(`[listing-slug] CRM exclusive ${idStr} produced empty address slug after sanitization — falling back to MLS-ID slug (BAD for SEO)`);
+  }
+  return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
 }
 
 /**

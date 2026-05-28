@@ -38,7 +38,7 @@ const LISTING_DETAIL_PATH = path.resolve(
   "..",
   "app",
   "listing",
-  "[id]",
+  "[...slug]",
   "page.tsx",
 );
 

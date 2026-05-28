@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
@@ -185,9 +185,45 @@ async function fetchLastSaleFromACRIS(
 }
 
 type Props = {
-  params: Promise<{ id: string }>;
+  // Catch-all route — params.slug can be:
+  //   ['sl-0004']                            (legacy ID-only — redirects)
+  //   ['333-east-46th-street-...-sl-0004']   (legacy hybrid — redirects)
+  //   ['333-east-46th-street-...', 'sl-0004'] (canonical)
+  params: Promise<{ slug: string[] }>;
   searchParams: Promise<{ key?: string; ref?: string; t?: string }>;
 };
+
+/**
+ * Resolve the catch-all params into a single lookup key for fetchListing.
+ *
+ * Backward-compatibility matters here — every existing IDX/RLS URL must
+ * still resolve. Existing single-segment shapes:
+ *   - `333-east-46th-street-apt-2g-new-york-ny-10017-rls20061539` (IDX hybrid with rls id suffix)
+ *   - `400-east-90th-street-apt-17c-new-york-ny-10128`            (legacy address-only, no id)
+ *   - `listing-rls20061539`                                       (UCBA-suppressed)
+ *   - `RLS20061539`                                               (raw listing id)
+ *   - `sl-0004` / `rl-0099`                                       (CRM exclusive id-only — will redirect)
+ *
+ * New two-segment shape:
+ *   - `333-east-46th-street-.../sl-0004`                          (canonical CRM exclusive)
+ *
+ * fetchFromDB / fetchFromTrestleDirect already have multiple resolution
+ * strategies that handle each of these shapes, so we just join the catch-all
+ * back into a single string for one-segment URLs, or pass the id-only
+ * segment when it's clearly the trailing path piece.
+ */
+function resolveLookupKey(slug: string[] | string | undefined): string {
+  // Normalize defensively — Next.js catch-all returns string[], but be safe.
+  const parts = Array.isArray(slug) ? slug : (slug ? [slug] : []);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  // Two+ segments — last segment is the listing id (canonical form).
+  // fetchFromDB Strategy 3 (treat slug as listing_id) handles it directly.
+  return parts[parts.length - 1];
+}
+
+// Canonical URL builder — single source of truth at lib/listing-canonical-url.ts
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
@@ -338,56 +374,66 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
           include: LISTING_MEDIA_INCLUDE,
         });
 
-        if (candidates.length === 1) {
-          dbListing = candidates[0];
-        } else if (candidates.length > 1 && parsed.streetName) {
-          // Narrow by street name + direction prefix + unit
-          dbListing = candidates.find(c => {
-            const addr = c.address as Record<string, string> | null;
-            if (!addr) return false;
-            const dbStreetName = (addr.StreetName || '').toLowerCase();
-            const dbDirPrefix = (addr.StreetDirPrefix || '').toLowerCase();
-            const parsedStreet = parsed.streetName.toLowerCase();
-            const parsedDir = (parsed.streetDirPrefix || '').toLowerCase();
+        // Single validator used for BOTH the narrow candidate set and the
+        // broad postal-code fallback. NEVER short-circuit on candidate.length
+        // === 1 — Maya's audit: "even one candidate must pass parsed
+        // StreetDirPrefix/StreetName/UnitNumber when provided." Returning the
+        // sole candidate without validation would render the wrong listing
+        // if a different unit at the same address number lived alone in the
+        // result set.
+        const matchesParsedAddress = (c: { address: unknown }): boolean => {
+          const addr = c.address as Record<string, string> | null;
+          if (!addr) return false;
+          const dbSn = (addr.StreetNumber || '').toLowerCase();
+          const dbStreetName = (addr.StreetName || '').toLowerCase();
+          const dbDirPrefix = (addr.StreetDirPrefix || '').toLowerCase();
+          const dbUnit = (addr.UnitNumber || '').toLowerCase().replace(/[\s-]/g, '');
+          const parsedSn = parsed.streetNumber.toLowerCase();
+          const parsedStreet = (parsed.streetName || '').toLowerCase();
+          const parsedDir = (parsed.streetDirPrefix || '').toLowerCase();
+          const parsedUnit = (parsed.unitNumber || '').toLowerCase().replace(/[\s-]/g, '');
 
-            // Direction must match: either both have same prefix, or the
-            // DB has the direction baked into StreetName (e.g. "E 46th")
-            const dirMatch = parsedDir
-              ? (dbDirPrefix === parsedDir || dbStreetName.startsWith(parsedDir + ' '))
-              : true;
+          // StreetNumber must exactly match.
+          if (dbSn !== parsedSn) return false;
 
-            const streetMatch = dbStreetName.includes(parsedStreet) ||
-              parsedStreet.includes(dbStreetName);
+          // StreetDirPrefix must match (either separate column OR baked into
+          // StreetName as "E 46th"). Skip when parsed slug has no direction.
+          if (parsedDir) {
+            const dirMatch = dbDirPrefix === parsedDir
+              || dbStreetName.startsWith(parsedDir + ' ');
+            if (!dirMatch) return false;
+          }
 
-            // Unit match when slug has a unit
-            const dbUnit = (addr.UnitNumber || '').toLowerCase().replace(/[\s-]/g, '');
-            const parsedUnit = (parsed.unitNumber || '').toLowerCase().replace(/[\s-]/g, '');
-            const unitMatch = !parsedUnit || dbUnit === parsedUnit;
+          // StreetName fuzzy match: either direction-bidirectional inclusion
+          // or composite match. Skip when slug has no street name (rare).
+          if (parsedStreet) {
+            const composite = [dbDirPrefix, dbStreetName].filter(Boolean).join(' ');
+            const streetMatch = dbStreetName.includes(parsedStreet)
+              || parsedStreet.includes(dbStreetName)
+              || composite.includes(parsedStreet);
+            if (!streetMatch) return false;
+          }
 
-            return dirMatch && streetMatch && unitMatch;
-          }) || null;
-        }
+          // UnitNumber must match when the parsed slug has a unit. Same-
+          // address, different-unit listings would otherwise collide.
+          if (parsedUnit && dbUnit !== parsedUnit) return false;
 
-        // Fallback: broader candidate search without JSON StreetNumber filter
+          return true;
+        };
+
+        // Apply validator to the narrow candidate set (including length === 1).
+        dbListing = candidates.find(matchesParsedAddress) || null;
+
+        // Broad fallback: drop the JSON StreetNumber filter, scan all rows in
+        // the postal code, and re-apply the SAME validator. This catches rows
+        // where the address JSON uses an unexpected casing/shape.
         if (!dbListing && parsed.streetName) {
           const broadCandidates = await prisma.listing.findMany({
             where: { postal_code: parsed.postalCode },
             take: 50,
             include: LISTING_MEDIA_INCLUDE,
           });
-          dbListing = broadCandidates.find(c => {
-            const addr = c.address as Record<string, string> | null;
-            if (!addr) return false;
-            const sn = (addr.StreetNumber || '').toLowerCase();
-            const st = (addr.StreetName || '').toLowerCase();
-            const dp = (addr.StreetDirPrefix || '').toLowerCase();
-            const parsedDir = (parsed.streetDirPrefix || '').toLowerCase();
-            const composite = [dp, st].filter(Boolean).join(' ');
-            return sn === parsed.streetNumber.toLowerCase() &&
-                   (st.includes(parsed.streetName.toLowerCase()) ||
-                    composite.includes(parsed.streetName.toLowerCase()) ||
-                    parsed.streetName.toLowerCase().includes(st));
-          }) || null;
+          dbListing = broadCandidates.find(matchesParsedAddress) || null;
         }
       }
     }
@@ -702,7 +748,9 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
 });
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { slug } = await params;
+  const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
+  const id = resolveLookupKey(slugParts);
   const { key } = await searchParams;
 
   let result: ListingFetchResult | null = null;
@@ -724,8 +772,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const fullAddress = listing.address.streetName === 'Address Undisclosed'
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}`.trim() + (listing.address.unitNumber ? `, #${listing.address.unitNumber}` : '');
-  // Canonical URL uses the address slug (or MLS-ID slug if address suppressed)
-  const canonicalUrl = `https://mallan.nyc/listing/${listing.slug}`;
+  // Canonical URL — use the shared helper so the og:url, twitter URL, and
+  // alternates.canonical all match the separated /listing/{address}/{id}
+  // route that the page itself redirects to. Without this, Google would see
+  // conflicting canonical signals (308 to one URL, meta canonical to another).
+  const canonicalPath = buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' });
+  const canonicalUrl = `https://mallan.nyc${canonicalPath}`;
   const ogImage = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url || '/images/og-default.png';
   const borough = countyToBorough(listing.address.county);
 
@@ -785,7 +837,9 @@ function formatPrice(price: number, isRental: boolean): string {
 }
 
 export default async function ListingPage({ params, searchParams }: Props) {
-  const { id } = await params;
+  const { slug } = await params;
+  const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
+  const id = resolveLookupKey(slugParts);
   const { key, ref: refSource, t: trackToken } = await searchParams;
 
   let result: ListingFetchResult | null = null;
@@ -801,6 +855,23 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   const listing = result.listing;
   const { tax, rawStreetName } = result;
+
+  // CANONICAL URL ENFORCEMENT — one listing, one canonical path.
+  // Canonical shape: /listing/{address-slug}/{listing-id}
+  //   /listing/sl-0004                                          → 308 to canonical
+  //   /listing/333-east-...-sl-0004 (legacy hybrid)             → 308 to canonical
+  //   /listing/333-east-.../sl-0004 (already canonical)         → render
+  // UCBA-suppressed listings have id-only canonical (slug starts with `listing-`).
+  // The ?key= branch is exempt (internal debug lookup via Trestle ListingKey).
+  // Legacy IDX/RLS hybrid slugs (rls20061539 suffix) and address-only legacy
+  // slugs also redirect to the new separated canonical shape for SEO consolidation.
+  if (!key) {
+    const canonicalPath = buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' });
+    const currentPath = `/listing/${slugParts.join('/')}`;
+    if (currentPath !== canonicalPath) {
+      redirect(canonicalPath);
+    }
+  }
 
   const isRental = listing.listingType === 'rent';
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';

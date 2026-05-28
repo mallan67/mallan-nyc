@@ -13,6 +13,7 @@
 // Body: file (image), caption? (string), order? (number)
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
@@ -32,6 +33,8 @@ interface MediaItem {
   order: number;
   type: string;
   uploadedAt: string;
+  /** SHA-256 of the original upload buffer, used for server-side dedup. */
+  contentHash?: string;
 }
 
 function hasR2Config(): boolean {
@@ -121,6 +124,19 @@ export async function POST(
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
+  // Compute content hash for server-side dedup. If the listing already has
+  // a media entry with this exact hash, return 409 so the client marks it
+  // uploaded without creating a duplicate R2 object or media row.
+  const contentHash = createHash("sha256").update(buffer).digest("hex");
+  const existingMediaCheck = (listing.media as unknown as MediaItem[]) ?? [];
+  const dup = existingMediaCheck.find((m) => m.contentHash === contentHash);
+  if (dup) {
+    return NextResponse.json(
+      { photo: dup, duplicate: true },
+      { status: 409 },
+    );
+  }
+
   // Optimize: strip EXIF/GPS, convert to WebP, generate 3 variants
   let variants;
   try {
@@ -170,9 +186,23 @@ export async function POST(
     order: nextOrder,
     type: "photo",
     uploadedAt: new Date().toISOString(),
+    contentHash,
   };
 
-  const updatedMedia = [...existingMedia, newMedia];
+  // Append the new media, then collapse any pre-existing duplicates by
+  // contentHash (legacy media uploaded before hash-based dedup may have
+  // shipped the same file 2-3x). Items without a hash are passed through
+  // unchanged (legacy media stays visible until the next upload).
+  const appended = [...existingMedia, newMedia];
+  const seenHashes = new Set<string>();
+  const updatedMedia: MediaItem[] = [];
+  for (const m of appended) {
+    if (m.contentHash) {
+      if (seenHashes.has(m.contentHash)) continue;
+      seenHashes.add(m.contentHash);
+    }
+    updatedMedia.push(m);
+  }
 
   await prisma.listing.update({
     where: { id: listing.id },

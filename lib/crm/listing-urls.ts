@@ -5,6 +5,7 @@
  */
 
 import { generateListingSlug } from '@/lib/listing-slug';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mallan.nyc';
 
@@ -37,7 +38,23 @@ export function buildListingUrls(listing: ListingForUrl): {
     internetAddressDisplayYN: listing.internet_address_display_yn !== false,
   });
 
-  const publicUrl = `${SITE_URL}/listing/${slug}`;
+  // Canonical URL guard: a published CRM listing with displayable address
+  // must NEVER expose a generic `listing-XXX` URL publicly. If we got one,
+  // return null for both URLs so the form shows "URL pending" instead of
+  // a broken canonical that would dilute SEO and confuse RealPlus.
+  const isGenericSlug = slug.startsWith('listing-');
+  const addressDisplayable = listing.internet_address_display_yn !== false;
+  if (isGenericSlug && addressDisplayable && isActive) {
+    // eslint-disable-next-line no-console
+    console.error(`[listing-urls] Refusing to advertise generic slug for ${listing.listing_id} — address incomplete`);
+    return { publicUrl: null, realPlusUrl: null };
+  }
+
+  // Build the SEPARATED canonical URL via the shared helper. Single source
+  // of truth — same logic used by the detail page redirect check and by
+  // any other surface that links to a listing.
+  const canonicalPath = buildCanonicalListingPath({ slug, id: listing.listing_id });
+  const publicUrl = `${SITE_URL}${canonicalPath}`;
   const realPlusUrl = isActive ? publicUrl : null;
 
   return { publicUrl, realPlusUrl };
