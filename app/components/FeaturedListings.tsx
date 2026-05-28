@@ -5,6 +5,7 @@ import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 import {
@@ -246,12 +247,12 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
         activationDate={listing.activationDate}
         className="absolute top-4 right-4 z-30 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[60%]"
       />
-      <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer group">
+      <Link href={buildCanonicalListingPath({ slug: listing.slug, id: listing.mlsId || listing.id })} className="block cursor-pointer group">
         <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
       </Link>
 
       <div className="p-5 md:p-6">
-        <Link href={`/listing/${listing.slug}?key=${encodeURIComponent(listing.mlsId || listing.id)}`} className="block cursor-pointer">
+        <Link href={buildCanonicalListingPath({ slug: listing.slug, id: listing.mlsId || listing.id })} className="block cursor-pointer">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <h3 className="font-display font-semibold text-base md:text-[17px] truncate text-brand-dark">

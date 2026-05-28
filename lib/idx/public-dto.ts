@@ -13,6 +13,7 @@
 
 import type { IDXListing } from './types';
 import { generateListingSlug, stripListingIdSuffix } from '@/lib/listing-slug';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { isComingSoonStatus } from '@/lib/compliance/status';
 import { isAddressDisplayable } from '@/lib/compliance/gates';
 import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
@@ -147,6 +148,11 @@ export interface PublicListingDTO {
   mlsId: string;
   /** URL slug — address-based when allowed, MLS-ID-based when address is suppressed */
   slug: string;
+  /** Canonical public path — the ONE URL to emit:
+   *  `/listing/{address-slug}/{id-lower}` (or `/listing/listing-{id}` when the
+   *  address is suppressed). Built via buildCanonicalListingPath. Consumers
+   *  MUST link to this — never `/listing/${slug}`, never `?key=`. (2026-05-28) */
+  url: string;
   status: string;
   listingType: 'sale' | 'rent';
   address: {
@@ -343,6 +349,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     id: listing.listingId,
     mlsId: listing.mlsId,
     slug,
+    url: buildCanonicalListingPath({ slug, id: listing.listingId }),
     status: listing.standardStatus,
     listingType: listing.listingType,
     address,

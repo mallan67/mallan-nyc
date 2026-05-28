@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
 import FavoriteEmailPrompt from '@/app/components/FavoriteEmailPrompt';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -227,7 +228,7 @@ export default function FavoritesPage() {
 
                   {/* Info */}
                   <Link
-                    href={`/listing/${fav.slug}?key=${encodeURIComponent(fav.id)}`}
+                    href={buildCanonicalListingPath({ slug: fav.slug, id: fav.id })}
                     className="block p-4"
                   >
                     <p className="font-semibold text-lg">

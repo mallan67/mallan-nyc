@@ -499,22 +499,24 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
     const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
+    const dtoSlug = generateListingSlug({
+      address: {
+        streetNumber: addr.StreetNumber || '',
+        streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
+        unitNumber: addr.UnitNumber || null,
+        city: addr.City || '',
+        stateOrProvince: addr.StateOrProvince || 'NY',
+        postalCode: addr.PostalCode || dbListing.postal_code || '',
+      },
+      id: dbListing.listing_id,
+      mlsId: dbListing.mls_id || undefined,
+      internetAddressDisplayYN: dbListing.internet_address_display_yn,
+    });
     const dto: PublicListingDTO = {
       id: dbListing.listing_id,
       mlsId: dbListing.mls_id || dbListing.listing_id,
-      slug: generateListingSlug({
-        address: {
-          streetNumber: addr.StreetNumber || '',
-          streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
-          unitNumber: addr.UnitNumber || null,
-          city: addr.City || '',
-          stateOrProvince: addr.StateOrProvince || 'NY',
-          postalCode: addr.PostalCode || dbListing.postal_code || '',
-        },
-        id: dbListing.listing_id,
-        mlsId: dbListing.mls_id || undefined,
-        internetAddressDisplayYN: dbListing.internet_address_display_yn,
-      }),
+      slug: dtoSlug,
+      url: buildCanonicalListingPath({ slug: dtoSlug, id: dbListing.listing_id }),
       status: dbListing.status,
       listingType: dbListing.listing_type as 'sale' | 'rent',
       address: suppressAddress

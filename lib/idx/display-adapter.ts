@@ -12,6 +12,7 @@
 
 import type { PublicListingDTO } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
@@ -36,12 +37,13 @@ export function listingSlug(listing: DisplayListing): string {
 }
 
 /**
- * Build the listing detail URL.
- * Uses the pre-computed address slug (or MLS-ID fallback).
- * Always includes ?key= for reliable server-side resolution via direct ListingId lookup.
+ * Build the listing detail URL — the ONE canonical public path:
+ * `/listing/{address-slug}/{id-lower}` (or `/listing/listing-{id}` when the
+ * address is suppressed). No hybrid slug, no `?key=`. Legacy inbound URLs
+ * still 308-redirect at the detail route. (2026-05-28)
  */
 export function listingHref(listing: DisplayListing): string {
-  return `/listing/${listing.slug}?key=${encodeURIComponent(listing.id)}`;
+  return buildCanonicalListingPath({ slug: listing.slug, id: listing.id });
 }
 
 /** Slim listing type for frontend cards — no 414-line monster */
