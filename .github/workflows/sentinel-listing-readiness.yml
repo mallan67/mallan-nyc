@@ -994,8 +994,19 @@ jobs:
           echo "audit_written=true" >> "$GITHUB_OUTPUT"
           echo "fallback=false" >> "$GITHUB_OUTPUT"
 
+      # ────────────────────────────────────────────────────────────────
+      # HOTFIX 2026-05-28 — legacy narrative PR comments disabled.
+      #
+      # The long "Sentinel-L — Listing Workflow Readiness" GREEN/YELLOW/RED
+      # narrative comment was triggering email notifications on every PR
+      # update. Comment-posting is hard-disabled here (`if: ${{ false }}`)
+      # until the new actionable-error scanner replaces this behavior.
+      # The workflow still runs, still writes the audit report artifact,
+      # and still writes a GitHub Step Summary (see step below).
+      # ────────────────────────────────────────────────────────────────
       - name: Post audit summary as PR comment
-        if: always() && steps.pr.outputs.pr_number != ''
+        # HOTFIX 2026-05-28 — hard-disabled. See block comment above.
+        if: ${{ false }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
@@ -1004,8 +1015,6 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # Build a header that prepends a clear verdict + run link, then
-          # the full audit body underneath.
           {
             echo "## Sentinel-L — Listing Workflow Readiness"
             echo ""
@@ -1018,6 +1027,21 @@ jobs:
             cat "$REPORT_PATH"
           } > /tmp/sentinel-l-comment.md
           gh pr comment "$PR_NUMBER" --body-file /tmp/sentinel-l-comment.md
+
+      - name: Write Step Summary (legacy narrative disabled notice)
+        if: always()
+        env:
+          REPORT_PATH: ${{ steps.pr.outputs.report_path }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Sentinel-L legacy narrative comments are disabled."
+            if [ -n "${REPORT_PATH:-}" ] && [ -f "$REPORT_PATH" ]; then
+              echo "Report artifact path: $REPORT_PATH"
+            else
+              echo "Report artifact path: (no audit report produced on this run)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload audit artifact (always, when audit exists)
         if: always()
