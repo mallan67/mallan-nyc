@@ -9392,7 +9392,30 @@ var Panels = (function () {
       if (_ldRaw) {
         var _ld = JSON.parse(_ldRaw);
         var _ldId = _ld && (_ld._saleEditListingId || _ld._listingId || '');
-        var _ldDbMatch = _ldId && typeListings.some(function (l) { return l.listing_id === _ldId || l.id === _ldId; });
+        var _ldDbIdMatch = _ldId && typeListings.some(function (l) { return l.listing_id === _ldId || l.id === _ldId; });
+        // Address-based match for legacy drafts saved before listing_id was attached
+        var _ldStreet = (_ld && (_ld.saleStreetAddress || _ld.saleUnparsedAddress || '')).toString().trim().toLowerCase();
+        var _ldUnit = (_ld && (_ld.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
+        var _ldDbAddrMatch = false;
+        // Require BOTH street AND unit present in the draft before treating an
+        // address+unit DB match as proof the draft is stale. A draft with only
+        // the building street and no unit could otherwise be wrongly auto-
+        // cleared just because another unit at the same building exists.
+        if (_ldStreet && _ldUnit) {
+          _ldDbAddrMatch = typeListings.some(function (l) {
+            var addr = l.address || {};
+            var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
+            var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
+            var streetMatch = dbStreet && (dbStreet.indexOf(_ldStreet.replace(/\s+/g, ' ')) >= 0 || _ldStreet.indexOf(dbStreet) >= 0);
+            var unitMatch = dbUnit && dbUnit === _ldUnit;
+            return streetMatch && unitMatch;
+          });
+        }
+        var _ldDbMatch = _ldDbIdMatch || _ldDbAddrMatch;
+        // Auto-clear the stale localStorage draft so it stops re-appearing
+        if (_ldDbMatch) {
+          try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+        }
         if (!_ldDbMatch && _ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) {
           statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1;
         }
@@ -9482,7 +9505,7 @@ var Panels = (function () {
     }
 
     // LocalStorage draft recovery — inject as table row in Draft/All tabs
-    // Suppress if a matching DB listing already exists (by listing_id or address)
+    // Suppress + auto-clear if a matching DB listing already exists (by listing_id OR address+unit)
     var _localDraftRow = '';
     if (statusTab === 'Draft' || statusTab === 'all') {
       try {
@@ -9490,7 +9513,30 @@ var Panels = (function () {
         if (localDraftRaw) {
           var localDraft = JSON.parse(localDraftRaw);
           var _draftListingId = localDraft && (localDraft._saleEditListingId || localDraft._listingId || '');
-          var _dbHasMatch = _draftListingId && filtered.some(function (l) { return l.listing_id === _draftListingId || l.id === _draftListingId; });
+          var _dbHasIdMatch = _draftListingId && filtered.some(function (l) { return l.listing_id === _draftListingId || l.id === _draftListingId; });
+          // Address-based match for legacy drafts saved before listing_id was attached
+          var _draftStreet = (localDraft && (localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || '')).toString().trim().toLowerCase();
+          var _draftUnit = (localDraft && (localDraft.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
+          var _dbHasAddrMatch = false;
+          // Require BOTH street AND unit present in the draft (see count-block
+          // comment above) — empty draft unit must NOT collapse to "matches any
+          // unit at this building" or a new-listing draft would be wrongly
+          // cleared just because another unit at the same address exists.
+          if (_draftStreet && _draftUnit) {
+            _dbHasAddrMatch = filtered.some(function (l) {
+              var addr = l.address || {};
+              var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
+              var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
+              var streetMatch = dbStreet && (dbStreet.indexOf(_draftStreet.replace(/\s+/g, ' ')) >= 0 || _draftStreet.indexOf(dbStreet) >= 0);
+              var unitMatch = dbUnit && dbUnit === _draftUnit;
+              return streetMatch && unitMatch;
+            });
+          }
+          var _dbHasMatch = _dbHasIdMatch || _dbHasAddrMatch;
+          // Auto-clear the stale localStorage draft so it stops re-appearing
+          if (_dbHasMatch) {
+            try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+          }
           if (!_dbHasMatch && localDraft && localDraft._savedAt) {
             var draftAge = Date.now() - new Date(localDraft._savedAt).getTime();
             if (draftAge < 7 * 24 * 60 * 60 * 1000) {

@@ -4864,10 +4864,16 @@ function initLoggedInAgent() {
             agentDisplay.value = u.id + ' | ' + u.name;
         }
 
-        // ── 4. Contacts tab — only for NEW listings ──
-        // In edit mode _populateSaleFormFromApi() restores the listing's
-        // original agent from saved data; we must not overwrite that.
-        if (typeof _saleEditMode !== 'undefined' && _saleEditMode) return;
+        // ── 4. Contacts tab ──
+        // For NEW listings: always populate with logged-in agent.
+        // For EDIT mode: populate ONLY if the saved listing's agent fields are
+        // empty (the server enforces agent_id === auth.userId, so the logged-in
+        // agent IS the listing's owner — auto-fill is safe and required).
+        var inEditMode = (typeof _saleEditMode !== 'undefined' && _saleEditMode);
+        if (inEditMode) {
+            var existingAgent = document.getElementById('saleListingAgent');
+            if (existingAgent && existingAgent.value) return; // saved data exists, don't overwrite
+        }
 
         // Company dropdown (hidden value + search display)
         var listingCompanyEl = document.getElementById('saleListingCompany');
@@ -8204,6 +8210,12 @@ function _checkSaleEditMode() {
     MallanAPI.listings.get(id).then(function(listing) {
         _saleEditListingId = listing.listing_id || listing.id;
         _populateSaleFormFromApi(listing);
+        // Auto-confirm logged-in agent if saved data left the agent fields empty
+        // (server enforces agent_id === auth.userId so editor IS the listing owner)
+        var listingAgentEl = document.getElementById('saleListingAgent');
+        if (!listingAgentEl || !listingAgentEl.value) {
+            if (typeof initLoggedInAgent === 'function') initLoggedInAgent();
+        }
         showToast('Listing loaded: ' + (_saleEditListingId || id), 'success');
 
         // Update header to show edit mode
