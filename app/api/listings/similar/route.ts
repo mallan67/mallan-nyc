@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { dedupeRawDbRows, sameAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -68,7 +69,20 @@ export async function GET(request: NextRequest) {
     const isRental = type === 'rent';
     const listingTypeFilter = isRental ? 'rent' : 'sale';
 
-    const dbResults = await prisma.listing.findMany({
+    // Fetch the excluded listing's address atoms BEFORE the similar query.
+    // Used below to suppress any row whose physical address matches the
+    // excluded listing's address — closes the Codex PR #269 review finding
+    // that the Prisma `listing_id: { not: excludeId }` filter only removes
+    // the exact-id row, leaving IDX/CRM duplicates of the excluded listing
+    // free to surface as "similar" cards on the listing's own detail page.
+    const excludedListing = await prisma.listing
+      .findUnique({
+        where: { listing_id: excludeId },
+        select: { listing_id: true, address: true },
+      })
+      .catch(() => null);
+
+    const dbResultsRaw = await prisma.listing.findMany({
       where: {
         status: 'Active',
         listing_type: listingTypeFilter,
@@ -83,6 +97,26 @@ export async function GET(request: NextRequest) {
       orderBy: { list_price: 'desc' },
       take: 8,
     });
+
+    // Public-surface dedupe (2026-05-28): collapse Mallan CRM exclusive +
+    // Trestle-synced IDX duplicate for the same physical unit, keeping the
+    // CRM row. Applies before the downstream filtering/mapping so neither
+    // copy reaches the response. See lib/listings/dedupe-crm-vs-idx.ts.
+    //
+    // Then additionally drop any row whose normalized address key matches
+    // the EXCLUDED listing's address — this catches two cases the in-set
+    // dedupe alone misses:
+    //   1. excludeId is a CRM exclusive (SL-/RL-); its IDX duplicate has
+    //      no CRM partner in `dbResultsRaw` (because the CRM row was
+    //      filtered out by Prisma above), so the helper would pass the
+    //      IDX duplicate through unchanged. The address-key filter
+    //      removes it.
+    //   2. excludeId is an IDX row that has a CRM partner in the result
+    //      set; the helper would surface the CRM row (correctly) but it's
+    //      still the same physical unit the user is viewing, so we drop it.
+    const dbResults = dedupeRawDbRows(dbResultsRaw).filter(
+      (r) => !sameAddressKey(r, excludedListing),
+    );
 
     if (dbResults.length >= 3) {
       // Enough results from DB — use those (faster, no Trestle dependency)

@@ -6,6 +6,7 @@ import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { getAccessToken } from '@/lib/idx/auth';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
+import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import type { IDXListing } from '@/lib/idx/types';
 
 /**
@@ -194,13 +195,24 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
     const activeStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
     const closedStatuses = ['Closed', 'Sold', 'Rented'];
 
+    // Public-surface dedupe (2026-05-28): drop Trestle-synced IDX duplicates
+    // of Mallan CRM exclusives (SL-/RL-) on this agent's listings page. The
+    // agent listings query above can return both the CRM row AND the IDX
+    // duplicate because Trestle sync copies the agent's ListAgentMlsId onto
+    // the synced row. Without this dedupe, the wrong row (typically the
+    // IDX duplicate with "RLS · Listing Courtesy of …" attribution) wins
+    // on /agents/{slug}. See lib/listings/dedupe-crm-vs-idx.ts.
     return {
-      active: displayable
-        .filter((l) => activeStatuses.includes(l.status))
-        .map(dbListingToPublicDTO),
-      closed: serialized
-        .filter((l) => closedStatuses.includes(l.status))
-        .map(dbListingToPublicDTO),
+      active: preferCrmExclusiveOverIdxDuplicate(
+        displayable
+          .filter((l) => activeStatuses.includes(l.status))
+          .map(dbListingToPublicDTO),
+      ),
+      closed: preferCrmExclusiveOverIdxDuplicate(
+        serialized
+          .filter((l) => closedStatuses.includes(l.status))
+          .map(dbListingToPublicDTO),
+      ),
     };
   } catch (err) {
     console.warn('[agent-listings] DB fetch failed:', err instanceof Error ? err.message : err);

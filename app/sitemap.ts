@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
+import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
@@ -73,7 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Dynamic listing pages — only IDX-displayable, non-suppressed listings
   let listingPages: MetadataRoute.Sitemap = [];
   try {
-    const listings = await prisma.listing.findMany({
+    const listingsRaw = await prisma.listing.findMany({
       where: {
         // Distribution gates — all must pass for sitemap inclusion
         idx_display_yn: true,
@@ -95,6 +96,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         modification_timestamp: true,
       },
     });
+
+    // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
+    // (SL-/RL-) and a Trestle-synced IDX duplicate exist for the same
+    // physical unit, emit only the CRM canonical URL. Avoids
+    // duplicate-content SEO penalty for our own listings. See
+    // lib/listings/dedupe-crm-vs-idx.ts.
+    const listings = dedupeRawDbRows(listingsRaw);
 
     listingPages = listings.map((l) => {
       const addr = (l.address || {}) as Record<string, string>;
