@@ -539,11 +539,30 @@ describe('sentinel-listing-readiness.yml — Sentinel-L structure', () => {
       expect(postclaudeStep.run).toMatch(/verdict_count[^\n]*-ne 1/);
     });
 
-    test('comment-posting step uses gh pr comment with --body-file and if: always()', () => {
+    // HOTFIX 2026-05-28 — legacy narrative PR comments are disabled.
+    // The long "Sentinel-L — Listing Workflow Readiness" GREEN/YELLOW/RED
+    // narrative comment spammed Maya's mailbox on every PR update. The
+    // comment step still exists (so it can be re-enabled cleanly once the
+    // new actionable-error scanner replaces it), but is hard-disabled via
+    // `if: ${{ false }}`. The run block is preserved verbatim.
+    test('comment-posting step is hard-disabled (hotfix 2026-05-28)', () => {
       expect(commentStep).toBeDefined();
+      // Run block must still contain the original gh pr comment call so
+      // re-enablement is a one-line `if:` flip.
       expect(commentStep.run).toMatch(/gh pr comment.*--body-file/);
-      // Must run even on failure so a RED verdict still surfaces on the PR.
-      expect(commentStep.if).toMatch(/always\(\)/);
+      // The step must NOT execute. Accept the canonical disabled forms.
+      expect(commentStep.if).toMatch(/^\$\{\{\s*false\s*\}\}$/);
+    });
+
+    test('step-summary notice step replaces the disabled comment (hotfix 2026-05-28)', () => {
+      const summaryStep = doc.jobs.audit.steps.find(
+        (s) => s.name === 'Write Step Summary (legacy narrative disabled notice)',
+      );
+      expect(summaryStep).toBeDefined();
+      expect(summaryStep.if).toMatch(/always\(\)/);
+      expect(summaryStep.run).toMatch(/Sentinel-L legacy narrative comments are disabled\./);
+      expect(summaryStep.run).toMatch(/Report artifact path:/);
+      expect(summaryStep.run).toMatch(/GITHUB_STEP_SUMMARY/);
     });
 
     test('the audit artifact is uploaded even on failure', () => {
