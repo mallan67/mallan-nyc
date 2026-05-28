@@ -362,9 +362,32 @@ var Panels = (function () {
 
       // ── Helper: status badge ──────────────────────────────────────
       function _statusBadge(status) {
-        var colors = { Active: '#2563EB', active: '#2563EB', Pending: '#F59E0B', pending: '#F59E0B', offer: '#F59E0B', ActiveUnderContract: '#7C3AED', contract: '#7C3AED', Closed: '#374151', closed: '#374151', Sold: '#374151', sold: '#374151' };
+        var colors = {
+          Draft: '#9CA3AF', draft: '#9CA3AF', Future: '#9CA3AF',
+          Active: '#2563EB', active: '#2563EB', BackOnMarket: '#2563EB',
+          ComingSoon: '#0891B2', comingsoon: '#0891B2',
+          Pending: '#F59E0B', pending: '#F59E0B',
+          OfferOut: '#F59E0B', OfferThruUs: '#F59E0B', OfferAccepted: '#D97706', OAThruUs: '#D97706',
+          ActiveUnderContract: '#7C3AED', ContractOut: '#7C3AED', COThruUs: '#7C3AED',
+          ContractSigned: '#6D28D9', ContractSignedThruUs: '#6D28D9', BoardApproved: '#4C1D95',
+          Closed: '#374151', closed: '#374151', Sold: '#374151', sold: '#374151', SoldThruUs: '#374151',
+          Withdrawn: '#991B1B', withdrawn: '#991B1B', PermOffMarket: '#991B1B',
+          Expired: '#DC2626', expired: '#DC2626',
+          TempOffMarket: '#78716C', Hold: '#78716C', hold: '#78716C',
+          Cancelled: '#6B7280', cancelled: '#6B7280',
+        };
+        var labels = {
+          BackOnMarket: 'Back On Market', ComingSoon: 'Coming Soon', OfferOut: 'Offer Out',
+          OfferThruUs: 'Offer Thru Us', OfferAccepted: 'Offer Accepted', OAThruUs: 'OA Thru Us',
+          ContractOut: 'Contract Out', COThruUs: 'CO Thru Us',
+          ContractSigned: 'Contract Signed', ContractSignedThruUs: 'CS Thru Us',
+          BoardApproved: 'Board Approved', SoldThruUs: 'Sold Thru Us',
+          ActiveUnderContract: 'Under Contract', TempOffMarket: 'Temp Off Mkt',
+          PermOffMarket: 'Perm Off Mkt',
+        };
         var bg = colors[status] || '#6B7280';
-        return '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white" style="background:' + bg + '">' + E(status || 'Unknown') + '</span>';
+        var label = labels[status] || status || 'Unknown';
+        return '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white" style="background:' + bg + '">' + E(label) + '</span>';
       }
 
       // ── BUILD HTML ────────────────────────────────────────────────
@@ -9363,10 +9386,17 @@ var Panels = (function () {
     var statusCounts = {};
     var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
     statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
-    // Include localStorage browser drafts in Draft count
+    // Include localStorage browser drafts in Draft count — suppress if DB has the listing
     try {
       var _ldRaw = localStorage.getItem('mallan_draft_sale');
-      if (_ldRaw) { var _ld = JSON.parse(_ldRaw); if (_ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) { statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1; } }
+      if (_ldRaw) {
+        var _ld = JSON.parse(_ldRaw);
+        var _ldId = _ld && (_ld._saleEditListingId || _ld._listingId || '');
+        var _ldDbMatch = _ldId && typeListings.some(function (l) { return l.listing_id === _ldId || l.id === _ldId; });
+        if (!_ldDbMatch && _ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) {
+          statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1;
+        }
+      }
     } catch (e) {}
 
     // Expiring listings
@@ -9452,13 +9482,16 @@ var Panels = (function () {
     }
 
     // LocalStorage draft recovery — inject as table row in Draft/All tabs
+    // Suppress if a matching DB listing already exists (by listing_id or address)
     var _localDraftRow = '';
     if (statusTab === 'Draft' || statusTab === 'all') {
       try {
         var localDraftRaw = localStorage.getItem('mallan_draft_sale');
         if (localDraftRaw) {
           var localDraft = JSON.parse(localDraftRaw);
-          if (localDraft && localDraft._savedAt) {
+          var _draftListingId = localDraft && (localDraft._saleEditListingId || localDraft._listingId || '');
+          var _dbHasMatch = _draftListingId && filtered.some(function (l) { return l.listing_id === _draftListingId || l.id === _draftListingId; });
+          if (!_dbHasMatch && localDraft && localDraft._savedAt) {
             var draftAge = Date.now() - new Date(localDraft._savedAt).getTime();
             if (draftAge < 7 * 24 * 60 * 60 * 1000) {
               var draftAddr = localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || localDraft.saleBuildingSearch || localDraft.unparsedAddress || 'Untitled';

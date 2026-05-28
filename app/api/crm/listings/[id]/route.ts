@@ -17,6 +17,7 @@ import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { buildListingUrls } from "@/lib/crm/listing-urls";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -368,10 +369,19 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
+  const urls = buildListingUrls({
+    listing_id: updated.listing_id,
+    status: updated.status,
+    address: updated.address as Record<string, unknown> | null,
+    internet_address_display_yn: updated.internet_address_display_yn,
+  });
+
   return NextResponse.json({
     id: updated.id.toString(),
     listing_id: updated.listing_id,
     status: updated.status,
+    publicUrl: urls.publicUrl,
+    realPlusUrl: urls.realPlusUrl,
     validation: {
       valid: validation.valid,
       errors: validation.errors,

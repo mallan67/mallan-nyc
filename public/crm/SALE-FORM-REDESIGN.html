@@ -2417,7 +2417,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- Heating (RLS/RESO/IDX: HeatingYN + Heating multi-select — 51 types — REBNY Item 54) -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-fire"></i> Heating</div>
-            <label class="field-label">Heating</label>
+            <label class="field-label">Heating <span class="text-red-500">*</span></label>
             <div class="flex gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleHeatingYN" id="saleHeatingYes" value="Yes" class="w-4 h-4" data-rls-ignore="true"> Yes
@@ -6367,14 +6367,24 @@ function calculateSaleTHFinancials() {
 }
 
 function saveSalesDraft() {
-    const confirmed = confirm('Save this sales listing as a draft?');
-    if (confirmed) {
-        alert('Draft saved successfully! You can continue editing this listing later from your dashboard.');
+    // Delegate to the real draft save function
+    if (typeof manualSaveDraft === 'function') {
+        manualSaveDraft();
+    } else {
+        showToast('Save Draft is not available yet. Use the top Save Draft button.', 'warning');
     }
 }
 
 function saveSaleMedia() {
-    alert('Media saved successfully!');
+    // Upload any pending media files for the current listing
+    var editId = window._saleEditDbId || window._saleEditListingId;
+    if (!editId) { showToast('Save the listing first before uploading media.', 'warning'); return; }
+    var pending = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; });
+    if (pending.length === 0) { showToast('No new media to upload.', 'info'); return; }
+    showToast('Uploading ' + pending.length + ' file(s)...', 'info');
+    uploadPendingMedia(editId).then(function(result) {
+        showToast(result.uploaded + ' uploaded' + (result.failed > 0 ? ', ' + result.failed + ' failed' : ''), result.failed > 0 ? 'warning' : 'success');
+    });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6497,18 +6507,37 @@ function saveSaleBuilding() {
 // LISTING URL AUTO-GENERATE
 // ═══════════════════════════════════════════════════════════
 function generateListingUrl(formType) {
-    const street = document.getElementById(formType + 'StreetAddress');
-    const unit = document.getElementById(formType + 'UnitNumber');
-    const urlField = document.getElementById(formType + 'ListingUrl');
-    if (!urlField || !street || !street.value) return;
-    let slug = street.value.trim().toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-    if (unit && unit.value.trim()) {
-        slug += '-' + unit.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/\s+/g, '-');
-    }
-    urlField.value = 'https://www.mallan.nyc/properties/detail/' + slug;
+    var prefix = formType || 'sale';
+    var streetNum = document.getElementById(prefix + 'StreetNumber');
+    var streetDir = document.getElementById(prefix + 'StreetDirPrefix');
+    var streetName = document.getElementById(prefix + 'StreetName');
+    var streetSuf = document.getElementById(prefix + 'StreetSuffix');
+    var unit = document.getElementById(prefix + 'UnitNumber');
+    var city = document.getElementById(prefix + 'City');
+    var state = document.getElementById(prefix + 'StateOrProvince');
+    var zip = document.getElementById(prefix + 'ZipCode');
+    var urlField = document.getElementById(prefix + 'ListingUrl');
+    if (!urlField) return;
+
+    var parts = [];
+    if (streetNum && streetNum.value) parts.push(streetNum.value.trim());
+    if (streetDir && streetDir.value) parts.push(streetDir.value.trim());
+    if (streetName && streetName.value) parts.push(streetName.value.trim());
+    if (streetSuf && streetSuf.value) parts.push(streetSuf.value.trim());
+    if (unit && unit.value.trim()) parts.push('Apt ' + unit.value.trim());
+    if (city && city.value) parts.push(city.value.trim());
+    if (state && state.value) parts.push(state.value.trim());
+    if (zip && zip.value) parts.push(zip.value.trim());
+
+    if (parts.length < 2) { urlField.value = ''; return; }
+
+    var slug = parts.join(' ').toLowerCase()
+        .replace(/\bapt\.?\b/g, 'apt')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-{2,}/g, '-')
+        .replace(/^-|-$/g, '');
+
+    urlField.value = slug ? ('https://www.mallan.nyc/listing/' + slug) : '';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -7089,6 +7118,10 @@ function submitSalesListing() {
 
     // Submit to API — create or update depending on edit mode
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+        if (_saleEditMode && !_saleEditDbId) {
+            alert('Cannot submit: listing is in edit mode but has no database ID. Please save as draft first.');
+            return;
+        }
         var apiCall;
         if (_saleEditDbId) {
             apiCall = MallanAPI.listings.update(_saleEditDbId, fullData);
@@ -7112,27 +7145,67 @@ function submitSalesListing() {
                     showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
                 }
             }
-            // Transition status from Draft to Active (except InHouseInternal — stays Draft)
+            // Transition status using two-layer model:
+            // The form's selected CRM workflow status maps to a canonical server status.
             var dbId = result.id || _saleEditDbId;
-            var finalStatus = result.status || 'Draft';
+            var currentCanonical = result.status || 'Draft';
+            var statusResult = null;
+            var formWorkflowStatus = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : 'Active';
+            var targetCanonical = CRM_TO_RESO_STATUS[formWorkflowStatus] || 'Active';
             var listType = document.querySelector('input[name="saleListingType"]:checked');
             var isInternalOnly = (listType && listType.value === 'InHouseInternal') ||
                 fullData.inHouseVisibility === 'internal_only' ||
                 fullData.saleListingType === 'InHouseInternal';
-            if (finalStatus === 'Draft' && dbId && !isInternalOnly) {
+            // Store workflow status in raw_data for CRM display on reload
+            if (formWorkflowStatus && dbId) {
                 try {
-                    var statusResult = await MallanAPI.listings.updateStatus(dbId, 'Active');
-                    finalStatus = statusResult.status || 'Active';
+                    await MallanAPI.listings.update(dbId, { _crmWorkflowStatus: formWorkflowStatus });
+                } catch (e) { /* non-critical — workflow status is supplementary */ }
+            }
+            var finalStatus = currentCanonical;
+            if (currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
+                try {
+                    statusResult = await MallanAPI.listings.updateStatus(dbId, targetCanonical);
+                    finalStatus = statusResult.status || targetCanonical;
                 } catch (statusErr) {
                     console.warn('[Submit] Status transition failed:', statusErr.message);
-                    showToast('Listing saved but status change failed: ' + statusErr.message, 'warning');
+                    showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning');
                 }
             }
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+            try { localStorage.removeItem('saleListings'); } catch (e) {}
             clearTimeout(autoSaveTimer);
             _pendingMediaFiles = [];
-            showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
-            setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
+            // Determine the best URL from status transition or create/update result
+            var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
+            var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
+            if (finalStatus === 'Active' && realPlusUrl) {
+                showToast('Listing ' + lid + ' published — Status: Active', 'success');
+                // Show RealPlus URL panel
+                var urlPanel = document.getElementById('salePublishUrlPanel');
+                if (!urlPanel) {
+                    urlPanel = document.createElement('div');
+                    urlPanel.id = 'salePublishUrlPanel';
+                    urlPanel.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]';
+                    document.body.appendChild(urlPanel);
+                }
+                urlPanel.innerHTML = '<div class="bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4">' +
+                    '<h3 class="text-lg font-bold text-green-700 mb-3"><i class="fas fa-check-circle mr-2"></i>Listing Published</h3>' +
+                    '<p class="text-sm text-gray-600 mb-4">Listing <strong>' + lid + '</strong> is now Active on mallan.nyc.</p>' +
+                    '<div class="mb-3"><label class="text-xs font-semibold text-gray-500 block mb-1">Public URL</label>' +
+                    '<div class="flex items-center gap-2"><input id="salePublicUrlInput" type="text" readonly value="' + publicUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
+                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'salePublicUrlInput\').value);showToast(\'Public URL copied\',\'success\')" class="px-3 py-2 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
+                    '<div class="mb-4"><label class="text-xs font-semibold text-gray-500 block mb-1">RealPlus URL</label>' +
+                    '<div class="flex items-center gap-2"><input id="saleRealPlusUrlInput" type="text" readonly value="' + realPlusUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
+                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'saleRealPlusUrlInput\').value);showToast(\'RealPlus URL copied\',\'success\')" class="px-3 py-2 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
+                    '<div class="flex justify-end gap-2">' +
+                    '<button onclick="document.getElementById(\'salePublishUrlPanel\').remove();window.location.href=\'/crm/dashboard#/ops/listings\'" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300">Go to Dashboard</button>' +
+                    '<a href="' + publicUrl + '" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 inline-flex items-center"><i class="fas fa-external-link-alt mr-1"></i>View Listing</a></div></div>';
+                urlPanel.style.display = 'flex';
+            } else {
+                showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
+                setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
+            }
             if (result.warnings && result.warnings.length > 0) {
                 console.warn('[Submit] Warnings:', result.warnings);
             }
@@ -7242,12 +7315,18 @@ function performAutoSave() {
 
     formData._savedAt = new Date().toISOString();
     formData._formType = 'sale';
+    if (_saleEditListingId) formData._saleEditListingId = _saleEditListingId;
+    if (_saleEditDbId) formData._listingId = _saleEditDbId;
 
-    // Save to localStorage as immediate fallback
-    try {
-        localStorage.setItem('mallan_draft_sale', JSON.stringify(formData));
-    } catch (e) {
-        console.warn('Auto-save localStorage failed:', e);
+    // Save to localStorage as immediate fallback — skip if listing already saved to DB
+    if (_saleEditMode && _saleEditDbId) {
+        // Edit mode: server autosave only, no localStorage (prevents phantom draft)
+    } else {
+        try {
+            localStorage.setItem('mallan_draft_sale', JSON.stringify(formData));
+        } catch (e) {
+            console.warn('Auto-save localStorage failed:', e);
+        }
     }
 
     // Also persist to server if connected and listing has an ID
@@ -7418,6 +7497,7 @@ const SALE_REQUIRED_FIELDS = [
     // Tab 2: Features
     { name: 'saleWasherDryerAllowed', label: 'Washer/Dryer Allowed', type: 'radio', tab: 2, section: 'Unit Information/Features' },
     { name: 'saleCoolingYN', label: 'Cooling', type: 'radio', tab: 2, section: 'Unit Information/Features' },
+    { name: 'saleHeatingYN', label: 'Heating', type: 'radio', tab: 2, section: 'Unit Information/Features' },
     { name: 'fireplace', label: 'Fireplace', type: 'radio', tab: 2, section: 'Unit Information/Features' },
     // Tab 1: Conditional
     { id: 'saleLivingArea', label: 'Living Area (Sq Ft)', type: 'input', tab: 1, section: 'Listing Information/Condo Details', conditional: ['CONDO','COMMERCIAL_CONDO'] },
@@ -7577,15 +7657,16 @@ const STATUS_TRANSITIONS = {
 // ═══════════════════════════════════════════════════════════
 
 const CRM_TO_RESO_STATUS = {
-    'Draft': 'ComingSoon', 'Future': 'ComingSoon', 'ComingSoon': 'ComingSoon',
+    'Draft': 'Draft', 'Future': 'Draft', 'ComingSoon': 'ComingSoon',
     'Active': 'Active', 'BackOnMarket': 'Active',
     'OfferOut': 'ActiveUnderContract', 'OfferThruUs': 'ActiveUnderContract',
     'OfferAccepted': 'ActiveUnderContract', 'OAThruUs': 'ActiveUnderContract',
-    'ContractOut': 'Pending', 'COThruUs': 'Pending',
+    'ContractOut': 'ActiveUnderContract', 'COThruUs': 'ActiveUnderContract',
     'ContractSigned': 'Pending', 'ContractSignedThruUs': 'Pending', 'BoardApproved': 'Pending',
-    'Sold': 'Closed', 'SoldThruUs': 'Closed',
-    'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled',
+    'Sold': 'Sold', 'SoldThruUs': 'Sold',
+    'Withdrawn': 'Withdrawn', 'Cancelled': 'Cancelled',
     'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
+    'Hold': 'Hold',
 };
 
 function getResoMlsStatus(crmStatus) {
@@ -8416,8 +8497,9 @@ function _populateSaleFormFromApi(listing) {
         if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
     }
 
-    // ── Status ──
-    setVal('saleStatus', listing.status || raw.StandardStatus || 'Draft');
+    // ── Status — restore CRM workflow status if available, else canonical ──
+    var restoredStatus = raw._crmWorkflowStatus || listing.status || raw.StandardStatus || 'Draft';
+    setVal('saleStatus', restoredStatus);
     // CoBrokeAgreement
     if (raw.CoBrokeAgreement) setVal('saleCoBrokeAgreementType', raw.CoBrokeAgreement);
 
@@ -8592,7 +8674,22 @@ function _populateSaleFormFromApi(listing) {
                 var items = Array.from(container.children);
                 var fromEl = items[fromIdx];
                 var toEl = items[toIdx];
-                if (fromEl && toEl) { container.insertBefore(fromEl, fromIdx < toIdx ? toEl.nextSibling : toEl); }
+                if (fromEl && toEl) {
+                    container.insertBefore(fromEl, fromIdx < toIdx ? toEl.nextSibling : toEl);
+                    // Re-index and persist order to server
+                    var reordered = Array.from(container.children);
+                    reordered.forEach(function(el, i) { el.setAttribute('data-media-idx', String(i)); el.querySelector('.group-hover\\:opacity-100')?.firstChild && (el.querySelector('.fa-grip-vertical')?.parentNode && (el.querySelector('.fa-grip-vertical').parentNode.innerHTML = '<i class="fas fa-grip-vertical"></i> ' + (i + 1))); });
+                    var orderedIds = reordered.map(function(el) { return el.querySelector('button[onclick*="removeServerMedia"]')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || ''; }).filter(Boolean);
+                    var editId = _saleEditDbId || _saleEditListingId;
+                    if (editId && orderedIds.length > 0 && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+                        fetch('/api/crm/listings/' + encodeURIComponent(editId) + '/media-order', {
+                            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ordered_media_ids: orderedIds }),
+                            credentials: 'include'
+                        }).then(function(r) { if (r.ok) showToast('Photo order saved', 'success'); })
+                          .catch(function() { /* silent — order change is best-effort */ });
+                    }
+                }
             };
             var mediaId = m.id || m.media_id || m.MediaKey || '';
             div.innerHTML = '<img src="' + url + '" class="w-full h-24 object-cover rounded-lg border">' +
@@ -8752,6 +8849,15 @@ function handleSaleMediaUpload(event, mediaType) {
             showToast('PDF floor plans are preview-only. Upload as JPG/PNG image for full support.', 'warning');
         }
 
+        // Duplicate detection — skip if same filename + size already queued
+        var isDuplicate = _pendingMediaFiles.some(function(existing) {
+            return !existing._removed && existing.file.name === file.name && existing.file.size === file.size;
+        });
+        if (isDuplicate) {
+            showToast('Skipping duplicate: ' + file.name, 'info');
+            continue;
+        }
+
         var entry = { file: file, type: mediaType, order: _pendingMediaFiles.length, uploaded: false, url: null };
         _pendingMediaFiles.push(entry);
 
@@ -8885,6 +8991,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Building Status radios
     document.querySelectorAll('input[name="saleBuildingStatus"]').forEach(radio => {
         radio.addEventListener('change', applySalesFieldRules);
+    });
+
+    // Auto-generate listing URL slug when address fields change
+    ['saleStreetNumber', 'saleStreetDirPrefix', 'saleStreetName', 'saleStreetSuffix', 'saleUnitNumber', 'saleCity', 'saleStateOrProvince', 'saleZipCode'].forEach(function(fieldId) {
+        var el = document.getElementById(fieldId);
+        if (el) el.addEventListener('change', function() { generateListingUrl('sale'); });
     });
 
     // Total Monthly calculation

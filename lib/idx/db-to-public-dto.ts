@@ -263,8 +263,8 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const mediaArr = (Array.isArray(listing.media) ? listing.media : []) as DbMediaItem[];
 
   const streetNumber = addr.StreetNumber || '';
+  const streetDirPrefix = addr.StreetDirPrefix || '';
   const streetNameRaw = [
-    addr.StreetDirPrefix,
     addr.StreetName,
     addr.StreetSuffix,
     addr.StreetDirSuffix,
@@ -292,6 +292,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const slug = generateListingSlug({
     address: {
       streetNumber,
+      streetDirPrefix,
       streetName,
       unitNumber,
       city,
@@ -349,7 +350,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
         }
       : {
           streetNumber,
-          streetName,
+          streetName: [streetDirPrefix, streetName].filter(Boolean).join(' '),
           unitNumber,
           city,
           stateOrProvince: 'NY',

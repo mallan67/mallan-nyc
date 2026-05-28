@@ -11,6 +11,7 @@ import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { buildListingUrls } from "@/lib/crm/listing-urls";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -468,11 +469,22 @@ export async function POST(req: NextRequest) {
     }).catch(() => { /* swallow — don't fail listing-create on a logging failure */ });
   }
 
+  // Fetch the created listing to build URLs from its persisted address
+  const createdListing = await prisma.listing.findUnique({
+    where: { listing_id: result.listingId },
+    select: { listing_id: true, status: true, address: true, internet_address_display_yn: true },
+  });
+  const urls = createdListing
+    ? buildListingUrls(createdListing as { listing_id: string; status: string; address: Record<string, unknown>; internet_address_display_yn?: boolean })
+    : { publicUrl: null, realPlusUrl: null };
+
   return NextResponse.json(
     {
       id: result.id,
       listing_id: result.listingId,
       status: STATUS_INITIAL,
+      publicUrl: urls.publicUrl,
+      realPlusUrl: urls.realPlusUrl,
       warnings: validation.warnings,
       suggestions: validation.suggestions,
     },
