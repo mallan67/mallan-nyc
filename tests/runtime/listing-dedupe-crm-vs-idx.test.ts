@@ -16,6 +16,9 @@
  */
 import {
   preferCrmExclusiveOverIdxDuplicate,
+  dedupeRawDbRows,
+  sameAddressKey,
+  buildAddressKeyFromDbRow,
   type DedupeCandidate,
 } from '@/lib/listings/dedupe-crm-vs-idx';
 
@@ -297,6 +300,154 @@ describe('preferCrmExclusiveOverIdxDuplicate — shape compatibility', () => {
     const result = preferCrmExclusiveOverIdxDuplicate([a, b]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('SL-8888');
+  });
+});
+
+// ── Codex review follow-up (PR #269) ───────────────────────────────────
+// The /api/listings/similar route's Prisma `listing_id: { not: excludeId }`
+// filter only removes the exact-id row. When the excluded listing is one
+// half of a CRM/IDX duplicate pair, the other half passes through unfiltered
+// — so a user viewing SL-0004's detail page would see RLS20093870 (the
+// same physical unit) recommended as a "similar" listing. Mitigation:
+// fetch the excluded listing's address, run regular dedupe, then drop any
+// row whose normalized address key matches the excluded listing's key.
+//
+// These tests exercise the route's filter logic directly (no Prisma mock)
+// to verify the address-key pattern correctly handles both directions
+// (excluded=CRM and excluded=IDX) plus the per-unit / per-direction
+// regression guards.
+
+describe('similar route — exclude-id-aware dedupe pattern (Codex PR #269 follow-up)', () => {
+  // Raw DB-row shape (PascalCase address JSON) — matches what
+  // prisma.listing.findUnique returns, which is what the similar route
+  // actually uses.
+  const SL_0004_RAW = {
+    listing_id: 'SL-0004',
+    address: {
+      StreetNumber: '333',
+      StreetDirPrefix: 'E',
+      StreetName: '46th',
+      StreetSuffix: 'Street',
+      UnitNumber: '2G',
+      PostalCode: '10017',
+    },
+  };
+  const RLS_20093870_RAW = {
+    listing_id: 'RLS20093870',
+    address: {
+      StreetNumber: '333',
+      StreetDirPrefix: 'E',
+      StreetName: '46th',
+      StreetSuffix: 'Street',
+      UnitNumber: '2G',
+      PostalCode: '10017',
+    },
+  };
+  const RLS_20087929_RAW = {
+    listing_id: 'RLS20087929',
+    address: {
+      StreetNumber: '333',
+      StreetDirPrefix: 'E',
+      StreetName: '46th',
+      StreetSuffix: 'Street',
+      UnitNumber: '20B', // different unit
+      PostalCode: '10017',
+    },
+  };
+  const WEST_46TH_2G = {
+    listing_id: 'SL-9999',
+    address: {
+      StreetNumber: '333',
+      StreetDirPrefix: 'W', // different direction
+      StreetName: '46th',
+      StreetSuffix: 'Street',
+      UnitNumber: '2G',
+      PostalCode: '10017',
+    },
+  };
+
+  function simulateSimilarRouteFilter(
+    excluded: { listing_id: string; address: unknown } | null,
+    dbResultsRaw: Array<{ listing_id: string; address: unknown }>,
+  ) {
+    // Reproduces app/api/listings/similar/route.ts logic.
+    return dedupeRawDbRows(dbResultsRaw).filter(
+      (r) => !sameAddressKey(r, excluded),
+    );
+  }
+
+  it('Codex-1: excluded=CRM SL-0004 → IDX duplicate (RLS20093870) is also filtered', () => {
+    // Prisma already filtered SL-0004 out (excludeId match); RLS20093870
+    // remains. Before the fix, helper would no-op on the pure-IDX group
+    // and surface RLS20093870 as similar. The address-key filter against
+    // the excluded listing closes that gap.
+    const dbResultsRaw = [RLS_20093870_RAW, RLS_20087929_RAW];
+    const result = simulateSimilarRouteFilter(SL_0004_RAW, dbResultsRaw);
+    expect(result.map((r) => r.listing_id)).toEqual(['RLS20087929']);
+  });
+
+  it('Codex-2: excluded=IDX RLS20093870 → CRM partner (SL-0004) is also filtered', () => {
+    // Defense-in-depth: if a user navigates to the IDX row directly, the
+    // CRM partner would otherwise surface as similar (same physical unit).
+    // The address-key filter drops it.
+    const dbResultsRaw = [SL_0004_RAW, RLS_20087929_RAW];
+    const result = simulateSimilarRouteFilter(RLS_20093870_RAW, dbResultsRaw);
+    expect(result.map((r) => r.listing_id)).toEqual(['RLS20087929']);
+  });
+
+  it('Codex-3: same building, different unit is NOT filtered', () => {
+    // 20B in 333 E 46th must remain as a similar listing for 2G — different
+    // physical unit, real "similar" recommendation.
+    const dbResultsRaw = [RLS_20087929_RAW];
+    const result = simulateSimilarRouteFilter(SL_0004_RAW, dbResultsRaw);
+    expect(result.map((r) => r.listing_id)).toEqual(['RLS20087929']);
+  });
+
+  it('Codex-4: same address with different StreetDirPrefix is NOT filtered', () => {
+    // 333 W 46th #2G (hypothetical) is a different physical building than
+    // 333 E 46th #2G even though all other fields are identical.
+    const dbResultsRaw = [WEST_46TH_2G];
+    const result = simulateSimilarRouteFilter(SL_0004_RAW, dbResultsRaw);
+    expect(result.map((r) => r.listing_id)).toEqual(['SL-9999']);
+  });
+
+  it('helper sanity: sameAddressKey returns true for SL/RLS pair', () => {
+    expect(sameAddressKey(SL_0004_RAW, RLS_20093870_RAW)).toBe(true);
+  });
+
+  it('helper sanity: sameAddressKey returns false for different units', () => {
+    expect(sameAddressKey(SL_0004_RAW, RLS_20087929_RAW)).toBe(false);
+  });
+
+  it('helper sanity: sameAddressKey returns false for different StreetDirPrefix', () => {
+    expect(sameAddressKey(SL_0004_RAW, WEST_46TH_2G)).toBe(false);
+  });
+
+  it('helper sanity: sameAddressKey returns false when either side is null/undefined', () => {
+    expect(sameAddressKey(SL_0004_RAW, null)).toBe(false);
+    expect(sameAddressKey(null, SL_0004_RAW)).toBe(false);
+    expect(sameAddressKey(null, null)).toBe(false);
+  });
+
+  it('helper sanity: buildAddressKeyFromDbRow returns null when UnitNumber missing', () => {
+    const noUnit = {
+      address: { ...SL_0004_RAW.address, UnitNumber: '' },
+    };
+    expect(buildAddressKeyFromDbRow(noUnit)).toBeNull();
+  });
+
+  it('similar-route safety: when excluded listing has no UnitNumber, no rows are filtered by address', () => {
+    // Defensive: if the excluded listing's UnitNumber is empty (suppressed
+    // address, malformed data), the address key is null and sameAddressKey
+    // returns false against every row — the address-key filter becomes a
+    // no-op and we fall back to the regular Prisma exclude-by-id behavior.
+    const excluded = {
+      listing_id: 'SL-NO-UNIT',
+      address: { ...SL_0004_RAW.address, UnitNumber: '' },
+    };
+    const dbResultsRaw = [RLS_20093870_RAW, RLS_20087929_RAW];
+    const result = simulateSimilarRouteFilter(excluded, dbResultsRaw);
+    expect(result.map((r) => r.listing_id).sort()).toEqual(['RLS20087929', 'RLS20093870']);
   });
 });
 

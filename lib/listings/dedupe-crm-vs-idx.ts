@@ -104,12 +104,19 @@ function isCrmId(id: string): boolean {
 }
 
 /**
- * Derive the address key used to group rows. Returns `null` when the row
- * lacks enough data to be matchable (no UnitNumber, or no StreetName at
- * all). A `null` key means the row is not a dedupe candidate and passes
- * through unchanged.
+ * Derive the normalized address key used to group rows. Returns `null`
+ * when the row lacks enough data to be matchable (no UnitNumber, or no
+ * StreetName at all). A `null` key means the row is not a dedupe
+ * candidate and passes through unchanged.
+ *
+ * Exported (2026-05-28) so route handlers can pre-compute the key for a
+ * reference row (e.g. the listing being excluded in `/api/listings/similar`)
+ * and filter the dedupe output against it. Use `buildAddressKeyFromDbRow`
+ * when the source is a raw Prisma listing row with PascalCase address
+ * JSON; this version expects the camelCase `DedupeAddressLike` shape that
+ * also accepts DTO output.
  */
-function dedupeKey(addr: DedupeAddressLike | null | undefined): string | null {
+export function buildAddressKey(addr: DedupeAddressLike | null | undefined): string | null {
   if (!addr) return null;
 
   const streetNumber = norm(addr.streetNumber);
@@ -179,7 +186,7 @@ export function preferCrmExclusiveOverIdxDuplicate<T extends DedupeCandidate>(
   const firstSeenIndex = new Map<string, number>();
 
   listings.forEach((row, index) => {
-    const key = dedupeKey(row.address);
+    const key = buildAddressKey(row.address);
     if (key === null) {
       passthrough.push({ index, row });
       return;
@@ -217,6 +224,45 @@ export function preferCrmExclusiveOverIdxDuplicate<T extends DedupeCandidate>(
   // index space; sort and emit.
   const combined = [...winners, ...passthrough].sort((a, b) => a.index - b.index);
   return combined.map((entry) => entry.row);
+}
+
+/**
+ * Build the normalized address key for a raw Prisma listing row. Handles
+ * both PascalCase (`StreetNumber`, `StreetName`, …) and camelCase
+ * (`streetNumber`, `streetName`, …) address JSON shapes by reading both
+ * forms with a fallback.
+ *
+ * Exported alongside `buildAddressKey` so route handlers can compute a
+ * comparable key for an arbitrary reference row — e.g. the listing
+ * excluded in `/api/listings/similar` — and filter the dedupe output
+ * against it. See the call site there for the exclude-id-aware pattern.
+ */
+export function buildAddressKeyFromDbRow(row: { address: unknown }): string | null {
+  const addr = (row.address || {}) as Record<string, unknown>;
+  return buildAddressKey({
+    streetNumber: String(addr.StreetNumber ?? addr.streetNumber ?? ''),
+    streetDirPrefix: String(addr.StreetDirPrefix ?? addr.streetDirPrefix ?? ''),
+    streetName: String(addr.StreetName ?? addr.streetName ?? ''),
+    streetSuffix: String(addr.StreetSuffix ?? addr.streetSuffix ?? ''),
+    unitNumber: String(addr.UnitNumber ?? addr.unitNumber ?? ''),
+    postalCode: String(addr.PostalCode ?? addr.postalCode ?? ''),
+  });
+}
+
+/**
+ * Compare two rows (DB-row shape) by normalized address key. Returns
+ * `true` only when both keys are non-null AND identical — i.e. both rows
+ * are dedupe candidates AND represent the same physical unit. Two rows
+ * that both lack a UnitNumber are NOT considered the same.
+ */
+export function sameAddressKey(
+  a: { address: unknown } | null | undefined,
+  b: { address: unknown } | null | undefined,
+): boolean {
+  if (!a || !b) return false;
+  const keyA = buildAddressKeyFromDbRow(a);
+  const keyB = buildAddressKeyFromDbRow(b);
+  return keyA !== null && keyB !== null && keyA === keyB;
 }
 
 /**
