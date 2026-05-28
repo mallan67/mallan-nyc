@@ -6804,6 +6804,18 @@ function collectSaleFormData() {
     // Map CRM status to RLS MlsStatus
     data.MlsStatus = (typeof getResoMlsStatus === 'function') ? getResoMlsStatus(data.saleStatus || '') : (data.saleStatus || '');
 
+    // Persist the CRM workflow status alongside the canonical MlsStatus so it
+    // round-trips through every save path — autosave, manualSaveDraft, and
+    // submitSalesListing — instead of only the Submit button's secondary
+    // PATCH at line ~7168 (gap report 2026-05-28 §1.4, root cause C5). The
+    // PATCH route stores raw_data = existingRaw ∪ body, so _crmWorkflowStatus
+    // lands in listings.raw_data and _populateSaleFormFromApi's priority
+    // chain (raw._crmWorkflowStatus → raw.saleStatus → listing.status →
+    // raw.StandardStatus → 'Draft') restores the workflow value on next load.
+    if (data.saleStatus) {
+        data._crmWorkflowStatus = data.saleStatus;
+    }
+
     // Map key fields to RLS names — using CORRECT element IDs
     data.ListPrice = parseFloat(data.salePrice || '0') || 0;
     data.BedroomsTotal = parseInt(data.saleBedrooms || '0') || 0;
@@ -6930,6 +6942,34 @@ function collectSaleFormData() {
     data.BuildingLaundryFeatures = [];
     document.querySelectorAll('input[name="saleBuildingLaundryFeatures"]:checked').forEach(function(cb) { data.BuildingLaundryFeatures.push(cb.value); });
 
+    // Heating + Cooling + SyndicateTo + saleCommSubtype — multi-value checkbox
+    // groups (gap report 2026-05-28 §1.5, root cause C1). Before this fix,
+    // the generic forEach at line ~6786 collected each Heating checkbox under
+    // `data[field.id || field.name]` → because the boxes share `name="saleHeating"`
+    // and have no `id`, every iteration overwrote `data.saleHeating` with the
+    // current box's boolean, and the actual selected values were never serialized
+    // as an array. raw_data.Heating was always undefined, populate had nothing
+    // to restore, and the required-field validator blocked save with a red
+    // "Heating required" asterisk on every edit even when the agent had
+    // previously checked Steam + Forced Air. Same story for Cooling,
+    // SyndicateTo, and saleCommSubtype.
+    data.Heating = [];
+    document.querySelectorAll('input[name="saleHeating"]:checked').forEach(function(cb) { data.Heating.push(cb.value); });
+    data.Cooling = [];
+    document.querySelectorAll('input[name="saleCooling"]:checked').forEach(function(cb) { data.Cooling.push(cb.value); });
+    data.saleCommSubtype = [];
+    document.querySelectorAll('input[name="saleCommSubtype"]:checked').forEach(function(cb) { data.saleCommSubtype.push(cb.value); });
+    // SyndicateTo — derived from SALE_SYNDICATION_MAP (the 6 vendor checkbox
+    // ids → RESO target names). Populate at line ~8625 expects this exact
+    // array shape (case-insensitive match against SALE_SYNDICATION_MAP[].target).
+    data.SyndicateTo = [];
+    if (typeof SALE_SYNDICATION_MAP !== 'undefined' && Array.isArray(SALE_SYNDICATION_MAP)) {
+        SALE_SYNDICATION_MAP.forEach(function(entry) {
+            var el = document.getElementById(entry.id);
+            if (el && el.checked) data.SyndicateTo.push(entry.target);
+        });
+    }
+
     // Map remaining RLS field names from CRM element IDs
     data.CountyOrParish = data.saleCountyOrParish || '';
     data.PostalCity = data.salePostalCity || '';
@@ -6988,8 +7028,23 @@ function collectSaleFormData() {
     // Media fields
     data.VirtualTourURLUnbranded = data.saleVirtualTourUnbranded || '';
 
-    // Commercial fields (website-only, not RLS)
-    data.commercial_sub_type = data.saleCommSubtype || '';
+    // Commercial fields (website-only, not RLS).
+    //
+    // listings.commercial_sub_type is a Prisma STRING scalar column —
+    // classifyRlsEligibility only does a truthy check on it (not value
+    // parsing). PR-D made data.saleCommSubtype an ARRAY (the checkbox group
+    // shares `name="saleCommSubtype"` across many options), so we MUST
+    // serialize it back to a scalar here before assignment or the create
+    // API will reject the payload with a Prisma type error (Codex review
+    // on PR #268 flagged this). Round-trip restore still uses the array
+    // form via SALE_CHECKBOX_ARRAY_MAP reading raw_data.saleCommSubtype.
+    // First-checked value preserves the old single-value semantics; the
+    // pre-PR-D collector emitted whichever checkbox happened to be visited
+    // last in DOM order, so first-checked is no less stable than what
+    // shipped before.
+    data.commercial_sub_type = Array.isArray(data.saleCommSubtype)
+      ? (data.saleCommSubtype[0] || '')
+      : (data.saleCommSubtype || '');
     data.commercial_ownership = data.saleCommercialOwnership || '';
 
     // Living area source
@@ -8538,25 +8593,61 @@ function _populateSaleFormFromApi(listing) {
     var agentInfo = listing.agent_info || {};
     var media = listing.media || [];
 
+    // Populate-internal setters. Change-event dispatch is SUPPRESSED while
+    // window._salePopulateInProgress is true (gap report 2026-05-28 §1.1,
+    // root cause C9). Each setVal/setChecked/setRadio used to fire a
+    // bubbling change event that ran applySalesFieldRules / parseSaleAddress
+    // / etc. mid-populate, and those cascaded handlers could overwrite
+    // values populate had not yet set — making salePropertyType="Condop"
+    // collapse to the HTML-default "Condo" on reload. _populateSaleFormFromApi
+    // calls applySalesFieldRules() ONCE at the bottom (line ~8819), so the
+    // rules still settle correctly; we just don't let them fire intermediate.
     function setVal(id, val) {
         var el = document.getElementById(id);
         if (!el || val === undefined || val === null) return;
         el.value = String(val);
-        el.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!window._salePopulateInProgress) {
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     }
     function setChecked(id, val) {
         var el = document.getElementById(id);
-        if (el) { el.checked = !!val; el.dispatchEvent(new Event('change', { bubbles: true })); }
+        if (!el) return;
+        el.checked = !!val;
+        if (!window._salePopulateInProgress) {
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     }
     function setRadio(name, val) {
         if (!val) return;
         var radio = document.querySelector('input[name="' + name + '"][value="' + val + '"]');
-        if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
+        if (!radio) return;
+        radio.checked = true;
+        if (!window._salePopulateInProgress) {
+            radio.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     }
 
     // ── Status — restore CRM workflow status if available, else canonical ──
-    var restoredStatus = raw._crmWorkflowStatus || listing.status || raw.StandardStatus || 'Draft';
-    setVal('saleStatus', restoredStatus);
+    // Priority order (gap report 2026-05-28 §1.4, root cause C4 + C5):
+    //   1. raw._crmWorkflowStatus  — the CRM workflow value the agent picked
+    //                                 (BackOnMarket / OfferOut / ContractSigned / …)
+    //   2. raw.saleStatus          — the CRM raw key (passthrough from collect)
+    //   3. listing.status          — canonical RESO StandardStatus (DB column)
+    //   4. raw.StandardStatus      — canonical from raw_data fallback
+    //   5. 'Draft'                 — last-ditch default
+    // The second unconditional setVal('saleStatus', listing.status || …) that
+    // used to live after the radio/checkbox loops has been removed (it was
+    // clobbering the workflow value with the canonical RESO status, so the
+    // dropdown displayed blank whenever the canonical didn't match a workflow
+    // option — e.g. canonical 'ActiveUnderContract' has no workflow option).
+    var restoredWorkflowStatus =
+      raw._crmWorkflowStatus ||
+      raw.saleStatus ||
+      listing.status ||
+      raw.StandardStatus ||
+      'Draft';
+    setVal('saleStatus', restoredWorkflowStatus);
     // CoBrokeAgreement
     if (raw.CoBrokeAgreement) setVal('saleCoBrokeAgreementType', raw.CoBrokeAgreement);
 
@@ -8640,7 +8731,16 @@ function _populateSaleFormFromApi(listing) {
     if (raw.saleDist_VOW !== undefined) setChecked('saleDist_VOW', raw.saleDist_VOW);
 
     // ── Status dropdown ──
-    setVal('saleStatus', listing.status || raw.StandardStatus || raw.MlsStatus || 'Draft');
+    // Removed unconditional canonical-status overwrite (gap report 2026-05-28
+    // §1.4, root cause C4). The workflow status was already restored above on
+    // line ~8559 via the C4-fixed priority chain
+    // (raw._crmWorkflowStatus → raw.saleStatus → listing.status → raw.StandardStatus).
+    // Re-setting from `listing.status || raw.StandardStatus || raw.MlsStatus`
+    // here always clobbered the CRM workflow value with the canonical RESO
+    // value, and when that canonical wasn't a valid workflow option (e.g.
+    // 'ActiveUnderContract'), the <select> went blank. If neither workflow
+    // nor canonical restored a value (saleStatus element is still empty), the
+    // fallback to 'Draft' already happened in the priority chain above.
 
     // ── Composite address field (the main input the user sees) ──
     // Fallback MUST include StreetDirPrefix (E/W/N/S) or "333 E 46th St" would
