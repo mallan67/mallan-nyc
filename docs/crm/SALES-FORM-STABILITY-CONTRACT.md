@@ -4,6 +4,8 @@ Last updated: 2026-05-28
 
 This file is mandatory reading before changing the Mallan sales listing form, sales save/load logic, listing URL logic, media upload logic, or public listing display behavior.
 
+This document intentionally uses placeholders. Do not put real addresses, real unit numbers, real listing IDs, or one-off listing examples into this contract. Real examples get copied by agents and developers as if they are defaults. This contract must define patterns, not property-specific values.
+
 The goal is simple:
 
 ```text
@@ -97,7 +99,7 @@ If one of these files is touched, the rules below apply.
 - Visible agent filled while hidden validation agent field is empty.
 - Loading form controls from lossy RESO fields when CRM raw keys exist.
 - Returning success when status transition failed.
-- Returning /listing/sl-0004 as the public RealPlus URL for address-displayable listings.
+- Returning /listing/{listing-id} as the public RealPlus URL for address-displayable listings.
 - Creating multiple public URLs for one listing.
 - Silently failing media order persistence.
 - Shipping field-specific patches without adding/adjusting tests.
@@ -239,16 +241,16 @@ Rules:
 - Use valueMap when canonical values do not match form control values.
 ```
 
-Example:
+Pattern example using placeholders:
 
 ```text
-salePropertyType = Condop
-PropertyType = Residential
-PropertySubType = Apartment
-CommonInterest = Condop
+crmFormPropertyType = [broker-facing value]
+PropertyType = [RESO major type]
+PropertySubType = [RESO subtype]
+CommonInterest = [RESO ownership/common-interest value]
 ```
 
-Do not restore the sales property type radio from `PropertySubType` alone because Condo, Co-op, and Condop can all collapse into Apartment.
+Do not restore broker-facing radios/selects from lossy canonical values when a CRM raw key exists. For example, multiple broker-facing ownership/property choices may map to the same RESO subtype; restoring from the subtype alone can select the wrong radio.
 
 Every visible control must eventually have a field-map entry that defines:
 
@@ -271,24 +273,20 @@ If a field is fixed manually, add it to the map or document why it is special.
 
 Address fields must preserve direction, suffix, unit, city, state, and ZIP separately.
 
-For 333 E 46th St Apt 2G:
+Use placeholders only:
 
 ```text
-StreetNumber = 333
-StreetDirPrefix = E
-StreetName = 46th
-StreetSuffix = Street or St
-UnitNumber = 2G
-City = New York
-StateOrProvince = NY
-PostalCode = 10017
+StreetNumber = [street number]
+StreetDirPrefix = [direction prefix, if present]
+StreetName = [street name only]
+StreetSuffix = [street suffix]
+UnitNumber = [unit, if present]
+City = [city]
+StateOrProvince = [state]
+PostalCode = [ZIP]
 ```
 
-The form must not collapse this into:
-
-```text
-StreetName = E 46th Street
-```
+The form must not collapse direction/suffix/unit into the wrong field. In particular, do not store an entire street line inside `StreetName` when separate address atoms are available.
 
 Visible address fallback must include direction:
 
@@ -324,10 +322,10 @@ Address-displayable listings use one canonical public route:
 /listing/{address-slug}/{listing-id-lowercase}
 ```
 
-Example:
+Placeholder example only:
 
 ```text
-/listing/333-east-46th-street-apt-2g-new-york-ny-10017/sl-0004
+/listing/{address-slug}/{listing-id}
 ```
 
 Rules:
@@ -335,9 +333,9 @@ Rules:
 ```text
 - realPlusUrl must use the canonical route only.
 - Cards, FeaturedListings, copy buttons, sitemap, and share buttons must use the canonical route only.
-- /listing/sl-0004 must not be advertised as the public URL.
-- /listing/sl-0004 may resolve only by redirecting to canonical when address is displayable.
-- Legacy hybrid /listing/address-sl-0004 must redirect to /listing/address/sl-0004.
+- /listing/{listing-id} must not be advertised as the public URL for address-displayable listings.
+- /listing/{listing-id} may resolve only by redirecting to canonical when address is displayable.
+- Legacy hybrid /listing/{address-slug}-{listing-id} must redirect to /listing/{address-slug}/{listing-id}.
 - If address display is legally suppressed, do not generate an address URL.
 ```
 
@@ -370,15 +368,7 @@ Rules:
 - Public display is based only on canonical status and display gates.
 ```
 
-Example mapping principle:
-
-```text
-OfferAccepted -> ActiveUnderContract
-ContractSigned -> Pending
-BackOnMarket -> Active
-TempOffMarket -> Hold
-PermOffMarket -> Withdrawn
-```
+Mapping examples may be documented in `lib/crm/status-mapping.ts`, but this contract should not list one-off property examples.
 
 Do not map accepted-offer/pre-contract statuses to non-public status unless that is an explicit business decision.
 
@@ -524,7 +514,7 @@ Any PR touching the sales form must prove:
 - Edit mode PATCHes existing listing only.
 - Submit success means final status succeeded.
 - Canonical URL is /listing/{address-slug}/{id}.
-- realPlusUrl is not /listing/sl-xxxx.
+- realPlusUrl is not /listing/{id}.
 - Direction prefix E/W/N/S is preserved.
 - Unit is preserved and used in lookup.
 - Agent hidden fields are populated.
