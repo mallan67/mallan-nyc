@@ -100,7 +100,11 @@ describe('selectBuildingFromIDX triggers address derivation', () => {
 
 describe('populateBuildingFromIDX fills all building fields', () => {
   const fnStart = formHtml.indexOf('function populateBuildingFromIDX(prefix, building)');
-  const fnBody = formHtml.slice(fnStart, fnStart + 2000);
+  // Window widened to 8000 after the 2026-05-28 rewrite expanded the function
+  // to set 32+ Cotality-derivable fields. The original 2000-char window
+  // truncated the body before BldgYearBuilt/BldgTotalFloors/etc., causing
+  // false-negative test failures while the function actually set them.
+  const fnBody = formHtml.slice(fnStart, fnStart + 8000);
 
   it('sets BldgStreetAddress', () => {
     expect(fnBody).toContain("prefix + 'BldgStreetAddress'");

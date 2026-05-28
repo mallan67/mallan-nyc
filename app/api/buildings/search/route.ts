@@ -203,17 +203,64 @@ export async function GET(request: NextRequest) {
         if (seenAddresses.has(key)) continue;
         seenAddresses.add(key);
 
+        const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
+        const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
         buildings.push({
           address: fullAddr,
           name: String(addr.BuildingName || ''),
           borough: String(addr.CityRegion || ''),
+          city: String(addr.City || ''),
+          state: String(addr.StateOrProvince || ''),
           zip: String(addr.PostalCode || ''),
           neighborhood: String(addr.SubdivisionName || ''),
+          subdivisionName: String(addr.SubdivisionName || ''),
+          streetNumber: String(addr.StreetNumber || ''),
+          streetDirPrefix: String(addr.StreetDirPrefix || ''),
+          streetName: String(addr.StreetName || ''),
+          streetSuffix: String(addr.StreetSuffix || ''),
+          cross_street: String(addr.CrossStreet || ''),
+          crossStreet: String(addr.CrossStreet || ''),
+          source: 'db',
           common_interest: String(feat?.CommonInterest || l.property_sub_type || ''),
           structure_type: String(feat?.StructureType || ''),
           year_built: feat?.YearBuilt ? Number(feat.YearBuilt) : null,
+          year_built_details: String(feat?.YearBuiltDetails || ''),
           stories_total: feat?.StoriesTotal ? Number(feat.StoriesTotal) : null,
           units_total: feat?.NumberOfUnitsTotal ? Number(feat.NumberOfUnitsTotal) : null,
+          new_construction_yn: feat?.NewConstructionYN === true,
+          new_development_yn: feat?.NewDevelopmentYN === true,
+          sponsor_unit_yn: feat?.SponsorUnitYN === true,
+          renting_allowed_yn: feat?.RentingAllowedYN === true,
+          tax_block: String(feat?.TaxBlock || ''),
+          tax_lot: String(feat?.TaxLot || ''),
+          tax_annual_amount: feat?.TaxAnnualAmount ? Number(feat.TaxAnnualAmount) : null,
+          association_name: String(feat?.AssociationName || ''),
+          association_fee: feat?.AssociationFee ? Number(feat.AssociationFee) : null,
+          association_fee_frequency: String(feat?.AssociationFeeFrequency || ''),
+          zoning_description: String(feat?.ZoningDescription || ''),
+          doorman: dbAttendance.includes('doorman'),
+          elevator: dbFeatures.includes('elevator'),
+          gym: dbFeatures.includes('healthclub') || dbFeatures.includes('fitness'),
+          pool: dbFeatures.includes('pool'),
+          laundry: dbFeatures.includes('laundry'),
+          parking: dbFeatures.includes('parking') || dbFeatures.includes('garage'),
+          concierge: dbAttendance.includes('concierge'),
+          roof_deck: dbFeatures.includes('roof deck') || dbFeatures.includes('roof terrace'),
+          storage: dbFeatures.includes('storage'),
+          spa: dbFeatures.includes('spa'),
+          bike_room: dbFeatures.includes('bike'),
+          package_room: dbFeatures.includes('package'),
+          lounge: dbFeatures.includes('lounge'),
+          playroom: dbFeatures.includes('playroom') || dbFeatures.includes('children'),
+          business_center: dbFeatures.includes('business center'),
+          conference_room: dbFeatures.includes('conference'),
+          cold_storage: dbFeatures.includes('cold storage'),
+          courtyard: dbFeatures.includes('courtyard'),
+          valet: dbFeatures.includes('valet'),
+          wheelchair_access: dbFeatures.includes('wheelchair') || dbFeatures.includes('ada'),
+          live_in_super: dbFeatures.includes('live-in super') || dbFeatures.includes('live in superintendent'),
+          on_site_manager: dbFeatures.includes('on-site') || dbAttendance.includes('property manager'),
+          washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
         });
       }
     } else if (parsed.buildingName) {
@@ -231,22 +278,71 @@ export async function GET(request: NextRequest) {
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
-        const fullAddr = `${addr.StreetNumber || ''} ${addr.StreetName || ''} ${addr.StreetSuffix || ''}`.trim();
+        // Use formatAddress so StreetDirPrefix is preserved — the prior
+        // inline concat dropped E/W/N/S and saved malformed addresses.
+        const fullAddr = formatAddress(addr);
         const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
         if (seenAddresses.has(key)) continue;
         seenAddresses.add(key);
 
+        const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
+        const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
         buildings.push({
           address: fullAddr,
           name: String(addr.BuildingName || ''),
           borough: String(addr.CityRegion || ''),
+          city: String(addr.City || ''),
+          state: String(addr.StateOrProvince || ''),
           zip: String(addr.PostalCode || ''),
           neighborhood: String(addr.SubdivisionName || ''),
+          subdivisionName: String(addr.SubdivisionName || ''),
+          streetNumber: String(addr.StreetNumber || ''),
+          streetDirPrefix: String(addr.StreetDirPrefix || ''),
+          streetName: String(addr.StreetName || ''),
+          streetSuffix: String(addr.StreetSuffix || ''),
+          cross_street: String(addr.CrossStreet || ''),
+          crossStreet: String(addr.CrossStreet || ''),
+          source: 'db',
           common_interest: String(feat?.CommonInterest || l.property_sub_type || ''),
           structure_type: String(feat?.StructureType || ''),
           year_built: feat?.YearBuilt ? Number(feat.YearBuilt) : null,
+          year_built_details: String(feat?.YearBuiltDetails || ''),
           stories_total: feat?.StoriesTotal ? Number(feat.StoriesTotal) : null,
           units_total: feat?.NumberOfUnitsTotal ? Number(feat.NumberOfUnitsTotal) : null,
+          new_construction_yn: feat?.NewConstructionYN === true,
+          new_development_yn: feat?.NewDevelopmentYN === true,
+          sponsor_unit_yn: feat?.SponsorUnitYN === true,
+          renting_allowed_yn: feat?.RentingAllowedYN === true,
+          tax_block: String(feat?.TaxBlock || ''),
+          tax_lot: String(feat?.TaxLot || ''),
+          tax_annual_amount: feat?.TaxAnnualAmount ? Number(feat.TaxAnnualAmount) : null,
+          association_name: String(feat?.AssociationName || ''),
+          association_fee: feat?.AssociationFee ? Number(feat.AssociationFee) : null,
+          association_fee_frequency: String(feat?.AssociationFeeFrequency || ''),
+          zoning_description: String(feat?.ZoningDescription || ''),
+          doorman: dbAttendance.includes('doorman'),
+          elevator: dbFeatures.includes('elevator'),
+          gym: dbFeatures.includes('healthclub') || dbFeatures.includes('fitness'),
+          pool: dbFeatures.includes('pool'),
+          laundry: dbFeatures.includes('laundry'),
+          parking: dbFeatures.includes('parking') || dbFeatures.includes('garage'),
+          concierge: dbAttendance.includes('concierge'),
+          roof_deck: dbFeatures.includes('roof deck') || dbFeatures.includes('roof terrace'),
+          storage: dbFeatures.includes('storage'),
+          spa: dbFeatures.includes('spa'),
+          bike_room: dbFeatures.includes('bike'),
+          package_room: dbFeatures.includes('package'),
+          lounge: dbFeatures.includes('lounge'),
+          playroom: dbFeatures.includes('playroom') || dbFeatures.includes('children'),
+          business_center: dbFeatures.includes('business center'),
+          conference_room: dbFeatures.includes('conference'),
+          cold_storage: dbFeatures.includes('cold storage'),
+          courtyard: dbFeatures.includes('courtyard'),
+          valet: dbFeatures.includes('valet'),
+          wheelchair_access: dbFeatures.includes('wheelchair') || dbFeatures.includes('ada'),
+          live_in_super: dbFeatures.includes('live-in super') || dbFeatures.includes('live in superintendent'),
+          on_site_manager: dbFeatures.includes('on-site') || dbAttendance.includes('property manager'),
+          washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
         });
       }
     }
@@ -263,8 +359,20 @@ export async function GET(request: NextRequest) {
           'PropertyType', 'PropertySubType', 'StructureType',
           'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix',
           'PostalCode', 'UnitNumber', 'SubdivisionName',
+          'City', 'StateOrProvince',
           'CityRegion', 'CountyOrParish',
           'BuildingFeatures', 'PetsAllowed', 'AttendanceType',
+          // Expanded 2026-05-28: surface every Cotality field the CRM
+          // building modal needs so populateBuildingFromIDX can set them
+          // all and Maya does not have to retype anything that exists
+          // upstream.
+          'CrossStreet',
+          'YearBuiltDetails', 'YearBuiltSource',
+          'NewConstructionYN', 'NewDevelopmentYN', 'SponsorUnitYN',
+          'RentingAllowedYN',
+          'TaxBlock', 'TaxLot', 'TaxAnnualAmount',
+          'AssociationName', 'AssociationFee', 'AssociationFeeFrequency',
+          'ZoningDescription',
         ].join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
@@ -317,13 +425,38 @@ export async function GET(request: NextRequest) {
               address: fullAddr,
               name: String(r.BuildingName || ''),
               borough: String(r.CityRegion || ''),
+              city: String(r.City || ''),
+              state: String(r.StateOrProvince || ''),
               zip: String(r.PostalCode || ''),
               neighborhood: String(r.SubdivisionName || ''),
+              subdivisionName: String(r.SubdivisionName || ''),
+              // Address atoms — surface separately so the form can save
+              // them without re-parsing the display label.
+              streetNumber: String(r.StreetNumber || ''),
+              streetDirPrefix: String(r.StreetDirPrefix || ''),
+              streetName: String(r.StreetName || ''),
+              streetSuffix: String(r.StreetSuffix || ''),
+              cross_street: String(r.CrossStreet || ''),
+              crossStreet: String(r.CrossStreet || ''),
+              source: 'cotality',
               common_interest: String(r.CommonInterest || r.OwnershipType || ''),
               structure_type: String(r.StructureType || ''),
               year_built: r.YearBuilt ? Number(r.YearBuilt) : null,
+              year_built_details: String(r.YearBuiltDetails || ''),
               stories_total: r.StoriesTotal ? Number(r.StoriesTotal) : null,
               units_total: r.NumberOfUnitsInCommunity ? Number(r.NumberOfUnitsInCommunity) : null,
+              new_construction_yn: r.NewConstructionYN === true,
+              new_development_yn: r.NewDevelopmentYN === true,
+              sponsor_unit_yn: r.SponsorUnitYN === true,
+              renting_allowed_yn: r.RentingAllowedYN === true,
+              tax_block: String(r.TaxBlock || ''),
+              tax_lot: String(r.TaxLot || ''),
+              tax_annual_amount: r.TaxAnnualAmount ? Number(r.TaxAnnualAmount) : null,
+              association_name: String(r.AssociationName || ''),
+              association_fee: r.AssociationFee ? Number(r.AssociationFee) : null,
+              association_fee_frequency: String(r.AssociationFeeFrequency || ''),
+              zoning_description: String(r.ZoningDescription || ''),
+              // Existing amenity flags (preserved)
               doorman: attendance.includes('doorman'),
               elevator: features.includes('elevator'),
               gym: features.includes('healthclub') || features.includes('fitness'),
@@ -331,6 +464,23 @@ export async function GET(request: NextRequest) {
               laundry: features.includes('laundry'),
               parking: features.includes('parking') || features.includes('garage'),
               concierge: attendance.includes('concierge'),
+              // Expanded amenity flags derived from BuildingFeatures
+              roof_deck: features.includes('roof deck') || features.includes('roof terrace'),
+              storage: features.includes('storage'),
+              spa: features.includes('spa'),
+              bike_room: features.includes('bike'),
+              package_room: features.includes('package'),
+              lounge: features.includes('lounge'),
+              playroom: features.includes('playroom') || features.includes('children'),
+              business_center: features.includes('business center'),
+              conference_room: features.includes('conference'),
+              cold_storage: features.includes('cold storage'),
+              courtyard: features.includes('courtyard'),
+              valet: features.includes('valet'),
+              wheelchair_access: features.includes('wheelchair') || features.includes('ada'),
+              live_in_super: features.includes('live-in super') || features.includes('live in superintendent'),
+              on_site_manager: features.includes('on-site') || attendance.includes('property manager'),
+              washer_dryer_allowed: features.includes('washer') || features.includes('w/d'),
             });
           }
         } else {
