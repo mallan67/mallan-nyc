@@ -7282,8 +7282,13 @@ function syncBuildingTypeToPropertyForm(formType, buildingType) {
 // ═══════════════════════════════════════════════════════════
 
 let autoSaveTimer = null;
+// Suppress autosave until edit-mode populate completes; otherwise autosave
+// captures the form's default state and overwrites the saved DB row with
+// blanks/defaults before the saved data finishes loading.
+window._saleAutoSaveReady = false;
 
 function autoSaveDraft() {
+    if (!window._saleAutoSaveReady) return;
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
         performAutoSave();
@@ -7291,6 +7296,7 @@ function autoSaveDraft() {
 }
 
 function performAutoSave() {
+    if (!window._saleAutoSaveReady) return;
     const indicator = document.getElementById('saleAutoSaveIndicator');
     const textEl = document.getElementById('saleAutoSaveText');
     if (indicator) {
@@ -8216,6 +8222,9 @@ function _checkSaleEditMode() {
         if (!listingAgentEl || !listingAgentEl.value) {
             if (typeof initLoggedInAgent === 'function') initLoggedInAgent();
         }
+        // Enable autosave AFTER the populate completes so we don't overwrite
+        // the just-loaded data with form defaults that haven't yet been set.
+        setTimeout(function() { window._saleAutoSaveReady = true; }, 500);
         showToast('Listing loaded: ' + (_saleEditListingId || id), 'success');
 
         // Update header to show edit mode
@@ -9088,6 +9097,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (restoreParam === 'local') {
             _restoreDraftFromLocalStorage();
         }
+        // New-listing path: enable autosave immediately (no saved data to wait for).
+        // Edit-mode path enables autosave inside _checkSaleEditMode after populate.
+        window._saleAutoSaveReady = true;
     }
 
     console.log('Sale Listing Form Redesign initialized.');
