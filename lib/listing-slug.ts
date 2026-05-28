@@ -41,6 +41,7 @@
 export function generateListingSlug(listing: {
   address: {
     streetNumber?: string;
+    streetDirPrefix?: string;
     streetName?: string;
     unitNumber?: string | null;
     city?: string;
@@ -61,7 +62,7 @@ export function generateListingSlug(listing: {
     return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
   }
 
-  const { streetNumber, streetName, unitNumber, city, stateOrProvince, postalCode } = listing.address;
+  const { streetNumber, streetDirPrefix, streetName, unitNumber, city, stateOrProvince, postalCode } = listing.address;
 
   // If no meaningful address data, fall back to MLS ID
   if (!streetName || streetName === 'Address Undisclosed') {
@@ -71,6 +72,9 @@ export function generateListingSlug(listing: {
   const parts: string[] = [];
 
   if (streetNumber) parts.push(streetNumber);
+  // StreetDirPrefix (E, W, N, S) is a separate RESO field; include it
+  // explicitly so "333 E 46th St" doesn't lose the direction in the slug.
+  if (streetDirPrefix) parts.push(streetDirPrefix);
   if (streetName) parts.push(streetName);
   if (unitNumber) {
     // Collapse spaces/hyphens in unit numbers (e.g., "8 H" → "8h", "17-C" → "17c")
@@ -127,7 +131,7 @@ export function extractListingIdFromSlug(slug: string): string | null {
   // MLS-ID fallback slug handled by a different helper.
   if (isMlsIdSlug(slug)) return null;
 
-  const match = slug.match(/-(rls-?\d+|rbny-?\d+)$/i);
+  const match = slug.match(/-(rls-?\d+|rbny-?\d+|sl-?\d+|rl-?\d+)$/i);
   if (!match) return null;
   return match[1].toUpperCase();
 }
@@ -147,7 +151,7 @@ export function extractListingIdFromSlug(slug: string): string | null {
  */
 export function stripListingIdSuffix(slug: string): string {
   if (isMlsIdSlug(slug)) return slug;
-  return slug.replace(/-(?:rls-?\d+|rbny-?\d+)$/i, '');
+  return slug.replace(/-(?:rls-?\d+|rbny-?\d+|sl-?\d+|rl-?\d+)$/i, '');
 }
 
 /**
@@ -181,6 +185,7 @@ function mlsIdSlug(mlsId: string): string {
  */
 export function parseAddressSlug(slug: string): {
   streetNumber: string;
+  streetDirPrefix?: string;
   streetName: string;
   city: string;
   postalCode: string;
@@ -276,8 +281,21 @@ export function parseAddressSlug(slug: string): {
 
   if (!streetNumber && !streetName) return null;
 
+  // Extract direction prefix from composite street name.
+  // Slug "333-e-46th-st-..." parses streetName as "e 46th st". The DB may
+  // store StreetDirPrefix=E separately from StreetName=46th, so we split
+  // them here for accurate lookup.
+  let streetDirPrefix: string | undefined;
+  const trimmedStreet = streetName.trim();
+  const dirMatch = trimmedStreet.match(/^(e|w|n|s)\b\s*/i);
+  if (dirMatch) {
+    streetDirPrefix = dirMatch[1].toUpperCase();
+    streetName = trimmedStreet.slice(dirMatch[0].length).trim();
+  }
+
   return {
     streetNumber,
+    streetDirPrefix,
     streetName: streetName.trim(),
     city: city.trim(),
     postalCode,

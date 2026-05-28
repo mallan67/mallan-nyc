@@ -9363,10 +9363,17 @@ var Panels = (function () {
     var statusCounts = {};
     var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
     statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
-    // Include localStorage browser drafts in Draft count
+    // Include localStorage browser drafts in Draft count — suppress if DB has the listing
     try {
       var _ldRaw = localStorage.getItem('mallan_draft_sale');
-      if (_ldRaw) { var _ld = JSON.parse(_ldRaw); if (_ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) { statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1; } }
+      if (_ldRaw) {
+        var _ld = JSON.parse(_ldRaw);
+        var _ldId = _ld && (_ld._saleEditListingId || _ld._listingId || '');
+        var _ldDbMatch = _ldId && typeListings.some(function (l) { return l.listing_id === _ldId || l.id === _ldId; });
+        if (!_ldDbMatch && _ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) {
+          statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1;
+        }
+      }
     } catch (e) {}
 
     // Expiring listings
@@ -9452,13 +9459,16 @@ var Panels = (function () {
     }
 
     // LocalStorage draft recovery — inject as table row in Draft/All tabs
+    // Suppress if a matching DB listing already exists (by listing_id or address)
     var _localDraftRow = '';
     if (statusTab === 'Draft' || statusTab === 'all') {
       try {
         var localDraftRaw = localStorage.getItem('mallan_draft_sale');
         if (localDraftRaw) {
           var localDraft = JSON.parse(localDraftRaw);
-          if (localDraft && localDraft._savedAt) {
+          var _draftListingId = localDraft && (localDraft._saleEditListingId || localDraft._listingId || '');
+          var _dbHasMatch = _draftListingId && filtered.some(function (l) { return l.listing_id === _draftListingId || l.id === _draftListingId; });
+          if (!_dbHasMatch && localDraft && localDraft._savedAt) {
             var draftAge = Date.now() - new Date(localDraft._savedAt).getTime();
             if (draftAge < 7 * 24 * 60 * 60 * 1000) {
               var draftAddr = localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || localDraft.saleBuildingSearch || localDraft.unparsedAddress || 'Untitled';

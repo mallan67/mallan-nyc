@@ -378,19 +378,28 @@ export default function FeaturedListings() {
         if (filters.boroughs.length === 1) params.set('borough', filters.boroughs[0]);
         if (filters.neighborhoods.length === 1) params.set('neighborhood', filters.neighborhoods[0]);
 
-        const res = await fetch(`/api/listings?${params.toString()}`);
+        const [res, exclRes] = await Promise.all([
+          fetch(`/api/listings?${params.toString()}`),
+          fetch(`/api/listings?type=${filters.type === 'rent' ? 'rent' : 'sale'}&exclusive=mallan&excludeUndisclosed=true&limit=12`),
+        ]);
         if (!res.ok) throw new Error('Failed to fetch');
         const data = await res.json();
+        const exclData = exclRes.ok ? await exclRes.json() : { listings: [] };
 
-        if (cancelled || !data.listings || data.listings.length === 0) return;
+        const generalListings: FeaturedListing[] = data.listings || [];
+        const exclusives: FeaturedListing[] = exclData.listings || [];
 
-        const all: FeaturedListing[] = data.listings;
+        if (cancelled || (generalListings.length === 0 && exclusives.length === 0)) return;
 
-        // Separate pinned (exclusives) from rest — pinned always first
-        const pinned = all.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
-        const rest = all.filter(l => !pinnedSet.has(l.id) && !pinnedSet.has(l.mlsId));
+        const seenIds = new Set<string>();
+        const merged: FeaturedListing[] = [];
+        for (const l of exclusives) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
+        const pinned = generalListings.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
+        for (const l of pinned) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
+        const rest = generalListings.filter(l => !pinnedSet.has(l.id) && !pinnedSet.has(l.mlsId));
+        for (const l of rest) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
 
-        const featured = [...pinned, ...rest].slice(0, limit);
+        const featured = merged.slice(0, limit);
 
         if (!cancelled) {
           setListings(featured);

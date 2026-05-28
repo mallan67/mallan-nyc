@@ -258,6 +258,7 @@ export async function fetchSingleListing(
  */
 export async function fetchListingByAddress(address: {
   streetNumber: string;
+  streetDirPrefix?: string;
   streetName: string;
   city: string;
   postalCode: string;
@@ -289,6 +290,10 @@ export async function fetchListingByAddress(address: {
   if (address.streetNumber) {
     const safe = sanitizeOData(address.streetNumber, 10);
     if (safe) filterParts.push(`StreetNumber eq '${safe}'`);
+  }
+  if (address.streetDirPrefix) {
+    const safe = sanitizeOData(address.streetDirPrefix, 2).toUpperCase();
+    if (safe) filterParts.push(`(StreetDirPrefix eq '${safe}' or contains(tolower(StreetName), '${safe.toLowerCase()} '))`);
   }
   if (address.streetName) {
     const safe = sanitizeOData(address.streetName, 100).toLowerCase();

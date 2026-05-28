@@ -15,6 +15,7 @@ import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days
 import { createNotification } from "@/lib/notifications/engine";
 import { computeGateColumns } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { buildListingUrls } from "@/lib/crm/listing-urls";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -300,11 +301,20 @@ export async function PATCH(
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
+  const urls = buildListingUrls({
+    listing_id: listing.listing_id,
+    status: newStatus,
+    address: listing.address as Record<string, unknown> | null,
+    internet_address_display_yn: listing.internet_address_display_yn,
+  });
+
   return NextResponse.json({
     id: listing.id.toString(),
     listing_id: listing.listing_id,
     previous_status: currentStatus,
     status: newStatus,
+    publicUrl: urls.publicUrl,
+    realPlusUrl: urls.realPlusUrl,
     days_on_market: domUpdate.days_on_market,
     ...(domReset ? { dom_reset: true } : {}),
   });

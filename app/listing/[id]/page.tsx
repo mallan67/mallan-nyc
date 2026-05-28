@@ -325,7 +325,8 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     if (!dbListing && !isMlsIdSlug(slug)) {
       const parsed = parseAddressSlug(slug);
       if (parsed && parsed.streetNumber && parsed.postalCode) {
-        dbListing = await prisma.listing.findFirst({
+        // First try: exact match on StreetNumber + PostalCode
+        const candidates = await prisma.listing.findMany({
           where: {
             postal_code: parsed.postalCode,
             address: {
@@ -333,22 +334,59 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
               equals: parsed.streetNumber,
             },
           },
+          take: 50,
           include: LISTING_MEDIA_INCLUDE,
         });
-        // Narrow by street name if multiple matches
+
+        if (candidates.length === 1) {
+          dbListing = candidates[0];
+        } else if (candidates.length > 1 && parsed.streetName) {
+          // Narrow by street name + direction prefix + unit
+          dbListing = candidates.find(c => {
+            const addr = c.address as Record<string, string> | null;
+            if (!addr) return false;
+            const dbStreetName = (addr.StreetName || '').toLowerCase();
+            const dbDirPrefix = (addr.StreetDirPrefix || '').toLowerCase();
+            const parsedStreet = parsed.streetName.toLowerCase();
+            const parsedDir = (parsed.streetDirPrefix || '').toLowerCase();
+
+            // Direction must match: either both have same prefix, or the
+            // DB has the direction baked into StreetName (e.g. "E 46th")
+            const dirMatch = parsedDir
+              ? (dbDirPrefix === parsedDir || dbStreetName.startsWith(parsedDir + ' '))
+              : true;
+
+            const streetMatch = dbStreetName.includes(parsedStreet) ||
+              parsedStreet.includes(dbStreetName);
+
+            // Unit match when slug has a unit
+            const dbUnit = (addr.UnitNumber || '').toLowerCase().replace(/[\s-]/g, '');
+            const parsedUnit = (parsed.unitNumber || '').toLowerCase().replace(/[\s-]/g, '');
+            const unitMatch = !parsedUnit || dbUnit === parsedUnit;
+
+            return dirMatch && streetMatch && unitMatch;
+          }) || null;
+        }
+
+        // Fallback: broader candidate search without JSON StreetNumber filter
         if (!dbListing && parsed.streetName) {
-          const candidates = await prisma.listing.findMany({
+          const broadCandidates = await prisma.listing.findMany({
             where: { postal_code: parsed.postalCode },
             take: 50,
             include: LISTING_MEDIA_INCLUDE,
           });
-          dbListing = candidates.find(c => {
+          dbListing = broadCandidates.find(c => {
             const addr = c.address as Record<string, string> | null;
             if (!addr) return false;
             const sn = (addr.StreetNumber || '').toLowerCase();
             const st = (addr.StreetName || '').toLowerCase();
+            const dp = (addr.StreetDirPrefix || '').toLowerCase();
+            const parsedDir = (parsed.streetDirPrefix || '').toLowerCase();
+            const composite = [dp, st].filter(Boolean).join(' ');
             return sn === parsed.streetNumber.toLowerCase() &&
-                   st.includes(parsed.streetName.toLowerCase());
+                   (st.includes(parsed.streetName.toLowerCase()) ||
+                    composite.includes(parsed.streetName.toLowerCase()) ||
+                    parsed.streetName.toLowerCase().includes(st));
           }) || null;
         }
       }
