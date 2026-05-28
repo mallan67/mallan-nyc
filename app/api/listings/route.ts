@@ -8,6 +8,7 @@ import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
+import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 import {
   applyPublicListingPostFilters,
@@ -402,7 +403,15 @@ export async function GET(request: Request) {
             }));
 
             const displayable = filterDisplayableDbListings(serialized);
-            let publicListings = displayable.map(dbListingToPublicDTO);
+            // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
+            // (SL-/RL-) and a Trestle-synced IDX duplicate represent the same
+            // physical unit (same address atoms + unit + zip), keep only the
+            // CRM row. The IDX row stays in DB for audit history. See
+            // docs/crm/listing-canonical-mallan-exclusive-audit-2026-05-28.md
+            // and lib/listings/dedupe-crm-vs-idx.ts.
+            let publicListings = preferCrmExclusiveOverIdxDuplicate(
+              displayable.map(dbListingToPublicDTO),
+            );
 
             // Build features lookup — passed into applyPublicListingPostFilters
             // for amenity/keyword evaluation against the raw Trestle features JSON.

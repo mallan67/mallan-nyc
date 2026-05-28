@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
     const isRental = type === 'rent';
     const listingTypeFilter = isRental ? 'rent' : 'sale';
 
-    const dbResults = await prisma.listing.findMany({
+    const dbResultsRaw = await prisma.listing.findMany({
       where: {
         status: 'Active',
         listing_type: listingTypeFilter,
@@ -83,6 +84,12 @@ export async function GET(request: NextRequest) {
       orderBy: { list_price: 'desc' },
       take: 8,
     });
+
+    // Public-surface dedupe (2026-05-28): collapse Mallan CRM exclusive +
+    // Trestle-synced IDX duplicate for the same physical unit, keeping the
+    // CRM row. Applies before the downstream filtering/mapping so neither
+    // copy reaches the response. See lib/listings/dedupe-crm-vs-idx.ts.
+    const dbResults = dedupeRawDbRows(dbResultsRaw);
 
     if (dbResults.length >= 3) {
       // Enough results from DB — use those (faster, no Trestle dependency)
