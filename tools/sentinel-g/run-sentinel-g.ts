@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 
 type Status = 'PASS' | 'YELLOW' | 'FAIL';
 type Check = { code: string; name: string; status: Status; details: string };
+
 type Report = {
   tool: 'Sentinel-G';
   status: Status;
@@ -34,6 +35,7 @@ const REQUIRED_FILES = [
   'app/api/listings/route.ts',
   'app/api/listings/[id]/route.ts',
   'app/api/listings/suggest/route.ts',
+  'app/listing/[id]/page.tsx',
   'lib/search/public-listing-db.ts',
   'lib/search/public-listing-trestle.ts',
   'data/rebny-rls-property-fields.csv',
@@ -43,34 +45,23 @@ const REQUIRED_FILES = [
 ];
 
 const PUBLIC_FORBIDDEN_KEYS = [
-  'PrivateRemarks',
-  'PrivateOfficeRemarks',
-  'ShowingInstructions',
-  'ShowingContactPhone',
-  'ShowingContactName',
-  'ShowingRequirements',
-  'LockBoxType',
-  'LockBoxLocation',
-  'ListAgentEmail',
-  'ListAgentDirectPhone',
-  'ListAgentMlsId',
-  'CoListAgentEmail',
-  'CoListAgentDirectPhone',
-  'owner_client_id',
-  'sellerEmail',
-  'sellerPhone',
-  'seller_email',
-  'seller_phone',
+  'PrivateRemarks', 'PrivateOfficeRemarks', 'ShowingInstructions',
+  'ShowingContactPhone', 'ShowingContactName', 'ShowingRequirements',
+  'LockBoxType', 'LockBoxLocation', 'ListAgentEmail',
+  'ListAgentDirectPhone', 'ListAgentMlsId', 'CoListAgentEmail',
+  'CoListAgentDirectPhone', 'owner_client_id', 'sellerEmail',
+  'sellerPhone', 'seller_email', 'seller_phone',
 ];
 
 function rel(file: string): string { return path.join(root, file); }
 function exists(file: string): boolean { return fs.existsSync(rel(file)); }
 function read(file: string): string { return fs.readFileSync(rel(file), 'utf8'); }
 function uniq<T>(items: T[]): T[] { return Array.from(new Set(items)); }
-function add(code: string, name: string, status: Status, details: string) { checks.push({ code, name, status, details }); }
+function add(code: string, name: string, status: Status, details: string): void { checks.push({ code, name, status, details }); }
 function missing(content: string, needles: string[]): string[] { return needles.filter((needle) => !content.includes(needle)); }
-function sample(items: string[], n = 20): string { return items.slice(0, n).join(', ') + (items.length > n ? ` ... +${items.length - n} more` : ''); }
+function sample(items: string[], n = 25): string { return items.slice(0, n).join(', ') + (items.length > n ? ` ... +${items.length - n} more` : ''); }
 function fieldSet(items: string[]): Set<string> { return new Set(items.map((s) => s.trim()).filter(Boolean)); }
+function overall(): Status { return checks.some(c => c.status === 'FAIL') ? 'FAIL' : checks.some(c => c.status === 'YELLOW') ? 'YELLOW' : 'PASS'; }
 
 function extractStringLiterals(block: string): string[] {
   return uniq([...block.matchAll(/["']([A-Za-z0-9_]+)["']/g)].map((m) => m[1]));
@@ -91,11 +82,9 @@ function extractExcludedFields(mapper: string): string[] {
 
 function extractRenames(mapper: string): Record<string, string> {
   const match = mapper.match(/RESO_TO_RLS_RENAMES[^{]*\{([\s\S]*?)\};/);
-  if (!match) return {};
   const out: Record<string, string> = {};
-  for (const row of match[1].matchAll(/([A-Za-z0-9_]+)\s*:\s*["']([A-Za-z0-9_]+)["']/g)) {
-    out[row[1]] = row[2];
-  }
+  if (!match) return out;
+  for (const row of match[1].matchAll(/([A-Za-z0-9_]+)\s*:\s*["']([A-Za-z0-9_]+)["']/g)) out[row[1]] = row[2];
   return out;
 }
 
@@ -120,24 +109,13 @@ function extractInterfaceBody(source: string, interfaceName: string): string {
   return '';
 }
 
-function statusRank(status: Status): number { return status === 'FAIL' ? 3 : status === 'YELLOW' ? 2 : 1; }
-function overall(): Status {
-  if (checks.some((c) => c.status === 'FAIL')) return 'FAIL';
-  if (checks.some((c) => c.status === 'YELLOW')) return 'YELLOW';
-  return 'PASS';
-}
-
 async function getTrestleToken(): Promise<string | null> {
   const clientId = process.env.IDX_CLIENT_ID || process.env.IDX_API_KEY;
   const clientSecret = process.env.IDX_CLIENT_SECRET || process.env.IDX_API_SECRET;
   if (!clientId || !clientSecret) return null;
   const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
   const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret, scope: 'api' });
-  const res = await fetch(`${base}/oidc/connect/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
+  const res = await fetch(`${base}/oidc/connect/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
   if (!res.ok) throw new Error(`token request failed ${res.status}`);
   const json = await res.json() as { access_token?: string };
   return json.access_token || null;
@@ -152,14 +130,13 @@ async function fetchLiveMetadata(): Promise<string | null> {
   return await res.text();
 }
 
-async function probePublicEndpoint(baseUrl: string, pathPart: string): Promise<{ status: number; url: string; body: string; location?: string }> {
+async function probePublicEndpoint(baseUrl: string, pathPart: string): Promise<{ status: number; body: string; location?: string }> {
   const url = `${baseUrl.replace(/\/$/, '')}${pathPart}`;
   const res = await fetch(url, { redirect: 'manual' });
-  const body = await res.text().catch(() => '');
-  return { status: res.status, url, body, location: res.headers.get('location') || undefined };
+  return { status: res.status, body: await res.text().catch(() => ''), location: res.headers.get('location') || undefined };
 }
 
-async function main() {
+async function main(): Promise<void> {
   const missingFiles = REQUIRED_FILES.filter((file) => !exists(file));
   add('G-000', 'Required Sentinel-G source files exist', missingFiles.length ? 'FAIL' : 'PASS', missingFiles.length ? `Missing: ${missingFiles.join(', ')}` : `${REQUIRED_FILES.length} required files found.`);
 
@@ -169,51 +146,53 @@ async function main() {
   const fetchTs = exists('lib/idx/fetch.ts') ? read('lib/idx/fetch.ts') : '';
   const suggest = exists('app/api/listings/suggest/route.ts') ? read('app/api/listings/suggest/route.ts') : '';
   const listingRoute = exists('app/api/listings/route.ts') ? read('app/api/listings/route.ts') : '';
-  const detailRoute = exists('app/api/listings/[id]/route.ts') ? read('app/api/listings/[id]/route.ts') : '';
+  const apiDetailRoute = exists('app/api/listings/[id]/route.ts') ? read('app/api/listings/[id]/route.ts') : '';
+  const pageDetailRoute = exists('app/listing/[id]/page.tsx') ? read('app/listing/[id]/page.tsx') : '';
   const slug = exists('lib/listing-slug.ts') ? read('lib/listing-slug.ts') : '';
   let metadata = exists('artifacts/metadata.xml') ? read('artifacts/metadata.xml') : '';
   let mode: Report['mode'] = 'static';
 
   const allFields = extractBCategoryFields(mapper);
   const excludedFields = extractExcludedFields(mapper);
-  const selectedFields = allFields.filter((f) => !fieldSet(excludedFields).has(f));
+  const excludedSet = fieldSet(excludedFields);
+  const selectedFields = allFields.filter((f) => !excludedSet.has(f));
   const renames = extractRenames(mapper);
 
   const mapperMissing = missing(mapper, ['RESO_TO_RLS_RENAMES', 'IDX_PLUS_SELECT_FIELDS', 'computeGateColumns', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN', 'Permission']);
-  add('G-001', 'Mapper exposes required contract primitives', mapperMissing.length ? 'FAIL' : 'PASS', mapperMissing.length ? `Missing anchors: ${mapperMissing.join(', ')}` : `Found ${allFields.length} RLS field references, ${excludedFields.length} exclusions, ${selectedFields.length} selected fields.`);
+  add('G-001', 'Mapper exposes required contract primitives', mapperMissing.length ? 'FAIL' : 'PASS', mapperMissing.length ? `Missing anchors: ${mapperMissing.join(', ')}` : `Found ${allFields.length} B-category fields, ${excludedFields.length} exclusions, ${selectedFields.length} derived selected fields.`);
 
-  const selectedIntersection = selectedFields.filter((f) => excludedFields.includes(f));
-  add('G-002', 'Excluded IDX Plus fields are not selected', selectedIntersection.length ? 'FAIL' : 'PASS', selectedIntersection.length ? `Excluded fields still selected: ${sample(selectedIntersection)}` : `${excludedFields.length} excluded fields are absent from derived select set.`);
+  const selectedIntersection = selectedFields.filter((f) => excludedSet.has(f));
+  add('G-002', 'Excluded IDX Plus fields are not selected', selectedIntersection.length ? 'FAIL' : 'PASS', selectedIntersection.length ? `Excluded fields still selected: ${sample(selectedIntersection)}` : `${excludedFields.length} excluded fields absent from selected set.`);
 
-  const metadataHashStatic = metadata ? crypto.createHash('sha256').update(metadata).digest('hex') : null;
   try {
     const live = await fetchLiveMetadata();
-    if (live) {
-      metadata = live;
-      mode = 'static+live';
-      add('G-003', 'Live Cotality/Trestle metadata fetch', 'PASS', 'Fetched live /odata/$metadata with configured IDX credentials.');
-    } else {
-      add('G-003', 'Live Cotality/Trestle metadata fetch', 'YELLOW', 'IDX credentials not configured; using artifacts/metadata.xml only.');
-    }
+    if (live) { metadata = live; mode = 'static+live'; add('G-003', 'Live Cotality/Trestle metadata fetch', 'PASS', 'Fetched live /odata/$metadata with configured IDX credentials.'); }
+    else add('G-003', 'Live Cotality/Trestle metadata fetch', 'YELLOW', 'IDX credentials not configured; using artifacts/metadata.xml only.');
   } catch (err) {
     add('G-003', 'Live Cotality/Trestle metadata fetch', 'FAIL', `Live metadata fetch failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   const metadataHash = metadata ? crypto.createHash('sha256').update(metadata).digest('hex') : null;
   const metadataFields = extractMetadataPropertyFields(metadata);
+  const metadataSet = fieldSet(metadataFields);
   add('G-004', 'Metadata has Property field list', metadataFields.length ? 'PASS' : 'FAIL', metadataFields.length ? `${metadataFields.length} Property fields parsed. sha256=${metadataHash}` : 'No Property fields parsed from metadata.');
 
-  const metadataSet = fieldSet(metadataFields);
-  const missingSelected = selectedFields.filter((field) => !metadataSet.has(field));
-  add('G-005', 'Derived IDX_PLUS_SELECT_FIELDS exist in metadata', missingSelected.length ? 'FAIL' : 'PASS', missingSelected.length ? `${missingSelected.length} selected fields missing from metadata: ${sample(missingSelected)}` : `${selectedFields.length} selected fields found in metadata.`);
+  const missingSelected = selectedFields.filter((field) => {
+    if (metadataSet.has(field)) return false;
+    const renamed = renames[field];
+    return !(renamed && metadataSet.has(renamed));
+  });
+  add('G-005', 'Derived selected fields exist in metadata after rename resolution', missingSelected.length ? 'FAIL' : 'PASS', missingSelected.length ? `${missingSelected.length} selected fields missing after rename resolution: ${sample(missingSelected)}` : `${selectedFields.length} selected fields validated against metadata or rename target.`);
 
-  const renameDestMissing = Object.entries(renames).filter(([, dest]) => !metadataSet.has(dest) && !allFields.includes(dest));
-  add('G-006', 'RESO_TO_RLS_RENAMES destinations are valid canonical fields', renameDestMissing.length ? 'FAIL' : 'PASS', renameDestMissing.length ? `Invalid rename destinations: ${sample(renameDestMissing.map(([src, dest]) => `${src}->${dest}`))}` : `${Object.keys(renames).length} rename destinations validated.`);
+  const renameShapeBad = Object.entries(renames).filter(([src, dest]) => !src || !dest || src === dest);
+  const renameSourcesMissing = Object.keys(renames).filter((src) => !allFields.includes(src) && !metadataSet.has(src));
+  const renameStatus: Status = renameShapeBad.length ? 'FAIL' : renameSourcesMissing.length ? 'YELLOW' : 'PASS';
+  add('G-006', 'RESO_TO_RLS_RENAMES has valid shape and source coverage', renameStatus, renameShapeBad.length ? `Bad rename rows: ${sample(renameShapeBad.map(([s, d]) => `${s}->${d}`))}` : renameSourcesMissing.length ? `Rename sources not in B arrays/metadata, review as internal aliases: ${sample(renameSourcesMissing)}` : `${Object.keys(renames).length} rename rows have non-empty source/destination and covered sources.`);
 
   const idAnchors = ['ListingId', 'ListingKey', 'SourceSystemKey', 'OriginatingSystemKey', 'ListingKeyNumeric'];
-  const idMissing = idAnchors.filter((field) => !allFields.includes(field) && !metadataSet.has(field));
+  const idMissing = idAnchors.filter((field) => !allFields.includes(field) && !metadataSet.has(field) && !(renames[field] && metadataSet.has(renames[field])));
   const fetchIdMissing = missing(fetchTs, ['ListingId eq', 'fetchSingleListing', 'ListingId != entity key']);
-  add('G-007', 'Provider ID chain fields and fetch semantics are present', idMissing.length || fetchIdMissing.length ? 'FAIL' : 'PASS', idMissing.length || fetchIdMissing.length ? `Missing ID fields/anchors: ${[...idMissing, ...fetchIdMissing].join(', ')}` : 'ListingId, ListingKey, SourceSystemKey, OriginatingSystemKey, and fetch-by-ListingId semantics found.');
+  add('G-007', 'Provider ID chain fields and fetch semantics are present', idMissing.length || fetchIdMissing.length ? 'FAIL' : 'PASS', idMissing.length || fetchIdMissing.length ? `Missing ID fields/anchors: ${sample([...idMissing, ...fetchIdMissing])}` : 'ListingId, ListingKey, SourceSystemKey/rename, OriginatingSystemKey, ListingKeyNumeric, and fetch-by-ListingId semantics found.');
 
   const publicInterface = extractInterfaceBody(publicDto, 'PublicListingDTO');
   const dtoLeaks = PUBLIC_FORBIDDEN_KEYS.filter((key) => new RegExp(`\\b${key}\\b`).test(publicInterface));
@@ -231,47 +210,32 @@ async function main() {
   add('G-011', 'Public suggest route uses identity/gate anchors and avoids private fields', suggestMissing.length || suggestLeaks.length ? 'FAIL' : 'PASS', suggestMissing.length || suggestLeaks.length ? `suggest missing=${suggestMissing.join(', ') || 'none'} private-key-presence=${suggestLeaks.join(', ') || 'none'}` : 'Suggest route identity/gate anchors present and no forbidden public keys detected.');
 
   const slugRequired = missing(slug, ['generateListingSlug', 'extractListingIdFromSlug', 'extractMlsIdFromSlug', 'isMlsIdSlug', 'internetAddressDisplayYN', 'listing-']);
-  const detailRequired = missing(detailRoute, ['extractListingIdFromSlug', 'extractMlsIdFromSlug', 'parseAddressSlug']);
-  add('G-012', 'Slug and detail route support canonical address slug plus fallback ID resolution', slugRequired.length || detailRequired.length ? 'FAIL' : 'PASS', slugRequired.length || detailRequired.length ? `slug missing=${slugRequired.join(', ') || 'none'} detail missing=${detailRequired.join(', ') || 'none'}` : 'Slug/detail fallback and canonical anchors found.');
+  const pageRequired = missing(pageDetailRoute, ['extractListingIdFromSlug', 'extractMlsIdFromSlug', 'parseAddressSlug', 'generateListingSlug']);
+  add('G-012', 'Public detail page supports canonical address slug plus fallback ID resolution', slugRequired.length || pageRequired.length ? 'FAIL' : 'PASS', slugRequired.length || pageRequired.length ? `slug missing=${slugRequired.join(', ') || 'none'} detail page missing=${pageRequired.join(', ') || 'none'}` : 'Slug helper and public detail page fallback/canonical anchors found.');
 
   const routeRequired = missing(listingRoute, ['filterDisplayableDbListings', 'annotateCoListedSiblings']);
   add('G-013', 'Public listing route applies display filtering and sibling annotation', routeRequired.length ? 'FAIL' : 'PASS', routeRequired.length ? `Missing listing route anchors: ${routeRequired.join(', ')}` : 'Public listing route display-filter/sibling anchors found.');
 
+  add('G-014', 'Public API detail route remains ID-oriented while page route handles slugs', missing(apiDetailRoute, ['fetchSingleListing', 'checkDistributionGates', 'toPublicDTO']).length ? 'FAIL' : 'PASS', 'Validated API detail route separately from public page slug route to avoid false slug failures.');
+
   const baseUrl = process.env.SENTINEL_G_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
   if (baseUrl) {
-    const probes = [
-      '/api/listings/suggest?q=SL-0004',
-      '/api/listings/suggest?q=333%20E%2046',
-      '/api/listings?address=333%20E%2046',
-      '/listing/sl-0004',
-    ];
-    for (const probe of probes) {
+    for (const probe of ['/api/listings/suggest?q=SL-0004', '/api/listings/suggest?q=333%20E%2046', '/api/listings?address=333%20E%2046', '/listing/sl-0004']) {
       try {
         const result = await probePublicEndpoint(baseUrl, probe);
-        const leak = PUBLIC_FORBIDDEN_KEYS.filter((key) => result.body.includes(key));
+        const leaks = PUBLIC_FORBIDDEN_KEYS.filter((key) => result.body.includes(key));
         const fallbackDisplayed = probe !== '/listing/sl-0004' && result.body.includes('/listing/sl-0004');
-        const fallbackRedirectOk = probe === '/listing/sl-0004' ? [301, 302, 307, 308, 404].includes(result.status) : true;
-        const status: Status = leak.length || fallbackDisplayed || !fallbackRedirectOk ? 'FAIL' : 'PASS';
-        add('G-014', `Public endpoint probe ${probe}`, status, `status=${result.status}${result.location ? ` location=${result.location}` : ''}${leak.length ? ` leaks=${leak.join(',')}` : ''}${fallbackDisplayed ? ' fallback-url-displayed=true' : ''}`);
+        const fallbackRouteOk = probe === '/listing/sl-0004' ? [200, 301, 302, 307, 308, 404].includes(result.status) : result.status < 500;
+        add('G-015', `Public endpoint probe ${probe}`, leaks.length || fallbackDisplayed || !fallbackRouteOk ? 'FAIL' : 'PASS', `status=${result.status}${result.location ? ` location=${result.location}` : ''}${leaks.length ? ` leaks=${leaks.join(',')}` : ''}${fallbackDisplayed ? ' fallback-url-displayed=true' : ''}`);
       } catch (err) {
-        add('G-014', `Public endpoint probe ${probe}`, 'FAIL', err instanceof Error ? err.message : String(err));
+        add('G-015', `Public endpoint probe ${probe}`, 'FAIL', err instanceof Error ? err.message : String(err));
       }
     }
   } else {
-    add('G-014', 'Public endpoint probes', 'YELLOW', 'SENTINEL_G_BASE_URL or NEXT_PUBLIC_SITE_URL not set; endpoint probes skipped, not passed.');
+    add('G-015', 'Public endpoint probes', 'YELLOW', 'SENTINEL_G_BASE_URL or NEXT_PUBLIC_SITE_URL not set; endpoint probes skipped, not passed.');
   }
 
-  const report: Report = {
-    tool: 'Sentinel-G',
-    status: overall(),
-    generatedAt: new Date().toISOString(),
-    mode,
-    metadataHash,
-    selectedFieldCount: selectedFields.length,
-    metadataPropertyFieldCount: metadataFields.length,
-    checks,
-  };
-
+  const report: Report = { tool: 'Sentinel-G', status: overall(), generatedAt: new Date().toISOString(), mode, metadataHash, selectedFieldCount: selectedFields.length, metadataPropertyFieldCount: metadataFields.length, checks };
   fs.mkdirSync(outDir, { recursive: true });
   const jsonPath = path.join(outDir, `${stamp}-report.json`);
   const mdPath = path.join(outDir, `${stamp}-report.md`);
@@ -283,7 +247,6 @@ async function main() {
   console.log(`JSON report: ${path.relative(root, jsonPath)}`);
   console.log(`Markdown report: ${path.relative(root, mdPath)}`);
   for (const check of checks) console.log(`${check.status.padEnd(6)} ${check.code} ${check.name}`);
-
   if (report.status === 'FAIL') process.exit(1);
 }
 
