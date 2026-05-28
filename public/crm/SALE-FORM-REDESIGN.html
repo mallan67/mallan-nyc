@@ -5223,37 +5223,217 @@ function selectBuildingFromIDX(prefix, address) {
 }
 
 // Populate building modal fields from IDX data
+/**
+ * Load Cotality-sourced neighborhoods grouped by NYC borough into the
+ * BldgNeighborhood dropdown. Replaces the static hardcoded list so that:
+ *   - Turtle Bay, Kips Bay, NoMad, Yorkville, etc. appear automatically
+ *     when Cotality has them
+ *   - All 5 boroughs are populated (Manhattan, Brooklyn, Queens, Bronx, Staten Island)
+ *   - When a building selection returns a SubdivisionName the dropdown
+ *     already has, populateBuildingFromIDX can set it. When it doesn't,
+ *     populateBuildingFromIDX adds it dynamically.
+ *
+ * Falls back gracefully to the existing static <optgroup> options when
+ * the endpoint is unreachable or returns 0 neighborhoods (network down,
+ * first-deploy state, etc.). The static dropdown is never wiped — we
+ * only ADD options, never remove the built-in fallback.
+ */
+async function loadCotalityNeighborhoodsIntoDropdown(prefix) {
+    const select = document.getElementById(prefix + 'BldgNeighborhood');
+    if (!select || select.tagName !== 'SELECT') return;
+    try {
+        const resp = await fetch('/api/crm/neighborhoods/cotality', { credentials: 'same-origin' });
+        if (!resp.ok) return; // keep static fallback options
+        const data = await resp.json();
+        if (!data || !data.boroughs) return;
+        const boroughs = data.boroughs;
+        // Build a set of existing option values so we don't add duplicates.
+        const existingValues = new Set();
+        for (const opt of select.options) existingValues.add(opt.value);
+        const boroughOrder = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
+        for (const boroughName of boroughOrder) {
+            const list = boroughs[boroughName];
+            if (!Array.isArray(list) || list.length === 0) continue;
+            // Find or create the optgroup for this borough
+            let group = null;
+            for (const child of select.children) {
+                if (child.tagName === 'OPTGROUP' && (child.label || '').indexOf(boroughName) >= 0) {
+                    group = child;
+                    break;
+                }
+            }
+            if (!group) {
+                group = document.createElement('optgroup');
+                group.label = '── ' + boroughName + ' ──';
+                select.appendChild(group);
+            }
+            for (const name of list) {
+                const compactValue = String(name).replace(/[^a-zA-Z0-9]/g, '');
+                if (existingValues.has(compactValue) || existingValues.has(name)) continue;
+                const opt = document.createElement('option');
+                opt.value = compactValue || name;
+                opt.text = name;
+                opt.dataset.cotalitySourced = 'true';
+                group.appendChild(opt);
+                existingValues.add(opt.value);
+            }
+        }
+    } catch (err) {
+        // Network error / 5xx — keep static fallback options
+        console.warn('[neighborhoods] Cotality dropdown load failed, using static fallback:', err);
+    }
+}
+
 function populateBuildingFromIDX(prefix, building) {
-    // Building modal fields (would auto-fill when building modal is opened)
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    // Cotality is the source of truth for building data. This function must
+    // populate EVERY building-modal field that Cotality (or the DB cache of
+    // Cotality) provides. If a field is not set here, the agent has to
+    // retype data that already exists upstream — which is the bug Maya
+    // hit when neighborhood / borough / building stats stayed empty.
+    //
+    // Field naming note: the buildings/search API returns snake_case
+    // (year_built, stories_total, units_total) AND camelCase (yearBuilt,
+    // streetNumber) — `pick` accepts both with fallback so this function
+    // works regardless of caller shape.
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el && val !== null && val !== undefined && val !== '') el.value = val;
+    };
+    const setIfPresent = (id, val) => {
+        if (val === null || val === undefined || val === '') return;
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+    const checkIf = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.checked = !!val;
+    };
+    const pick = (snake, camel) => {
+        const a = building[snake];
+        const b = building[camel];
+        if (a !== null && a !== undefined && a !== '') return a;
+        if (b !== null && b !== undefined && b !== '') return b;
+        return null;
+    };
+
+    // ── 1. Address atoms (NEVER drop StreetDirPrefix) ─────────────────
     setVal(prefix + 'BldgStreetAddress', building.address);
     setVal(prefix + 'BldgName', building.name);
     setVal(prefix + 'BldgBorough', building.borough);
+    setVal(prefix + 'BldgCity', pick('city', 'city') || 'New York');
+    setVal(prefix + 'BldgState', pick('state', 'state') || 'NY');
     setVal(prefix + 'BldgZip', building.zip);
-    setVal(prefix + 'BldgYearBuilt', building.yearBuilt);
-    setVal(prefix + 'BldgTotalFloors', building.totalFloors);
-    setVal(prefix + 'BldgTotalUnits', building.totalUnits);
+    // BldgNeighborhood — THE bug Maya hit. Set the dropdown value if it
+    // exists as an option; otherwise add the value dynamically so the
+    // selection is preserved (Cotality is source of truth — if it has
+    // "Turtle Bay" and our dropdown doesn't, we add Turtle Bay).
+    const neighborhoodValue = pick('neighborhood', 'subdivisionName');
+    if (neighborhoodValue) {
+        const nEl = document.getElementById(prefix + 'BldgNeighborhood');
+        if (nEl && nEl.tagName === 'SELECT') {
+            // Try to find existing option (case-insensitive normalize)
+            const normalized = String(neighborhoodValue).trim();
+            const compactValue = normalized.replace(/[^a-zA-Z0-9]/g, '');
+            let matched = null;
+            for (const opt of nEl.options) {
+                if (opt.value === normalized) { matched = opt; break; }
+                if (opt.value === compactValue) { matched = opt; break; }
+                if (opt.text.toLowerCase() === normalized.toLowerCase()) { matched = opt; break; }
+            }
+            if (matched) {
+                nEl.value = matched.value;
+            } else {
+                // Cotality-only neighborhood — add under correct borough optgroup if possible.
+                const boroughVal = String(building.borough || '').toLowerCase();
+                const boroughLabel = boroughVal.includes('manhattan') || boroughVal === 'new york'
+                    ? 'Manhattan'
+                    : boroughVal.includes('brooklyn') || boroughVal === 'kings' ? 'Brooklyn'
+                    : boroughVal.includes('queens') ? 'Queens'
+                    : boroughVal.includes('bronx') ? 'Bronx'
+                    : boroughVal.includes('staten') || boroughVal === 'richmond' ? 'Staten Island'
+                    : '';
+                let targetGroup = null;
+                for (const child of nEl.children) {
+                    if (child.tagName === 'OPTGROUP' && (child.label || '').toLowerCase().indexOf(boroughLabel.toLowerCase()) >= 0) {
+                        targetGroup = child;
+                        break;
+                    }
+                }
+                const newOpt = document.createElement('option');
+                newOpt.value = compactValue || normalized;
+                newOpt.text = normalized;
+                newOpt.dataset.cotalityAdded = 'true';
+                (targetGroup || nEl).appendChild(newOpt);
+                nEl.value = newOpt.value;
+            }
+        } else if (nEl) {
+            nEl.value = neighborhoodValue;
+        }
+    }
 
-    // Auto-check amenities
-    const checkIf = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    // ── 2. Cross streets ─────────────────────────────────────────────
+    const crossStreet = pick('cross_street', 'crossStreet');
+    if (crossStreet) setVal(prefix + 'BldgCrossStreet1', crossStreet);
+
+    // ── 3. Year / size ───────────────────────────────────────────────
+    setIfPresent(prefix + 'BldgYearBuilt', pick('year_built', 'yearBuilt'));
+    setIfPresent(prefix + 'BldgYearRenovated', pick('year_renovated', 'yearRenovated'));
+    setIfPresent(prefix + 'BldgTotalFloors', pick('stories_total', 'storiesTotal'));
+    setIfPresent(prefix + 'BldgTotalUnits', pick('units_total', 'unitsTotal'));
+    setIfPresent(prefix + 'BldgResidentialUnits', pick('units_total', 'unitsTotal'));
+
+    // ── 4. Type + ownership ──────────────────────────────────────────
+    const stVal = pick('structure_type', 'structureType');
+    if (stVal) {
+        const stEl = document.getElementById(prefix + 'StructureType');
+        if (stEl) stEl.value = stVal;
+        setVal(prefix + 'BldgType', stVal);
+    }
+    checkIf(prefix + 'BldgNewConstruction', pick('new_construction_yn', 'newConstructionYN'));
+    checkIf(prefix + 'BldgNewDevelopment', pick('new_development_yn', 'newDevelopmentYN'));
+    checkIf(prefix + 'BldgSponsorUnits', pick('sponsor_unit_yn', 'sponsorUnitYN'));
+
+    // ── 5. Tax + association ─────────────────────────────────────────
+    setIfPresent(prefix + 'BldgTaxBlock', pick('tax_block', 'taxBlock'));
+    setIfPresent(prefix + 'BldgTaxLot', pick('tax_lot', 'taxLot'));
+    setIfPresent(prefix + 'BldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
+    setIfPresent(prefix + 'BldgAssociationName', pick('association_name', 'associationName'));
+
+    // ── 6. Subletting / pet / Wd policy ──────────────────────────────
+    checkIf(prefix + 'BldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
+    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed'));
+
+    // ── 7. Amenity checkboxes (every BuildingFeatures-derived flag) ─
     checkIf(prefix + 'BldgDoorman', building.doorman);
     checkIf(prefix + 'BldgElevator', building.elevator);
     checkIf(prefix + 'BldgGym', building.gym);
     checkIf(prefix + 'BldgPool', building.pool);
-    // BuildingLaundryFeatures: auto-set from IDX building data
-    if (building.laundry) {
-        var lCb = document.querySelector('.sale-laundry-cb[value="CommonArea"]');
-        if (lCb) lCb.checked = true;
-    }
     checkIf(prefix + 'BldgParking', building.parking);
     checkIf(prefix + 'BldgConcierge', building.concierge);
-    checkIf(prefix + 'BldgSpa', building.spa);
+    checkIf(prefix + 'BldgSpa', pick('spa', 'spa'));
+    checkIf(prefix + 'BldgRoofDeck', pick('roof_deck', 'roofDeck'));
+    checkIf(prefix + 'BldgStorage', pick('storage', 'storage'));
+    checkIf(prefix + 'BldgBikeRoom', pick('bike_room', 'bikeRoom'));
+    checkIf(prefix + 'BldgPackageRoom', pick('package_room', 'packageRoom'));
+    checkIf(prefix + 'BldgLounge', pick('lounge', 'lounge'));
+    checkIf(prefix + 'BldgPlayroom', pick('playroom', 'playroom'));
+    checkIf(prefix + 'BldgBusinessCenter', pick('business_center', 'businessCenter'));
+    checkIf(prefix + 'BldgConferenceRoom', pick('conference_room', 'conferenceRoom'));
+    checkIf(prefix + 'BldgColdStorage', pick('cold_storage', 'coldStorage'));
+    checkIf(prefix + 'BldgCourtyard', pick('courtyard', 'courtyard'));
+    checkIf(prefix + 'BldgValet', pick('valet', 'valet'));
+    checkIf(prefix + 'BldgWheelchairAccess', pick('wheelchair_access', 'wheelchairAccess'));
+    checkIf(prefix + 'BldgLiveInSuper', pick('live_in_super', 'liveInSuper'));
+    checkIf(prefix + 'BldgOnSiteManager', pick('on_site_manager', 'onSiteManager'));
 
-    // Auto-set StructureType from IDX building data
-    if (building.structureType) {
-        const stEl = document.getElementById(prefix + 'StructureType');
-        if (stEl) stEl.value = building.structureType;
+    // BuildingLaundryFeatures checkbox group
+    if (building.laundry) {
+        const lCb = document.querySelector('.sale-laundry-cb[value="CommonArea"]');
+        if (lCb) lCb.checked = true;
     }
+
+    // NOTE: this function intentionally does NOT touch UnitNumber/Apt fields.
+    // Per Maya's spec: building selection must preserve user-entered unit.
 }
 
 // Auto-derive StructureType from PropertyType when no IDX match
@@ -9048,6 +9228,11 @@ async function uploadPendingMedia(listingId) {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize logged-in agent from URL params
     initLoggedInAgent();
+
+    // Load Cotality-sourced neighborhoods into the building dropdown.
+    // Source of truth: /api/crm/neighborhoods/cotality. Static <optgroup>
+    // options stay in place as a network-failure fallback.
+    loadCotalityNeighborhoodsIntoDropdown('sale');
 
     showSaleMainTab(1);
     const today = new Date().toISOString().split('T')[0];
