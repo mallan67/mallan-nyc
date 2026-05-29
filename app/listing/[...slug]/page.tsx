@@ -507,17 +507,14 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
-    // CRM-created exclusives (SL-/RL-) always show their address on mallan.nyc —
-    // the IDX address gate (internet_address_display_yn) governs RLS-distributed
-    // third-party listings, NOT Mallan's own website-only exclusives. This MUST
-    // match lib/idx/db-to-public-dto.ts:286 (`isCrmExclusive ? false : ...`) so
-    // the detail page and the agent/card DTO agree on suppression — otherwise
-    // the card emits the address URL while the detail page builds the suppressed
-    // (`listing-{id}`) canonical, and the two disagree. (2026-05-29)
-    const isCrmExclusiveListing = dbListing.listing_id.startsWith('SL-') || dbListing.listing_id.startsWith('RL-');
-    const suppressAddress = isCrmExclusiveListing
-      ? false
-      : (isRlsBacked && !canDisplayListingAddress(dbListing));
+    // Address suppression (Codex PR #274 — respect seller opt-outs):
+    // website-only listings (rls_eligible === false → isRlsBacked false; Mallan's
+    // own website-only exclusives like SL-0004) show their address. RLS-backed
+    // listings (rls_eligible !== false), INCLUDING any RLS-eligible SL-/RL-
+    // exclusive, RESPECT the IDX address opt-out so an explicit seller address
+    // suppression is never overridden. (Earlier draft unconditionally bypassed by
+    // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted.)
+    const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
     const dtoSlug = generateListingSlug({
       address: {

@@ -52,24 +52,24 @@ describe('canonical URL by address-display flag', () => {
   });
 });
 
-// ── SOURCE: detail page suppression is CRM-exclusive-aware + slug from !suppressAddress ──
-describe('detail page — CRM-exclusive address handling matches dbListingToPublicDTO', () => {
+// ── SOURCE: detail page suppression respects seller opt-outs (Codex PR #274) ──
+describe('detail page — address suppression respects opt-outs, slug from the same decision', () => {
   const page = read('app/listing/[...slug]/page.tsx');
-  const dto = read('lib/idx/db-to-public-dto.ts');
 
-  it('detail page treats SL-/RL- exclusives as never-suppressed (CRM-exclusive-aware)', () => {
-    expect(page).toMatch(/isCrmExclusiveListing\s*=\s*dbListing\.listing_id\.startsWith\('SL-'\)\s*\|\|\s*dbListing\.listing_id\.startsWith\('RL-'\)/);
-    expect(page).toMatch(/suppressAddress\s*=\s*isCrmExclusiveListing[\s\S]*?\?\s*false/);
+  it('suppresses address ONLY for RLS-backed rows failing the address gate (respects opt-outs)', () => {
+    expect(page).toMatch(/const suppressAddress = isRlsBacked && !canDisplayListingAddress\(dbListing\)/);
+    // The earlier unconditional SL-/RL- prefix bypass (which would expose
+    // RLS-eligible opt-out addresses) must be gone.
+    expect(page).not.toMatch(/isCrmExclusiveListing/);
   });
 
-  it('detail page slug derives from !suppressAddress, NOT the raw internet_address_display_yn column', () => {
+  it('isRlsBacked is rls_eligible !== false → website-only (SL-0004) is NOT RLS-backed → address shown', () => {
+    expect(page).toMatch(/const isRlsBacked = dbListing\.rls_eligible !== false/);
+  });
+
+  it('detail-page slug derives from !suppressAddress, NOT the raw internet_address_display_yn column', () => {
     expect(page).toMatch(/internetAddressDisplayYN:\s*!suppressAddress/);
     expect(page).not.toMatch(/internetAddressDisplayYN:\s*dbListing\.internet_address_display_yn/);
-  });
-
-  it('dbListingToPublicDTO uses the same CRM-exclusive bypass (the contract both sides honor)', () => {
-    expect(dto).toMatch(/isCrmExclusive\s*\?\s*false\s*:/);
-    expect(dto).toMatch(/internetAddressDisplayYN:\s*!suppressAddress/);
   });
 });
 
