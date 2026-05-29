@@ -122,8 +122,16 @@ Idempotent **dry-run-default** script (`--apply` gated, Maya-approved prod write
 ### H. Tests
 Round-trip (row has key/type/order/preferred); hero = chosen (not upload[0]) incl. OG; reorder persists to public; delete by `media_key` → status='deleted', gone after reload; floor plan never primary; **media_key uniqueness/dedup**; **set-as-main flips siblings false**; migration **dry-run** output correct; Playwright on SL-0004 (set hero/reorder → detail page reflects); gates `crm:test` / `ucba:audit` / `idx:validate` / `compliance-check`.
 
-### I. Open verification item (no code)
-Confirm the Trestle media-sync only upserts/prunes by feed `MediaKey` and will not touch `crm:`-prefixed rows (guardrail #10). SL-0004 isn't in the feed (safe); confirm generally before applying to any feed-backed CRM listing.
+### I. Verification item — RESOLVED 2026-05-29: Trestle sync will NOT touch `crm:` rows
+Traced `upsertListingMedia` (`lib/idx/media-sync.ts:367`) + orchestrator `runMediaSync`:
+1. **Feed-driven** — `runMediaSync` iterates Trestle `ListingKey`s and fetches media by `ResourceRecordKey eq '{listingKey}'`; CRM exclusives are not in the feed → `upsertListingMedia` is never called with a CRM `listing_id`.
+2. **`tombstoneVanished` forced `false` in prod** (`media-sync.ts:1385`; test "runMediaSync — tombstoneVanished is forced false"); the `notIn` bulk-tombstone (484-503) runs only in unit tests; `true` is set nowhere outside tests.
+3. **Explicit-delete** tombstones only specific feed `media_key`s, never `crm:` keys.
+
+**Verdict: SAFE** — `crm:` rows are unreachable by the sync. Optional hardening (not required, Trestle code left untouched per guardrail #10): add `media_key: { not: { startsWith: 'crm:' } }` to the two tombstone `where` clauses.
+
+### Transition design (avoids a partial-rows regression)
+The public resolver prefers `listing_media` rows **when any exist**. To avoid a listing that has JSON media + one new row rendering only the new row, the **upload route lazily imports the listing's existing `listing.media` JSON into rows (idempotent) before adding the new row**, so the rows set is always complete. The bulk migration script is the same import over all CRM exclusives. Legacy `listing.media` JSON is left intact (ignored once rows exist).
 
 ---
 **Next step:** your go to start P0 coding (schema-free, on a new branch). No DB migration. No rental/dashboard/auth/identity. If anything forces a schema change mid-build, I stop and present the exact reason first.
