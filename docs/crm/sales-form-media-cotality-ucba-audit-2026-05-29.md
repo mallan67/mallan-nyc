@@ -31,8 +31,8 @@ Verified against `data/rebny-rls-property-fields.csv` (Media resource) + `data/R
 | `MediaKey` / `MediaKeyNumeric` | id | **Stable unique id per media item** |
 | `ResourceRecordKey` | id | Links media → `Property.ListingKey` (use this, NEVER `ResourceRecordID`) |
 | `MediaURL` | string | The image/document URL |
-| `MediaType` | enum | `Photo` / `FloorPlan` / `Video` / `Virtual3D` / etc. |
-| `MediaCategory` | String List | content-type tag (Photo, Document=FloorPlan, …) |
+| `MediaType` | enum | Cotality's literal `MediaType` is the **file format** (`Jpeg`/`Png`/`Pdf`/`Mp4`/…; metadata.xml:11372-11467) — NOT `Photo`/`FloorPlan`/`Video`. Our `media_type` *column* stores the content kind (`Photo`/`FloorPlan`/`Video`) derived from `MediaCategory`, matching the Trestle sync convention. |
+| `MediaCategory` | enum | content kind — dedicated members `Photo`(11), `FloorPlan`(6), `Video`(17), `Document`(5), … (metadata.xml:11276-11340). **`FloorPlan` is its OWN member, not `Document`.** |
 | `ImageOf` | String List | room/subject (Kitchen, LivingRoom, …) — caption/long-description analog |
 | `Order` | Number | per-item sort order |
 | `PreferredPhotoYN` | Boolean | **the hero/primary flag** |
@@ -41,7 +41,7 @@ Verified against `data/rebny-rls-property-fields.csv` (Media resource) + `data/R
 
 **Property resource (listing-level):** `PhotosChangeTimestamp` (high-level photo-change trigger — NOT a sort order), `PhotosCount`, `VideosCount`, `VirtualTourURLBranded`/`Branded2`/`Branded3`, `VirtualTourURLUnbranded`/`Unbranded2`/`Unbranded3`. *(No standalone `VideoURL` field appears in the IDX Plus CSV — confirm before relying on one; video typically rides `VirtualTourURL*` or Media rows with `MediaType=Video`.)*
 
-**Cotality classification rules:** FloorPlans ship under `/Media/Property/DOCUMENT-{Gif|Jpeg|Png|Pdf}/…` URLs and/or `MediaCategory`/`MediaClassification=Document`; `MediaCategory` is sometimes null even for floor plans (the resolver already compensates). Virtual tours are Property-level URL fields, not Media rows, in most REBNY feeds.
+**Cotality classification rules:** FloorPlans ship under `/Media/Property/DOCUMENT-{Gif|Jpeg|Png|Pdf}/…` URLs with `MediaCategory=FloorPlan` and `MediaClassification=Document` (the `DOCUMENT-` URL segment is the file-storage path, NOT the `MediaCategory` value); `MediaCategory` is sometimes null even for floor plans (the resolver already compensates via the URL pattern + `MediaClassification`). Virtual tours are Property-level URL fields, not Media rows, in most REBNY feeds.
 
 **Forbidden:** `ResourceRecordID` for media joins (may duplicate across MLOs → wrong photos). `Media/All` endpoint (deprecated).
 

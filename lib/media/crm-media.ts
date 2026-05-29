@@ -67,11 +67,19 @@ export function crmMediaType(rawType?: string | null, caption?: string | null): 
   return "Photo";
 }
 
-/** Cotality MediaCategory tag for a media type (FloorPlan ships as Document). */
+/**
+ * Cotality `MediaCategory` member for a CRM media type. Mirrors the live
+ * `$metadata` enum exactly: `Photo`, `FloorPlan`, and `Video` are all valid
+ * `MediaCategory` members (artifacts/metadata.xml:11276-11340), and the Trestle
+ * sync stores the same raw value for synced floor plans (`media-sync.ts:407`).
+ *
+ * Do NOT collapse `FloorPlan` to `Document` — `Document` is a separate
+ * `MediaClassification` member (see {@link crmMediaClassification}), not the
+ * floor-plan category. (Corrected 2026-05-29: the earlier plan guessed
+ * `Document` before the enum-level metadata check; the live enum overrides it.)
+ */
 export function crmMediaCategory(mediaType: CrmMediaType): string {
-  if (mediaType === "FloorPlan") return "Document";
-  if (mediaType === "Video") return "Video";
-  return "Photo";
+  return mediaType;
 }
 
 /**

@@ -18,7 +18,7 @@ CRM media must carry the same fields the public resolver + syndication already u
 |---|---|---|
 | `media_key` | stable unique id per item | ❌ missing |
 | `media_type` | `Photo` / `FloorPlan` / `Video` | ❌ hardcoded `photo` |
-| `media_category` / `ImageOf` | room/subject tag | ❌ missing |
+| `media_category` | content kind (`Photo`/`FloorPlan`/`Video` — mirrors Cotality `MediaCategory`; `ImageOf` room/subject tag is separate, P1) | ❌ missing |
 | `order` | per-item display order | ⚠️ upload sequence only |
 | `preferred_photo_yn` | the hero flag | ❌ missing |
 | `media_url` (+ R2 variants) | image URL | ✅ present |
@@ -81,7 +81,7 @@ CRM media must carry the same fields the public resolver + syndication already u
 |---|---|
 | public R2 URL (card/hero) | `media_url_cached` (+ `media_url_original`) |
 | photo/floorplan/video | `media_type` = `Photo`/`FloorPlan`/`Video` |
-| content-type tag | `media_category` (`Photo`/`Document`) |
+| content kind | `media_category` (`Photo`/`FloorPlan`/`Video` — mirrors Cotality `MediaCategory`) |
 | display order | `order` |
 | hero flag | `preferred_photo_yn` |
 | soft delete | `status` (`active`/`deleted`) |
@@ -97,7 +97,7 @@ CRM media must carry the same fields the public resolver + syndication already u
 - **`preferred_photo_yn`** → default false; true on the one the agent sets as main.
 
 ### D. Fields with NO native column — and the call (no schema change)
-- **caption / `ShortDescription`** → not on the table. **Not required for P0** (caption capture is P1). Floor-plan classification uses `media_type='FloorPlan'` + `media_category='Document'`, **not** a caption string. → no schema change.
+- **caption / `ShortDescription`** → not on the table. **Not required for P0** (caption capture is P1). Floor-plan classification uses `media_type='FloorPlan'` + `media_category='FloorPlan'` + `media_classification='Document'`, **not** a caption string. → no schema change. *(Corrected 2026-05-29: `media_category` mirrors Cotality's dedicated `FloorPlan` member; `Document` is the `MediaClassification` member, not the category — verified against artifacts/metadata.xml.)*
 - **content_hash** → not on the table. **Folded into `media_key`** (deterministic from the buffer hash); `@unique` enforces dedup. → no schema change.
 
 ### E. Schema change needed? → **NO.** Option 1 is fully implementable schema-free for P0. *(If a future P1 needs a stored free-text caption/description on the row, that is the only thing that would require a column — I will STOP and present that exact reason then, not now.)*

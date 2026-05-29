@@ -71,9 +71,14 @@ describe('crm media type/category classification', () => {
     expect(crmMediaType('', '')).toBe('Photo');
     expect(crmMediaType('video', '')).toBe('Video');
   });
-  it('category: FloorPlan→Document, Photo→Photo', () => {
-    expect(crmMediaCategory('FloorPlan')).toBe('Document');
+  it('category mirrors Cotality MediaCategory: FloorPlan→FloorPlan, Photo→Photo, Video→Video', () => {
+    // Cotality $metadata MediaCategory has a dedicated `FloorPlan` member (value 6) —
+    // floor plans MUST mirror it, not collapse to `Document` (that is the separate
+    // MediaClassification member). See artifacts/metadata.xml:11276-11357 and the
+    // Trestle sync, which stores raw `FloorPlan` for synced floor plans.
+    expect(crmMediaCategory('FloorPlan')).toBe('FloorPlan');
     expect(crmMediaCategory('Photo')).toBe('Photo');
+    expect(crmMediaCategory('Video')).toBe('Video');
   });
 });
 
@@ -142,7 +147,7 @@ describe('resolveListingMediaFromRows — hero / floor / order / soft-delete', (
   it('floor plan is never the hero', () => {
     const out = resolveListingMediaFromRows([
       row({ media_url_cached: 'P1', media_type: 'Photo', order: 0 }),
-      row({ media_url_cached: 'FP', media_type: 'FloorPlan', media_category: 'Document', media_classification: 'Document', order: 1 }),
+      row({ media_url_cached: 'FP', media_type: 'FloorPlan', media_category: 'FloorPlan', media_classification: 'Document', order: 1 }),
     ]);
     expect(out[0].class).toBe('photo');
     const fp = out.find((m) => m.mediaType === 'FloorPlan');
