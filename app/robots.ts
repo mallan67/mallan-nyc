@@ -86,11 +86,20 @@ const MLS_CATEGORY_ONLY_BLOCK_TRAINING = [
 
 // Brand / expertise pages. No MLS data. Everyone welcome (except malicious
 // scrapers).
+//
+// `/buy/international` and `/sell/international` are intentionally listed
+// here even though their parent `/buy` falls under
+// MLS_CATEGORY_ONLY_BLOCK_TRAINING. These two pages render zero MLS data —
+// they are brand/expertise pages targeting non-resident clients. The Allow
+// rule must be more specific than the Disallow rule for AI training bots to
+// crawl them; robots-protocol longest-match-wins handles this.
 const BRAND_ALLOW = [
   '/about',
   '/agents', '/agents/',
   '/contact',
   '/sell',
+  '/sell/international',
+  '/buy/international',
   '/fair-housing',
   '/sop',
   '/terms',
