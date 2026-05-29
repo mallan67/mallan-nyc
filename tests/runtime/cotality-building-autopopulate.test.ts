@@ -294,3 +294,43 @@ describe('sales form — both building entry points (Path 1 main address + Path 
     expect(fnBody('saleAddressBlurLookup')).toMatch(/selectBuildingFromIDX/);
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+// fetchBuildingsFromAPI must preserve the FULL /api/buildings/search building
+// object (2026-05-29 hotfix). buildingDatabase (the cache that feeds BOTH
+// selectBuildingFromIDX and selectBuildingForModal) is fetchBuildingsFromAPI's
+// output. populateBuildingFromIDX reads the full snake_case shape via pick()
+// (tax_block, association_*, cross_street, stories_total, units_total, and the
+// expanded amenities roof_deck/storage/bike_room/.../washer_dryer_allowed). If
+// the normalizer rebuilds a lossy subset, those fields never reach the form.
+// The fix: pass the raw API object through (spread) and only add display/alias
+// fields on top.
+// ──────────────────────────────────────────────────────────────────────────
+describe('fetchBuildingsFromAPI preserves the full API building object', () => {
+  const src = read('public/crm/SALE-FORM-REDESIGN.html');
+  const fnBody = (name: string) => {
+    const m = src.match(new RegExp(`function ${name}\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\}`));
+    return m ? m[0] : '';
+  };
+  const body = fnBody('fetchBuildingsFromAPI');
+
+  test('spreads the raw API object (does not rebuild a lossy subset)', () => {
+    // Object.assign({}, b, {...}) (or {...b, ...}) preserves every field the
+    // API returned, so expanded fields survive into buildingDatabase.
+    expect(body).toMatch(/Object\.assign\(\s*\{\s*\}\s*,\s*b\s*,|\.\.\.b\b/);
+  });
+
+  test('still sets the UI display + alias fields (no dropdown/legacy regression)', () => {
+    for (const f of ['address:', 'name:', 'neighborhood:', 'type:', 'model:', 'totalFloors:']) {
+      expect(body).toContain(f);
+    }
+  });
+
+  test('does not whitelist-drop expanded fields by omitting the spread', () => {
+    // Guard: a return object literal with address/name/neighborhood but NO
+    // spread of b is the lossy-subset regression. Require the spread.
+    const returnsObjectLiteral = /return\s*\{[\s\S]*?address:/.test(body);
+    const hasSpread = /Object\.assign\(\s*\{\s*\}\s*,\s*b\s*,|\.\.\.b\b/.test(body);
+    expect(returnsObjectLiteral && !hasSpread).toBe(false);
+  });
+});

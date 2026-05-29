@@ -5073,7 +5073,17 @@ async function fetchBuildingsFromAPI(query) {
             var bldgName = b.name || b.building_name || '';
             var streetNum = rawAddr.match(/^\d+/);
             var displayAddr = (bldgName && streetNum && bldgName.indexOf(streetNum[0]) !== -1) ? bldgName : rawAddr;
-            return {
+            // Preserve EVERY field the API returned (tax_block/tax_lot,
+            // association_*, cross_street, stories_total/units_total,
+            // structure_type, subdivisionName, and the expanded amenities
+            // roof_deck/storage/bike_room/.../washer_dryer_allowed) by spreading
+            // the raw object. The shared populateBuildingFromIDX reads the full
+            // snake_case shape via pick(), so a lossy subset here silently
+            // dropped building-specific fields on BOTH the main-address and
+            // Building-tab paths (2026-05-29 hotfix). Only override the display
+            // fields + the camelCase aliases the result-dropdown subtitle and
+            // legacy reads depend on.
+            return Object.assign({}, b, {
                 address: displayAddr,
                 name: bldgName,
                 borough: b.borough || b.city_region || '',
@@ -5082,19 +5092,12 @@ async function fetchBuildingsFromAPI(query) {
                 type: formType,
                 model: formType,
                 commonInterestRaw: ci,
-                structureType: b.structure_type || '',
+                // camelCase aliases for the dropdown subtitle + legacy reads
+                // (the snake_case originals from `b` are preserved above):
                 yearBuilt: b.year_built || null,
                 totalFloors: b.stories_total || null,
                 totalUnits: b.units_total || null,
-                doorman: b.doorman || false,
-                elevator: b.elevator || false,
-                gym: b.gym || false,
-                pool: b.pool || false,
-                laundry: b.laundry || false,
-                parking: b.parking || false,
-                concierge: b.concierge || false,
-                spa: b.spa || false,
-            };
+            });
         });
     } catch (e) {
         console.warn('[Building Search] API error:', e.message);
