@@ -507,6 +507,13 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
+    // Address suppression (Codex PR #274 — respect seller opt-outs):
+    // website-only listings (rls_eligible === false → isRlsBacked false; Mallan's
+    // own website-only exclusives like SL-0004) show their address. RLS-backed
+    // listings (rls_eligible !== false), INCLUDING any RLS-eligible SL-/RL-
+    // exclusive, RESPECT the IDX address opt-out so an explicit seller address
+    // suppression is never overridden. (Earlier draft unconditionally bypassed by
+    // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted.)
     const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
     const dtoSlug = generateListingSlug({
@@ -520,7 +527,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       },
       id: dbListing.listing_id,
       mlsId: dbListing.mls_id || undefined,
-      internetAddressDisplayYN: dbListing.internet_address_display_yn,
+      // Drive the slug from the SAME suppression decision used for the address
+      // text (and matching dbListingToPublicDTO), NOT the raw column. Using the
+      // raw internet_address_display_yn here made a CRM exclusive show its
+      // address text but build a suppressed `listing-{id}` slug → canonical
+      // mismatch with the agent/card URL → "Listing Not Available". (2026-05-29)
+      internetAddressDisplayYN: !suppressAddress,
     });
     const dto: PublicListingDTO = {
       id: dbListing.listing_id,
