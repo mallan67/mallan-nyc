@@ -507,7 +507,17 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
-    const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
+    // CRM-created exclusives (SL-/RL-) always show their address on mallan.nyc —
+    // the IDX address gate (internet_address_display_yn) governs RLS-distributed
+    // third-party listings, NOT Mallan's own website-only exclusives. This MUST
+    // match lib/idx/db-to-public-dto.ts:286 (`isCrmExclusive ? false : ...`) so
+    // the detail page and the agent/card DTO agree on suppression — otherwise
+    // the card emits the address URL while the detail page builds the suppressed
+    // (`listing-{id}`) canonical, and the two disagree. (2026-05-29)
+    const isCrmExclusiveListing = dbListing.listing_id.startsWith('SL-') || dbListing.listing_id.startsWith('RL-');
+    const suppressAddress = isCrmExclusiveListing
+      ? false
+      : (isRlsBacked && !canDisplayListingAddress(dbListing));
 
     const dtoSlug = generateListingSlug({
       address: {
@@ -520,7 +530,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       },
       id: dbListing.listing_id,
       mlsId: dbListing.mls_id || undefined,
-      internetAddressDisplayYN: dbListing.internet_address_display_yn,
+      // Drive the slug from the SAME suppression decision used for the address
+      // text (and matching dbListingToPublicDTO), NOT the raw column. Using the
+      // raw internet_address_display_yn here made a CRM exclusive show its
+      // address text but build a suppressed `listing-{id}` slug → canonical
+      // mismatch with the agent/card URL → "Listing Not Available". (2026-05-29)
+      internetAddressDisplayYN: !suppressAddress,
     });
     const dto: PublicListingDTO = {
       id: dbListing.listing_id,
