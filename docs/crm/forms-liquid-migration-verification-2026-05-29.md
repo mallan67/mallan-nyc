@@ -20,5 +20,11 @@ Verifier (untracked): `scripts/__pw-verify-forms.mjs`.
 
 Screenshots: `__pw-shots/SALE-FORM-REDESIGN-fold.png`, `__pw-shots/SALE-FORM-REDESIGN-full.png`.
 
-## Remaining forms (pending Maya's pilot approval)
-RENTAL-FORM-REDESIGN · BUYER-DEAL-FORM · TENANT-DEAL-FORM · SALE-FORM-WITH-TOOLS · RENTAL-FORM-WITH-TOOLS · dashboard · dev — _to be migrated + verified after pilot sign-off._
+## RENTAL-FORM-REDESIGN.html — PASS (commit ac971586)
+Before: blue active pill `rgb(37,99,235)`, flat cards, Manrope. After: no CDN warning, `forms.css` applied, `.form-card` 18px+float-shadow, active pill `rgb(10,10,10)`, Inter. Head-only diff (7+/15−), no hooks touched, crm:test 39/39. (Pre-existing JS error `companyKey is not defined` — unrelated to CSS.) Screenshots: `__pw-shots/RENTAL-FORM-REDESIGN-{BEFORE-,}fold.png`.
+
+## BUYER-DEAL-FORM.html + TENANT-DEAL-FORM.html — PASS (commit a9f36ed0)
+Both: no CDN warning, `forms.css` applied, `.form-card` 18px, active pill `rgb(10,10,10)`, head-only diff (7+/15−), no hooks touched, crm:test 39/39. Screenshots: `__pw-shots/BUYER-DEAL-FORM-fold.png`, `__pw-shots/TENANT-DEAL-FORM-fold.png`.
+
+## Remaining (different/larger structure — inspect before migrating)
+dashboard.html · SALE-FORM-WITH-TOOLS.html · RENTAL-FORM-WITH-TOOLS.html · dev.html — _pending Maya's go to continue._
