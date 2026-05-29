@@ -14,6 +14,34 @@ import path from 'node:path';
 type Severity = 'P0' | 'P1' | 'P2' | 'P3';
 type SearchSystem = 'PUBLIC_SEARCH' | 'BACKEND_SEARCH';
 
+// v2 — actionable explanation schema. `system` is the broad real-product
+// surface a finding belongs to; `FindingLayer` constrains the engineering
+// locus; `Confidence` carries a reason so low-confidence findings say why.
+type System =
+  | 'SALES_FORM'
+  | 'BUILDING_AUTOFILL'
+  | 'MEDIA'
+  | 'COTALITY_CONTRACT'
+  | 'AGENT_PAGE'
+  | 'LISTING_DETAIL'
+  | 'PUBLIC_SEARCH'
+  | 'BACKEND_SEARCH'
+  | 'CRM_DASHBOARD'
+  | 'CANONICAL_URL'
+  | 'DISPLAY_GATE'
+  | 'WORKFLOW';
+type FindingLayer = 'frontend' | 'backend' | 'data' | 'compliance' | 'workflow';
+type Confidence = { level: 'high' | 'medium' | 'low'; reason: string };
+
+/** Optional context injected into evaluateSource so metadata-aware detectors
+ *  (e.g. Cotality $select vs $metadata) stay pure and unit-testable: the live
+ *  scan loads the field set from artifacts/metadata.xml; tests pass a fixture
+ *  set. Without it, metadata-aware detectors stay silent (cannot prove a
+ *  phantom → fail-closed quiet, no false positive). */
+export type EvaluateContext = {
+  cotalityFields?: Set<string>;
+};
+
 type ErrorCatalogEntry = {
   code: string;
   category: string;
@@ -39,6 +67,14 @@ export type SentinelLError = {
   'required fix': string;
   'proof required': string;
   searchSystem?: SearchSystem;
+  // v2 actionable-explanation fields (16-field schema). Optional on the type so
+  // legacy regex rules keep compiling; the v2 detectors populate all of them.
+  system?: System;
+  whyThisIsAnError?: string;
+  expectedBehavior?: string;
+  falsePositiveGuard?: string;
+  confidence?: Confidence;
+  relatedSurfaces?: string[];
 };
 
 type Rule = {
@@ -632,6 +668,83 @@ function evidenceSnippet(source: string, index: number): string {
     .join('\n');
 }
 
+// ── v2 detector: Cotality $select vs live $metadata (COTALITY_CONTRACT) ──
+// PR #277 class: /api/buildings/search listed OData $select fields that do not
+// exist on the live Cotality Property resource, so Trestle 400'd the entire
+// query and building auto-populate silently filled nothing. Metadata-aware, so
+// it takes the field set via context; without it, it stays silent (cannot prove
+// a phantom → no false positive).
+function detectCotalitySelect(
+  file: string,
+  source: string,
+  context: EvaluateContext,
+): SentinelLError[] {
+  if (!/app\/api\/buildings\/.*route\.ts$/.test(file)) return [];
+  const fields = context.cotalityFields;
+  if (!fields || fields.size === 0) return [];
+  if (!/\$select/.test(source)) return [];
+
+  const tokens = new Set<string>();
+  let firstIndex = -1;
+  const arrayRe = /select[\w]*\s*=\s*\[([^\]]*)\]/gi;
+  let m: RegExpExecArray | null;
+  while ((m = arrayRe.exec(source))) {
+    if (firstIndex < 0) firstIndex = m.index;
+    for (const t of m[1].matchAll(/['"]([A-Z][A-Za-z0-9]+)['"]/g)) tokens.add(t[1]);
+  }
+  const inlineRe = /\$select=([A-Za-z][A-Za-z0-9_,]+)/g;
+  while ((m = inlineRe.exec(source))) {
+    if (firstIndex < 0) firstIndex = m.index;
+    for (const t of m[1].split(',')) if (/^[A-Z][A-Za-z0-9]+$/.test(t)) tokens.add(t);
+  }
+
+  const phantom = [...tokens].filter((t) => !fields.has(t));
+  if (phantom.length === 0) return [];
+
+  const index = firstIndex < 0 ? 0 : firstIndex;
+  const list = phantom.join(', ');
+  return [{
+    code: 'S-COTALITY-001',
+    category: 'Cotality / IDX Plus contract',
+    severity: 'P0',
+    system: 'COTALITY_CONTRACT',
+    layer: 'backend',
+    file,
+    line: lineForIndex(computeLineStarts(source), index) + 1,
+    actualFailure:
+      `The OData $select lists ${list}, which are absent from the live Cotality Property $metadata. `
+      + 'Trestle returns HTTP 400 for the whole query, so the building lookup silently returns nothing and the '
+      + 'sales-form building auto-populate fills no fields.',
+    'failing field/query/pattern': `$select includes non-metadata field(s): ${list}`,
+    evidence: {
+      detector: 'cotality-select-vs-metadata',
+      matchedSource: evidenceSnippet(source, index),
+    },
+    impact:
+      'Building auto-populate is dead: a Trestle 400 on the entire query means the broker picks a building and nothing populates.',
+    'required fix':
+      `Remove ${list} from the $select; derive any needed values from metadata-present fields (e.g. BuildingFeatures); `
+      + 'add a metadata-backed contract test that fails on any unknown $select field.',
+    'proof required':
+      'tests/runtime/cotality-building-autopopulate.test.ts asserts every $select field is in the Cotality metadata set; '
+      + 'live GET /api/buildings/search?address=333+E+46th returns 200 with populated fields (not 400/empty).',
+    whyThisIsAnError:
+      'Cotality / IDX Plus contract: a field must exist on the resource in the live $metadata before it can be $select-ed; '
+      + 'an unknown field invalidates the entire OData request (HTTP 400), not just that one column.',
+    expectedBehavior:
+      'Every $select token is validated against the Cotality Property $metadata; values like concierge/on-site-manager are '
+      + 'derived from valid fields (e.g. BuildingFeatures), never from phantom booleans.',
+    falsePositiveGuard:
+      'Do not flag $select tokens that ARE present in the Cotality $metadata, nor a $select built from a metadata-validated allowlist constant.',
+    confidence: {
+      level: 'high',
+      reason:
+        'Field validity is checked deterministically against the live Cotality $metadata field set; this exact class shipped a Trestle 400 in PR #277.',
+    },
+    relatedSurfaces: ['BUILDING_AUTOFILL', 'SALES_FORM', '/api/buildings/search'],
+  }];
+}
+
 /**
  * Evaluate every applicable rule against an in-memory (file, source) pair and
  * return the resulting findings. Pure: no disk access. Shared by runSentinelL
@@ -639,8 +752,13 @@ function evidenceSnippet(source: string, index: number): string {
  * scan and the negative/positive tests exercise the exact same match,
  * requireNear, excludeIfNear, and excludeIfFilePresent logic.
  */
-export function evaluateSource(file: string, source: string): SentinelLError[] {
+export function evaluateSource(
+  file: string,
+  source: string,
+  context: EvaluateContext = {},
+): SentinelLError[] {
   const out: SentinelLError[] = [];
+  out.push(...detectCotalitySelect(file, source, context));
   for (const rule of RULES) {
     if (!rule.filePattern.test(file)) continue;
     rule.pattern.lastIndex = 0;
