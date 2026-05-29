@@ -74,6 +74,16 @@ export function crmMediaCategory(mediaType: CrmMediaType): string {
   return "Photo";
 }
 
+/**
+ * Cotality MediaClassification. The shared resolver recognizes floor plans via
+ * `MediaClassification === 'Document'` (classifyMediaItem), so CRM floor-plan rows
+ * MUST set this for the public reader to group them correctly and exclude them
+ * from the hero. Photos/videos leave it null.
+ */
+export function crmMediaClassification(mediaType: CrmMediaType): string | null {
+  return mediaType === "FloorPlan" ? "Document" : null;
+}
+
 /** The display URL for a legacy item (prefers the hero/card variant). */
 export function legacyItemUrl(item: LegacyMediaItem): string {
   return (item.heroUrl || item.url || item.thumbUrl || "").trim();
@@ -157,6 +167,7 @@ export async function importJsonMediaToRows(
           media_url_cached: url,
           media_type: mediaType,
           media_category: crmMediaCategory(mediaType),
+          media_classification: crmMediaClassification(mediaType),
           order,
           preferred_photo_yn: false,
           media_modification_ts: item.uploadedAt ? new Date(item.uploadedAt) : now,

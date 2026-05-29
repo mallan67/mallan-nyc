@@ -27,6 +27,7 @@ import {
   crmMediaKey,
   crmMediaType,
   crmMediaCategory,
+  crmMediaClassification,
   importJsonMediaToRows,
 } from "@/lib/media/crm-media";
 
@@ -224,6 +225,7 @@ export async function POST(
       media_url_cached: cachedUrl,
       media_type: mediaType,
       media_category: mediaCategory,
+      media_classification: crmMediaClassification(mediaType),
       order,
       preferred_photo_yn: preferred,
       media_modification_ts: new Date(),
