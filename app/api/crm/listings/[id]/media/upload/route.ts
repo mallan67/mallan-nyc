@@ -23,19 +23,12 @@ import {
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateImage, optimizeImage } from "@/lib/images/optimize";
 import { uploadToR2 } from "@/lib/images/r2";
-import type { Prisma } from "@prisma/client";
-
-interface MediaItem {
-  url: string;
-  thumbUrl?: string;
-  heroUrl?: string;
-  caption?: string;
-  order: number;
-  type: string;
-  uploadedAt: string;
-  /** SHA-256 of the original upload buffer, used for server-side dedup. */
-  contentHash?: string;
-}
+import {
+  crmMediaKey,
+  crmMediaType,
+  crmMediaCategory,
+  importJsonMediaToRows,
+} from "@/lib/media/crm-media";
 
 function hasR2Config(): boolean {
   return Boolean(
@@ -124,15 +117,33 @@ export async function POST(
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  // Compute content hash for server-side dedup. If the listing already has
-  // a media entry with this exact hash, return 409 so the client marks it
-  // uploaded without creating a duplicate R2 object or media row.
+  // Cotality-shaped storage: CRM media lives in the `listing_media` table in the
+  // `crm:` key namespace. The media_key is derived from the content hash, so a
+  // re-upload of the same image yields the same key → the @unique constraint
+  // gives content-dedup. (Cotality/IDX Plus is the source of truth for the shape.)
   const contentHash = createHash("sha256").update(buffer).digest("hex");
-  const existingMediaCheck = (listing.media as unknown as MediaItem[]) ?? [];
-  const dup = existingMediaCheck.find((m) => m.contentHash === contentHash);
-  if (dup) {
+  const mediaKey = crmMediaKey(listing.listing_id, contentHash);
+
+  // Lazily import any legacy `listing.media` JSON for this listing into rows so
+  // the rows set is COMPLETE before we add the new one (the public resolver
+  // prefers rows when any exist — partial rows would hide the JSON photos).
+  await importJsonMediaToRows(prisma, { listing_id: listing.listing_id, media: listing.media });
+
+  // Dedup: if this exact image is already an active row on this listing, 409.
+  const existingRow = await prisma.listingMedia.findUnique({
+    where: { media_key: mediaKey },
+    select: { media_url_cached: true, media_url_original: true, order: true, status: true },
+  });
+  if (existingRow && existingRow.status === "active") {
     return NextResponse.json(
-      { photo: dup, duplicate: true },
+      {
+        photo: {
+          media_key: mediaKey,
+          url: existingRow.media_url_cached || existingRow.media_url_original,
+          order: existingRow.order,
+        },
+        duplicate: true,
+      },
       { status: 409 },
     );
   }
@@ -172,44 +183,67 @@ export async function POST(
     );
   }
 
-  // Store in listing media JSON
-  const existingMedia = (listing.media as unknown as MediaItem[]) ?? [];
-  const nextOrder = orderParam != null
-    ? parseInt(orderParam.toString())
-    : existingMedia.length;
+  // Classify (Cotality MediaType) — explicit form 'type' wins, else caption.
+  const rawType = formData.get("type")?.toString() || "";
+  const mediaType = crmMediaType(rawType, caption);
+  const mediaCategory = crmMediaCategory(mediaType);
 
-  const newMedia: MediaItem = {
-    url: urls.card || urls.hero || "",
-    thumbUrl: urls.thumb,
-    heroUrl: urls.hero,
-    caption,
-    order: nextOrder,
-    type: "photo",
-    uploadedAt: new Date().toISOString(),
-    contentHash,
-  };
-
-  // Append the new media, then collapse any pre-existing duplicates by
-  // contentHash (legacy media uploaded before hash-based dedup may have
-  // shipped the same file 2-3x). Items without a hash are passed through
-  // unchanged (legacy media stays visible until the next upload).
-  const appended = [...existingMedia, newMedia];
-  const seenHashes = new Set<string>();
-  const updatedMedia: MediaItem[] = [];
-  for (const m of appended) {
-    if (m.contentHash) {
-      if (seenHashes.has(m.contentHash)) continue;
-      seenHashes.add(m.contentHash);
-    }
-    updatedMedia.push(m);
+  // Order: explicit param, else append after the current max order for the listing.
+  let order: number;
+  if (orderParam != null && orderParam.toString().trim() !== "") {
+    order = parseInt(orderParam.toString()) || 0;
+  } else {
+    const maxRow = await prisma.listingMedia.findFirst({
+      where: { listing_id: listing.listing_id, status: "active" },
+      orderBy: { order: "desc" },
+      select: { order: true },
+    });
+    order = maxRow ? maxRow.order + 1 : 0;
   }
 
+  // Hero default: if this is the first Photo on the listing (no preferred photo
+  // yet), mark it preferred so there is always a hero. The agent can change it
+  // via set-as-main. Floor plans / videos are never preferred.
+  let preferred = false;
+  if (mediaType === "Photo") {
+    const existingPreferred = await prisma.listingMedia.count({
+      where: { listing_id: listing.listing_id, status: "active", preferred_photo_yn: true },
+    });
+    preferred = existingPreferred === 0;
+  }
+
+  const heroVariantKey = `listings/${listingId}/${timestamp}-hero.webp`;
+  const cachedUrl = urls.card || urls.hero || "";
+
+  const created = await prisma.listingMedia.create({
+    data: {
+      listing_id: listing.listing_id,
+      media_key: mediaKey,
+      resource_record_key: listing.listing_id,
+      media_url_original: urls.hero || cachedUrl,
+      media_url_cached: cachedUrl,
+      media_type: mediaType,
+      media_category: mediaCategory,
+      order,
+      preferred_photo_yn: preferred,
+      media_modification_ts: new Date(),
+      r2_key: heroVariantKey,
+      status: "active",
+    },
+    select: {
+      media_key: true,
+      media_url_cached: true,
+      media_url_original: true,
+      order: true,
+      preferred_photo_yn: true,
+      media_type: true,
+    },
+  });
+
+  // Touch the listing so ISR/edit-load see the change (legacy JSON left intact).
   await prisma.listing.update({
     where: { id: listing.id },
-    data: {
-      media: updatedMedia as unknown as Prisma.InputJsonValue,
-      modification_timestamp: new Date(),
-    },
+    data: { modification_timestamp: new Date() },
   });
 
   await logAuditEvent(
@@ -219,20 +253,28 @@ export async function POST(
     auth,
     {
       action: "photo_uploaded",
+      media_key: mediaKey,
+      media_type: mediaType,
       variants: Object.keys(urls),
-      order: nextOrder,
+      order,
     },
     req.headers.get("x-forwarded-for") ?? undefined
   );
 
+  const totalPhotos = await prisma.listingMedia.count({
+    where: { listing_id: listing.listing_id, status: "active", media_type: "Photo" },
+  });
+
   return NextResponse.json({
     listing_id: listing.listing_id,
     photo: {
-      url: newMedia.url,
-      thumbUrl: newMedia.thumbUrl,
-      heroUrl: newMedia.heroUrl,
-      order: newMedia.order,
+      media_key: created.media_key,
+      url: created.media_url_cached,
+      heroUrl: created.media_url_original,
+      order: created.order,
+      media_type: created.media_type,
+      preferred_photo_yn: created.preferred_photo_yn,
     },
-    total_photos: updatedMedia.length,
+    total_photos: totalPhotos,
   });
 }
