@@ -224,3 +224,6 @@ dump-*
 ops/audit/sentinel-l/
 # Smoke runner reports (timestamped per run, never committed)
 ops/audit/sales-smoke/
+
+# Superpowers brainstorm visual-companion scratch (local only)
+.superpowers/

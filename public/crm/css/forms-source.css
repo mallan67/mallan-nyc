@@ -1,0 +1,142 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   forms-source.css — Tailwind v4 SOURCE for the standalone CRM forms.
+   Compiled to forms.css by `npm run crm:css` (scripts/build-crm-forms-css.mjs).
+   Replaces the dev-only cdn.tailwindcss.com (Tailwind v3) on every form.
+   Design language mirrors public/crm/css/liquid-theme.css + app/globals.css.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@import "tailwindcss" source(none);
+
+/* Only scan the standalone forms — keeps forms.css lean. */
+@source "../SALE-FORM-REDESIGN.html";
+@source "../RENTAL-FORM-REDESIGN.html";
+@source "../SALE-FORM-WITH-TOOLS.html";
+@source "../RENTAL-FORM-WITH-TOOLS.html";
+@source "../BUYER-DEAL-FORM.html";
+@source "../TENANT-DEAL-FORM.html";
+@source "../dashboard.html";
+@source "../dev.html";
+
+/* ── Liquid design tokens (mirror liquid-theme.css / globals.css) ── */
+@theme {
+  --color-brand-gold: #C4A052;
+  --color-brand-gold-deep: #B8860B;
+  --color-brand-dark: #0A0A0A;
+  --color-brand-slate: #3d4556;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Urbanist', system-ui, sans-serif;
+}
+
+:root {
+  --ink:#0A0A0A; --muted:#64748b; --line:#e2e8f0; --bg:#FAFBFC;
+  --gold:#C4A052; --gold-deep:#B8860B; --dark:#0A0A0A;
+  --liquid:cubic-bezier(0.16,1,0.3,1);
+  --float-shadow:0 40px 100px rgba(0,0,0,.03),0 8px 32px rgba(0,0,0,.02);
+  --float-shadow-hover:0 40px 100px rgba(0,0,0,.06),0 16px 48px rgba(0,0,0,.04);
+  --float-shadow-sm:0 4px 20px rgba(0,0,0,.04),0 1px 6px rgba(0,0,0,.02);
+  --gold-glow:0 0 40px rgba(184,134,11,.12),0 0 80px rgba(184,134,11,.06);
+  --gold-glow-sm:0 0 20px rgba(184,134,11,.1);
+}
+
+/* ── v3 → v4 COMPATIBILITY SHIM ──
+   v4 changed defaults that the forms (authored against v3 CDN) rely on:
+   - default border color was gray-200, now currentColor → restore it
+   Without this, every bare `border` in the forms changes appearance. */
+@layer base {
+  *, ::before, ::after { border-color: #e5e7eb; }
+  body { font-family: var(--font-sans); font-weight: 300; color: var(--ink);
+         -webkit-font-smoothing: antialiased; background:#FAFBFC; }
+  ::selection { background: var(--gold-deep); color:#fff; }
+}
+
+/* ── LIQUID COMPONENT LAYER (retone the forms' own classes) ──
+   Loaded AFTER each form's inline <style> so it wins on equal specificity.
+   Only visual properties — never layout-critical hooks. */
+
+/* Sidebar nav tabs: blue active → gold */
+.sidebar-tab { transition: all .3s var(--liquid); border-left:3px solid transparent; }
+.sidebar-tab:hover { background:rgba(196,160,82,.05); border-left-color:rgba(196,160,82,.4); }
+.sidebar-tab.active { background:rgba(196,160,82,.08); border-left-color:var(--gold-deep); color:var(--gold-deep); }
+.sidebar-tab .tab-dot { width:8px; height:8px; border-radius:50%; background:#d1d5db; flex-shrink:0; }
+.sidebar-tab.active .tab-dot { background:var(--gold-deep); box-shadow:0 0 0 3px rgba(196,160,82,.2); }
+.sidebar-tab.completed .tab-dot { background:#16a34a; }
+
+/* Sub-tab pills: blue → dark/gold */
+.sub-tab-pill { transition:all .4s var(--liquid); padding:6px 16px; border-radius:9999px;
+  font-size:13px; font-weight:500; white-space:nowrap; cursor:pointer;
+  background:rgba(0,0,0,.04); color:#475569; border:1px solid transparent; }
+.sub-tab-pill:hover { background:rgba(196,160,82,.08); color:var(--gold-deep); }
+.sub-tab-pill.active { background:var(--dark); color:#fff; border-color:var(--dark);
+  box-shadow:0 4px 16px rgba(0,0,0,.12); }
+
+/* Form cards: hard border → glass + float shadow */
+.form-card { background:rgba(255,255,255,.72); backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px); border:1px solid rgba(184,134,11,.06);
+  border-radius:18px; padding:22px; margin-bottom:16px; box-shadow:var(--float-shadow-sm);
+  transition:box-shadow .8s var(--liquid), transform .8s var(--liquid); }
+.form-card:hover { box-shadow:var(--float-shadow); }
+.form-card-header { font-family:var(--font-display); font-size:13px; font-weight:700;
+  color:#374151; text-transform:uppercase; letter-spacing:.06em; padding-bottom:10px;
+  border-bottom:1px solid rgba(0,0,0,.04); margin-bottom:14px; display:flex;
+  align-items:center; gap:8px; }
+.form-card-header i { color:var(--gold-deep); font-size:14px; }
+
+/* Inputs: blue focus → gold glow */
+.field-label { display:block; font-size:13px; font-weight:600; color:#4b5563; margin-bottom:4px; }
+.field-input { width:100%; border:1px solid rgba(0,0,0,.08); border-radius:12px;
+  padding:9px 12px; font-size:14px; font-weight:300; background:#fff;
+  transition:all .3s var(--liquid); box-shadow:0 1px 3px rgba(0,0,0,.02); }
+.field-input:focus { outline:none; border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(196,160,82,.12),0 1px 3px rgba(0,0,0,.02); }
+.field-input[readonly] { background:#f9fafb; }
+
+/* Radio cards: blue → gold */
+.radio-card { border:1px solid rgba(0,0,0,.06); border-radius:12px; padding:8px 12px;
+  transition:all .3s var(--liquid); cursor:pointer; }
+.radio-card:hover { border-color:rgba(196,160,82,.4); background:rgba(196,160,82,.04); }
+.radio-card:has(input:checked) { border-color:var(--gold-deep); background:rgba(196,160,82,.07);
+  box-shadow:var(--gold-glow-sm); }
+
+/* Gold accent on native radios/checkboxes inside form cards */
+.form-card input[type="checkbox"], .form-card input[type="radio"] { accent-color:var(--gold-deep); }
+
+/* Searchable company dropdown: blue → gold */
+.company-dropdown .dd-input { border-radius:12px; border:1px solid rgba(0,0,0,.08);
+  transition:all .3s var(--liquid); }
+.company-dropdown .dd-input:focus { outline:none; border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(196,160,82,.12); }
+.company-dropdown .dd-list { border-radius:14px; border:1px solid rgba(0,0,0,.06);
+  box-shadow:0 16px 48px rgba(0,0,0,.12); backdrop-filter:blur(16px); }
+.company-dropdown .dd-item:hover { background:rgba(196,160,82,.06); color:var(--gold-deep); }
+.company-dropdown .dd-item.selected { background:rgba(196,160,82,.1); color:var(--gold-deep); font-weight:600; }
+
+/* Section collapse chevron */
+.section-collapse .chevron { transition:transform .2s var(--liquid); }
+.section-collapse.collapsed .chevron { transform:rotate(-90deg); }
+.section-collapse.collapsed + .section-body { display:none; }
+
+/* ── BLUE TAILWIND-UTILITY OVERRIDES ──
+   The forms hardcode dozens of blue utilities. Retone to dark/gold so nothing
+   reads "default Tailwind blue". */
+.bg-blue-600, .bg-blue-700 { background-color:var(--dark) !important; }
+.bg-blue-100, .bg-blue-200 { background-color:rgba(196,160,82,.1) !important; }
+.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800, .text-blue-900 { color:var(--gold-deep) !important; }
+.border-blue-200, .border-blue-300, .border-blue-400, .border-blue-500 { border-color:rgba(196,160,82,.3) !important; }
+.ring-blue-300 { --tw-ring-color:rgba(196,160,82,.4) !important; }
+.hover\:bg-blue-700:hover { background-color:#1a1a1a !important; }
+.focus\:ring-blue-300:focus, .focus\:border-blue-500:focus { border-color:var(--gold) !important; }
+
+/* Gold primary buttons already use #B8860B — add liquid hover lift */
+[class*="bg-[#B8860B]"], [class*="bg-[#9A7209]"] {
+  transition:all .5s var(--liquid); box-shadow:0 4px 20px rgba(184,134,11,.2); }
+[class*="bg-[#B8860B]"]:hover, [class*="bg-[#9A7209]"]:hover {
+  transform:translateY(-1px); box-shadow:var(--gold-glow); }
+
+/* Media modal: drop zones → liquid */
+#saleMediaModal .border-dashed, [id$="MediaModal"] .border-dashed {
+  border-color:rgba(184,134,11,.45); border-radius:16px; transition:all .5s var(--liquid); }
+#saleMediaModal .border-dashed:hover, [id$="MediaModal"] .border-dashed:hover {
+  border-color:var(--gold); box-shadow:var(--gold-glow-sm); }
+
+/* Toast already dark — round it to match */
+.toast-notification { border-radius:14px !important; }
