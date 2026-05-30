@@ -44,7 +44,7 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { resolveListingMedia, resolveListingMediaFromRows } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -324,6 +324,7 @@ const LISTING_MEDIA_INCLUDE = {
       order: true,
       preferred_photo_yn: true,
       status: true,
+      media_key: true, // needed to tell CRM-owned rows (crm: prefix) from Trestle rows
     },
   },
 } satisfies Prisma.ListingInclude;
@@ -494,8 +495,14 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     // Fetch media from Trestle when DB has NO photos (only FloorPlans/Videos/empty).
     // DB photos are refreshed during IDX sync — no need to re-fetch on every page load.
+    //
+    // 2026-05-30 hotfix (post-#281): do NOT fall back to a live Trestle fetch
+    // when CRM-owned `listing_media` rows exist (even if all soft-deleted) — the
+    // relational table is authoritative for CRM exclusives, and the fetch would
+    // resurrect deleted CRM photos. IDX/Trestle listings (no CRM rows) keep the
+    // fallback. Gate centralised in shouldFetchTrestleMediaFallback (tested).
     const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
-    const shouldFetchMedia = photoCount === 0;
+    const shouldFetchMedia = shouldFetchTrestleMediaFallback(listingMediaRows, photoCount);
     if (shouldFetchMedia && dbListing.listing_id) {
       try {
         const trestleMedia = await fetchListingMedia(dbListing.listing_id);
