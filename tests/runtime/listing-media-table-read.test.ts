@@ -97,8 +97,10 @@ describe('PR 4 — listing_media reader swap', () => {
         { MediaURL: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100/99/legacy', MediaCategory: 'Photo', Order: 0 },
       ],
       listing_media: [
-        makeRow({ media_url_cached: R2_PHOTO, media_type: 'Photo', order: 0 }),
-        makeRow({ media_url_cached: R2_PHOTO_2, media_type: 'Photo', order: 1 }),
+        // Distinct photos carry distinct source URLs (as every real row does);
+        // identity is original-first, so the originals must differ here too.
+        makeRow({ media_url_cached: R2_PHOTO, media_url_original: R2_PHOTO, media_type: 'Photo', order: 0 }),
+        makeRow({ media_url_cached: R2_PHOTO_2, media_url_original: R2_PHOTO_2, media_type: 'Photo', order: 1 }),
       ],
     });
 

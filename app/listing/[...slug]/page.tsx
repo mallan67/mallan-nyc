@@ -44,7 +44,7 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { resolveListingMedia, resolveListingMediaFromRows } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -270,6 +270,7 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
     if (mediaItems.length > 0) {
       dto.media = resolveListingMedia(mediaItems, { mapUrl: proxyDetailMediaUrl }).map(m => ({
         url: m.url,
+        thumbUrl: m.thumbUrl,
         mediaType: m.mediaType,
         order: m.providerOrder,
       }));
@@ -308,7 +309,12 @@ interface ListingFetchResult {
 // so we don't over-fetch R2 timestamps, retry counters, or audit fields.
 const LISTING_MEDIA_INCLUDE = {
   listing_media: {
-    where: { status: 'active' },
+    // Fetch ALL statuses (the resolver filters to active for display). This
+    // lets the reader distinguish "no rows ever imported" (→ fall back to the
+    // legacy media JSON) from "rows existed but all deleted" (→ authoritative
+    // empty). Filtering to active-only here resurrected soft-deleted CRM media
+    // via the JSON fallback once the last active row was deleted. (Codex media
+    // P0 finding #2.)
     orderBy: [{ order: 'asc' as const }, { id: 'asc' as const }],
     select: {
       media_url_original: true,
@@ -319,6 +325,7 @@ const LISTING_MEDIA_INCLUDE = {
       order: true,
       preferred_photo_yn: true,
       status: true,
+      media_key: true, // needed to tell CRM-owned rows (crm: prefix) from Trestle rows
     },
   },
 } satisfies Prisma.ListingInclude;
@@ -478,19 +485,29 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
     // Widen `mediaType` to string here because the Trestle merge below mixes
     // in rows from `fetchListingMedia` which use the wider type.
-    let mediaArr: { url: string; mediaType: string; order: number }[] = (listingMediaRows.length > 0
+    let mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number }[] = (listingMediaRows.length > 0
       ? resolveListingMediaFromRows(listingMediaRows)
       : resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl })
     ).map(m => ({
       url: m.url,
+      thumbUrl: m.thumbUrl,
       mediaType: m.mediaType as string,
       order: m.providerOrder,
     }));
 
     // Fetch media from Trestle when DB has NO photos (only FloorPlans/Videos/empty).
     // DB photos are refreshed during IDX sync — no need to re-fetch on every page load.
+    //
+    // 2026-05-30 hotfix (post-#281): do NOT fall back to a live Trestle fetch
+    // when CRM-owned `listing_media` rows exist (even if all soft-deleted) — the
+    // relational table is authoritative for CRM exclusives, and the fetch would
+    // resurrect deleted CRM photos. IDX/Trestle listings (no CRM rows) keep the
+    // fallback. Gate centralised in shouldFetchTrestleMediaFallback (tested).
     const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
-    const shouldFetchMedia = photoCount === 0;
+    const shouldFetchMedia = shouldFetchTrestleMediaFallback(listingMediaRows, photoCount, {
+      mlsId: dbListing.mls_id,
+      listingId: dbListing.listing_id,
+    });
     if (shouldFetchMedia && dbListing.listing_id) {
       try {
         const trestleMedia = await fetchListingMedia(dbListing.listing_id);
@@ -579,6 +596,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       media: mediaArr.map(m => ({
         ...m,
         url: m.url ? proxyDetailMediaUrl(m.url) : m.url,
+        thumbUrl: m.thumbUrl ? proxyDetailMediaUrl(m.thumbUrl) : m.thumbUrl,
       })),
       photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
       publicRemarks: String(features.PublicRemarks || compliance.PublicRemarks || ''),
@@ -1149,7 +1167,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const images = listing.media
     .filter((m) => (m.mediaType || '').toLowerCase() === 'photo' || !(m.mediaType))
     .sort((a, b) => a.order - b.order)
-    .map((m) => ({ url: m.url }));
+    .map((m) => ({ url: m.url, thumbUrl: m.thumbUrl }));
   const floorPlanMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'floorplan');
   const floorPlanUrl = floorPlanMedia?.url || null;
   const videoMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'video');

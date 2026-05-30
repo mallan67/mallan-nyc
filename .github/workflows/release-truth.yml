@@ -15,7 +15,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [ready_for_review]
+    # Advisory: posts the release-truth verdict as a commit status on the PR
+    # head SHA (no PR comment / email). opened+synchronize keep it updated.
+    types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
     inputs:
       sha:
@@ -45,9 +47,35 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
+      # Single source of truth for the revision under audit. Resolved BEFORE
+      # checkout so the checkout, the aggregator (--sha), and the published
+      # commit status ALL target the SAME commit:
+      #   pull_request      -> PR head sha (never the synthetic merge ref)
+      #   push              -> github.sha
+      #   workflow_dispatch -> inputs.sha, or the head sha of inputs.pr
+      - name: Resolve target
+        id: target
+        run: |
+          if [ -n "${{ inputs.sha }}" ]; then
+            sha="${{ inputs.sha }}"; args="--sha ${{ inputs.sha }}"; label="SHA ${{ inputs.sha }}"
+          elif [ -n "${{ inputs.pr }}" ]; then
+            sha=$(gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr }}" --jq '.head.sha')
+            args="--pr ${{ inputs.pr }}"; label="PR #${{ inputs.pr }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            sha="${{ github.event.pull_request.head.sha }}"; args="--sha $sha"; label="SHA $sha"
+          else
+            sha="${{ github.sha }}"; args="--sha $sha"; label="SHA $sha"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "args=$args" >> "$GITHUB_OUTPUT"
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # Same revision the verdict is audited + published for (steps.target.sha):
+          # PR head sha on pull_request, github.sha on push, inputs sha/pr otherwise.
+          ref: ${{ steps.target.outputs.sha }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -58,20 +86,6 @@ jobs:
 
       - name: npm ci
         run: npm ci
-
-      - name: Resolve target
-        id: target
-        run: |
-          if [ -n "${{ inputs.pr }}" ]; then
-            echo "args=--pr ${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
-            echo "label=PR #${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ inputs.sha }}" ]; then
-            echo "args=--sha ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
-            echo "label=SHA ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "args=--sha ${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "label=SHA ${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Run release-truth aggregator
         id: aggregator
@@ -90,7 +104,12 @@ jobs:
           exit 0  # Don't fail the workflow itself; the commit status carries the verdict
 
       - name: Post commit status
-        if: github.event_name == 'push'
+        # Posts the advisory release-truth verdict as a commit status
+        # (context "release-truth") on BOTH push (github.sha) and pull_request
+        # (the PR HEAD sha, so it is visible ON the PR). No PR comment / email.
+        # The workflow never fails on the verdict — the aggregator exits 0; this
+        # step only sets a status (PARTIAL/UNVERIFIED => pending, advisory).
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         run: |
           state="success"
           case "${{ steps.aggregator.outputs.verdict }}" in
@@ -98,14 +117,18 @@ jobs:
             PARTIAL|UNVERIFIED) state="pending" ;;
             DEPLOY_INVALID|REGRESSION|CLAIM_OVERSTATED) state="failure" ;;
           esac
-          gh api -X POST "repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+          gh api -X POST "repos/${{ github.repository }}/statuses/${{ steps.target.outputs.sha }}" \
             -f state="$state" \
             -f context="release-truth" \
             -f description="${{ steps.aggregator.outputs.verdict }}: $(echo '${{ steps.aggregator.outputs.reasons }}' | head -c 130)" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
+        # DISABLED (anti-spam, per the PR #266 Sentinel precedent): the Release-Truth
+        # verdict still posts as a commit status + Job Summary — no PR comment / email.
+        # Step preserved for a one-line re-enable: flip back to
+        # `github.event_name == 'pull_request'`.
+        if: ${{ false }}
         run: |
           cat > /tmp/comment.md <<EOF
           ## Release Truth Audit — ${{ steps.target.outputs.label }}
