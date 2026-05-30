@@ -71,8 +71,11 @@ jobs:
             echo "args=--sha ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
             echo "label=SHA ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
           else
-            echo "args=--sha ${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "label=SHA ${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            # On pull_request, audit the PR HEAD sha — the SAME sha the commit
+            # status is posted to (keeps audit SHA == status SHA). On push: github.sha.
+            audit_sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+            echo "args=--sha $audit_sha" >> "$GITHUB_OUTPUT"
+            echo "label=SHA $audit_sha" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run release-truth aggregator
