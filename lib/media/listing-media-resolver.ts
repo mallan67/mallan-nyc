@@ -306,3 +306,30 @@ export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): Resol
     .filter((x): x is NonNullable<typeof x> => x !== null);
   return resolveListingMedia(items);
 }
+
+/**
+ * Whether the detail page may fall back to a LIVE Trestle media fetch
+ * (`fetchListingMedia`) when the relational rows resolve to zero photos.
+ *
+ * It must NOT fall back when CRM-owned media rows exist for the listing — even
+ * if every one is soft-deleted. The `listing_media` table is authoritative for
+ * CRM exclusives, so a live Trestle fetch would RESURRECT deleted CRM photos
+ * (the second resurrection path Codex found after PR #281). IDX/Trestle
+ * listings (Trestle-synced rows, or no rows at all) keep the fallback so a
+ * stale or photo-less DB row can still surface live Trestle photos.
+ *
+ * CRM rows are identified by the `crm:` media_key namespace (crm-media.ts).
+ *
+ * @param rows       listing_media rows fetched alongside the listing (any status)
+ * @param photoCount number of resolved Photo items already in hand
+ */
+export function shouldFetchTrestleMediaFallback(
+  rows: ReadonlyArray<{ media_key?: string | null }>,
+  photoCount: number,
+): boolean {
+  if (photoCount > 0) return false;
+  const hasCrmRows =
+    Array.isArray(rows) &&
+    rows.some((r) => typeof r?.media_key === 'string' && r.media_key.startsWith('crm:'));
+  return !hasCrmRows;
+}

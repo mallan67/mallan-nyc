@@ -22,7 +22,7 @@ import {
   importJsonMediaToRows,
   type LegacyMediaItem,
 } from '@/lib/media/crm-media';
-import { resolveListingMediaFromRows, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
+import { resolveListingMediaFromRows, shouldFetchTrestleMediaFallback, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
 import { dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 
 const ROOT = process.cwd();
@@ -328,5 +328,67 @@ describe('CRM media P0 — Codex follow-up hotfix', () => {
   // ── Migration script remains dry-run by default ──
   it('migration script stays dry-run by default (--apply gated)', () => {
     expect(migrationScript).toMatch(/const APPLY\s*=\s*process\.argv\.includes\(["']--apply["']\)/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Post-#281 hotfix — close the SECOND resurrection path (Codex): when all CRM
+// listing_media rows are soft-deleted, the detail page's photoCount===0 branch
+// called fetchListingMedia(listing_id) and live Trestle/Cotality photos could
+// reappear. The relational table is authoritative for CRM exclusives — no
+// Trestle fallback when CRM rows exist (even if all deleted). IDX listings
+// (Trestle rows / no rows) keep the fallback.
+// ════════════════════════════════════════════════════════════════════════════
+describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 hotfix)', () => {
+  const detailPage = read('app/listing/[...slug]/page.tsx');
+  const crmRow = (over: Record<string, unknown> = {}) => ({
+    media_key: 'crm:SL-0004:abc', media_url_original: 'https://r2.dev/a.webp',
+    media_url_cached: 'https://r2.dev/a-card.webp', media_type: 'Photo',
+    media_category: 'Photo', media_classification: null, order: 0,
+    preferred_photo_yn: false, status: 'active', ...over,
+  });
+  const trestleRow = (over: Record<string, unknown> = {}) =>
+    crmRow({ media_key: 'RLS20093870-1', ...over });
+
+  // 1. Only soft-deleted CRM rows → resolver [] AND fallback suppressed.
+  it('only soft-deleted CRM rows → resolver returns [] and Trestle fallback is suppressed', () => {
+    const rows = [crmRow({ status: 'deleted' }), crmRow({ media_key: 'crm:SL-0004:def', status: 'deleted', order: 1 })];
+    expect(resolveListingMediaFromRows(rows as unknown as ListingMediaTableRow[])).toEqual([]);
+    expect(shouldFetchTrestleMediaFallback(rows, /*photoCount*/ 0)).toBe(false);
+  });
+
+  // 2. Active CRM rows → photoCount>0 → no fallback.
+  it('active CRM rows → no Trestle fallback (photoCount>0)', () => {
+    expect(shouldFetchTrestleMediaFallback([crmRow()], /*photoCount*/ 3)).toBe(false);
+  });
+
+  // 3. No listing_media rows at all → fallback still allowed (un-synced / pure IDX).
+  it('no listing_media rows → Trestle fallback remains allowed', () => {
+    expect(shouldFetchTrestleMediaFallback([], 0)).toBe(true);
+  });
+
+  // 4. CRM exclusive with imported-then-deleted rows, active set empty → table authoritative.
+  it('CRM exclusive, rows exist but active set empty → fallback suppressed (table authoritative)', () => {
+    const rows = [crmRow({ status: 'deleted' }), crmRow({ media_key: 'crm:SL-0004:ghi', status: 'replaced', order: 1 })];
+    expect(shouldFetchTrestleMediaFallback(rows, 0)).toBe(false);
+  });
+
+  // 5. Trestle/IDX listing (non-crm rows), no photos resolved → fallback unaffected.
+  it('Trestle/IDX listing (non-crm rows) with 0 photos → fallback still allowed (no regression)', () => {
+    expect(shouldFetchTrestleMediaFallback([trestleRow({ media_type: 'FloorPlan' })], 0)).toBe(true);
+  });
+
+  it('Trestle/IDX listing with NO rows + 0 photos → fallback allowed', () => {
+    expect(shouldFetchTrestleMediaFallback([], 0)).toBe(true);
+  });
+
+  // ── Wiring: detail page uses the gate + selects media_key ──
+  it('detail page gates the Trestle fallback via shouldFetchTrestleMediaFallback', () => {
+    expect(detailPage).toMatch(/shouldFetchTrestleMediaFallback\(listingMediaRows,\s*photoCount\)/);
+    expect(detailPage).not.toMatch(/const shouldFetchMedia\s*=\s*photoCount === 0;/); // old unconditional gate gone
+  });
+
+  it('detail page LISTING_MEDIA_INCLUDE selects media_key (to detect crm: rows)', () => {
+    expect(detailPage).toMatch(/media_key:\s*true/);
   });
 });
