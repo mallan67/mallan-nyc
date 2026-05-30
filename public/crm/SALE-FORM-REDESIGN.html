@@ -7036,7 +7036,10 @@ function collectSaleFormData() {
     data.SubdivisionName = data.saleBldgNeighborhood || data.saleNeighborhoodFromAddress || '';
     data.StateOrProvince = data.saleStateOrProvince || 'NY';
     data.PostalCode = data.saleZipCode || '';
-    data.UnParsedAddress = data.saleUnparsedAddress || '';
+    // A1 (Cotality-clean 2026-05-30): emit canonical lowercase-p `UnparsedAddress`
+    // (the live Cotality field). Legacy capital-P rows reload via SALE_FIELD_MAP
+    // fallbackRls; the normalizer aliases any capital-P payload back to lowercase.
+    data.UnparsedAddress = data.saleUnparsedAddress || '';
     data.PublicRemarks = data.saleDescription || '';
     data.PrivateRemarks = data.saleBrokerComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
@@ -8741,7 +8744,7 @@ var SALE_FIELD_MAP = [
   { rls: 'PostalCity', form: 'salePostalCity', type: 'text', src: 'addr' },
   { rls: 'CountyOrParish', form: 'saleCountyOrParish', type: 'text', src: 'addr' },
   { rls: 'SubdivisionName', form: 'saleBldgNeighborhood', type: 'text', src: 'raw' },
-  { rls: 'UnParsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr' },
+  { rls: 'UnparsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr', fallbackRls: 'UnParsedAddress' },
 
   // ── Unit Details ──
   { rls: 'ListPrice', form: 'salePrice', type: 'number', src: 'listing', listingKey: 'list_price' },

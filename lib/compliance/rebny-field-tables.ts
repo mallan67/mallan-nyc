@@ -59,7 +59,10 @@ export const REBNY_FIELD_TABLES = {
       'PostalCity',
       'CountyOrParish',
       'SubdivisionName',
-      'UnParsedAddress',
+      // A1 (Cotality-clean 2026-05-30): live Cotality field is `UnparsedAddress`
+      // (lowercase p). `UnParsedAddress` (capital P) was a stale spelling; it is
+      // now a legacy alias only. All readers (slug/DTO/validator) use lowercase.
+      'UnparsedAddress',
 
       // Building info
       // AttendanceType / BuildingLaundryFeatures / BuildingPetsAllowed reclassified
@@ -87,7 +90,12 @@ export const REBNY_FIELD_TABLES = {
       // Unit info
       'BathroomsFull',
       'BathroomsHalf',
-      'BathroomsTotal',
+      // A3 (Cotality-clean 2026-05-30): the Cotality field is BathroomsTotalInteger
+      // (Int32); the form computes a half-weighted DECIMAL total (Mallan-internal
+      // display value), not that integer. The bathroom count is already covered by
+      // mandatory BathroomsFull/BathroomsHalf, so internal BathroomsTotal is not
+      // mandatory (phantom names can't be mandatory). It still flows to features
+      // for the validator/display calc.
       'BedroomsTotal',
       'RoomsTotal',
 
@@ -255,9 +263,9 @@ export const REBNY_FIELD_TABLES = {
     cityRegion: 'CityRegion',           // camelCase variant
     Neighborhood: 'SubdivisionName',    // Common name → RLS canonical
     neighborhood: 'SubdivisionName',    // camelCase variant
-    UnparsedAddress: 'UnParsedAddress',  // lowercase-p variant → RLS canonical (capital P)
-    unparsedAddress: 'UnParsedAddress',
-    address: 'UnParsedAddress',
+    UnParsedAddress: 'UnparsedAddress',  // A1: legacy capital-P → canonical Cotality UnparsedAddress (lowercase p, live $metadata)
+    unparsedAddress: 'UnparsedAddress',
+    address: 'UnparsedAddress',
     streetName: 'StreetName',
     streetNumber: 'StreetNumber',
     unit: 'UnitNumber',
@@ -1008,7 +1016,7 @@ export const REBNY_FIELD_TABLES = {
     PostalCode: { address: true, db: 'postal_code', raw: true },
     PostalCity: { address: true, raw: true },
     CountyOrParish: { address: true, raw: true },
-    UnParsedAddress: { address: true, raw: true },
+    UnparsedAddress: { address: true, raw: true }, // A1: canonical Cotality key (lowercase p); legacy UnParsedAddress normalizes here via aliasToCanonical
     BuildingName: { address: true, raw: true },
 
     // ── Content → features bucket ──
