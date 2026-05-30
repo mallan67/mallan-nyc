@@ -5327,6 +5327,14 @@ function populateBuildingFromIDX(prefix, building) {
         if (b !== null && b !== undefined && b !== '') return b;
         return null;
     };
+    // Split a Cotality Multi-enum value into REAL members, dropping empties and
+    // the no-value sentinels "None" / "BuildingNone". Cotality uses both as
+    // explicit no-values (e.g. LaundryFeatures has None AND BuildingNone), so a
+    // multi of only those must NOT count as a real selection. (Codex #297.)
+    const multiMembers = (val) => String(val == null ? '' : val)
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => { const l = s.toLowerCase(); return s && l !== 'none' && l !== 'buildingnone'; });
 
     // ── 1. Address atoms (NEVER drop StreetDirPrefix) ─────────────────
     setVal(prefix + 'BldgStreetAddress', building.address);
@@ -5439,14 +5447,23 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 6. Subletting / pet / Wd policy ──────────────────────────────
     checkIf(prefix + 'BldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
-    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed'));
+    // "Washer/Dryer Allowed" is the IN-UNIT W/D install/hookup policy — NOT mere
+    // laundry availability. Only LaundryFeatures members that actually imply
+    // in-unit W/D (install-allowed / hookups / in-unit units) flip it; building/
+    // shared members (CommonArea, CoinOperated, InBasement, …) must NOT. (Codex #297)
+    var _wdAllowMembers = ['WasherDryerInstallAllowed', 'BuildingWasherDryerInstallAllowed',
+        'WasherHookup', 'DryerHookup', 'ElectricDryerHookup', 'GasDryerHookup', 'PropaneDryerHookup',
+        'InUnit', 'EnSuiteLaundry', 'Stacked'];
+    var _wdAllowed = multiMembers(pick('laundry_features', 'laundryFeatures'))
+        .some(function (m) { return _wdAllowMembers.indexOf(m) !== -1; });
+    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || _wdAllowed);
 
     // ── 7. Amenity checkboxes (every BuildingFeatures-derived flag) ─
     checkIf(prefix + 'BldgDoorman', building.doorman);
     checkIf(prefix + 'BldgElevator', building.elevator);
     checkIf(prefix + 'BldgGym', building.gym);
     checkIf(prefix + 'BldgPool', building.pool);
-    checkIf(prefix + 'BldgParking', building.parking);
+    checkIf(prefix + 'BldgParking', building.parking || pick('garage_yn', 'garageYN') || pick('attached_garage_yn', 'attachedGarageYN')); // GarageYN/AttachedGarageYN real Cotality (Track 1)
     checkIf(prefix + 'BldgConcierge', building.concierge);
     checkIf(prefix + 'BldgSpa', pick('spa', 'spa'));
     checkIf(prefix + 'BldgRoofDeck', pick('roof_deck', 'roofDeck'));
@@ -5468,6 +5485,63 @@ function populateBuildingFromIDX(prefix, building) {
     if (building.laundry) {
         const lCb = document.querySelector('.sale-laundry-cb[value="CommonArea"]');
         if (lCb) lCb.checked = true;
+    }
+
+    // ── 8. Parking spaces — OpenParkingSpaces / GarageSpaces / CoveredSpaces
+    //    (all real Cotality, Track 1). Only-when-empty so an agent value is
+    //    never overwritten — Maya can always override on the form. ──
+    const _parkSpaces = pick('open_parking_spaces', 'openParkingSpaces')
+        || pick('garage_spaces', 'garageSpaces')
+        || pick('covered_spaces', 'coveredSpaces');
+    const _parkEl = document.getElementById(prefix + 'BldgParkingSpaces');
+    if (_parkEl && !(_parkEl.value || '').trim() && _parkSpaces !== null && _parkSpaces !== undefined && _parkSpaces !== '') {
+        _parkEl.value = _parkSpaces;
+    }
+
+    // ── 9. Multi-enum checkbox groups — SUGGESTION ONLY, override-safe ──
+    // Fill a checkbox group from a Cotality Multi value ONLY when the agent has
+    // not selected anything in it yet. A lookup never overwrites the agent's
+    // choices, and (per Maya) every value stays fully editable afterwards — so
+    // if Cotality rules change, the agent can always override.
+    const fillGroupIfEmpty = (groupName, cotalityMulti, mapValue) => {
+        const cbs = document.querySelectorAll('input[name="' + groupName + '"]');
+        if (!cbs.length || !cotalityMulti) return;
+        let anyChecked = false;
+        cbs.forEach(function (cb) { if (cb.checked) anyChecked = true; });
+        if (anyChecked) return; // agent already chose — do NOT override
+        // multiMembers drops empties + the "None" sentinel, so a "None"-only
+        // Cotality value selects nothing. (Codex #297)
+        const members = multiMembers(cotalityMulti).map(mapValue).filter(Boolean);
+        if (!members.length) return;
+        cbs.forEach(function (cb) { if (members.indexOf(cb.value) !== -1) cb.checked = true; });
+    };
+
+    // Documents Available — real Cotality DocumentsAvailable (Multi); the form's
+    // checkbox values mirror the Cotality members 1:1.
+    fillGroupIfEmpty('saleBldgDocsAvailable', pick('documents_available', 'documentsAvailable'), function (m) { return m; });
+
+    // Pets — UNIT-level Cotality PetsAllowed (NOT building-wide authority): a
+    // building lookup only SUGGESTS the unit pet policy, applied when the agent
+    // left it empty. EXPLICIT Cotality→form map (no guessing): live $metadata
+    // members use "Ok" casing (CatsOk/DogsOk) while the form checkboxes use
+    // "OK" (UnitCatsOK/UnitDogsOK), so a naive 'Unit'+member would silently
+    // miss. Members the form has no checkbox for (BirdsOk, Building*, …) map to
+    // '' and are ignored. PetsAllowedYN true/false → Yes/No. (Codex #297.)
+    const PET_COTALITY_TO_FORM = {
+        Yes: 'UnitYes', No: 'UnitNo',
+        CatsOk: 'UnitCatsOK', DogsOk: 'UnitDogsOK',
+        BreedRestrictions: 'UnitBreedRestrictions',
+        SizeLimit: 'UnitSizeLimit', NumberLimit: 'UnitNumberLimit',
+    };
+    const mapPet = function (m) { return PET_COTALITY_TO_FORM[m] || ''; };
+    const _petsMulti = pick('pets_allowed', 'petsAllowed');
+    if (_petsMulti) {
+        fillGroupIfEmpty('salePetsAllowed', _petsMulti, mapPet);
+    } else {
+        const _petsYN = pick('pets_allowed_yn', 'petsAllowedYN');
+        if (_petsYN === true || _petsYN === false) {
+            fillGroupIfEmpty('salePetsAllowed', _petsYN === true ? 'Yes' : 'No', mapPet);
+        }
     }
 
     // NOTE: this function intentionally does NOT touch UnitNumber/Apt fields.

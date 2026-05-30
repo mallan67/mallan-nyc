@@ -104,12 +104,13 @@ describe('populateBuildingFromIDX fills all building fields', () => {
   // to set 32+ Cotality-derivable fields. The original 2000-char window
   // truncated the body before BldgYearBuilt/BldgTotalFloors/etc., causing
   // false-negative test failures while the function actually set them.
-  // Bumped to 9500 on 2026-05-30 (Track 1): the AssociationFee/Frequency
-  // auto-fill block pushed the amenity checks (BldgDoorman/BldgElevator/…)
-  // past the 8000-char window — the function still sets them, the slice was
-  // just truncating. If this function grows again, bump the window, do not
-  // weaken the assertions.
-  const fnBody = formHtml.slice(fnStart, fnStart + 9500);
+  // Bumped 8000→9500→12000 across Track 1 (2026-05-30): the AssociationFee,
+  // parking/pets/docs auto-fill, multiMembers helper, and the in-unit-W/D
+  // laundry allowlist all grew populateBuildingFromIDX, pushing the amenity
+  // checks (BldgDoorman/BldgElevator/…) past the window. The function still
+  // sets them — the slice was just truncating. If this function grows again,
+  // bump the window; do NOT weaken the assertions.
+  const fnBody = formHtml.slice(fnStart, fnStart + 12000);
 
   it('sets BldgStreetAddress', () => {
     expect(fnBody).toContain("prefix + 'BldgStreetAddress'");
