@@ -539,9 +539,12 @@ function validateNYCSpecific(listing: ListingData): {
       Object.values(nycBoroughs).some((b) => b.county === county);
 
     if (isNYC) {
-      // Validate BuildingTaxLot is present
-      if (!listing.BuildingTaxLot && !listing.buildingTaxLot) {
-        errors.push('[NYC] BuildingTaxLot is required for NYC properties');
+      // Validate tax lot is present. H1 (2026-05-30): the canonical Cotality
+      // field is TaxLot (BuildingTaxLot is a phantom — absent from live
+      // $metadata). Accept canonical TaxLot first; keep BuildingTaxLot /
+      // buildingTaxLot as legacy fallback so already-saved rows still validate.
+      if (!listing.TaxLot && !listing.BuildingTaxLot && !listing.buildingTaxLot) {
+        errors.push('[NYC] TaxLot is required for NYC properties');
       }
 
       // Validate county matches borough

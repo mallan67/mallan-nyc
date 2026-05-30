@@ -63,7 +63,13 @@ export const REBNY_FIELD_TABLES = {
       'BuildingLaundryFeatures',
       'BuildingPetsAllowed',
       'PetsAllowed',
-      'BuildingTaxLot',
+      // H1 (2026-05-30): TaxLot is the live Cotality field; BuildingTaxLot is a
+      // PHANTOM (absent from live $metadata). The sales form emits canonical
+      // TaxLot (audit F2) — the mandatory list must require TaxLot, not the
+      // phantom, or an rls-eligible residential POST 422s even with a filled
+      // tax lot. Legacy raw_data.BuildingTaxLot still reloads via SALE_FIELD_MAP
+      // fallbackRls; it is NOT the mandatory authority.
+      'TaxLot',
       'TaxBlock',
       'ElevatorsTotal',
       'GarageYN',
@@ -1056,7 +1062,7 @@ export const REBNY_FIELD_TABLES = {
     BuildingPetsAllowedComments: { features: true, raw: true },
     PetsAllowed: { features: true, raw: true },
     PetsAllowedComments: { features: true, raw: true },
-    BuildingTaxLot: { features: true, raw: true },
+    BuildingTaxLot: { features: true, raw: true }, // LEGACY/compatibility only — canonical Cotality field is TaxLot (below). Routes old raw_data.BuildingTaxLot on reload; NOT mandatory authority (see requiredFields H1 note).
     TaxBlock: { features: true, raw: true },
     TaxLot: { features: true, raw: true },
     ElevatorsTotal: { features: true, raw: true },
