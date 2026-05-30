@@ -107,6 +107,16 @@ type Rule = {
   requireNearWindow?: number;
   /** Override default ±20-line exclusion window. */
   exclusionWindow?: number;
+  // v2 actionable-explanation fields. When set, buildError emits them on the
+  // finding so it satisfies the 16-field schema (system, layer enum, why,
+  // expected, false-positive guard, confidence, related surfaces).
+  system?: System;
+  findingLayer?: FindingLayer;
+  whyThisIsAnError?: string;
+  expectedBehavior?: string;
+  falsePositiveGuard?: string;
+  confidence?: Confidence;
+  relatedSurfaces?: string[];
 };
 
 const HOT_PATHS = [
@@ -170,7 +180,7 @@ const CATALOG: ErrorCatalogEntry[] = [
   ...range('S-PUBSEARCH', 1, 13, 'Public listing search', 'Public search', 'PUBLIC_SEARCH'),
   ...range('S-BACKSEARCH', 1, 18, 'Agent/Broker Backend Search', 'Backend CRM search', 'BACKEND_SEARCH'),
   ...range('S-SUGGEST', 1, 8, 'Suggest/autocomplete', 'Suggest/autocomplete', 'PUBLIC_SEARCH'),
-  ...range('S-BUILDING', 1, 8, 'Building/address search', 'Building/address search'),
+  ...range('S-BUILDING', 1, 11, 'Building/address search', 'Building/address search'),
   ...range('S-SAVED', 1, 12, 'Saved searches', 'Saved searches', 'BACKEND_SEARCH'),
   ...range('S-EMAIL', 1, 9, 'Listing emails / alerts', 'Listing alerts/emails'),
   ...range('S-REPORT', 1, 10, 'Reports / CMA / market reports', 'Reports / CMA / market reports'),
@@ -469,6 +479,71 @@ const RULES: Rule[] = [
     requiredFix: 'Gate address-based URL/metadata generation on InternetAddressDisplayYN (or the gated canonical builder) and fall back to an id-only URL when the address is suppressed.',
     proofRequired: 'Suppressed-address fixture renders ID-only canonical URL and does not leak address in sitemap, metadata, cards, or emails.',
   },
+  // ── A. BUILDING_AUTOFILL ────────────────────────────────────────────────
+  {
+    code: 'S-BUILDING-009',
+    severity: 'P1',
+    filePattern: /public\/crm\/(?:SALE|RENTAL)-FORM-REDESIGN\.html|app\/api\/buildings\/.*route\.ts$/,
+    pattern: /fetchBuildingsFromAPI[\s\S]{0,300}\.map\(\s*\(?(\w+)\)?\s*=>\s*\(?\{/,
+    excludeIfNear: /\.\.\.\s*\w|Object\.assign\(/,
+    exclusionWindow: 8,
+    failingPattern: 'fetchBuildingsFromAPI maps API results into a hand-picked subset object (no spread/Object.assign of the raw row).',
+    actualFailure: 'fetchBuildingsFromAPI rebuilds each building into a lossy subset, so the cache feeding both the main-address and Building-tab paths drops raw Cotality fields (tax_block, association_*, stories_total, structure_type, neighborhood). populateBuildingFromIDX then finds them missing and auto-populate silently leaves those fields blank.',
+    impact: 'Building auto-populate fills only a handful of fields; the broker must retype the rest, and a missing neighborhood cascades into validation/display failures.',
+    requiredFix: 'Preserve the full raw API object (spread `...b` / Object.assign) and only override display + camelCase alias fields, so populateBuildingFromIDX can pick the full snake_case Cotality shape.',
+    proofRequired: 'tests/runtime/cotality-building-autopopulate.test.ts asserts tax_block/stories_total/structure_type/neighborhood survive fetchBuildingsFromAPI; selecting a building populates all Cotality-derivable fields.',
+    system: 'BUILDING_AUTOFILL',
+    findingLayer: 'data',
+    whyThisIsAnError: 'Mallan CRM workflow + Cotality contract: populateBuildingFromIDX reads the full snake_case Cotality shape via pick(); dropping fields in the API normalizer before it runs means the broker cannot complete a listing from Cotality data (Maya: "the building has to auto populate").',
+    expectedBehavior: 'fetchBuildingsFromAPI returns every API field for both the main-address and Building-tab caches; only display/alias fields are added on top.',
+    falsePositiveGuard: 'Do not flag a normalizer that spreads the raw row (`...b`) or uses Object.assign({}, b, {...}); adding alias/display fields on top of the preserved object is safe.',
+    confidence: { level: 'high', reason: 'This exact lossy-subset shape was the PR #278 regression that dropped Cotality fields before populateBuildingFromIDX.' },
+    relatedSurfaces: ['BUILDING_AUTOFILL', 'SALES_FORM', '/api/buildings/search'],
+  },
+  {
+    code: 'S-BUILDING-010',
+    severity: 'P1',
+    filePattern: /public\/crm\/(?:SALE|RENTAL)-FORM-REDESIGN\.html$/,
+    pattern: /(?:buildingDatabase|buildingCache|cachedBuildings)\b[\s\S]{0,120}\.filter\(/,
+    requireNear: /searchBuilding|BuildingTab|buildingSearch|selectBuildingForModal|building.?modal/i,
+    requireNearWindow: 12,
+    excludeIfNear: /fetch\([^)]*\/api\/buildings\/search/,
+    exclusionWindow: 12,
+    failingPattern: 'Building-tab search filters the in-memory building cache with no /api/buildings/search fallback.',
+    actualFailure: 'The Building-tab search only filters the in-memory buildingDatabase cache. When the building is not already cached (cache empty/stale), the search returns no matches and auto-populate never runs, so the broker cannot select the building.',
+    impact: 'Buildings outside the warm cache are unsearchable from the Building tab; the broker sees "no match" for real buildings.',
+    requiredFix: 'When the cache is empty/stale, call /api/buildings/search as an independent fallback (as the main-address path does) and show a no-match message only after the API returns nothing.',
+    proofRequired: 'Building-tab search test: with an empty cache, querying a building calls /api/buildings/search and returns results; a cache miss no longer yields a false "no match".',
+    system: 'BUILDING_AUTOFILL',
+    findingLayer: 'frontend',
+    whyThisIsAnError: 'Mallan CRM workflow: the Building tab and main-address path must both reach Cotality; a cache-only tab makes listing creation depend on whether a building was previously loaded — non-deterministic and broker-blocking.',
+    expectedBehavior: 'Building-tab search uses the cache when warm and falls back to /api/buildings/search when empty/stale; both paths feed populateBuildingFromIDX.',
+    falsePositiveGuard: 'Do not flag a Building-tab search that already calls /api/buildings/search (within the same handler) when the cache is empty.',
+    confidence: { level: 'medium', reason: 'Cache-only filtering is the PR #277 Building-tab shape; medium because some cache filters are backed by a separate prefetch.' },
+    relatedSurfaces: ['BUILDING_AUTOFILL', 'SALES_FORM', '/api/buildings/search'],
+  },
+  {
+    code: 'S-BUILDING-011',
+    severity: 'P1',
+    filePattern: /public\/crm\/(?:SALE|RENTAL)-FORM-REDESIGN\.html$/,
+    pattern: /(?:saleUnitNumber|rentalUnitNumber)['"]\s*\)\s*\.value\s*=\s*(?:building|bldg|b|idx)\b/,
+    requireNear: /populateBuildingFromIDX|building.?populate|selectBuilding|selectBuildingForModal/i,
+    requireNearWindow: 12,
+    excludeIfNear: /if\s*\(\s*!\s*\w*[Uu]nit\w*(?:El)?\.value\s*\)/,
+    exclusionWindow: 6,
+    failingPattern: 'Building populate assigns the building unit into the listing UnitNumber field with no preserve-user-unit guard.',
+    actualFailure: 'Selecting a building overwrites the user-entered UnitNumber with the building record’s unit (often blank or a different unit), so the broker’s typed apartment number is lost the moment they pick the building.',
+    impact: 'The unit number silently changes/clears on building select, producing a wrong listing address and RealPlus URL.',
+    requiredFix: 'Preserve a user-entered UnitNumber on building populate (only set it when the field is empty), since the unit belongs to the listing, not the building.',
+    proofRequired: 'Building-select test: a pre-typed unit (e.g. 2G) survives selecting the building; only an empty unit is filled from building data.',
+    system: 'BUILDING_AUTOFILL',
+    findingLayer: 'frontend',
+    whyThisIsAnError: 'Data integrity + Mallan CRM workflow: UnitNumber is listing-scoped, not building-scoped; the building record cannot know the unit, so overwriting it corrupts the address that search, canonical URL, and dashboard matching depend on.',
+    expectedBehavior: 'Building populate fills building-scoped fields and leaves a non-empty user UnitNumber untouched.',
+    falsePositiveGuard: 'Do not flag an assignment guarded by an empty-check (e.g. `if (!unitEl.value) unitEl.value = ...`) that only fills a blank unit.',
+    confidence: { level: 'medium', reason: 'Direct assignment to the unit field inside a building-populate context is the clobber shape; medium because some flows intentionally clear a stale unit on a new building.' },
+    relatedSurfaces: ['BUILDING_AUTOFILL', 'SALES_FORM', 'CANONICAL_URL'],
+  },
 ];
 
 export const SENTINEL_L_CONTRACT = {
@@ -596,7 +671,7 @@ function buildError(rule: Rule, file: string, source: string): SentinelLError {
     code: rule.code,
     category: entry.category,
     severity: rule.severity,
-    layer: entry.layer,
+    layer: rule.findingLayer ?? entry.layer,
     file,
     line: lineNumber(source, rule.lineHint ?? rule.pattern),
     actualFailure: rule.actualFailure,
@@ -609,6 +684,12 @@ function buildError(rule: Rule, file: string, source: string): SentinelLError {
     'required fix': rule.requiredFix,
     'proof required': rule.proofRequired,
     ...(entry.searchSystem ? { searchSystem: entry.searchSystem } : {}),
+    ...(rule.system ? { system: rule.system } : {}),
+    ...(rule.whyThisIsAnError ? { whyThisIsAnError: rule.whyThisIsAnError } : {}),
+    ...(rule.expectedBehavior ? { expectedBehavior: rule.expectedBehavior } : {}),
+    ...(rule.falsePositiveGuard ? { falsePositiveGuard: rule.falsePositiveGuard } : {}),
+    ...(rule.confidence ? { confidence: rule.confidence } : {}),
+    ...(rule.relatedSurfaces ? { relatedSurfaces: rule.relatedSurfaces } : {}),
   };
 }
 

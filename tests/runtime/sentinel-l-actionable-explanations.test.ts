@@ -139,3 +139,110 @@ describe('Sentinel-L v2 — C. COTALITY_CONTRACT — $select field absent from $
     expect(find(out, 'S-COTALITY-001')).toBeUndefined();
   });
 });
+
+describe('Sentinel-L v2 — A. BUILDING_AUTOFILL', () => {
+  // S-BUILDING-009 — lossy fetchBuildingsFromAPI normalization (PR #278). The
+  // function rebuilt each result into a hand-picked subset; the cache feeding
+  // both selectBuildingFromIDX (main address) and the Building tab was that
+  // subset, so populateBuildingFromIDX (reads the full snake_case shape via
+  // pick()) found tax_block, association_*, stories_total, structure_type,
+  // etc. missing — silently unpopulated.
+  const lossySource = [
+    'async function fetchBuildingsFromAPI(q) {',
+    "  const res = await fetch('/api/buildings/search?q=' + q);",
+    '  const json = await res.json();',
+    '  buildingDatabase = json.results.map((b) => ({',
+    '    address: b.address,',
+    '    name: b.building_name,',
+    '  }));',
+    '  return buildingDatabase;',
+    '}',
+  ].join('\n');
+  const spreadSource = [
+    'async function fetchBuildingsFromAPI(q) {',
+    "  const res = await fetch('/api/buildings/search?q=' + q);",
+    '  const json = await res.json();',
+    '  buildingDatabase = json.results.map((b) => Object.assign({}, b, {',
+    '    displayAddress: formatAddress(b),',
+    '  }));',
+    '  return buildingDatabase;',
+    '}',
+  ].join('\n');
+
+  test('flags lossy fetchBuildingsFromAPI that rebuilds a subset without preserving raw Cotality fields (S-BUILDING-009)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', lossySource);
+    const hit = find(out, 'S-BUILDING-009');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('BUILDING_AUTOFILL');
+    expect(hit!.actualFailure).toMatch(/drop|populate|field/i);
+    expect(hit!.whyThisIsAnError).toMatch(/Cotality|populateBuildingFromIDX|snake_case|pick/i);
+  });
+
+  test('does NOT flag fetchBuildingsFromAPI that preserves the raw object (spread/Object.assign) (false-positive guard)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', spreadSource);
+    expect(find(out, 'S-BUILDING-009')).toBeUndefined();
+  });
+
+  // S-BUILDING-010 — Building-tab search cache-only (PR #277). The Building tab
+  // only filtered the in-memory buildingDatabase and never called the API when
+  // the cache was empty/stale, so a building that was not already cached
+  // returned no matches and auto-populate never ran.
+  const cacheOnly = [
+    'function searchBuildingTab(q) {',
+    '  const results = buildingDatabase.filter((b) => b.name.includes(q));',
+    '  renderBuildingResults(results);',
+    '}',
+  ].join('\n');
+  const cacheWithFallback = [
+    'async function searchBuildingTab(q) {',
+    '  let results = buildingDatabase.filter((b) => b.name.includes(q));',
+    '  if (!results.length) {',
+    "    const res = await fetch('/api/buildings/search?q=' + q);",
+    '    results = (await res.json()).results;',
+    '  }',
+    '  renderBuildingResults(results);',
+    '}',
+  ].join('\n');
+
+  test('flags Building-tab search that filters the in-memory cache with no API fallback (S-BUILDING-010)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', cacheOnly);
+    const hit = find(out, 'S-BUILDING-010');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('BUILDING_AUTOFILL');
+    expect(hit!['proof required']).toMatch(/buildings\/search|cache|stale/i);
+  });
+
+  test('does NOT flag Building-tab search that falls back to /api/buildings/search when cache empty (false-positive guard)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', cacheWithFallback);
+    expect(find(out, 'S-BUILDING-010')).toBeUndefined();
+  });
+
+  // S-BUILDING-011 — building populate clobbers the user-entered UnitNumber.
+  const unitClobber = [
+    'function populateBuildingFromIDX(building) {',
+    "  document.getElementById('saleUnitNumber').value = building.unitNumber;",
+    '}',
+  ].join('\n');
+  const unitPreserved = [
+    'function populateBuildingFromIDX(building) {',
+    "  const unitEl = document.getElementById('saleUnitNumber');",
+    '  if (!unitEl.value) unitEl.value = building.unitNumber;',
+    '}',
+  ].join('\n');
+
+  test('flags building populate that overwrites the user-entered UnitNumber (S-BUILDING-011)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', unitClobber);
+    const hit = find(out, 'S-BUILDING-011');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('BUILDING_AUTOFILL');
+    expect(hit!.actualFailure).toMatch(/unit/i);
+  });
+
+  test('does NOT flag building populate that preserves a user-entered unit (false-positive guard)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', unitPreserved);
+    expect(find(out, 'S-BUILDING-011')).toBeUndefined();
+  });
+});
