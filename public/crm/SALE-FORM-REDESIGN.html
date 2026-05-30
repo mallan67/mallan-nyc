@@ -7265,10 +7265,12 @@ function collectSaleFormData() {
     // BuildingHeating + BuildingCooling map to RESO canonical (mirrors the
     // Heating/Cooling pair already wired). Others persist under Mallan
     // internal raw keys per fail-closed rule.
-    data.BuildingHeating = [];
-    document.querySelectorAll('input[name="saleBldgHeating"]:checked').forEach(function(cb) { data.BuildingHeating.push(cb.value); });
-    data.BuildingCooling = [];
-    document.querySelectorAll('input[name="saleBldgCooling"]:checked').forEach(function(cb) { data.BuildingCooling.push(cb.value); });
+    // BuildingHeating/BuildingCooling are NOT live Cotality fields — emit under
+    // internal keys (Cotality-clean 2026-05-30); legacy reload via fallbackRls.
+    data.saleBldgHeating = [];
+    document.querySelectorAll('input[name="saleBldgHeating"]:checked').forEach(function(cb) { data.saleBldgHeating.push(cb.value); });
+    data.saleBldgCooling = [];
+    document.querySelectorAll('input[name="saleBldgCooling"]:checked').forEach(function(cb) { data.saleBldgCooling.push(cb.value); });
     data.saleBldgDocsAvailable = [];
     document.querySelectorAll('input[name="saleBldgDocsAvailable"]:checked').forEach(function(cb) { data.saleBldgDocsAvailable.push(cb.value); });
     data.saleTHDocsAvailable = [];
@@ -7376,7 +7378,8 @@ function collectSaleFormData() {
 
     // Financial & tax fields
     data.TaxAnnualAmount = parseFloat(data.saleRETaxes || '0') || 0;
-    data.TaxDeductionPercent = parseFloat(data.saleTaxDeduction || '0') || 0;
+    // TaxDeductionPercent phantom emit removed (Cotality-clean 2026-05-30): not in
+    // live $metadata. Value persists as internal saleTaxDeduction (SALE_FIELD_MAP, legacy fallback).
     data.FlipTax = data.saleFlipTaxAmount || '';
     data.OriginalListPrice = parseFloat(data.saleOriginalPrice || '0') || 0;
     data.ClosePrice = parseFloat(data.saleSoldPrice || '0') || 0;
@@ -7403,11 +7406,13 @@ function collectSaleFormData() {
     data.LotSizeArea = parseFloat(data.saleTHLotSize || '0') || 0;
 
     // Building fields
-    data.YearRenovated = parseInt(data.saleBldgYearRenovated || '0') || null;
+    // YearRenovated phantom emit removed (Cotality-clean 2026-05-30): not in live
+    // $metadata. Value persists as internal saleBldgYearRenovated (SALE_FIELD_MAP, legacy fallback).
     data.SponsorUnitYN = data.saleBldgSponsorUnits === true || data.saleBldgSponsorUnits === 'true';
     data.TaxAbatementYN = data.saleBldgTaxAbatementYN === true || data.saleBldgTaxAbatementYN === 'true';
     data.TaxAbatementComments = data.saleBldgTaxAbatementComments || '';
-    data.RentingAllowedYN = data.saleBldgSublettingAllowed === true || data.saleBldgSublettingAllowed === 'true';
+    // RentingAllowedYN phantom emit removed (Cotality-clean 2026-05-30): not in live
+    // $metadata. Value persists as internal saleBldgSublettingAllowed (SALE_FIELD_MAP, legacy fallback).
 
     // Media fields
     data.VirtualTourURLUnbranded = data.saleVirtualTourUnbranded || '';
@@ -8765,7 +8770,7 @@ var SALE_FIELD_MAP = [
 
   // ── Financials ──
   { rls: 'TaxAnnualAmount', form: 'saleRETaxes', type: 'number', src: 'raw' },
-  { rls: 'TaxDeductionPercent', form: 'saleTaxDeduction', type: 'number', src: 'raw' },
+  { rls: 'saleTaxDeduction', form: 'saleTaxDeduction', type: 'number', src: 'raw', fallbackRls: 'TaxDeductionPercent' }, // internal; TaxDeductionPercent not in Cotality
   { rls: 'FlipTax', form: 'saleFlipTaxAmount', type: 'text', src: 'raw' },
   { rls: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
   { rls: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
@@ -8787,7 +8792,7 @@ var SALE_FIELD_MAP = [
   { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
   { rls: 'StructureType', form: 'saleBldgType', type: 'text', src: 'raw' },
   { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
-  { rls: 'YearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw' },
+  { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
   { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
   { rls: 'NumberOfUnitsTotal', form: 'saleBldgTotalUnits', type: 'number', src: 'raw' },
   { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
@@ -8800,7 +8805,7 @@ var SALE_FIELD_MAP = [
   { rls: 'SponsorUnitYN', form: 'saleBldgSponsorUnits', type: 'bool', src: 'raw' },
   { rls: 'TaxAbatementYN', form: 'saleBldgTaxAbatementYN', type: 'bool', src: 'raw' },
   { rls: 'TaxAbatementComments', form: 'saleBldgTaxAbatementComments', type: 'text', src: 'raw' },
-  { rls: 'RentingAllowedYN', form: 'saleBldgSublettingAllowed', type: 'bool', src: 'raw' },
+  { rls: 'saleBldgSublettingAllowed', form: 'saleBldgSublettingAllowed', type: 'text', src: 'raw', fallbackRls: 'RentingAllowedYN' }, // internal select; RentingAllowedYN not in Cotality
 
   // ── Distribution ──
   { rls: 'saleIdxDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn' }, // internal IDX-display control (idx_display_yn); IDXEntireListingDisplayYN is NOT a Cotality field
@@ -8992,8 +8997,8 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   // ── Class B (2026-05-28) ──
   // 5 named checkbox groups whose data was lost at save time (no array
   // collection in collect, no entry here). See audit §2.
-  { rls: 'BuildingHeating', name: 'saleBldgHeating' },
-  { rls: 'BuildingCooling', name: 'saleBldgCooling' },
+  { rls: 'saleBldgHeating', name: 'saleBldgHeating', fallbackRls: 'BuildingHeating' }, // internal; BuildingHeating not in Cotality
+  { rls: 'saleBldgCooling', name: 'saleBldgCooling', fallbackRls: 'BuildingCooling' }, // internal; BuildingCooling not in Cotality
   { rls: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable' },
   { rls: 'saleTHDocsAvailable', name: 'saleTHDocsAvailable' },
   { rls: 'saleBusinessType', name: 'saleBusinessType' },
@@ -9379,6 +9384,7 @@ function _populateSaleFormFromApi(listing) {
     // ── Checkbox arrays ──
     SALE_CHECKBOX_ARRAY_MAP.forEach(function(ca) {
         var vals = raw[ca.rls];
+        if (!Array.isArray(vals) && ca.fallbackRls) vals = raw[ca.fallbackRls]; // legacy phantom-key reload (Cotality-clean 2026-05-30)
         if (!Array.isArray(vals)) return;
         document.querySelectorAll('input[name="' + ca.name + '"]').forEach(function(cb) {
             cb.checked = vals.includes(cb.value);
