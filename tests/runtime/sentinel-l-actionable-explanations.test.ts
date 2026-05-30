@@ -519,3 +519,61 @@ describe('Sentinel-L v2 — D. CANONICAL_URL / DISPLAY_GATE', () => {
     expect(find(out, 'S-COMP-011')).toBeUndefined();
   });
 });
+
+describe('Sentinel-L v2 — E. SALES_FORM_SAVE_LOAD', () => {
+  // S-SALE-015 — workflow status overwritten by the canonical RESO status with
+  // no _crmWorkflowStatus preservation (two-layer status model, PR #260/#262).
+  const statusClobber = [
+    'function submitSalesListing() {',
+    '  data.status = CRM_TO_RESO_STATUS[workflowStatus];',
+    '  return patch(data);',
+    '}',
+  ].join('\n');
+  const statusPreserved = [
+    'function submitSalesListing() {',
+    '  data.status = CRM_TO_RESO_STATUS[workflowStatus];',
+    '  data.raw_data = { _crmWorkflowStatus: workflowStatus };',
+    '  return patch(data);',
+    '}',
+  ].join('\n');
+
+  test('flags a save that maps to the canonical status without preserving the CRM workflow status (S-SALE-015)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', statusClobber);
+    const hit = find(out, 'S-SALE-015');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('SALES_FORM');
+    expect(hit!.actualFailure).toMatch(/status|workflow/i);
+  });
+  test('does NOT flag a save that persists _crmWorkflowStatus alongside the canonical status (false-positive guard)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', statusPreserved);
+    expect(find(out, 'S-SALE-015')).toBeUndefined();
+  });
+
+  // S-SALE-016 — autosave fires without a populate-complete gate, so it can
+  // overwrite saved values with form defaults during edit-load (PR #263).
+  const autosaveUngated = [
+    'function performAutoSave() {',
+    "  fetch('/api/crm/listings/' + id, { method: 'PATCH', body: JSON.stringify(collect()) });",
+    '}',
+  ].join('\n');
+  const autosaveGated = [
+    'function performAutoSave() {',
+    '  if (!window._saleAutoSaveReady) return;',
+    "  fetch('/api/crm/listings/' + id, { method: 'PATCH', body: JSON.stringify(collect()) });",
+    '}',
+  ].join('\n');
+
+  test('flags autosave that PATCHes without a populate-complete gate (S-SALE-016)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', autosaveUngated);
+    const hit = find(out, 'S-SALE-016');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('SALES_FORM');
+    expect(hit!.actualFailure).toMatch(/autosave|edit|overwrite|populate/i);
+  });
+  test('does NOT flag autosave gated behind _saleAutoSaveReady (false-positive guard)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', autosaveGated);
+    expect(find(out, 'S-SALE-016')).toBeUndefined();
+  });
+});
