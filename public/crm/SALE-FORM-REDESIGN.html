@@ -7080,12 +7080,15 @@ function collectSaleFormData() {
         data.IDXEntireListingDisplayYN = false;
         data.InternetEntireListingDisplayYN = false;
         data.InternetAddressDisplayYN = isInHouseWebOnly ? true : false;
-        data.SyndicateYN = false;
+        // SyndicateYN removed (Cotality-clean sweep 2026-05-30): phantom — not in
+        // live Cotality $metadata. Syndication intent = canonical SyndicateTo +
+        // internal saleSyndicateYN; populate keeps a legacy raw.SyndicateYN reload.
     } else {
         data.IDXEntireListingDisplayYN = data.saleDist_IDX !== false;
         data.InternetEntireListingDisplayYN = data.saleInternetEntireListingDisplayYN !== false && data.saleDist_VOW !== false;
         data.InternetAddressDisplayYN = data.saleInternetAddressDisplayYN !== false;
-        data.SyndicateYN = data.saleSyndicateYN !== false;
+        // (SyndicateYN phantom emit removed — see note above. saleSyndicateYN
+        //  remains as the internal flag via the generic collector.)
     }
     // RESO canonical: InternetAutomatedValuationDisplayYN. Sister to the
     // saleInternetAVMDisplayYN form radio (see Class A audit row + the
@@ -7227,11 +7230,25 @@ function collectSaleFormData() {
     // SyndicateTo — derived from SALE_SYNDICATION_MAP (the 6 vendor checkbox
     // ids → RESO target names). Populate at line ~8625 expects this exact
     // array shape (case-insensitive match against SALE_SYNDICATION_MAP[].target).
+    // SyndicateTo: emit ONLY valid live-Cotality SyndicateTo enum members
+    // (entry.cotality). Unsupported/internal destinations (NYMLS, RLS, RPX, WWW)
+    // are routed to the internal _saleSyndicateInternal list — never emitted as
+    // invalid canonical enum values (Cotality-clean sweep 2026-05-30).
+    // Owner Opt-Out / Participant Only / InHouse force syndication OFF — expressed
+    // the Cotality-correct way (empty canonical SyndicateTo), replacing the old
+    // phantom SyndicateYN=false signal (Cotality-clean sweep 2026-05-30).
     data.SyndicateTo = [];
-    if (typeof SALE_SYNDICATION_MAP !== 'undefined' && Array.isArray(SALE_SYNDICATION_MAP)) {
+    data._saleSyndicateInternal = [];
+    if (!(isOwnerOptOut || isParticipantOnly || isInHouse)
+        && typeof SALE_SYNDICATION_MAP !== 'undefined' && Array.isArray(SALE_SYNDICATION_MAP)) {
         SALE_SYNDICATION_MAP.forEach(function(entry) {
             var el = document.getElementById(entry.id);
-            if (el && el.checked) data.SyndicateTo.push(entry.target);
+            if (!el || !el.checked) return;
+            if (entry.cotality) {
+                if (data.SyndicateTo.indexOf(entry.cotality) === -1) data.SyndicateTo.push(entry.cotality);
+            } else {
+                data._saleSyndicateInternal.push(entry.target);
+            }
         });
     }
 
@@ -7334,16 +7351,23 @@ function collectSaleFormData() {
     // gate reads raw.ActivationDate). Prefer the Coming-Soon activation input
     // (saleActivationDate, 14-day enforced) when present, else the always-present
     // first-showing input. (Audit F1, 2026-05-30 — Cotality-only.)
-    data.ActivationDate = data.saleActivationDate || data.saleFirstShowingDate || '';
+    // ActivationDate is Edm.Date (date-only) in live Cotality $metadata. The
+    // first-showing input is datetime-local, so normalize to YYYY-MM-DD before the
+    // canonical write (Cotality-clean sweep 2026-05-30).
+    var _saleActivation = data.saleActivationDate || data.saleFirstShowingDate || '';
+    data.ActivationDate = _saleActivation ? String(_saleActivation).split('T')[0] : '';
 
     // Date fields
     data.OffMarketDate = data.saleOffMarketDate || '';
     data.WithdrawnDate = data.saleWithdrawnDate || '';
     data.PurchaseContractDate = data.saleContractSignedDate || '';
     data.CloseDate = data.saleSoldDate || '';
-    // Cotality canonical is `Possession` (PossessionDate is not in Cotality
-    // $metadata). (Audit F3, 2026-05-30 — Cotality-only.)
-    data.Possession = data.saleAvailableOccupancy || '';
+    // Cotality `Possession` is a Multi.Possession ENUM, NOT a date — so the
+    // available/occupancy DATE must not be written into it (Cotality-clean sweep
+    // 2026-05-30). The date persists as the internal `saleAvailableOccupancy`
+    // key (restored via SALE_FIELD_MAP), and legacy rows that stored
+    // Possession/PossessionDate still reload via the Possession SALE_FIELD_MAP
+    // entry's fallback. No canonical Possession write here.
 
     // Financial & tax fields
     data.TaxAnnualAmount = parseFloat(data.saleRETaxes || '0') || 0;
@@ -9043,13 +9067,18 @@ var SALE_BUILDING_FEATURE_IDS = [
 ];
 
 // Syndication checkboxes — id → SyndicateTo target name
+// Syndication checkboxes → SyndicateTo. `cotality` = the live Cotality
+// SyndicateTo enum member (verified against artifacts/metadata.xml). Entries with
+// cotality:null are internal/unsupported destinations — NOT valid SyndicateTo enum
+// values, so they are never emitted into canonical SyndicateTo (only into the
+// internal _saleSyndicateInternal list). (Cotality-clean sweep 2026-05-30.)
 var SALE_SYNDICATION_MAP = [
-  { id: 'saleDist_Listhub', target: 'Listhub' },
-  { id: 'saleDist_NYMLS', target: 'NYMLS' },
-  { id: 'saleDist_Realtor', target: 'Realtor' },
-  { id: 'saleDist_RLS', target: 'RLS' },
-  { id: 'saleDist_RPX', target: 'RPX' },
-  { id: 'saleDist_WWW', target: 'WWW' },
+  { id: 'saleDist_Listhub', target: 'Listhub', cotality: 'Listhub' },
+  { id: 'saleDist_NYMLS', target: 'NYMLS', cotality: null },        // not a Cotality SyndicateTo member
+  { id: 'saleDist_Realtor', target: 'Realtor', cotality: 'Realtorcom' }, // Cotality member is Realtorcom
+  { id: 'saleDist_RLS', target: 'RLS', cotality: null },            // not a Cotality SyndicateTo member
+  { id: 'saleDist_RPX', target: 'RPX', cotality: null },            // not a Cotality SyndicateTo member
+  { id: 'saleDist_WWW', target: 'WWW', cotality: null },            // not a Cotality SyndicateTo member
 ];
 
 // Radio-button fields
@@ -9381,15 +9410,23 @@ function _populateSaleFormFromApi(listing) {
     var syndTargets = raw.SyndicateTo;
     if (Array.isArray(syndTargets)) {
         var normalizedTargets = syndTargets.map(function(t) { return String(t).toLowerCase(); });
+        var internalTargets = Array.isArray(raw._saleSyndicateInternal)
+            ? raw._saleSyndicateInternal.map(function(t) { return String(t).toLowerCase(); })
+            : [];
+        // Match canonical Cotality member (entry.cotality), the internal list, OR
+        // the legacy raw target (old rows stored entry.target before the sweep).
+        var syndMatches = function(entry) {
+            var canon = (entry.cotality || entry.target).toLowerCase();
+            return normalizedTargets.includes(canon)
+                || normalizedTargets.includes(entry.target.toLowerCase())
+                || internalTargets.includes(entry.target.toLowerCase());
+        };
         SALE_SYNDICATION_MAP.forEach(function(entry) {
             var el = document.getElementById(entry.id);
             if (!el) return;
-            el.checked = normalizedTargets.includes(entry.target.toLowerCase());
+            el.checked = syndMatches(entry);
         });
-        var allIndividualChecked = SALE_SYNDICATION_MAP.every(function(entry) {
-            return normalizedTargets.includes(entry.target.toLowerCase());
-        });
-        setChecked('saleSendToAll', allIndividualChecked);
+        setChecked('saleSendToAll', SALE_SYNDICATION_MAP.every(syndMatches));
     }
     if (raw.SyndicateYN !== undefined) setChecked('saleSyndicateYN', raw.SyndicateYN);
     if (raw.saleDist_VOW !== undefined) setChecked('saleDist_VOW', raw.saleDist_VOW);
