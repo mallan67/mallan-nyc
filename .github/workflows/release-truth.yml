@@ -47,9 +47,35 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
+      # Single source of truth for the revision under audit. Resolved BEFORE
+      # checkout so the checkout, the aggregator (--sha), and the published
+      # commit status ALL target the SAME commit:
+      #   pull_request      -> PR head sha (never the synthetic merge ref)
+      #   push              -> github.sha
+      #   workflow_dispatch -> inputs.sha, or the head sha of inputs.pr
+      - name: Resolve target
+        id: target
+        run: |
+          if [ -n "${{ inputs.sha }}" ]; then
+            sha="${{ inputs.sha }}"; args="--sha ${{ inputs.sha }}"; label="SHA ${{ inputs.sha }}"
+          elif [ -n "${{ inputs.pr }}" ]; then
+            sha=$(gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr }}" --jq '.head.sha')
+            args="--pr ${{ inputs.pr }}"; label="PR #${{ inputs.pr }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            sha="${{ github.event.pull_request.head.sha }}"; args="--sha $sha"; label="SHA $sha"
+          else
+            sha="${{ github.sha }}"; args="--sha $sha"; label="SHA $sha"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "args=$args" >> "$GITHUB_OUTPUT"
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # Same revision the verdict is audited + published for (steps.target.sha):
+          # PR head sha on pull_request, github.sha on push, inputs sha/pr otherwise.
+          ref: ${{ steps.target.outputs.sha }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -60,20 +86,6 @@ jobs:
 
       - name: npm ci
         run: npm ci
-
-      - name: Resolve target
-        id: target
-        run: |
-          if [ -n "${{ inputs.pr }}" ]; then
-            echo "args=--pr ${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
-            echo "label=PR #${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ inputs.sha }}" ]; then
-            echo "args=--sha ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
-            echo "label=SHA ${{ inputs.sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "args=--sha ${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "label=SHA ${{ github.sha }}" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Run release-truth aggregator
         id: aggregator
@@ -105,8 +117,7 @@ jobs:
             PARTIAL|UNVERIFIED) state="pending" ;;
             DEPLOY_INVALID|REGRESSION|CLAIM_OVERSTATED) state="failure" ;;
           esac
-          target_sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
-          gh api -X POST "repos/${{ github.repository }}/statuses/$target_sha" \
+          gh api -X POST "repos/${{ github.repository }}/statuses/${{ steps.target.outputs.sha }}" \
             -f state="$state" \
             -f context="release-truth" \
             -f description="${{ steps.aggregator.outputs.verdict }}: $(echo '${{ steps.aggregator.outputs.reasons }}' | head -c 130)" \
