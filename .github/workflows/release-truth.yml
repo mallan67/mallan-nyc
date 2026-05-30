@@ -15,7 +15,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [ready_for_review]
+    # Advisory: posts the release-truth verdict as a commit status on the PR
+    # head SHA (no PR comment / email). opened+synchronize keep it updated.
+    types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
     inputs:
       sha:
@@ -90,7 +92,12 @@ jobs:
           exit 0  # Don't fail the workflow itself; the commit status carries the verdict
 
       - name: Post commit status
-        if: github.event_name == 'push'
+        # Posts the advisory release-truth verdict as a commit status
+        # (context "release-truth") on BOTH push (github.sha) and pull_request
+        # (the PR HEAD sha, so it is visible ON the PR). No PR comment / email.
+        # The workflow never fails on the verdict — the aggregator exits 0; this
+        # step only sets a status (PARTIAL/UNVERIFIED => pending, advisory).
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         run: |
           state="success"
           case "${{ steps.aggregator.outputs.verdict }}" in
@@ -98,7 +105,8 @@ jobs:
             PARTIAL|UNVERIFIED) state="pending" ;;
             DEPLOY_INVALID|REGRESSION|CLAIM_OVERSTATED) state="failure" ;;
           esac
-          gh api -X POST "repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+          target_sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          gh api -X POST "repos/${{ github.repository }}/statuses/$target_sha" \
             -f state="$state" \
             -f context="release-truth" \
             -f description="${{ steps.aggregator.outputs.verdict }}: $(echo '${{ steps.aggregator.outputs.reasons }}' | head -c 130)" \
