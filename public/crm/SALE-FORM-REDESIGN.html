@@ -7270,6 +7270,10 @@ function collectSaleFormData() {
     document.querySelectorAll('input[name="saleExposure"]:checked').forEach(function(cb) { data.saleExposure.push(cb.value); });
     data.saleViewList = [];
     document.querySelectorAll('input[name="saleViewList"]:checked').forEach(function(cb) { data.saleViewList.push(cb.value); });
+    // Canonical Cotality `View` array (mirrors the Heating/Cooling pattern) so the
+    // server-side RLS conditional (ViewYN=true → require View) is satisfiable.
+    // saleViewList is the form's restore key; View is the Cotality field.
+    data.View = data.saleViewList.slice();
     data.saleAdditionalRooms = [];
     document.querySelectorAll('input[name="saleAdditionalRooms"]:checked').forEach(function(cb) { data.saleAdditionalRooms.push(cb.value); });
     data.saleKitchenType = [];
@@ -9120,18 +9124,33 @@ function _autoSetYesWhenTypeChosen(typeGroupName, ynRadioName) {
 // otherwise, if any paired detail checkbox is checked, the Y/N is "Yes". Stray
 // id-keyed duplicates from the generic collector are dropped.
 function _deriveSaleYNFields(data) {
+    // `yn` = the FORM radio key (restored by SALE_RADIO_MAP on reload).
+    // `canonical` = the Cotality $metadata field the SERVER-SIDE RLS conditional
+    //   enforcement reads (rebny-field-tables appliesWhen:{HeatingYN:[true]}
+    //   requireFields:['Heating']). Both must be written or the relaxed
+    //   checkbox-only UI validation can publish detail arrays while the
+    //   conditional rule never fires (Codex #280 follow-up #2). Cotality is the
+    //   sole source of truth — HeatingYN/CoolingYN/ViewYN are real Cotality
+    //   boolean fields (verified against artifacts/metadata.xml).
     var groups = [
-        { yn: 'saleHeatingYN', type: 'saleHeating', strays: ['saleHeatingYes', 'saleHeatingNo'] },
-        { yn: 'saleCoolingYN', type: 'saleCooling', strays: ['saleCoolingYes', 'saleCoolingNo'] },
-        { yn: 'saleHasViews', type: 'saleViewList', strays: [] }
+        { yn: 'saleHeatingYN', canonical: 'HeatingYN', type: 'saleHeating', strays: ['saleHeatingYes', 'saleHeatingNo'] },
+        { yn: 'saleCoolingYN', canonical: 'CoolingYN', type: 'saleCooling', strays: ['saleCoolingYes', 'saleCoolingNo'] },
+        { yn: 'saleHasViews', canonical: 'ViewYN', type: 'saleViewList', strays: [] }
     ];
     groups.forEach(function(g) {
         var radio = document.querySelector('input[name="' + g.yn + '"]:checked');
+        var resolved; // 'Yes' | 'No' | undefined
         if (radio) {
             data[g.yn] = radio.value;
+            resolved = radio.value;
         } else if (document.querySelector('input[name="' + g.type + '"]:checked')) {
             data[g.yn] = 'Yes';
+            resolved = 'Yes';
         }
+        // Canonical Cotality boolean YN (only when resolved — leave undefined
+        // otherwise so a never-answered field is not asserted false).
+        if (resolved === 'Yes') data[g.canonical] = true;
+        else if (resolved === 'No') data[g.canonical] = false;
         g.strays.forEach(function(s) { if (s in data) delete data[s]; });
     });
     return data;

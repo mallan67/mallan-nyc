@@ -250,6 +250,19 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
   it('_crmWorkflowStatus is written by collect (round-trip)', () => {
     expect(collectBody).toMatch(/data\._crmWorkflowStatus\s*=\s*data\.saleStatus/);
   });
+
+  it('collect emits the canonical Cotality View array (mirrors Heating/Cooling) — Codex #280 F7', () => {
+    // Server RLS conditional (ViewYN=true → require View) reads the canonical
+    // `View` field; collect must emit it from saleViewList.
+    expect(collectBody).toMatch(/data\.View\s*=\s*data\.saleViewList/);
+  });
+
+  it('_deriveSaleYNFields maps each form YN to its canonical Cotality field', () => {
+    const deriveBody = functionBody(formHtml, 'function _deriveSaleYNFields(data)', 2000);
+    expect(deriveBody).toMatch(/canonical:\s*'HeatingYN'/);
+    expect(deriveBody).toMatch(/canonical:\s*'CoolingYN'/);
+    expect(deriveBody).toMatch(/canonical:\s*'ViewYN'/);
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -465,6 +478,31 @@ describe('Sale form save/update hotfix — executable round-trip (jsdom)', () =>
     expect(data.saleHeatingYN).toBe('Yes');
     expect(data.saleCoolingYN).toBe('Yes');
     expect(data.saleHasViews).toBe('Yes');
+    // Canonical Cotality boolean YN fields the server-side RLS enforcement reads
+    // (Codex #280 follow-up #2). HeatingYN/CoolingYN/ViewYN ∈ Cotality $metadata.
+    expect(data.HeatingYN).toBe(true);
+    expect(data.CoolingYN).toBe(true);
+    expect(data.ViewYN).toBe(true);
+  });
+
+  it('writes canonical Cotality YN=true on derive and =false on explicit No (server RLS sees the condition)', () => {
+    // derive (detail checked, radio unset) → canonical true
+    const w1 = makeWindow(heatGroup);
+    w1.document.querySelector('input[name="saleHeating"][value="Steam"]').checked = true;
+    const d1: Record<string, unknown> = {};
+    loadFns(w1)._deriveSaleYNFields(d1);
+    expect(d1.HeatingYN).toBe(true);
+    // explicit No → canonical false (not undefined, not true)
+    const w2 = makeWindow(heatGroup);
+    w2.document.querySelector('#saleHeatingNo').checked = true;
+    const d2: Record<string, unknown> = {};
+    loadFns(w2)._deriveSaleYNFields(d2);
+    expect(d2.HeatingYN).toBe(false);
+    // nothing answered → canonical absent (not asserted false)
+    const w3 = makeWindow(heatGroup);
+    const d3: Record<string, unknown> = {};
+    loadFns(w3)._deriveSaleYNFields(d3);
+    expect('HeatingYN' in d3).toBe(false);
   });
 
   it('saved neighborhood restores even when the option was NOT preloaded (dynamic add under borough)', () => {
