@@ -47,8 +47,11 @@ const mediaRouteTs = readFileSync(MEDIA_ROUTE_PATH, 'utf8');
 /** Extract a top-level `function name(...) { ... }` declaration via brace match. */
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
-  const start = src.indexOf(sig);
+  let start = src.indexOf(sig);
   if (start === -1) throw new Error(`function not found: ${name}`);
+  // Preserve a leading `async ` so an extracted async function stays async
+  // (otherwise its `await`s become top-level and fail to parse on eval).
+  if (src.slice(start - 6, start) === 'async ') start -= 6;
   const braceStart = src.indexOf('{', start);
   let depth = 0;
   for (let i = braceStart; i < src.length; i++) {
@@ -159,11 +162,19 @@ describe('Track 1 media — keyed manager never stranded behind legacy preview',
     const fn = extractFn(formHtml, 'renderServerMediaRows');
     // media-order PATCH resolves only listing_id, so tiles must carry the
     // canonical id the GET echoes — never the numeric DB id used as a fallback.
-    expect(fn).toMatch(/var actionId\s*=\s*\(data && data\.listing_id\)\s*\?\s*String\(data\.listing_id\)/);
+    expect(fn).toMatch(/var actionId\s*=\s*String\(\(data && data\.listing_id\)\s*\|\|\s*listingId\s*\|\|\s*''\)/);
     expect(fn).toMatch(/_renderMediaTile\(photoContainer, m, idx, actionId\)/);
     expect(fn).toMatch(/_renderMediaTile\(floorContainer, m, idx, actionId\)/);
-    // the fallback retry must NOT rebind listingId to the numeric id anymore
+    // actionId must NEVER fall back to the numeric fallbackId for actions, and
+    // the retry must NOT rebind listingId to the numeric id.
+    expect(fn).not.toMatch(/actionId\s*=[^;]*fallbackId/);
     expect(fn).not.toMatch(/listingId\s*=\s*fallbackId/);
+  });
+
+  it('legacy-preview reorder also prefers the canonical listing_id (not the numeric DB id)', () => {
+    // The legacy fallback block's drag-reorder must hit /SL-0004/media-order too.
+    expect(formHtml).toMatch(/var editId = _saleEditListingId \|\| _saleEditDbId;/);
+    expect(formHtml).not.toMatch(/var editId = _saleEditDbId \|\| _saleEditListingId;/);
   });
 
   it('the edit-load call site passes the numeric DB id as the fallback', () => {
@@ -179,5 +190,49 @@ describe('Track 1 media — keyed manager never stranded behind legacy preview',
     expect(mediaRouteTs).toMatch(/where:\s*\{\s*id:\s*BigInt\(numericId\)\s*\}/);
     // listing_id path
     expect(mediaRouteTs).toMatch(/where:\s*\{\s*listing_id:\s*id\s*\}/);
+  });
+
+  it('media GET route returns canonical listing_id on EVERY success branch', () => {
+    // active rows, all-deleted, and legacy-preview all echo listing_id so the
+    // form can always derive a canonical action id.
+    const successReturns = (mediaRouteTs.match(/return NextResponse\.json\(\{\s*listing_id:\s*listing\.listing_id/g) || []);
+    expect(successReturns.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('Track 1 media — behavioral: canonical id flows to tiles via a numeric-id session', () => {
+  it('a numeric /crm/sale-listing?id=308773 session binds tiles to canonical SL-0004, never 308773', async () => {
+    const src = `${extractFn(formHtml, '_fetchListingMedia')}\n${extractFn(formHtml, 'renderServerMediaRows')}`;
+    const captured: string[] = [];
+    const fakeDoc = {
+      getElementById: (id: string) => {
+        if (id === 'salePhotoPreview' || id === 'saleFloorplanPreview') return { innerHTML: '' };
+        if (id === 'salePhotoCount') return { textContent: '' };
+        return null;
+      },
+    };
+    // GET always echoes the canonical listing_id even when resolved by numeric id.
+    const fetchMock = async (_url: string) => ({
+      ok: true,
+      json: async () => ({
+        listing_id: 'SL-0004',
+        media: [
+          { media_type: 'Photo', media_key: 'k1', url: 'u1' },
+          { media_type: 'FloorPlan', media_key: 'f1', url: 'u2' },
+        ],
+      }),
+    });
+    const renderTile = (_c: unknown, _m: unknown, _i: number, listingId: string) => { captured.push(listingId); };
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+    const runner = new Function(
+      'document', 'fetch', 'showToast', '_renderMediaTile',
+      `${src}; return renderServerMediaRows;`,
+    );
+    // Numeric id as BOTH primary and fallback — the worst case Maya flagged.
+    await runner(fakeDoc, fetchMock, () => {}, renderTile)('308773', '308773');
+
+    expect(captured.length).toBe(2);                  // 1 photo + 1 floorplan tile
+    expect([...new Set(captured)]).toEqual(['SL-0004']); // every tile bound to canonical id
+    expect(captured).not.toContain('308773');          // never the numeric DB id
   });
 });

@@ -9650,7 +9650,10 @@ function _populateSaleFormFromApi(listing) {
                     var reordered = Array.from(container.children);
                     reordered.forEach(function(el, i) { el.setAttribute('data-media-idx', String(i)); el.querySelector('.group-hover\\:opacity-100')?.firstChild && (el.querySelector('.fa-grip-vertical')?.parentNode && (el.querySelector('.fa-grip-vertical').parentNode.innerHTML = '<i class="fas fa-grip-vertical"></i> ' + (i + 1))); });
                     var orderedIds = reordered.map(function(el) { return el.querySelector('button[onclick*="removeServerMedia"]')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || ''; }).filter(Boolean);
-                    var editId = _saleEditDbId || _saleEditListingId;
+                    // media-order resolves ONLY listing_id — prefer the canonical
+                    // listing_id (_saleEditListingId, e.g. SL-0004) over the numeric
+                    // DB id so the legacy-preview reorder cannot 404. (Maya #295.)
+                    var editId = _saleEditListingId || _saleEditDbId;
                     if (editId && orderedIds.length > 0 && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
                         fetch('/api/crm/listings/' + encodeURIComponent(editId) + '/media-order', {
                             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -9996,11 +9999,14 @@ async function renderServerMediaRows(listingId, fallbackId) {
     }
     var data = res.body;
     // Action id for the rendered tiles MUST be the CANONICAL listing_id the GET
-    // echoes back, NOT whichever id form resolved the GET. The media-order PATCH
-    // route resolves ONLY `where: { listing_id }` (set-main/delete resolve both),
-    // so a numeric-fallback session would 404 on drag-reorder if tiles carried
-    // the numeric DB id. Always pass data.listing_id. (Codex review on #295.)
-    var actionId = (data && data.listing_id) ? String(data.listing_id) : (listingId || fallbackId);
+    // echoes back, NEVER the numeric DB id. The media-order PATCH route resolves
+    // ONLY `where: { listing_id }` (upload/set-main/delete resolve both), so a
+    // numeric-fallback session would 404 on drag-reorder if tiles carried the
+    // numeric id. The GET response always includes listing_id (route returns it
+    // on every success branch incl. the legacy preview), so prefer it; fall back
+    // ONLY to the original (already-canonical) first arg, never to the numeric
+    // fallbackId. (Codex review on #295 + Maya directive.)
+    var actionId = String((data && data.listing_id) || listingId || '');
     // Replace the legacy JSON preview with the authoritative keyed rows.
     if (photoContainer) photoContainer.innerHTML = '';
     if (floorContainer) floorContainer.innerHTML = '';
