@@ -105,7 +105,11 @@ jobs:
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
+        # DISABLED (anti-spam, per the PR #266 Sentinel precedent): the Release-Truth
+        # verdict still posts as a commit status + Job Summary — no PR comment / email.
+        # Step preserved for a one-line re-enable: flip back to
+        # `github.event_name == 'pull_request'`.
+        if: ${{ false }}
         run: |
           cat > /tmp/comment.md <<EOF
           ## Release Truth Audit — ${{ steps.target.outputs.label }}
