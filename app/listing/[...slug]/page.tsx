@@ -502,7 +502,10 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // resurrect deleted CRM photos. IDX/Trestle listings (no CRM rows) keep the
     // fallback. Gate centralised in shouldFetchTrestleMediaFallback (tested).
     const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
-    const shouldFetchMedia = shouldFetchTrestleMediaFallback(listingMediaRows, photoCount);
+    const shouldFetchMedia = shouldFetchTrestleMediaFallback(listingMediaRows, photoCount, {
+      mlsId: dbListing.mls_id,
+      listingId: dbListing.listing_id,
+    });
     if (shouldFetchMedia && dbListing.listing_id) {
       try {
         const trestleMedia = await fetchListingMedia(dbListing.listing_id);

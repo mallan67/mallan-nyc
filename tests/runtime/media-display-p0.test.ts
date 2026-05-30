@@ -350,45 +350,105 @@ describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 ho
   const trestleRow = (over: Record<string, unknown> = {}) =>
     crmRow({ media_key: 'RLS20093870-1', ...over });
 
-  // 1. Only soft-deleted CRM rows → resolver [] AND fallback suppressed.
-  it('only soft-deleted CRM rows → resolver returns [] and Trestle fallback is suppressed', () => {
+  // CRM-exclusive context (Mallan-owned media): no Trestle mls_id, SL- id.
+  const CRM_CTX = { mlsId: null, listingId: 'SL-0004' };
+
+  // 1. Only soft-deleted CRM rows on a CRM exclusive → resolver [] AND suppressed.
+  it('only soft-deleted CRM rows (CRM exclusive) → resolver [] and Trestle fallback suppressed', () => {
     const rows = [crmRow({ status: 'deleted' }), crmRow({ media_key: 'crm:SL-0004:def', status: 'deleted', order: 1 })];
     expect(resolveListingMediaFromRows(rows as unknown as ListingMediaTableRow[])).toEqual([]);
-    expect(shouldFetchTrestleMediaFallback(rows, /*photoCount*/ 0)).toBe(false);
+    expect(shouldFetchTrestleMediaFallback(rows, /*photoCount*/ 0, CRM_CTX)).toBe(false);
   });
 
   // 2. Active CRM rows → photoCount>0 → no fallback.
   it('active CRM rows → no Trestle fallback (photoCount>0)', () => {
-    expect(shouldFetchTrestleMediaFallback([crmRow()], /*photoCount*/ 3)).toBe(false);
+    expect(shouldFetchTrestleMediaFallback([crmRow()], /*photoCount*/ 3, CRM_CTX)).toBe(false);
   });
 
   // 3. No listing_media rows at all → fallback still allowed (un-synced / pure IDX).
   it('no listing_media rows → Trestle fallback remains allowed', () => {
-    expect(shouldFetchTrestleMediaFallback([], 0)).toBe(true);
+    expect(shouldFetchTrestleMediaFallback([], 0, CRM_CTX)).toBe(true);
   });
 
-  // 4. CRM exclusive with imported-then-deleted rows, active set empty → table authoritative.
+  // 4. CRM exclusive with imported-then-deleted rows, active set empty → authoritative.
   it('CRM exclusive, rows exist but active set empty → fallback suppressed (table authoritative)', () => {
     const rows = [crmRow({ status: 'deleted' }), crmRow({ media_key: 'crm:SL-0004:ghi', status: 'replaced', order: 1 })];
-    expect(shouldFetchTrestleMediaFallback(rows, 0)).toBe(false);
+    expect(shouldFetchTrestleMediaFallback(rows, 0, CRM_CTX)).toBe(false);
   });
 
   // 5. Trestle/IDX listing (non-crm rows), no photos resolved → fallback unaffected.
   it('Trestle/IDX listing (non-crm rows) with 0 photos → fallback still allowed (no regression)', () => {
-    expect(shouldFetchTrestleMediaFallback([trestleRow({ media_type: 'FloorPlan' })], 0)).toBe(true);
+    expect(shouldFetchTrestleMediaFallback([trestleRow({ media_type: 'FloorPlan' })], 0, { mlsId: 'RLS20093870', listingId: 'RLS20093870' })).toBe(true);
   });
 
   it('Trestle/IDX listing with NO rows + 0 photos → fallback allowed', () => {
-    expect(shouldFetchTrestleMediaFallback([], 0)).toBe(true);
+    expect(shouldFetchTrestleMediaFallback([], 0, { mlsId: 'RLS20093870', listingId: 'RLS20093870' })).toBe(true);
   });
 
-  // ── Wiring: detail page uses the gate + selects media_key ──
-  it('detail page gates the Trestle fallback via shouldFetchTrestleMediaFallback', () => {
-    expect(detailPage).toMatch(/shouldFetchTrestleMediaFallback\(listingMediaRows,\s*photoCount\)/);
+  // ── Wiring: detail page uses the gate (with listing context) + selects media_key ──
+  it('detail page gates the Trestle fallback via shouldFetchTrestleMediaFallback with listing context', () => {
+    expect(detailPage).toMatch(/shouldFetchTrestleMediaFallback\(listingMediaRows,\s*photoCount,/);
+    expect(detailPage).toMatch(/mlsId:\s*dbListing\.mls_id/);
+    expect(detailPage).toMatch(/listingId:\s*dbListing\.listing_id/);
     expect(detailPage).not.toMatch(/const shouldFetchMedia\s*=\s*photoCount === 0;/); // old unconditional gate gone
   });
 
   it('detail page LISTING_MEDIA_INCLUDE selects media_key (to detect crm: rows)', () => {
     expect(detailPage).toMatch(/media_key:\s*true/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Post-#282 hotfix — mixed IDX/CRM fallback. CRM rows on a Trestle-synced
+// IDX/RLS listing are SUPPLEMENTAL (e.g. an agent-added floor plan/video) and
+// must NOT suppress the live Trestle photo fallback. Only a CRM-CREATED
+// (Mallan-exclusive) listing treats its CRM rows as authoritative. (Codex.)
+// ════════════════════════════════════════════════════════════════════════════
+describe('CRM media — mixed IDX vs CRM-exclusive fallback (post-#282)', () => {
+  const crmRow = (over: Record<string, unknown> = {}) => ({ media_key: 'crm:x:abc', media_type: 'Photo', status: 'active', ...over });
+  const CRM_EXCLUSIVE = { mlsId: null, listingId: 'SL-0004' };           // Mallan exclusive
+  const CRM_EXCLUSIVE_RLS_ELIGIBLE = { mlsId: null, listingId: 'RL-0007' }; // CRM-created, RL- id
+  const IDX_RLS = { mlsId: 'RLS20093870', listingId: 'RLS20093870' };    // Trestle-synced
+
+  // 1. CRM-exclusive, only deleted crm: rows → suppressed.
+  it('1 — CRM-exclusive with only deleted crm: rows → fallback suppressed', () => {
+    expect(shouldFetchTrestleMediaFallback([crmRow({ status: 'deleted' })], 0, CRM_EXCLUSIVE)).toBe(false);
+  });
+
+  // 2. CRM-exclusive, active crm: photo rows → suppressed (photoCount>0).
+  it('2 — CRM-exclusive with active crm: photos → fallback suppressed', () => {
+    expect(shouldFetchTrestleMediaFallback([crmRow()], 5, CRM_EXCLUSIVE)).toBe(false);
+  });
+
+  // 3. THE FIX — IDX/RLS listing + only a supplemental crm: floor plan, 0 photos → fallback ALLOWED.
+  it('3 — IDX/RLS listing with only a supplemental crm: floorplan and 0 photos → Trestle fallback ALLOWED', () => {
+    const rows = [crmRow({ media_key: 'crm:RLS20093870:fp', media_type: 'FloorPlan', status: 'active' })];
+    expect(shouldFetchTrestleMediaFallback(rows, /*photoCount*/ 0, IDX_RLS)).toBe(true);
+  });
+
+  // 4. IDX/RLS listing, no rows, 0 photos → fallback allowed.
+  it('4 — IDX/RLS listing with no rows and 0 photos → Trestle fallback allowed', () => {
+    expect(shouldFetchTrestleMediaFallback([], 0, IDX_RLS)).toBe(true);
+  });
+
+  // 5. IDX/RLS listing with active Trestle (non-crm) rows → existing behavior (photoCount>0 → no fallback).
+  it('5 — IDX/RLS listing with active Trestle photo rows → no fallback (uses rows)', () => {
+    expect(shouldFetchTrestleMediaFallback([crmRow({ media_key: 'RLS20093870-1' })], 4, IDX_RLS)).toBe(false);
+  });
+
+  // 6. Mixed listing with active CRM photo rows → no fallback (CRM photos intended for display).
+  it('6 — mixed listing with active CRM photo rows → no fallback', () => {
+    expect(shouldFetchTrestleMediaFallback([crmRow()], 2, IDX_RLS)).toBe(false);
+  });
+
+  // 7. SL-0004 website-only exclusive stays protected from resurrection.
+  it('7 — SL-0004 website-only exclusive with all-deleted crm: rows → fallback suppressed', () => {
+    expect(shouldFetchTrestleMediaFallback([crmRow({ status: 'deleted' })], 0, CRM_EXCLUSIVE)).toBe(false);
+  });
+
+  // RL- (CRM rental exclusive) is also authoritative; RLS (IDX) is not.
+  it('RL- CRM exclusive → authoritative (suppressed); RLS IDX key → supplemental (allowed)', () => {
+    expect(shouldFetchTrestleMediaFallback([crmRow({ status: 'deleted' })], 0, CRM_EXCLUSIVE_RLS_ELIGIBLE)).toBe(false);
+    expect(shouldFetchTrestleMediaFallback([crmRow({ media_key: 'crm:RLS20093870:fp', status: 'deleted' })], 0, IDX_RLS)).toBe(true);
   });
 });
