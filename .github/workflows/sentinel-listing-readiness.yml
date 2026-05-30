@@ -137,9 +137,9 @@ jobs:
           console.log('');
           for (const error of top) {
             console.log(`${error.severity} ${error.code} ${error.file}:${error.line}`);
-            if (error.searchSystem) console.log(`Search system: ${error.searchSystem}`);
+            console.log(`System: ${error.system || error.searchSystem || '-'} / ${error.layer || '-'}`);
             console.log(`Actual failure: ${error.actualFailure}`);
-            console.log(`Impact: ${error.impact}`);
+            if (error.whyThisIsAnError) console.log(`Why this is an error: ${error.whyThisIsAnError}`);
             console.log(`Fix: ${error['required fix']}`);
             console.log(`Proof required: ${error['proof required']}`);
             console.log('');
