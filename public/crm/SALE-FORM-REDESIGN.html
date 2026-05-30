@@ -9405,6 +9405,12 @@ function _populateSaleFormFromApi(listing) {
         if (countEl) countEl.textContent = photoCount + ' / 100 uploaded';
     }
 
+    // ── Render Cotality-shaped media rows (media_key-aware: cover, reorder, delete) ──
+    // Replaces the legacy JSON preview above once listing_media rows exist (the
+    // GET endpoint lazily imports any legacy JSON into rows, so this is the
+    // authoritative, keyed view). If the fetch fails, the legacy preview remains.
+    renderServerMediaRows(listing.listing_id || (listing.id != null ? String(listing.id) : ''));
+
     // ── Update header bar ──
     if (typeof updateListingHeaderBar === 'function') updateListingHeaderBar('sale');
 
@@ -9662,6 +9668,90 @@ async function uploadPendingMedia(listingId) {
         }
     }
     return { uploaded: uploaded, failed: failed };
+}
+
+// ═══════════════════════════════════════════════════════════
+// COTALITY-SHAPED SERVER MEDIA — render from listing_media rows (media_key)
+// Hero (preferred_photo_yn) + reorder (order) + delete (media_key) all persist.
+// ═══════════════════════════════════════════════════════════
+async function renderServerMediaRows(listingId) {
+    if (!listingId) return;
+    var photoContainer = document.getElementById('salePhotoPreview');
+    var floorContainer = document.getElementById('saleFloorplanPreview');
+    if (!photoContainer && !floorContainer) return;
+    var resp;
+    try {
+        resp = await fetch('/api/crm/listings/' + encodeURIComponent(listingId) + '/media', { credentials: 'same-origin' });
+    } catch (e) { return; }
+    if (!resp.ok) return;
+    var data = await resp.json().catch(function () { return null; });
+    if (!data || !Array.isArray(data.media)) return;
+    // Replace the legacy JSON preview with the authoritative keyed rows.
+    if (photoContainer) photoContainer.innerHTML = '';
+    if (floorContainer) floorContainer.innerHTML = '';
+    var photos = data.media.filter(function (m) { return m.media_type !== 'FloorPlan'; });
+    var floors = data.media.filter(function (m) { return m.media_type === 'FloorPlan'; });
+    photos.forEach(function (m, idx) { _renderMediaTile(photoContainer, m, idx, listingId); });
+    floors.forEach(function (m, idx) { _renderMediaTile(floorContainer, m, idx, listingId); });
+    var countEl = document.getElementById('salePhotoCount');
+    if (countEl) countEl.textContent = photos.length + ' / 100 uploaded';
+}
+
+function _mediaCssEscape(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+
+function _renderMediaTile(container, m, idx, listingId) {
+    if (!container) return;
+    var isFloor = (m.media_type === 'FloorPlan');
+    var div = document.createElement('div');
+    div.className = 'relative group';
+    div.setAttribute('data-media-key', m.media_key);
+    if (!isFloor) {
+        div.draggable = true;
+        div.ondragstart = function (e) { e.dataTransfer.setData('text/plain', m.media_key); };
+        div.ondragover = function (e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
+        div.ondragleave = function () { this.style.outline = ''; };
+        div.ondrop = function (e) { e.preventDefault(); this.style.outline = ''; _onMediaRowDrop(e, this, listingId, container); };
+    }
+    var topLeft = m.preferred_photo_yn
+        ? '<div class="absolute top-1 left-1 bg-[#B8860B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">★ COVER</div>'
+        : (isFloor ? '' : '<button type="button" onclick="setMainPhoto(\'' + listingId + '\',\'' + m.media_key + '\')" class="absolute top-1 left-1 bg-white/90 text-[#7a6a3a] text-[9px] font-semibold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow">☆ Set cover</button>');
+    div.innerHTML =
+        '<img src="' + m.url + '" class="w-full h-24 object-cover rounded-lg border">' +
+        topLeft +
+        '<button type="button" onclick="removeServerMedia(this,\'' + m.media_key + '\')" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100">&times;</button>' +
+        '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo ' + (idx + 1)) + '</p>';
+    container.appendChild(div);
+}
+
+function _onMediaRowDrop(e, dropEl, listingId, container) {
+    var fromKey = e.dataTransfer.getData('text/plain');
+    var fromEl = container.querySelector('[data-media-key="' + _mediaCssEscape(fromKey) + '"]');
+    if (!fromEl || !dropEl || fromEl === dropEl) return;
+    var items = Array.from(container.children);
+    if (items.indexOf(fromEl) < items.indexOf(dropEl)) container.insertBefore(fromEl, dropEl.nextSibling);
+    else container.insertBefore(fromEl, dropEl);
+    var orderedKeys = Array.from(container.children).map(function (el) { return el.getAttribute('data-media-key'); }).filter(Boolean);
+    _persistMediaRowOrder(listingId, orderedKeys);
+}
+
+function _persistMediaRowOrder(listingId, orderedKeys) {
+    fetch('/api/crm/listings/' + encodeURIComponent(listingId) + '/media-order', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ordered_media_ids: orderedKeys }), credentials: 'include'
+    }).then(function (r) {
+        if (r.ok) showToast('Photo order saved', 'success');
+        else showToast('Photo order NOT saved (HTTP ' + r.status + '). Reload to see actual order.', 'error');
+    }).catch(function (err) { showToast('Photo order NOT saved: ' + ((err && err.message) || 'network error'), 'error'); });
+}
+
+function setMainPhoto(listingId, mediaKey) {
+    fetch('/api/crm/listings/' + encodeURIComponent(listingId) + '/media/' + encodeURIComponent(mediaKey), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferred_photo_yn: true }), credentials: 'include'
+    }).then(function (r) {
+        if (r.ok) { showToast('Main photo set', 'success'); renderServerMediaRows(listingId); }
+        else showToast('Could not set main photo (HTTP ' + r.status + ')', 'error');
+    }).catch(function (err) { showToast('Could not set main photo: ' + ((err && err.message) || 'network error'), 'error'); });
 }
 
 // ═══════════════════════════════════════════════════════════

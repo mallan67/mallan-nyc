@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import type { Prisma } from "@prisma/client";
+import { importJsonMediaToRows } from "@/lib/media/crm-media";
 
 export async function PATCH(
   req: NextRequest,
@@ -35,7 +35,7 @@ export async function PATCH(
   // Find listing by listing_id (string ID like "SL-0001")
   const listing = await prisma.listing.findUnique({
     where: { listing_id: id },
-    select: { id: true, listing_id: true, agent_id: true, raw_data: true },
+    select: { id: true, listing_id: true, agent_id: true, media: true },
   });
 
   if (!listing) {
@@ -51,18 +51,25 @@ export async function PATCH(
 
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
 
-  // Store media_order in raw_data JSON field
-  const existingRawData = (listing.raw_data as Record<string, unknown>) ?? {};
-  const updatedRawData = {
-    ...existingRawData,
-    media_order: ordered_media_ids,
-  };
+  // Ensure legacy JSON is in rows so the keys we reorder exist (idempotent).
+  await importJsonMediaToRows(prisma, { listing_id: listing.listing_id, media: listing.media });
+
+  // Persist per-item order onto the Cotality-shaped rows the public resolver
+  // actually reads (replaces the old raw_data.media_order, which the resolver
+  // ignored). Scoped to THIS listing so a stray key can't reorder another
+  // listing's media.
+  const updates = ordered_media_ids.map((mediaKey, index) =>
+    prisma.listingMedia.updateMany({
+      where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
+      data: { order: index },
+    })
+  );
+  const results = await prisma.$transaction(updates);
+  const updatedCount = results.reduce((n, r) => n + r.count, 0);
 
   await prisma.listing.update({
     where: { listing_id: id },
-    data: {
-      raw_data: updatedRawData as Prisma.InputJsonValue,
-    },
+    data: { modification_timestamp: new Date() },
   });
 
   await logAuditEvent(
@@ -70,11 +77,13 @@ export async function PATCH(
     "listing",
     id,
     auth,
-    { field: "media_order", media_count: ordered_media_ids.length },
+    { field: "media_order", media_count: ordered_media_ids.length, rows_updated: updatedCount },
     ipAddress
   );
 
-  return NextResponse.json({ listing_id: id,
+  return NextResponse.json({
+    listing_id: id,
     media_order: ordered_media_ids,
+    rows_updated: updatedCount,
   });
 }
