@@ -752,7 +752,13 @@ export const REBNY_FIELD_TABLES = {
       code: 'VIEW-001',
       description: 'View details required if ViewYN = true',
       appliesWhen: { ViewYN: [true] },
-      requireFields: ['View', 'ViewRemarks'],
+      // H2 (2026-05-30): require only canonical `View`. `ViewRemarks` is a
+      // PHANTOM — absent from live Cotality $metadata — so it must NOT gate
+      // submission. #280 (commit de5dd489) now emits ViewYN=true when a view is
+      // selected; requiring the phantom ViewRemarks here 422'd every residential
+      // sale that had a view. `View` is the canonical field and the form emits
+      // it (data.View = saleViewList).
+      requireFields: ['View'],
     },
 
     // ── Garage ──
@@ -1113,7 +1119,7 @@ export const REBNY_FIELD_TABLES = {
     ArchitecturalStyle: { features: true, raw: true },
     ConstructionMaterials: { features: true, raw: true },
     View: { features: true, raw: true },
-    ViewRemarks: { features: true, raw: true },
+    ViewRemarks: { features: true, raw: true }, // LEGACY/internal-only — PHANTOM (absent from live Cotality $metadata); routes if present but is NOT a feed-valid or mandatory field (see VIEW-001 H2 note).
     SponsorUnitYN: { features: true, raw: true },
 
     // ── Showing ──
