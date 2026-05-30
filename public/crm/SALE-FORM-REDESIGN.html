@@ -5419,12 +5419,21 @@ function populateBuildingFromIDX(prefix, building) {
     // unit value. (Track 1 building auto-fill.)
     var _assocFee = pick('association_fee', 'associationFee');
     var _maintEl = document.getElementById('saleMaintCC');
+    var _filledMaint = false;
     if (_maintEl && !(_maintEl.value || '').trim() && _assocFee !== null && _assocFee !== undefined && _assocFee !== '') {
         _maintEl.value = _assocFee;
+        _filledMaint = true;
     }
+    // Fee Frequency defaults to "Monthly" (a non-empty <option selected>), so an
+    // only-when-empty guard would NEVER apply a building's Weekly/Quarterly/etc.
+    // value — it would silently save the Monthly default (Codex review on #296).
+    // Tie the frequency to the fee: set it from the building ONLY when we just
+    // auto-filled the maintenance amount (i.e. the agent hadn't entered their
+    // own). If the agent typed a maintenance value we touch neither — building
+    // auto-fill is all-or-nothing for the fee/frequency pair.
     var _assocFreq = pick('association_fee_frequency', 'associationFeeFrequency');
     var _freqEl = document.getElementById('saleMaintCCFreq');
-    if (_freqEl && !(_freqEl.value || '').trim() && _assocFreq) {
+    if (_freqEl && _filledMaint && _assocFreq) {
         _freqEl.value = _assocFreq;
     }
 

@@ -111,21 +111,23 @@ describe('Building auto-fill — AssociationFee/Frequency from the Cotality look
     return els;
   }
 
-  it('fills #saleMaintCC / #saleMaintCCFreq from association_fee / association_fee_frequency when empty', () => {
+  it('fills fee AND overrides the Monthly default with the building frequency (Codex #296)', () => {
+    // #saleMaintCCFreq starts at its real HTML default "Monthly"; a Quarterly
+    // building must override it (the only-when-empty guard used to skip it).
     const els = runPopulate(
-      { association_fee: 1500, association_fee_frequency: 'Monthly' },
-      { saleMaintCC: { value: '' }, saleMaintCCFreq: { value: '' } },
+      { association_fee: 1500, association_fee_frequency: 'Quarterly' },
+      { saleMaintCC: { value: '' }, saleMaintCCFreq: { value: 'Monthly' } },
     );
     expect(els.saleMaintCC.value).toBe(1500);
-    expect(els.saleMaintCCFreq.value).toBe('Monthly');
+    expect(els.saleMaintCCFreq.value).toBe('Quarterly');
   });
 
-  it('does NOT clobber an agent-entered maintenance value', () => {
+  it('does NOT clobber an agent-entered maintenance value (fee+freq left untouched)', () => {
     const els = runPopulate(
-      { association_fee: 1500, association_fee_frequency: 'Monthly' },
-      { saleMaintCC: { value: '999' }, saleMaintCCFreq: { value: 'Quarterly' } },
+      { association_fee: 1500, association_fee_frequency: 'Quarterly' },
+      { saleMaintCC: { value: '999' }, saleMaintCCFreq: { value: 'Monthly' } },
     );
     expect(els.saleMaintCC.value).toBe('999');
-    expect(els.saleMaintCCFreq.value).toBe('Quarterly');
+    expect(els.saleMaintCCFreq.value).toBe('Monthly'); // unchanged — autofill skipped
   });
 });
