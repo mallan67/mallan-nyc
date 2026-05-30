@@ -307,29 +307,56 @@ export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): Resol
   return resolveListingMedia(items);
 }
 
+/** Listing context the media-fallback gate needs to tell a CRM-exclusive
+ * (authoritative CRM media) from a Trestle-synced IDX/RLS listing (where CRM
+ * rows are only supplemental). */
+export interface MediaFallbackContext {
+  /** Trestle MLS id. Present ⇒ Trestle-synced IDX/RLS listing; null/empty ⇒
+   * CRM-created (Mallan exclusive). Mirrors the repo's `isCrmCreated = !mls_id`. */
+  mlsId?: string | null;
+  /** Listing id. CRM exclusives use the `SL-`/`RL-` namespace; IDX rows use RLS keys. */
+  listingId?: string | null;
+}
+
 /**
  * Whether the detail page may fall back to a LIVE Trestle media fetch
  * (`fetchListingMedia`) when the relational rows resolve to zero photos.
  *
- * It must NOT fall back when CRM-owned media rows exist for the listing — even
- * if every one is soft-deleted. The `listing_media` table is authoritative for
- * CRM exclusives, so a live Trestle fetch would RESURRECT deleted CRM photos
- * (the second resurrection path Codex found after PR #281). IDX/Trestle
- * listings (Trestle-synced rows, or no rows at all) keep the fallback so a
- * stale or photo-less DB row can still surface live Trestle photos.
+ * The `listing_media` table is AUTHORITATIVE only for a CRM-exclusive listing
+ * (Mallan-owned media): there, CRM rows existing — even all soft-deleted — must
+ * suppress the live fetch, or deleted CRM photos resurrect (the path Codex
+ * found after #281/#282).
  *
- * CRM rows are identified by the `crm:` media_key namespace (crm-media.ts).
+ * On a Trestle-synced IDX/RLS listing, CRM rows are SUPPLEMENTAL — an agent may
+ * have added only a CRM floor plan/video. Those must NOT suppress the live
+ * Trestle photo fallback, or the listing loses its real RLS photos (the mixed
+ * IDX/CRM edge case Codex found in #282). So we only treat CRM rows as
+ * authoritative when the listing itself is CRM-created.
+ *
+ * CRM-created is detected by the absence of a Trestle `mls_id` (mirrors
+ * `isCrmCreated = !mls_id` used by the CRM write routes), with the `SL-`/`RL-`
+ * id namespace as a reinforcing signal. `rls_eligible` is deliberately NOT used
+ * — an RLS-eligible Mallan exclusive still owns its CRM media.
  *
  * @param rows       listing_media rows fetched alongside the listing (any status)
  * @param photoCount number of resolved Photo items already in hand
+ * @param ctx        listing context (mls_id / listing_id)
  */
 export function shouldFetchTrestleMediaFallback(
   rows: ReadonlyArray<{ media_key?: string | null }>,
   photoCount: number,
+  ctx: MediaFallbackContext,
 ): boolean {
   if (photoCount > 0) return false;
   const hasCrmRows =
     Array.isArray(rows) &&
     rows.some((r) => typeof r?.media_key === 'string' && r.media_key.startsWith('crm:'));
-  return !hasCrmRows;
+  // No CRM rows at all → IDX/un-synced → live fallback allowed.
+  if (!hasCrmRows) return true;
+  // CRM rows present. Authoritative ONLY for a CRM-created (exclusive) listing.
+  const listingId = String(ctx?.listingId || '');
+  const isCrmAuthoritative = !ctx?.mlsId || /^(SL|RL)-/i.test(listingId);
+  // CRM-exclusive → suppress (authoritative table). IDX/RLS-backed with merely
+  // supplemental CRM rows → allow the live Trestle photo fallback.
+  return !isCrmAuthoritative;
 }
