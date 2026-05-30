@@ -80,6 +80,17 @@ describe('buildings/search — real fields surfaced, phantoms excluded', () => {
       expect(fn).not.toContain(f);                     // not mapped
     });
   });
+
+  it('backfills Cotality-only extras into a cached DB building instead of dropping them (Codex #297)', () => {
+    // For a DB-cached building, the Cotality supplement loop dedups the address;
+    // it must merge the live extras (CoveredSpaces/PetsAllowedYN/etc.) into the
+    // existing result rather than continue-skipping.
+    expect(ROUTE).toMatch(/if \(existing\) mergeMissingExtras\(existing, buildingExtras\(r\)\)/);
+    const merge = extractFn(ROUTE, 'mergeMissingExtras');
+    // only fills empty targets with a meaningful value (never overwrites DB data)
+    expect(merge).toMatch(/curEmpty\s*&&\s*vMeaningful/);
+    expect(merge).toMatch(/cur === null \|\| cur === undefined \|\| cur === '' \|\| cur === false/);
+  });
 });
 
 describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pets)', () => {

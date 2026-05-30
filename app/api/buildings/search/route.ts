@@ -125,6 +125,25 @@ interface TrestleRecord {
  * PetsAllowed is UNIT-level Cotality data; the form uses it as a suggestion only
  * (populate fills it only when the agent left the pet policy empty).
  */
+/**
+ * Backfill building extras from a live Cotality record into an existing (DB-
+ * cached) building result, WITHOUT overwriting non-empty DB values. The DB
+ * features JSON may lack the newer Cotality-only fields (e.g. CoveredSpaces /
+ * PetsAllowedYN that the IDX mapper does not persist), and the Cotality
+ * supplement loop dedups the same address — so a cached building would
+ * otherwise lose those live values. Only fills target keys that are empty
+ * (null / '' / false) with a meaningful Cotality value. (Codex review #297.)
+ */
+function mergeMissingExtras(target: Record<string, unknown>, extras: Record<string, unknown>) {
+  for (const k of Object.keys(extras)) {
+    const v = extras[k];
+    const cur = target[k];
+    const curEmpty = cur === null || cur === undefined || cur === '' || cur === false;
+    const vMeaningful = v !== null && v !== undefined && v !== '' && v !== false;
+    if (curEmpty && vMeaningful) target[k] = v;
+  }
+}
+
 function buildingExtras(rec: Record<string, unknown> | null | undefined) {
   const r = rec || {};
   const num = (v: unknown) =>
@@ -468,7 +487,14 @@ export async function GET(request: NextRequest) {
           for (const r of records) {
             const fullAddr = formatAddress(r);
             const key = `${r.StreetNumber}-${r.StreetName}-${r.PostalCode || ''}`.toUpperCase();
-            if (seenAddresses.has(key)) continue;
+            if (seenAddresses.has(key)) {
+              // Same building already came from the DB cache. Backfill any
+              // Cotality-only extras the DB JSON lacks (parking/pets/laundry/
+              // docs) into that result instead of dropping them. (Codex #297)
+              const existing = buildings.find((b) => b.address === fullAddr);
+              if (existing) mergeMissingExtras(existing, buildingExtras(r));
+              continue;
+            }
             seenAddresses.add(key);
 
             const features = String(r.BuildingFeatures || '').toLowerCase();
