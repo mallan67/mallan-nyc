@@ -251,3 +251,173 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
     expect(collectBody).toMatch(/data\._crmWorkflowStatus\s*=\s*data\.saleStatus/);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// 2026-05-29 save/update hotfix — EXECUTABLE round-trip tests.
+//
+// Unlike the static guards above, these EXECUTE the real shipped functions
+// (extracted verbatim from the form) against a real DOM built with jsdom (the
+// runtime jest env is node, but the `jsdom` library is available). This catches
+// behavior regressions a source-grep cannot — the false-confidence gap called
+// out in the audit.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Brace-matched extraction of a single function (the three targets contain no
+// '{'/'}' inside strings or regex, so a simple depth counter is exact).
+function extractFunction(src: string, signature: string): string {
+  const start = src.indexOf(signature);
+  if (start === -1) throw new Error('function not found: ' + signature);
+  const braceStart = src.indexOf('{', start);
+  let depth = 0;
+  let i = braceStart;
+  for (; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') { depth--; if (depth === 0) { i++; break; } }
+  }
+  return src.slice(start, i);
+}
+
+describe('Sale form save/update hotfix — executable round-trip (jsdom)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { JSDOM } = require('jsdom');
+
+  function makeWindow(bodyHtml: string): any {
+    return new JSDOM('<!DOCTYPE html><html><body>' + bodyHtml + '</body></html>').window;
+  }
+
+  function loadFns(win: any): any {
+    const src = [
+      extractFunction(formHtml, 'function fieldHasValue(field)'),
+      extractFunction(formHtml, 'function _restoreSaleNeighborhoodSelect(value, boroughHint)'),
+      extractFunction(formHtml, 'function _autoSetYesWhenTypeChosen(typeGroupName, ynRadioName)'),
+    ].join('\n');
+    // eslint-disable-next-line no-new-func
+    const factory = new Function(
+      'document', 'window', 'Event', 'HTMLElement',
+      src + '\nreturn { fieldHasValue: fieldHasValue, _restoreSaleNeighborhoodSelect: _restoreSaleNeighborhoodSelect, _autoSetYesWhenTypeChosen: _autoSetYesWhenTypeChosen };',
+    );
+    return factory(win.document, win, win.Event, win.HTMLElement);
+  }
+
+  const heatYn =
+    '<input type="radio" name="saleHeatingYN" value="Yes">' +
+    '<input type="radio" name="saleHeatingYN" value="No">' +
+    '<input type="checkbox" name="saleHeating" value="Steam">' +
+    '<input type="checkbox" name="saleHeating" value="ForcedAir">';
+  const coolYn =
+    '<input type="radio" name="saleCoolingYN" value="Yes">' +
+    '<input type="radio" name="saleCoolingYN" value="No">' +
+    '<input type="checkbox" name="saleCooling" value="CentralAir">';
+  const viewYn =
+    '<input type="radio" name="saleHasViews" value="Yes">' +
+    '<input type="radio" name="saleHasViews" value="No" checked>' +
+    '<input type="checkbox" name="saleViewList" value="River">';
+
+  it('Heating required is SATISFIED when a heating type checkbox is checked (YN blank)', () => {
+    const win = makeWindow(heatYn);
+    win.document.querySelector('input[name="saleHeating"][value="Steam"]').checked = true;
+    const fns = loadFns(win);
+    expect(fns.fieldHasValue({ name: 'saleHeatingYN', type: 'radio', orCheckboxName: 'saleHeating' })).toBe(true);
+  });
+
+  it('Cooling required is SATISFIED when a cooling type checkbox is checked (YN blank)', () => {
+    const win = makeWindow(coolYn);
+    win.document.querySelector('input[name="saleCooling"][value="CentralAir"]').checked = true;
+    const fns = loadFns(win);
+    expect(fns.fieldHasValue({ name: 'saleCoolingYN', type: 'radio', orCheckboxName: 'saleCooling' })).toBe(true);
+  });
+
+  it('Views required is SATISFIED when a view checkbox is checked', () => {
+    const win = makeWindow(viewYn);
+    win.document.querySelector('input[name="saleViewList"][value="River"]').checked = true;
+    const fns = loadFns(win);
+    expect(fns.fieldHasValue({ name: 'saleHasViews', type: 'radio', orCheckboxName: 'saleViewList' })).toBe(true);
+  });
+
+  it('Heating required is still MISSING when neither YN nor any type is selected (no false-pass)', () => {
+    const win = makeWindow(heatYn);
+    const fns = loadFns(win);
+    expect(fns.fieldHasValue({ name: 'saleHeatingYN', type: 'radio', orCheckboxName: 'saleHeating' })).toBe(false);
+  });
+
+  it('explicit "No" on the YN radio is honored and never auto-flipped to Yes (no regression)', () => {
+    const win = makeWindow(heatYn);
+    win.document.querySelector('input[name="saleHeatingYN"][value="No"]').checked = true;
+    const fns = loadFns(win);
+    expect(fns.fieldHasValue({ name: 'saleHeatingYN', type: 'radio', orCheckboxName: 'saleHeating' })).toBe(true);
+    // Choosing a heating type must NOT override the explicit No.
+    win.document.querySelector('input[name="saleHeating"][value="Steam"]').checked = true;
+    fns._autoSetYesWhenTypeChosen('saleHeating', 'saleHeatingYN');
+    expect(win.document.querySelector('input[name="saleHeatingYN"][value="No"]').checked).toBe(true);
+    expect(win.document.querySelector('input[name="saleHeatingYN"][value="Yes"]').checked).toBe(false);
+  });
+
+  it('auto-set flips YN to "Yes" when a type is chosen and the radio was unset', () => {
+    const win = makeWindow(heatYn);
+    win.document.querySelector('input[name="saleHeating"][value="Steam"]').checked = true;
+    const fns = loadFns(win);
+    fns._autoSetYesWhenTypeChosen('saleHeating', 'saleHeatingYN');
+    expect(win.document.querySelector('input[name="saleHeatingYN"][value="Yes"]').checked).toBe(true);
+  });
+
+  it('saved neighborhood restores even when the option was NOT preloaded (dynamic add under borough)', () => {
+    const win = makeWindow('<select id="saleBldgNeighborhood"><optgroup label="Manhattan"><option value="Chelsea">Chelsea</option></optgroup></select>');
+    const fns = loadFns(win);
+    fns._restoreSaleNeighborhoodSelect('TurtleBay', 'Manhattan');
+    const sel = win.document.getElementById('saleBldgNeighborhood');
+    expect(sel.value).toBe('TurtleBay');
+    const added = sel.querySelector('option[data-cotality-added="true"]');
+    expect(added).not.toBeNull();
+    expect(added.value).toBe('TurtleBay');
+  });
+
+  it('compact-value vs display-label mismatch matches the existing option (no duplicate)', () => {
+    const win = makeWindow('<select id="saleBldgNeighborhood"><optgroup label="Manhattan"><option value="TurtleBay">Turtle Bay</option></optgroup></select>');
+    const fns = loadFns(win);
+    fns._restoreSaleNeighborhoodSelect('Turtle Bay', 'Manhattan'); // display label; option value is compact
+    const sel = win.document.getElementById('saleBldgNeighborhood');
+    expect(sel.value).toBe('TurtleBay');
+    expect(sel.querySelectorAll('option').length).toBe(1); // matched existing, no duplicate
+  });
+
+  it('dynamically added neighborhood option persists and is selected (reload survives missing option)', () => {
+    const win = makeWindow('<select id="saleBldgNeighborhood"></select>');
+    const fns = loadFns(win);
+    fns._restoreSaleNeighborhoodSelect('Lincoln Square', '');
+    const sel = win.document.getElementById('saleBldgNeighborhood');
+    expect(sel.options.length).toBe(1);
+    expect(sel.value).toBe('LincolnSquare');
+    expect(sel.options[0].text).toBe('Lincoln Square');
+  });
+});
+
+describe('Sale form save/update hotfix — wiring guards (static)', () => {
+  it('SALE_REQUIRED_FIELDS pairs each YN radio with its checkbox group via orCheckboxName', () => {
+    expect(formHtml).toMatch(/name:\s*'saleHeatingYN'[^}]*orCheckboxName:\s*'saleHeating'/);
+    expect(formHtml).toMatch(/name:\s*'saleCoolingYN'[^}]*orCheckboxName:\s*'saleCooling'/);
+    expect(formHtml).toMatch(/name:\s*'saleHasViews'[^}]*orCheckboxName:\s*'saleViewList'/);
+  });
+
+  it('fieldHasValue honors orCheckboxName', () => {
+    expect(formHtml).toMatch(/field\.orCheckboxName\s*&&[\s\S]{0,120}field\.orCheckboxName/);
+  });
+
+  it('_populateSaleFormFromApi invokes the neighborhood dynamic-restore', () => {
+    const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 22000);
+    expect(populateBody).toMatch(/_restoreSaleNeighborhoodSelect\(/);
+  });
+
+  it('DOMContentLoaded wires the auto-set listeners for all three groups', () => {
+    expect(formHtml).toMatch(/\['saleHeating',\s*'saleHeatingYN'\]/);
+    expect(formHtml).toMatch(/\['saleCooling',\s*'saleCoolingYN'\]/);
+    expect(formHtml).toMatch(/\['saleViewList',\s*'saleHasViews'\]/);
+    expect(formHtml).toMatch(/_autoSetYesWhenTypeChosen\(pair\[0\],\s*pair\[1\]\)/);
+  });
+
+  it('no regression: Heating/Cooling array collect + SALE_CHECKBOX_ARRAY_MAP restore intact', () => {
+    expect(formHtml).toMatch(/data\.Heating\s*=\s*\[\]/);
+    expect(formHtml).toMatch(/data\.Cooling\s*=\s*\[\]/);
+    expect(formHtml).toMatch(/\{\s*rls:\s*['"]Heating['"]\s*,\s*name:\s*['"]saleHeating['"]\s*\}/);
+    expect(formHtml).toMatch(/\{\s*rls:\s*['"]Cooling['"]\s*,\s*name:\s*['"]saleCooling['"]\s*\}/);
+  });
+});

@@ -7868,7 +7868,20 @@ const REBNY_ACTIVE_STATUSES = ['Active', 'ComingSoon', 'BackOnMarket', 'OfferOut
 // Check if a field has a value (works for radio, select, input, textarea)
 function fieldHasValue(field) {
     if (field.type === 'radio') {
-        if (field.name) return !!document.querySelector('input[name="' + field.name + '"]:checked');
+        if (field.name) {
+            if (document.querySelector('input[name="' + field.name + '"]:checked')) return true;
+            // 2026-05-29 hotfix: a required Yes/No radio (saleHeatingYN /
+            // saleCoolingYN / saleHasViews) is ALSO satisfied when the agent has
+            // selected ≥1 detail checkbox in the paired group (saleHeating /
+            // saleCooling / saleViewList). The two were decoupled, so filling the
+            // detail left the required flag stuck on "missing" even though the
+            // data was saved. (See sales-form save/update audit.)
+            if (field.orCheckboxName &&
+                document.querySelector('input[name="' + field.orCheckboxName + '"]:checked')) {
+                return true;
+            }
+            return false;
+        }
         return false;
     }
     if (field.id) {
@@ -7912,11 +7925,11 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleHalfBaths', label: 'Half Bathrooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     { id: 'saleFloorInBuilding', label: 'Floor in Building', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     { name: 'saleGarageSpaces', label: 'Garage Spaces Assigned', type: 'radio', tab: 2, section: 'Unit Information/Essentials' },
-    { name: 'saleHasViews', label: 'Views', type: 'radio', tab: 2, section: 'Unit Information/Essentials' },
+    { name: 'saleHasViews', label: 'Views', type: 'radio', orCheckboxName: 'saleViewList', tab: 2, section: 'Unit Information/Essentials' },
     // Tab 2: Features
     { name: 'saleWasherDryerAllowed', label: 'Washer/Dryer Allowed', type: 'radio', tab: 2, section: 'Unit Information/Features' },
-    { name: 'saleCoolingYN', label: 'Cooling', type: 'radio', tab: 2, section: 'Unit Information/Features' },
-    { name: 'saleHeatingYN', label: 'Heating', type: 'radio', tab: 2, section: 'Unit Information/Features' },
+    { name: 'saleCoolingYN', label: 'Cooling', type: 'radio', orCheckboxName: 'saleCooling', tab: 2, section: 'Unit Information/Features' },
+    { name: 'saleHeatingYN', label: 'Heating', type: 'radio', orCheckboxName: 'saleHeating', tab: 2, section: 'Unit Information/Features' },
     { name: 'fireplace', label: 'Fireplace', type: 'radio', tab: 2, section: 'Unit Information/Features' },
     // Tab 1: Conditional
     { id: 'saleLivingArea', label: 'Living Area (Sq Ft)', type: 'input', tab: 1, section: 'Listing Information/Condo Details', conditional: ['CONDO','COMMERCIAL_CONDO'] },
@@ -9077,6 +9090,63 @@ var SALE_RADIO_MAP = [
   { rls: 'saleUnitType2', name: 'saleUnitType2', src: 'raw' },
 ];
 
+// 2026-05-29 hotfix: auto-set a Yes/No radio to "Yes" when the agent selects a
+// detail checkbox in the paired group, ONLY when the radio is still unset.
+// Respects an explicit Yes/No already chosen (or the HTML default) — never
+// clears a user-selected "No". Wired on change in DOMContentLoaded.
+function _autoSetYesWhenTypeChosen(typeGroupName, ynRadioName) {
+    if (!document.querySelector('input[name="' + typeGroupName + '"]:checked')) return;
+    if (document.querySelector('input[name="' + ynRadioName + '"]:checked')) return; // respect existing Yes/No
+    var yes = document.querySelector('input[name="' + ynRadioName + '"][value="Yes"]');
+    if (yes) { yes.checked = true; yes.dispatchEvent(new Event('change', { bubbles: true })); }
+}
+
+// 2026-05-29 hotfix: restore the building-neighborhood <select> robustly. The
+// saved SubdivisionName may NOT be a preloaded <option> — the Cotality options
+// load async, and a building lookup stores the compacted value ("TurtleBay")
+// while the option text is the display label ("Turtle Bay"). A plain
+// `el.value = saved` silently no-ops in those cases, blanking the field on
+// reload. This mirrors populateBuildingFromIDX's dynamic-add: match an existing
+// option by value / compact-value / display text, else add the option (under
+// the correct borough optgroup when known) before selecting it.
+function _restoreSaleNeighborhoodSelect(value, boroughHint) {
+    var nEl = document.getElementById('saleBldgNeighborhood');
+    if (!nEl || value === undefined || value === null || value === '') return;
+    var normalized = String(value).trim();
+    var compact = normalized.replace(/[^a-zA-Z0-9]/g, '');
+    for (var i = 0; i < nEl.options.length; i++) {
+        var opt = nEl.options[i];
+        if (opt.value === normalized ||
+            opt.value === compact ||
+            opt.value.replace(/[^a-zA-Z0-9]/g, '') === compact ||
+            opt.text.trim().toLowerCase() === normalized.toLowerCase()) {
+            nEl.value = opt.value;
+            return;
+        }
+    }
+    var boroughVal = String(boroughHint || '').toLowerCase();
+    var boroughLabel = boroughVal.includes('manhattan') || boroughVal === 'new york' ? 'Manhattan'
+        : boroughVal.includes('brooklyn') || boroughVal === 'kings' ? 'Brooklyn'
+        : boroughVal.includes('queens') ? 'Queens'
+        : boroughVal.includes('bronx') ? 'Bronx'
+        : boroughVal.includes('staten') || boroughVal === 'richmond' ? 'Staten Island' : '';
+    var targetGroup = null;
+    for (var c = 0; c < nEl.children.length; c++) {
+        var child = nEl.children[c];
+        if (child.tagName === 'OPTGROUP' && boroughLabel &&
+            (child.label || '').toLowerCase().indexOf(boroughLabel.toLowerCase()) >= 0) {
+            targetGroup = child;
+            break;
+        }
+    }
+    var newOpt = document.createElement('option');
+    newOpt.value = compact || normalized;
+    newOpt.text = normalized;
+    newOpt.dataset.cotalityAdded = 'true';
+    (targetGroup || nEl).appendChild(newOpt);
+    nEl.value = newOpt.value;
+}
+
 function _populateSaleFormFromApi(listing) {
     _pendingMediaFiles = [];
     var raw = listing.raw_data || {};
@@ -9175,6 +9245,14 @@ function _populateSaleFormFromApi(listing) {
             setVal(f.form, val);
         }
     });
+
+    // ── Neighborhood select — dynamic-option restore (2026-05-29 hotfix) ──
+    // The generic SALE_FIELD_MAP setVal above silently no-ops when the saved
+    // SubdivisionName isn't a preloaded <option> (Cotality options load async;
+    // building lookup stores the compact value "TurtleBay" vs display label
+    // "Turtle Bay"). Re-apply via the dynamic-add restorer so the saved
+    // neighborhood always selects on edit-load.
+    _restoreSaleNeighborhoodSelect(raw.SubdivisionName || raw.saleBldgNeighborhood, raw.CityRegion || raw.saleBorough || addr.CityRegion);
 
     // ── Radio buttons ──
     SALE_RADIO_MAP.forEach(function(r) {
@@ -9788,6 +9866,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Building Status radios
     document.querySelectorAll('input[name="saleBuildingStatus"]').forEach(radio => {
         radio.addEventListener('change', applySalesFieldRules);
+    });
+
+    // 2026-05-29 hotfix: keep the Heating/Cooling/Views Yes/No radio in sync with
+    // the paired detail checkbox group — auto-set "Yes" when a detail is chosen
+    // and the radio is still unset (never overrides an explicit "No").
+    [['saleHeating', 'saleHeatingYN'], ['saleCooling', 'saleCoolingYN'], ['saleViewList', 'saleHasViews']].forEach(function(pair) {
+        document.querySelectorAll('input[name="' + pair[0] + '"]').forEach(function(cb) {
+            cb.addEventListener('change', function() { _autoSetYesWhenTypeChosen(pair[0], pair[1]); });
+        });
     });
 
     // Auto-generate listing URL slug when address fields change
