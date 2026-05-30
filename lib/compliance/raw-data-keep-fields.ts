@@ -133,6 +133,7 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   // public DTO's fail-closed gate helpers in lib/compliance/gates.ts
   // accept either source. Keeping them in raw_data lets the gate logic
   // re-derive on a row that was synced before the columns existed.
+  'Permission',
   'Permissions',
   'InternetEntireListingDisplayYN',
   'InternetAddressDisplayYN',

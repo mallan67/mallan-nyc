@@ -262,8 +262,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
   // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
-  if (body.Permissions !== undefined) {
-    const permBools = derivePermissionBooleans(body.Permissions);
+  const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
+  if (permValue !== undefined) {
+    const permBools = derivePermissionBooleans(permValue);
     update.participant_only = permBools.participant_only;
     update.owner_opt_out = permBools.owner_opt_out;
   } else {

@@ -296,8 +296,9 @@ export const REBNY_FIELD_TABLES = {
 
     // ── Status / Permission aliases ──
     status: 'MlsStatus',
-    permission: 'Permissions',
-    listingPrivacy: 'Permissions',
+    permission: 'Permission',
+    listingPrivacy: 'Permission',
+    Permissions: 'Permission',  // A2 (2026-05-30): legacy plural → canonical Cotality Permission (singular, live $metadata Multi.ListingPermission)
     addressDisplayYN: 'InternetAddressDisplayYN',
     // idxDisplayYN / idxEntireListingDisplayYN / IDXEntireListingDisplayYN
     // were previously aliased to IDXEntireListingDisplayYN, which does NOT
@@ -336,7 +337,7 @@ export const REBNY_FIELD_TABLES = {
   // ═══════════════════════════════════════════════════════════════════════════
 
   valueAliases: {
-    Permissions: {
+    Permission: {
       // Form radio values (from SALE/RENTAL-FORM-REDESIGN.html)
       'RLS-Owner-OptOut': 'OwnerOptOut',
       'RLS-Participant': 'Private',
@@ -1024,8 +1025,10 @@ export const REBNY_FIELD_TABLES = {
     PrivateRemarks: { features: true, raw: true },
     ShowingInstructions: { features: true, raw: true },
 
-    // ── Permissions → derive booleans + raw ──
-    Permissions: {
+    // ── Permission (Cotality Multi.ListingPermission) → derive booleans + raw ──
+    // A2 (2026-05-30): canonical key is `Permission` (singular). Legacy `Permissions`
+    // payloads are aliased to `Permission` by normalizePayload before this runs.
+    Permission: {
       raw: true,
       deriveBooleans: {
         'OwnerOptOut': { db: 'owner_opt_out' },
