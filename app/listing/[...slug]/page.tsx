@@ -308,7 +308,12 @@ interface ListingFetchResult {
 // so we don't over-fetch R2 timestamps, retry counters, or audit fields.
 const LISTING_MEDIA_INCLUDE = {
   listing_media: {
-    where: { status: 'active' },
+    // Fetch ALL statuses (the resolver filters to active for display). This
+    // lets the reader distinguish "no rows ever imported" (→ fall back to the
+    // legacy media JSON) from "rows existed but all deleted" (→ authoritative
+    // empty). Filtering to active-only here resurrected soft-deleted CRM media
+    // via the JSON fallback once the last active row was deleted. (Codex media
+    // P0 finding #2.)
     orderBy: [{ order: 'asc' as const }, { id: 'asc' as const }],
     select: {
       media_url_original: true,

@@ -216,31 +216,59 @@ export async function POST(
   const heroVariantKey = `listings/${listingId}/${timestamp}-hero.webp`;
   const cachedUrl = urls.card || urls.hero || "";
 
-  const created = await prisma.listingMedia.create({
-    data: {
-      listing_id: listing.listing_id,
-      media_key: mediaKey,
-      resource_record_key: listing.listing_id,
-      media_url_original: urls.hero || cachedUrl,
-      media_url_cached: cachedUrl,
-      media_type: mediaType,
-      media_category: mediaCategory,
-      media_classification: crmMediaClassification(mediaType),
-      order,
-      preferred_photo_yn: preferred,
-      media_modification_ts: new Date(),
-      r2_key: heroVariantKey,
-      status: "active",
-    },
-    select: {
-      media_key: true,
-      media_url_cached: true,
-      media_url_original: true,
-      order: true,
-      preferred_photo_yn: true,
-      media_type: true,
-    },
-  });
+  const writeSelect = {
+    media_key: true,
+    media_url_cached: true,
+    media_url_original: true,
+    order: true,
+    preferred_photo_yn: true,
+    media_type: true,
+  } as const;
+
+  // Re-upload of a previously soft-deleted same image (same file + listing →
+  // same deterministic media_key). The active duplicate was already 409'd
+  // above, so a truthy existingRow here is non-active. RESTORE it to active with
+  // the fresh R2 variants — a create() would hit the media_key @unique
+  // constraint (P2002) and 500. (Codex media P0 finding #3.)
+  const created = existingRow
+    ? await prisma.listingMedia.update({
+        where: { media_key: mediaKey },
+        data: {
+          media_url_original: urls.hero || cachedUrl,
+          media_url_cached: cachedUrl,
+          media_type: mediaType,
+          media_category: mediaCategory,
+          media_classification: crmMediaClassification(mediaType),
+          order,
+          preferred_photo_yn: preferred,
+          media_modification_ts: new Date(),
+          r2_key: heroVariantKey,
+          status: "active",
+          // Clear stale R2 retry/cooldown state from the row's prior life.
+          r2_attempts: null,
+          r2_last_attempt_at: null,
+        },
+        select: writeSelect,
+      })
+    : await prisma.listingMedia.create({
+        data: {
+          listing_id: listing.listing_id,
+          media_key: mediaKey,
+          resource_record_key: listing.listing_id,
+          media_url_original: urls.hero || cachedUrl,
+          media_url_cached: cachedUrl,
+          media_type: mediaType,
+          media_category: mediaCategory,
+          media_classification: crmMediaClassification(mediaType),
+          order,
+          preferred_photo_yn: preferred,
+          media_modification_ts: new Date(),
+          r2_key: heroVariantKey,
+          status: "active",
+        },
+        select: writeSelect,
+      });
+  const restored = !!existingRow;
 
   // Touch the listing so ISR/edit-load see the change (legacy JSON left intact).
   await prisma.listing.update({
@@ -254,11 +282,12 @@ export async function POST(
     listing.id.toString(),
     auth,
     {
-      action: "photo_uploaded",
+      action: restored ? "photo_restored" : "photo_uploaded",
       media_key: mediaKey,
       media_type: mediaType,
       variants: Object.keys(urls),
       order,
+      restored,
     },
     req.headers.get("x-forwarded-for") ?? undefined
   );
@@ -278,5 +307,6 @@ export async function POST(
       preferred_photo_yn: created.preferred_photo_yn,
     },
     total_photos: totalPhotos,
+    restored,
   });
 }

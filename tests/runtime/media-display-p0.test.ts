@@ -23,6 +23,7 @@ import {
   type LegacyMediaItem,
 } from '@/lib/media/crm-media';
 import { resolveListingMediaFromRows, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
+import { dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 
 const ROOT = process.cwd();
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
@@ -204,5 +205,128 @@ describe('route invariants (source-locked)', () => {
   it('delete soft-deletes by media_key and only touches crm: rows', () => {
     expect(item).toMatch(/status: "deleted"/);
     expect(item).toMatch(/isCrmMediaKey\(mediaKey\)/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// CRM media P0 — Codex follow-up hotfix (2026-05-29). Three findings:
+//   1. GET /media must be read-only (no lazy import / no DB write).
+//   2. Deleted (imported-from-JSON) media must not resurrect via the legacy
+//      JSON fallback after the last active row is deleted.
+//   3. Re-upload of a soft-deleted same image restores the row (no media_key
+//      @unique crash).
+// ════════════════════════════════════════════════════════════════════════════
+describe('CRM media P0 — Codex follow-up hotfix', () => {
+  const getRoute = read('app/api/crm/listings/[id]/media/route.ts');
+  const uploadRoute = read('app/api/crm/listings/[id]/media/upload/route.ts');
+  const mediaIdRoute = read('app/api/crm/listings/[id]/media/[mediaId]/route.ts');
+  const detailPage = read('app/listing/[...slug]/page.tsx');
+  const migrationScript = read('scripts/migrate-crm-media-to-rows.ts');
+
+  function makeRow(over: Partial<ListingMediaTableRow> = {}): ListingMediaTableRow {
+    return {
+      media_url_original: 'https://r2.dev/listings/SL-0004/a.webp',
+      media_url_cached: 'https://r2.dev/listings/SL-0004/a-card.webp',
+      media_type: 'Photo', media_category: 'Photo', media_classification: null,
+      order: 0, preferred_photo_yn: false, status: 'active', ...over,
+    };
+  }
+  function makeListing(over: Record<string, unknown> = {}): DbListing {
+    return ({
+      id: '1', listing_id: 'SL-0004', mls_id: 'SL-0004', status: 'Active',
+      listing_type: 'sale', property_type: 'Residential', property_sub_type: 'Condominium',
+      list_price: '770000', bedrooms_total: 1, bathrooms_full: 1, bathrooms_half: 0,
+      living_area: '860', borough: 'manhattan', neighborhood: 'Turtle Bay',
+      address: { StreetNumber: '333', StreetName: 'East 46th Street', UnitNumber: '2G', City: 'New York', PostalCode: '10017' },
+      features: {}, media: [], agent_info: { ListOfficeName: 'Mallan Real Estate Inc.' },
+      rls_eligible: true, idx_display_yn: true, internet_entire_listing_display_yn: true,
+      internet_address_display_yn: true, owner_opt_out: false, participant_only: false,
+      listing_contract_date: null,
+      modification_timestamp: new Date('2026-05-01T00:00:00Z').toISOString(),
+      created_at: new Date('2026-04-01T00:00:00Z').toISOString(),
+      updated_at: new Date('2026-05-01T00:00:00Z').toISOString(),
+      ...over,
+    } as unknown) as DbListing;
+  }
+
+  // ── Finding #2 (executable, via the real public DTO) ──
+  it('all listing_media rows deleted → DTO media empty; legacy JSON NOT resurrected', () => {
+    const dto = dbListingToPublicDTO(makeListing({
+      media: [{ url: 'https://r2.dev/listings/SL-0004/legacy.webp', type: 'photo' }],
+      listing_media: [makeRow({ status: 'deleted' })],
+    }));
+    expect(dto.media).toEqual([]);
+  });
+
+  it('multiple deleted rows + multiple legacy JSON items → still no leak', () => {
+    const dto = dbListingToPublicDTO(makeListing({
+      media: [{ url: 'https://r2.dev/legacy-A.webp', type: 'photo' }, { url: 'https://r2.dev/legacy-B.webp', type: 'photo' }],
+      listing_media: [makeRow({ status: 'deleted', order: 0 }), makeRow({ status: 'deleted', order: 1 })],
+    }));
+    expect(dto.media.length).toBe(0);
+  });
+
+  it('no rows ever imported (listing_media empty) → legacy JSON fallback still works', () => {
+    const dto = dbListingToPublicDTO(makeListing({
+      media: [{ url: 'https://r2.dev/listings/SL-0004/legacy.webp', type: 'photo' }],
+      listing_media: [],
+    }));
+    expect(dto.media.length).toBe(1);
+  });
+
+  it('one active + one deleted row → only the active surfaces (no deleted leak)', () => {
+    const dto = dbListingToPublicDTO(makeListing({
+      media: [{ url: 'https://r2.dev/legacy.webp', type: 'photo' }],
+      listing_media: [
+        makeRow({ media_url_cached: 'https://r2.dev/active.webp', status: 'active', order: 0 }),
+        makeRow({ media_url_cached: 'https://r2.dev/gone.webp', status: 'deleted', order: 1 }),
+      ],
+    }));
+    expect(dto.media.length).toBe(1);
+    expect(dto.media[0].url).toContain('active.webp');
+  });
+
+  it('resolveListingMediaFromRows returns [] when every row is deleted', () => {
+    expect(resolveListingMediaFromRows([makeRow({ status: 'deleted' })])).toEqual([]);
+  });
+
+  // ── Finding #1: GET is read-only ──
+  it('GET /media performs NO import/migration and NO DB write', () => {
+    expect(getRoute).not.toMatch(/importJsonMediaToRows\s*\(/);
+    expect(getRoute).not.toMatch(/prisma\.listingMedia\.(create|update|updateMany|delete|deleteMany|upsert)/);
+  });
+
+  it('GET /media distinguishes "no rows" (legacy preview) from "all deleted" (authoritative empty)', () => {
+    expect(getRoute).toMatch(/rows\.length\s*>\s*0/);   // all-deleted → media: []
+    expect(getRoute).toMatch(/_legacyPreview/);          // read-only legacy preview path
+    expect(getRoute).toMatch(/_preview:\s*true/);
+  });
+
+  // ── Finding #2 reader wiring: detail page sees deleted rows ──
+  it('detail page fetches listing_media without an active-only filter', () => {
+    expect(detailPage).toMatch(/LISTING_MEDIA_INCLUDE/);
+    expect(detailPage).not.toMatch(/listing_media:\s*\{\s*where:\s*\{\s*status:\s*'active'\s*\}/);
+  });
+
+  // ── Finding #3: re-upload of a deleted image restores instead of crashing ──
+  it('upload restores a soft-deleted row (update) instead of create() on existing key', () => {
+    expect(uploadRoute).toMatch(/existingRow\s*\?[\s\S]*?prisma\.listingMedia\.update\(/);
+    expect(uploadRoute).toMatch(/:\s*await prisma\.listingMedia\.create\(/);
+  });
+
+  it('upload still returns a controlled 409 for an ACTIVE duplicate (no regression)', () => {
+    expect(uploadRoute).toMatch(/existingRow\s*&&\s*existingRow\.status\s*===\s*["']active["']/);
+    expect(uploadRoute).toMatch(/duplicate:\s*true/);
+    expect(uploadRoute).toMatch(/status:\s*409/);
+  });
+
+  // ── Trestle/RLS rows remain untouched ──
+  it('delete + set-main remain CRM-key-guarded (Trestle/RLS rows never modified here)', () => {
+    expect(mediaIdRoute).toMatch(/isCrmMediaKey\(mediaKey\)/);
+  });
+
+  // ── Migration script remains dry-run by default ──
+  it('migration script stays dry-run by default (--apply gated)', () => {
+    expect(migrationScript).toMatch(/const APPLY\s*=\s*process\.argv\.includes\(["']--apply["']\)/);
   });
 });
