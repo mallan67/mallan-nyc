@@ -1277,9 +1277,14 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <p class="text-sm font-medium text-gray-700 mb-3">Exclusive Agent Commission <span class="text-red-500 sale-req-star hidden">*</span></p>
                     <div class="flex gap-2 mb-3">
-                        <select id="saleCommissionType" class="field-input w-20" data-rls-ignore="true">
-                            <option>%</option>
-                            <option>$</option>
+                        <!-- Cotality CompensationType enum (value), display %/$ (label).
+                             Renamed from the old saleCommissionType key to stop the
+                             collision with the payer radios below — both used the
+                             same key, so the checked payer radio clobbered the
+                             %/$ type on every save. (Track 1 commission fix.) -->
+                        <select id="saleExclusiveCommissionType" class="field-input w-20" data-rls-ignore="true">
+                            <option value="Percent" selected>%</option>
+                            <option value="Dollars">$</option>
                         </select>
                         <input type="number" id="saleExclusiveCommission" placeholder="0" class="field-input flex-1" required data-rls-ignore="true">
                     </div>
@@ -1287,8 +1292,10 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <p class="text-sm font-medium text-gray-700 mb-3">Buyer Agent Commission</p>
                     <div class="space-y-2 mb-3">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleCommissionType" value="OwnerPays" class="w-4 h-4" checked> Owner Pays (to Buyer's Agent)</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleCommissionType" value="BuyerPays" class="w-4 h-4"> Buyer Pays</label>
+                        <!-- Renamed from the old saleCommissionType key to saleBuyerAgentPays:
+                             distinct key from the %/$ type select above. (Track 1.) -->
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="OwnerPays" class="w-4 h-4" checked> Owner Pays (to Buyer's Agent)</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="BuyerPays" class="w-4 h-4"> Buyer Pays</label>
                     </div>
                     <label class="field-label">Commission Comments</label>
                     <textarea rows="2" placeholder="Commission details..." class="field-input"></textarea>
@@ -4275,7 +4282,7 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="checkbox" id="saleBldgNewConstruction" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Construction
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgNewDevelopment" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Development
+                                <input type="checkbox" id="saleBldgNewDevelopment" class="w-4 h-4" data-rls-ignore="true" data-removed-field="NewDevelopmentYN"> New Development
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-rls-ignore="true"> Conversion
@@ -4395,7 +4402,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Number of Elevators</label>
-                                <input type="number" id="saleBldgNumElevators" placeholder="2" class="field-input" data-rls-field="ElevatorsTotal">
+                                <input type="number" id="saleBldgNumElevators" placeholder="2" class="field-input" data-rls-ignore="true" data-removed-field="ElevatorsTotal">
                             </div>
                         </div>
                         <!-- RLS/RESO/IDX: BuildingHeating (multi-select, building-level) -->
@@ -5403,6 +5410,23 @@ function populateBuildingFromIDX(prefix, building) {
     setIfPresent(prefix + 'BldgTaxLot', pick('tax_lot', 'taxLot'));
     setIfPresent(prefix + 'BldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
     setIfPresent(prefix + 'BldgAssociationName', pick('association_name', 'associationName'));
+    // AssociationFee / AssociationFeeFrequency are real Cotality fields returned
+    // by /api/buildings/search (association_fee / association_fee_frequency) and
+    // live on the main Financials tab (#saleMaintCC / #saleMaintCCFreq →
+    // data-rls-field AssociationFee / AssociationFeeFrequency). They were never
+    // auto-filled on building lookup. Fill them ONLY when empty so a building's
+    // common charge/frequency populates without clobbering an agent-entered
+    // unit value. (Track 1 building auto-fill.)
+    var _assocFee = pick('association_fee', 'associationFee');
+    var _maintEl = document.getElementById('saleMaintCC');
+    if (_maintEl && !(_maintEl.value || '').trim() && _assocFee !== null && _assocFee !== undefined && _assocFee !== '') {
+        _maintEl.value = _assocFee;
+    }
+    var _assocFreq = pick('association_fee_frequency', 'associationFeeFrequency');
+    var _freqEl = document.getElementById('saleMaintCCFreq');
+    if (_freqEl && !(_freqEl.value || '').trim() && _assocFreq) {
+        _freqEl.value = _assocFreq;
+    }
 
     // ── 6. Subletting / pet / Wd policy ──────────────────────────────
     checkIf(prefix + 'BldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
@@ -7122,7 +7146,10 @@ function collectSaleFormData() {
     data.PrivateRemarks = data.saleBrokerComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
     data.YearBuilt = parseInt(data.saleBldgYearBuilt || '0') || null;
-    data.NewDevelopmentYN = data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
+    // NewDevelopmentYN is NOT in live Cotality $metadata (phantom — verified
+    // 2026-05-30). Do not emit it as a canonical field; the agent's selection
+    // persists internally as saleBldgNewDevelopment (collected by the building-
+    // modal sweep) and restores via SALE_FIELD_MAP fallbackRls. (Track 1.)
 
     // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
     // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
@@ -7426,7 +7453,9 @@ function collectSaleFormData() {
     data.RoomsTotal = parseInt(data.saleTotalRooms || '0') || null;
     data.Concessions = data.saleConcessions || '';
     data.NewConstructionYN = data.saleBldgNewConstruction === true || data.saleBldgNewConstruction === 'true';
-    data.ElevatorsTotal = parseInt(data.saleBldgNumElevators || '0') || null;
+    // ElevatorsTotal is NOT in live Cotality $metadata (phantom — verified
+    // 2026-05-30). Keep internal (saleBldgNumElevators via the building-modal
+    // sweep); do not emit canonical. (Track 1.)
     data.GarageYN = data.saleTHGarageYN === true || data.saleTHGarageYN === 'true' || data.saleTHGarageYN === 'Yes';
     data.OnMarketDate = data.saleDateListed || '';
     data.ExpirationDate = data.saleExclusiveExpires || '';
@@ -8873,13 +8902,13 @@ var SALE_FIELD_MAP = [
   { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
   { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
   { rls: 'NumberOfUnitsTotal', form: 'saleBldgTotalUnits', type: 'number', src: 'raw' },
-  { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
+  { rls: 'saleBldgNumElevators', form: 'saleBldgNumElevators', type: 'number', src: 'raw', fallbackRls: 'ElevatorsTotal' }, // internal; ElevatorsTotal not in Cotality
   { rls: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
   { rls: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
   { rls: 'TaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },
   { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
   { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
-  { rls: 'NewDevelopmentYN', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw' },
+  { rls: 'saleBldgNewDevelopment', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw', fallbackRls: 'NewDevelopmentYN' }, // internal; NewDevelopmentYN not in Cotality
   { rls: 'SponsorUnitYN', form: 'saleBldgSponsorUnits', type: 'bool', src: 'raw' },
   { rls: 'TaxAbatementYN', form: 'saleBldgTaxAbatementYN', type: 'bool', src: 'raw' },
   { rls: 'TaxAbatementComments', form: 'saleBldgTaxAbatementComments', type: 'text', src: 'raw' },
@@ -8963,7 +8992,11 @@ var SALE_FIELD_MAP = [
   { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
   { rls: 'saleConcessionComments', form: 'saleConcessionComments', type: 'text', src: 'raw' },
   { rls: 'saleExclusiveCommission', form: 'saleExclusiveCommission', type: 'text', src: 'raw' },
-  { rls: 'saleCommissionType', form: 'saleCommissionType', type: 'text', src: 'raw' },
+  // %/$ type select — Cotality CompensationType enum (Percent/Dollars), internal.
+  // Renamed from saleCommissionType (which collided with the payer radios and
+  // was clobbered), so there is no usable legacy value to fall back to; new
+  // rows default to Percent via the <option selected>. (Track 1 commission fix.)
+  { rls: 'saleExclusiveCommissionType', form: 'saleExclusiveCommissionType', type: 'text', src: 'raw' },
 
   // ── Distribution additional ──
   { rls: 'saleListingUrl', form: 'saleListingUrl', type: 'text', src: 'raw' },
@@ -9172,6 +9205,11 @@ var SALE_SYNDICATION_MAP = [
 // Radio-button fields
 var SALE_RADIO_MAP = [
   { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
+  // Buyer-agent payer radios (OwnerPays/BuyerPays). Renamed from saleCommissionType
+  // to break the key collision with the %/$ type select. Legacy rows stored the
+  // payer under the old saleCommissionType key (the radio clobbered the type), so
+  // fall back to it on reload. Internal — never emitted to the IDX/feed. (Track 1.)
+  { rls: 'saleBuyerAgentPays', name: 'saleBuyerAgentPays', src: 'raw', rawKey: 'saleBuyerAgentPays', fallback: 'saleCommissionType' },
   // PropertyType radio uses CRM-specific values (Condo/Coop/Condop/...) that
   // do NOT match RESO PropertySubType ("Apartment" for all three). Restore
   // from the form's own saved salePropertyType field first, falling back to
