@@ -111,6 +111,41 @@ interface TrestleRecord {
   [key: string]: unknown;
 }
 
+/**
+ * Real-Cotality parking / laundry / documents / pets fields surfaced for the
+ * CRM building-modal auto-fill (Track 1). EVERY field below is verified present
+ * in live $metadata (artifacts/metadata.xml, 2026-05-30):
+ *   GarageYN, AttachedGarageYN, GarageSpaces, OpenParkingSpaces, CoveredSpaces,
+ *   ParkingFeatures, LaundryFeatures, DocumentsAvailable, PetsAllowed,
+ *   PetsAllowedYN.
+ * Phantom co-op/condo policy fields (board approval, max financing, sublet,
+ * total shares, underlying mortgage, capital reserves, flip tax, tax abatement)
+ * are intentionally NOT surfaced — they do not exist on the Cotality Property
+ * entity, so there is nothing to auto-fill (filling them would be guessing).
+ * PetsAllowed is UNIT-level Cotality data; the form uses it as a suggestion only
+ * (populate fills it only when the agent left the pet policy empty).
+ */
+function buildingExtras(rec: Record<string, unknown> | null | undefined) {
+  const r = rec || {};
+  const num = (v: unknown) =>
+    v === 0 || (v !== null && v !== undefined && v !== '') ? Number(v) : null;
+  return {
+    garage_yn: r.GarageYN === true,
+    attached_garage_yn: r.AttachedGarageYN === true,
+    garage_spaces: num(r.GarageSpaces),
+    open_parking_spaces: num(r.OpenParkingSpaces),
+    covered_spaces: num(r.CoveredSpaces),
+    parking_features: String(r.ParkingFeatures || ''),
+    laundry_features: String(r.LaundryFeatures || ''),
+    documents_available: String(r.DocumentsAvailable || ''),
+    pets_allowed: String(r.PetsAllowed || ''),
+    // Nullable on purpose: a strict boolean would make "missing" look like
+    // "false" and wrongly suggest "No pets". Only true/false when Cotality
+    // actually provided the field; otherwise null (no suggestion).
+    pets_allowed_yn: r.PetsAllowedYN === true ? true : r.PetsAllowedYN === false ? false : null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   const debugMode = request.nextUrl.searchParams.get('debug') === '1';
 
@@ -261,6 +296,7 @@ export async function GET(request: NextRequest) {
           live_in_super: dbFeatures.includes('live-in super') || dbFeatures.includes('live in superintendent'),
           on_site_manager: dbFeatures.includes('on-site') || dbAttendance.includes('property manager'),
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
+          ...buildingExtras(feat),
         });
       }
     } else if (parsed.buildingName) {
@@ -343,6 +379,7 @@ export async function GET(request: NextRequest) {
           live_in_super: dbFeatures.includes('live-in super') || dbFeatures.includes('live in superintendent'),
           on_site_manager: dbFeatures.includes('on-site') || dbAttendance.includes('property manager'),
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
+          ...buildingExtras(feat),
         });
       }
     }
@@ -382,6 +419,13 @@ export async function GET(request: NextRequest) {
           'TaxBlock', 'TaxLot', 'TaxAnnualAmount',
           'AssociationName', 'AssociationFee', 'AssociationFeeFrequency',
           'ZoningDescription',
+          // Parking / laundry / documents / pets — all verified in live
+          // $metadata (2026-05-30). Surfaced for building-modal auto-fill.
+          // Do NOT add a field here without a metadata check — an invalid
+          // $select makes Trestle reject the whole query with HTTP 400.
+          'GarageYN', 'AttachedGarageYN', 'GarageSpaces',
+          'OpenParkingSpaces', 'CoveredSpaces', 'ParkingFeatures',
+          'LaundryFeatures', 'DocumentsAvailable', 'PetsAllowedYN',
         ].join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
@@ -495,6 +539,7 @@ export async function GET(request: NextRequest) {
               live_in_super: features.includes('live-in super') || features.includes('live in superintendent'),
               on_site_manager: features.includes('on-site') || features.includes('property manager'),
               washer_dryer_allowed: features.includes('washer') || features.includes('w/d'),
+              ...buildingExtras(r),
             });
           }
         } else {

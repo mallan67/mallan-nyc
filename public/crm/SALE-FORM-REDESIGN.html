@@ -5439,14 +5439,14 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 6. Subletting / pet / Wd policy ──────────────────────────────
     checkIf(prefix + 'BldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
-    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed'));
+    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || !!pick('laundry_features', 'laundryFeatures') || building.laundry); // LaundryFeatures real Cotality (Track 1)
 
     // ── 7. Amenity checkboxes (every BuildingFeatures-derived flag) ─
     checkIf(prefix + 'BldgDoorman', building.doorman);
     checkIf(prefix + 'BldgElevator', building.elevator);
     checkIf(prefix + 'BldgGym', building.gym);
     checkIf(prefix + 'BldgPool', building.pool);
-    checkIf(prefix + 'BldgParking', building.parking);
+    checkIf(prefix + 'BldgParking', building.parking || pick('garage_yn', 'garageYN') || pick('attached_garage_yn', 'attachedGarageYN')); // GarageYN/AttachedGarageYN real Cotality (Track 1)
     checkIf(prefix + 'BldgConcierge', building.concierge);
     checkIf(prefix + 'BldgSpa', pick('spa', 'spa'));
     checkIf(prefix + 'BldgRoofDeck', pick('roof_deck', 'roofDeck'));
@@ -5468,6 +5468,52 @@ function populateBuildingFromIDX(prefix, building) {
     if (building.laundry) {
         const lCb = document.querySelector('.sale-laundry-cb[value="CommonArea"]');
         if (lCb) lCb.checked = true;
+    }
+
+    // ── 8. Parking spaces — OpenParkingSpaces / GarageSpaces / CoveredSpaces
+    //    (all real Cotality, Track 1). Only-when-empty so an agent value is
+    //    never overwritten — Maya can always override on the form. ──
+    const _parkSpaces = pick('open_parking_spaces', 'openParkingSpaces')
+        || pick('garage_spaces', 'garageSpaces')
+        || pick('covered_spaces', 'coveredSpaces');
+    const _parkEl = document.getElementById(prefix + 'BldgParkingSpaces');
+    if (_parkEl && !(_parkEl.value || '').trim() && _parkSpaces !== null && _parkSpaces !== undefined && _parkSpaces !== '') {
+        _parkEl.value = _parkSpaces;
+    }
+
+    // ── 9. Multi-enum checkbox groups — SUGGESTION ONLY, override-safe ──
+    // Fill a checkbox group from a Cotality Multi value ONLY when the agent has
+    // not selected anything in it yet. A lookup never overwrites the agent's
+    // choices, and (per Maya) every value stays fully editable afterwards — so
+    // if Cotality rules change, the agent can always override.
+    const fillGroupIfEmpty = (groupName, cotalityMulti, mapValue) => {
+        const cbs = document.querySelectorAll('input[name="' + groupName + '"]');
+        if (!cbs.length || !cotalityMulti) return;
+        let anyChecked = false;
+        cbs.forEach(function (cb) { if (cb.checked) anyChecked = true; });
+        if (anyChecked) return; // agent already chose — do NOT override
+        const members = String(cotalityMulti).split(',')
+            .map(function (s) { return mapValue(s.trim()); }).filter(Boolean);
+        if (!members.length) return;
+        cbs.forEach(function (cb) { if (members.indexOf(cb.value) !== -1) cb.checked = true; });
+    };
+
+    // Documents Available — real Cotality DocumentsAvailable (Multi); the form's
+    // checkbox values mirror the Cotality members 1:1.
+    fillGroupIfEmpty('saleBldgDocsAvailable', pick('documents_available', 'documentsAvailable'), function (m) { return m; });
+
+    // Pets — UNIT-level Cotality PetsAllowed (NOT building-wide authority): a
+    // building lookup only SUGGESTS the unit pet policy, applied when the agent
+    // left it empty. Cotality members map to the form's Unit-prefixed values;
+    // PetsAllowedYN true/false suggests UnitYes / UnitNo.
+    const _petsMulti = pick('pets_allowed', 'petsAllowed');
+    if (_petsMulti) {
+        fillGroupIfEmpty('salePetsAllowed', _petsMulti, function (m) { return m ? 'Unit' + m : ''; });
+    } else {
+        const _petsYN = pick('pets_allowed_yn', 'petsAllowedYN');
+        if (_petsYN === true || _petsYN === false) {
+            fillGroupIfEmpty('salePetsAllowed', _petsYN === true ? 'Yes' : 'No', function (m) { return 'Unit' + m; });
+        }
     }
 
     // NOTE: this function intentionally does NOT touch UnitNumber/Apt fields.

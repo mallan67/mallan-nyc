@@ -102,6 +102,9 @@ describe('Building auto-fill — AssociationFee/Frequency from the Cotality look
     const els: Record<string, El> = pre;
     const document = {
       getElementById: (id: string) => els[id] || null,
+      // populateBuildingFromIDX now also reads checkbox groups (docs/pets) via
+      // querySelectorAll; this fixture has no groups, so return empty.
+      querySelectorAll: () => [] as unknown[],
       createElement: () => ({ value: '', text: '', dataset: {} }),
     };
     const src = extractFn(formHtml, 'populateBuildingFromIDX');
