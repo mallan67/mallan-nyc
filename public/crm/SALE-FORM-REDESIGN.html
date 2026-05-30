@@ -681,7 +681,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="saleTaxMonthlyField">
                     <label class="field-label">RE Taxes (Monthly)</label>
-                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="TaxMonthlyAmount">
+                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="TaxMonthlyAmount">
                     <p class="text-[10px] text-gray-500 mt-1">Auto-calculated if blank</p>
                 </div>
             </div>
@@ -1102,7 +1102,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="field-label">% Common Elements</label>
-                    <input type="number" id="salePercentCommon" placeholder="0.00" step="0.01" max="100" class="field-input" data-rls-field="PercentOfCommonElements">
+                    <input type="number" id="salePercentCommon" placeholder="0.00" step="0.01" max="100" class="field-input" data-rls-ignore="true" data-removed-field="PercentOfCommonElements">
                 </div>
                 <div>
                     <label class="field-label">Living Area (Sq Ft) <span class="text-red-500 sale-req-star hidden">*</span></label>
@@ -1138,7 +1138,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="field-label">Tax Deduction %</label>
-                    <input type="number" id="saleTaxDeduction" placeholder="0" class="field-input" data-rls-field="TaxDeductionPercent">
+                    <input type="number" id="saleTaxDeduction" placeholder="0" class="field-input" data-rls-ignore="true" data-removed-field="TaxDeductionPercent">
                 </div>
             </div>
         </div>
@@ -1149,7 +1149,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
                 <div>
                     <label class="field-label">Flip Tax Amount <span class="text-red-500 sale-req-star hidden">*</span></label>
-                    <input type="number" id="saleFlipTaxAmount" placeholder="$0.00" step="0.01" class="field-input" required data-rls-field="FlipTax">
+                    <input type="number" id="saleFlipTaxAmount" placeholder="$0.00" step="0.01" class="field-input" required data-rls-ignore="true" data-removed-field="FlipTax">
                 </div>
                 <div>
                     <label class="field-label">Flip Tax Type</label>
@@ -1256,7 +1256,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-1">Guarantors</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-rls-field="GuarantorsAcceptedYN"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-rls-ignore="true" data-removed-field="GuarantorsAcceptedYN"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
@@ -2599,7 +2599,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Commercial Units?</label>
-                    <select id="saleTHCommercialYN" class="field-input" data-rls-field="CommercialUnitsYN">
+                    <select id="saleTHCommercialYN" class="field-input" data-rls-ignore="true" data-removed-field="CommercialUnitsYN">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
@@ -2666,7 +2666,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Landmark Status</label>
-                    <select id="saleTHLandmark" class="field-input" data-rls-field="LandmarkStatusYN">
+                    <select id="saleTHLandmark" class="field-input" data-rls-ignore="true" data-removed-field="LandmarkStatusYN">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
@@ -4263,7 +4263,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-certificate"></i> Building Status</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-rls-field="LandmarkStatusYN"> Landmark Building
+                                <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-rls-ignore="true" data-removed-field="LandmarkStatusYN"> Landmark Building
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgHistoric" class="w-4 h-4" data-rls-ignore="true"> Historic District
@@ -4281,7 +4281,7 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-rls-ignore="true"> Conversion
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-rls-field="SponsorUnitYN"> Has Sponsor Units
+                                <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-rls-ignore="true" data-removed-field="SponsorUnitYN"> Has Sponsor Units
                             </label>
                         </div>
                     </div>
@@ -4300,7 +4300,7 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-[10px] text-gray-500 mb-3">RLS Field: AttendanceType — Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="saleAttendanceTypeGroup">
                             <!-- Doorman -->
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-rls-field="AttendanceType"> Doorman (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-rls-ignore="true" data-removed-field="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Yes)</label>
                             <!-- Concierge -->
@@ -4503,11 +4503,11 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Capital Reserves</label>
-                                <input type="text" id="saleBldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-rls-field="CapitalReservesTotal">
+                                <input type="text" id="saleBldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-rls-ignore="true" data-removed-field="CapitalReservesTotal">
                             </div>
                             <div>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm mt-6">
-                                    <input type="checkbox" id="saleBldgCapitalReservesYN" class="w-4 h-4" data-rls-field="CapitalReservesYN"> Has Capital Reserves
+                                    <input type="checkbox" id="saleBldgCapitalReservesYN" class="w-4 h-4" data-rls-ignore="true" data-removed-field="CapitalReservesYN"> Has Capital Reserves
                                 </label>
                             </div>
                         </div>
@@ -4523,7 +4523,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-rls-field="BuildingTaxLot">
+                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-rls-ignore="true" data-removed-field="BuildingTaxLot">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -4538,7 +4538,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                             <div>
                                 <label class="field-label">Has Tax Abatement</label>
-                                <select id="saleBldgTaxAbatementYN" class="field-input" onchange="document.getElementById('saleBldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-rls-field="TaxAbatementYN">
+                                <select id="saleBldgTaxAbatementYN" class="field-input" onchange="document.getElementById('saleBldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-rls-ignore="true" data-removed-field="TaxAbatementYN">
                                     <option value="">Select</option>
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
@@ -4552,7 +4552,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="field-label">Abatement Comments</label>
-                                <input type="text" id="saleBldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-rls-field="TaxAbatementComments">
+                                <input type="text" id="saleBldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-rls-ignore="true" data-removed-field="TaxAbatementComments">
                             </div>
                         </div>
                     </div>
@@ -4694,7 +4694,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-rls-field="MaximumFinancingPercent">
+                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-rls-ignore="true" data-removed-field="MaximumFinancingPercent">
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
