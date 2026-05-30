@@ -210,9 +210,12 @@ function r2VariantStem(url: string): string | null {
 export function visualIdentity(cached: string, original: string): string {
   const stem = r2VariantStem(original) || r2VariantStem(cached);
   if (stem) return stem;
-  // No R2-variant URL (Trestle / true-legacy): key on the cached (displayed) URL
-  // path — unique per image there — collapsing exact-URL duplicates only.
-  const raw = (cached || original || '').trim();
+  // No R2-variant URL (Trestle / true-legacy): the CANONICAL `media_url_original`
+  // (source URL) drives identity. `media_url_cached` is an index / mirror path
+  // that DISTINCT uploads can reuse (e.g. legacy `/photos/SL-0004/13.jpg`), so it
+  // must NOT collapse different real photos — use it only when there is no
+  // original at all. (Codex review on PR #286, 2026-05-30.)
+  const raw = (original || cached || '').trim();
   if (!raw) return '';
   let s = raw;
   try {

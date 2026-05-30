@@ -23,10 +23,15 @@
 import { readFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import { visualIdentity, pickFullSizeUrl } from "../lib/media/listing-media-resolver";
+import { parseCoverArg, validateCover, computePreferredMap } from "../lib/media/crm-media-dedup";
 
 const APPLY = process.argv.includes("--apply");
 const coverArg = process.argv.find((a) => a.startsWith("--cover="));
-const COVER = coverArg ? parseInt(coverArg.split("=")[1], 10) : null;
+// Parse --cover up front; a malformed value (abc / NaN / 1.5 / empty) aborts
+// BEFORE any DB write so it can never blank out every preferred_photo_yn.
+const { cover: COVER, error: COVER_PARSE_ERROR } = parseCoverArg(
+  coverArg === undefined ? undefined : coverArg.split("=").slice(1).join("="),
+);
 const LISTING_ID = "SL-0004";
 
 // Load .env.local (DATABASE_URL) without a dependency — script reads it, not the human.
@@ -62,6 +67,12 @@ function isBetter(cand: Row, cur: Row): boolean {
 }
 
 async function main() {
+  // Abort on a malformed --cover BEFORE touching the DB (no writes, no reads).
+  if (COVER_PARSE_ERROR) {
+    console.error(`[dedup-sl0004] ${COVER_PARSE_ERROR}. Aborting — no writes.`);
+    process.exit(1);
+  }
+
   console.log(`\n[dedup-sl0004] mode = ${APPLY ? "APPLY (writing)" : "DRY RUN (no writes)"}`);
   console.log(`[dedup-sl0004] target = ${LISTING_ID}${COVER ? `  cover=#${COVER}` : ""}\n`);
 
@@ -149,10 +160,18 @@ async function main() {
   }
 
   // ── APPLY (Maya-approved only) ──
-  if (COVER != null && (COVER < 1 || COVER > photos.length)) {
-    console.error(`--cover=${COVER} is out of range (1..${photos.length}). Aborting, no writes.`);
+  // Range-check the cover against the ACTUAL photo count BEFORE any write.
+  const rangeErr = validateCover(COVER, photos.length);
+  if (rangeErr) {
+    console.error(`[dedup-sl0004] ${rangeErr}. Aborting — no writes.`);
     process.exit(1);
   }
+
+  // Precompute the hero map (exactly one photo true; floor plans always false).
+  const preferredMap =
+    COVER != null
+      ? computePreferredMap(photos.map((p) => p.id), floorplans.map((f) => f.id), COVER)
+      : null;
 
   let softDeleted = 0;
   let renumbered = 0;
@@ -162,7 +181,7 @@ async function main() {
   }
   for (const r of ordered) {
     const data: { order: number; preferred_photo_yn?: boolean } = { order: newOrderOf.get(r.id)! };
-    if (COVER != null) data.preferred_photo_yn = r.media_type === "Photo" && photos[COVER - 1]?.id === r.id;
+    if (preferredMap) data.preferred_photo_yn = preferredMap.get(String(r.id)) ?? false;
     await prisma.listingMedia.update({ where: { id: r.id }, data });
     renumbered++;
   }

@@ -23,6 +23,7 @@ import {
   type LegacyMediaItem,
 } from '@/lib/media/crm-media';
 import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
+import { parseCoverArg, validateCover, computePreferredMap } from '@/lib/media/crm-media-dedup';
 import { dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 
 const ROOT = process.cwd();
@@ -128,12 +129,18 @@ describe('importJsonMediaToRows — JSON → Cotality rows', () => {
 });
 
 describe('resolveListingMediaFromRows — hero / floor / order / soft-delete', () => {
-  const row = (over: Partial<ListingMediaTableRow>): ListingMediaTableRow =>
-    ({
-      media_url_cached: 'x', media_url_original: 'x', media_type: 'Photo',
+  // Realistic fixture: a distinct photo has a distinct media_url_original. When a
+  // test sets only `media_url_cached`, mirror it into the original so identity
+  // (which is original-first) treats distinct cached values as distinct photos.
+  const row = (over: Partial<ListingMediaTableRow>): ListingMediaTableRow => {
+    const merged = {
+      media_url_cached: 'x', media_type: 'Photo',
       media_category: null, media_classification: null, order: 0,
       preferred_photo_yn: false, status: 'active', ...over,
-    } as ListingMediaTableRow);
+    } as ListingMediaTableRow;
+    if (merged.media_url_original == null) merged.media_url_original = merged.media_url_cached;
+    return merged;
+  };
 
   it('hero = the preferred photo, not the first by upload order', () => {
     const out = resolveListingMediaFromRows([
@@ -572,5 +579,113 @@ describe('media dedup — collapse visual duplicates (not just media_key)', () =
       row({ media_url_cached: `${R2}/300-card.webp`, media_url_original: `${R2}/300-hero.webp`, order: 2 }),
     ]);
     expect(out.filter((m) => m.class === 'photo')).toHaveLength(3);
+  });
+});
+
+// ── visualIdentity fallback for NON-R2 rows: original-first (Codex review, #286) ──
+// A shared cached/index URL (e.g. legacy `/photos/SL-0004/13.jpg`) can be reused by
+// DISTINCT real photos; identity must come from media_url_original, never the cached
+// index path, so different photos are never collapsed.
+describe('visualIdentity fallback — original-first for non-R2 rows', () => {
+  const row = (over: Partial<ListingMediaTableRow>): ListingMediaTableRow =>
+    ({
+      media_url_cached: null, media_url_original: null, media_type: 'Photo',
+      media_category: null, media_classification: null, order: 0,
+      preferred_photo_yn: false, status: 'active', ...over,
+    } as ListingMediaTableRow);
+  const CDN = 'https://cdn.example.com';
+
+  it('1 — same cached URL, DIFFERENT original URLs → NOT deduped (kept distinct)', () => {
+    const out = resolveListingMediaFromRows([
+      row({ media_url_cached: `${CDN}/photos/SL-0004/13.jpg`, media_url_original: `${CDN}/source/imgA.jpg`, order: 0 }),
+      row({ media_url_cached: `${CDN}/photos/SL-0004/13.jpg`, media_url_original: `${CDN}/source/imgB.jpg`, order: 1 }),
+    ]);
+    expect(out.filter((m) => m.class === 'photo')).toHaveLength(2);
+  });
+
+  it('2 — same original URL → deduped to one', () => {
+    const out = resolveListingMediaFromRows([
+      row({ media_url_cached: `${CDN}/photos/SL-0004/9.jpg`, media_url_original: `${CDN}/source/same.jpg`, order: 0 }),
+      row({ media_url_cached: `${CDN}/photos/SL-0004/99.jpg`, media_url_original: `${CDN}/source/same.jpg`, order: 1 }),
+    ]);
+    expect(out.filter((m) => m.class === 'photo')).toHaveLength(1);
+  });
+
+  it('3 — R2 variant rows still dedup by the timestamp stem (from original first)', () => {
+    const R2 = 'https://pub-x.r2.dev/listings/SL-0004';
+    const out = resolveListingMediaFromRows([
+      row({ media_url_cached: `${R2}/13.jpg`, media_url_original: `${R2}/1779898434281-card.webp`, order: 0 }),
+      row({ media_url_cached: `${R2}/99.jpg`, media_url_original: `${R2}/1779898434281-hero.webp`, order: 1 }),
+    ]);
+    // Same upload timestamp (different cached index paths) → one photo.
+    expect(out.filter((m) => m.class === 'photo')).toHaveLength(1);
+  });
+
+  it('4 — SL-0004 shared cached/index path with distinct originals stays protected (3 distinct photos)', () => {
+    const R2 = 'https://pub-x.r2.dev/listings/SL-0004';
+    const out = resolveListingMediaFromRows([
+      row({ media_url_cached: `${R2}/13.jpg`, media_url_original: `${R2}/1779898434281-card.webp`, order: 13 }),
+      row({ media_url_cached: `${R2}/13.jpg`, media_url_original: `${R2}/1779898437080-card.webp`, order: 13 }),
+      row({ media_url_cached: `${R2}/13.jpg`, media_url_original: `${R2}/1779898438662-card.webp`, order: 13 }),
+    ]);
+    expect(out.filter((m) => m.class === 'photo')).toHaveLength(3);
+  });
+});
+
+// ── --cover argument validation for the SL-0004 dedup script (Codex review, #286) ──
+// A malformed --cover (abc / NaN / 1.5 / 0 / out-of-range) must be rejected by the
+// gate BEFORE any write, so the apply loop never blanks out every preferred_photo_yn.
+describe('dedup script --cover validation', () => {
+  it('non-numeric cover is rejected (would abort before writes)', () => {
+    for (const bad of ['abc', 'NaN', '', '  ', '1e3', 'null', 'undefined']) {
+      const { cover, error } = parseCoverArg(bad);
+      expect(cover).toBeNull();
+      expect(error).toBeTruthy();
+    }
+  });
+
+  it('decimal / signed cover is rejected', () => {
+    for (const bad of ['1.5', '0.0', '-1', '+2', '3.0']) {
+      const { cover, error } = parseCoverArg(bad);
+      expect(cover).toBeNull();
+      expect(error).toBeTruthy();
+    }
+  });
+
+  it('absent flag is allowed (cover null, no error)', () => {
+    expect(parseCoverArg(undefined)).toEqual({ cover: null, error: null });
+  });
+
+  it('valid positive integer parses', () => {
+    expect(parseCoverArg('1')).toEqual({ cover: 1, error: null });
+    expect(parseCoverArg('15')).toEqual({ cover: 15, error: null });
+    expect(parseCoverArg(' 2 ')).toEqual({ cover: 2, error: null }); // surrounding ws trimmed
+  });
+
+  it('out-of-range cover is rejected against photo count (would abort before writes)', () => {
+    expect(validateCover(0, 15)).toBeTruthy();   // 0 < 1
+    expect(validateCover(16, 15)).toBeTruthy();  // > count
+    expect(validateCover(-1, 15)).toBeTruthy();
+    expect(validateCover(null, 15)).toBeNull();  // absent OK
+    expect(validateCover(1, 15)).toBeNull();
+    expect(validateCover(15, 15)).toBeNull();
+  });
+
+  it('valid cover sets EXACTLY one photo preferred; floor plans never preferred', () => {
+    const photoIds = ['p1', 'p2', 'p3', 'p4', 'p5'];
+    const floorPlanIds = ['fp1', 'fp2'];
+    const map = computePreferredMap(photoIds, floorPlanIds, 3);
+    const trues = [...map.entries()].filter(([, v]) => v).map(([k]) => k);
+    expect(trues).toEqual(['p3']);                       // exactly one, the cover
+    expect(map.get('fp1')).toBe(false);
+    expect(map.get('fp2')).toBe(false);
+    expect([...map.values()].filter(Boolean)).toHaveLength(1);
+  });
+
+  it('floor plans stay false even if a floor plan id were the cover index', () => {
+    const map = computePreferredMap(['p1', 'p2'], ['fp1'], 1);
+    expect(map.get('p1')).toBe(true);
+    expect(map.get('p2')).toBe(false);
+    expect(map.get('fp1')).toBe(false);
   });
 });
