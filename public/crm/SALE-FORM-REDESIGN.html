@@ -9830,6 +9830,12 @@ function _populateSaleFormFromApi(listing) {
     // ── Trigger calculations ──
     if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();
     if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
+    // Re-run status-driven field gating on edit-load. The saleStatus restore
+    // above happens with _salePopulateInProgress suppressing the change event,
+    // so updateSaleStatusFields() (wired to the onchange) never fires — which
+    // would leave a Contract/Sold listing's Buyer's Agent Contact section
+    // (default display:none) hidden until a manual status change. (Codex #298.)
+    if (typeof updateSaleStatusFields === 'function') updateSaleStatusFields();
 }
 
 // ═══════════════════════════════════════════════════════════

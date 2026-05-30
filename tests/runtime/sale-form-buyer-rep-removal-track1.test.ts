@@ -50,6 +50,14 @@ describe("(B) Buyer's Agent Contact section is status-gated (Contract/Sold only)
     expect(FORM).toMatch(/id="saleBuyerAgentSection"[^>]*display:none/);
   });
 
+  it('edit-load re-runs status gating so saved Contract/Sold listings reveal the section (Codex #298)', () => {
+    // saleStatus restore in _populateSaleFormFromApi happens with the change
+    // event suppressed, so updateSaleStatusFields must be called explicitly at
+    // the end — otherwise a saved Sold listing keeps the section hidden.
+    const fn = extractFn(FORM, '_populateSaleFormFromApi');
+    expect(fn).toMatch(/updateSaleStatusFields\(\)/);
+  });
+
   it('REBNY auto-populate on select still fills id/phone/email/license + shows the info', () => {
     // The buyer-agent dropdown onSelect populates from the REBNY directory.
     expect(FORM).toMatch(/getElementById\('saleBuyerAgentId'\)\.textContent\s*=\s*data\.id/);
