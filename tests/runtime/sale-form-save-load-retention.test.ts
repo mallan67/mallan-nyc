@@ -360,6 +360,44 @@ describe('Sale form save/update hotfix — executable round-trip (jsdom)', () =>
     expect(win.document.querySelector('input[name="saleHeatingYN"][value="Yes"]').checked).toBe(true);
   });
 
+  // Codex review (#280): the Views radio shipped with value="No" CHECKED by
+  // default, so the auto-set guard ("respect existing Yes/No") saw the default as
+  // a real choice and never flipped to Yes when a view detail was selected — the
+  // listing saved ViewYN=No with views present. Fix: Views must NOT pre-check No
+  // (consistent with Heating/Cooling, which start unset), so a fresh form's
+  // auto-set works while an explicit user "No" is still honored.
+  it('regression: the real form does NOT pre-check saleHasViews "No" (Codex #280)', () => {
+    const m = formHtml.match(/<input[^>]*name="saleHasViews"[^>]*value="No"[^>]*>/);
+    expect(m).toBeTruthy();
+    expect(m![0]).not.toMatch(/\bchecked\b/);
+  });
+
+  it('Views auto-set flips YN to "Yes" when a view is checked and YN was unset (Codex #280)', () => {
+    const viewUnset =
+      '<input type="radio" name="saleHasViews" value="Yes">' +
+      '<input type="radio" name="saleHasViews" value="No">' +
+      '<input type="checkbox" name="saleViewList" value="River">';
+    const win = makeWindow(viewUnset);
+    win.document.querySelector('input[name="saleViewList"][value="River"]').checked = true;
+    const fns = loadFns(win);
+    fns._autoSetYesWhenTypeChosen('saleViewList', 'saleHasViews');
+    expect(win.document.querySelector('input[name="saleHasViews"][value="Yes"]').checked).toBe(true);
+    expect(win.document.querySelector('input[name="saleHasViews"][value="No"]').checked).toBe(false);
+  });
+
+  it('Views explicit "No" is never overridden by checking a view (Codex #280)', () => {
+    const viewNo =
+      '<input type="radio" name="saleHasViews" value="Yes">' +
+      '<input type="radio" name="saleHasViews" value="No" checked>' +
+      '<input type="checkbox" name="saleViewList" value="River">';
+    const win = makeWindow(viewNo);
+    win.document.querySelector('input[name="saleViewList"][value="River"]').checked = true;
+    const fns = loadFns(win);
+    fns._autoSetYesWhenTypeChosen('saleViewList', 'saleHasViews');
+    expect(win.document.querySelector('input[name="saleHasViews"][value="No"]').checked).toBe(true);
+    expect(win.document.querySelector('input[name="saleHasViews"][value="Yes"]').checked).toBe(false);
+  });
+
   it('saved neighborhood restores even when the option was NOT preloaded (dynamic add under borough)', () => {
     const win = makeWindow('<select id="saleBldgNeighborhood"><optgroup label="Manhattan"><option value="Chelsea">Chelsea</option></optgroup></select>');
     const fns = loadFns(win);
