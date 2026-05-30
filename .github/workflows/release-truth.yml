@@ -50,6 +50,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # Check out the SAME revision the verdict is audited + published for:
+          # the PR head sha on pull_request (matches --sha + the commit status),
+          # github.sha on push. Without this, pull_request checks out the MERGE
+          # commit, so the static layers would validate a different revision than
+          # the head sha the status is posted to (Codex review on #288).
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Setup Node
