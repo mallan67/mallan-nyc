@@ -5073,7 +5073,17 @@ async function fetchBuildingsFromAPI(query) {
             var bldgName = b.name || b.building_name || '';
             var streetNum = rawAddr.match(/^\d+/);
             var displayAddr = (bldgName && streetNum && bldgName.indexOf(streetNum[0]) !== -1) ? bldgName : rawAddr;
-            return {
+            // Preserve EVERY field the API returned (tax_block/tax_lot,
+            // association_*, cross_street, stories_total/units_total,
+            // structure_type, subdivisionName, and the expanded amenities
+            // roof_deck/storage/bike_room/.../washer_dryer_allowed) by spreading
+            // the raw object. The shared populateBuildingFromIDX reads the full
+            // snake_case shape via pick(), so a lossy subset here silently
+            // dropped building-specific fields on BOTH the main-address and
+            // Building-tab paths (2026-05-29 hotfix). Only override the display
+            // fields + the camelCase aliases the result-dropdown subtitle and
+            // legacy reads depend on.
+            return Object.assign({}, b, {
                 address: displayAddr,
                 name: bldgName,
                 borough: b.borough || b.city_region || '',
@@ -5082,19 +5092,12 @@ async function fetchBuildingsFromAPI(query) {
                 type: formType,
                 model: formType,
                 commonInterestRaw: ci,
-                structureType: b.structure_type || '',
+                // camelCase aliases for the dropdown subtitle + legacy reads
+                // (the snake_case originals from `b` are preserved above):
                 yearBuilt: b.year_built || null,
                 totalFloors: b.stories_total || null,
                 totalUnits: b.units_total || null,
-                doorman: b.doorman || false,
-                elevator: b.elevator || false,
-                gym: b.gym || false,
-                pool: b.pool || false,
-                laundry: b.laundry || false,
-                parking: b.parking || false,
-                concierge: b.concierge || false,
-                spa: b.spa || false,
-            };
+            });
         });
     } catch (e) {
         console.warn('[Building Search] API error:', e.message);
@@ -5466,7 +5469,10 @@ function saleAddressBlurLookup() {
     fetchBuildingsFromAPI(addr).then(function(matches) {
         if (!matches || matches.length === 0) {
             var stale = document.getElementById('saleBuildingSearchResults');
-            if (stale) stale.classList.add('hidden');
+            if (stale) {
+                stale.innerHTML = '<div class="p-3 text-sm text-gray-500">No building match found — enter building details manually.</div>';
+                stale.classList.remove('hidden');
+            }
             parseSaleAddress();
             return;
         }
@@ -6616,70 +6622,72 @@ function showSaleBldgSubTab(mainTab, subTab) {
     }
 }
 
-function searchBuildingByAddress(query, prefix) {
+async function searchBuildingByAddress(query, prefix) {
     const results = document.getElementById(prefix + 'BldgSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
-    const matches = buildingDatabase.filter(b =>
+
+    const renderMatches = function(list) {
+        results.innerHTML = list.map(b => '<div class="p-3 hover:bg-amber-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingForModal(\'' + prefix + '\', \'' + b.address.replace(/'/g, "\\'") + '\')">' +
+            '<div class="flex justify-between items-center"><div>' +
+            '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
+            '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
+            '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
+            (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' : b.model === 'Condo' ? 'bg-blue-100 text-blue-700' : b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700') +
+            '">' + b.model + '</span></div></div>'
+        ).join('');
+        results.classList.remove('hidden');
+    };
+
+    // 1. Try the in-memory cache first (populated by the main-address lookup).
+    let matches = buildingDatabase.filter(b =>
         b.address.toLowerCase().includes(query.toLowerCase()) ||
         b.name.toLowerCase().includes(query.toLowerCase())
     );
+
+    // 2. Cache empty/stale — e.g. the agent opened the Building tab directly, or
+    //    the main-address lookup returned nothing. The Building tab is an
+    //    INDEPENDENT fallback: query the API so it works on its own.
     if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found.</div>';
+        results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching…</div>';
+        results.classList.remove('hidden');
+        const apiMatches = await fetchBuildingsFromAPI(query);
+        if (apiMatches && apiMatches.length > 0) {
+            buildingDatabase = apiMatches;
+            matches = apiMatches;
+        }
+    }
+
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="p-3 text-sm text-gray-500">No building match found. Enter building details manually.</div>';
         results.classList.remove('hidden');
         return;
     }
-    results.innerHTML = matches.map(b => '<div class="p-3 hover:bg-amber-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingForModal(\'' + prefix + '\', \'' + b.address + '\')">' +
-        '<div class="flex justify-between items-center"><div>' +
-        '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
-        '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
-        '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
-        (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' : b.model === 'Condo' ? 'bg-blue-100 text-blue-700' : b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700') +
-        '">' + b.model + '</span></div></div>'
-    ).join('');
-    results.classList.remove('hidden');
+    renderMatches(matches);
 }
 
 function selectBuildingForModal(prefix, address) {
     const building = buildingDatabase.find(b => b.address === address);
     if (!building) return;
-    // Populate building modal fields from IDX data
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
-    setVal(prefix + 'BldgStreetAddress', building.address);
-    setVal(prefix + 'BldgName', building.name);
-    setVal(prefix + 'BldgZip', building.zip);
-    setVal(prefix + 'BldgBorough', building.borough);
-    setVal(prefix + 'BldgYearBuilt', building.yearBuilt);
-    setVal(prefix + 'BldgTotalFloors', building.totalFloors);
-    setVal(prefix + 'BldgTotalUnits', building.totalUnits);
-    // Amenities
-    setCheck(prefix + 'BldgDoorman', building.doorman);
-    setCheck(prefix + 'BldgElevator', building.elevator);
-    setCheck(prefix + 'BldgGym', building.gym);
-    setCheck(prefix + 'BldgPool', building.pool);
-    // BuildingLaundryFeatures: auto-set from IDX building data
-    if (building.laundry) {
-        var lCb2 = document.querySelector('.sale-laundry-cb[value="CommonArea"]');
-        if (lCb2) lCb2.checked = true;
+    // Cotality is the source of truth — populate the FULL building field set via
+    // the shared populateBuildingFromIDX (NOT a partial bespoke mapper), so the
+    // Building-tab path fills exactly what the main-address path fills: tax
+    // block/lot, year built/renovated, association, structure type, every
+    // amenity, building policies, and the neighborhood (added dynamically when
+    // Cotality has one the dropdown doesn't). This NEVER touches UnitNumber —
+    // populateBuildingFromIDX preserves the user-entered unit.
+    populateBuildingFromIDX(prefix, building);
+    // Building type (Condo / Co-op / Condop / Townhouse / …) from the match.
+    var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
+    if (typeRadio) {
+        typeRadio.checked = true;
+        if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
     }
-    setCheck(prefix + 'BldgParking', building.parking);
-    setCheck(prefix + 'BldgConcierge', building.concierge);
-    setCheck(prefix + 'BldgSpa', building.spa);
-    // Select neighborhood
-    const nhSelect = document.getElementById(prefix + 'BldgNeighborhood');
-    if (nhSelect) {
-        for (let opt of nhSelect.options) {
-            if (opt.textContent === building.neighborhood || opt.value === building.neighborhood.replace(/\s/g, '')) {
-                nhSelect.value = opt.value;
-                break;
-            }
-        }
-    }
-    // Hide search results
+    // Hide results + reflect the chosen address in the search box.
     const results = document.getElementById(prefix + 'BldgSearchResults');
     if (results) results.classList.add('hidden');
-    document.getElementById(prefix + 'BldgAddressSearch').value = building.address;
+    const searchEl = document.getElementById(prefix + 'BldgAddressSearch');
+    if (searchEl) searchEl.value = building.address;
 }
 
 function loadBuildingFromAddress(prefix) {

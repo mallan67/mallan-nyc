@@ -36,10 +36,9 @@ describe('buildings/search response shape — Cotality fields the modal needs', 
       'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix',
       'PostalCode', 'UnitNumber', 'SubdivisionName',
       'City', 'StateOrProvince',
-      'BuildingFeatures', 'PetsAllowed', 'AttendanceType',
+      'BuildingFeatures', 'PetsAllowed',
       'CrossStreet',
-      'NewConstructionYN', 'NewDevelopmentYN', 'SponsorUnitYN',
-      'RentingAllowedYN',
+      'NewConstructionYN',
       'TaxBlock', 'TaxLot', 'TaxAnnualAmount',
       'AssociationName', 'AssociationFee', 'AssociationFeeFrequency',
     ]) {
@@ -54,11 +53,13 @@ describe('buildings/search response shape — Cotality fields the modal needs', 
     expect(src).toMatch(/source:\s*['"]cotality['"]/);
   });
 
-  test('Trestle branch response surfaces tax + association + renting allowed', () => {
+  test('Trestle branch response surfaces tax + association', () => {
     expect(src).toMatch(/tax_block:\s*String\(r\.TaxBlock/);
     expect(src).toMatch(/tax_lot:\s*String\(r\.TaxLot/);
     expect(src).toMatch(/association_name:\s*String\(r\.AssociationName/);
-    expect(src).toMatch(/renting_allowed_yn:\s*r\.RentingAllowedYN/);
+    // renting_allowed_yn is no longer sourced from Cotality — RentingAllowedYN
+    // is not on the live Property entity (removed 2026-05-29). The DB path
+    // still sets it from stored features.
   });
 
   test('Trestle branch surfaces expanded amenity flags (roof deck, storage, bike, valet, etc.)', () => {
@@ -207,5 +208,129 @@ describe('form init wires Cotality neighborhood loader', () => {
 
   test('uses snake_case + camelCase pick helper for snake/camel API shape tolerance', () => {
     expect(src).toMatch(/const pick = \(snake, camel\)/);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// Metadata-backed contract: the OData $select may ONLY reference fields that
+// exist on the live Cotality `Property` entity. An unknown field makes Trestle
+// reject the whole query with HTTP 400 (no 4xx retry), silently killing the
+// Cotality building lookup. This test fails if future code reintroduces a
+// phantom field. Source of truth: artifacts/metadata.xml.
+// ──────────────────────────────────────────────────────────────────────────
+describe('buildings/search $select is metadata-valid (no phantom Cotality fields)', () => {
+  const routeSrc = read('app/api/buildings/search/route.ts');
+  const metadata = read('artifacts/metadata.xml');
+
+  // EDM property names on the Cotality Property entity (the `"` anchors away
+  // from PropertyRooms / PropertyUnitTypes / PropertyGreenVerification).
+  const propertyFields = (() => {
+    const block = (metadata.match(/<EntityType Name="Property"[\s\S]*?<\/EntityType>/) || [''])[0];
+    const names = new Set<string>();
+    for (const m of block.matchAll(/<Property Name="([^"]+)"/g)) names.add(m[1]);
+    return names;
+  })();
+
+  // The route's OData $select array (const SELECT = [ '...', ... ].join(','))
+  const selectFields = (() => {
+    const block = (routeSrc.match(/const SELECT = \[([\s\S]*?)\]\.join\(','\)/) || ['', ''])[1];
+    return [...block.matchAll(/'([A-Za-z0-9]+)'/g)].map((m) => m[1]);
+  })();
+
+  test('parses a non-empty Property field set and $select list', () => {
+    expect(propertyFields.size).toBeGreaterThan(100);
+    expect(selectFields.length).toBeGreaterThan(0);
+  });
+
+  test('every $select field exists on the live Cotality Property entity', () => {
+    const unknown = selectFields.filter((f) => !propertyFields.has(f));
+    expect(unknown).toEqual([]);
+  });
+
+  test('the four known-phantom fields are never selected', () => {
+    for (const phantom of ['AttendanceType', 'NewDevelopmentYN', 'SponsorUnitYN', 'RentingAllowedYN']) {
+      expect(selectFields).not.toContain(phantom);
+    }
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// Both entry points must work (2026-05-29 fix):
+//  - Building-tab search is an INDEPENDENT fallback (calls the API when the
+//    in-memory cache is empty/stale), not a cache-only filter.
+//  - Building-tab select uses the SHARED populateBuildingFromIDX (full field
+//    set + building type), not a partial bespoke mapper.
+//  - No-match shows a clear message on both the main-address and Building-tab
+//    paths (no silent failure).
+// ──────────────────────────────────────────────────────────────────────────
+describe('sales form — both building entry points (Path 1 main address + Path 2 Building tab)', () => {
+  const src = read('public/crm/SALE-FORM-REDESIGN.html');
+  const fnBody = (name: string) => {
+    const m = src.match(new RegExp(`function ${name}\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\}`));
+    return m ? m[0] : '';
+  };
+
+  test('Building-tab search calls /api/buildings/search when the cache misses', () => {
+    expect(fnBody('searchBuildingByAddress')).toMatch(/fetchBuildingsFromAPI/);
+  });
+
+  test('Building-tab select delegates to populateBuildingFromIDX (full field set)', () => {
+    expect(fnBody('selectBuildingForModal')).toMatch(/populateBuildingFromIDX\(/);
+  });
+
+  test('Building-tab select populates building type (PropertyType)', () => {
+    expect(fnBody('selectBuildingForModal')).toMatch(/PropertyType/);
+  });
+
+  test('Building-tab search shows a clear no-match message', () => {
+    expect(fnBody('searchBuildingByAddress')).toMatch(/No building match found/i);
+  });
+
+  test('Main-address blur lookup shows a clear no-match message (not silent)', () => {
+    expect(fnBody('saleAddressBlurLookup')).toMatch(/No building match found/i);
+  });
+
+  test('Main-address blur lookup auto-applies a single exact match', () => {
+    expect(fnBody('saleAddressBlurLookup')).toMatch(/selectBuildingFromIDX/);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// fetchBuildingsFromAPI must preserve the FULL /api/buildings/search building
+// object (2026-05-29 hotfix). buildingDatabase (the cache that feeds BOTH
+// selectBuildingFromIDX and selectBuildingForModal) is fetchBuildingsFromAPI's
+// output. populateBuildingFromIDX reads the full snake_case shape via pick()
+// (tax_block, association_*, cross_street, stories_total, units_total, and the
+// expanded amenities roof_deck/storage/bike_room/.../washer_dryer_allowed). If
+// the normalizer rebuilds a lossy subset, those fields never reach the form.
+// The fix: pass the raw API object through (spread) and only add display/alias
+// fields on top.
+// ──────────────────────────────────────────────────────────────────────────
+describe('fetchBuildingsFromAPI preserves the full API building object', () => {
+  const src = read('public/crm/SALE-FORM-REDESIGN.html');
+  const fnBody = (name: string) => {
+    const m = src.match(new RegExp(`function ${name}\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\}`));
+    return m ? m[0] : '';
+  };
+  const body = fnBody('fetchBuildingsFromAPI');
+
+  test('spreads the raw API object (does not rebuild a lossy subset)', () => {
+    // Object.assign({}, b, {...}) (or {...b, ...}) preserves every field the
+    // API returned, so expanded fields survive into buildingDatabase.
+    expect(body).toMatch(/Object\.assign\(\s*\{\s*\}\s*,\s*b\s*,|\.\.\.b\b/);
+  });
+
+  test('still sets the UI display + alias fields (no dropdown/legacy regression)', () => {
+    for (const f of ['address:', 'name:', 'neighborhood:', 'type:', 'model:', 'totalFloors:']) {
+      expect(body).toContain(f);
+    }
+  });
+
+  test('does not whitelist-drop expanded fields by omitting the spread', () => {
+    // Guard: a return object literal with address/name/neighborhood but NO
+    // spread of b is the lossy-subset regression. Require the spread.
+    const returnsObjectLiteral = /return\s*\{[\s\S]*?address:/.test(body);
+    const hasSpread = /Object\.assign\(\s*\{\s*\}\s*,\s*b\s*,|\.\.\.b\b/.test(body);
+    expect(returnsObjectLiteral && !hasSpread).toBe(false);
   });
 });

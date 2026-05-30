@@ -361,15 +361,24 @@ export async function GET(request: NextRequest) {
           'PostalCode', 'UnitNumber', 'SubdivisionName',
           'City', 'StateOrProvince',
           'CityRegion', 'CountyOrParish',
-          'BuildingFeatures', 'PetsAllowed', 'AttendanceType',
+          'BuildingFeatures', 'PetsAllowed',
           // Expanded 2026-05-28: surface every Cotality field the CRM
           // building modal needs so populateBuildingFromIDX can set them
           // all and Maya does not have to retype anything that exists
           // upstream.
+          // 2026-05-29: REMOVED AttendanceType, NewDevelopmentYN, SponsorUnitYN,
+          // RentingAllowedYN — none exist on the live Cotality Property entity
+          // (verified against artifacts/metadata.xml). Their presence made
+          // Trestle reject the whole $select with HTTP 400 (no 4xx retry),
+          // silently killing the Cotality building lookup. Concierge / on-site
+          // manager are derived from BuildingFeatures (valid Multi enum); the
+          // remaining flags have no valid Cotality equivalent and are left for
+          // manual entry on the Cotality path (the DB path still sets them from
+          // stored features). Do NOT re-add these without a metadata check —
+          // tests/runtime/cotality-building-autopopulate.test.ts will fail.
           'CrossStreet',
           'YearBuiltDetails', 'YearBuiltSource',
-          'NewConstructionYN', 'NewDevelopmentYN', 'SponsorUnitYN',
-          'RentingAllowedYN',
+          'NewConstructionYN',
           'TaxBlock', 'TaxLot', 'TaxAnnualAmount',
           'AssociationName', 'AssociationFee', 'AssociationFeeFrequency',
           'ZoningDescription',
@@ -419,7 +428,6 @@ export async function GET(request: NextRequest) {
             seenAddresses.add(key);
 
             const features = String(r.BuildingFeatures || '').toLowerCase();
-            const attendance = String(r.AttendanceType || '').toLowerCase();
 
             buildings.push({
               address: fullAddr,
@@ -446,9 +454,13 @@ export async function GET(request: NextRequest) {
               stories_total: r.StoriesTotal ? Number(r.StoriesTotal) : null,
               units_total: r.NumberOfUnitsInCommunity ? Number(r.NumberOfUnitsInCommunity) : null,
               new_construction_yn: r.NewConstructionYN === true,
-              new_development_yn: r.NewDevelopmentYN === true,
-              sponsor_unit_yn: r.SponsorUnitYN === true,
-              renting_allowed_yn: r.RentingAllowedYN === true,
+              // No valid Cotality Property field for these on this feed
+              // (NewDevelopmentYN / SponsorUnitYN / RentingAllowedYN are not in
+              // $metadata) — left false for manual entry. DB path sets them
+              // from stored features.
+              new_development_yn: false,
+              sponsor_unit_yn: false,
+              renting_allowed_yn: false,
               tax_block: String(r.TaxBlock || ''),
               tax_lot: String(r.TaxLot || ''),
               tax_annual_amount: r.TaxAnnualAmount ? Number(r.TaxAnnualAmount) : null,
@@ -456,14 +468,16 @@ export async function GET(request: NextRequest) {
               association_fee: r.AssociationFee ? Number(r.AssociationFee) : null,
               association_fee_frequency: String(r.AssociationFeeFrequency || ''),
               zoning_description: String(r.ZoningDescription || ''),
-              // Existing amenity flags (preserved)
-              doorman: attendance.includes('doorman'),
+              // Amenity flags derived from BuildingFeatures (valid Multi enum).
+              // 'Doorman' is not a BuildingFeatures member on this feed, so the
+              // Cotality path cannot auto-detect it — left for manual entry.
+              doorman: features.includes('doorman'),
               elevator: features.includes('elevator'),
               gym: features.includes('healthclub') || features.includes('fitness'),
               pool: features.includes('pool'),
               laundry: features.includes('laundry'),
               parking: features.includes('parking') || features.includes('garage'),
-              concierge: attendance.includes('concierge'),
+              concierge: features.includes('concierge'),
               // Expanded amenity flags derived from BuildingFeatures
               roof_deck: features.includes('roof deck') || features.includes('roof terrace'),
               storage: features.includes('storage'),
@@ -479,7 +493,7 @@ export async function GET(request: NextRequest) {
               valet: features.includes('valet'),
               wheelchair_access: features.includes('wheelchair') || features.includes('ada'),
               live_in_super: features.includes('live-in super') || features.includes('live in superintendent'),
-              on_site_manager: features.includes('on-site') || attendance.includes('property manager'),
+              on_site_manager: features.includes('on-site') || features.includes('property manager'),
               washer_dryer_allowed: features.includes('washer') || features.includes('w/d'),
             });
           }
