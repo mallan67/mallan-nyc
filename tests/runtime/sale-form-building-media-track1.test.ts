@@ -155,6 +155,17 @@ describe('Track 1 media — keyed manager never stranded behind legacy preview',
     expect(fn).toMatch(/showToast\([^)]*could not load/i);
   });
 
+  it('tile actions use the CANONICAL data.listing_id, not the numeric fallback (Codex #295)', () => {
+    const fn = extractFn(formHtml, 'renderServerMediaRows');
+    // media-order PATCH resolves only listing_id, so tiles must carry the
+    // canonical id the GET echoes — never the numeric DB id used as a fallback.
+    expect(fn).toMatch(/var actionId\s*=\s*\(data && data\.listing_id\)\s*\?\s*String\(data\.listing_id\)/);
+    expect(fn).toMatch(/_renderMediaTile\(photoContainer, m, idx, actionId\)/);
+    expect(fn).toMatch(/_renderMediaTile\(floorContainer, m, idx, actionId\)/);
+    // the fallback retry must NOT rebind listingId to the numeric id anymore
+    expect(fn).not.toMatch(/listingId\s*=\s*fallbackId/);
+  });
+
   it('the edit-load call site passes the numeric DB id as the fallback', () => {
     const fn = extractFn(formHtml, '_populateSaleFormFromApi');
     expect(fn).toMatch(
