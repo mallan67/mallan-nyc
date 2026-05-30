@@ -6994,6 +6994,11 @@ function collectSaleFormData() {
         }
     });
 
+    // Derive the canonical Heating/Cooling/Views Y/N (by name) so the payload is
+    // never "details without a Y/N" and the id-keyed radios collect correctly.
+    // See _deriveSaleYNFields (Codex #280 follow-up).
+    _deriveSaleYNFields(data);
+
     // Map CRM property type to RLS fields via getResoPropertyFields()
     var resoFields = getResoPropertyFields(data.salePropertyType || '');
     data.PropertyType = resoFields.PropertyType || 'Residential';
@@ -9099,6 +9104,37 @@ function _autoSetYesWhenTypeChosen(typeGroupName, ynRadioName) {
     if (document.querySelector('input[name="' + ynRadioName + '"]:checked')) return; // respect existing Yes/No
     var yes = document.querySelector('input[name="' + ynRadioName + '"][value="Yes"]');
     if (yes) { yes.checked = true; yes.dispatchEvent(new Event('change', { bubbles: true })); }
+}
+
+// 2026-05-30 hotfix (Codex #280 follow-up): derive the canonical Yes/No fields
+// (saleHeatingYN / saleCoolingYN / saleHasViews) into the collected payload BY
+// NAME. Closes two gaps:
+//   1. The Heating/Cooling radios carry ids (saleHeatingYes/No), so the generic
+//      collector keyed them by id and never wrote saleHeatingYN/saleCoolingYN.
+//   2. Editing a saved listing restores detail checkboxes via
+//      SALE_CHECKBOX_ARRAY_MAP WITHOUT firing change, so _autoSetYesWhenTypeChosen
+//      never ran and the YN radio stayed unset — yet validateREBNYRequired passes
+//      on checkbox-only (orCheckboxName). Without this, an active submit could
+//      carry heating/cooling/view DETAILS with no Y/N value.
+// Rule: a checked radio wins (an explicit "No" is respected, never overridden);
+// otherwise, if any paired detail checkbox is checked, the Y/N is "Yes". Stray
+// id-keyed duplicates from the generic collector are dropped.
+function _deriveSaleYNFields(data) {
+    var groups = [
+        { yn: 'saleHeatingYN', type: 'saleHeating', strays: ['saleHeatingYes', 'saleHeatingNo'] },
+        { yn: 'saleCoolingYN', type: 'saleCooling', strays: ['saleCoolingYes', 'saleCoolingNo'] },
+        { yn: 'saleHasViews', type: 'saleViewList', strays: [] }
+    ];
+    groups.forEach(function(g) {
+        var radio = document.querySelector('input[name="' + g.yn + '"]:checked');
+        if (radio) {
+            data[g.yn] = radio.value;
+        } else if (document.querySelector('input[name="' + g.type + '"]:checked')) {
+            data[g.yn] = 'Yes';
+        }
+        g.strays.forEach(function(s) { if (s in data) delete data[s]; });
+    });
+    return data;
 }
 
 // 2026-05-29 hotfix: restore the building-neighborhood <select> robustly. The

@@ -290,11 +290,12 @@ describe('Sale form save/update hotfix — executable round-trip (jsdom)', () =>
       extractFunction(formHtml, 'function fieldHasValue(field)'),
       extractFunction(formHtml, 'function _restoreSaleNeighborhoodSelect(value, boroughHint)'),
       extractFunction(formHtml, 'function _autoSetYesWhenTypeChosen(typeGroupName, ynRadioName)'),
+      extractFunction(formHtml, 'function _deriveSaleYNFields(data)'),
     ].join('\n');
     // eslint-disable-next-line no-new-func
     const factory = new Function(
       'document', 'window', 'Event', 'HTMLElement',
-      src + '\nreturn { fieldHasValue: fieldHasValue, _restoreSaleNeighborhoodSelect: _restoreSaleNeighborhoodSelect, _autoSetYesWhenTypeChosen: _autoSetYesWhenTypeChosen };',
+      src + '\nreturn { fieldHasValue: fieldHasValue, _restoreSaleNeighborhoodSelect: _restoreSaleNeighborhoodSelect, _autoSetYesWhenTypeChosen: _autoSetYesWhenTypeChosen, _deriveSaleYNFields: _deriveSaleYNFields };',
     );
     return factory(win.document, win, win.Event, win.HTMLElement);
   }
@@ -396,6 +397,74 @@ describe('Sale form save/update hotfix — executable round-trip (jsdom)', () =>
     fns._autoSetYesWhenTypeChosen('saleViewList', 'saleHasViews');
     expect(win.document.querySelector('input[name="saleHasViews"][value="No"]').checked).toBe(true);
     expect(win.document.querySelector('input[name="saleHasViews"][value="Yes"]').checked).toBe(false);
+  });
+
+  // Codex follow-up review (#280): editing a saved listing restores detail
+  // checkboxes via SALE_CHECKBOX_ARRAY_MAP WITHOUT firing change, so the YN radio
+  // stays unset; validateREBNYRequired passes on checkbox-only (orCheckboxName)
+  // but collectSaleFormData only emitted the YN when a radio was checked → an
+  // active submit carried details with NO Y/N value. Also: Heating/Cooling radios
+  // are keyed by id (saleHeatingYes) in the generic collector, so saleHeatingYN
+  // was never collected under its canonical name. _deriveSaleYNFields fixes both.
+  const heatGroup =
+    '<input type="radio" name="saleHeatingYN" id="saleHeatingYes" value="Yes">' +
+    '<input type="radio" name="saleHeatingYN" id="saleHeatingNo" value="No">' +
+    '<input type="checkbox" name="saleHeating" value="Steam">';
+
+  it('derives saleHeatingYN="Yes" from a checked detail when the radio is unset (edit-reload case)', () => {
+    const win = makeWindow(heatGroup);
+    win.document.querySelector('input[name="saleHeating"][value="Steam"]').checked = true; // restored, no change event
+    const fns = loadFns(win);
+    const data: Record<string, unknown> = {};
+    fns._deriveSaleYNFields(data);
+    expect(data.saleHeatingYN).toBe('Yes');
+  });
+
+  it('collects saleHeatingYN by NAME even though the radios are keyed by id', () => {
+    const win = makeWindow(heatGroup);
+    win.document.querySelector('#saleHeatingYes').checked = true;
+    const fns = loadFns(win);
+    const data: Record<string, unknown> = {};
+    fns._deriveSaleYNFields(data);
+    expect(data.saleHeatingYN).toBe('Yes');
+    // the stray id-keyed duplicates must not leak into the payload
+    expect('saleHeatingYes' in data).toBe(false);
+    expect('saleHeatingNo' in data).toBe(false);
+  });
+
+  it('respects an explicit "No" even when a detail checkbox is checked (never overridden)', () => {
+    const win = makeWindow(heatGroup);
+    win.document.querySelector('#saleHeatingNo').checked = true;
+    win.document.querySelector('input[name="saleHeating"][value="Steam"]').checked = true;
+    const fns = loadFns(win);
+    const data: Record<string, unknown> = {};
+    fns._deriveSaleYNFields(data);
+    expect(data.saleHeatingYN).toBe('No');
+  });
+
+  it('leaves the YN unset when neither a radio nor any detail is selected (no false value)', () => {
+    const win = makeWindow(heatGroup);
+    const fns = loadFns(win);
+    const data: Record<string, unknown> = {};
+    fns._deriveSaleYNFields(data);
+    expect('saleHeatingYN' in data).toBe(false);
+  });
+
+  it('derives all three groups (Heating/Cooling/Views) from details', () => {
+    const win = makeWindow(
+      '<input type="radio" name="saleHeatingYN" id="saleHeatingYes" value="Yes"><input type="radio" name="saleHeatingYN" id="saleHeatingNo" value="No"><input type="checkbox" name="saleHeating" value="Steam">' +
+      '<input type="radio" name="saleCoolingYN" id="saleCoolingYes" value="Yes"><input type="radio" name="saleCoolingYN" id="saleCoolingNo" value="No"><input type="checkbox" name="saleCooling" value="CentralAir">' +
+      '<input type="radio" name="saleHasViews" value="Yes"><input type="radio" name="saleHasViews" value="No"><input type="checkbox" name="saleViewList" value="River">',
+    );
+    ['saleHeating', 'saleCooling', 'saleViewList'].forEach((n) => {
+      win.document.querySelector('input[name="' + n + '"]').checked = true;
+    });
+    const fns = loadFns(win);
+    const data: Record<string, unknown> = {};
+    fns._deriveSaleYNFields(data);
+    expect(data.saleHeatingYN).toBe('Yes');
+    expect(data.saleCoolingYN).toBe('Yes');
+    expect(data.saleHasViews).toBe('Yes');
   });
 
   it('saved neighborhood restores even when the option was NOT preloaded (dynamic add under borough)', () => {
