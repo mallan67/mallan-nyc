@@ -152,7 +152,7 @@ describe('Sale form save/load retention — PR-D checkbox-array collector', () =
 
   it('Test 3 — SyndicateTo is derived as an array from SALE_SYNDICATION_MAP checked ids (PR-D C1)', () => {
     expect(collectBody).toMatch(/data\.SyndicateTo\s*=\s*\[\]/);
-    expect(collectBody).toMatch(/SALE_SYNDICATION_MAP[\s\S]*?\.forEach[\s\S]*?data\.SyndicateTo\.push\(entry\.target\)/);
+    expect(collectBody).toMatch(/SALE_SYNDICATION_MAP[\s\S]*?\.forEach[\s\S]*?data\.SyndicateTo\.push\(entry\.cotality\)/);
   });
 
   it('Test 4 — saleCommSubtype is derived as an array from name="saleCommSubtype":checked (PR-D C1)', () => {
@@ -174,7 +174,10 @@ describe('Sale form save/load retention — PR-D checkbox-array collector', () =
 
 describe('Sale form save/load retention — PR-E populate/autosave race hardening', () => {
   // ── Test 10: populate setters do not dispatch change events during populate ──
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
+  // Slice bumped to 23000 (Cotality-clean sweep 2026-05-30 added syndication-restore
+  // lines, pushing populate's single applySalesFieldRules() call past the old 20000
+  // window; 23000 reaches it but stops before the NEXT function's call).
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 23000);
 
   it('setVal inside populate gates the change-event dispatch on !_salePopulateInProgress (PR-E C9)', () => {
     // Helper is local to _populateSaleFormFromApi; assert it is gated.
@@ -284,8 +287,11 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
     expect(formHtml).toMatch(/rls:\s*'TaxLot',\s*form:\s*'saleBldgTaxLot'[^}]*fallbackRls:\s*'BuildingTaxLot'/);
   });
 
-  it('F3: collect emits canonical Possession (not PossessionDate); restore has legacy fallback', () => {
-    expect(fullCollect).toMatch(/data\.Possession\s*=/);
+  it('F3 (revised by Cotality-clean sweep): collect does NOT write a date into the Cotality enum Possession; legacy reload retained', () => {
+    // Possession is a Multi.Possession ENUM in live Cotality $metadata — a date must
+    // not be written into it. The occupancy date persists as saleAvailableOccupancy;
+    // legacy Possession/PossessionDate rows still reload via the SALE_FIELD_MAP fallback.
+    expect(fullCollect).not.toMatch(/data\.Possession\s*=/);
     expect(fullCollect).not.toMatch(/data\.PossessionDate\s*=/);
     expect(formHtml).toMatch(/rls:\s*'Possession',\s*form:\s*'saleAvailableOccupancy'[^}]*fallbackRls:\s*'PossessionDate'/);
   });

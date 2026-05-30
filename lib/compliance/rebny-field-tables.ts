@@ -43,7 +43,10 @@ export const REBNY_FIELD_TABLES = {
       // Agent / Office / Agreement
       'ListAgentMlsId',
       'ListingAgreement',
-      'CoBrokeAgreement',
+      // CoBrokeAgreement reclassified (Cotality-clean sweep 2026-05-30): absent
+      // from live Cotality $metadata (REBNY-internal concept, no Cotality field).
+      // Not mandatory — the form still emits it to raw_data for internal use.
+      // Phantom fields cannot be mandatory (authority = live $metadata).
       'Concessions',
 
       // Address (RLS canonical names — note CityRegion NOT Borough, UnParsedAddress NOT UnparsedAddress)
@@ -59,9 +62,11 @@ export const REBNY_FIELD_TABLES = {
       'UnParsedAddress',
 
       // Building info
-      'AttendanceType',
-      'BuildingLaundryFeatures',
-      'BuildingPetsAllowed',
+      // AttendanceType / BuildingLaundryFeatures / BuildingPetsAllowed reclassified
+      // (Cotality-clean sweep 2026-05-30): absent from live Cotality $metadata
+      // (REBNY-internal; no Cotality field). Not mandatory — the form still emits
+      // them to the features bucket for internal use. Phantom fields cannot be
+      // mandatory. (PetsAllowed IS a live Cotality field and stays required.)
       'PetsAllowed',
       // H1 (2026-05-30): TaxLot is the live Cotality field; BuildingTaxLot is a
       // PHANTOM (absent from live $metadata). The sales form emits canonical
