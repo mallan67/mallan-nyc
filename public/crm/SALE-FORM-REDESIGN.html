@@ -7160,7 +7160,9 @@ function collectSaleFormData() {
     data.NumberOfUnitsTotal = parseInt(data.saleBldgTotalUnits || '0') || null;
     data.CrossStreet = data.saleBldgCrossStreet1 || '';
     data.TaxBlock = data.saleBldgTaxBlock || '';
-    data.BuildingTaxLot = data.saleBldgTaxLot || '';
+    // Cotality canonical is `TaxLot` (not BuildingTaxLot, which is not in
+    // Cotality $metadata). (Audit F2, 2026-05-30 — Cotality-only.)
+    data.TaxLot = data.saleBldgTaxLot || '';
     data.AssociationName = data.saleBldgAssociationName || '';
 
     // Collect multi-value checkbox fields as arrays
@@ -7327,14 +7329,21 @@ function collectSaleFormData() {
     data.OnMarketDate = data.saleDateListed || '';
     data.ExpirationDate = data.saleExclusiveExpires || '';
     data.ListingContractDate = data.saleExclusiveStart || '';
-    data.FirstShowingDate = data.saleFirstShowingDate || '';
+    // Cotality canonical field is `ActivationDate` (FirstShowingDate is NOT in
+    // Cotality $metadata and was a dead-end: the Coming-Soon / RLS activation
+    // gate reads raw.ActivationDate). Prefer the Coming-Soon activation input
+    // (saleActivationDate, 14-day enforced) when present, else the always-present
+    // first-showing input. (Audit F1, 2026-05-30 — Cotality-only.)
+    data.ActivationDate = data.saleActivationDate || data.saleFirstShowingDate || '';
 
     // Date fields
     data.OffMarketDate = data.saleOffMarketDate || '';
     data.WithdrawnDate = data.saleWithdrawnDate || '';
     data.PurchaseContractDate = data.saleContractSignedDate || '';
     data.CloseDate = data.saleSoldDate || '';
-    data.PossessionDate = data.saleAvailableOccupancy || '';
+    // Cotality canonical is `Possession` (PossessionDate is not in Cotality
+    // $metadata). (Audit F3, 2026-05-30 — Cotality-only.)
+    data.Possession = data.saleAvailableOccupancy || '';
 
     // Financial & tax fields
     data.TaxAnnualAmount = parseFloat(data.saleRETaxes || '0') || 0;
@@ -8738,12 +8747,12 @@ var SALE_FIELD_MAP = [
   { rls: 'OnMarketDate', form: 'saleDateListed', type: 'date', src: 'raw' },
   { rls: 'ExpirationDate', form: 'saleExclusiveExpires', type: 'date', src: 'raw' },
   { rls: 'ListingContractDate', form: 'saleExclusiveStart', type: 'date', src: 'raw' },
-  { rls: 'FirstShowingDate', form: 'saleFirstShowingDate', type: 'date', src: 'raw' },
+  { rls: 'ActivationDate', form: 'saleFirstShowingDate', type: 'date', src: 'raw', fallbackRls: 'FirstShowingDate' },
   { rls: 'OffMarketDate', form: 'saleOffMarketDate', type: 'date', src: 'raw' },
   { rls: 'WithdrawnDate', form: 'saleWithdrawnDate', type: 'date', src: 'raw' },
   { rls: 'PurchaseContractDate', form: 'saleContractSignedDate', type: 'date', src: 'raw' },
   { rls: 'CloseDate', form: 'saleSoldDate', type: 'date', src: 'raw' },
-  { rls: 'PossessionDate', form: 'saleAvailableOccupancy', type: 'date', src: 'raw' },
+  { rls: 'Possession', form: 'saleAvailableOccupancy', type: 'date', src: 'raw', fallbackRls: 'PossessionDate' },
 
   // ── Building ──
   { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
@@ -8755,7 +8764,7 @@ var SALE_FIELD_MAP = [
   { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
   { rls: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
   { rls: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
-  { rls: 'BuildingTaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw' },
+  { rls: 'TaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },
   { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
   { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
   { rls: 'NewDevelopmentYN', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw' },

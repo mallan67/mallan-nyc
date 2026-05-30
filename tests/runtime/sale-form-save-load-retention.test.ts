@@ -263,6 +263,32 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
     expect(deriveBody).toMatch(/canonical:\s*'CoolingYN'/);
     expect(deriveBody).toMatch(/canonical:\s*'ViewYN'/);
   });
+
+  // ── Cotality-only field-name corrections (audit F1–F3, 2026-05-30) ──
+  // Each: collect emits the CANONICAL Cotality field, the phantom/old key is no
+  // longer emitted, and SALE_FIELD_MAP restores from the canonical key with a
+  // legacy fallback so already-saved rows still reload.
+  // Brace-matched full body (the 20000-char collectBody slice truncates before
+  // these emits, which live near the end of collectSaleFormData).
+  const fullCollect = extractFunction(formHtml, 'function collectSaleFormData()');
+
+  it('F1: collect emits canonical ActivationDate (not phantom FirstShowingDate); restore has legacy fallback', () => {
+    expect(fullCollect).toMatch(/data\.ActivationDate\s*=/);
+    expect(fullCollect).not.toMatch(/data\.FirstShowingDate\s*=/);
+    expect(formHtml).toMatch(/rls:\s*'ActivationDate',\s*form:\s*'saleFirstShowingDate'[^}]*fallbackRls:\s*'FirstShowingDate'/);
+  });
+
+  it('F2: collect emits canonical TaxLot (not BuildingTaxLot); restore has legacy fallback', () => {
+    expect(fullCollect).toMatch(/data\.TaxLot\s*=/);
+    expect(fullCollect).not.toMatch(/data\.BuildingTaxLot\s*=/);
+    expect(formHtml).toMatch(/rls:\s*'TaxLot',\s*form:\s*'saleBldgTaxLot'[^}]*fallbackRls:\s*'BuildingTaxLot'/);
+  });
+
+  it('F3: collect emits canonical Possession (not PossessionDate); restore has legacy fallback', () => {
+    expect(fullCollect).toMatch(/data\.Possession\s*=/);
+    expect(fullCollect).not.toMatch(/data\.PossessionDate\s*=/);
+    expect(formHtml).toMatch(/rls:\s*'Possession',\s*form:\s*'saleAvailableOccupancy'[^}]*fallbackRls:\s*'PossessionDate'/);
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════════════
