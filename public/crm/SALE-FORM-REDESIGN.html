@@ -5327,6 +5327,14 @@ function populateBuildingFromIDX(prefix, building) {
         if (b !== null && b !== undefined && b !== '') return b;
         return null;
     };
+    // Split a Cotality Multi-enum value into REAL members, dropping empties and
+    // the "None" sentinel. Cotality returns "None" as an explicit no-value (the
+    // same way app/api/buildings/route.ts parseList filters it), so a multi of
+    // "None" must NOT count as a real selection. (Codex review on #297.)
+    const multiMembers = (val) => String(val == null ? '' : val)
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s && s.toLowerCase() !== 'none');
 
     // ── 1. Address atoms (NEVER drop StreetDirPrefix) ─────────────────
     setVal(prefix + 'BldgStreetAddress', building.address);
@@ -5439,7 +5447,7 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 6. Subletting / pet / Wd policy ──────────────────────────────
     checkIf(prefix + 'BldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
-    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || !!pick('laundry_features', 'laundryFeatures') || building.laundry); // LaundryFeatures real Cotality (Track 1)
+    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || multiMembers(pick('laundry_features', 'laundryFeatures')).length > 0 || building.laundry); // LaundryFeatures real Cotality, "None" filtered (Track 1, Codex #297)
 
     // ── 7. Amenity checkboxes (every BuildingFeatures-derived flag) ─
     checkIf(prefix + 'BldgDoorman', building.doorman);
@@ -5492,8 +5500,9 @@ function populateBuildingFromIDX(prefix, building) {
         let anyChecked = false;
         cbs.forEach(function (cb) { if (cb.checked) anyChecked = true; });
         if (anyChecked) return; // agent already chose — do NOT override
-        const members = String(cotalityMulti).split(',')
-            .map(function (s) { return mapValue(s.trim()); }).filter(Boolean);
+        // multiMembers drops empties + the "None" sentinel, so a "None"-only
+        // Cotality value selects nothing. (Codex #297)
+        const members = multiMembers(cotalityMulti).map(mapValue).filter(Boolean);
         if (!members.length) return;
         cbs.forEach(function (cb) { if (members.indexOf(cb.value) !== -1) cb.checked = true; });
     };

@@ -134,6 +134,20 @@ describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pet
     run({ pets_allowed: '', pets_allowed_yn: null }, {}, { salePetsAllowed: pets });
     expect(pets.some((c) => c.checked)).toBe(false);
   });
+
+  it('Cotality "None" is filtered — does NOT check washer/dryer or select docs (Codex #297)', () => {
+    const els = { saleBldgWasherDryerAllowed: { checked: false } };
+    const docs: Cb[] = [{ value: 'OfferingPlan', checked: false }];
+    run({ laundry_features: 'None', documents_available: 'None' }, els, { saleBldgDocsAvailable: docs });
+    expect(els.saleBldgWasherDryerAllowed.checked).toBe(false); // "None" is not a real laundry feature
+    expect(docs.some((c) => c.checked)).toBe(false);             // "None" selects nothing
+  });
+
+  it('a multi with a real member alongside "None" still applies the real member', () => {
+    const els = { saleBldgWasherDryerAllowed: { checked: false } };
+    run({ laundry_features: 'None,InUnit' }, els, {});
+    expect(els.saleBldgWasherDryerAllowed.checked).toBe(true);
+  });
 });
 
 describe('phantom co-op/condo policy fields are NOT auto-filled in the form', () => {
