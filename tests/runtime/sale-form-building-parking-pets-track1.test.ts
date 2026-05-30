@@ -162,6 +162,20 @@ describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pet
     run({ laundry_features: 'BuildingNone' }, els, {});
     expect(els.saleBldgWasherDryerAllowed.checked).toBe(false);
   });
+
+  it('shared/common laundry (CommonArea/CoinOperated/InBasement) does NOT imply W/D Allowed (Codex #297)', () => {
+    const els = { saleBldgWasherDryerAllowed: { checked: false } };
+    run({ laundry_features: 'CommonArea,CoinOperated,InBasement' }, els, {});
+    expect(els.saleBldgWasherDryerAllowed.checked).toBe(false); // building laundry ≠ in-unit W/D permission
+  });
+
+  it('only true in-unit W/D members (InUnit/WasherHookup/WasherDryerInstallAllowed/Stacked) check W/D Allowed', () => {
+    ['InUnit', 'WasherHookup', 'WasherDryerInstallAllowed', 'Stacked', 'GasDryerHookup'].forEach((m) => {
+      const els = { saleBldgWasherDryerAllowed: { checked: false } };
+      run({ laundry_features: m }, els, {});
+      expect(els.saleBldgWasherDryerAllowed.checked).toBe(true);
+    });
+  });
 });
 
 describe('phantom co-op/condo policy fields are NOT auto-filled in the form', () => {

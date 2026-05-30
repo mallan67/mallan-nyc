@@ -5447,7 +5447,16 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 6. Subletting / pet / Wd policy ──────────────────────────────
     checkIf(prefix + 'BldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
-    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || multiMembers(pick('laundry_features', 'laundryFeatures')).length > 0 || building.laundry); // LaundryFeatures real Cotality, "None" filtered (Track 1, Codex #297)
+    // "Washer/Dryer Allowed" is the IN-UNIT W/D install/hookup policy — NOT mere
+    // laundry availability. Only LaundryFeatures members that actually imply
+    // in-unit W/D (install-allowed / hookups / in-unit units) flip it; building/
+    // shared members (CommonArea, CoinOperated, InBasement, …) must NOT. (Codex #297)
+    var _wdAllowMembers = ['WasherDryerInstallAllowed', 'BuildingWasherDryerInstallAllowed',
+        'WasherHookup', 'DryerHookup', 'ElectricDryerHookup', 'GasDryerHookup', 'PropaneDryerHookup',
+        'InUnit', 'EnSuiteLaundry', 'Stacked'];
+    var _wdAllowed = multiMembers(pick('laundry_features', 'laundryFeatures'))
+        .some(function (m) { return _wdAllowMembers.indexOf(m) !== -1; });
+    checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || _wdAllowed);
 
     // ── 7. Amenity checkboxes (every BuildingFeatures-derived flag) ─
     checkIf(prefix + 'BldgDoorman', building.doorman);
