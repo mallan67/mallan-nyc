@@ -526,6 +526,10 @@ const RULES: Rule[] = [
     pattern: /(?:buildingDatabase|buildingCache|cachedBuildings)\b[\s\S]{0,120}\.filter\(/,
     requireNear: /searchBuilding|BuildingTab|buildingSearch|selectBuildingForModal|building.?modal/i,
     requireNearWindow: 12,
+    // If the form calls the buildings API ANYWHERE, its building search is not
+    // truly cache-only (the fallback can live in a shared handler far from the
+    // cache filter), so only flag a form with zero buildings-API calls.
+    excludeIfFilePresent: /fetch\([^)]*\/api\/buildings\/search/,
     excludeIfNear: /fetch\([^)]*\/api\/buildings\/search/,
     exclusionWindow: 12,
     failingPattern: 'Building-tab search filters the in-memory building cache with no /api/buildings/search fallback.',
