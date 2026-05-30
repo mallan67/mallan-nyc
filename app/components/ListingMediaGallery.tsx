@@ -9,7 +9,10 @@ const PLACEHOLDER = '/images/listing-placeholder.svg';
 type MediaTab = 'photos' | 'floorplan' | 'video' | '3d';
 
 interface MediaImage {
+  /** Full-size image — used for the main viewer and the fullscreen lightbox. */
   url: string;
+  /** Small image — used for the thumbnail strip. Falls back to `url`. */
+  thumbUrl?: string;
   caption?: string;
   order?: number;
   isPrimary?: boolean;
@@ -215,7 +218,7 @@ export default function ListingMediaGallery({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       key={`thumb-${i}-${retryCount[i] || 0}`}
-                      src={failed.has(i) ? PLACEHOLDER : img.url}
+                      src={failed.has(i) ? PLACEHOLDER : (img.thumbUrl || img.url)}
                       alt={img.caption || `Photo ${i + 1}`}
                       className="absolute inset-0 w-full h-full object-cover"
                       loading="lazy"

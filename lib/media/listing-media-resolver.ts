@@ -83,7 +83,14 @@ const TRESTLE_DOCUMENT_URL_PATTERN = /\/Media\/Property\/DOCUMENT-(Gif|Jpeg|Png|
  * consumers.
  */
 export interface ResolvedMedia {
+  /** Full-size display URL — used for the MAIN gallery image and the lightbox.
+   *  For CRM uploads this is the 1600px `-hero.webp` variant. */
   url: string;
+  /** Small display URL — used for the thumbnail strip / card grids. For CRM
+   *  uploads this is the 800px `-card.webp` variant. Defaults to `url` when the
+   *  source has no distinct small variant (Trestle/legacy) so consumers can
+   *  always read it. */
+  thumbUrl: string;
   mediaType: 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' | 'Unknown';
   class: MediaClass;
   providerOrder: number;
@@ -136,6 +143,98 @@ const CLASS_TO_DISPLAY: Record<MediaClass, ResolvedMedia['mediaType']> = {
   unknown: 'Unknown',
 };
 
+/**
+ * R2 variant suffix the CRM upload route writes: `…/{timestamp}-{hero|card|thumb}.webp`.
+ * The optimizer emits all three sizes (hero 1600px / card 800px / thumb 400px)
+ * to the same path, so given any one variant URL we can address its siblings.
+ */
+const R2_VARIANT_RE = /-(hero|card|thumb)\.webp(\?[^#]*)?$/i;
+
+/** Swap an R2 variant URL to another size. Returns null for non-variant URLs
+ *  (Trestle source URLs, legacy `.jpg`) so callers fall back cleanly. */
+export function toVariant(url: string, variant: 'hero' | 'card' | 'thumb'): string | null {
+  if (!url || !R2_VARIANT_RE.test(url)) return null;
+  return url.replace(R2_VARIANT_RE, `-${variant}.webp$2`);
+}
+
+/**
+ * Full-size URL for the main image + lightbox. Prefers an explicit `-hero.webp`
+ * (the upload route stores the 1600px hero in `media_url_original`); otherwise
+ * derives the hero sibling from a `-card`/`-thumb` variant — no re-upload needed
+ * because the optimizer already wrote all three. Falls back to the stored URL
+ * for Trestle/legacy media (no variant naming → main == thumb, unchanged).
+ */
+export function pickFullSizeUrl(cached: string, original: string): string {
+  if (/-hero\.webp(\?|$)/i.test(original)) return original;
+  if (/-hero\.webp(\?|$)/i.test(cached)) return cached;
+  return toVariant(original, 'hero') || toVariant(cached, 'hero') || cached || original;
+}
+
+/**
+ * Thumbnail URL for the strip / card grids. Prefers an explicit `-card.webp`
+ * (the upload route stores the 800px card in `media_url_cached`); otherwise
+ * derives it. Falls back to the stored URL for Trestle/legacy media.
+ */
+function pickThumbUrl(cached: string, original: string): string {
+  if (/-card\.webp(\?|$)/i.test(cached)) return cached;
+  if (/-card\.webp(\?|$)/i.test(original)) return original;
+  return toVariant(cached, 'card') || toVariant(original, 'card') || cached || original;
+}
+
+/**
+ * The R2 upload's timestamped path, variant-independent:
+ * `…/listings/SL-0004/1779898434281-card.webp` → `…/listings/sl-0004/1779898434281`.
+ * This is the CONTENT identity — the optimizer writes hero/card/thumb to the
+ * same `{timestamp}-{variant}.webp` stem, so card and hero of one upload share it.
+ * Returns null for non-R2-variant URLs (Trestle source, legacy `.jpg`).
+ */
+function r2VariantStem(url: string): string | null {
+  if (!url) return null;
+  const m = url.match(/^(.*\/\d{10,})-(?:hero|card|thumb)\.webp(?:\?[^#]*)?$/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * Stable visual identity for de-duplication. Two rows collapse to one rendered
+ * item only when they are the SAME underlying image — a card-variant row and a
+ * hero-variant row of the same upload, or a genuine re-import of the same photo.
+ *
+ * Identity is the R2 timestamp stem and is taken from `media_url_original`
+ * FIRST: that is the canonical full image. `media_url_cached` must NOT drive
+ * identity, because legacy rows cache a shared INDEX path (`/photos/SL-0004/13.jpg`)
+ * that DISTINCT uploads reused — keying on it would wrongly merge different
+ * photos (verified against SL-0004, 2026-05-30). Only when neither field is an
+ * R2-variant URL (Trestle / true-legacy) do we fall back to the full path, which
+ * collapses exact-URL duplicates only.
+ */
+export function visualIdentity(cached: string, original: string): string {
+  const stem = r2VariantStem(original) || r2VariantStem(cached);
+  if (stem) return stem;
+  // No R2-variant URL (Trestle / true-legacy): the CANONICAL `media_url_original`
+  // (source URL) drives identity. `media_url_cached` is an index / mirror path
+  // that DISTINCT uploads can reuse (e.g. legacy `/photos/SL-0004/13.jpg`), so it
+  // must NOT collapse different real photos — use it only when there is no
+  // original at all. (Codex review on PR #286, 2026-05-30.)
+  const raw = (original || cached || '').trim();
+  if (!raw) return '';
+  let s = raw;
+  try {
+    s = new URL(raw).pathname;
+  } catch {
+    /* relative / opaque URL — key on the raw string */
+  }
+  return s.replace(/\?[^#]*$/, '').toLowerCase();
+}
+
+/** Tie-break when two rows share a visual identity: the preferred (hero) row
+ *  wins, else the lower display order, else the incumbent (first-seen). */
+function isBetterDuplicate(candidate: ListingMediaTableRow, current: ListingMediaTableRow): boolean {
+  if (candidate.preferred_photo_yn !== current.preferred_photo_yn) {
+    return candidate.preferred_photo_yn;
+  }
+  return candidate.order < current.order;
+}
+
 /** Wrap Trestle/CoreLogic media URLs with the bearer-auth proxy. Pass through otherwise. */
 export function proxyTrestleUrl(url: string): string {
   if (!url) return url;
@@ -170,12 +269,16 @@ export function proxyTrestleUrl(url: string): string {
  */
 export function resolveListingMedia(items: unknown, options: ResolveListingMediaOptions = {}): ResolvedMedia[] {
   if (!Array.isArray(items)) return [];
+  const mapFn = options.mapUrl ?? proxyTrestleUrl;
   const decorated = items
     .map((raw, idx) => {
       if (!raw || typeof raw !== 'object') return null;
       const m = raw as Record<string, unknown>;
       const rawUrl = String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '').trim();
       if (!rawUrl) return null;
+      // Distinct small variant for the thumbnail strip; defaults to the full URL
+      // when the source has no separate thumbnail (Trestle/legacy/JSON).
+      const rawThumb = String(m.ThumbURL ?? m.thumbUrl ?? '').trim();
       const klass = classifyMediaItem(raw);
       const orderRaw = m.Order ?? m.order;
       const orderNum = orderRaw === '' || orderRaw == null || Number.isNaN(Number(orderRaw))
@@ -184,8 +287,10 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
       const preferred =
         m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true' ||
         m.preferred === true || m.isPrimary === true;
+      const url = mapFn(rawUrl);
       return {
-        url: options.mapUrl ? options.mapUrl(rawUrl) : proxyTrestleUrl(rawUrl),
+        url,
+        thumbUrl: rawThumb ? mapFn(rawThumb) : url,
         klass,
         providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
         idx,
@@ -203,6 +308,7 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
 
   return decorated.map((d, i) => ({
     url: d.url,
+    thumbUrl: d.thumbUrl,
     mediaType: CLASS_TO_DISPLAY[d.klass],
     class: d.klass,
     providerOrder: d.providerOrder,
@@ -287,12 +393,38 @@ export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): Resol
   if (!Array.isArray(rows) || rows.length === 0) return [];
   const active = rows.filter((r) => r && r.status === 'active');
   if (active.length === 0) return [];
-  const items = active
-    .map((r) => {
-      const url = (r.media_url_cached || r.media_url_original || '').trim();
-      if (!url) return null;
+
+  // De-duplicate by VISUAL identity (not just media_key): the same underlying
+  // image can exist as multiple active rows — legacy basis-key vs content-hash
+  // key, or a card-variant row alongside a hero-variant row. Keep ONE row per
+  // identity (preferred → lowest order → first-seen) so the gallery never shows
+  // the same photo twice, even before the DB itself is de-duplicated.
+  const bestByIdentity = new Map<string, ListingMediaTableRow>();
+  const firstSeen = new Map<string, number>();
+  let seen = 0;
+  for (const r of active) {
+    const cached = (r.media_url_cached || '').trim();
+    const original = (r.media_url_original || '').trim();
+    if (!cached && !original) continue;
+    const id = visualIdentity(cached, original) || `__row_${seen}`;
+    const prev = bestByIdentity.get(id);
+    if (!prev) {
+      bestByIdentity.set(id, r);
+      firstSeen.set(id, seen++);
+    } else if (isBetterDuplicate(r, prev)) {
+      bestByIdentity.set(id, r); // survivor changes; keep the identity's first-seen slot
+    }
+  }
+
+  const items = [...bestByIdentity.entries()]
+    .sort((a, b) => (firstSeen.get(a[0]) ?? 0) - (firstSeen.get(b[0]) ?? 0))
+    .map(([, r]) => {
+      const cached = (r.media_url_cached || '').trim();
+      const original = (r.media_url_original || '').trim();
       return {
-        MediaURL: url,
+        // Main image / lightbox = full-size hero; thumbnail strip = small card.
+        MediaURL: pickFullSizeUrl(cached, original),
+        ThumbURL: pickThumbUrl(cached, original),
         // Pass both signals so classifyMediaItem can prefer MediaCategory when
         // present (Trestle's content-type tag) but still recognise FloorPlan /
         // Video / VirtualTour from media_type when category is null.
@@ -302,8 +434,7 @@ export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): Resol
         Order: r.order,
         PreferredPhotoYN: r.preferred_photo_yn,
       };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
+    });
   return resolveListingMedia(items);
 }
 

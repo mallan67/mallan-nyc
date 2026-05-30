@@ -270,6 +270,7 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
     if (mediaItems.length > 0) {
       dto.media = resolveListingMedia(mediaItems, { mapUrl: proxyDetailMediaUrl }).map(m => ({
         url: m.url,
+        thumbUrl: m.thumbUrl,
         mediaType: m.mediaType,
         order: m.providerOrder,
       }));
@@ -484,11 +485,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
     // Widen `mediaType` to string here because the Trestle merge below mixes
     // in rows from `fetchListingMedia` which use the wider type.
-    let mediaArr: { url: string; mediaType: string; order: number }[] = (listingMediaRows.length > 0
+    let mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number }[] = (listingMediaRows.length > 0
       ? resolveListingMediaFromRows(listingMediaRows)
       : resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl })
     ).map(m => ({
       url: m.url,
+      thumbUrl: m.thumbUrl,
       mediaType: m.mediaType as string,
       order: m.providerOrder,
     }));
@@ -594,6 +596,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       media: mediaArr.map(m => ({
         ...m,
         url: m.url ? proxyDetailMediaUrl(m.url) : m.url,
+        thumbUrl: m.thumbUrl ? proxyDetailMediaUrl(m.thumbUrl) : m.thumbUrl,
       })),
       photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
       publicRemarks: String(features.PublicRemarks || compliance.PublicRemarks || ''),
@@ -1164,7 +1167,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const images = listing.media
     .filter((m) => (m.mediaType || '').toLowerCase() === 'photo' || !(m.mediaType))
     .sort((a, b) => a.order - b.order)
-    .map((m) => ({ url: m.url }));
+    .map((m) => ({ url: m.url, thumbUrl: m.thumbUrl }));
   const floorPlanMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'floorplan');
   const floorPlanUrl = floorPlanMedia?.url || null;
   const videoMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'video');

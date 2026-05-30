@@ -184,7 +184,7 @@ export interface PublicListingDTO {
   // Agent — office/broker name only (REBNY: public attribution = office, not agent)
   listOfficeName: string;
   // Media
-  media: { url: string; mediaType: string; order: number }[];
+  media: { url: string; thumbUrl?: string; mediaType: string; order: number }[];
   photosCount?: number;
   virtualTourURL?: string;
   // Remarks (public only — private remarks NEVER included)
@@ -325,6 +325,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
   const isComingSoon = isComingSoonStatus(listing.standardStatus);
   const resolvedMedia = resolveListingMedia(listing.media).map(m => ({
     url: m.url,
+    thumbUrl: m.thumbUrl,
     mediaType: m.mediaType,
     order: m.providerOrder,
   }));

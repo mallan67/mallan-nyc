@@ -322,6 +322,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     : resolveListingMedia(mediaArr, { mapUrl: proxyDbMediaUrl });
   const media = resolved.map((m) => ({
     url: m.url,
+    thumbUrl: m.thumbUrl,
     mediaType: m.mediaType,
     order: m.providerOrder,
   }));
