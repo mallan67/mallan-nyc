@@ -385,7 +385,7 @@ describe('assertRlsCompliantPayload', () => {
       PostalCity: 'New York',
       CountyOrParish: 'NewYork',
       SubdivisionName: 'Midtown',
-      UnParsedAddress: '400 Main St, New York, NY 10001',
+      UnparsedAddress: '400 Main St, New York, NY 10001',
       // Building info
       AttendanceType: 'DoormanFullTime',
       BuildingLaundryFeatures: 'InUnit',

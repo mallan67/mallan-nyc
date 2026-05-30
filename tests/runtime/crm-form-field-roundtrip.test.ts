@@ -28,7 +28,7 @@ describe('CRM form save/load field parity', () => {
     const rlsAssignments = collectBlock![1].match(/data\.([A-Z][A-Za-z]+)\s*=/g) || [];
     const rlsFields = rlsAssignments.map(a => a.replace('data.', '').replace(' =', '').trim());
     const uniqueRls = [...new Set(rlsFields)].filter(f =>
-      !['listing_type', 'type', 'status', 'saleListingType', 'inHouseVisibility', 'Permissions',
+      !['listing_type', 'type', 'status', 'saleListingType', 'inHouseVisibility', 'Permission', 'Permissions',
         'IDXEntireListingDisplayYN', 'SyndicateYN', 'BathroomsTotal',
         'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
         'ListingAgreement', 'BuildingFeatures', 'CoBrokeAgreement',
@@ -43,6 +43,11 @@ describe('CRM form save/load field parity', () => {
         //     parametrized inventory + restore-map contract for ALL groups)
         'Heating', 'Cooling', 'SyndicateTo',
         'BuildingHeating', 'BuildingCooling',
+        // 'View' is the canonical Cotality array mirror (audit F7, 2026-05-30),
+        // emitted from saleViewList for the server-side RLS conditional
+        // (ViewYN=true → require View). It is restored via the saleViewList
+        // SALE_CHECKBOX_ARRAY_MAP entry (form-key sibling), same as Heating/Cooling.
+        'View',
         // Note: 'Flooring' was previously in this skip-list because the
         // form was writing data.Flooring as a canonical RESO array.
         // Codex PR #270 review caught that "Herringbone" (a visible

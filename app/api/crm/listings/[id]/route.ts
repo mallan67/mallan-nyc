@@ -188,7 +188,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // coerceStrictBool() so only literal true / "true" / "TRUE" stores as true;
   // anything else (including null, "false", typos, malformed JSON) stores as
   // false. This matches the compliance gate doctrine in lib/compliance/gates.ts.
-  if (body.IDXEntireListingDisplayYN !== undefined) {
+  // IDX-display control (Cotality-clean 2026-05-30): the internal flag
+  // `saleIdxDisplayYN` drives the internal `idx_display_yn` column. There is NO
+  // Cotality field for IDX display — `IDXEntireListingDisplayYN` was a phantom and
+  // is accepted here only as a legacy fallback. The §2.05 terminal guard below is
+  // unchanged (rls-eligible AND not-terminal AND coerceStrictBool).
+  const idxDisplayControl = body.saleIdxDisplayYN ?? body.IDXEntireListingDisplayYN;
+  if (idxDisplayControl !== undefined) {
     // H1 fix (2026-05-13) + amend: close the secondary-writer §2.05 gap with
     // canonical-status normalization. An agent editing a listing whose
     // effective status is terminal MUST NOT be able to set
@@ -219,7 +225,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     update.idx_display_yn =
       effectiveRlsEligible &&
       !TERMINAL_STATUSES.has(effectiveStatus) &&
-      coerceStrictBool(body.IDXEntireListingDisplayYN);
+      coerceStrictBool(idxDisplayControl);
   }
   if (body.InternetEntireListingDisplayYN !== undefined) update.internet_entire_listing_display_yn = coerceStrictBool(body.InternetEntireListingDisplayYN);
   if (body.InternetAddressDisplayYN !== undefined) update.internet_address_display_yn = coerceStrictBool(body.InternetAddressDisplayYN);
@@ -262,8 +268,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
   // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
-  if (body.Permissions !== undefined) {
-    const permBools = derivePermissionBooleans(body.Permissions);
+  const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
+  if (permValue !== undefined) {
+    const permBools = derivePermissionBooleans(permValue);
     update.participant_only = permBools.participant_only;
     update.owner_opt_out = permBools.owner_opt_out;
   } else {

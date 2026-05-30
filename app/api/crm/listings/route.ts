@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
 
   // Derive permission booleans from Permissions string
   // (forms send "OwnerOptOut"/"Private"/"RLS-Owner-OptOut"/etc. — normalizer resolves)
-  const permBools = derivePermissionBooleans(normalized.Permissions);
+  const permBools = derivePermissionBooleans(normalized.Permission ?? normalized.Permissions);
 
   // Route normalized fields to structured DB buckets via persistenceMap
   const persistence = buildPersistenceRecord(normalized);

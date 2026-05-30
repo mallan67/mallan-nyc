@@ -384,7 +384,7 @@ export function assertRlsCompliantPayload(
 
   // Sale+Permissions=Null cannot set InternetEntireListingDisplayYN=false (RLS Data Rule)
   if (ctx.listingType === "sale") {
-    const permissions = payload.Permissions;
+    const permissions = payload.Permission ?? payload.Permissions; // A2: canonical + legacy
     if (
       (!permissions || permissions === "" || permissions === null) &&
       payload.InternetEntireListingDisplayYN === false
@@ -401,7 +401,8 @@ export function assertRlsCompliantPayload(
   }
 
   // Owner Opt-Out / Participant Only blocks all display
-  const perm = typeof payload.Permissions === "string" ? payload.Permissions : "";
+  const permRaw = payload.Permission ?? payload.Permissions; // A2: canonical + legacy
+  const perm = typeof permRaw === "string" ? permRaw : "";
   if (
     payload.MlsStatus === "OwnerOptOut" ||
     perm === "OwnerOptOut" ||
