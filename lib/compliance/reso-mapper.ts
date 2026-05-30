@@ -1,4 +1,11 @@
 /**
+ * DERIVED_RUNTIME_COMPATIBILITY_LAYER_NOT_FIELD_AUTHORITY
+ * Do not use this file to validate Cotality field names.
+ * Use freshly pulled artifacts/metadata.xml via scripts/get-metadata.js.
+ * (Stale field-authority archival, 2026-05-30. Cotality live $metadata is the
+ *  only external field authority.)
+ */
+/**
  * RESO Data Dictionary Mapper
  *
  * Maps between internal listing format and RESO Web API compliant format.

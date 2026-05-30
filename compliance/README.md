@@ -20,6 +20,8 @@
 | **5** | **INTERNAL-ONLY** | If neither RLS nor RESO/IDX governs, must not affect public display eligibility |
 | **6** | **Fail closed** | Any uncertainty or missing permission data defaults to **NON-DISPLAY** |
 
+> **EXTERNAL FIELD AUTHORITY (names / types / enums):** the ONLY authority is the **live Cotality `$metadata`** — run `node scripts/get-metadata.js` (writes `artifacts/metadata.xml`) before validating any Cotality/Trestle/RLS field. `FIELD-AUTHORITY.md`, the `data/*.csv` lists, `lib/idx/trestle-mapper.ts`, and `lib/compliance/rebny-field-tables.ts` are **derived compatibility references that drift from the feed** — not authority. (Added 2026-05-30 — stale field-authority archival.)
+
 ---
 
 ## Directory

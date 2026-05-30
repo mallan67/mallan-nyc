@@ -339,11 +339,11 @@ Never act. If a fix is obvious, write it as a recommendation in section P, not a
 | `lib/compliance/dto.ts` | DTO tier sanitization |
 | `lib/compliance/dom-tracker.ts` | Days on Market |
 | `lib/compliance/rls-eligibility.ts` | RLS vs website-only |
-| `lib/compliance/rebny-field-tables.ts` | Field authority tables |
-| `lib/idx/trestle-mapper.ts` | Source of truth — field mapping |
+| `lib/compliance/rebny-field-tables.ts` | Derived compatibility tables — NOT field authority |
+| `lib/idx/trestle-mapper.ts` | Writer/mapping compatibility layer — NOT field authority |
 | `public/crm/js/compliance/fair-housing.js` | Fair Housing scanner (46 patterns) |
 | `compliance/rules/ucba-audit-checklist.json` | 145-rule UCBA checklist |
-| `data/rebny-rls-property-fields.csv` | 902 IDX Plus fields |
-| `data/rebny-rls-property-lookup.csv` | 2,066 picklist values |
+| `data/rebny-rls-property-fields.csv` | 902 IDX Plus fields (derived; NOT authority — use live `$metadata` via `scripts/get-metadata.js`) |
+| `data/rebny-rls-property-lookup.csv` | 2,066 picklist values (derived) |
 | `vercel.json` | Cron and build config (read only) |
 | `memory/audits/` | Prior audit reports for diffing |

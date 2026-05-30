@@ -17,6 +17,7 @@
 7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), Sentinel, agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main.
 8. **Never skip hooks** (`--no-verify`), never bypass signing (`--no-gpg-sign`), never amend a published commit.
 9. **`scripts/__pr147-soak-verify.mjs` stays UNTRACKED.** Do not commit it.
+10. **Cotality live `$metadata` is the ONLY external field authority.** Before validating any Cotality/Trestle/RLS field name, type, or enum, run `node scripts/get-metadata.js` (writes `artifacts/metadata.xml`). `artifacts/metadata.xml` is a snapshot — authoritative ONLY immediately after a fresh pull, never inherently live. `lib/idx/trestle-mapper.ts`, `lib/compliance/rebny-field-tables.ts`, the `data/*.csv` field lists, and `data/MASTER_REGISTRY.json` are **derived runtime-compatibility layers, NOT authority** (they drift from the feed). Stale snapshots are archived under `docs/archive/field-authority/`.
 
 ---
 
@@ -119,12 +120,13 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 | REBNY skill (auto-loaded at session start) | `.claude/skills/rebny-compliance/SKILL.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
-| Trestle field registry (all 12 resources, ~1,364 fields) | `data/RLS-FIELD-REGISTRY.md` |
-| IDX Plus field CSV (902 fields, 7 resources) | `data/rebny-rls-property-fields.csv` |
-| Picklist values (2,066 lookups) | `data/rebny-rls-property-lookup.csv` |
+| **FIELD AUTHORITY — the ONLY one** | **Cotality live `$metadata`; run `node scripts/get-metadata.js` first.** Rows below are derived **compatibility** references, NOT authority. |
+| Trestle field registry — ARCHIVED, derived, NOT authority | `docs/archive/field-authority/rebny-csv-derived/RLS-FIELD-REGISTRY.md` |
+| IDX Plus field CSV — derived compatibility, NOT authority | `data/rebny-rls-property-fields.csv` |
+| Picklist values — derived compatibility, NOT authority | `data/rebny-rls-property-lookup.csv` |
 | UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` |
 | Syndication research (RLS feeds, vendors, costs, providers) | `data/RLS-Syndication-Research.md` |
-| Trestle live OData $metadata | `artifacts/metadata.xml` |
+| Trestle `$metadata` SNAPSHOT (NOT live unless just refreshed via `scripts/get-metadata.js`) | `artifacts/metadata.xml` |
 | Master refactor plan (10-PR backend rebuild) | `memory/REFACTOR-2026-04-25.md` |
 | Most recent comprehensive audit | `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` |
 | Post-reconciliation tightening audit (Phase A scope rationale) | `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` |

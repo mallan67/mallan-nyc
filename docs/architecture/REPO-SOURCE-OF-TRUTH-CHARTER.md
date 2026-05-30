@@ -238,11 +238,12 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | RLS validator | `lib/compliance/rebny-validator.ts` | 10-section validator (CI-gateable) |
 | Field tables | `lib/compliance/rebny-field-tables.ts` | Authority table for required fields |
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
-| RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
-| RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
-| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | Human-readable registry |
+| **FIELD AUTHORITY — the ONLY one** | **Cotality live `$metadata`** | Run `node scripts/get-metadata.js` before field validation. The rows below are derived compatibility, NOT authority. |
+| RLS field CSV — derived, NOT authority | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields (paper spec; drifts from feed). |
+| RLS lookup CSV — derived, NOT authority | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values (derived) |
+| RLS field registry doc — ARCHIVED, derived, NOT authority | `docs/archive/field-authority/rebny-csv-derived/RLS-FIELD-REGISTRY.md` | Human-readable registry (archived 2026-05-30) |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
-| Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
+| Trestle `$metadata` SNAPSHOT (NOT live unless just refreshed) | `artifacts/metadata.xml` | Refresh via `scripts/get-metadata.js` |
 
 **Rules:**
 
@@ -252,6 +253,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 4. **`InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are pre-filtered.** Null = displayable on this feed. Explicit false still blocks.
 5. Compliance changes must run `npm run ucba:audit`, `npm run rls:validate`, `npm run idx:validate`, and `npm run compliance-check`. All must pass.
 6. **Do not touch `lib/idx/sync.ts`** without explicit authorization. It is the writer; bugs here corrupt DB rows.
+7. **Cotality live `$metadata` is the ONLY external field authority.** Run `node scripts/get-metadata.js` (writes `artifacts/metadata.xml`) before validating any field name/type/enum. The CSVs, `RLS-FIELD-REGISTRY.md`, `trestle-mapper.ts`, and `rebny-field-tables.ts` are derived compatibility layers, NOT authority.
 
 ---
 
@@ -375,7 +377,7 @@ If you are an AI/Codex/Claude session reading this charter:
 | `CLAUDE.md` (top of repo) | Per-session AI rules. Points here at the top. |
 | `NEON.md` (top of repo) | DB / Prisma / migration discipline. Read before any schema change. |
 | `MASTER-PROJECT-TREE-v3.3.md` | Codebase reference. Larger and older than this charter; treat as background context, not authoritative. |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry. Authoritative for field names. |
+| `docs/archive/field-authority/rebny-csv-derived/RLS-FIELD-REGISTRY.md` | ARCHIVED 2026-05-30 — derived registry, NOT authority. Field-name authority is Cotality live `$metadata` (`node scripts/get-metadata.js`). |
 | `data/UCBA-2026-Requirements.md` | UCBA rules. Authoritative for compliance. |
 | `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate. Read at session start. |
 

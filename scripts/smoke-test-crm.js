@@ -276,8 +276,10 @@ const DATA_FILES = [
   'data/rebny-rls-property-fields.csv',
   'data/rebny-rls-property-lookup.csv',
   'data/rls-form-bindings.json',
-  'data/RLS-FIELD-REGISTRY.md',
-  'data/TRESTLE-COMPLETE-FIELD-CATALOG.md',
+  // Archived 2026-05-30 (stale field-authority). These are derived docs, NOT
+  // the field authority — Cotality live $metadata is (scripts/get-metadata.js).
+  'docs/archive/field-authority/rebny-csv-derived/RLS-FIELD-REGISTRY.md',
+  'docs/archive/field-authority/rebny-csv-derived/TRESTLE-COMPLETE-FIELD-CATALOG.md',
   'compliance/rules/active.json',
   'compliance/rules/rls-required.json',
   'compliance/rules/export-policy.json',

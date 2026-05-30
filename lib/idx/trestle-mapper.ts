@@ -1,3 +1,10 @@
+/**
+ * DERIVED_RUNTIME_COMPATIBILITY_LAYER_NOT_FIELD_AUTHORITY
+ * Do not use this file to validate Cotality field names.
+ * Use freshly pulled artifacts/metadata.xml via scripts/get-metadata.js.
+ * (Stale field-authority archival, 2026-05-30. Cotality live $metadata is the
+ *  only external field authority; this mapper is a runtime compatibility layer.)
+ */
 // lib/idx/trestle-mapper.ts
 // Trestle/REBNY RLS to Prisma Listing model mapper (902 IDX Plus fields across 7 resources).
 // Maps ALL 29 RLS categories. Handles 23 RESO-to-RLS renames.

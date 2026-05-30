@@ -657,7 +657,7 @@ Response headers: `Minute-Quota-Limit`, `Hour-Quota-Limit`, `Hour-Quota-ResetTim
 GET /odata/$metadata    → Full OData CSDL (all entities, fields, types, navigation properties)
 ```
 
-Local copy: `artifacts/metadata.xml` (32,351 lines, all 12 data + 5 system entities)
+Local **SNAPSHOT** (NOT live unless just refreshed via `node scripts/get-metadata.js`): `artifacts/metadata.xml`. **Cotality live `$metadata` is the only external field authority** — `lib/idx/trestle-mapper.ts`, `lib/compliance/rebny-field-tables.ts`, and the `data/*.csv` field lists are derived compatibility layers that drift from the feed.
 
 ### Data Flow: Trestle → mallan.nyc
 

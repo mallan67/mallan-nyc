@@ -1,4 +1,11 @@
 /**
+ * DERIVED_RUNTIME_COMPATIBILITY_LAYER_NOT_FIELD_AUTHORITY
+ * Do not use this file to validate Cotality field names.
+ * Use freshly pulled artifacts/metadata.xml via scripts/get-metadata.js.
+ * (Stale field-authority archival, 2026-05-30. Cotality live $metadata is the
+ *  only external field authority.)
+ */
+/**
  * raw_data keep-field set (PR 10 — Neon shedding).
  *
  * Trestle's IDX Plus feed exposes ~1,457 Property fields per row, but the

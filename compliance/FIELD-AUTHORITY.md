@@ -66,7 +66,7 @@ RLS/RESO/IDX: FieldName
 - **RESO** = RESO Data Dictionary name (same in most cases) — **SECONDARY**
 - **IDX** = IDX/VOW display feed (indicates field appears in public feeds) — **TERTIARY**
 
-The RLS CSV (`data/rebny-rls-property-fields.csv`) is the **single source of truth** for field names.
+The RLS CSV (`data/rebny-rls-property-fields.csv`) is a **derived compatibility reference, NOT the field authority** — the only field-name authority is Cotality live `$metadata` (run `node scripts/get-metadata.js`; the CSV drifts from the feed).
 
 ---
 

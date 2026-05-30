@@ -169,7 +169,7 @@ There is no dedicated building database, address master, geocoding service, or p
 
 ## 3. The Address Model
 
-**Implementation:** Verified against `artifacts/metadata.xml` (live Trestle `$metadata`)
+**Implementation:** Verified against `artifacts/metadata.xml` (Trestle `$metadata` SNAPSHOT — refresh via `scripts/get-metadata.js`, NOT inherently live)
 
 Cotality uses RESO-standard structured address fields. The address is decomposed, NOT stored as a single string.
 

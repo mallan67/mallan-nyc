@@ -224,3 +224,18 @@ dump-*
 ops/audit/sentinel-l/
 # Smoke runner reports (timestamped per run, never committed)
 ops/audit/sales-smoke/
+
+# ─────────────────────────────────────────────────────────────────────
+# Trestle/Cotality local cache + token artifacts — NEVER commit.
+# These are stale-by-definition snapshots; the ONLY field authority is the
+# live Cotality $metadata. Refresh via `node scripts/get-metadata.js`
+# (writes artifacts/metadata.xml). Root-anchored so archived copies under
+# docs/archive/field-authority/ stay tracked.
+# (Added 2026-05-30 — stale field-authority archival.)
+# ─────────────────────────────────────────────────────────────────────
+/.trestle_token.json
+/.trestle_*.json
+/.trestle_metadata.xml
+/trestle-fields.json
+/repo-fields.json
+/audit-trestle-report.json

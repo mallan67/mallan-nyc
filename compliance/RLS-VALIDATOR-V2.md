@@ -121,7 +121,7 @@ node scripts/validate-rls-compliance.js --html
 | `data/rls-field-aliases.json` | Form element ID → RLS field name | 239 aliases |
 | `data/rls-internal-only.json` | Internal-only field identifiers | 491 entries |
 | `data/rls-crm-overlays.json` | CRM pipeline overlay values | 5 fields, 40 values |
-| `data/rebny-rls-property-fields.csv` | RLS field definitions (source of truth) | 902 IDX Plus fields |
+| `data/rebny-rls-property-fields.csv` | RLS field definitions (derived compatibility — NOT authority; live `$metadata` is) | 902 IDX Plus fields |
 | `data/rebny-rls-property-lookup.csv` | Official REBNY picklist values | 2,066 values |
 
 ---

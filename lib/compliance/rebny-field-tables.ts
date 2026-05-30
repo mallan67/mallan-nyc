@@ -1,7 +1,15 @@
 /**
- * REBNY_FIELD_TABLES — Single Canonical Field Authority
+ * DERIVED_RUNTIME_COMPATIBILITY_LAYER_NOT_FIELD_AUTHORITY
+ * Do not use this file to validate Cotality field names.
+ * Use freshly pulled artifacts/metadata.xml via scripts/get-metadata.js.
+ * (Stale field-authority archival, 2026-05-30. Cotality live $metadata is the
+ *  only external field authority; this table is a runtime compatibility layer
+ *  derived from data/rebny-rls-property-fields.csv, which drifts from the feed.)
+ */
+/**
+ * REBNY_FIELD_TABLES — Runtime compatibility layer (NOT the field authority)
  *
- * Source of truth: data/rebny-rls-property-fields.csv (902 IDX Plus fields)
+ * Derived from (NOT the field authority — live Cotality $metadata is): data/rebny-rls-property-fields.csv (902 IDX Plus fields)
  *                  data/rebny-rls-property-lookup.csv (2,066 picklist values)
  *                  UCBA 2026 (January revision)
  *                  NAR Settlement (August 2024, effective August 2025)

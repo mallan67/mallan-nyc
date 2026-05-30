@@ -51,6 +51,8 @@
         "validator:live-site": "node scripts/validate-live-site.js",
         "validator:toolchain": "node scripts/validate-toolchain.js",
         "validator:operational": "node scripts/validate-operational-actions.js",
+        "guard:field-authority": "node scripts/guard-no-stale-field-authority.js",
+        "trestle:metadata": "node scripts/get-metadata.js",
         "trestle:diff": "npx tsx scripts/trestle-live-vs-csv.ts",
         "trestle:refresh-csv": "npx tsx scripts/refresh-trestle-csv.ts",
         "trestle:audit-forms": "npx tsx scripts/audit-form-trestle-coverage.ts",

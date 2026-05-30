@@ -39,7 +39,7 @@
 | | |
 |---|---|
 | **Canonical** | `.claude/skills/rebny-compliance/SKILL.md` §2 (the 6 distribution gates); `lib/idx/trestle-mapper.ts` (the writer-side implementation — `TERMINAL_STATUSES`, `normalizeStandardStatus`, `computeGateColumns` post-PR-#165) |
-| **Backup** | `data/RLS-FIELD-REGISTRY.md`; `data/UCBA-2026-Requirements.md`; `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (the canonical incident report) |
+| **Backup** | `docs/archive/field-authority/rebny-csv-derived/RLS-FIELD-REGISTRY.md` (archived, derived); `data/UCBA-2026-Requirements.md`; `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (the canonical incident report) |
 | **Validator** | `npm run rls:validate` (10-section validator: fields, renames, gates, masking, coverage); `npm run compliance-check` |
 | **When to read** | Any IDX / listing-display / feed / projection / search-result change |
 | **Fail-closed** | The 6 gates (Owner Opt-Out, Participant Only, Internet Entire Display, Address Display, Terminal Status §2.05, Coming Soon badge) are non-negotiable. If a field is null and you don't know whether it's REBNY-pre-filtered or per-row opt-out, STOP — wrong assumption corrupted 7,594 rows in 2026-04-30. |
@@ -48,8 +48,8 @@
 
 | | |
 |---|---|
-| **Canonical** | `data/rebny-rls-property-fields.csv` (all 902 fields across 7 REBNY-specified resources: Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39) |
-| **Backup** | `data/rebny-rls-property-lookup.csv` (2,066 picklist values); `data/RLS-FIELD-REGISTRY.md`; `.claude/skills/rebny-compliance/SKILL.md` §2; `artifacts/metadata.xml` (live Trestle OData metadata) |
+| **Canonical** | **Cotality live `$metadata` — run `node scripts/get-metadata.js` → `artifacts/metadata.xml` before any field validation.** Derived compatibility list (NOT authority): `data/rebny-rls-property-fields.csv` (902 fields across 7 resources: Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39 — drifts from feed) |
+| **Backup** | `data/rebny-rls-property-lookup.csv` (2,066 picklist values, derived); `docs/archive/field-authority/rebny-csv-derived/RLS-FIELD-REGISTRY.md` (archived); `.claude/skills/rebny-compliance/SKILL.md` §2; `artifacts/metadata.xml` (`$metadata` SNAPSHOT — NOT live unless just refreshed via `scripts/get-metadata.js`) |
 | **Validator** | `npm run idx:validate` (32-section validator) — current baseline 1278 pass / 0 critical |
 | **When to read** | Any Trestle OData $select, $expand, or $filter change; any new field on Listing model or projection; mapper change |
 | **Fail-closed** | IDX Plus does NOT include `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `VOW*` gate fields, `SyndicateYN`, `FirstShowingDate`, `Latitude`, `Longitude`, `MoveInCostsAmountTotal`, `PossessionDate`, `YearRenovated`. If you see those in code, they are phantom fields — verify against the CSV before referencing. |
@@ -59,7 +59,7 @@
 | | |
 |---|---|
 | **Canonical** | `lib/idx/auth.ts` (OAuth2 client_credentials, token cache, 8s timeout); `lib/idx/fetch.ts` (OData fetch + pagination + AbortController + retry); `lib/idx/trestle-mapper.ts` (the mapper); `.claude/skills/rebny-compliance/SKILL.md` Trestle Media API Rules §4 |
-| **Backup** | `data/RLS-FIELD-REGISTRY.md`; `artifacts/metadata.xml` (live $metadata); `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / RESO certification) |
+| **Backup** | `docs/archive/field-authority/rebny-csv-derived/RLS-FIELD-REGISTRY.md` (archived); `artifacts/metadata.xml` (`$metadata` SNAPSHOT — refresh via `scripts/get-metadata.js`, NOT inherently live); `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / RESO certification) |
 | **Validator** | `tests/runtime/idx-suggest-select-fields.test.ts`, `tests/runtime/idx-fetch-expand-media.test.ts`, `tests/runtime/idx-sync-max-records.test.ts`, `tests/runtime/idx-sync-cursor-modification-timestamp.test.ts`, `tests/runtime/idx-sync-diagnostic-audit-events.test.ts`, `lib/idx/__tests__/*` |
 | **When to read** | New OData query, new endpoint, new $expand, new $select field, new Media query, new $filter; auth/token changes; rate-limit/throttle work |
 | **Fail-closed** | API base = `https://api.cotality.com/trestle`. Old hosts `api-trestle.corelogic.com` + `api-prod.corelogic.com` deprecated hard 2026-03-31 (media proxy allowlists all 3 during transition). Media `Media/All` endpoint deprecated — query `/odata/Media` with `$filter=ResourceRecordKey eq '...'` (see §8 below). HTTP 400 on `InternetEntireListingDisplayYN` / `InternetAddressDisplayYN` `$filter` is the canonical signal of REBNY provider-level pre-filter. |
