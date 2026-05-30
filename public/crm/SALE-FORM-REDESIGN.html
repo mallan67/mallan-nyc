@@ -5328,13 +5328,13 @@ function populateBuildingFromIDX(prefix, building) {
         return null;
     };
     // Split a Cotality Multi-enum value into REAL members, dropping empties and
-    // the "None" sentinel. Cotality returns "None" as an explicit no-value (the
-    // same way app/api/buildings/route.ts parseList filters it), so a multi of
-    // "None" must NOT count as a real selection. (Codex review on #297.)
+    // the no-value sentinels "None" / "BuildingNone". Cotality uses both as
+    // explicit no-values (e.g. LaundryFeatures has None AND BuildingNone), so a
+    // multi of only those must NOT count as a real selection. (Codex #297.)
     const multiMembers = (val) => String(val == null ? '' : val)
         .split(',')
         .map((s) => s.trim())
-        .filter((s) => s && s.toLowerCase() !== 'none');
+        .filter((s) => { const l = s.toLowerCase(); return s && l !== 'none' && l !== 'buildingnone'; });
 
     // ── 1. Address atoms (NEVER drop StreetDirPrefix) ─────────────────
     setVal(prefix + 'BldgStreetAddress', building.address);
@@ -5513,15 +5513,25 @@ function populateBuildingFromIDX(prefix, building) {
 
     // Pets — UNIT-level Cotality PetsAllowed (NOT building-wide authority): a
     // building lookup only SUGGESTS the unit pet policy, applied when the agent
-    // left it empty. Cotality members map to the form's Unit-prefixed values;
-    // PetsAllowedYN true/false suggests UnitYes / UnitNo.
+    // left it empty. EXPLICIT Cotality→form map (no guessing): live $metadata
+    // members use "Ok" casing (CatsOk/DogsOk) while the form checkboxes use
+    // "OK" (UnitCatsOK/UnitDogsOK), so a naive 'Unit'+member would silently
+    // miss. Members the form has no checkbox for (BirdsOk, Building*, …) map to
+    // '' and are ignored. PetsAllowedYN true/false → Yes/No. (Codex #297.)
+    const PET_COTALITY_TO_FORM = {
+        Yes: 'UnitYes', No: 'UnitNo',
+        CatsOk: 'UnitCatsOK', DogsOk: 'UnitDogsOK',
+        BreedRestrictions: 'UnitBreedRestrictions',
+        SizeLimit: 'UnitSizeLimit', NumberLimit: 'UnitNumberLimit',
+    };
+    const mapPet = function (m) { return PET_COTALITY_TO_FORM[m] || ''; };
     const _petsMulti = pick('pets_allowed', 'petsAllowed');
     if (_petsMulti) {
-        fillGroupIfEmpty('salePetsAllowed', _petsMulti, function (m) { return m ? 'Unit' + m : ''; });
+        fillGroupIfEmpty('salePetsAllowed', _petsMulti, mapPet);
     } else {
         const _petsYN = pick('pets_allowed_yn', 'petsAllowedYN');
         if (_petsYN === true || _petsYN === false) {
-            fillGroupIfEmpty('salePetsAllowed', _petsYN === true ? 'Yes' : 'No', function (m) { return 'Unit' + m; });
+            fillGroupIfEmpty('salePetsAllowed', _petsYN === true ? 'Yes' : 'No', mapPet);
         }
     }
 

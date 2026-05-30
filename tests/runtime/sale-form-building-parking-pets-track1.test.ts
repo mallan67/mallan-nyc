@@ -117,14 +117,22 @@ describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pet
   it('suggests Documents Available + Pets (unit) when the group is empty', () => {
     const docs: Cb[] = [{ value: 'OfferingPlan', checked: false }, { value: 'ScheduleA', checked: false }, { value: 'BuildingRules', checked: false }];
     const pets: Cb[] = [{ value: 'UnitCatsOK', checked: false }, { value: 'UnitDogsOK', checked: false }, { value: 'UnitNo', checked: false }];
-    run({ documents_available: 'OfferingPlan,ScheduleA', pets_allowed: 'CatsOK,DogsOK' }, {}, { saleBldgDocsAvailable: docs, salePetsAllowed: pets });
+    // Real live-metadata casing is CatsOk/DogsOk (lowercase k); the explicit map
+    // must normalize to the form's UnitCatsOK/UnitDogsOK (Codex #297).
+    run({ documents_available: 'OfferingPlan,ScheduleA', pets_allowed: 'CatsOk,DogsOk' }, {}, { saleBldgDocsAvailable: docs, salePetsAllowed: pets });
     expect(docs.filter((c) => c.checked).map((c) => c.value).sort()).toEqual(['OfferingPlan', 'ScheduleA']);
     expect(pets.filter((c) => c.checked).map((c) => c.value).sort()).toEqual(['UnitCatsOK', 'UnitDogsOK']);
   });
 
+  it('ignores Cotality pet members the form has no checkbox for (BirdsOk, Building*)', () => {
+    const pets: Cb[] = [{ value: 'UnitCatsOK', checked: false }, { value: 'UnitNo', checked: false }];
+    run({ pets_allowed: 'BirdsOk,BuildingCatsOk,FishOk' }, {}, { salePetsAllowed: pets });
+    expect(pets.some((c) => c.checked)).toBe(false); // none map to a form value
+  });
+
   it('does NOT override an agent-selected pet policy (suggestion-only, override-safe)', () => {
     const pets: Cb[] = [{ value: 'UnitCatsOK', checked: false }, { value: 'UnitNo', checked: true }];
-    run({ pets_allowed: 'CatsOK,DogsOK' }, {}, { salePetsAllowed: pets });
+    run({ pets_allowed: 'CatsOk,DogsOk' }, {}, { salePetsAllowed: pets });
     expect(pets.find((c) => c.value === 'UnitNo')!.checked).toBe(true);
     expect(pets.find((c) => c.value === 'UnitCatsOK')!.checked).toBe(false); // not overridden
   });
@@ -147,6 +155,12 @@ describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pet
     const els = { saleBldgWasherDryerAllowed: { checked: false } };
     run({ laundry_features: 'None,InUnit' }, els, {});
     expect(els.saleBldgWasherDryerAllowed.checked).toBe(true);
+  });
+
+  it('"BuildingNone" laundry (no-laundry sentinel) does NOT check washer/dryer (Codex #297)', () => {
+    const els = { saleBldgWasherDryerAllowed: { checked: false } };
+    run({ laundry_features: 'BuildingNone' }, els, {});
+    expect(els.saleBldgWasherDryerAllowed.checked).toBe(false);
   });
 });
 
