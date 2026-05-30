@@ -558,15 +558,12 @@ body { font-family: Manrope, sans-serif; }
                     </label>
                 </div>
             </div>
-            <!-- Buyer Rep Acknowledgment -->
-            <div class="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
-                <div class="flex items-start gap-2">
-                    <input type="checkbox" id="saleBuyerRepAgreementAck" class="w-4 h-4 mt-0.5" data-rls-ignore="true">
-                    <label class="text-sm text-gray-700">
-                        <strong>Buyer Representative Agreement:</strong> I confirm a written buyer representation agreement has been presented and/or executed prior to showing. <span class="text-xs text-gray-500">(UCBA 2026 requirement.)</span>
-                    </label>
-                </div>
-            </div>
+            <!-- Buyer Representative Agreement acknowledgment removed (2026-05-30):
+                 UCBA 2026 Art. II §16 places the executed Buyer Representation
+                 Agreement obligation on the CO-BROKER (buyer's agent) before any
+                 showing — NOT on the listing agent filling this sale (listing-side)
+                 form. The listing agent cannot attest to the buyer's rep agreement,
+                 so this control belonged to the buyer's-agent workflow, not here. -->
             <!-- Owner Opt-Out Form Upload (conditional) -->
             <div id="saleOptOutFormSection" class="mb-4" style="display:none;">
                 <label class="field-label">Owner Opt-Out Form (Exhibit B) <span class="text-red-500">*</span></label>
@@ -1592,8 +1589,11 @@ body { font-family: Manrope, sans-serif; }
             </div>
         </div>
 
-        <!-- Buyer's Agent Contact (conditional — Contract/Sold) -->
-        <div class="form-card" style="background: #fefce8; border-color: #fde68a;">
+        <!-- Buyer's Agent Contact (conditional — Contract/Sold). Hidden on initial
+             listing entry; shown only once the status is updated to Contract/Sold.
+             Agent/broker info auto-populates from the REBNY directory on selection.
+             (2026-05-30: gated via updateSaleStatusFields, default display:none.) -->
+        <div class="form-card" id="saleBuyerAgentSection" style="background: #fefce8; border-color: #fde68a; display:none;">
             <div class="form-card-header"><i class="fas fa-handshake"></i> Buyer's Agent Contact <span class="text-xs font-normal text-gray-500 ml-2">(Required for Contract Signed / Sold status)</span></div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                 <!-- Buyer's Agent Company -->
@@ -5814,6 +5814,9 @@ function updateSaleStatusFields() {
     const contract = document.getElementById('saleContractSignedDateField');
     const soldDate = document.getElementById('saleSoldDateField');
     const soldPrice = document.getElementById('saleSoldPriceField');
+    // Buyer's Agent Contact — hidden during initial listing entry; shown only
+    // once the deal reaches Contract/Sold (a cooperating buyer's agent exists).
+    const buyerAgentSection = document.getElementById('saleBuyerAgentSection');
 
     if (row) row.style.display = 'none';
     if (offMarket) offMarket.style.display = 'none';
@@ -5821,6 +5824,7 @@ function updateSaleStatusFields() {
     if (contract) contract.style.display = 'none';
     if (soldDate) soldDate.style.display = 'none';
     if (soldPrice) soldPrice.style.display = 'none';
+    if (buyerAgentSection) buyerAgentSection.style.display = 'none';
 
     if (['PermOffMarket', 'TempOffMarket', 'Expired', 'Withdrawn', 'Cancelled'].includes(status)) {
         if (row) row.style.display = '';
@@ -5830,6 +5834,9 @@ function updateSaleStatusFields() {
     if (['ContractSigned', 'ContractSignedThruUs', 'BoardApproved', 'Sold', 'SoldThruUs'].includes(status)) {
         if (row) row.style.display = '';
         if (contract) contract.style.display = '';
+        // Buyer's agent is known from contract through sold — reveal the section
+        // so the agent can search REBNY and auto-populate the cooperating agent.
+        if (buyerAgentSection) buyerAgentSection.style.display = '';
     }
     if (['Sold', 'SoldThruUs'].includes(status)) {
         if (soldDate) soldDate.style.display = '';
@@ -9155,7 +9162,6 @@ var SALE_FIELD_MAP = [
   // fail-CLOSED per REBNY compliance §7 — the canonical write is in
   // collectSaleFormData below mirroring the AVM pattern).
   { rls: 'saleCommNegotiabilityAck', form: 'saleCommNegotiabilityAck', type: 'bool', src: 'raw' },
-  { rls: 'saleBuyerRepAgreementAck', form: 'saleBuyerRepAgreementAck', type: 'bool', src: 'raw' },
   { rls: 'saleFairHousingAck', form: 'saleFairHousingAck', type: 'bool', src: 'raw' },
   // saleInternetConsumerCommentYN: form key. Canonical RESO is
   // `InternetConsumerCommentYN` (per-row opt-out, fail-CLOSED per
@@ -9824,6 +9830,12 @@ function _populateSaleFormFromApi(listing) {
     // ── Trigger calculations ──
     if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();
     if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
+    // Re-run status-driven field gating on edit-load. The saleStatus restore
+    // above happens with _salePopulateInProgress suppressing the change event,
+    // so updateSaleStatusFields() (wired to the onchange) never fires — which
+    // would leave a Contract/Sold listing's Buyer's Agent Contact section
+    // (default display:none) hidden until a manual status change. (Codex #298.)
+    if (typeof updateSaleStatusFields === 'function') updateSaleStatusFields();
 }
 
 // ═══════════════════════════════════════════════════════════
