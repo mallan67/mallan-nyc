@@ -681,7 +681,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="saleTaxMonthlyField">
                     <label class="field-label">RE Taxes (Monthly)</label>
-                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="TaxMonthlyAmount">
+                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="TaxMonthlyAmount">
                     <p class="text-[10px] text-gray-500 mt-1">Auto-calculated if blank</p>
                 </div>
             </div>
@@ -1102,7 +1102,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="field-label">% Common Elements</label>
-                    <input type="number" id="salePercentCommon" placeholder="0.00" step="0.01" max="100" class="field-input" data-rls-field="PercentOfCommonElements">
+                    <input type="number" id="salePercentCommon" placeholder="0.00" step="0.01" max="100" class="field-input" data-rls-ignore="true" data-removed-field="PercentOfCommonElements">
                 </div>
                 <div>
                     <label class="field-label">Living Area (Sq Ft) <span class="text-red-500 sale-req-star hidden">*</span></label>
@@ -1138,7 +1138,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="field-label">Tax Deduction %</label>
-                    <input type="number" id="saleTaxDeduction" placeholder="0" class="field-input" data-rls-field="TaxDeductionPercent">
+                    <input type="number" id="saleTaxDeduction" placeholder="0" class="field-input" data-rls-ignore="true" data-removed-field="TaxDeductionPercent">
                 </div>
             </div>
         </div>
@@ -1149,7 +1149,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
                 <div>
                     <label class="field-label">Flip Tax Amount <span class="text-red-500 sale-req-star hidden">*</span></label>
-                    <input type="number" id="saleFlipTaxAmount" placeholder="$0.00" step="0.01" class="field-input" required data-rls-field="FlipTax">
+                    <input type="number" id="saleFlipTaxAmount" placeholder="$0.00" step="0.01" class="field-input" required data-rls-ignore="true" data-removed-field="FlipTax">
                 </div>
                 <div>
                     <label class="field-label">Flip Tax Type</label>
@@ -1256,7 +1256,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-1">Guarantors</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-rls-field="GuarantorsAcceptedYN"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-rls-ignore="true" data-removed-field="GuarantorsAcceptedYN"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
@@ -2599,7 +2599,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Commercial Units?</label>
-                    <select id="saleTHCommercialYN" class="field-input" data-rls-field="CommercialUnitsYN">
+                    <select id="saleTHCommercialYN" class="field-input" data-rls-ignore="true" data-removed-field="CommercialUnitsYN">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
@@ -2666,7 +2666,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Landmark Status</label>
-                    <select id="saleTHLandmark" class="field-input" data-rls-field="LandmarkStatusYN">
+                    <select id="saleTHLandmark" class="field-input" data-rls-ignore="true" data-removed-field="LandmarkStatusYN">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
@@ -4263,7 +4263,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-certificate"></i> Building Status</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-rls-field="LandmarkStatusYN"> Landmark Building
+                                <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-rls-ignore="true" data-removed-field="LandmarkStatusYN"> Landmark Building
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgHistoric" class="w-4 h-4" data-rls-ignore="true"> Historic District
@@ -4281,7 +4281,7 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-rls-ignore="true"> Conversion
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-rls-field="SponsorUnitYN"> Has Sponsor Units
+                                <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-rls-ignore="true" data-removed-field="SponsorUnitYN"> Has Sponsor Units
                             </label>
                         </div>
                     </div>
@@ -4300,7 +4300,7 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-[10px] text-gray-500 mb-3">RLS Field: AttendanceType — Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="saleAttendanceTypeGroup">
                             <!-- Doorman -->
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-rls-field="AttendanceType"> Doorman (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-rls-ignore="true" data-removed-field="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Yes)</label>
                             <!-- Concierge -->
@@ -4503,11 +4503,11 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Capital Reserves</label>
-                                <input type="text" id="saleBldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-rls-field="CapitalReservesTotal">
+                                <input type="text" id="saleBldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-rls-ignore="true" data-removed-field="CapitalReservesTotal">
                             </div>
                             <div>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm mt-6">
-                                    <input type="checkbox" id="saleBldgCapitalReservesYN" class="w-4 h-4" data-rls-field="CapitalReservesYN"> Has Capital Reserves
+                                    <input type="checkbox" id="saleBldgCapitalReservesYN" class="w-4 h-4" data-rls-ignore="true" data-removed-field="CapitalReservesYN"> Has Capital Reserves
                                 </label>
                             </div>
                         </div>
@@ -4523,7 +4523,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-rls-field="BuildingTaxLot">
+                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-rls-ignore="true" data-removed-field="BuildingTaxLot">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -4538,7 +4538,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                             <div>
                                 <label class="field-label">Has Tax Abatement</label>
-                                <select id="saleBldgTaxAbatementYN" class="field-input" onchange="document.getElementById('saleBldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-rls-field="TaxAbatementYN">
+                                <select id="saleBldgTaxAbatementYN" class="field-input" onchange="document.getElementById('saleBldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-rls-ignore="true" data-removed-field="TaxAbatementYN">
                                     <option value="">Select</option>
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
@@ -4552,7 +4552,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="field-label">Abatement Comments</label>
-                                <input type="text" id="saleBldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-rls-field="TaxAbatementComments">
+                                <input type="text" id="saleBldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-rls-ignore="true" data-removed-field="TaxAbatementComments">
                             </div>
                         </div>
                     </div>
@@ -4694,7 +4694,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-rls-field="MaximumFinancingPercent">
+                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-rls-ignore="true" data-removed-field="MaximumFinancingPercent">
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
@@ -7036,7 +7036,10 @@ function collectSaleFormData() {
     data.SubdivisionName = data.saleBldgNeighborhood || data.saleNeighborhoodFromAddress || '';
     data.StateOrProvince = data.saleStateOrProvince || 'NY';
     data.PostalCode = data.saleZipCode || '';
-    data.UnParsedAddress = data.saleUnparsedAddress || '';
+    // A1 (Cotality-clean 2026-05-30): emit canonical lowercase-p `UnparsedAddress`
+    // (the live Cotality field). Legacy capital-P rows reload via SALE_FIELD_MAP
+    // fallbackRls; the normalizer aliases any capital-P payload back to lowercase.
+    data.UnparsedAddress = data.saleUnparsedAddress || '';
     data.PublicRemarks = data.saleDescription || '';
     data.PrivateRemarks = data.saleBrokerComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
@@ -7072,19 +7075,21 @@ function collectSaleFormData() {
 
     // Permissions: OwnerOptOut = owner signed Exhibit B, listing on RLS but NOT public.
     // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
-    data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
+    // A2 (Cotality-clean 2026-05-30): canonical field is Permission (singular,
+    // live Cotality Multi.ListingPermission). Legacy Permissions reads still work.
+    data.Permission = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
     // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse
     // InHouseWebOnly: IDX/syndication OFF but address displays on mallan.nyc
     if (isOwnerOptOut || isParticipantOnly || isInHouse) {
-        data.IDXEntireListingDisplayYN = false;
+        data.saleIdxDisplayYN = false; // internal IDX-display control (NOT a Cotality field) → idx_display_yn
         data.InternetEntireListingDisplayYN = false;
         data.InternetAddressDisplayYN = isInHouseWebOnly ? true : false;
         // SyndicateYN removed (Cotality-clean sweep 2026-05-30): phantom — not in
         // live Cotality $metadata. Syndication intent = canonical SyndicateTo +
         // internal saleSyndicateYN; populate keeps a legacy raw.SyndicateYN reload.
     } else {
-        data.IDXEntireListingDisplayYN = data.saleDist_IDX !== false;
+        data.saleIdxDisplayYN = data.saleDist_IDX !== false; // internal IDX-display control (NOT a Cotality field) → idx_display_yn
         data.InternetEntireListingDisplayYN = data.saleInternetEntireListingDisplayYN !== false && data.saleDist_VOW !== false;
         data.InternetAddressDisplayYN = data.saleInternetAddressDisplayYN !== false;
         // (SyndicateYN phantom emit removed — see note above. saleSyndicateYN
@@ -7260,10 +7265,12 @@ function collectSaleFormData() {
     // BuildingHeating + BuildingCooling map to RESO canonical (mirrors the
     // Heating/Cooling pair already wired). Others persist under Mallan
     // internal raw keys per fail-closed rule.
-    data.BuildingHeating = [];
-    document.querySelectorAll('input[name="saleBldgHeating"]:checked').forEach(function(cb) { data.BuildingHeating.push(cb.value); });
-    data.BuildingCooling = [];
-    document.querySelectorAll('input[name="saleBldgCooling"]:checked').forEach(function(cb) { data.BuildingCooling.push(cb.value); });
+    // BuildingHeating/BuildingCooling are NOT live Cotality fields — emit under
+    // internal keys (Cotality-clean 2026-05-30); legacy reload via fallbackRls.
+    data.saleBldgHeating = [];
+    document.querySelectorAll('input[name="saleBldgHeating"]:checked').forEach(function(cb) { data.saleBldgHeating.push(cb.value); });
+    data.saleBldgCooling = [];
+    document.querySelectorAll('input[name="saleBldgCooling"]:checked').forEach(function(cb) { data.saleBldgCooling.push(cb.value); });
     data.saleBldgDocsAvailable = [];
     document.querySelectorAll('input[name="saleBldgDocsAvailable"]:checked').forEach(function(cb) { data.saleBldgDocsAvailable.push(cb.value); });
     data.saleTHDocsAvailable = [];
@@ -7371,7 +7378,8 @@ function collectSaleFormData() {
 
     // Financial & tax fields
     data.TaxAnnualAmount = parseFloat(data.saleRETaxes || '0') || 0;
-    data.TaxDeductionPercent = parseFloat(data.saleTaxDeduction || '0') || 0;
+    // TaxDeductionPercent phantom emit removed (Cotality-clean 2026-05-30): not in
+    // live $metadata. Value persists as internal saleTaxDeduction (SALE_FIELD_MAP, legacy fallback).
     data.FlipTax = data.saleFlipTaxAmount || '';
     data.OriginalListPrice = parseFloat(data.saleOriginalPrice || '0') || 0;
     data.ClosePrice = parseFloat(data.saleSoldPrice || '0') || 0;
@@ -7398,11 +7406,13 @@ function collectSaleFormData() {
     data.LotSizeArea = parseFloat(data.saleTHLotSize || '0') || 0;
 
     // Building fields
-    data.YearRenovated = parseInt(data.saleBldgYearRenovated || '0') || null;
+    // YearRenovated phantom emit removed (Cotality-clean 2026-05-30): not in live
+    // $metadata. Value persists as internal saleBldgYearRenovated (SALE_FIELD_MAP, legacy fallback).
     data.SponsorUnitYN = data.saleBldgSponsorUnits === true || data.saleBldgSponsorUnits === 'true';
     data.TaxAbatementYN = data.saleBldgTaxAbatementYN === true || data.saleBldgTaxAbatementYN === 'true';
     data.TaxAbatementComments = data.saleBldgTaxAbatementComments || '';
-    data.RentingAllowedYN = data.saleBldgSublettingAllowed === true || data.saleBldgSublettingAllowed === 'true';
+    // RentingAllowedYN phantom emit removed (Cotality-clean 2026-05-30): not in live
+    // $metadata. Value persists as internal saleBldgSublettingAllowed (SALE_FIELD_MAP, legacy fallback).
 
     // Media fields
     data.VirtualTourURLUnbranded = data.saleVirtualTourUnbranded || '';
@@ -8741,7 +8751,7 @@ var SALE_FIELD_MAP = [
   { rls: 'PostalCity', form: 'salePostalCity', type: 'text', src: 'addr' },
   { rls: 'CountyOrParish', form: 'saleCountyOrParish', type: 'text', src: 'addr' },
   { rls: 'SubdivisionName', form: 'saleBldgNeighborhood', type: 'text', src: 'raw' },
-  { rls: 'UnParsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr' },
+  { rls: 'UnparsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr', fallbackRls: 'UnParsedAddress' },
 
   // ── Unit Details ──
   { rls: 'ListPrice', form: 'salePrice', type: 'number', src: 'listing', listingKey: 'list_price' },
@@ -8760,7 +8770,7 @@ var SALE_FIELD_MAP = [
 
   // ── Financials ──
   { rls: 'TaxAnnualAmount', form: 'saleRETaxes', type: 'number', src: 'raw' },
-  { rls: 'TaxDeductionPercent', form: 'saleTaxDeduction', type: 'number', src: 'raw' },
+  { rls: 'saleTaxDeduction', form: 'saleTaxDeduction', type: 'number', src: 'raw', fallbackRls: 'TaxDeductionPercent' }, // internal; TaxDeductionPercent not in Cotality
   { rls: 'FlipTax', form: 'saleFlipTaxAmount', type: 'text', src: 'raw' },
   { rls: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
   { rls: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
@@ -8782,7 +8792,7 @@ var SALE_FIELD_MAP = [
   { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
   { rls: 'StructureType', form: 'saleBldgType', type: 'text', src: 'raw' },
   { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
-  { rls: 'YearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw' },
+  { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
   { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
   { rls: 'NumberOfUnitsTotal', form: 'saleBldgTotalUnits', type: 'number', src: 'raw' },
   { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
@@ -8795,10 +8805,10 @@ var SALE_FIELD_MAP = [
   { rls: 'SponsorUnitYN', form: 'saleBldgSponsorUnits', type: 'bool', src: 'raw' },
   { rls: 'TaxAbatementYN', form: 'saleBldgTaxAbatementYN', type: 'bool', src: 'raw' },
   { rls: 'TaxAbatementComments', form: 'saleBldgTaxAbatementComments', type: 'text', src: 'raw' },
-  { rls: 'RentingAllowedYN', form: 'saleBldgSublettingAllowed', type: 'bool', src: 'raw' },
+  { rls: 'saleBldgSublettingAllowed', form: 'saleBldgSublettingAllowed', type: 'text', src: 'raw', fallbackRls: 'RentingAllowedYN' }, // internal select; RentingAllowedYN not in Cotality
 
   // ── Distribution ──
-  { rls: 'IDXEntireListingDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn' },
+  { rls: 'saleIdxDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn' }, // internal IDX-display control (idx_display_yn); IDXEntireListingDisplayYN is NOT a Cotality field
   { rls: 'InternetEntireListingDisplayYN', form: 'saleInternetEntireListingDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_entire_listing_display_yn' },
   { rls: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn' },
 
@@ -8987,8 +8997,8 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   // ── Class B (2026-05-28) ──
   // 5 named checkbox groups whose data was lost at save time (no array
   // collection in collect, no entry here). See audit §2.
-  { rls: 'BuildingHeating', name: 'saleBldgHeating' },
-  { rls: 'BuildingCooling', name: 'saleBldgCooling' },
+  { rls: 'saleBldgHeating', name: 'saleBldgHeating', fallbackRls: 'BuildingHeating' }, // internal; BuildingHeating not in Cotality
+  { rls: 'saleBldgCooling', name: 'saleBldgCooling', fallbackRls: 'BuildingCooling' }, // internal; BuildingCooling not in Cotality
   { rls: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable' },
   { rls: 'saleTHDocsAvailable', name: 'saleTHDocsAvailable' },
   { rls: 'saleBusinessType', name: 'saleBusinessType' },
@@ -9374,6 +9384,7 @@ function _populateSaleFormFromApi(listing) {
     // ── Checkbox arrays ──
     SALE_CHECKBOX_ARRAY_MAP.forEach(function(ca) {
         var vals = raw[ca.rls];
+        if (!Array.isArray(vals) && ca.fallbackRls) vals = raw[ca.fallbackRls]; // legacy phantom-key reload (Cotality-clean 2026-05-30)
         if (!Array.isArray(vals)) return;
         document.querySelectorAll('input[name="' + ca.name + '"]').forEach(function(cb) {
             cb.checked = vals.includes(cb.value);

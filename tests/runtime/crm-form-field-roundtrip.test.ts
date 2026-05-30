@@ -28,7 +28,7 @@ describe('CRM form save/load field parity', () => {
     const rlsAssignments = collectBlock![1].match(/data\.([A-Z][A-Za-z]+)\s*=/g) || [];
     const rlsFields = rlsAssignments.map(a => a.replace('data.', '').replace(' =', '').trim());
     const uniqueRls = [...new Set(rlsFields)].filter(f =>
-      !['listing_type', 'type', 'status', 'saleListingType', 'inHouseVisibility', 'Permissions',
+      !['listing_type', 'type', 'status', 'saleListingType', 'inHouseVisibility', 'Permission', 'Permissions',
         'IDXEntireListingDisplayYN', 'SyndicateYN', 'BathroomsTotal',
         'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
         'ListingAgreement', 'BuildingFeatures', 'CoBrokeAgreement',

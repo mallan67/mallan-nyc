@@ -115,7 +115,7 @@ describe('Sale form save/load retention — PR-B saleStatus overwrite removed', 
 
 describe('Sale form save/load retention — PR-C _crmWorkflowStatus persisted from every save path', () => {
   // ── Test 5 + 6: draft + autosave both persist _crmWorkflowStatus ──
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 20000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
 
   it('collectSaleFormData assigns _crmWorkflowStatus from saleStatus (PR-C C5)', () => {
     expect(collectBody).toMatch(/data\._crmWorkflowStatus\s*=\s*data\.saleStatus/);
@@ -134,7 +134,7 @@ describe('Sale form save/load retention — PR-C _crmWorkflowStatus persisted fr
 
 describe('Sale form save/load retention — PR-D checkbox-array collector', () => {
   // ── Tests 1-4: Heating, Cooling, SyndicateTo, saleCommSubtype as arrays ──
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 20000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
 
   it('Test 1 — Heating is derived as an array from name="saleHeating":checked (PR-D C1)', () => {
     expect(collectBody).toMatch(/data\.Heating\s*=\s*\[\]/);
@@ -233,7 +233,7 @@ describe('Sale form save/load retention — PR-E populate/autosave race hardenin
 describe('Sale form save/load retention — collect/populate shape parity (cross-cutting)', () => {
   // Round-trip-shape sanity. If anyone ever changes collect to emit a key the
   // populate side cannot read (or vice-versa), this catches it.
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 20000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
   const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
 
   it('every checkbox-array group collect emits has a populate-side restorer in SALE_CHECKBOX_ARRAY_MAP', () => {

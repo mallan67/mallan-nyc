@@ -59,7 +59,10 @@ export const REBNY_FIELD_TABLES = {
       'PostalCity',
       'CountyOrParish',
       'SubdivisionName',
-      'UnParsedAddress',
+      // A1 (Cotality-clean 2026-05-30): live Cotality field is `UnparsedAddress`
+      // (lowercase p). `UnParsedAddress` (capital P) was a stale spelling; it is
+      // now a legacy alias only. All readers (slug/DTO/validator) use lowercase.
+      'UnparsedAddress',
 
       // Building info
       // AttendanceType / BuildingLaundryFeatures / BuildingPetsAllowed reclassified
@@ -87,7 +90,12 @@ export const REBNY_FIELD_TABLES = {
       // Unit info
       'BathroomsFull',
       'BathroomsHalf',
-      'BathroomsTotal',
+      // A3 (Cotality-clean 2026-05-30): the Cotality field is BathroomsTotalInteger
+      // (Int32); the form computes a half-weighted DECIMAL total (Mallan-internal
+      // display value), not that integer. The bathroom count is already covered by
+      // mandatory BathroomsFull/BathroomsHalf, so internal BathroomsTotal is not
+      // mandatory (phantom names can't be mandatory). It still flows to features
+      // for the validator/display calc.
       'BedroomsTotal',
       'RoomsTotal',
 
@@ -255,9 +263,9 @@ export const REBNY_FIELD_TABLES = {
     cityRegion: 'CityRegion',           // camelCase variant
     Neighborhood: 'SubdivisionName',    // Common name → RLS canonical
     neighborhood: 'SubdivisionName',    // camelCase variant
-    UnparsedAddress: 'UnParsedAddress',  // lowercase-p variant → RLS canonical (capital P)
-    unparsedAddress: 'UnParsedAddress',
-    address: 'UnParsedAddress',
+    UnParsedAddress: 'UnparsedAddress',  // A1: legacy capital-P → canonical Cotality UnparsedAddress (lowercase p, live $metadata)
+    unparsedAddress: 'UnparsedAddress',
+    address: 'UnparsedAddress',
     streetName: 'StreetName',
     streetNumber: 'StreetNumber',
     unit: 'UnitNumber',
@@ -288,8 +296,9 @@ export const REBNY_FIELD_TABLES = {
 
     // ── Status / Permission aliases ──
     status: 'MlsStatus',
-    permission: 'Permissions',
-    listingPrivacy: 'Permissions',
+    permission: 'Permission',
+    listingPrivacy: 'Permission',
+    Permissions: 'Permission',  // A2 (2026-05-30): legacy plural → canonical Cotality Permission (singular, live $metadata Multi.ListingPermission)
     addressDisplayYN: 'InternetAddressDisplayYN',
     // idxDisplayYN / idxEntireListingDisplayYN / IDXEntireListingDisplayYN
     // were previously aliased to IDXEntireListingDisplayYN, which does NOT
@@ -328,7 +337,7 @@ export const REBNY_FIELD_TABLES = {
   // ═══════════════════════════════════════════════════════════════════════════
 
   valueAliases: {
-    Permissions: {
+    Permission: {
       // Form radio values (from SALE/RENTAL-FORM-REDESIGN.html)
       'RLS-Owner-OptOut': 'OwnerOptOut',
       'RLS-Participant': 'Private',
@@ -1008,7 +1017,7 @@ export const REBNY_FIELD_TABLES = {
     PostalCode: { address: true, db: 'postal_code', raw: true },
     PostalCity: { address: true, raw: true },
     CountyOrParish: { address: true, raw: true },
-    UnParsedAddress: { address: true, raw: true },
+    UnparsedAddress: { address: true, raw: true }, // A1: canonical Cotality key (lowercase p); legacy UnParsedAddress normalizes here via aliasToCanonical
     BuildingName: { address: true, raw: true },
 
     // ── Content → features bucket ──
@@ -1016,8 +1025,10 @@ export const REBNY_FIELD_TABLES = {
     PrivateRemarks: { features: true, raw: true },
     ShowingInstructions: { features: true, raw: true },
 
-    // ── Permissions → derive booleans + raw ──
-    Permissions: {
+    // ── Permission (Cotality Multi.ListingPermission) → derive booleans + raw ──
+    // A2 (2026-05-30): canonical key is `Permission` (singular). Legacy `Permissions`
+    // payloads are aliased to `Permission` by normalizePayload before this runs.
+    Permission: {
       raw: true,
       deriveBooleans: {
         'OwnerOptOut': { db: 'owner_opt_out' },
@@ -1088,6 +1099,12 @@ export const REBNY_FIELD_TABLES = {
     // ── Financial (condo/co-op/building) → features bucket ──
     AssociationFee: { features: true, raw: true },
     AssociationFeeFrequency: { features: true, raw: true },
+    // Group 4 (Cotality-clean 2026-05-30): FlipTax / FlipTaxType / FlipTaxRemarks /
+    // TaxAbatementYN / TaxAbatementComments / SponsorUnitYN are REBNY-internal fields
+    // ABSENT from live Cotality $metadata. They are NOT mandatory and NOT Cotality
+    // canonical — but they ARE retained in the features bucket because consumers read
+    // them (e.g. app/api/buildings/search reads features.SponsorUnitYN). Canonical emit
+    // is intentionally NOT changed (would break those readers). Internal feature fields.
     FlipTax: { features: true, raw: true },
     FlipTaxType: { features: true, raw: true },
     FlipTaxRemarks: { features: true, raw: true },
