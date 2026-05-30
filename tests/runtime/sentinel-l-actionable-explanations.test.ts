@@ -246,3 +246,99 @@ describe('Sentinel-L v2 — A. BUILDING_AUTOFILL', () => {
     expect(find(out, 'S-BUILDING-011')).toBeUndefined();
   });
 });
+
+describe('Sentinel-L v2 — B. MEDIA_P0', () => {
+  // S-MEDIA-010 — CRM media written only to the listing.media JSON column, not
+  // listing_media rows (the Cotality-shaped table the resolver reads).
+  const jsonOnlyMedia = [
+    'export async function PUT(req, { params }) {',
+    '  const photos = await req.json();',
+    '  await prisma.listing.update({',
+    '    where: { listing_id: params.id },',
+    '    data: { media: photos },',
+    '  });',
+    '  return NextResponse.json({ ok: true });',
+    '}',
+  ].join('\n');
+  const rowsMedia = [
+    'export async function PUT(req, { params }) {',
+    '  const photos = await req.json();',
+    '  await prisma.listing_media.createMany({ data: photos.map((p, i) => ({ media_key: p.key, order: i })) });',
+    '  await prisma.listing.update({ where: { listing_id: params.id }, data: { modification_timestamp: new Date() } });',
+    '  return NextResponse.json({ ok: true });',
+    '}',
+  ].join('\n');
+
+  test('flags media written only to the listing.media JSON column with no listing_media rows (S-MEDIA-010)', () => {
+    const out = evaluateSource('app/api/crm/listings/[id]/media/upload/route.ts', jsonOnlyMedia);
+    const hit = find(out, 'S-MEDIA-010');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('MEDIA');
+    expect(hit!.whyThisIsAnError).toMatch(/listing_media|resolver|Cotality/i);
+  });
+  test('does NOT flag a media write that creates listing_media rows (false-positive guard)', () => {
+    const out = evaluateSource('app/api/crm/listings/[id]/media/upload/route.ts', rowsMedia);
+    expect(find(out, 'S-MEDIA-010')).toBeUndefined();
+  });
+
+  // S-MEDIA-011 — reorder writes raw_data.media_order, which the resolver does
+  // not read (it orders by listing_media.order).
+  const orderToRawData = [
+    'export async function PATCH(req, { params }) {',
+    '  const { order } = await req.json();',
+    '  await prisma.listing.update({',
+    '    where: { listing_id: params.id },',
+    '    data: { raw_data: { media_order: order } },',
+    '  });',
+    '}',
+  ].join('\n');
+  const orderToRows = [
+    'export async function PATCH(req, { params }) {',
+    '  const { order } = await req.json();',
+    '  const raw = { media_order: order };',
+    '  for (let i = 0; i < order.length; i++) {',
+    '    await prisma.listing_media.update({ where: { media_key: order[i] }, data: { order: i } });',
+    '  }',
+    '}',
+  ].join('\n');
+
+  test('flags reorder writing raw_data.media_order, which the resolver does not read (S-MEDIA-011)', () => {
+    const out = evaluateSource('app/api/crm/listings/[id]/media-order/route.ts', orderToRawData);
+    const hit = find(out, 'S-MEDIA-011');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('MEDIA');
+    expect(hit!.actualFailure).toMatch(/order|resolver|listing_media/i);
+  });
+  test('does NOT flag reorder that updates listing_media.order rows (false-positive guard)', () => {
+    const out = evaluateSource('app/api/crm/listings/[id]/media-order/route.ts', orderToRows);
+    expect(find(out, 'S-MEDIA-011')).toBeUndefined();
+  });
+
+  // S-MEDIA-012 — media delete by array index instead of a stable media_key.
+  const deleteByIndex = [
+    'function removeMedia(index) {',
+    '  media.splice(index, 1);',
+    '  renderMedia();',
+    '}',
+  ].join('\n');
+  const deleteByKey = [
+    'async function removeMedia(mediaKey) {',
+    "  await fetch('/api/crm/listings/' + id + '/media/' + mediaKey, { method: 'DELETE' });",
+    '  media = media.filter((m) => m.media_key !== mediaKey);',
+    '}',
+  ].join('\n');
+
+  test('flags media delete by array index instead of a stable media_key (S-MEDIA-012)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', deleteByIndex);
+    const hit = find(out, 'S-MEDIA-012');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('MEDIA');
+  });
+  test('does NOT flag media delete keyed by media_key (false-positive guard)', () => {
+    const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', deleteByKey);
+    expect(find(out, 'S-MEDIA-012')).toBeUndefined();
+  });
+});
