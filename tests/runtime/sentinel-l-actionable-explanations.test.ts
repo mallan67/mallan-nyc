@@ -13,6 +13,7 @@
 
 import {
   evaluateSource,
+  classifyWorkflowFailure,
   type SentinelLError,
 } from '../../tools/sentinel-l/run-sentinel-l';
 
@@ -340,5 +341,98 @@ describe('Sentinel-L v2 — B. MEDIA_P0', () => {
   test('does NOT flag media delete keyed by media_key (false-positive guard)', () => {
     const out = evaluateSource('public/crm/SALE-FORM-REDESIGN.html', deleteByKey);
     expect(find(out, 'S-MEDIA-012')).toBeUndefined();
+  });
+});
+
+describe('Sentinel-L v2 — C. RELEASE_TRUTH / WORKFLOW — classifyWorkflowFailure', () => {
+  // Release-Truth fixture: geo-validate first run failed on an NYC Open Data
+  // ECONNRESET; rerun passed; the PR touched no geo files.
+  test('classifies a geo-validate ECONNRESET that passed on rerun as external_infra, not a product regression', () => {
+    const f = classifyWorkflowFailure({
+      workflow: 'CRM Validation',
+      job: 'geo-validate',
+      failingStep: 'Geo: Run 12-check validator',
+      rootCauseStep: 'Geo: Build GeoJSON from canonical list',
+      logs:
+        'Fetching NTA 2020 boundaries from NYC Open Data...\n'
+        + '  WARN: Could not fetch NTA data (read ECONNRESET) — using patches only\n'
+        + 'WARNING: 627 canonical neighborhoods have no polygon.',
+      prFiles: ['app/api/buildings/search/route.ts', 'public/crm/SALE-FORM-REDESIGN.html'],
+      rerunPassed: true,
+      gating: 'required',
+    });
+    expect(f.system).toBe('WORKFLOW');
+    expect(f.cause).toBe('external_infra');
+    expect(f.rerunPassed).toBe(true);
+    expect(f.freshness).toBe('stale');
+    expect(f.recommendedAction).toMatch(/ignore_stale_advisory|rerun/);
+    expect(f.actualFailure).toMatch(/ECONNRESET/);
+    expect(f.actualFailure).toMatch(/not a product regression|external/i);
+    expect(f['failing field/query/pattern']).not.toContain('workflow blocking failures');
+    assertSixteenFieldSchema(f);
+  });
+
+  // Real-regression fixture: deterministic geo failure, PR DID touch geo files.
+  test('classifies a deterministic geo failure when the PR touched geo files as pr-caused, not external', () => {
+    const f = classifyWorkflowFailure({
+      workflow: 'CRM Validation',
+      job: 'geo-validate',
+      failingStep: 'Geo: Run 12-check validator',
+      logs: '[FAIL] 3. Canonical ↔ GeoJSON mismatch: 12 missing\nExit 1 — 1 strict failure.',
+      prFiles: ['public/geo/rls-neighborhoods.geojson', 'data/rls/neighborhoods.json'],
+      rerunPassed: false,
+      gating: 'required',
+    });
+    expect(f.cause).toBe('pr');
+    expect(f.recommendedAction).toMatch(/fix_pr/);
+    expect(f.confidence!.level).not.toBe('low');
+  });
+
+  // Unknown fixture: no signature, unmapped surface → fail closed.
+  test('classifies an unknown failure as indeterminate and fails closed (never external)', () => {
+    const f = classifyWorkflowFailure({
+      workflow: 'Some Workflow',
+      job: 'mystery',
+      failingStep: 'do thing',
+      logs: 'Process completed with exit code 1.',
+      prFiles: ['README.md'],
+      rerunPassed: false,
+      gating: 'advisory',
+    });
+    expect(f.cause).toBe('indeterminate');
+    expect(f.confidence!.level).toBe('low');
+    expect(f.recommendedAction).toMatch(/human|review/i);
+    expect(f.cause).not.toBe('external_infra');
+  });
+});
+
+describe('Sentinel-L v2 — C. WORKFLOW — advisory PR comment must stay disabled', () => {
+  const activeComment = [
+    'jobs:',
+    '  release-truth:',
+    '    steps:',
+    '      - name: Comment on PR',
+    "        if: github.event_name == 'pull_request'",
+    '        run: gh pr comment "$PR" --body-file /tmp/c.md',
+  ].join('\n');
+  const disabledComment = [
+    'jobs:',
+    '  release-truth:',
+    '    steps:',
+    '      - name: Comment on PR',
+    '        if: ${{ false }}',
+    '        run: gh pr comment "$PR" --body-file /tmp/c.md',
+  ].join('\n');
+
+  test('flags an enabled gh pr comment step in an advisory workflow (S-WORKFLOW-001)', () => {
+    const out = evaluateSource('.github/workflows/release-truth.yml', activeComment);
+    const hit = find(out, 'S-WORKFLOW-001');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('WORKFLOW');
+  });
+  test('does NOT flag a gh pr comment step gated if: ${{ false }} (false-positive guard)', () => {
+    const out = evaluateSource('.github/workflows/release-truth.yml', disabledComment);
+    expect(find(out, 'S-WORKFLOW-001')).toBeUndefined();
   });
 });

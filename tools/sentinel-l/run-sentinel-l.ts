@@ -75,6 +75,24 @@ export type SentinelLError = {
   falsePositiveGuard?: string;
   confidence?: Confidence;
   relatedSurfaces?: string[];
+  // WORKFLOW-system classification (classifyWorkflowFailure).
+  cause?: 'pr' | 'external_infra' | 'indeterminate';
+  recommendedAction?: 'rerun' | 'fix_pr' | 'separate_infra_pr' | 'ignore_stale_advisory' | 'human_review';
+  freshness?: 'current' | 'stale';
+  rerunPassed?: boolean;
+  gating?: 'required' | 'advisory';
+};
+
+export type WorkflowFailureInput = {
+  workflow: string;
+  job: string;
+  failingStep: string;
+  rootCauseStep?: string;
+  logs: string;
+  prFiles: string[];
+  rerunPassed: boolean;
+  gating: 'required' | 'advisory';
+  workflowFile?: string;
 };
 
 type Rule = {
@@ -187,6 +205,7 @@ const CATALOG: ErrorCatalogEntry[] = [
   ...range('S-MEDIA', 1, 12, 'Media / photos / floorplans / videos', 'Media/photo/floorplan/video handling'),
   ...range('S-URL', 1, 9, 'Canonical URLs / sitemap / metadata', 'Canonical URLs / sitemap / metadata'),
   ...range('S-COMP', 1, 10, 'Display gates / compliance / privacy', 'Status/display/compliance gates'),
+  ...range('S-WORKFLOW', 1, 3, 'Release-Truth / workflow reporting', 'CI / release-truth reporting'),
 ];
 
 const RULES: Rule[] = [
@@ -607,6 +626,27 @@ const RULES: Rule[] = [
     confidence: { level: 'medium', reason: 'Index-based splice in a remove/delete context is the fragile-delete shape; medium because some local-only arrays are safe to splice.' },
     relatedSurfaces: ['MEDIA', 'CRM_DASHBOARD'],
   },
+  // ── D. RELEASE_TRUTH / WORKFLOW (static) ────────────────────────────────
+  {
+    code: 'S-WORKFLOW-001',
+    severity: 'P2',
+    filePattern: /\.github\/workflows\/.*\.ya?ml$/,
+    pattern: /gh\s+pr\s+comment/,
+    excludeIfNear: /if:\s*\$\{\{\s*false\s*\}\}|if:\s*false\b/,
+    exclusionWindow: 6,
+    failingPattern: 'Workflow runs `gh pr comment` without an `if: ${{ false }}` disable guard nearby.',
+    actualFailure: 'An advisory workflow posts a PR comment on every run, which emails the maintainer on each push/synchronize (mailbox spam). Advisory findings should surface via the red check + artifact + Step Summary, not PR comments.',
+    impact: 'Maya gets an email on every PR update from an advisory check; the noise hides the signals that matter.',
+    requiredFix: 'Gate the comment step with `if: ${{ false }}` (preserve the step for a one-line future re-enable) and surface findings via artifact + Step Summary only.',
+    proofRequired: 'Workflow-structure test asserts the comment step is `if: ${{ false }}` and no enabled step runs `gh pr comment`.',
+    system: 'WORKFLOW',
+    findingLayer: 'workflow',
+    whyThisIsAnError: 'Mallan reporting policy (PR #266): advisory Sentinel/Release-Truth comments spam the mailbox; findings must go to artifact + Step Summary, with PR comments disabled unless explicitly approved.',
+    expectedBehavior: 'The PR-comment step stays disabled (`if: ${{ false }}`); the workflow uploads an artifact and writes a Step Summary.',
+    falsePositiveGuard: 'Do not flag a `gh pr comment` step already gated by `if: ${{ false }}` (preserved-but-disabled).',
+    confidence: { level: 'high', reason: 'An ungated gh pr comment in an advisory workflow is exactly the PR #266 mailbox-spam shape.' },
+    relatedSurfaces: ['WORKFLOW', 'RELEASE_TRUTH'],
+  },
 ];
 
 export const SENTINEL_L_CONTRACT = {
@@ -887,6 +927,114 @@ function detectCotalitySelect(
     },
     relatedSurfaces: ['BUILDING_AUTOFILL', 'SALES_FORM', '/api/buildings/search'],
   }];
+}
+
+// ── D. RELEASE_TRUTH / WORKFLOW classifier ──────────────────────────────
+// Turns a CI workflow failure into an explained finding instead of a bare
+// count. Distinguishes a transient external dependency (e.g. NYC Open Data
+// ECONNRESET that a rerun cleared) from a real PR-caused regression, and
+// FAILS CLOSED to `indeterminate` when it cannot prove either — never excusing
+// a real failure as flaky.
+const EXTERNAL_INFRA_SIGNATURE =
+  /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|\bHTTP 503\b|\bHTTP 429\b|\b503\b|\b429\b/i;
+const EXTERNAL_HOST =
+  /data\.cityofnewyork\.us|nyc\.gov|socrata|registry\.npmjs\.org|api\.github\.com/i;
+
+function deriveFailingSurface(job: string, failingStep: string): RegExp | null {
+  const ctx = `${job} ${failingStep}`.toLowerCase();
+  if (/geo|nta|neighborhood|rls-geo/.test(ctx)) return /public\/geo|data\/rls|geojson|geo-/i;
+  return null;
+}
+
+export function classifyWorkflowFailure(input: WorkflowFailureInput): SentinelLError {
+  const sig = EXTERNAL_INFRA_SIGNATURE.exec(input.logs);
+  const hostHit = EXTERNAL_HOST.test(input.logs);
+  const hasExternalSignature = Boolean(sig);
+  const surface = deriveFailingSurface(input.job, input.failingStep);
+  const prTouchesSurface = surface ? input.prFiles.some((f) => surface.test(f)) : null;
+
+  let cause: 'pr' | 'external_infra' | 'indeterminate';
+  if (hasExternalSignature && prTouchesSurface === false) cause = 'external_infra';
+  else if (!hasExternalSignature && prTouchesSurface === true) cause = 'pr';
+  else cause = 'indeterminate';
+
+  const freshness: 'current' | 'stale' = input.rerunPassed ? 'stale' : 'current';
+  const recommendedAction: SentinelLError['recommendedAction'] =
+    cause === 'external_infra'
+      ? (input.rerunPassed ? 'ignore_stale_advisory' : 'rerun')
+      : cause === 'pr' ? 'fix_pr' : 'human_review';
+
+  const confidence: Confidence =
+    cause === 'external_infra'
+      ? { level: 'high', reason: `Transient signature ${sig![0]} present${hostHit ? ' from an external host' : ''} and the PR did not touch the failing surface${input.rerunPassed ? '; a no-change rerun passed' : ''}.` }
+      : cause === 'pr'
+        ? { level: 'high', reason: 'Deterministic failure (no transient signature) and the PR changed files on the failing surface.' }
+        : { level: 'low', reason: 'No recognized external signature and the failing surface could not be mapped to the PR diff; cannot classify (fail-closed).' };
+
+  const stepRef = input.rootCauseStep && input.rootCauseStep !== input.failingStep
+    ? `${input.failingStep} (root cause: ${input.rootCauseStep})`
+    : input.failingStep;
+  const lines = input.logs.split(/\r?\n/);
+  const reasonLine = (sig
+    ? lines.find((l) => EXTERNAL_INFRA_SIGNATURE.test(l)) ?? sig[0]
+    : lines.find((l) => /fail|error|exit/i.test(l)) ?? lines[0] ?? '').trim();
+
+  const actualFailure =
+    cause === 'external_infra'
+      ? `${input.workflow} / ${input.job} failed at "${stepRef}" because of an external/transient error: ${sig![0]}`
+        + `${hostHit ? ' from an external host (NYC Open Data / third-party)' : ''}.`
+        + ` ${input.rerunPassed ? 'A later rerun passed with no code change.' : 'No rerun has passed yet.'}`
+        + ' The PR changed no files on the failing surface. External flaky failure, not a product regression.'
+      : cause === 'pr'
+        ? `${input.workflow} / ${input.job} failed deterministically at "${stepRef}" and the PR changed files on the failing surface. This is PR-caused — fix the PR before merge.`
+        : `${input.workflow} / ${input.job} failed at "${stepRef}" with no recognized external signature and a failing surface that cannot be mapped to the PR diff. Cannot classify — treated as indeterminate (fail-closed); do not assume flaky.`;
+
+  return {
+    code: 'S-WORKFLOW-003',
+    category: 'Release-Truth / workflow reporting',
+    severity: cause === 'pr' ? 'P1' : 'P2',
+    layer: 'workflow',
+    file: input.workflowFile ?? `.github/workflows (${input.workflow})`,
+    line: 1,
+    actualFailure,
+    'failing field/query/pattern':
+      cause === 'external_infra' ? `external infra signature: ${sig![0]}`
+      : cause === 'pr' ? 'deterministic failure on PR-touched surface'
+      : 'unclassified workflow failure (no signature, unmapped surface)',
+    evidence: { detector: 'classify-workflow-failure', matchedSource: reasonLine || stepRef },
+    impact:
+      cause === 'external_infra'
+        ? 'A bare blocking-failure count would read this transient fetch failure as a product regression and block the merge for no real reason.'
+        : cause === 'pr'
+          ? 'A real regression on a changed surface; merging would ship the failure.'
+          : 'Unknown — needs a human to read the failing-step log and PR diff before any verdict.',
+    'required fix':
+      cause === 'external_infra'
+        ? 'Treat as external flaky: rerun (already passed → ignore the stale advisory). Optionally harden the upstream fetch (retry/cache/hard-fail) in a SEPARATE infrastructure PR.'
+        : cause === 'pr'
+          ? 'Fix the PR: the failing surface was changed and the failure is deterministic.'
+          : 'Human review: collect the failing-step log + PR diff; do not auto-classify.',
+    'proof required':
+      cause === 'external_infra'
+        ? 'A no-change rerun is green (confirms transience); the live external dependency is reachable.'
+        : cause === 'pr'
+          ? 'The PR fix flips the check green on re-run.'
+          : 'A human confirms the root cause from the failing-step log.',
+    whyThisIsAnError:
+      'Release-Truth reporting contract: a bare blocking-failure count hides whether the merge is unsafe or a transient external failure already cleared by a rerun. Each failure must be explained (workflow/job/step, current/stale, rerun result, required/advisory, PR vs external) with the exact reason.',
+    expectedBehavior:
+      'Release-Truth reports each failure with workflow, job, failing step (and root-cause step), freshness, rerun result, required/advisory, cause (pr/external_infra/indeterminate), the verbatim reason, and a recommended action — never a bare count.',
+    falsePositiveGuard:
+      'Do not classify as external_infra unless a transient signature is present AND the PR did not touch the failing surface; absent either, fall back to indeterminate — never excuse a real regression as flaky.',
+    confidence,
+    relatedSurfaces: ['WORKFLOW', 'RELEASE_TRUTH', input.workflow],
+    system: 'WORKFLOW',
+    cause,
+    recommendedAction,
+    freshness,
+    rerunPassed: input.rerunPassed,
+    gating: input.gating,
+  };
 }
 
 /**
