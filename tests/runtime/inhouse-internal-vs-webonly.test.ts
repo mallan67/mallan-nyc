@@ -71,7 +71,7 @@ describe('Form serialization — both InHouse types force distribution OFF', () 
     const idx = formHtml.indexOf('// Distribution gates — force OFF');
     expect(idx).toBeGreaterThan(-1);
     const slice = formHtml.slice(idx, idx + 500);
-    expect(slice).toContain('IDXEntireListingDisplayYN = false');
+    expect(slice).toContain('saleIdxDisplayYN = false');
     expect(slice).toContain('InternetEntireListingDisplayYN = false');
     expect(slice).toMatch(/InternetAddressDisplayYN\s*=\s*isInHouseWebOnly\s*\?\s*true\s*:\s*false/);
   });

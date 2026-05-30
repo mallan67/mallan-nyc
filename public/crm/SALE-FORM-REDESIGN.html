@@ -7082,14 +7082,14 @@ function collectSaleFormData() {
     // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse
     // InHouseWebOnly: IDX/syndication OFF but address displays on mallan.nyc
     if (isOwnerOptOut || isParticipantOnly || isInHouse) {
-        data.IDXEntireListingDisplayYN = false;
+        data.saleIdxDisplayYN = false; // internal IDX-display control (NOT a Cotality field) → idx_display_yn
         data.InternetEntireListingDisplayYN = false;
         data.InternetAddressDisplayYN = isInHouseWebOnly ? true : false;
         // SyndicateYN removed (Cotality-clean sweep 2026-05-30): phantom — not in
         // live Cotality $metadata. Syndication intent = canonical SyndicateTo +
         // internal saleSyndicateYN; populate keeps a legacy raw.SyndicateYN reload.
     } else {
-        data.IDXEntireListingDisplayYN = data.saleDist_IDX !== false;
+        data.saleIdxDisplayYN = data.saleDist_IDX !== false; // internal IDX-display control (NOT a Cotality field) → idx_display_yn
         data.InternetEntireListingDisplayYN = data.saleInternetEntireListingDisplayYN !== false && data.saleDist_VOW !== false;
         data.InternetAddressDisplayYN = data.saleInternetAddressDisplayYN !== false;
         // (SyndicateYN phantom emit removed — see note above. saleSyndicateYN
@@ -8803,7 +8803,7 @@ var SALE_FIELD_MAP = [
   { rls: 'RentingAllowedYN', form: 'saleBldgSublettingAllowed', type: 'bool', src: 'raw' },
 
   // ── Distribution ──
-  { rls: 'IDXEntireListingDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn' },
+  { rls: 'saleIdxDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn' }, // internal IDX-display control (idx_display_yn); IDXEntireListingDisplayYN is NOT a Cotality field
   { rls: 'InternetEntireListingDisplayYN', form: 'saleInternetEntireListingDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_entire_listing_display_yn' },
   { rls: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn' },
 
