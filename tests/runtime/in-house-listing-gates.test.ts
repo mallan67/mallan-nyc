@@ -66,14 +66,21 @@ describe('Form serialization — InHouse distribution gates', () => {
     expect(formHtml).toMatch(gatePattern);
   });
 
-  it('gate-off block sets IDX + Internet + Syndicate to false, address conditional on web-only', () => {
+  it('gate-off block sets IDX + Internet display to false, address conditional on web-only', () => {
     const idx = formHtml.indexOf('// Distribution gates — force OFF');
     expect(idx).toBeGreaterThan(-1);
     const slice = formHtml.slice(idx, idx + 500);
     expect(slice).toContain('IDXEntireListingDisplayYN = false');
     expect(slice).toContain('InternetEntireListingDisplayYN = false');
-    expect(slice).toContain('SyndicateYN = false');
     expect(slice).toMatch(/InternetAddressDisplayYN\s*=\s*isInHouseWebOnly\s*\?\s*true\s*:\s*false/);
+  });
+
+  it('InHouse/OptOut force syndication OFF via empty canonical SyndicateTo (phantom SyndicateYN removed)', () => {
+    // Cotality-clean sweep 2026-05-30: the phantom SyndicateYN=false signal was
+    // removed; syndication-off is now the Cotality-correct empty SyndicateTo,
+    // achieved by gating the SyndicateTo collection on NOT InHouse/OptOut.
+    expect(formHtml).not.toMatch(/data\.SyndicateYN\s*=/);
+    expect(formHtml).toMatch(/if\s*\(\s*!\(\s*isOwnerOptOut\s*\|\|\s*isParticipantOnly\s*\|\|\s*isInHouse\s*\)[\s\S]*?SALE_SYNDICATION_MAP/);
   });
 });
 

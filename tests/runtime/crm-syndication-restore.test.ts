@@ -22,8 +22,10 @@ describe('Syndication checkbox restore', () => {
   });
 
   test('saleSendToAll only checked when all individual targets present', () => {
+    // Cotality-clean sweep 2026-05-30: restore matches against the canonical
+    // Cotality member (entry.cotality) / internal / legacy target via syndMatches.
     expect(src).toMatch(/SALE_SYNDICATION_MAP\.every/);
-    expect(src).toMatch(/setChecked\('saleSendToAll',\s*allIndividualChecked\)/);
+    expect(src).toMatch(/setChecked\('saleSendToAll',\s*SALE_SYNDICATION_MAP\.every\(syndMatches\)\)/);
   });
 
   test('SALE_SYNDICATION_MAP has target names for each checkbox', () => {

@@ -67,14 +67,18 @@ describe('Form serialization — both InHouse types force distribution OFF', () 
     expect(formHtml).toContain("saleListType === 'InHouseWebOnly'");
   });
 
-  it('gate-off block sets IDX + Internet + Syndicate to false, address conditional on web-only', () => {
+  it('gate-off block sets IDX + Internet display to false, address conditional on web-only', () => {
     const idx = formHtml.indexOf('// Distribution gates — force OFF');
     expect(idx).toBeGreaterThan(-1);
     const slice = formHtml.slice(idx, idx + 500);
     expect(slice).toContain('IDXEntireListingDisplayYN = false');
     expect(slice).toContain('InternetEntireListingDisplayYN = false');
-    expect(slice).toContain('SyndicateYN = false');
     expect(slice).toMatch(/InternetAddressDisplayYN\s*=\s*isInHouseWebOnly\s*\?\s*true\s*:\s*false/);
+  });
+
+  it('both InHouse types force syndication OFF via empty canonical SyndicateTo (phantom SyndicateYN removed)', () => {
+    expect(formHtml).not.toMatch(/data\.SyndicateYN\s*=/);
+    expect(formHtml).toMatch(/if\s*\(\s*!\(\s*isOwnerOptOut\s*\|\|\s*isParticipantOnly\s*\|\|\s*isInHouse\s*\)[\s\S]*?SALE_SYNDICATION_MAP/);
   });
 });
 

@@ -7234,9 +7234,13 @@ function collectSaleFormData() {
     // (entry.cotality). Unsupported/internal destinations (NYMLS, RLS, RPX, WWW)
     // are routed to the internal _saleSyndicateInternal list — never emitted as
     // invalid canonical enum values (Cotality-clean sweep 2026-05-30).
+    // Owner Opt-Out / Participant Only / InHouse force syndication OFF — expressed
+    // the Cotality-correct way (empty canonical SyndicateTo), replacing the old
+    // phantom SyndicateYN=false signal (Cotality-clean sweep 2026-05-30).
     data.SyndicateTo = [];
     data._saleSyndicateInternal = [];
-    if (typeof SALE_SYNDICATION_MAP !== 'undefined' && Array.isArray(SALE_SYNDICATION_MAP)) {
+    if (!(isOwnerOptOut || isParticipantOnly || isInHouse)
+        && typeof SALE_SYNDICATION_MAP !== 'undefined' && Array.isArray(SALE_SYNDICATION_MAP)) {
         SALE_SYNDICATION_MAP.forEach(function(entry) {
             var el = document.getElementById(entry.id);
             if (!el || !el.checked) return;
