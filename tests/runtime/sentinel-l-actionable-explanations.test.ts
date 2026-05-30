@@ -436,3 +436,86 @@ describe('Sentinel-L v2 — C. WORKFLOW — advisory PR comment must stay disabl
     expect(find(out, 'S-WORKFLOW-001')).toBeUndefined();
   });
 });
+
+describe('Sentinel-L v2 — D. CANONICAL_URL / DISPLAY_GATE', () => {
+  // S-URL-010 — hybrid listing URL (PR #272 two-shape problem).
+  const hybridUrl = [
+    'export function listingHref(listing) {',
+    '  return `/listing/${listing.slug}-${listing.id}`;',
+    '}',
+  ].join('\n');
+  const hybridKey = [
+    'export function listingHref(listing) {',
+    '  return `/listing/${listing.slug}?key=${listing.id}`;',
+    '}',
+  ].join('\n');
+  const canonicalUrl = [
+    'export function listingHref(listing) {',
+    '  return buildCanonicalListingPath({ slug: listing.slug, id: listing.id });',
+    '}',
+  ].join('\n');
+
+  test('flags a hybrid /listing/{slug}-{id} URL (S-URL-010)', () => {
+    const out = evaluateSource('app/components/SearchListingCard.tsx', hybridUrl);
+    const hit = find(out, 'S-URL-010');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('CANONICAL_URL');
+  });
+  test('flags a /listing/{slug}?key={id} hybrid URL (S-URL-010)', () => {
+    const out = evaluateSource('lib/crm/listing-urls.ts', hybridKey);
+    expect(find(out, 'S-URL-010')).toBeDefined();
+  });
+  test('does NOT flag the canonical two-segment builder (false-positive guard)', () => {
+    const out = evaluateSource('app/components/SearchListingCard.tsx', canonicalUrl);
+    expect(find(out, 'S-URL-010')).toBeUndefined();
+  });
+
+  // S-URL-011 — lowercase canonical id not normalized for DB lookup (PR #272 Codex).
+  const lookupNoUpper = [
+    'const row = await prisma.listing.findUnique({',
+    '  where: { listing_id: extractListingIdFromSlug(slug) },',
+    '});',
+  ].join('\n');
+  const lookupUpper = [
+    'const id = extractListingIdFromSlug(slug).toUpperCase();',
+    'const row = await prisma.listing.findUnique({ where: { listing_id: id } });',
+  ].join('\n');
+
+  test('flags a listing_id lookup from a lowercased slug id with no toUpperCase (S-URL-011)', () => {
+    const out = evaluateSource('app/listing/[...slug]/page.tsx', lookupNoUpper);
+    const hit = find(out, 'S-URL-011');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('CANONICAL_URL');
+  });
+  test('does NOT flag a lookup that normalizes the id to uppercase (false-positive guard)', () => {
+    const out = evaluateSource('app/listing/[...slug]/page.tsx', lookupUpper);
+    expect(find(out, 'S-URL-011')).toBeUndefined();
+  });
+
+  // S-COMP-011 — Mallan website-only exclusive hidden by an IDX-only gate.
+  const idxOnlyGate = [
+    'const rows = await prisma.listing.findMany({',
+    '  where: { agent_id: brokerId, idx_display_yn: true },',
+    '});',
+  ].join('\n');
+  const rlsAwareGate = [
+    'const rows = await prisma.listing.findMany({',
+    '  where: { agent_id: brokerId, OR: [{ rls_eligible: false }, { idx_display_yn: true }] },',
+    '});',
+  ].join('\n');
+
+  test('flags an agent/listing query gated only on idx_display_yn (hides rls_eligible=false exclusives) (S-COMP-011)', () => {
+    const out = evaluateSource('app/api/agents/[slug]/listings/route.ts', idxOnlyGate);
+    const hit = find(out, 'S-COMP-011');
+    expect(hit).toBeDefined();
+    assertSixteenFieldSchema(hit!);
+    expect(hit!.system).toBe('DISPLAY_GATE');
+    expect(hit!.whyThisIsAnError).toMatch(/InHouseWebOnly|rls_eligible|UCBA|exclusive/i);
+  });
+  test('does NOT flag a query that bypasses the IDX gate for rls_eligible=false (false-positive guard)', () => {
+    const out = evaluateSource('app/api/agents/[slug]/listings/route.ts', rlsAwareGate);
+    expect(find(out, 'S-COMP-011')).toBeUndefined();
+  });
+});
