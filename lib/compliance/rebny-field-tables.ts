@@ -1099,6 +1099,12 @@ export const REBNY_FIELD_TABLES = {
     // ── Financial (condo/co-op/building) → features bucket ──
     AssociationFee: { features: true, raw: true },
     AssociationFeeFrequency: { features: true, raw: true },
+    // Group 4 (Cotality-clean 2026-05-30): FlipTax / FlipTaxType / FlipTaxRemarks /
+    // TaxAbatementYN / TaxAbatementComments / SponsorUnitYN are REBNY-internal fields
+    // ABSENT from live Cotality $metadata. They are NOT mandatory and NOT Cotality
+    // canonical — but they ARE retained in the features bucket because consumers read
+    // them (e.g. app/api/buildings/search reads features.SponsorUnitYN). Canonical emit
+    // is intentionally NOT changed (would break those readers). Internal feature fields.
     FlipTax: { features: true, raw: true },
     FlipTaxType: { features: true, raw: true },
     FlipTaxRemarks: { features: true, raw: true },
