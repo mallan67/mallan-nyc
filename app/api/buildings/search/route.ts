@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
+import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -127,9 +128,14 @@ interface TrestleRecord {
 // ─────────────────────────────────────────────────────────────────────────────
 function addressIdentityKey(rec: Record<string, unknown>): string {
   const num = String(rec.StreetNumber ?? '').trim();
-  const dir = String(rec.StreetDirPrefix ?? '').trim();
-  const name = String(rec.StreetName ?? '').trim();
-  const suffix = String(rec.StreetSuffix ?? '').trim();
+  // Canonicalize variant tokens so the SAME building matches regardless of which
+  // source produced the row: "East" vs "E", "Street" vs "St", "46" vs "46th".
+  // Without this, adding StreetDirPrefix/StreetSuffix to the key (vs the old
+  // number-name-zip key) would split one building into two whenever the CRM form
+  // saved full words and Cotality used abbreviations. (Codex review 3 2026-05-31.)
+  const dir = canonicalizeDirection(String(rec.StreetDirPrefix ?? ''));
+  const name = canonicalizeStreetName(String(rec.StreetName ?? ''));
+  const suffix = canonicalizeSuffix(String(rec.StreetSuffix ?? ''));
   // Don't duplicate a direction already embedded in StreetName (e.g. "E 46TH").
   const nameHasDir = dir && name.toUpperCase().startsWith(dir.toUpperCase() + ' ');
   const addrPart = `${num} ${dir && !nameHasDir ? dir + ' ' : ''}${name} ${suffix}`.replace(/\s+/g, ' ').trim();

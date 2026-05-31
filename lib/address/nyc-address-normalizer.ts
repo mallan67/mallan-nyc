@@ -86,6 +86,49 @@ function normalizeOrdinal(num: string): string {
 }
 
 /**
+ * Canonicalize an already-parsed street DIRECTION token to its RESO/Trestle
+ * abbreviation: "East"/"e."/"E" → "E". Returns '' for blank; returns the
+ * trimmed input unchanged when it is not a recognized direction (so it never
+ * destroys data). Used by callers that compare RESO address COMPONENTS (not a
+ * free-form string) — e.g. building-identity matching, where one source may
+ * carry "East" and another "E" for the same building.
+ */
+export function canonicalizeDirection(token: string): string {
+  const t = (token ?? '').trim();
+  if (!t) return '';
+  const lower = t.toLowerCase();
+  return DIRECTION_MAP[lower] || DIRECTION_MAP[lower.replace(/\.$/, '')] || t;
+}
+
+/**
+ * Canonicalize an already-parsed street SUFFIX token to its RESO/Trestle
+ * abbreviation: "Street"/"st." → "St", "Avenue" → "Ave". Returns '' for blank;
+ * returns the trimmed input unchanged when not a recognized suffix.
+ */
+export function canonicalizeSuffix(token: string): string {
+  const t = (token ?? '').trim();
+  if (!t) return '';
+  const lower = t.toLowerCase();
+  return SUFFIX_MAP[lower] || SUFFIX_MAP[lower.replace(/\.$/, '')] || t;
+}
+
+/**
+ * Canonicalize ordinals inside an already-parsed street NAME so "46" and "46TH"
+ * resolve to the same token ("46th"). Leaves non-ordinal name tokens untouched.
+ */
+export function canonicalizeStreetName(name: string): string {
+  const t = (name ?? '').trim();
+  if (!t) return '';
+  return t
+    .split(/\s+/)
+    .map((part) => {
+      const m = part.match(/^(\d+)(?:st|nd|rd|th)?$/i);
+      return m ? normalizeOrdinal(m[1]) : part;
+    })
+    .join(' ');
+}
+
+/**
  * Parse a free-form NYC address string into canonical RESO components.
  *
  * Handles:

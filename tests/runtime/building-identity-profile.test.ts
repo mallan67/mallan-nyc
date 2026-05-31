@@ -30,6 +30,9 @@ import { resolve } from 'path';
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
+// addressIdentityKey now canonicalizes dir/suffix/ordinal via the shared NYC
+// normalizer, so the eval block must include those helpers + their lookup maps.
+const NORM = readFileSync(resolve(__dirname, '../../lib/address/nyc-address-normalizer.ts'), 'utf8');
 const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
 
 // ── Load the route's identity + profile helpers via Function-eval ─────────────
@@ -59,12 +62,23 @@ function stripTs(s: string): string {
     .replace(/\s+as\s+Record<[^>]*>/g, '')
     .replace(/\s+as\s+string/g, '');
 }
+// Slice a top-level `const NAME … = { … };` block out of a source file.
+function sliceConst(src: string, name: string): string {
+  const start = src.indexOf(`const ${name}`);
+  if (start === -1) throw new Error(`const not found: ${name}`);
+  return src.slice(start, src.indexOf('};', start) + 2);
+}
 function loadHelpers() {
   const mapStart = ROUTE.indexOf('const SAVED_PROFILE_CONTRACT_TO_FORM');
   if (mapStart === -1) throw new Error('SAVED_PROFILE_CONTRACT_TO_FORM not found');
   const mapBlock = ROUTE.slice(mapStart, ROUTE.indexOf('};', mapStart) + 2);
+  // Shared NYC-normalizer pieces addressIdentityKey depends on.
+  const normBlock =
+    `${sliceConst(NORM, 'DIRECTION_MAP')}\n${sliceConst(NORM, 'SUFFIX_MAP')}\n` +
+    `${sliceFn(NORM, 'normalizeOrdinal')}\n${sliceFn(NORM, 'canonicalizeDirection')}\n` +
+    `${sliceFn(NORM, 'canonicalizeSuffix')}\n${sliceFn(NORM, 'canonicalizeStreetName')}`;
   const block = stripTs(
-    `${mapBlock}\n${sliceFn(ROUTE, 'addressIdentityKey')}\n${sliceFn(ROUTE, 'addressOnlyKey')}\n${sliceFn(ROUTE, 'findRegisteredBuilding')}\n${sliceFn(ROUTE, 'promoteIdentity')}\n${sliceFn(ROUTE, 'registerBuilding')}\n${sliceFn(ROUTE, 'extractSavedProfileValues')}`,
+    `${normBlock}\n${mapBlock}\n${sliceFn(ROUTE, 'addressIdentityKey')}\n${sliceFn(ROUTE, 'addressOnlyKey')}\n${sliceFn(ROUTE, 'findRegisteredBuilding')}\n${sliceFn(ROUTE, 'promoteIdentity')}\n${sliceFn(ROUTE, 'registerBuilding')}\n${sliceFn(ROUTE, 'extractSavedProfileValues')}`,
   );
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
   return new Function(
@@ -97,6 +111,22 @@ describe('building identity key (BuildingKeyNumeric > address+borough+zip > addr
     const k1 = H.addressIdentityKey({ ...FIX.addr, CityRegion: 'Manhattan', PostalCode: '10017' });
     const k2 = H.addressIdentityKey({ ...FIX.addr, CityRegion: 'Brooklyn', PostalCode: '11201' });
     expect(k1).not.toBe(k2);
+  });
+
+  it('canonicalizes variant dir/suffix/ordinal tokens so one building yields ONE key (Codex review 3)', () => {
+    // CRM-form full tokens vs Cotality abbreviations — same physical building.
+    const formTokens = H.addressIdentityKey({
+      StreetNumber: '333', StreetDirPrefix: 'East', StreetName: '46', StreetSuffix: 'Street',
+      CityRegion: 'Manhattan', PostalCode: '10017',
+    });
+    const cotalityTokens = H.addressIdentityKey({
+      StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46th', StreetSuffix: 'St',
+      CityRegion: 'Manhattan', PostalCode: '10017',
+    });
+    expect(formTokens).toBe(cotalityTokens);
+    // And the address-only key collapses the same way (so partial rows merge too).
+    expect(H.addressOnlyKey({ StreetNumber: '333', StreetDirPrefix: 'East', StreetName: '46', StreetSuffix: 'Street' }))
+      .toBe(H.addressOnlyKey({ StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46th', StreetSuffix: 'St' }));
   });
 
   it('falls back to plain full address when borough/zip absent (no crash, stable)', () => {

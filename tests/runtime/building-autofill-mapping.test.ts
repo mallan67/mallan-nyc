@@ -192,9 +192,15 @@ describe('Building dedup key excludes unit number (addressIdentityKey)', () => {
     expect(routeTs).toContain('addressIdentityKey(addr)');
   });
 
-  it('addressIdentityKey is composed from street parts + borough + zip', () => {
+  // Bound the slice to the function's closing brace (column-0 `\n}`) instead of a
+  // fixed char window, so it stays correct as the function grows.
+  const addressIdentityKeyBody = () => {
     const start = routeTs.indexOf('function addressIdentityKey');
-    const body = routeTs.slice(start, start + 900);
+    return routeTs.slice(start, routeTs.indexOf('\n}', start) + 2);
+  };
+
+  it('addressIdentityKey is composed from street parts + borough + zip', () => {
+    const body = addressIdentityKeyBody();
     expect(body).toContain('rec.StreetNumber');
     expect(body).toContain('rec.StreetName');
     expect(body).toContain('rec.PostalCode');
@@ -202,8 +208,7 @@ describe('Building dedup key excludes unit number (addressIdentityKey)', () => {
   });
 
   it('the identity key never incorporates the unit number', () => {
-    const start = routeTs.indexOf('function addressIdentityKey');
-    const body = routeTs.slice(start, start + 900);
+    const body = addressIdentityKeyBody();
     expect(body).not.toContain('UnitNumber');
     expect(body).not.toContain('rec.Unit');
   });
