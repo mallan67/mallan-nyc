@@ -309,6 +309,11 @@ export async function GET(request: NextRequest) {
 
   const buildings: Array<Record<string, unknown>> = [];
   const seenAddresses = new Set<string>();
+  // building object indexed by BOTH its address key and BuildingKeyNumeric key,
+  // so a duplicate detected on EITHER key resolves to the exact existing object
+  // for enrichment — never relying on raw address-string equality (DB vs Cotality
+  // may format the same address differently). (Codex #301)
+  const buildingByKey = new Map<string, Record<string, unknown>>();
   let dbHadResults = false;
   let cotHadResults = false;
 
@@ -409,6 +414,8 @@ export async function GET(request: NextRequest) {
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
           ...buildingExtras(feat),
         });
+        buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
+        if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
       }
     } else if (parsed.buildingName) {
       const dbResults = await prisma.listing.findMany({
@@ -497,6 +504,8 @@ export async function GET(request: NextRequest) {
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
           ...buildingExtras(feat),
         });
+        buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
+        if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
       }
     }
 
@@ -601,8 +610,10 @@ export async function GET(request: NextRequest) {
             // row keyed by address — incl. older rows lacking BuildingKeyNumeric —
             // is matched and ENRICHED rather than duplicated. (Codex #301)
             if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
-              const existing = buildings.find((b) =>
-                (_bkKey && b.building_key === String(r.BuildingKeyNumeric)) || b.address === fullAddr);
+              // Resolve the existing object via the SAME key that matched (BK
+              // first, else address key) — not raw address equality, which can
+              // differ between DB and Cotality formatting. (Codex #301)
+              const existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
               if (existing) mergeMissingExtras(existing, buildingExtras(r));
               continue;
             }
@@ -679,6 +690,8 @@ export async function GET(request: NextRequest) {
               washer_dryer_allowed: features.includes('washer') || features.includes('w/d'),
               ...buildingExtras(r),
             });
+            buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
+            if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
           }
         } else {
           diag.errorClass = 'cotality_non_200';

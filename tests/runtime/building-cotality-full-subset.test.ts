@@ -107,14 +107,18 @@ describe('route wiring', () => {
   });
   it('aggregates by BuildingKeyNumeric (preferred over address)', () => {
     expect(ROUTE).toMatch(/'BK:' \+ String\(r\.BuildingKeyNumeric\)/);
-    expect(ROUTE).toMatch(/b\.building_key === String\(r\.BuildingKeyNumeric\)/);
   });
   it('dedups on EITHER address or BuildingKeyNumeric (cached rows without BK still merge) (Codex #301)', () => {
-    // Both keys are registered + checked, so an address-keyed DB row matches a
-    // later BK-keyed Cotality record instead of duplicating.
     expect(ROUTE).toMatch(/seenAddresses\.has\(_addrKey\) \|\| \(_bkKey && seenAddresses\.has\(_bkKey\)\)/);
     expect(ROUTE).toMatch(/seenAddresses\.add\(_addrKey\)/);
     expect(ROUTE).toMatch(/if \(_bkKey\) seenAddresses\.add\(_bkKey\)/);
+  });
+  it('resolves the existing object via the normalized key map, not raw address equality (Codex #301)', () => {
+    // buildingByKey is indexed by both keys on every push; merge-find uses it.
+    expect(ROUTE).toMatch(/const buildingByKey = new Map/);
+    expect(ROUTE).toMatch(/buildingByKey\.set\(_addrKey, buildings\[buildings\.length - 1\]\)/);
+    expect(ROUTE).toMatch(/const existing = \(_bkKey && buildingByKey\.get\(_bkKey\)\) \|\| buildingByKey\.get\(_addrKey\)/);
+    expect(ROUTE).not.toMatch(/const existing = buildings\.find/); // no raw-address-equality lookup
   });
   it('does NOT treat phantom BuildingLaundryFeatures/BuildingPetsAllowed/AttendanceType as Cotality', () => {
     expect(hasField('BuildingLaundryFeatures')).toBe(false);
