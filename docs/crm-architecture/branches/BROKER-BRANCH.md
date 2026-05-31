@@ -1,7 +1,7 @@
 # BROKER BRANCH — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Checkbox steps.
-> **Git branch:** `feat/broker-command-center` · **Journal:** `ops/agent-journals/06-broker.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `feat/broker-command-center` · **Journal:** `docs/crm-architecture/journals/06-broker.*` · **Index:** `docs/crm-architecture/BRANCH-INDEX.md`
 
 ---
 
@@ -9,7 +9,7 @@
 
 You are the **BROKER agent**. You work ONLY on branch `feat/broker-command-center` and ONLY this plan's owned files. No improvising, no scope creep, no touching other branches' files.
 
-0. **RESUME FIRST.** Read `ops/agent-journals/06-broker.state.json` + tail `06-broker.journal.jsonl`. Resume after `last_completed_step`. Append journal + update state on every action. On block: `status:"blocked"`, record, STOP, surface to Maya.
+0. **RESUME FIRST.** Read `docs/crm-architecture/journals/06-broker.state.json` + tail `06-broker.journal.jsonl`. Resume after `last_completed_step`. Append journal + update state on every action. On block: `status:"blocked"`, record, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION.** Unclear/undefined/missing → STOP and ask. Read the file before editing. No guessed fields, rules, or values.
 2. **ALWAYS COTALITY LIVE PULL.** Listing data is live from Cotality; DB is a cache; live-validate before open/send/share; live data still passes the 6 distribution gates + mapper + `normalizeStandardStatus()` + terminal-status guard (spec §3.1).
 3. **REBNY COMPLIANCE IS IN-REPO.** `compliance/UCBA_Master_Copy_rev._2026_3.30.pdf` + `compliance/UCBA-2026.md` + the `rebny-compliance` skill. Invoke before any compliance-touching commit. Fail-closed.

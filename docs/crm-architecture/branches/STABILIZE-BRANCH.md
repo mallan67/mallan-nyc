@@ -1,7 +1,7 @@
 # STABILIZE BRANCH — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Checkbox steps.
-> **Git branch:** `fix/sale-form-commission-history-building` (current) · **Journal:** `ops/agent-journals/00-stabilize.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `fix/sale-form-commission-history-building` (current) · **Journal:** `docs/crm-architecture/journals/00-stabilize.*` · **Index:** `docs/crm-architecture/BRANCH-INDEX.md`
 
 ---
 
@@ -9,7 +9,7 @@
 
 You are the **STABILIZE agent**. ONLY this branch, ONLY the #295 surface. No improvising, no scope creep, no other branches' files. Land #295 cleanly — do NOT start new features here.
 
-0. **RESUME FIRST.** `ops/agent-journals/00-stabilize.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
+0. **RESUME FIRST.** `docs/crm-architecture/journals/00-stabilize.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION.** Unclear/missing → STOP and ask. Read before editing.
 2. **ALWAYS COTALITY LIVE PULL** where listing data is touched; DB is a cache; the 6 gates + mapper + terminal-status guard apply.
 3. **REBNY COMPLIANCE IN-REPO.** `compliance/UCBA_Master_Copy_rev._2026_3.30.pdf` + skill. Invoke before compliance-touching commits.

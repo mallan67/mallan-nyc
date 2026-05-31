@@ -1,7 +1,7 @@
 # AGENT BRANCH — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Checkbox steps.
-> **Git branch:** `feat/agent-search-shell` · **Journal:** `ops/agent-journals/03-agent.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `feat/agent-search-shell` · **Journal:** `docs/crm-architecture/journals/03-agent.*` · **Index:** `docs/crm-architecture/BRANCH-INDEX.md`
 
 ---
 
@@ -9,7 +9,7 @@
 
 You are the **AGENT-SEARCH agent**. ONLY branch `feat/agent-search-shell`, ONLY this plan's owned files. No improvising, no scope creep, no other branches' files.
 
-0. **RESUME FIRST.** Read `ops/agent-journals/03-agent.state.json` + tail journal. Resume after `last_completed_step`. Append journal + update state each action. Block → record, STOP, surface to Maya.
+0. **RESUME FIRST.** Read `docs/crm-architecture/journals/03-agent.state.json` + tail journal. Resume after `last_completed_step`. Append journal + update state each action. Block → record, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION.** Unclear/missing → STOP and ask. Read the SEARCH-branch registry/core interfaces before consuming them — do NOT invent their shape.
 2. **ALWAYS COTALITY LIVE PULL.** Agent search reads the search core which is live from Cotality (DB cache + live-capture on open/send/share); never serve stale as fresh; the 6 gates + mapper + terminal-status guard always apply (spec §3.1).
 3. **REBNY COMPLIANCE IN-REPO.** `compliance/UCBA_Master_Copy_rev._2026_3.30.pdf` + `compliance/UCBA-2026.md` + `rebny-compliance` skill. Invoke before compliance-touching commits. Fail-closed. Search filters must NEVER filter by a protected class (Fair Housing).

@@ -1,7 +1,7 @@
 # EXTERNAL BRANCH (Tier 2 — external / StreetEasy / off-market) — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Checkbox steps.
-> **Git branch:** `feat/t2-external-inventory` · **Journal:** `ops/agent-journals/07-t2-external.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `feat/t2-external-inventory` · **Journal:** `docs/crm-architecture/journals/07-t2-external.*` · **Index:** `docs/crm-architecture/BRANCH-INDEX.md`
 > **🔒 HELD — do NOT start without explicit Maya approval** (`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`).
 > **Companion detail-spec (authoritative data model):** `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md`.
 
@@ -11,7 +11,7 @@
 
 You are the **T2 EXTERNAL agent**. ONLY branch `feat/t2-external-inventory`, ONLY this plan's owned files. No improvising, no scope creep, no other branches' files. **This branch is HELD — confirm Maya approval before any work.**
 
-0. **RESUME FIRST.** `ops/agent-journals/07-t2-external.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
+0. **RESUME FIRST.** `docs/crm-architecture/journals/07-t2-external.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION.** Unclear/missing → STOP and ask. Use the companion spec as the data-model source; do not invent fields.
 2. **NEVER PUBLIC.** T2 rows NEVER touch `/api/listings`, sitemap, robots, SEO/JSON-LD, the projection. CRM/agent-search opt-in toggle (default OFF) + non-Cotality disclaimer + owner-PII reveal-gate + client share-only. The FIREWALL branch's reverse-pin must stay green.
 2b. **COTALITY DEDUP.** One-time StreetEasy Manhattan scrape → normalize address → **drop if already in the Cotality `Listing` table** → store only the residual. Ambiguous matches → manual-review queue (NEVER auto-drop, NEVER auto-duplicate).

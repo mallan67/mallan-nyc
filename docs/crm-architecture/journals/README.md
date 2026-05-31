@@ -1,6 +1,6 @@
 # Agent Journals — Auto-Memory for Resumable Work
 
-Every section agent (see `docs/CRM-ARCHITECTURE.md` §C) writes its own memory here so a freeze, crash, or shutdown can be picked up **exactly where it stopped**. Two files per section, keyed by the section slug.
+Every section agent (see `docs/crm-architecture/README.md` §C) writes its own memory here so a freeze, crash, or shutdown can be picked up **exactly where it stopped**. Two files per section, keyed by the section slug.
 
 ## 1. `<slug>.journal.jsonl` — append-only action log
 
@@ -32,7 +32,7 @@ One JSON object per line, appended after every meaningful action. Never rewritte
 2. **After every action:** append one line to the journal, then overwrite `state.json`.
 3. **On block:** set `status:"blocked"`, record the blocker, stop, surface to Maya.
 4. **On done:** set `status:"done"`, run the validation suite (master plan §7.4), request review.
-5. **Reflect status** back into the `docs/CRM-ARCHITECTURE.md` §C board.
+5. **Reflect status** back into the `docs/crm-architecture/README.md` §C board.
 
 ## 4. Slugs
 

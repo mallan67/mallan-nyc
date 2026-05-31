@@ -7,7 +7,7 @@
 > - `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md` (T2 — external / StreetEasy data model + workflow)
 > - `docs/superpowers/specs/2026-04-30-sponsor-database-design.md` (T3 — sponsor / Schedule A data model + ETL)
 >
-> **RESTRICTED · non-authoritative** (archived 2026-05-30 under `docs/archive/superseded-2026-05-30/`, read-only — **no agent may pull requirements from them**):
+> **RESTRICTED · non-authoritative** (archived 2026-05-30 under `docs/crm-architecture/superseded/`, read-only — **no agent may pull requirements from them**):
 > - `2026-04-27-mallan-intelligence-platform-WIP.md` (vision; mostly deferred — see §0.7)
 > - `crm-agent-search-architecture-audit-2026-05-21.md` (current-state map; folded in)
 >
@@ -39,7 +39,7 @@ These are binding for every agent that touches this plan.
 
 0.10 **Health-tested, all-green before commit (HARD RULE — every agent).** Everything built ships with a health test (a failing test that flips green — proof-first, §0.6). **No commit unless the full validation suite (§7.4) AND the feature's own tests all pass.** No `--no-verify`, no skipping hooks, no silencing or deleting a failing test to go green.
 
-0.11 **Terminology + restricted archive (HARD RULE — every agent).** The live data source is **Cotality**, and the live-feed integration layer is named **"Cotality Live Connect"** (the live OData connector + mapper + status-normalizer + the 6 distribution gates + field registry). **All plan language, UI copy, new files, identifiers, and fields use "Cotality" / "Cotality Live Connect."** Do **not** introduce the retired product names (the three legacy MLS/feed acronyms) in any new code or plan text; only **REBNY** keeps its name (it is the governing rule-body). The current (legacy-named) implementation files/symbols of Cotality Live Connect are listed **once** in the `rebny-compliance` skill §2.3 code-locations — agents read that table to find them; §10 renames the module to `lib/cotality-live-connect/**`. Do not extend the legacy names. The superseded specs in `docs/archive/superseded-2026-05-30/` are **non-authoritative and access-restricted**: no agent or session may pull requirements, scope, or instructions from them. The ONLY source of truth is this master plan.
+0.11 **Terminology + restricted archive (HARD RULE — every agent).** The live data source is **Cotality**, and the live-feed integration layer is named **"Cotality Live Connect"** (the live OData connector + mapper + status-normalizer + the 6 distribution gates + field registry). **All plan language, UI copy, new files, identifiers, and fields use "Cotality" / "Cotality Live Connect."** Do **not** introduce the retired product names (the three legacy MLS/feed acronyms) in any new code or plan text; only **REBNY** keeps its name (it is the governing rule-body). The current (legacy-named) implementation files/symbols of Cotality Live Connect are listed **once** in the `rebny-compliance` skill §2.3 code-locations — agents read that table to find them; §10 renames the module to `lib/cotality-live-connect/**`. Do not extend the legacy names. The superseded specs in `docs/crm-architecture/superseded/` are **non-authoritative and access-restricted**: no agent or session may pull requirements, scope, or instructions from them. The ONLY source of truth is this master plan.
 
 ---
 
@@ -236,8 +236,8 @@ Run the **full validation suite — exact commands in the `rebny-compliance` ski
 Each plan section is owned by one agent, on its own branch in an isolated worktree, writing a resume-journal so a freeze/shutdown is picked up exactly where it stopped. The master plan coordinates; strict file-ownership prevents collisions.
 
 ### 8.1 Resume-journal protocol (every agent)
-- Append-only action log: `ops/agent-journals/<section-slug>.journal.jsonl` — one JSON line per action `{ts, step, action, files_touched, result, next}`.
-- Resume pointer: `ops/agent-journals/<section-slug>.state.json` — `{branch, last_completed_step, status, blockers}`.
+- Append-only action log: `docs/crm-architecture/journals/<section-slug>.journal.jsonl` — one JSON line per action `{ts, step, action, files_touched, result, next}`.
+- Resume pointer: `docs/crm-architecture/journals/<section-slug>.state.json` — `{branch, last_completed_step, status, blockers}`.
 - On start: read state + journal, determine last completed step, resume from the next. On every meaningful action: append to journal, update state. (The Workflow tool provides this natively via run-journaling + resume; the file convention is the fallback / human-readable mirror.)
 
 ### 8.2 Section → agent → branch → file ownership (no overlap)
@@ -298,7 +298,7 @@ Each agent: read-only investigation first → TDD → run the §7.4 suite → re
 
 10.2 **Unify the dual audit log** (`AuditEvent` + `ActivityLog` → one canonical source — §6.9).
 
-10.3 **Restricted archive integrity.** `docs/archive/superseded-2026-05-30/` files stay read-only + non-authoritative. If any detail must be reused, promote it into THIS plan first.
+10.3 **Restricted archive integrity.** `docs/crm-architecture/superseded/` files stay read-only + non-authoritative. If any detail must be reused, promote it into THIS plan first.
 
 10.4 **Disclaimer text alignment.** Ensure the non-Cotality disclaimer wording uses "Cotality / REBNY feed" (never a legacy acronym) when T2/T3 implementation begins (§5.2).
 
@@ -395,4 +395,4 @@ Each UI branch carries an explicit **design-pass task** (design-skill review) be
 
 ---
 
-*End of master plan — 2026-05-30. Two prior specs (WIP vision + 2026-05-21 audit) are archived RESTRICTED/read-only under `docs/archive/superseded-2026-05-30/`. The T2 and T3 specs remain **active companion detail-specs** at `docs/superpowers/specs/`. Per-section implementation plans live in `docs/superpowers/plans/branches/` (index: `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`).*
+*End of master plan — 2026-05-30. Two prior specs (WIP vision + 2026-05-21 audit) are archived RESTRICTED/read-only under `docs/crm-architecture/superseded/`. The T2 and T3 specs remain **active companion detail-specs** at `docs/superpowers/specs/`. Per-section implementation plans live in `docs/crm-architecture/branches/` (index: `docs/crm-architecture/BRANCH-INDEX.md`).*
