@@ -5481,8 +5481,12 @@ function populateBuildingFromIDX(prefix, building) {
     checkIf(prefix + 'BldgLiveInSuper', pick('live_in_super', 'liveInSuper'));
     checkIf(prefix + 'BldgOnSiteManager', pick('on_site_manager', 'onSiteManager'));
 
-    // BuildingLaundryFeatures checkbox group
-    if (building.laundry) {
+    // Legacy crude fallback: a generic laundry flag → CommonArea. ONLY when the
+    // precise Cotality building_laundry policy (resolved from LaundryFeatures
+    // Building* members below) is absent — otherwise it would pre-check the group
+    // and cause the precise fill to skip, silently dropping BuildingCoinOperated/
+    // BuildingInBasement/etc. (Codex #301).
+    if (building.laundry && !(Array.isArray(building.building_laundry) && building.building_laundry.length)) {
         const lCb = document.querySelector('.sale-laundry-cb[value="CommonArea"]');
         if (lCb) lCb.checked = true;
     }
