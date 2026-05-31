@@ -20,8 +20,16 @@ const tabs = readFileSync(
 const avatar = readFileSync(resolve(__dirname, '../../app/components/AgentAvatar.tsx'), 'utf8');
 
 describe('Agent-page listing card — exclusive vs RLS attribution', () => {
-  it('branches on _source === "exclusive"', () => {
-    expect(tabs).toMatch(/listing\._source === 'exclusive'/);
+  it('treats a row as exclusive when _source is exclusive OR the listing_id has the SL-/RL- CRM prefix', () => {
+    expect(tabs).toMatch(/listing\._source === 'exclusive' \|\| \/\^\(SL\|RL\)-\/i\.test\(listing\.id/);
+  });
+
+  it('prefix signal: SL-/RL- match, Trestle RLS… ids do NOT (so synced rows keep RLS courtesy)', () => {
+    const isExclusivePrefix = (id: string) => /^(SL|RL)-/i.test(id || '');
+    expect(isExclusivePrefix('SL-0004')).toBe(true);
+    expect(isExclusivePrefix('RL-0099')).toBe(true);
+    expect(isExclusivePrefix('RLS20059088')).toBe(false); // Trestle/IDX id → not a CRM exclusive
+    expect(isExclusivePrefix('')).toBe(false);
   });
 
   it('exclusive → "Exclusive listing by Mallan Real Estate Inc." (uses DTO attributionText, falls back to the constant)', () => {
