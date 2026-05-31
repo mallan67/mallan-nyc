@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound, redirect } from 'next/navigation';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
@@ -23,6 +24,7 @@ import SchoolInfo from '@/app/components/SchoolInfo';
 import ListingOpenHouseRSVP from '@/app/components/ListingOpenHouseRSVP';
 import { MobileStickyCta } from '@/app/components/listing-detail/mobile-sticky-cta';
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
+import { buildAssignedAgentDisplay } from '@/lib/listings/assigned-agent';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
@@ -523,6 +525,40 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     }
 
     const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
+    // Mallan-exclusive assigned-agent enrichment. The headshot + license title
+    // live on the AGENT record (not in agent_info JSON), so load the listing's
+    // OWN linked agent to surface them on the contact card. Generic by
+    // agent_id — never hardcoded to a person. Third-party IDX/RLS rows are not
+    // SL-/RL-/website-only AND carry agent_id=null, so this never loads or
+    // exposes another brokerage's agent data.
+    const isMallanExclusiveListing =
+      dbListing.listing_id?.startsWith('SL-') ||
+      dbListing.listing_id?.startsWith('RL-') ||
+      dbListing.rls_eligible === false;
+    const assignedAgentRecord =
+      isMallanExclusiveListing && dbListing.agent_id != null
+        ? await prisma.agent
+            .findUnique({
+              where: { id: dbListing.agent_id },
+              select: {
+                full_name: true,
+                email: true,
+                phone: true,
+                photo: true,
+                title: true,
+                license_type: true,
+                public_slug: true,
+              },
+            })
+            .catch(() => null)
+        : null;
+    // Merge agent_info (manual/display wins) with the Agent record (photo/title/
+    // slug) into the contact-card payload. null for third-party IDX/RLS rows.
+    const assignedAgentDisplay = buildAssignedAgentDisplay({
+      isMallanExclusive: Boolean(isMallanExclusiveListing),
+      agentInfo,
+      agentRecord: assignedAgentRecord,
+    });
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
     // Address suppression (Codex PR #274 — respect seller opt-outs):
     // website-only listings (rls_eligible === false → isRlsBacked false; Mallan's
@@ -640,26 +676,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       // licensee. For third-party IDX/RLS rows this stays undefined so we
       // never surface another brokerage's agent PII. Built from whatever
       // agent_info actually carries — blank fields are omitted, never invented.
-      ...(() => {
-        const isMallanExclusive =
-          dbListing.listing_id?.startsWith('SL-') ||
-          dbListing.listing_id?.startsWith('RL-') ||
-          dbListing.rls_eligible === false;
-        if (!isMallanExclusive) return {};
-        const name = (agentInfo.ListAgentFullName || '').trim();
-        const email = (agentInfo.ListAgentEmail || '').trim();
-        const phone = (agentInfo.ListAgentDirectPhone || '').trim();
-        const company = (agentInfo.ListOfficeName || '').trim();
-        if (!name && !email && !phone && !company) return {};
-        return {
-          _assignedAgent: {
-            ...(name ? { name } : {}),
-            ...(email ? { email } : {}),
-            ...(phone ? { phone } : {}),
-            ...(company ? { company } : {}),
-          },
-        };
-      })(),
+      ...(assignedAgentDisplay ? { _assignedAgent: assignedAgentDisplay } : {}),
     };
 
     return {
@@ -1995,13 +2012,59 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     back to the brokerage-only block + default Mallan contact. */}
                 <div className="rounded-3xl p-6 border border-black/[0.06]" style={{ background: 'linear-gradient(180deg, #fff 0%, #F8F7F4 100%)' }}>
                   <h3 className="font-display font-semibold text-[15px] text-brand-dark mb-1">Interested in this property?</h3>
-                  {listing._assignedAgent?.name && (
-                    <p className="text-brand-dark text-[14px] font-medium">{listing._assignedAgent.name}</p>
+                  {listing._assignedAgent?.name ? (
+                    /* Mallan exclusive — assigned listing agent (photo/initials,
+                       name, §175.25 license title, brokerage). Reuses the
+                       ListingSidePanel avatar pattern + AgentsGrid photo style. */
+                    <div className="flex items-center gap-3 mt-3 mb-5">
+                      {listing._assignedAgent.photo ? (
+                        <div className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-black/5">
+                          <Image
+                            src={listing._assignedAgent.photo}
+                            alt={listing._assignedAgent.name}
+                            fill
+                            sizes="56px"
+                            className="object-cover object-[center_15%]"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 bg-brand-gold/10 text-brand-gold-deep font-display font-semibold text-lg">
+                          {listing._assignedAgent.name
+                            .split(/\s+/)
+                            .map((w) => w[0])
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        {listing._assignedAgent.slug ? (
+                          <Link
+                            href={`/agents/${listing._assignedAgent.slug}`}
+                            className="font-display font-semibold text-[15px] text-brand-dark hover:text-brand-gold-deep transition-colors"
+                          >
+                            {listing._assignedAgent.name}
+                          </Link>
+                        ) : (
+                          <p className="font-display font-semibold text-[15px] text-brand-dark">{listing._assignedAgent.name}</p>
+                        )}
+                        {listing._assignedAgent.title && (
+                          <p className="text-brand-dark/70 text-[12px] leading-tight">{listing._assignedAgent.title}</p>
+                        )}
+                        {/* §175.25 brokerage attribution — never dropped. */}
+                        <p className="text-brand-dark/50 text-[12px] leading-tight mt-0.5">
+                          {listing._assignedAgent.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Third-party IDX/RLS or no assigned agent — brokerage-only
+                       block (no agent PII). §175.25 attribution still shown. */
+                    <p className="text-brand-dark/50 text-[12px] mb-5 mt-1">
+                      {listing._assignedAgent?.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
+                    </p>
                   )}
-                  {/* §175.25 brokerage attribution — never dropped. */}
-                  <p className="text-brand-dark/50 text-[12px] mb-5">
-                    {listing._assignedAgent?.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
-                  </p>
                   <div className="space-y-2.5">
                     <a
                       href={`mailto:${listing._assignedAgent?.email || 'contact@mallan.nyc'}?subject=${encodeURIComponent(`Schedule Showing: ${fullAddress}`)}`}
