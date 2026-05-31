@@ -48,18 +48,23 @@ describe('Agent-page listing card — exclusive vs RLS attribution', () => {
   });
 });
 
-describe('Agent-listings route feeds provenance so exclusives classify correctly (Codex PR #307)', () => {
+describe('Agent-listings route must NOT pass agent_id as exclusive provenance (Codex PR #308)', () => {
   const route = readFileSync(
     resolve(__dirname, '../../app/api/agents/[slug]/listings/route.ts'),
     'utf8',
   );
-  it('selects agent_id + owner_client_id (so classifyDbListing emits _source exclusive)', () => {
-    expect(route).toMatch(/agent_id:\s*true/);
-    expect(route).toMatch(/owner_client_id:\s*true/);
+  // syncAgentHistory writes agent_id onto Trestle-synced (third-party IDX) rows,
+  // so selecting agent_id would make classifyDbListing mislabel them as Mallan
+  // exclusives and drop the required RLS courtesy line (UCBA Art. III §2(C)).
+  it('does NOT select agent_id / owner_client_id (genuine exclusives use prefix / rls_eligible)', () => {
+    expect(route).not.toMatch(/^\s*agent_id:\s*true/m);
+    expect(route).not.toMatch(/^\s*owner_client_id:\s*true/m);
   });
-  it('serializes agent_id + owner_client_id onto the DTO input', () => {
-    expect(route).toMatch(/agent_id:\s*l\.agent_id != null \? l\.agent_id\.toString\(\) : null/);
-    expect(route).toMatch(/owner_client_id:\s*l\.owner_client_id != null/);
+  it('does NOT serialize agent_id onto the DTO input (would leak synced-row provenance)', () => {
+    expect(route).not.toMatch(/agent_id:\s*l\.agent_id != null \? l\.agent_id\.toString\(\)/);
+  });
+  it('documents why agent_id is intentionally excluded', () => {
+    expect(route).toMatch(/deliberately do NOT select agent_id/);
   });
 });
 

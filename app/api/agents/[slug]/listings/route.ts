@@ -218,14 +218,14 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         // page — while /api/listings (which gates in SQL via buildPublicListingDbSearch
         // where rls_eligible IS evaluated) correctly showed them. (2026-05-28)
         rls_eligible: true,
-        // Provenance for classifyDbListing → _source. Without agent_id /
-        // owner_client_id in the select, dbListingToPublicDTO sees them as
-        // undefined and mislabels RLS-eligible Mallan exclusives as third-party
-        // IDX (_source 'db+idx'), so the agent-page card showed the RLS courtesy
-        // line instead of "Exclusive listing by Mallan Real Estate Inc."
-        // (Codex review, PR #307.)
-        agent_id: true,
-        owner_client_id: true,
+        // NOTE: deliberately do NOT select agent_id / owner_client_id here.
+        // syncAgentHistory writes agent_id onto Trestle-synced (third-party IDX)
+        // rows, so passing agent_id to classifyDbListing would mislabel those as
+        // Mallan exclusives and DROP the required RLS courtesy/disclaimer (UCBA
+        // Art. III §2(C)). Genuine Mallan exclusives are identified by the SL-/RL-
+        // listing_id prefix OR rls_eligible===false — both available without
+        // agent_id — so dbListingToPublicDTO still emits _source 'exclusive' for
+        // them. (Codex review, PR #308.)
         listing_contract_date: true,
         modification_timestamp: true,
         created_at: true,
@@ -238,8 +238,6 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
       id: l.id.toString(),
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
-      agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-      owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
     }));
 
     const displayable = filterDisplayableDbListings(serialized);
