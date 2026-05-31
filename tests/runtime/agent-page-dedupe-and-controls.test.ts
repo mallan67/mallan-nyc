@@ -75,6 +75,19 @@ describe('Task A — preferCrmExclusiveOverIdxDuplicate suppresses the IDX dupli
   });
 });
 
+describe('Task B — set-listing-primary-photo ops script only mutates CRM media (Codex review)', () => {
+  const script = readFileSync(resolve(__dirname, '../../scripts/ops/set-listing-primary-photo.mjs'), 'utf8');
+  it('rejects mixed-media listings before any write (no mutating read-only Trestle/RLS rows)', () => {
+    expect(script).toMatch(/non-CRM \(Trestle\/RLS\) active photo/);
+    expect(script).toMatch(/refusing to renumber\/clear them/);
+    // the guard runs before the $transaction write
+    const guardIdx = script.indexOf('refusing to renumber');
+    const txIdx = script.indexOf('$transaction');
+    expect(guardIdx).toBeGreaterThan(-1);
+    expect(txIdx).toBeGreaterThan(guardIdx);
+  });
+});
+
 describe('Task B — agent route uses RESOLVED media (hero-first), consistent with Featured/detail', () => {
   const route = readFileSync(resolve(__dirname, '../../app/api/agents/[slug]/listings/route.ts'), 'utf8');
   it('selects the relational listing_media table (active, ordered) so the hero matches other surfaces', () => {

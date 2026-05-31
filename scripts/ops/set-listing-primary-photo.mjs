@@ -91,6 +91,20 @@ async function main() {
     process.exit(2);
   }
 
+  // Mixed-media guard (Codex review): the clear-preferred updateMany and the
+  // renumber loop below touch EVERY active photo. On a listing that also has
+  // Trestle/RLS photo rows (media_key not "crm:"), that would mutate read-only
+  // RLS media. So refuse unless ALL active photos are CRM-managed. (CRM
+  // exclusives are fully CRM media; mixed/IDX listings must use the CRM UI.)
+  const nonCrm = photos.filter((p) => !isCrmKey(p.media_key));
+  if (nonCrm.length > 0) {
+    console.error(
+      `\nERROR: listing has ${nonCrm.length} non-CRM (Trestle/RLS) active photo(s) — refusing to renumber/clear them.\n` +
+        `This script manages fully CRM-managed media only. Non-CRM keys: ${nonCrm.map((p) => p.media_key).join(", ")}`,
+    );
+    process.exit(2);
+  }
+
   // Build the new order: target at POSITION (1-based) among photos, others keep relative order.
   const rest = photos.filter((p) => p.id !== target.id);
   const insertAt = Math.min(POSITION - 1, rest.length);
