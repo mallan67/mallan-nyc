@@ -126,9 +126,14 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
         <p className="text-[11px] text-brand-dark/75">{neighborhood}</p>
         {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median.
             Mallan exclusive → "Exclusive listing by Mallan Real Estate Inc."
-            (Mallan IS the listing broker). Third-party RLS → courtesy line. */}
+            (Mallan IS the listing broker). Third-party RLS → courtesy line.
+            "Exclusive" = our OWN CRM listing: SL-/RL- listing_id prefix OR the
+            DTO already classified it exclusive (rls_eligible===false). The
+            prefix is the definitive CRM-authored signal — Trestle-synced rows
+            carry RLS… ids (and a synced agent_id), so they never match here and
+            keep the required RLS courtesy. (Codex reviews, PR #307/#308.) */}
         <p className="text-sm text-brand-dark/80 mt-2 truncate">
-          {listing._source === 'exclusive'
+          {listing._source === 'exclusive' || /^(SL|RL)-/i.test(listing.id || '')
             ? listing._displayCompliance?.attributionText || 'Exclusive listing by Mallan Real Estate Inc.'
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'Mallan Real Estate Inc.'}`}
         </p>
