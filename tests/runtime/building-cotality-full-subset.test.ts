@@ -131,7 +131,10 @@ describe('route wiring', () => {
     // Re-registering the existing object indexes any newly-known key (BK / fuller
     // address) so a later Cotality record matches it instead of duplicating.
     expect(ROUTE).toMatch(/registerBuilding\(buildingByKey, buildingByAddrOnly, _existing,/);
-    expect(ROUTE).toMatch(/_existing\.building_key = _bkKey\.slice\(3\)/);
+    // building_key promotion now lives in promoteIdentity (called with _bkKey).
+    expect(ROUTE).toMatch(/promoteIdentity\(_existing, .*_bkKey\)/);
+    const promote = sliceFn(ROUTE, 'promoteIdentity');
+    expect(promote).toMatch(/existing\.building_key = bkKey\.slice\(3\)/);
   });
   it('does NOT treat phantom BuildingLaundryFeatures/BuildingPetsAllowed/AttendanceType as Cotality', () => {
     expect(hasField('BuildingLaundryFeatures')).toBe(false);

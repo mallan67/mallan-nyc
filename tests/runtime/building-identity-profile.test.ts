@@ -64,11 +64,11 @@ function loadHelpers() {
   if (mapStart === -1) throw new Error('SAVED_PROFILE_CONTRACT_TO_FORM not found');
   const mapBlock = ROUTE.slice(mapStart, ROUTE.indexOf('};', mapStart) + 2);
   const block = stripTs(
-    `${mapBlock}\n${sliceFn(ROUTE, 'addressIdentityKey')}\n${sliceFn(ROUTE, 'addressOnlyKey')}\n${sliceFn(ROUTE, 'findRegisteredBuilding')}\n${sliceFn(ROUTE, 'extractSavedProfileValues')}`,
+    `${mapBlock}\n${sliceFn(ROUTE, 'addressIdentityKey')}\n${sliceFn(ROUTE, 'addressOnlyKey')}\n${sliceFn(ROUTE, 'findRegisteredBuilding')}\n${sliceFn(ROUTE, 'promoteIdentity')}\n${sliceFn(ROUTE, 'registerBuilding')}\n${sliceFn(ROUTE, 'extractSavedProfileValues')}`,
   );
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
   return new Function(
-    `${block}; return { SAVED_PROFILE_CONTRACT_TO_FORM, addressIdentityKey, addressOnlyKey, findRegisteredBuilding, extractSavedProfileValues };`,
+    `${block}; return { SAVED_PROFILE_CONTRACT_TO_FORM, addressIdentityKey, addressOnlyKey, findRegisteredBuilding, promoteIdentity, registerBuilding, extractSavedProfileValues };`,
   )();
 }
 const H = loadHelpers();
@@ -187,6 +187,67 @@ describe('address-only fallback merges partial rows but never different building
     expect(resolve(a, differentZip)).toBeUndefined();
     const blankZip = { ...FIX.addr, CityRegion: 'Manhattan', PostalCode: '' };
     expect(resolve(a, blankZip)).toBeDefined();
+  });
+
+  // Replays the route's per-row merge sequence with the REAL extracted helpers
+  // (findRegisteredBuilding → promoteIdentity → registerBuilding) so the
+  // partial-seen-first ordering is exercised exactly as production would.
+  function runSequence(addrs: Array<Record<string, unknown>>) {
+    const buildings: Array<Record<string, unknown>> = [];
+    const byKey = new Map<string, Record<string, unknown>>();
+    const byAddrOnly = new Map<string, Array<Record<string, unknown>>>();
+    for (const addr of addrs) {
+      const borough = String(addr.CityRegion ?? '');
+      const zip = String(addr.PostalCode ?? '');
+      // Test convention: `__bk` on the fixture simulates a row that carries a
+      // BuildingKeyNumeric (the route builds 'BK:<num>' the same way).
+      const bkKey = addr.__bk ? 'BK:' + String(addr.__bk) : null;
+      const addrKey = H.addressIdentityKey(addr);
+      const aoKey = H.addressOnlyKey(addr);
+      const existing = H.findRegisteredBuilding(byKey, byAddrOnly, bkKey, addrKey, aoKey, borough, zip);
+      if (existing) {
+        H.promoteIdentity(existing, borough, zip, bkKey);
+        H.registerBuilding(byKey, byAddrOnly, existing, bkKey, addrKey, aoKey);
+        continue;
+      }
+      const bldg: Record<string, unknown> = { borough, zip, _label: `${borough}/${zip}` };
+      buildings.push(bldg);
+      H.registerBuilding(byKey, byAddrOnly, bldg, bkKey, addrKey, aoKey);
+    }
+    return buildings;
+  }
+
+  it('partial seen FIRST then a different-borough row does NOT over-merge (Codex review 2)', () => {
+    const partial = { StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'St' };
+    const manhattan = { ...partial, CityRegion: 'Manhattan', PostalCode: '10017' };
+    const brooklyn = { ...partial, CityRegion: 'Brooklyn', PostalCode: '11201' };
+    // partial + manhattan collapse to ONE building; brooklyn is a SECOND.
+    const out = runSequence([partial, manhattan, brooklyn]);
+    expect(out).toHaveLength(2);
+    // The merged building carries the promoted Manhattan identity.
+    expect(out[0].borough).toBe('Manhattan');
+    expect(out[0].zip).toBe('10017');
+    expect(out[1].borough).toBe('Brooklyn');
+  });
+
+  it('partial seen first then more SAME-building units still collapse to one', () => {
+    const partial = { StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'St' };
+    const manhattan = { ...partial, CityRegion: 'Manhattan', PostalCode: '10017' };
+    const anotherPartial = { ...partial }; // another unit, still no borough/zip
+    const out = runSequence([partial, manhattan, anotherPartial]);
+    expect(out).toHaveLength(1);
+    expect(out[0].borough).toBe('Manhattan');
+  });
+
+  it('promotes building_key onto the existing building once a row reveals it', () => {
+    const partial = { StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'St' };
+    // Same building, now fully identified WITH a BuildingKeyNumeric.
+    const full = { ...partial, CityRegion: 'Manhattan', PostalCode: '10017', __bk: FIX.bk };
+    const out = runSequence([partial, full]);
+    expect(out).toHaveLength(1); // collapses onto the same building
+    expect(out[0].building_key).toBe(FIX.bk); // BK identity promoted onto it
+    expect(out[0].borough).toBe('Manhattan');
+    expect(out[0].zip).toBe('10017');
   });
 });
 

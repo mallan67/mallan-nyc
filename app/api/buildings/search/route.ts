@@ -186,6 +186,28 @@ function findRegisteredBuilding(
   });
 }
 
+// Promote the fullest-known identity (borough / zip / building_key) onto an
+// EXISTING building when its own fields are still blank. The address-only
+// compatibility guard reads bldg.borough / bldg.zip; if the FIRST row for an
+// address lacked them, a later fully-specified row would merge (blank =
+// compatible) but leave the object blank — so a subsequent DIFFERENT-borough/zip
+// row for the same street address would ALSO pass the guard and wrongly merge.
+// Copying the fuller values forward closes that hole: once a building knows its
+// borough/zip it can no longer be polluted by a mismatching address. building_key
+// is promoted on the same principle (BK identity, once known, sticks). Never
+// overwrites an already-known value. (Codex review 2 2026-05-31.)
+function promoteIdentity(
+  existing: Record<string, unknown>,
+  borough: string,
+  zip: string,
+  bkKey: string | null,
+): void {
+  if (borough && !String(existing.borough ?? '').trim()) existing.borough = borough;
+  if (zip && !String(existing.zip ?? '').trim()) existing.zip = zip;
+  // bkKey is the 'BK:<num>' index key; the building_key field stores the bare num.
+  if (bkKey && !String(existing.building_key ?? '').trim()) existing.building_key = bkKey.slice(3);
+}
+
 // Register a building object under ALL of its identity keys (full address key,
 // BuildingKeyNumeric key when known, and the address-only fallback list).
 // Idempotent — safe to call again when a later duplicate row reveals a
@@ -540,8 +562,11 @@ export async function GET(request: NextRequest) {
           // Merge saved profile values from this additional unit of the same
           // building — first non-empty value per key wins. (Building merge.)
           mergeMissingExtras(_existing, savedProfile);
+          // Carry this row's fuller borough/zip/building_key onto the existing
+          // building so the address-only guard can reject a later different
+          // borough/zip row, and the BK identity sticks once known.
+          promoteIdentity(_existing, String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''), _bkKey);
           registerBuilding(buildingByKey, buildingByAddrOnly, _existing, _bkKey, _addrKey, _aoKey);
-          if (_bkKey && !_existing.building_key) _existing.building_key = _bkKey.slice(3);
           continue;
         }
 
@@ -649,8 +674,11 @@ export async function GET(request: NextRequest) {
           // Merge saved profile values across units of the same building —
           // first non-empty value per key wins. (Building merge.)
           mergeMissingExtras(_existing, savedProfile);
+          // Carry this row's fuller borough/zip/building_key onto the existing
+          // building so the address-only guard can reject a later different
+          // borough/zip row, and the BK identity sticks once known.
+          promoteIdentity(_existing, String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''), _bkKey);
           registerBuilding(buildingByKey, buildingByAddrOnly, _existing, _bkKey, _addrKey, _aoKey);
-          if (_bkKey && !_existing.building_key) _existing.building_key = _bkKey.slice(3);
           continue;
         }
 
@@ -834,6 +862,10 @@ export async function GET(request: NextRequest) {
             );
             if (existing) {
               mergeMissingExtras(existing, buildingExtras(r));
+              // Carry this record's fuller borough/zip/building_key onto the
+              // existing building so the address-only guard can reject a later
+              // different one, and the BK identity sticks once known.
+              promoteIdentity(existing, String(r.CityRegion ?? ''), String(r.PostalCode ?? ''), _bkKey);
               // Re-register so any newly-known key (BK / fuller address) also
               // resolves to this object on a later row.
               registerBuilding(buildingByKey, buildingByAddrOnly, existing, _bkKey, _addrKey, _aoKey);
