@@ -202,6 +202,26 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         neighborhood: true,
         address: true,
         features: true,
+        // PR 4 reader: the relational listing_media table is the authoritative,
+        // RESOLVED media source (hero-first, deduped). Without it here,
+        // dbListingToPublicDTO falls back to the legacy `media` JSON, so the
+        // agent-page card showed a DIFFERENT hero than Featured/detail for the
+        // same listing (e.g. a card-variant photo instead of the living-room
+        // hero on SL-0004). Include it so all surfaces share one hero/order.
+        listing_media: {
+          where: { status: 'active' },
+          orderBy: [{ order: 'asc' }, { id: 'asc' }],
+          select: {
+            media_url_original: true,
+            media_url_cached: true,
+            media_type: true,
+            media_category: true,
+            media_classification: true,
+            order: true,
+            preferred_photo_yn: true,
+            status: true,
+          },
+        },
         media: true,
         agent_info: true,
         idx_display_yn: true,

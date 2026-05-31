@@ -57,7 +57,25 @@
  * @module lib/listings/dedupe-crm-vs-idx
  */
 
+import {
+  canonicalizeDirection,
+  canonicalizeSuffix,
+  canonicalizeStreetName,
+} from '@/lib/address/nyc-address-normalizer';
+
 const CRM_PREFIXES = ['SL-', 'RL-'] as const;
+
+/**
+ * Canonicalize a single street token so address-variant spellings collapse to
+ * one form: direction (East↔E), suffix (Street↔St), and ordinal (46↔46th).
+ * Each underlying normalizer is a no-op outside its domain and idempotent, so
+ * applying all three in sequence is safe for any token. This is what lets a
+ * CRM exclusive ("333 East 46th Street") and its Trestle/IDX duplicate
+ * ("333 E 46th Street") produce the SAME dedupe key.
+ */
+function canonStreetToken(token: string): string {
+  return canonicalizeStreetName(canonicalizeSuffix(canonicalizeDirection(token)));
+}
 
 /**
  * Minimal address shape this helper understands. Accepts either:
@@ -135,12 +153,20 @@ export function buildAddressKey(addr: DedupeAddressLike | null | undefined): str
   // + suffix, the streetDirPrefix/streetSuffix are usually absent, so the
   // result is the same string after normalization. Either way the key for
   // the same physical address is identical.
-  const namePieces = [
-    norm(addr.streetDirPrefix),
-    norm(addr.streetName),
-    norm(addr.streetSuffix),
-  ].filter(Boolean);
-  const fullStreetName = namePieces.join(' ');
+  // Canonicalize every street token (East↔E, Street↔St, 46↔46th) so a CRM
+  // exclusive and its Trestle/IDX duplicate — which spell the address
+  // differently — collapse to the SAME key. Without this the dedupe silently
+  // failed and BOTH cards rendered (the bug Maya saw on /agents/maya-allan).
+  const rawPieces = [addr.streetDirPrefix, addr.streetName, addr.streetSuffix]
+    .map((p) => String(p ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
+  const fullStreetName = rawPieces
+    .split(/\s+/)
+    .map(canonStreetToken)
+    .join(' ')
+    .trim()
+    .toLowerCase();
   if (!fullStreetName) return null;
 
   return [streetNumber, fullStreetName, unitNumber, postalCode].join('|');
