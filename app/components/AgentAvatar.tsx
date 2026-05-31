@@ -47,7 +47,7 @@ export default function AgentAvatar({ photo, name, sizeClass = 'w-14 h-14' }: Ag
         src={src}
         alt={name}
         fill
-        sizes="56px"
+        sizes="96px"
         className="object-cover"
         onError={() => {
           // headshot missing → try the full photo → finally initials.
