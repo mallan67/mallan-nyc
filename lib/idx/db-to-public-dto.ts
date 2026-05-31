@@ -88,6 +88,10 @@ interface DbFeatures {
 interface DbAgentInfo {
   ListAgentFullName?: string;
   ListOfficeName?: string;
+  /** Mallan's own contact for an exclusive — published ONLY for the
+   *  exclusive provenance path (see buildSourceAndCompliance). */
+  ListAgentEmail?: string;
+  ListAgentDirectPhone?: string;
   [key: string]: unknown;
 }
 
@@ -484,7 +488,7 @@ function buildSourceAndCompliance(
   agentInfo: DbAgentInfo,
   isComingSoon: boolean,
   comingSoonDate: string | undefined,
-): Pick<PublicListingDTO, '_source' | '_displayCompliance'> {
+): Pick<PublicListingDTO, '_source' | '_displayCompliance' | '_assignedAgent'> {
   const provenance = classifyDbListing(listing);
   const officeName = agentInfo.ListOfficeName?.trim() || 'REBNY RLS';
 
@@ -500,11 +504,34 @@ function buildSourceAndCompliance(
         comingSoon: isComingSoon || undefined,
         comingSoonDate,
       },
+      // No `_assignedAgent`: third-party agent email/phone is stripped from
+      // public IDX display (NAR settlement + REBNY). We never surface a
+      // non-Mallan agent's PII.
     };
   }
 
   // mallan-exclusive or website-only — same attribution shape, no RLS
   // disclaimer required (Mallan-owned data, not third-party IDX content).
+  //
+  // Surface the assigned listing agent's contact card. For our OWN exclusive
+  // Mallan IS the listing broker, so publishing our own agent's name + Mallan
+  // contact is required attribution (§175.25), not third-party PII. Built from
+  // whatever the row's agent_info carries — never invented; blank fields are
+  // simply omitted so the detail page falls back to the brokerage block.
+  const assignedName = agentInfo.ListAgentFullName?.trim();
+  const assignedEmail = agentInfo.ListAgentEmail?.trim();
+  const assignedPhone = agentInfo.ListAgentDirectPhone?.trim();
+  const assignedCompany = agentInfo.ListOfficeName?.trim();
+  const assignedAgent =
+    assignedName || assignedEmail || assignedPhone || assignedCompany
+      ? {
+          ...(assignedName ? { name: assignedName } : {}),
+          ...(assignedEmail ? { email: assignedEmail } : {}),
+          ...(assignedPhone ? { phone: assignedPhone } : {}),
+          ...(assignedCompany ? { company: assignedCompany } : {}),
+        }
+      : undefined;
+
   return {
     _source: 'exclusive',
     _displayCompliance: {
@@ -514,5 +541,6 @@ function buildSourceAndCompliance(
       comingSoon: isComingSoon || undefined,
       comingSoonDate,
     },
+    ...(assignedAgent ? { _assignedAgent: assignedAgent } : {}),
   };
 }

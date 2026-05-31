@@ -82,10 +82,11 @@ describe('buildings/search — real fields surfaced, phantoms excluded', () => {
   });
 
   it('backfills Cotality-only extras into a cached DB building instead of dropping them (Codex #297)', () => {
-    // For a DB-cached building, the Cotality supplement loop dedups the address;
-    // it must merge the live extras (CoveredSpaces/PetsAllowedYN/etc.) into the
-    // existing result rather than continue-skipping.
-    expect(ROUTE).toMatch(/if \(existing\) mergeMissingExtras\(existing, buildingExtras\(r\)\)/);
+    // For a DB-cached building, the Cotality supplement loop dedups the address
+    // (now via findRegisteredBuilding); it must merge the live extras
+    // (CoveredSpaces/PetsAllowedYN/etc.) into the existing result rather than
+    // continue-skipping.
+    expect(ROUTE).toMatch(/if \(existing\) \{\s*mergeMissingExtras\(existing, buildingExtras\(r\)\)/);
     const merge = extractFn(ROUTE, 'mergeMissingExtras');
     // only fills empty targets with a meaningful value (never overwrites DB data)
     expect(merge).toMatch(/curEmpty\s*&&\s*vMeaningful/);
@@ -189,12 +190,41 @@ describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pet
   });
 });
 
-describe('phantom co-op/condo policy fields are NOT auto-filled in the form', () => {
-  it('populateBuildingFromIDX does not populate board / financing / sublet / shares / flip-tax fields', () => {
+// Updated 2026-05-31 (Part A/B). The building-search route now re-surfaces SAVED
+// Mallan/REBNY building-profile values (board / financing / sublet) merged across
+// every listing of the building identity. populateBuildingFromIDX fills those
+// fields ONLY-WHEN-BLANK from the building object — a value the agent typed once
+// on a prior unit, never a value invented from Cotality. Fields that have NO
+// saved-profile source (total shares / underlying mortgage / capital reserves)
+// remain untouched — there is nothing to surface, so they must never be written.
+describe('co-op/condo policy fields fill ONLY from the saved profile (never invented)', () => {
+  it('populateBuildingFromIDX fills the SOURCED board / financing / sublet fields only-when-blank', () => {
     const fn = extractFn(FORM, 'populateBuildingFromIDX');
-    ['BldgBoardApproval', 'BldgBoardInterview', 'BldgMaxFinancing', 'BldgMinDownPayment',
-     'BldgDTIRatio', 'BldgPostCloseLiquidity', 'BldgMaxSubletYears', 'BldgSubletFee',
-     'BldgTotalShares', 'BldgUnderlyingMortgage', 'BldgCapitalReserves'].forEach((id) =>
+    // These have a saved-profile source on the building object, so the function
+    // now references them (filled blank-only via setBldgProfileIfBlank /
+    // checkBldgProfileIfUnset — manual entry always wins).
+    ['saleBldgBoardApproval', 'saleBldgBoardInterview', 'saleBldgMaxFinancing',
+     'saleBldgMinDownPayment', 'saleBldgDTIRatio', 'saleBldgPostCloseLiquidity',
+     'saleBldgMaxSubletYears', 'saleBldgSubletFee'].forEach((id) =>
+      expect(fn).toContain(id));
+  });
+
+  it('the fill is guarded so a manually typed/checked value is never overwritten', () => {
+    const fn = extractFn(FORM, 'populateBuildingFromIDX');
+    // blank-only guard for text/select inputs …
+    expect(fn).toContain('setBldgProfileIfBlank');
+    expect(fn).toContain("if ((el.value || '').trim() !== '') return; // manual entry wins");
+    // … and the unchecked-only guard for checkboxes.
+    expect(fn).toContain('checkBldgProfileIfUnset');
+    expect(fn).toContain('if (el.checked) return; // manual check wins — never clear it');
+  });
+
+  it('fields with NO saved-profile source are NEVER populated (no invention)', () => {
+    const fn = extractFn(FORM, 'populateBuildingFromIDX');
+    // total shares / underlying mortgage / capital reserves have no Cotality
+    // member AND no contract key — there is nothing to surface, so the function
+    // must not touch them.
+    ['BldgTotalShares', 'BldgUnderlyingMortgage', 'BldgCapitalReserves'].forEach((id) =>
       expect(fn).not.toContain(id));
   });
 });

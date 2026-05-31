@@ -251,6 +251,29 @@ export interface PublicListingDTO {
     comingSoonDate?: string;
   };
   /**
+   * Assigned listing-agent contact card — populated ONLY for Mallan
+   * exclusives (`_source === 'exclusive'`), where Mallan IS the listing
+   * broker and the named agent is our own licensee. For third-party
+   * IDX/RLS rows this is `undefined`: the NAR settlement + REBNY rules
+   * strip the *other* brokerage's agent email/phone from public display,
+   * so we never surface a non-Mallan agent's PII here.
+   *
+   * `name`  → the listing agent's display name (e.g. "Maya Allan").
+   * `email` / `phone` → Mallan's own contact for this exclusive; safe to
+   *          publish because it is OUR advertising of OUR listing
+   *          (19 NYCRR §175.25 attribution, not third-party PII).
+   * `company` → the listing brokerage name (mirrors `listOfficeName`).
+   *
+   * Always optional. Consumers must fall back to the brokerage block when
+   * absent so the §175.25 attribution line is never dropped.
+   */
+  _assignedAgent?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+  };
+  /**
    * Option C (PR-FE.2, 2026-05-15) — siblings annotation.
    *
    * `_coListedCount` is the number of OTHER distinct REBNY listings

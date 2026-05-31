@@ -43,9 +43,25 @@ export async function GET(
     const agentName = agent.full_name || `${agent.first_name} ${agent.last_name}`;
     const useIDX = process.env.IDX_ENABLED === 'true';
 
-    // Fetch from both sources in parallel
+    // Fetch from both sources in parallel. Trestle is a SUPPLEMENT — its
+    // failure (bad/rotated creds, API down, preview env without IDX configured)
+    // must NEVER take down the agent page. Without this guard a rejected
+    // Trestle promise rejects the whole Promise.all and the outer catch returns
+    // a 500, silently dropping the agent's local Mallan exclusives (matched by
+    // agent_id). Isolate the Trestle branch so a throw degrades to "DB only".
+    const trestleFetch: Promise<{ active: PublicListingDTO[]; closed: PublicListingDTO[] }> = (
+      useIDX
+        ? fetchTrestleAgentListings(agentName, agent.trestle_mls_id)
+        : Promise.resolve({ active: [], closed: [] })
+    ).catch((err) => {
+      console.warn(
+        '[agents/listings] Trestle fetch failed; serving local DB exclusives only:',
+        err instanceof Error ? err.message : err,
+      );
+      return { active: [], closed: [] };
+    });
     const [trestleResults, dbResults] = await Promise.all([
-      useIDX ? fetchTrestleAgentListings(agentName, agent.trestle_mls_id) : { active: [], closed: [] },
+      trestleFetch,
       fetchDbAgentListings(agent.id),
     ]);
 

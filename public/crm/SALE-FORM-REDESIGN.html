@@ -5481,6 +5481,60 @@ function populateBuildingFromIDX(prefix, building) {
     checkIf(prefix + 'BldgLiveInSuper', pick('live_in_super', 'liveInSuper'));
     checkIf(prefix + 'BldgOnSiteManager', pick('on_site_manager', 'onSiteManager'));
 
+    // ── 7b. Mallan Building Profile — SAVED policy/contact fields (bucket B) ──
+    // These are NOT Cotality facts. They are internal Mallan/REBNY building-profile
+    // values the server has merged across EVERY listing that shares this building
+    // identity (a value is taken from the first listing that has it). The building
+    // object carries them under the contract keys building_mgmt_company,
+    // building_super_name, … (see /api/buildings/search). Fill suggestion-only:
+    // ONLY when the form field is blank/unchecked, so a manually typed value
+    // ALWAYS wins and a building lookup never overwrites the agent's entries. The
+    // same resolver is shared across condo/townhouse/rental — co-op-only fields
+    // (financing/down/DTI/board) simply stay blank when the building has no value.
+    var setBldgProfileIfBlank = function (id, val) {
+        if (val === null || val === undefined || String(val).trim() === '') return;
+        var el = document.getElementById(id);
+        if (!el) return;
+        if ((el.value || '').trim() !== '') return; // manual entry wins
+        el.value = val;
+    };
+    var checkBldgProfileIfUnset = function (id, val) {
+        if (val === null || val === undefined) return;
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (el.checked) return; // manual check wins — never clear it
+        el.checked = !!val;
+    };
+    // Management company
+    setBldgProfileIfBlank('saleBldgMgmtCompany', building.building_mgmt_company);
+    setBldgProfileIfBlank('saleBldgMgmtPhone', building.building_mgmt_phone);
+    setBldgProfileIfBlank('saleBldgMgmtEmail', building.building_mgmt_email);
+    setBldgProfileIfBlank('saleBldgMgmtAddress', building.building_mgmt_address);
+    // Building staff — superintendent + resident manager
+    setBldgProfileIfBlank('saleBldgSuperName', building.building_super_name);
+    setBldgProfileIfBlank('saleBldgSuperPhone', building.building_super_phone);
+    setBldgProfileIfBlank('saleBldgSuperEmail', building.building_super_email);
+    setBldgProfileIfBlank('saleBldgManagerName', building.building_resident_manager_name);
+    setBldgProfileIfBlank('saleBldgManagerPhone', building.building_resident_manager_phone);
+    setBldgProfileIfBlank('saleBldgManagerEmail', building.building_resident_manager_email);
+    // Board contacts (co-op/condo)
+    setBldgProfileIfBlank('saleBldgBoardPresident', building.building_board_president);
+    setBldgProfileIfBlank('saleBldgBoardEmail', building.building_board_email);
+    // Purchase policy (co-op-relevant; blank when absent)
+    setBldgProfileIfBlank('saleBldgMaxFinancing', building.building_max_financing);
+    setBldgProfileIfBlank('saleBldgMinDownPayment', building.building_min_down);
+    setBldgProfileIfBlank('saleBldgDTIRatio', building.building_dti);
+    setBldgProfileIfBlank('saleBldgPostCloseLiquidity', building.building_post_close_liquidity);
+    // Board process — checkboxes (only set when currently unchecked)
+    checkBldgProfileIfUnset('saleBldgBoardApproval', building.building_board_approval);
+    checkBldgProfileIfUnset('saleBldgBoardInterview', building.building_board_interview);
+    // Subletting policy (select + fee + max years). building_sublet_allowed maps to
+    // the form's Yes/No/Limited/BoardApproval select; building_sublet_policy is a
+    // free-form alternative the server may send — prefer the explicit select value.
+    setBldgProfileIfBlank('saleBldgSublettingAllowed', building.building_sublet_allowed || building.building_sublet_policy);
+    setBldgProfileIfBlank('saleBldgSubletFee', building.building_sublet_fee);
+    setBldgProfileIfBlank('saleBldgMaxSubletYears', building.building_sublet_max_years);
+
     // Legacy crude fallback: a generic laundry flag → CommonArea. ONLY when the
     // precise Cotality building_laundry policy (resolved from LaundryFeatures
     // Building* members below) is absent — otherwise it would pre-check the group

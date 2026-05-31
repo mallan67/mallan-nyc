@@ -18,6 +18,7 @@ import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
+import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -341,7 +342,35 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   for (const k of agentKeys) {
     if (body[k] !== undefined) updatedAgentInfo[k] = body[k];
   }
-  update.agent_info = updatedAgentInfo as Prisma.InputJsonValue;
+
+  // Mallan-exclusive agent assignment (Part C2). Re-stamp the listing-agent
+  // attribution on every edit so the public contact card stays populated. Keyed
+  // off the LISTING's OWN agent (listing.agent_id) — NOT the editor — so a
+  // broker editing another agent's exclusive never reassigns ownership. Returns
+  // null for third-party IDX/RLS rows (listing_id not SL-/RL- and rls_eligible
+  // !== false), in which case we never stamp a non-Mallan agent's PII and just
+  // persist the manual agent_info merge. The helper fills blank keys only
+  // (manual typed values win).
+  const listingAgent = listing.agent_id
+    ? await prisma.agent.findUnique({
+        where: { id: listing.agent_id },
+        select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true },
+      })
+    : null;
+  const exclusiveAssignment = listingAgent
+    ? buildExclusiveAgentAssignment(
+        listingAgent,
+        { listing_id: listing.listing_id, rls_eligible: listing.rls_eligible },
+        updatedAgentInfo,
+      )
+    : null;
+  if (exclusiveAssignment) {
+    update.agent_info = exclusiveAssignment.agent_info as Prisma.InputJsonValue;
+    update.list_agent_full_name = exclusiveAssignment.list_agent_full_name;
+    update.list_office_name = exclusiveAssignment.list_office_name;
+  } else {
+    update.agent_info = updatedAgentInfo as Prisma.InputJsonValue;
+  }
 
   // Update compliance with latest validation + eligibility classification
   update.compliance = {

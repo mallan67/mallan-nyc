@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
+import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -111,6 +112,131 @@ interface TrestleRecord {
   [key: string]: unknown;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Building-identity key. A building is the SAME building across listings when:
+//   1. BuildingKeyNumeric matches (Cotality's canonical building id), else
+//   2. full normalized address + borough + zip matches, else
+//   3. full normalized address matches (when borough/zip are absent).
+// NEVER keyed by listing id — many units (listings) share one building identity,
+// and saved building-profile values must aggregate across ALL of them.
+//   `rec` may be either a DB address object (StreetNumber/StreetName/CityRegion/
+//   PostalCode) or a Cotality record (same field names) — both expose the same
+//   member names, so one resolver serves both paths.
+// Returns the address-fallback key (borough+zip incorporated); the BK key is
+// derived separately by callers that have features/BuildingKeyNumeric. (Building
+// identity profile merge.)
+// ─────────────────────────────────────────────────────────────────────────────
+function addressIdentityKey(rec: Record<string, unknown>): string {
+  const num = String(rec.StreetNumber ?? '').trim();
+  // Canonicalize variant tokens so the SAME building matches regardless of which
+  // source produced the row: "East" vs "E", "Street" vs "St", "46" vs "46th".
+  // Without this, adding StreetDirPrefix/StreetSuffix to the key (vs the old
+  // number-name-zip key) would split one building into two whenever the CRM form
+  // saved full words and Cotality used abbreviations. (Codex review 3 2026-05-31.)
+  const dir = canonicalizeDirection(String(rec.StreetDirPrefix ?? ''));
+  const name = canonicalizeStreetName(String(rec.StreetName ?? ''));
+  const suffix = canonicalizeSuffix(String(rec.StreetSuffix ?? ''));
+  // Don't duplicate a direction already embedded in StreetName (e.g. "E 46TH").
+  const nameHasDir = dir && name.toUpperCase().startsWith(dir.toUpperCase() + ' ');
+  const addrPart = `${num} ${dir && !nameHasDir ? dir + ' ' : ''}${name} ${suffix}`.replace(/\s+/g, ' ').trim();
+  const borough = String(rec.CityRegion ?? '').trim();
+  const zip = String(rec.PostalCode ?? '').trim();
+  // Borough + zip incorporated when present, else plain full address (fallback).
+  return `${addrPart}|${borough}|${zip}`.toUpperCase();
+}
+
+// Address-ONLY identity key (street parts, no borough/zip). This is the
+// fallback the layer-3 identity rule needs: when one side of a candidate match
+// is missing borough or zip, the full keys differ (e.g. `… ST|MANHATTAN|10017`
+// vs `… ST||`) and would never collapse. The address-only key lets them match,
+// but ONLY through findRegisteredBuilding's borough/zip compatibility guard, so
+// two genuinely different buildings that merely share a street address across
+// different boroughs/zips are NEVER merged. (Codex review 2026-05-31.)
+function addressOnlyKey(rec: Record<string, unknown>): string {
+  // Reuse addressIdentityKey's exact normalization, then drop the |borough|zip.
+  return addressIdentityKey(rec).split('|')[0];
+}
+
+// Resolve an already-registered building for this row, in building-identity
+// order: BuildingKeyNumeric → full address+borough+zip → address-only (guarded).
+// The address-only step matches a candidate only when borough AND zip are
+// COMPATIBLE — equal, or blank on either side. A blank borough/zip on the
+// partial side never blocks the merge (Codex's asymmetric case); two fully
+// specified DIFFERENT boroughs or zips never merge. Returns undefined when no
+// compatible building exists yet.
+function findRegisteredBuilding(
+  buildingByKey: Map<string, Record<string, unknown>>,
+  buildingByAddrOnly: Map<string, Array<Record<string, unknown>>>,
+  bkKey: string | null,
+  addrKey: string,
+  aoKey: string,
+  borough: string,
+  zip: string,
+): Record<string, unknown> | undefined {
+  if (bkKey) {
+    const byBk = buildingByKey.get(bkKey);
+    if (byBk) return byBk;
+  }
+  const byAddr = buildingByKey.get(addrKey);
+  if (byAddr) return byAddr;
+  const candidates = buildingByAddrOnly.get(aoKey);
+  if (!candidates) return undefined;
+  const B = borough.trim().toUpperCase();
+  const Z = zip.trim().toUpperCase();
+  return candidates.find((c) => {
+    const cb = String(c.borough ?? '').trim().toUpperCase();
+    const cz = String(c.zip ?? '').trim().toUpperCase();
+    const boroughOk = !B || !cb || B === cb;
+    const zipOk = !Z || !cz || Z === cz;
+    return boroughOk && zipOk;
+  });
+}
+
+// Promote the fullest-known identity (borough / zip / building_key) onto an
+// EXISTING building when its own fields are still blank. The address-only
+// compatibility guard reads bldg.borough / bldg.zip; if the FIRST row for an
+// address lacked them, a later fully-specified row would merge (blank =
+// compatible) but leave the object blank — so a subsequent DIFFERENT-borough/zip
+// row for the same street address would ALSO pass the guard and wrongly merge.
+// Copying the fuller values forward closes that hole: once a building knows its
+// borough/zip it can no longer be polluted by a mismatching address. building_key
+// is promoted on the same principle (BK identity, once known, sticks). Never
+// overwrites an already-known value. (Codex review 2 2026-05-31.)
+function promoteIdentity(
+  existing: Record<string, unknown>,
+  borough: string,
+  zip: string,
+  bkKey: string | null,
+): void {
+  if (borough && !String(existing.borough ?? '').trim()) existing.borough = borough;
+  if (zip && !String(existing.zip ?? '').trim()) existing.zip = zip;
+  // bkKey is the 'BK:<num>' index key; the building_key field stores the bare num.
+  if (bkKey && !String(existing.building_key ?? '').trim()) existing.building_key = bkKey.slice(3);
+}
+
+// Register a building object under ALL of its identity keys (full address key,
+// BuildingKeyNumeric key when known, and the address-only fallback list).
+// Idempotent — safe to call again when a later duplicate row reveals a
+// BuildingKeyNumeric (or a fuller address) the first row lacked, so the
+// existing object becomes reachable by the newly-known key too.
+function registerBuilding(
+  buildingByKey: Map<string, Record<string, unknown>>,
+  buildingByAddrOnly: Map<string, Array<Record<string, unknown>>>,
+  bldg: Record<string, unknown>,
+  bkKey: string | null,
+  addrKey: string,
+  aoKey: string,
+): void {
+  buildingByKey.set(addrKey, bldg);
+  if (bkKey) buildingByKey.set(bkKey, bldg);
+  const arr = buildingByAddrOnly.get(aoKey);
+  if (arr) {
+    if (!arr.includes(bldg)) arr.push(bldg);
+  } else {
+    buildingByAddrOnly.set(aoKey, [bldg]);
+  }
+}
+
 /**
  * Real-Cotality parking / laundry / documents / pets fields surfaced for the
  * CRM building-modal auto-fill (Track 1). EVERY field below is verified present
@@ -145,6 +271,76 @@ function mergeMissingExtras(target: Record<string, unknown>, extras: Record<stri
     const vMeaningful = v !== null && v !== undefined && v !== '' && v !== false && !(Array.isArray(v) && v.length === 0);
     if (curEmpty && vMeaningful) target[k] = v;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SAVED Mallan/REBNY building-profile values.
+//
+// These are NOT Cotality fields — Cotality has no management-company / super /
+// board / financing / sublet data. They are values a Mallan agent typed once on
+// a PRIOR listing in the same building and that we persisted (raw_data first,
+// then features, then custom_fields) under the FORM's saved key names
+// (e.g. raw_data.saleBldgMgmtCompany). The building-search route re-surfaces
+// them so the agent does not retype building-wide facts for every unit.
+//
+// Each entry maps a SHARED-CONTRACT key (consumed by populateBuildingFromIDX)
+// to the form's saved key name. The contract key is the one the building object
+// carries; the saved key is what we read out of the stored listing JSON.
+//
+// Hard rule: NEVER invent values. If no saved value exists on any listing of the
+// building identity, the key is simply absent (blank). (Building-profile merge.)
+// ─────────────────────────────────────────────────────────────────────────────
+const SAVED_PROFILE_CONTRACT_TO_FORM: Record<string, string> = {
+  building_mgmt_company: 'saleBldgMgmtCompany',
+  building_mgmt_phone: 'saleBldgMgmtPhone',
+  building_mgmt_email: 'saleBldgMgmtEmail',
+  building_mgmt_address: 'saleBldgMgmtAddress',
+  building_super_name: 'saleBldgSuperName',
+  building_super_phone: 'saleBldgSuperPhone',
+  building_super_email: 'saleBldgSuperEmail',
+  building_resident_manager_name: 'saleBldgManagerName',
+  building_resident_manager_phone: 'saleBldgManagerPhone',
+  building_resident_manager_email: 'saleBldgManagerEmail',
+  building_board_president: 'saleBldgBoardPresident',
+  building_board_email: 'saleBldgBoardEmail',
+  building_max_financing: 'saleBldgMaxFinancing',
+  building_min_down: 'saleBldgMinDownPayment',
+  building_dti: 'saleBldgDTIRatio',
+  building_post_close_liquidity: 'saleBldgPostCloseLiquidity',
+  building_board_approval: 'saleBldgBoardApproval',
+  building_board_interview: 'saleBldgBoardInterview',
+  building_sublet_allowed: 'saleBldgSublettingAllowed',
+  building_sublet_policy: 'saleBldgSubletPolicy',
+  building_sublet_fee: 'saleBldgSubletFee',
+  building_sublet_max_years: 'saleBldgMaxSubletYears',
+};
+
+/**
+ * Extract SAVED Mallan/REBNY building-profile values from one listing's stored
+ * JSON columns. Reads each contract key's saved form-field name from raw_data
+ * first, then features, then custom_fields, and returns the values keyed by the
+ * SHARED-CONTRACT key. Only non-empty values are returned (so merging never
+ * clobbers a real value with a blank). Never invents — absent stays absent.
+ */
+function extractSavedProfileValues(
+  raw_data: unknown,
+  features: unknown,
+  custom_fields: unknown,
+): Record<string, unknown> {
+  const rd = (raw_data && typeof raw_data === 'object' ? raw_data : {}) as Record<string, unknown>;
+  const ft = (features && typeof features === 'object' ? features : {}) as Record<string, unknown>;
+  const cf = (custom_fields && typeof custom_fields === 'object' ? custom_fields : {}) as Record<string, unknown>;
+
+  const out: Record<string, unknown> = {};
+  for (const [contractKey, savedKey] of Object.entries(SAVED_PROFILE_CONTRACT_TO_FORM)) {
+    // raw_data wins, then features, then custom_fields (matches the form's
+    // restore precedence). A value counts as present only when not null/''/undefined.
+    const candidates = [rd[savedKey], ft[savedKey], cf[savedKey]];
+    for (const v of candidates) {
+      if (v !== null && v !== undefined && v !== '') { out[contractKey] = v; break; }
+    }
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -308,12 +504,16 @@ export async function GET(request: NextRequest) {
   diag.parsedQuery = parsed;
 
   const buildings: Array<Record<string, unknown>> = [];
-  const seenAddresses = new Set<string>();
   // building object indexed by BOTH its address key and BuildingKeyNumeric key,
   // so a duplicate detected on EITHER key resolves to the exact existing object
   // for enrichment — never relying on raw address-string equality (DB vs Cotality
   // may format the same address differently). (Codex #301)
   const buildingByKey = new Map<string, Record<string, unknown>>();
+  // Address-ONLY fallback index (street parts, no borough/zip) → the buildings
+  // sharing that street address. Used by findRegisteredBuilding's layer-3
+  // guarded match so a partial row (missing borough/zip) still collapses onto
+  // the same building. (Codex review 2026-05-31.)
+  const buildingByAddrOnly = new Map<string, Array<Record<string, unknown>>>();
   let dbHadResults = false;
   let cotHadResults = false;
 
@@ -333,9 +533,9 @@ export async function GET(request: NextRequest) {
         params.push(`%${parsed.streetName}%`);
         paramIdx++;
       }
-      const sql = `SELECT address, features, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
+      const sql = `SELECT address, features, raw_data, custom_fields, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
       const dbResults = await prisma.$queryRawUnsafe<Array<{
-        address: unknown; features: unknown; property_type: string | null; property_sub_type: string | null;
+        address: unknown; features: unknown; raw_data: unknown; custom_fields: unknown; property_type: string | null; property_sub_type: string | null;
       }>>(sql, ...params);
 
       diag.localDbResultCount = dbResults.length;
@@ -345,30 +545,36 @@ export async function GET(request: NextRequest) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
         const fullAddr = formatAddress(addr);
-        const _addrKey = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
+        // Building identity: BuildingKeyNumeric (BK) if present, else full
+        // address + borough + zip (addressIdentityKey). (Building identity merge.)
+        const _addrKey = addressIdentityKey(addr);
+        const _aoKey = addressOnlyKey(addr);
         const _bkKey = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : null;
-        // Register BOTH the address key and the BuildingKeyNumeric key so a later
-        // Cotality record for the same building matches on EITHER — even when the
-        // cached DB row predates BuildingKeyNumeric. (Codex #301)
-        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
-          // Duplicate DB row for an already-pushed building (SQL has no ORDER BY,
-          // so the first row may lack BuildingKeyNumeric while this one has it).
-          // Backfill any fields the first row missed, and index this row's BK onto
-          // the existing object so a later Cotality record matches by BK instead
-          // of duplicating. (Codex #301)
-          const _existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
-          if (_existing) {
-            mergeMissingExtras(_existing, buildingExtras(feat));
-            if (_bkKey && !buildingByKey.has(_bkKey)) {
-              seenAddresses.add(_bkKey);
-              buildingByKey.set(_bkKey, _existing);
-              if (!_existing.building_key) _existing.building_key = _bkKey.slice(3);
-            }
-          }
+        // SAVED Mallan/REBNY building-profile values from THIS listing's stored
+        // JSON (raw_data -> features -> custom_fields). Aggregated across all
+        // listings of the building identity: first listing with a value wins.
+        const savedProfile = extractSavedProfileValues(l.raw_data, l.features, l.custom_fields);
+        // Resolve any building already built for this identity (BK → full
+        // address+borough+zip → guarded address-only). A duplicate DB row (SQL
+        // has no ORDER BY) backfills missed fields onto the existing object and
+        // re-registers it under any newly-known key (e.g. a BK the first row
+        // lacked) so a later Cotality record matches instead of duplicating.
+        const _existing = findRegisteredBuilding(
+          buildingByKey, buildingByAddrOnly, _bkKey, _addrKey, _aoKey,
+          String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''),
+        );
+        if (_existing) {
+          mergeMissingExtras(_existing, buildingExtras(feat));
+          // Merge saved profile values from this additional unit of the same
+          // building — first non-empty value per key wins. (Building merge.)
+          mergeMissingExtras(_existing, savedProfile);
+          // Carry this row's fuller borough/zip/building_key onto the existing
+          // building so the address-only guard can reject a later different
+          // borough/zip row, and the BK identity sticks once known.
+          promoteIdentity(_existing, String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''), _bkKey);
+          registerBuilding(buildingByKey, buildingByAddrOnly, _existing, _bkKey, _addrKey, _aoKey);
           continue;
         }
-        seenAddresses.add(_addrKey);
-        if (_bkKey) seenAddresses.add(_bkKey);
 
         const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
@@ -429,16 +635,18 @@ export async function GET(request: NextRequest) {
           on_site_manager: dbFeatures.includes('on-site') || dbAttendance.includes('property manager'),
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
           ...buildingExtras(feat),
+          // SAVED Mallan/REBNY building-profile values (NOT Cotality). Spread
+          // last so a real saved value wins over a blank default. (Building merge.)
+          ...savedProfile,
         });
-        buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
-        if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
+        registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
       }
     } else if (parsed.buildingName) {
       const dbResults = await prisma.listing.findMany({
         where: {
           address: { path: ['BuildingName'], string_contains: parsed.buildingName.toUpperCase() },
         },
-        select: { address: true, features: true, property_type: true, property_sub_type: true },
+        select: { address: true, features: true, raw_data: true, custom_fields: true, property_type: true, property_sub_type: true },
         take: 10,
       });
 
@@ -451,30 +659,34 @@ export async function GET(request: NextRequest) {
         // Use formatAddress so StreetDirPrefix is preserved — the prior
         // inline concat dropped E/W/N/S and saved malformed addresses.
         const fullAddr = formatAddress(addr);
-        const _addrKey = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
+        // Building identity: BuildingKeyNumeric (BK) if present, else full
+        // address + borough + zip (addressIdentityKey). (Building identity merge.)
+        const _addrKey = addressIdentityKey(addr);
+        const _aoKey = addressOnlyKey(addr);
         const _bkKey = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : null;
-        // Register BOTH the address key and the BuildingKeyNumeric key so a later
-        // Cotality record for the same building matches on EITHER — even when the
-        // cached DB row predates BuildingKeyNumeric. (Codex #301)
-        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
-          // Duplicate DB row for an already-pushed building (SQL has no ORDER BY,
-          // so the first row may lack BuildingKeyNumeric while this one has it).
-          // Backfill any fields the first row missed, and index this row's BK onto
-          // the existing object so a later Cotality record matches by BK instead
-          // of duplicating. (Codex #301)
-          const _existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
-          if (_existing) {
-            mergeMissingExtras(_existing, buildingExtras(feat));
-            if (_bkKey && !buildingByKey.has(_bkKey)) {
-              seenAddresses.add(_bkKey);
-              buildingByKey.set(_bkKey, _existing);
-              if (!_existing.building_key) _existing.building_key = _bkKey.slice(3);
-            }
-          }
+        // SAVED Mallan/REBNY building-profile values from THIS listing's stored
+        // JSON (raw_data -> features -> custom_fields). (Building identity merge.)
+        const savedProfile = extractSavedProfileValues(l.raw_data, l.features, l.custom_fields);
+        // Resolve any building already built for this identity (BK → full
+        // address+borough+zip → guarded address-only). A duplicate DB row
+        // backfills missed fields and re-registers the existing object under any
+        // newly-known key so a later Cotality record matches, not duplicates.
+        const _existing = findRegisteredBuilding(
+          buildingByKey, buildingByAddrOnly, _bkKey, _addrKey, _aoKey,
+          String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''),
+        );
+        if (_existing) {
+          mergeMissingExtras(_existing, buildingExtras(feat));
+          // Merge saved profile values across units of the same building —
+          // first non-empty value per key wins. (Building merge.)
+          mergeMissingExtras(_existing, savedProfile);
+          // Carry this row's fuller borough/zip/building_key onto the existing
+          // building so the address-only guard can reject a later different
+          // borough/zip row, and the BK identity sticks once known.
+          promoteIdentity(_existing, String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''), _bkKey);
+          registerBuilding(buildingByKey, buildingByAddrOnly, _existing, _bkKey, _addrKey, _aoKey);
           continue;
         }
-        seenAddresses.add(_addrKey);
-        if (_bkKey) seenAddresses.add(_bkKey);
 
         const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
@@ -535,9 +747,10 @@ export async function GET(request: NextRequest) {
           on_site_manager: dbFeatures.includes('on-site') || dbAttendance.includes('property manager'),
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
           ...buildingExtras(feat),
+          // SAVED Mallan/REBNY building-profile values (NOT Cotality). (Building merge.)
+          ...savedProfile,
         });
-        buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
-        if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
+        registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
       }
     }
 
@@ -636,21 +849,34 @@ export async function GET(request: NextRequest) {
 
           for (const r of records) {
             const fullAddr = formatAddress(r);
-            const _addrKey = `${r.StreetNumber}-${r.StreetName}-${r.PostalCode || ''}`.toUpperCase();
+            // Same building-identity key as the DB path so a Cotality record
+            // enriches (not duplicates) a DB-built building — and so the saved
+            // building-profile values already merged onto that DB object survive
+            // (buildingExtras has no profile keys, so mergeMissingExtras here
+            // never touches them). (Building identity merge.)
+            const _addrKey = addressIdentityKey(r);
+            const _aoKey = addressOnlyKey(r);
             const _bkKey = (r.BuildingKeyNumeric != null && r.BuildingKeyNumeric !== '') ? 'BK:' + String(r.BuildingKeyNumeric) : null;
-            // Dedup on EITHER key (address or BuildingKeyNumeric) so a DB-cached
-            // row keyed by address — incl. older rows lacking BuildingKeyNumeric —
-            // is matched and ENRICHED rather than duplicated. (Codex #301)
-            if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
-              // Resolve the existing object via the SAME key that matched (BK
-              // first, else address key) — not raw address equality, which can
-              // differ between DB and Cotality formatting. (Codex #301)
-              const existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
-              if (existing) mergeMissingExtras(existing, buildingExtras(r));
+            // Dedup via the SAME identity resolution as the DB path (BK → full
+            // address+borough+zip → guarded address-only) so a Cotality record
+            // ENRICHES a DB-built building — incl. older DB rows lacking
+            // BuildingKeyNumeric, or partial rows missing borough/zip — rather
+            // than duplicating it. (Codex #301 + Codex review 2026-05-31)
+            const existing = findRegisteredBuilding(
+              buildingByKey, buildingByAddrOnly, _bkKey, _addrKey, _aoKey,
+              String(r.CityRegion ?? ''), String(r.PostalCode ?? ''),
+            );
+            if (existing) {
+              mergeMissingExtras(existing, buildingExtras(r));
+              // Carry this record's fuller borough/zip/building_key onto the
+              // existing building so the address-only guard can reject a later
+              // different one, and the BK identity sticks once known.
+              promoteIdentity(existing, String(r.CityRegion ?? ''), String(r.PostalCode ?? ''), _bkKey);
+              // Re-register so any newly-known key (BK / fuller address) also
+              // resolves to this object on a later row.
+              registerBuilding(buildingByKey, buildingByAddrOnly, existing, _bkKey, _addrKey, _aoKey);
               continue;
             }
-            seenAddresses.add(_addrKey);
-            if (_bkKey) seenAddresses.add(_bkKey);
 
             const features = String(r.BuildingFeatures || '').toLowerCase();
 
@@ -722,8 +948,7 @@ export async function GET(request: NextRequest) {
               washer_dryer_allowed: features.includes('washer') || features.includes('w/d'),
               ...buildingExtras(r),
             });
-            buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
-            if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
+            registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
           }
         } else {
           diag.errorClass = 'cotality_non_200';
