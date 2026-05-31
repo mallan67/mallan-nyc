@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
 import { notFound, redirect } from 'next/navigation';
+import AgentAvatar from '@/app/components/AgentAvatar';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
@@ -2017,27 +2017,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
                        name, §175.25 license title, brokerage). Reuses the
                        ListingSidePanel avatar pattern + AgentsGrid photo style. */
                     <div className="flex items-center gap-3 mt-3 mb-5">
-                      {listing._assignedAgent.photo ? (
-                        <div className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-black/5">
-                          <Image
-                            src={listing._assignedAgent.photo}
-                            alt={listing._assignedAgent.name}
-                            fill
-                            sizes="56px"
-                            className="object-cover object-[center_15%]"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 bg-brand-gold/10 text-brand-gold-deep font-display font-semibold text-lg">
-                          {listing._assignedAgent.name
-                            .split(/\s+/)
-                            .map((w) => w[0])
-                            .filter(Boolean)
-                            .slice(0, 2)
-                            .join('')
-                            .toUpperCase()}
-                        </div>
-                      )}
+                      <AgentAvatar
+                        photo={listing._assignedAgent.photo}
+                        name={listing._assignedAgent.name}
+                        sizeClass="w-14 h-14"
+                      />
                       <div className="min-w-0">
                         {listing._assignedAgent.slug ? (
                           <Link
