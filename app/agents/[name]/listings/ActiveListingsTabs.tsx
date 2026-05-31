@@ -24,6 +24,11 @@ interface ListingDTO {
   // REBNY attribution — UCBA Art. III §2(C). Falls back to Mallan when the
   // agent's listings do not carry an explicit ListOfficeName.
   listOfficeName?: string | null;
+  // Provenance for attribution. Mallan exclusives are OUR OWN listing, so they
+  // show "Exclusive listing by Mallan Real Estate Inc." (never the RLS courtesy
+  // line, which would mislabel our own listing as a third-party RLS one).
+  _source?: string;
+  _displayCompliance?: { attributionText?: string | null } | null;
   // UCBA Art. I §16(C) — Coming Soon badge requires status + date.
   status?: string | null;
   comingSoonDate?: string | null;
@@ -119,9 +124,13 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
         </div>
         <p className="text-sm text-brand-dark/90 mt-1.5 truncate">{addr}</p>
         <p className="text-[11px] text-brand-dark/75">{neighborhood}</p>
-        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
+        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median.
+            Mallan exclusive → "Exclusive listing by Mallan Real Estate Inc."
+            (Mallan IS the listing broker). Third-party RLS → courtesy line. */}
         <p className="text-sm text-brand-dark/80 mt-2 truncate">
-          RLS · Listing Courtesy of {listing.listOfficeName || 'Mallan Real Estate Inc.'}
+          {listing._source === 'exclusive'
+            ? listing._displayCompliance?.attributionText || 'Exclusive listing by Mallan Real Estate Inc.'
+            : `RLS · Listing Courtesy of ${listing.listOfficeName || 'Mallan Real Estate Inc.'}`}
         </p>
       </div>
     </Link>
