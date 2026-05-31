@@ -341,9 +341,13 @@ export async function GET(request: NextRequest) {
         const feat = l.features as Record<string, unknown> | null;
         const fullAddr = formatAddress(addr);
         const _addrKey = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
-        const key = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : _addrKey;
-        if (seenAddresses.has(key)) continue;
-        seenAddresses.add(key);
+        const _bkKey = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : null;
+        // Register BOTH the address key and the BuildingKeyNumeric key so a later
+        // Cotality record for the same building matches on EITHER — even when the
+        // cached DB row predates BuildingKeyNumeric. (Codex #301)
+        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) continue;
+        seenAddresses.add(_addrKey);
+        if (_bkKey) seenAddresses.add(_bkKey);
 
         const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
@@ -425,9 +429,13 @@ export async function GET(request: NextRequest) {
         // inline concat dropped E/W/N/S and saved malformed addresses.
         const fullAddr = formatAddress(addr);
         const _addrKey = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
-        const key = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : _addrKey;
-        if (seenAddresses.has(key)) continue;
-        seenAddresses.add(key);
+        const _bkKey = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : null;
+        // Register BOTH the address key and the BuildingKeyNumeric key so a later
+        // Cotality record for the same building matches on EITHER — even when the
+        // cached DB row predates BuildingKeyNumeric. (Codex #301)
+        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) continue;
+        seenAddresses.add(_addrKey);
+        if (_bkKey) seenAddresses.add(_bkKey);
 
         const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
@@ -588,19 +596,18 @@ export async function GET(request: NextRequest) {
           for (const r of records) {
             const fullAddr = formatAddress(r);
             const _addrKey = `${r.StreetNumber}-${r.StreetName}-${r.PostalCode || ''}`.toUpperCase();
-            const key = (r.BuildingKeyNumeric != null && r.BuildingKeyNumeric !== '') ? 'BK:' + String(r.BuildingKeyNumeric) : _addrKey;
-            if (seenAddresses.has(key)) {
-              // Same building (by BuildingKeyNumeric, else address) already in the
-              // results. Backfill any Cotality-only fields the existing record
-              // lacks — aggregating multiple units to the fullest building
-              // profile — without overwriting present values. (Codex #297 + #BK)
+            const _bkKey = (r.BuildingKeyNumeric != null && r.BuildingKeyNumeric !== '') ? 'BK:' + String(r.BuildingKeyNumeric) : null;
+            // Dedup on EITHER key (address or BuildingKeyNumeric) so a DB-cached
+            // row keyed by address — incl. older rows lacking BuildingKeyNumeric —
+            // is matched and ENRICHED rather than duplicated. (Codex #301)
+            if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
               const existing = buildings.find((b) =>
-                (r.BuildingKeyNumeric != null && r.BuildingKeyNumeric !== '' && b.building_key === String(r.BuildingKeyNumeric))
-                || b.address === fullAddr);
+                (_bkKey && b.building_key === String(r.BuildingKeyNumeric)) || b.address === fullAddr);
               if (existing) mergeMissingExtras(existing, buildingExtras(r));
               continue;
             }
-            seenAddresses.add(key);
+            seenAddresses.add(_addrKey);
+            if (_bkKey) seenAddresses.add(_bkKey);
 
             const features = String(r.BuildingFeatures || '').toLowerCase();
 

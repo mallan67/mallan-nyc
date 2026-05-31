@@ -109,6 +109,13 @@ describe('route wiring', () => {
     expect(ROUTE).toMatch(/'BK:' \+ String\(r\.BuildingKeyNumeric\)/);
     expect(ROUTE).toMatch(/b\.building_key === String\(r\.BuildingKeyNumeric\)/);
   });
+  it('dedups on EITHER address or BuildingKeyNumeric (cached rows without BK still merge) (Codex #301)', () => {
+    // Both keys are registered + checked, so an address-keyed DB row matches a
+    // later BK-keyed Cotality record instead of duplicating.
+    expect(ROUTE).toMatch(/seenAddresses\.has\(_addrKey\) \|\| \(_bkKey && seenAddresses\.has\(_bkKey\)\)/);
+    expect(ROUTE).toMatch(/seenAddresses\.add\(_addrKey\)/);
+    expect(ROUTE).toMatch(/if \(_bkKey\) seenAddresses\.add\(_bkKey\)/);
+  });
   it('does NOT treat phantom BuildingLaundryFeatures/BuildingPetsAllowed/AttendanceType as Cotality', () => {
     expect(hasField('BuildingLaundryFeatures')).toBe(false);
     expect(hasField('BuildingPetsAllowed')).toBe(false);
