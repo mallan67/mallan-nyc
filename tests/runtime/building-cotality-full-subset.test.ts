@@ -120,6 +120,11 @@ describe('route wiring', () => {
     expect(ROUTE).toMatch(/const existing = \(_bkKey && buildingByKey\.get\(_bkKey\)\) \|\| buildingByKey\.get\(_addrKey\)/);
     expect(ROUTE).not.toMatch(/const existing = buildings\.find/); // no raw-address-equality lookup
   });
+  it('a duplicate DB row backfills + indexes its BuildingKeyNumeric onto the existing building (Codex #301)', () => {
+    expect(ROUTE).toMatch(/mergeMissingExtras\(_existing, buildingExtras\(feat\)\)/);
+    expect(ROUTE).toMatch(/buildingByKey\.set\(_bkKey, _existing\)/);
+    expect(ROUTE).toMatch(/_existing\.building_key = _bkKey\.slice\(3\)/);
+  });
   it('does NOT treat phantom BuildingLaundryFeatures/BuildingPetsAllowed/AttendanceType as Cotality', () => {
     expect(hasField('BuildingLaundryFeatures')).toBe(false);
     expect(hasField('BuildingPetsAllowed')).toBe(false);

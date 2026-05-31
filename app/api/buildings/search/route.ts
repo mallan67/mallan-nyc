@@ -350,7 +350,23 @@ export async function GET(request: NextRequest) {
         // Register BOTH the address key and the BuildingKeyNumeric key so a later
         // Cotality record for the same building matches on EITHER — even when the
         // cached DB row predates BuildingKeyNumeric. (Codex #301)
-        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) continue;
+        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
+          // Duplicate DB row for an already-pushed building (SQL has no ORDER BY,
+          // so the first row may lack BuildingKeyNumeric while this one has it).
+          // Backfill any fields the first row missed, and index this row's BK onto
+          // the existing object so a later Cotality record matches by BK instead
+          // of duplicating. (Codex #301)
+          const _existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
+          if (_existing) {
+            mergeMissingExtras(_existing, buildingExtras(feat));
+            if (_bkKey && !buildingByKey.has(_bkKey)) {
+              seenAddresses.add(_bkKey);
+              buildingByKey.set(_bkKey, _existing);
+              if (!_existing.building_key) _existing.building_key = _bkKey.slice(3);
+            }
+          }
+          continue;
+        }
         seenAddresses.add(_addrKey);
         if (_bkKey) seenAddresses.add(_bkKey);
 
@@ -440,7 +456,23 @@ export async function GET(request: NextRequest) {
         // Register BOTH the address key and the BuildingKeyNumeric key so a later
         // Cotality record for the same building matches on EITHER — even when the
         // cached DB row predates BuildingKeyNumeric. (Codex #301)
-        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) continue;
+        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
+          // Duplicate DB row for an already-pushed building (SQL has no ORDER BY,
+          // so the first row may lack BuildingKeyNumeric while this one has it).
+          // Backfill any fields the first row missed, and index this row's BK onto
+          // the existing object so a later Cotality record matches by BK instead
+          // of duplicating. (Codex #301)
+          const _existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
+          if (_existing) {
+            mergeMissingExtras(_existing, buildingExtras(feat));
+            if (_bkKey && !buildingByKey.has(_bkKey)) {
+              seenAddresses.add(_bkKey);
+              buildingByKey.set(_bkKey, _existing);
+              if (!_existing.building_key) _existing.building_key = _bkKey.slice(3);
+            }
+          }
+          continue;
+        }
         seenAddresses.add(_addrKey);
         if (_bkKey) seenAddresses.add(_bkKey);
 
