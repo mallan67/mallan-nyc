@@ -2905,7 +2905,7 @@ body { font-family: Manrope, sans-serif; }
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleTHDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
             </div>
-            <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+            <p class="text-[10px] text-gray-400 mt-2">Cotality: DocumentsAvailable (multi-select) — real building/listing field</p>
         </div>
 
         <!-- Navigation -->
@@ -4017,7 +4017,7 @@ body { font-family: Manrope, sans-serif; }
         <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
             <div>
                 <h3 class="text-lg font-semibold">Building Information</h3>
-                <p class="text-xs text-gray-500">Complete building details for REBNY RLS compliance</p>
+                <p class="text-xs text-gray-500">Cotality auto-fills available building facts; policy &amp; contact fields are your internal Mallan Building Profile.</p>
             </div>
             <button onclick="closeSaleBuildingModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
         </div>
@@ -4036,7 +4036,7 @@ body { font-family: Manrope, sans-serif; }
                     <i class="fas fa-search mr-1"></i> Search
                 </button>
             </div>
-            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
+            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Cotality auto-fills available building facts; policy &amp; contact fields are your internal building profile.</p>
             <div id="saleBldgSearchResults" class="mt-2 hidden"></div>
         </div>
 
@@ -4301,10 +4301,10 @@ body { font-family: Manrope, sans-serif; }
 
                 <!-- Sub-tab 1.3: Features -->
                 <div id="saleBldgSubTabContent1_3" class="sale-bldg-sub-tab-content" style="display: none;">
-                    <!-- RLS: AttendanceType — REQUIRED, Multi-Select Picklist (16 values) -->
+                    <!-- Mallan Building Profile — internal (NOT Cotality; AttendanceType is not a Cotality field). Multi-select. -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: AttendanceType — Select all that apply. At least one required.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Mallan Building Profile — internal (not in Cotality; not submitted to RLS/IDX). Select all that apply.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="saleAttendanceTypeGroup">
                             <!-- Doorman -->
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-rls-ignore="true" data-removed-field="AttendanceType"> Doorman (Full-Time)</label>
@@ -4357,10 +4357,10 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                     </div>
 
-                    <!-- RLS: BuildingLaundryFeatures — REQUIRED, Multi-Select Picklist (23 values) -->
+                    <!-- Mallan Building Profile — internal building laundry policy (NOT Cotality; BuildingLaundryFeatures is not a Cotality field). Multi-select. -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-2">RLS: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Mallan Building Profile — internal building laundry policy (not in Cotality; not submitted to RLS/IDX). Select all that apply. "None" deselects all others.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)" data-rls-ignore="true"> In Unit</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> W/D Install Allowed</label>
@@ -4405,9 +4405,9 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="number" id="saleBldgNumElevators" placeholder="2" class="field-input" data-rls-ignore="true" data-removed-field="ElevatorsTotal">
                             </div>
                         </div>
-                        <!-- RLS/RESO/IDX: BuildingHeating (multi-select, building-level) -->
+                        <!-- Mallan Building Profile — internal (NOT Cotality; BuildingHeating is not a Cotality field). Multi-select. -->
                         <div class="mb-4">
-                            <label class="field-label mb-2">Building Heating <!-- RLS/RESO/IDX: BuildingHeating --></label>
+                            <label class="field-label mb-2">Building Heating <span class="text-[10px] font-normal text-gray-400">(Mallan Building Profile — internal; not in Cotality)</span></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
                                 <!-- Building-Prefixed Primary (7) -->
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgHeating" value="BuildingSteam" class="w-3 h-3" data-rls-ignore="true"> Bldg Steam</label>
@@ -4452,9 +4452,9 @@ body { font-family: Manrope, sans-serif; }
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgHeating" value="Other" class="w-3 h-3"> Other</label>
                             </div>
                         </div>
-                        <!-- RLS/RESO/IDX: BuildingCooling (multi-select, building-level) -->
+                        <!-- Mallan Building Profile — internal (NOT Cotality; BuildingCooling is not a Cotality field). Multi-select. -->
                         <div class="mb-4">
-                            <label class="field-label mb-2">Building Cooling <!-- RLS/RESO/IDX: BuildingCooling --></label>
+                            <label class="field-label mb-2">Building Cooling <span class="text-[10px] font-normal text-gray-400">(Mallan Building Profile — internal; not in Cotality)</span></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgCooling" value="CentralAir" class="w-3 h-3" data-rls-ignore="true"> Central Air</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="saleBldgCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
@@ -4578,7 +4578,7 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+                        <p class="text-[10px] text-gray-400 mt-2">Cotality: DocumentsAvailable (multi-select) — real building/listing field</p>
                     </div>
 
                     <div class="flex justify-between mt-4">
@@ -4620,10 +4620,10 @@ body { font-family: Manrope, sans-serif; }
 
                 <!-- Sub-tab 2.1: General -->
                 <div id="saleBldgSubTabContent2_1" class="sale-bldg-sub-tab-content">
-                    <!-- RLS: BuildingPetsAllowed — REQUIRED, Multi-Select Picklist (7 values) -->
+                    <!-- Mallan Building Profile — internal building pet policy (NOT Cotality; BuildingPetsAllowed is not a Cotality field). Multi-select. -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: BuildingPetsAllowed — Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Mallan Building Profile — internal building pet policy (not in Cotality; not submitted to RLS/IDX). Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="saleBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)" data-rls-ignore="true"> Yes (All Pets)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingCatsOK" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)"> Cats OK</label>
@@ -9118,6 +9118,24 @@ var SALE_FIELD_MAP = [
   { rls: 'saleBldgBoardApproval', form: 'saleBldgBoardApproval', type: 'text', src: 'raw' },
   { rls: 'saleBldgPetWeightLimit', form: 'saleBldgPetWeightLimit', type: 'number', src: 'raw' },
   { rls: 'saleBldgPetNotes', form: 'saleBldgPetNotes', type: 'text', src: 'raw' },
+  // ── Mallan Building Profile — internal personnel & contacts ──────────────
+  // Management company, building staff (super / resident manager) and board
+  // contact. NOT Cotality (the feed has no such fields); collected via the
+  // building-modal sweep and persisted in raw_data. They previously had NO
+  // restore entry, so they vanished on edit-load — these reload them. Never
+  // emitted to IDX/feed. (2026-05-31 building-profile stabilization.)
+  { rls: 'saleBldgMgmtCompany', form: 'saleBldgMgmtCompany', type: 'text', src: 'raw' },
+  { rls: 'saleBldgMgmtPhone', form: 'saleBldgMgmtPhone', type: 'text', src: 'raw' },
+  { rls: 'saleBldgMgmtEmail', form: 'saleBldgMgmtEmail', type: 'text', src: 'raw' },
+  { rls: 'saleBldgMgmtAddress', form: 'saleBldgMgmtAddress', type: 'text', src: 'raw' },
+  { rls: 'saleBldgSuperName', form: 'saleBldgSuperName', type: 'text', src: 'raw' },
+  { rls: 'saleBldgSuperPhone', form: 'saleBldgSuperPhone', type: 'text', src: 'raw' },
+  { rls: 'saleBldgSuperEmail', form: 'saleBldgSuperEmail', type: 'text', src: 'raw' },
+  { rls: 'saleBldgManagerName', form: 'saleBldgManagerName', type: 'text', src: 'raw' },
+  { rls: 'saleBldgManagerPhone', form: 'saleBldgManagerPhone', type: 'text', src: 'raw' },
+  { rls: 'saleBldgManagerEmail', form: 'saleBldgManagerEmail', type: 'text', src: 'raw' },
+  { rls: 'saleBldgBoardPresident', form: 'saleBldgBoardPresident', type: 'text', src: 'raw' },
+  { rls: 'saleBldgBoardEmail', form: 'saleBldgBoardEmail', type: 'text', src: 'raw' },
 
   // ── Dates additional ──
   { rls: 'saleFirstCoBroke', form: 'saleFirstCoBroke', type: 'date', src: 'raw' },
@@ -10546,7 +10564,7 @@ function getSaleBuildingPetsAllowed() {
     return vals.join(',');
 }
 
-// RLS: BuildingLaundryFeatures — "None" deselects all others and vice versa
+// Mallan Building Profile (internal; not Cotality) building laundry policy — "None" deselects all others and vice versa
 function handleSaleLaundryChange(cb) {
     var cbs = document.querySelectorAll('.sale-laundry-cb');
     if (cb.value === 'None' && cb.checked) {
