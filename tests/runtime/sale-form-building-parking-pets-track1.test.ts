@@ -82,10 +82,11 @@ describe('buildings/search — real fields surfaced, phantoms excluded', () => {
   });
 
   it('backfills Cotality-only extras into a cached DB building instead of dropping them (Codex #297)', () => {
-    // For a DB-cached building, the Cotality supplement loop dedups the address;
-    // it must merge the live extras (CoveredSpaces/PetsAllowedYN/etc.) into the
-    // existing result rather than continue-skipping.
-    expect(ROUTE).toMatch(/if \(existing\) mergeMissingExtras\(existing, buildingExtras\(r\)\)/);
+    // For a DB-cached building, the Cotality supplement loop dedups the address
+    // (now via findRegisteredBuilding); it must merge the live extras
+    // (CoveredSpaces/PetsAllowedYN/etc.) into the existing result rather than
+    // continue-skipping.
+    expect(ROUTE).toMatch(/if \(existing\) \{\s*mergeMissingExtras\(existing, buildingExtras\(r\)\)/);
     const merge = extractFn(ROUTE, 'mergeMissingExtras');
     // only fills empty targets with a meaningful value (never overwrites DB data)
     expect(merge).toMatch(/curEmpty\s*&&\s*vMeaningful/);

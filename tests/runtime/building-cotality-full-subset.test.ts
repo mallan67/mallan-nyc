@@ -108,21 +108,29 @@ describe('route wiring', () => {
   it('aggregates by BuildingKeyNumeric (preferred over address)', () => {
     expect(ROUTE).toMatch(/'BK:' \+ String\(r\.BuildingKeyNumeric\)/);
   });
-  it('dedups on EITHER address or BuildingKeyNumeric (cached rows without BK still merge) (Codex #301)', () => {
-    expect(ROUTE).toMatch(/seenAddresses\.has\(_addrKey\) \|\| \(_bkKey && seenAddresses\.has\(_bkKey\)\)/);
-    expect(ROUTE).toMatch(/seenAddresses\.add\(_addrKey\)/);
-    expect(ROUTE).toMatch(/if \(_bkKey\) seenAddresses\.add\(_bkKey\)/);
+  it('dedups on EITHER address or BuildingKeyNumeric via findRegisteredBuilding (cached rows without BK still merge) (Codex #301)', () => {
+    // The EITHER-key dedup now lives inside findRegisteredBuilding: BK first,
+    // then the full address+borough+zip key, then the guarded address-only key.
+    const fn = sliceFn(ROUTE, 'findRegisteredBuilding');
+    expect(fn).toMatch(/const byBk = buildingByKey\.get\(bkKey\)/);
+    expect(fn).toMatch(/const byAddr = buildingByKey\.get\(addrKey\)/);
+    // Every dedup site resolves through it (DB-address, DB-name, Cotality).
+    // Lookbehind excludes the `function findRegisteredBuilding(` definition.
+    expect((ROUTE.match(/(?<!function )findRegisteredBuilding\(/g) || []).length).toBe(3);
   });
   it('resolves the existing object via the normalized key map, not raw address equality (Codex #301)', () => {
-    // buildingByKey is indexed by both keys on every push; merge-find uses it.
+    // buildingByKey is indexed by both keys; registerBuilding does the indexing.
     expect(ROUTE).toMatch(/const buildingByKey = new Map/);
-    expect(ROUTE).toMatch(/buildingByKey\.set\(_addrKey, buildings\[buildings\.length - 1\]\)/);
-    expect(ROUTE).toMatch(/const existing = \(_bkKey && buildingByKey\.get\(_bkKey\)\) \|\| buildingByKey\.get\(_addrKey\)/);
+    const reg = sliceFn(ROUTE, 'registerBuilding');
+    expect(reg).toMatch(/buildingByKey\.set\(addrKey, bldg\)/);
+    expect(reg).toMatch(/if \(bkKey\) buildingByKey\.set\(bkKey, bldg\)/);
     expect(ROUTE).not.toMatch(/const existing = buildings\.find/); // no raw-address-equality lookup
   });
-  it('a duplicate DB row backfills + indexes its BuildingKeyNumeric onto the existing building (Codex #301)', () => {
+  it('a duplicate DB row backfills + re-registers its BuildingKeyNumeric onto the existing building (Codex #301)', () => {
     expect(ROUTE).toMatch(/mergeMissingExtras\(_existing, buildingExtras\(feat\)\)/);
-    expect(ROUTE).toMatch(/buildingByKey\.set\(_bkKey, _existing\)/);
+    // Re-registering the existing object indexes any newly-known key (BK / fuller
+    // address) so a later Cotality record matches it instead of duplicating.
+    expect(ROUTE).toMatch(/registerBuilding\(buildingByKey, buildingByAddrOnly, _existing,/);
     expect(ROUTE).toMatch(/_existing\.building_key = _bkKey\.slice\(3\)/);
   });
   it('does NOT treat phantom BuildingLaundryFeatures/BuildingPetsAllowed/AttendanceType as Cotality', () => {

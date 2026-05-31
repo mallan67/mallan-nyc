@@ -45,10 +45,15 @@ function sliceFn(src: string, name: string): string {
 function stripTs(s: string): string {
   return s
     // function return-type annotations:  ): Foo {  →  ) {
+    .replace(/\)\s*:\s*Record<[^>]*>\s*\|\s*undefined\s*\{/g, ') {')
     .replace(/\)\s*:\s*Record<[^>]*>\s*\{/g, ') {')
     .replace(/\)\s*:\s*string\s*\{/g, ') {')
-    // parameter / variable type annotations
+    .replace(/\)\s*:\s*void\s*\{/g, ') {')
+    // parameter / variable type annotations (longest/most-specific first)
+    .replace(/:\s*Map<[\s\S]*?>>(?=\s*[,)])/g, '')
     .replace(/:\s*Record<[^>]*>/g, '')
+    .replace(/:\s*string\s*\|\s*null/g, '')
+    .replace(/:\s*string(?=\s*[,)])/g, '')
     .replace(/:\s*unknown/g, '')
     // `as` casts
     .replace(/\s+as\s+Record<[^>]*>/g, '')
@@ -59,11 +64,11 @@ function loadHelpers() {
   if (mapStart === -1) throw new Error('SAVED_PROFILE_CONTRACT_TO_FORM not found');
   const mapBlock = ROUTE.slice(mapStart, ROUTE.indexOf('};', mapStart) + 2);
   const block = stripTs(
-    `${mapBlock}\n${sliceFn(ROUTE, 'addressIdentityKey')}\n${sliceFn(ROUTE, 'extractSavedProfileValues')}`,
+    `${mapBlock}\n${sliceFn(ROUTE, 'addressIdentityKey')}\n${sliceFn(ROUTE, 'addressOnlyKey')}\n${sliceFn(ROUTE, 'findRegisteredBuilding')}\n${sliceFn(ROUTE, 'extractSavedProfileValues')}`,
   );
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
   return new Function(
-    `${block}; return { SAVED_PROFILE_CONTRACT_TO_FORM, addressIdentityKey, extractSavedProfileValues };`,
+    `${block}; return { SAVED_PROFILE_CONTRACT_TO_FORM, addressIdentityKey, addressOnlyKey, findRegisteredBuilding, extractSavedProfileValues };`,
   )();
 }
 const H = loadHelpers();
@@ -109,13 +114,79 @@ describe('building identity key (BuildingKeyNumeric > address+borough+zip > addr
   it('route prefers BuildingKeyNumeric over the address key (BK: prefix) on all paths', () => {
     expect(ROUTE).toMatch(/'BK:' \+ String\(feat\.BuildingKeyNumeric\)/);
     expect(ROUTE).toMatch(/'BK:' \+ String\(r\.BuildingKeyNumeric\)/);
-    // dedup matches on EITHER the BK key or the address-identity key
-    expect(ROUTE).toMatch(/seenAddresses\.has\(_addrKey\) \|\| \(_bkKey && seenAddresses\.has\(_bkKey\)\)/);
+    // dedup resolves the existing object through findRegisteredBuilding
+    // (BK → full address+borough+zip → guarded address-only) at every site.
+    // Lookbehind excludes the `function findRegisteredBuilding(` definition.
+    const matches = ROUTE.match(/(?<!function )findRegisteredBuilding\(/g) || [];
+    expect(matches.length).toBe(3); // DB-address, DB-name, Cotality (call sites)
   });
 
   it('the address key is derived from addressIdentityKey() at every dedup site (not a listing id)', () => {
     const matches = ROUTE.match(/const _addrKey = addressIdentityKey\(/g) || [];
     expect(matches.length).toBe(3); // DB-address, DB-name, Cotality
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Codex review 2026-05-31 — address-only fallback with borough/zip compatibility.
+// The full identity key embeds borough+zip; when one side is missing borough/zip
+// the full keys differ and would never collapse. addressOnlyKey + the guarded
+// findRegisteredBuilding layer-3 match fixes that WITHOUT over-merging two
+// genuinely different buildings that merely share a street address.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('address-only fallback merges partial rows but never different buildings', () => {
+  it('addressOnlyKey drops borough+zip but keeps the street parts (unit-free)', () => {
+    const ao = H.addressOnlyKey({ ...FIX.addr });
+    expect(ao).not.toContain('10017'); // zip dropped
+    expect(ao).not.toContain('MANHATTAN'); // borough dropped
+    expect(ao).toContain('333');
+    expect(ao).toContain('46TH');
+    // Same street address, different borough/zip → SAME address-only key …
+    expect(H.addressOnlyKey({ ...FIX.addr, CityRegion: 'Brooklyn', PostalCode: '11201' })).toBe(ao);
+  });
+
+  // Helper: simulate the route's registries for one building, then ask
+  // findRegisteredBuilding whether an incoming row resolves to it.
+  function resolve(existingAddr: Record<string, unknown>, incomingAddr: Record<string, unknown>) {
+    const bldg: Record<string, unknown> = {
+      borough: String(existingAddr.CityRegion ?? ''),
+      zip: String(existingAddr.PostalCode ?? ''),
+    };
+    const byKey = new Map<string, Record<string, unknown>>();
+    const byAddrOnly = new Map<string, Array<Record<string, unknown>>>();
+    byKey.set(H.addressIdentityKey(existingAddr), bldg);
+    byAddrOnly.set(H.addressOnlyKey(existingAddr), [bldg]);
+    return H.findRegisteredBuilding(
+      byKey, byAddrOnly, null,
+      H.addressIdentityKey(incomingAddr), H.addressOnlyKey(incomingAddr),
+      String(incomingAddr.CityRegion ?? ''), String(incomingAddr.PostalCode ?? ''),
+    );
+  }
+
+  it('a full row matches a prior PARTIAL row (no borough/zip) — Codex asymmetric case', () => {
+    const partial = { StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'St' };
+    const full = { ...FIX.addr }; // same building, now WITH borough+zip
+    expect(resolve(partial, full)).toBeDefined(); // collapses onto the same building
+  });
+
+  it('a partial row matches a prior FULL row (reverse asymmetric)', () => {
+    const full = { ...FIX.addr };
+    const partial = { StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'St' };
+    expect(resolve(full, partial)).toBeDefined();
+  });
+
+  it('two FULLY-specified rows in DIFFERENT boroughs never merge (no over-merge)', () => {
+    const manhattan = { ...FIX.addr, CityRegion: 'Manhattan', PostalCode: '10017' };
+    const brooklyn = { ...FIX.addr, CityRegion: 'Brooklyn', PostalCode: '11201' };
+    expect(resolve(manhattan, brooklyn)).toBeUndefined();
+  });
+
+  it('same borough, different zip never merges; same borough + compatible (blank) zip does', () => {
+    const a = { ...FIX.addr, CityRegion: 'Manhattan', PostalCode: '10017' };
+    const differentZip = { ...FIX.addr, CityRegion: 'Manhattan', PostalCode: '10128' };
+    expect(resolve(a, differentZip)).toBeUndefined();
+    const blankZip = { ...FIX.addr, CityRegion: 'Manhattan', PostalCode: '' };
+    expect(resolve(a, blankZip)).toBeDefined();
   });
 });
 
