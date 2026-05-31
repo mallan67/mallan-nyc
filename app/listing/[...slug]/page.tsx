@@ -2020,7 +2020,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       <AgentAvatar
                         photo={listing._assignedAgent.photo}
                         name={listing._assignedAgent.name}
-                        sizeClass="w-14 h-14"
+                        sizeClass="w-20 h-20"
                       />
                       <div className="min-w-0">
                         {listing._assignedAgent.slug ? (

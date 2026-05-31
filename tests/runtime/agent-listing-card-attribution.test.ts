@@ -48,6 +48,21 @@ describe('Agent-page listing card — exclusive vs RLS attribution', () => {
   });
 });
 
+describe('Agent-listings route feeds provenance so exclusives classify correctly (Codex PR #307)', () => {
+  const route = readFileSync(
+    resolve(__dirname, '../../app/api/agents/[slug]/listings/route.ts'),
+    'utf8',
+  );
+  it('selects agent_id + owner_client_id (so classifyDbListing emits _source exclusive)', () => {
+    expect(route).toMatch(/agent_id:\s*true/);
+    expect(route).toMatch(/owner_client_id:\s*true/);
+  });
+  it('serializes agent_id + owner_client_id onto the DTO input', () => {
+    expect(route).toMatch(/agent_id:\s*l\.agent_id != null \? l\.agent_id\.toString\(\) : null/);
+    expect(route).toMatch(/owner_client_id:\s*l\.owner_client_id != null/);
+  });
+});
+
 describe('AgentAvatar — resets state on photo change (Codex PR #306)', () => {
   it('uses a useEffect keyed on [photo] that resets src + failed', () => {
     expect(avatar).toMatch(/useEffect\(/);
