@@ -47,6 +47,7 @@ import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback } from '@/lib/media/listing-media-resolver';
+import { extractListingVideoMedia } from '@/lib/media/listing-video-media';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -521,6 +522,17 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         }
       } catch {
         // Non-fatal — listing still renders with whatever DB has
+      }
+    }
+
+    // Bridge CRM-entered video / 3D-tour URLs (saved on raw_data by the sale
+    // form, NOT in listing_media) into the media array so the gallery's Video /
+    // 3D tabs render them. Skip if a same-type media row already exists (e.g. a
+    // Trestle Video) so we never double-render. (Media fix — video/3D not
+    // populating for CRM exclusives like SL-0004's saved YouTube URL.)
+    for (const v of extractListingVideoMedia(dbListing.raw_data as Record<string, unknown>)) {
+      if (!mediaArr.some((m) => m.mediaType.toLowerCase() === v.mediaType.toLowerCase())) {
+        mediaArr.push({ url: v.url, mediaType: v.mediaType, order: mediaArr.length });
       }
     }
 
