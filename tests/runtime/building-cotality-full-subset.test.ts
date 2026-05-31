@@ -163,6 +163,11 @@ describe('form populate — building pet/laundry fill (suggestion-only, manual w
     const document = {
       getElementById: () => null,
       querySelectorAll: (sel: string) => { const m = sel.match(/name="([^"]+)"/); return (m && groups[m[1]]) || []; },
+      querySelector: (sel: string) => {
+        const v = sel.match(/value="([^"]+)"/);
+        if (v) for (const g of Object.values(groups)) { const cb = g.find((c) => c.value === v[1]); if (cb) return cb; }
+        return null;
+      },
       createElement: () => ({ value: '', text: '', dataset: {} }),
     };
     const start = FORM.indexOf('function populateBuildingFromIDX(');
@@ -178,6 +183,17 @@ describe('form populate — building pet/laundry fill (suggestion-only, manual w
     run({ building_pets: ['BuildingCatsOK', 'BuildingYes'], building_laundry: ['CoinOperated'] }, { saleBuildingPetsAllowed: pets, saleBuildingLaundryFeatures: laundry });
     expect(pets.filter((c) => c.checked).map((c) => c.value).sort()).toEqual(['BuildingCatsOK', 'BuildingYes']);
     expect(laundry.filter((c) => c.checked).map((c) => c.value)).toEqual(['CoinOperated']);
+  });
+  it('precise building_laundry applies even when the generic laundry flag is set (Codex #301)', () => {
+    const laundry: Cb[] = [{ value: 'CoinOperated', checked: false }, { value: 'InBasement', checked: false }, { value: 'CommonArea', checked: false }];
+    run({ laundry: true, building_laundry: ['CoinOperated', 'InBasement'] }, { saleBuildingLaundryFeatures: laundry });
+    expect(laundry.filter((c) => c.checked).map((c) => c.value).sort()).toEqual(['CoinOperated', 'InBasement']);
+    expect(laundry.find((c) => c.value === 'CommonArea')!.checked).toBe(false); // legacy precheck skipped when precise policy exists
+  });
+  it('legacy CommonArea fallback still fires when there is NO precise building_laundry', () => {
+    const laundry: Cb[] = [{ value: 'CommonArea', checked: false }];
+    run({ laundry: true, building_laundry: [] }, { saleBuildingLaundryFeatures: laundry });
+    expect(laundry.find((c) => c.value === 'CommonArea')!.checked).toBe(true);
   });
   it('does NOT overwrite a manually-selected building policy', () => {
     const pets: Cb[] = [{ value: 'BuildingNo', checked: true }, { value: 'BuildingCatsOK', checked: false }];
