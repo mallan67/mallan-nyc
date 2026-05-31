@@ -5481,8 +5481,12 @@ function populateBuildingFromIDX(prefix, building) {
     checkIf(prefix + 'BldgLiveInSuper', pick('live_in_super', 'liveInSuper'));
     checkIf(prefix + 'BldgOnSiteManager', pick('on_site_manager', 'onSiteManager'));
 
-    // BuildingLaundryFeatures checkbox group
-    if (building.laundry) {
+    // Legacy crude fallback: a generic laundry flag → CommonArea. ONLY when the
+    // precise Cotality building_laundry policy (resolved from LaundryFeatures
+    // Building* members below) is absent — otherwise it would pre-check the group
+    // and cause the precise fill to skip, silently dropping BuildingCoinOperated/
+    // BuildingInBasement/etc. (Codex #301).
+    if (building.laundry && !(Array.isArray(building.building_laundry) && building.building_laundry.length)) {
         const lCb = document.querySelector('.sale-laundry-cb[value="CommonArea"]');
         if (lCb) lCb.checked = true;
     }
@@ -5543,6 +5547,18 @@ function populateBuildingFromIDX(prefix, building) {
             fillGroupIfEmpty('salePetsAllowed', _petsYN === true ? 'Yes' : 'No', mapPet);
         }
     }
+
+    // ── Building-level policies from the Cotality building union ──
+    // building_pets / building_laundry are already resolved server-side from the
+    // Building*-prefixed members of PetsAllowed / LaundryFeatures (NOT the unit
+    // values) and mapped to the form's building-policy checkbox values. Fill
+    // suggestion-only (only when the group is empty) so a manual Mallan Building
+    // Profile selection is never overwritten. Unit-level pets/laundry above are
+    // kept separate from these building-level policies. (Building union, 2026-05-31.)
+    var _bldgPets = Array.isArray(building.building_pets) ? building.building_pets.join(',') : '';
+    if (_bldgPets) fillGroupIfEmpty('saleBuildingPetsAllowed', _bldgPets, function (m) { return m; });
+    var _bldgLaundry = Array.isArray(building.building_laundry) ? building.building_laundry.join(',') : '';
+    if (_bldgLaundry) fillGroupIfEmpty('saleBuildingLaundryFeatures', _bldgLaundry, function (m) { return m; });
 
     // NOTE: this function intentionally does NOT touch UnitNumber/Apt fields.
     // Per Maya's spec: building selection must preserve user-entered unit.

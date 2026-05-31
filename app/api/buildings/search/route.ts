@@ -138,10 +138,84 @@ function mergeMissingExtras(target: Record<string, unknown>, extras: Record<stri
   for (const k of Object.keys(extras)) {
     const v = extras[k];
     const cur = target[k];
-    const curEmpty = cur === null || cur === undefined || cur === '' || cur === false;
-    const vMeaningful = v !== null && v !== undefined && v !== '' && v !== false;
+    // An empty array counts as empty (backfillable) and a non-empty array as
+    // meaningful — so aggregating multiple units of a building by BuildingKeyNumeric
+    // backfills building_pets/building_laundry regardless of $orderby. (Codex #301)
+    const curEmpty = cur === null || cur === undefined || cur === '' || cur === false || (Array.isArray(cur) && cur.length === 0);
+    const vMeaningful = v !== null && v !== undefined && v !== '' && v !== false && !(Array.isArray(v) && v.length === 0);
     if (curEmpty && vMeaningful) target[k] = v;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cotality building amenity resolver (verified against live $metadata 2026-05-31).
+// Building amenities are spread across SIX Multi-enum fields, and building-level
+// items appear as Building*-prefixed members. We union all six and match on EXACT
+// member names (no substring guessing). Doorman / live-in-super have no Cotality
+// member (AttendanceType is not on the Property entity) → left to manual entry.
+// ─────────────────────────────────────────────────────────────────────────────
+const AMENITY_FEATURE_FIELDS = [
+  'BuildingFeatures', 'ExteriorFeatures', 'CommunityFeatures',
+  'AssociationAmenities', 'AccessibilityFeatures', 'ParkingFeatures',
+];
+const AMENITY_MEMBERS: Record<string, string[]> = {
+  elevator: ['Elevators', 'Elevator', 'ServiceElevators', 'FreightElevator', 'AccessibleElevatorInstalled', 'BuildingAccessibleElevatorInstalled'],
+  gym: ['FitnessCenter', 'HealthClub'],
+  pool: ['IndoorPool', 'Pool', 'CommunityPool'],
+  concierge: ['Concierge'],
+  spa: ['SpaHotTub', 'Sauna', 'SteamRoom', 'ColdPlungePool'],
+  roof_deck: ['BuildingRoofDeck', 'RoofDeck', 'RooftopDeck'],
+  storage: ['Storage', 'BuildingStorage', 'StorageFacilities', 'Lockers'],
+  bike_room: ['BikeStorage', 'BicycleStorage'],
+  package_room: ['PackageRoom', 'PackageDeliveryLocker', 'PackageService'],
+  lounge: ['CommonLounge', 'BarLounge', 'RooftopLounge', 'RecreationRoom', 'Clubhouse', 'ClubhouseOrPartyRoom', 'PartyRoom'],
+  playroom: ['CommonPlayroom', 'BuildingPlayroom', 'Playground', 'BuildingPlayground', 'GameRoom'],
+  business_center: ['BusinessCenter', 'Coworkspace', 'ComputerArea'],
+  conference_room: ['ConferenceRoom', 'ConferenceMeetingRoom', 'MeetingRoom', 'MeetingRooms', 'MeetingBanquetPartyRoom'],
+  cold_storage: ['ColdStorage', 'Coolers', 'Freezers'],
+  courtyard: ['Courtyard', 'BuildingCourtyard', 'CoveredCourtyard', 'UncoveredCourtyard', 'BuildingCoveredCourtyard', 'BuildingUncoveredCourtyard'],
+  parking: ['Parking', 'ParkingGarage', 'Garage', 'GarageAvailable', 'BuildingGarage', 'ParkingLot', 'BuildingParkingLot', 'Attached', 'BuildingAttached', 'Covered', 'BuildingCovered', 'Assigned', 'BuildingAssigned'],
+  valet: ['Valet', 'BuildingValet'],
+  wheelchair_access: ['WheelchairAccess', 'WheelchairAccessible', 'BuildingWheelchairAccessible', 'HandicapAccess', 'HandicapAccessible', 'AdaCompliant', 'BuildingAdaCompliant'],
+  on_site_manager: ['OnSiteManagement', 'PropertyManagerOnSite', 'MaintenanceOnSite', 'Management'],
+};
+// PetsAllowed building-level members → form saleBuildingPetsAllowed values (Ok→OK).
+const BUILDING_PET_MAP: Record<string, string> = {
+  BuildingYes: 'BuildingYes', BuildingNo: 'BuildingNo',
+  BuildingCatsOk: 'BuildingCatsOK', BuildingDogsOk: 'BuildingDogsOK',
+  BuildingBreedRestrictions: 'BuildingBreedRestrictions',
+  BuildingSizeLimit: 'BuildingSizeLimit', BuildingNumberLimit: 'BuildingNumberLimit',
+};
+
+function amenityTokenSet(rec: Record<string, unknown>): Set<string> {
+  const s = new Set<string>();
+  for (const f of AMENITY_FEATURE_FIELDS) {
+    String(rec[f] || '').split(',').forEach((m) => { const t = m.trim().toLowerCase(); if (t) s.add(t); });
+  }
+  return s;
+}
+// Returns ONLY the amenity flags that are TRUE — so spreading it never clobbers
+// a per-record true with false (and leaves doorman/live_in_super to manual).
+function buildingAmenityFlags(rec: Record<string, unknown>): Record<string, boolean> {
+  const set = amenityTokenSet(rec);
+  const out: Record<string, boolean> = {};
+  for (const [flag, members] of Object.entries(AMENITY_MEMBERS)) {
+    if (members.some((m) => set.has(m.toLowerCase()))) out[flag] = true;
+  }
+  return out;
+}
+// Building PET policy from PetsAllowed Building*-prefixed members (NOT unit-level).
+function buildingPetPolicy(rec: Record<string, unknown>): string[] {
+  return String(rec.PetsAllowed || '').split(',').map((m) => m.trim())
+    .map((m) => BUILDING_PET_MAP[m]).filter(Boolean) as string[];
+}
+// Building LAUNDRY policy from LaundryFeatures Building*-prefixed members; the
+// form's building-laundry checkboxes use the UNPREFIXED value, so strip "Building".
+function buildingLaundryPolicy(rec: Record<string, unknown>): string[] {
+  return String(rec.LaundryFeatures || '').split(',').map((m) => m.trim())
+    .filter((m) => m.startsWith('Building') && m.length > 'Building'.length)
+    .map((m) => m.slice('Building'.length))
+    .filter(Boolean);
 }
 
 function buildingExtras(rec: Record<string, unknown> | null | undefined) {
@@ -162,6 +236,19 @@ function buildingExtras(rec: Record<string, unknown> | null | undefined) {
     // "false" and wrongly suggest "No pets". Only true/false when Cotality
     // actually provided the field; otherwise null (no suggestion).
     pets_allowed_yn: r.PetsAllowedYN === true ? true : r.PetsAllowedYN === false ? false : null,
+    // ── Building-level union (all 6 feature fields, Building*-aware) ──
+    ...buildingAmenityFlags(r),
+    building_pets: buildingPetPolicy(r),       // building pet-policy group (from PetsAllowed Building* members)
+    building_laundry: buildingLaundryPolicy(r), // building laundry-policy group (from LaundryFeatures Building* members)
+    // ── Building identity + facts (for aggregation + fact fields) ──
+    building_key: r.BuildingKeyNumeric != null && r.BuildingKeyNumeric !== '' ? String(r.BuildingKeyNumeric) : '',
+    units_in_community: num(r.NumberOfUnitsInCommunity),
+    association_yn: r.AssociationYN === true,
+    association_phone: String(r.AssociationPhone || ''),
+    ownership_type: String(r.OwnershipType || ''),
+    property_condition: String(r.PropertyCondition || ''),
+    property_attached_yn: r.PropertyAttachedYN === true,
+    building_area_total: num(r.BuildingAreaTotal),
   };
 }
 
@@ -222,6 +309,11 @@ export async function GET(request: NextRequest) {
 
   const buildings: Array<Record<string, unknown>> = [];
   const seenAddresses = new Set<string>();
+  // building object indexed by BOTH its address key and BuildingKeyNumeric key,
+  // so a duplicate detected on EITHER key resolves to the exact existing object
+  // for enrichment — never relying on raw address-string equality (DB vs Cotality
+  // may format the same address differently). (Codex #301)
+  const buildingByKey = new Map<string, Record<string, unknown>>();
   let dbHadResults = false;
   let cotHadResults = false;
 
@@ -253,9 +345,30 @@ export async function GET(request: NextRequest) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
         const fullAddr = formatAddress(addr);
-        const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
-        if (seenAddresses.has(key)) continue;
-        seenAddresses.add(key);
+        const _addrKey = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
+        const _bkKey = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : null;
+        // Register BOTH the address key and the BuildingKeyNumeric key so a later
+        // Cotality record for the same building matches on EITHER — even when the
+        // cached DB row predates BuildingKeyNumeric. (Codex #301)
+        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
+          // Duplicate DB row for an already-pushed building (SQL has no ORDER BY,
+          // so the first row may lack BuildingKeyNumeric while this one has it).
+          // Backfill any fields the first row missed, and index this row's BK onto
+          // the existing object so a later Cotality record matches by BK instead
+          // of duplicating. (Codex #301)
+          const _existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
+          if (_existing) {
+            mergeMissingExtras(_existing, buildingExtras(feat));
+            if (_bkKey && !buildingByKey.has(_bkKey)) {
+              seenAddresses.add(_bkKey);
+              buildingByKey.set(_bkKey, _existing);
+              if (!_existing.building_key) _existing.building_key = _bkKey.slice(3);
+            }
+          }
+          continue;
+        }
+        seenAddresses.add(_addrKey);
+        if (_bkKey) seenAddresses.add(_bkKey);
 
         const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
@@ -317,6 +430,8 @@ export async function GET(request: NextRequest) {
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
           ...buildingExtras(feat),
         });
+        buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
+        if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
       }
     } else if (parsed.buildingName) {
       const dbResults = await prisma.listing.findMany({
@@ -336,9 +451,30 @@ export async function GET(request: NextRequest) {
         // Use formatAddress so StreetDirPrefix is preserved — the prior
         // inline concat dropped E/W/N/S and saved malformed addresses.
         const fullAddr = formatAddress(addr);
-        const key = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
-        if (seenAddresses.has(key)) continue;
-        seenAddresses.add(key);
+        const _addrKey = `${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || ''}`.toUpperCase();
+        const _bkKey = feat && feat.BuildingKeyNumeric ? 'BK:' + String(feat.BuildingKeyNumeric) : null;
+        // Register BOTH the address key and the BuildingKeyNumeric key so a later
+        // Cotality record for the same building matches on EITHER — even when the
+        // cached DB row predates BuildingKeyNumeric. (Codex #301)
+        if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
+          // Duplicate DB row for an already-pushed building (SQL has no ORDER BY,
+          // so the first row may lack BuildingKeyNumeric while this one has it).
+          // Backfill any fields the first row missed, and index this row's BK onto
+          // the existing object so a later Cotality record matches by BK instead
+          // of duplicating. (Codex #301)
+          const _existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
+          if (_existing) {
+            mergeMissingExtras(_existing, buildingExtras(feat));
+            if (_bkKey && !buildingByKey.has(_bkKey)) {
+              seenAddresses.add(_bkKey);
+              buildingByKey.set(_bkKey, _existing);
+              if (!_existing.building_key) _existing.building_key = _bkKey.slice(3);
+            }
+          }
+          continue;
+        }
+        seenAddresses.add(_addrKey);
+        if (_bkKey) seenAddresses.add(_bkKey);
 
         const dbFeatures = String(feat?.BuildingFeatures || '').toLowerCase();
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
@@ -400,6 +536,8 @@ export async function GET(request: NextRequest) {
           washer_dryer_allowed: dbFeatures.includes('washer') || dbFeatures.includes('w/d'),
           ...buildingExtras(feat),
         });
+        buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
+        if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
       }
     }
 
@@ -445,6 +583,18 @@ export async function GET(request: NextRequest) {
           'GarageYN', 'AttachedGarageYN', 'GarageSpaces',
           'OpenParkingSpaces', 'CoveredSpaces', 'ParkingFeatures',
           'LaundryFeatures', 'DocumentsAvailable', 'PetsAllowedYN',
+          // Full Cotality building subset — all verified in live $metadata
+          // (2026-05-31). Building amenities are spread across these Multi-enum
+          // fields (Building*-prefixed members = building-level); building facts +
+          // association; BuildingKeyNumeric for cross-unit aggregation.
+          'BuildingKeyNumeric', 'BuildingAreaTotal', 'BuildingAreaUnits', 'BuildingAreaSource',
+          'YearBuiltDetails', 'YearBuiltSource',
+          'NumberOfUnitsInCommunity', 'PropertyCondition', 'OwnershipType', 'PropertyAttachedYN',
+          'AssociationYN', 'AssociationPhone', 'AssociationFee2',
+          // All SIX amenity feature fields the resolver unions must be fetched —
+          // AssociationAmenities was missing, so association-only amenities
+          // (Concierge/IndoorPool) never filled on the Cotality path. (Codex #301)
+          'ExteriorFeatures', 'CommunityFeatures', 'AccessibilityFeatures', 'AssociationAmenities',
         ].join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
@@ -486,16 +636,21 @@ export async function GET(request: NextRequest) {
 
           for (const r of records) {
             const fullAddr = formatAddress(r);
-            const key = `${r.StreetNumber}-${r.StreetName}-${r.PostalCode || ''}`.toUpperCase();
-            if (seenAddresses.has(key)) {
-              // Same building already came from the DB cache. Backfill any
-              // Cotality-only extras the DB JSON lacks (parking/pets/laundry/
-              // docs) into that result instead of dropping them. (Codex #297)
-              const existing = buildings.find((b) => b.address === fullAddr);
+            const _addrKey = `${r.StreetNumber}-${r.StreetName}-${r.PostalCode || ''}`.toUpperCase();
+            const _bkKey = (r.BuildingKeyNumeric != null && r.BuildingKeyNumeric !== '') ? 'BK:' + String(r.BuildingKeyNumeric) : null;
+            // Dedup on EITHER key (address or BuildingKeyNumeric) so a DB-cached
+            // row keyed by address — incl. older rows lacking BuildingKeyNumeric —
+            // is matched and ENRICHED rather than duplicated. (Codex #301)
+            if (seenAddresses.has(_addrKey) || (_bkKey && seenAddresses.has(_bkKey))) {
+              // Resolve the existing object via the SAME key that matched (BK
+              // first, else address key) — not raw address equality, which can
+              // differ between DB and Cotality formatting. (Codex #301)
+              const existing = (_bkKey && buildingByKey.get(_bkKey)) || buildingByKey.get(_addrKey);
               if (existing) mergeMissingExtras(existing, buildingExtras(r));
               continue;
             }
-            seenAddresses.add(key);
+            seenAddresses.add(_addrKey);
+            if (_bkKey) seenAddresses.add(_bkKey);
 
             const features = String(r.BuildingFeatures || '').toLowerCase();
 
@@ -567,6 +722,8 @@ export async function GET(request: NextRequest) {
               washer_dryer_allowed: features.includes('washer') || features.includes('w/d'),
               ...buildingExtras(r),
             });
+            buildingByKey.set(_addrKey, buildings[buildings.length - 1]);
+            if (_bkKey) buildingByKey.set(_bkKey, buildings[buildings.length - 1]);
           }
         } else {
           diag.errorClass = 'cotality_non_200';
