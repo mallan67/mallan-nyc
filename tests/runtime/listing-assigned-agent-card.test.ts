@@ -17,6 +17,7 @@ import {
   buildAssignedAgentDisplay,
   type AssignedAgentRecord,
 } from '../../lib/listings/assigned-agent';
+import { headshotVariant, avatarInitials } from '../../lib/agents/avatar';
 
 const AGENT_MAYA: AssignedAgentRecord = {
   full_name: 'Maya Allan', email: 'maya@mallan.nyc', phone: '(646) 258-4460',
@@ -125,14 +126,10 @@ describe('listing-detail page renders the card with the existing style', () => {
     expect(page).toMatch(/buildAssignedAgentDisplay\(/);
   });
 
-  it('renders photo via next/image OR an initials fallback avatar', () => {
-    expect(page).toMatch(/_assignedAgent\.photo \?/);
-    expect(page).toMatch(/<Image[\s\S]{0,120}src=\{listing\._assignedAgent\.photo\}/);
-    // initials fallback (split words → first letters → uppercase)
-    expect(page).toMatch(/\.split\(\/\\s\+\/\)/);
-    expect(page).toMatch(/\.map\(\(w\) => w\[0\]\)/);
-    expect(page).toMatch(/\.toUpperCase\(\)/);
-    expect(page).toMatch(/rounded-full/);
+  it('renders the avatar via the reusable AgentAvatar component (photo or initials)', () => {
+    expect(page).toMatch(/import AgentAvatar from '@\/app\/components\/AgentAvatar'/);
+    expect(page).toMatch(/<AgentAvatar[\s\S]{0,120}photo=\{listing\._assignedAgent\.photo\}/);
+    expect(page).toMatch(/<AgentAvatar[\s\S]{0,160}name=\{listing\._assignedAgent\.name\}/);
   });
 
   it('renders the license title and an optional profile link', () => {
@@ -149,5 +146,35 @@ describe('listing-detail page renders the card with the existing style', () => {
 
   it('third-party / no-agent path renders a brokerage-only block (no agent card)', () => {
     expect(page).toMatch(/Third-party IDX\/RLS or no assigned agent/);
+  });
+});
+
+describe('AgentAvatar helpers — square headshot variant + initials', () => {
+  it('derives the -headshot variant path generically (any agent, any extension)', () => {
+    expect(headshotVariant('/images/agents/maya-allan.jpg')).toBe('/images/agents/maya-allan-headshot.jpg');
+    expect(headshotVariant('/images/agents/jordan-rivera.png')).toBe('/images/agents/jordan-rivera-headshot.png');
+    expect(headshotVariant('/x/a.webp?v=2')).toBe('/x/a-headshot.webp?v=2');
+  });
+
+  it('returns empty string when there is no photo (→ initials path)', () => {
+    expect(headshotVariant('')).toBe('');
+    expect(headshotVariant(null)).toBe('');
+    expect(headshotVariant(undefined)).toBe('');
+  });
+
+  it('computes up to two uppercased initials', () => {
+    expect(avatarInitials('Maya Allan')).toBe('MA');
+    expect(avatarInitials('Jordan Rivera')).toBe('JR');
+    expect(avatarInitials('Cher')).toBe('C');
+    expect(avatarInitials('  pat   q  lee ')).toBe('PQ');
+    expect(avatarInitials('')).toBe('');
+  });
+
+  it('the AgentAvatar component falls back photo→initials and is not hardcoded to one agent', () => {
+    const src = readFileSync(resolve(__dirname, '../../app/components/AgentAvatar.tsx'), 'utf8');
+    expect(src).toMatch(/headshotVariant\(/);
+    expect(src).toMatch(/onError/);
+    expect(src).toMatch(/avatarInitials\(name\)/);
+    expect(src).not.toMatch(/maya|Maya|SL-0004/);
   });
 });
