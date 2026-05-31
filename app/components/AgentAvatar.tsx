@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { headshotVariant, avatarInitials } from '@/lib/agents/avatar';
 
 interface AgentAvatarProps {
@@ -20,6 +20,15 @@ export default function AgentAvatar({ photo, name, sizeClass = 'w-14 h-14' }: Ag
   const headshot = headshotVariant(photo);
   const [src, setSrc] = useState<string>(headshot || photo || '');
   const [failed, setFailed] = useState<boolean>(!photo);
+
+  // Reset the resolved src + failure flag when the agent photo changes (e.g.
+  // client-side navigation from one listing to another). Without this, React
+  // preserves the prior agent's state and the avatar can show the wrong image
+  // or stay on the initials fallback. (Codex review, PR #306.)
+  useEffect(() => {
+    setSrc(headshotVariant(photo) || photo || '');
+    setFailed(!photo);
+  }, [photo]);
 
   if (failed || !src) {
     return (
