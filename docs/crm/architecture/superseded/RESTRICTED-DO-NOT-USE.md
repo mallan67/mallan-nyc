@@ -2,8 +2,8 @@
 
 The files in this folder are **NON-AUTHORITATIVE**. They were folded into and replaced on **2026-05-30** by the canonical CRM architecture plan:
 
-> Control file: `docs/crm-architecture/README.md`
-> Plan spec: `docs/crm-architecture/MASTER-PLAN.md`
+> Control file: `docs/crm/architecture/README.md`
+> Plan spec: `docs/crm/architecture/MASTER-PLAN.md`
 
 ## Rules (binding on every agent and session)
 
@@ -18,4 +18,4 @@ The files in this folder are **NON-AUTHORITATIVE**. They were folded into and re
 | `2026-04-27-mallan-intelligence-platform-WIP.md` | Intelligence-platform vision (never approved) | Vision deferred; only registry + event-spine + role-loops kept |
 | `crm-agent-search-architecture-audit-2026-05-21.md` | CRM + agent-search current-state audit | Folded into the master plan (current-state + build sequence) |
 
-*Archived 2026-05-30. Moved here from `docs/superpowers/specs/` and `docs/audits/` so the restriction declared in `docs/crm-architecture/README.md` §A is structurally enforced.*
+*Archived 2026-05-30. Moved here from `docs/superpowers/specs/` and `docs/audits/` so the restriction declared in `docs/crm/architecture/README.md` §A is structurally enforced.*

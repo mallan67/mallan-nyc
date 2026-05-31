@@ -6,16 +6,33 @@
 
 ---
 
+## 📁 What is in this folder (`docs/crm/architecture/`)
+
+The **entire** CRM architecture rebuild lives **here, in one place** — nothing scattered, no hunting across the repo.
+
+| Open this | What it is |
+|---|---|
+| **`README.md`** ← *you are here* | Entry point: branch board, hard rules, execution order, status. **Read this first.** |
+| **`MASTER-PLAN.md`** | The full plan — every section, decision, and compliance rule (the *what*). |
+| **`BRANCH-INDEX.md`** | The branch registry + the exact build order. |
+| **`branches/`** | One implementation plan per branch — STABILIZE · SEARCH · FIREWALL · AGENT · MONEY-LOOPS · PORTALS · BROKER · EXTERNAL · SPONSOR (the *how*). |
+| **`journals/`** | The agent resume-journal protocol (so work survives a freeze/shutdown). |
+| **`superseded/`** | ⛔ RESTRICTED old docs — **do NOT use** (kept only for history). |
+
+**Read order:** `README.md` → `MASTER-PLAN.md` → the relevant file in `branches/`.
+
+---
+
 ## §A. Canonical documents (the only sources of truth)
 
 | Role | File |
 |---|---|
-| **THE PLAN** (spine — scope, ordering, hard rules) | `docs/crm-architecture/MASTER-PLAN.md` |
+| **THE PLAN** (spine — scope, ordering, hard rules) | `docs/crm/architecture/MASTER-PLAN.md` |
 | **Companion — Tier 2** (external / StreetEasy / off-market) — *active, mostly complete* | `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md` |
 | **Companion — Tier 3** (sponsor / Schedule A / new-development) — *active, mostly complete* | `docs/superpowers/specs/2026-04-30-sponsor-database-design.md` |
 | Governance | `CLAUDE.md` · `NEON.md` · `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` · `.claude/skills/rebny-compliance/SKILL.md` |
 | Operational records | `memory/REFACTOR-2026-04-25.md` · `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` · `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md` |
-| ⛔ RESTRICTED (read-only, non-authoritative — do NOT use) | `docs/crm-architecture/superseded/` (WIP vision + 2026-05-21 audit) |
+| ⛔ RESTRICTED (read-only, non-authoritative — do NOT use) | `docs/crm/architecture/superseded/` (WIP vision + 2026-05-21 audit) |
 
 ---
 
@@ -38,15 +55,15 @@ Each section is owned by ONE agent, on its OWN branch in an isolated worktree, w
 
 | # | Section (plan ref) | Agent focus | Branch | Journal | Owns (write) | Status |
 |---|---|---|---|---|---|---|
-| 0 | Stabilize #295 (plan §7 Phase 0) | Stabilize | `fix/sale-form-commission-history-building` (current) | `docs/crm-architecture/journals/00-stabilize.*` | sale-form / media / building load | ⬜ NOT STARTED |
-| 1 | Canonical registry + search core (§2) | Search spine | `feat/search-registry-core` | `docs/crm-architecture/journals/01-search.*` | `search-registry.json`, `lib/search/**` | ⬜ NOT STARTED |
-| 2 | Compliance firewall + tests (§5, §3.4) | Compliance | `feat/tier-firewall-tests` | `docs/crm-architecture/journals/02-firewall.*` | reverse-pin CI tests, pre-send scans | ⬜ NOT STARTED |
-| 3 | Agent search shell (§2.3–2.4) | Agent search | `feat/agent-search-shell` | `docs/crm-architecture/journals/03-agent.*` | `app/api/crm/search/**`, agent-search UI | ⬜ NOT STARTED |
-| 4 | Money loops + send (§4) | Loops / send | `feat/money-loops-send` | `docs/crm-architecture/journals/04-money-loops.*` | `ListingSend`, send/collection routes + UI | ⬜ NOT STARTED |
-| 5 | Client Portals + **Seller-Portal Pilot** (§12) | Portals | `feat/client-portals` | `docs/crm-architecture/journals/05-portals.*` | `app/portal/**`, `app/api/portal/**`, owner-link flow, anonymized engagement, deal-readiness tracker | ⬜ NOT STARTED — after SEARCH + FIREWALL |
-| 6 | **Broker Command Center** (§6) — *top-notch* | Broker | `feat/broker-command-center` | `docs/crm-architecture/journals/06-broker.*` | broker routes, credential vault, doc library, Money&Action board, Marketing Hub, leads lifecycle | ⬜ NOT STARTED — early phase non-schema |
-| 7 | Tier 2 — external / StreetEasy (§3.2) | T2 (HELD) | `feat/t2-external-inventory` | `docs/crm-architecture/journals/07-t2-external.*` | `lib/external-listings/**`, `external_inventory_*` | 🔒 HELD — Maya approval |
-| 8 | Tier 3 — sponsor / Schedule A (§3.3) | T3 (HELD) | `feat/t3-sponsor` | `docs/crm-architecture/journals/08-t3-sponsor.*` | `lib/sponsor/**`, sponsor schema | 🔒 HELD — Maya approval |
+| 0 | Stabilize #295 (plan §7 Phase 0) | Stabilize | `fix/sale-form-commission-history-building` (current) | `docs/crm/architecture/journals/00-stabilize.*` | sale-form / media / building load | ⬜ NOT STARTED |
+| 1 | Canonical registry + search core (§2) | Search spine | `feat/search-registry-core` | `docs/crm/architecture/journals/01-search.*` | `search-registry.json`, `lib/search/**` | ⬜ NOT STARTED |
+| 2 | Compliance firewall + tests (§5, §3.4) | Compliance | `feat/tier-firewall-tests` | `docs/crm/architecture/journals/02-firewall.*` | reverse-pin CI tests, pre-send scans | ⬜ NOT STARTED |
+| 3 | Agent search shell (§2.3–2.4) | Agent search | `feat/agent-search-shell` | `docs/crm/architecture/journals/03-agent.*` | `app/api/crm/search/**`, agent-search UI | ⬜ NOT STARTED |
+| 4 | Money loops + send (§4) | Loops / send | `feat/money-loops-send` | `docs/crm/architecture/journals/04-money-loops.*` | `ListingSend`, send/collection routes + UI | ⬜ NOT STARTED |
+| 5 | Client Portals + **Seller-Portal Pilot** (§12) | Portals | `feat/client-portals` | `docs/crm/architecture/journals/05-portals.*` | `app/portal/**`, `app/api/portal/**`, owner-link flow, anonymized engagement, deal-readiness tracker | ⬜ NOT STARTED — after SEARCH + FIREWALL |
+| 6 | **Broker Command Center** (§6) — *top-notch* | Broker | `feat/broker-command-center` | `docs/crm/architecture/journals/06-broker.*` | broker routes, credential vault, doc library, Money&Action board, Marketing Hub, leads lifecycle | ⬜ NOT STARTED — early phase non-schema |
+| 7 | Tier 2 — external / StreetEasy (§3.2) | T2 (HELD) | `feat/t2-external-inventory` | `docs/crm/architecture/journals/07-t2-external.*` | `lib/external-listings/**`, `external_inventory_*` | 🔒 HELD — Maya approval |
+| 8 | Tier 3 — sponsor / Schedule A (§3.3) | T3 (HELD) | `feat/t3-sponsor` | `docs/crm/architecture/journals/08-t3-sponsor.*` | `lib/sponsor/**`, sponsor schema | 🔒 HELD — Maya approval |
 
 *The Broker section (#4) is the one you flagged for a dedicated agent to make top-notch — it includes the NYS-tied credential vault, the document/template library, the Money & Action Board, the Marketing Hub, and the leads-lifecycle factual-stage-reason + verified-leads-plugin work.*
 
@@ -56,7 +73,7 @@ Each section is owned by ONE agent, on its OWN branch in an isolated worktree, w
 
 Every agent writes its own memory so any interruption can be picked up exactly where it stopped.
 
-**Files (per section, under `docs/crm-architecture/journals/`):**
+**Files (per section, under `docs/crm/architecture/journals/`):**
 - `<slug>.journal.jsonl` — append-only action log; one JSON line per action:
   `{"ts":"<iso>","step":"<n>","action":"<what>","files":["..."],"result":"ok|fail","next":"<what's next>"}`
 - `<slug>.state.json` — resume pointer:
@@ -78,7 +95,7 @@ Every agent writes its own memory so any interruption can be picked up exactly w
 
 **Global status (2026-05-30):** PLANNING. The plan + both companion specs are written and reviewed-pending. No section has started implementation. Phase 0 (#295) is the first gate.
 
-**Next action:** Per-branch plans are written (`docs/crm-architecture/branches/`). **Corrected execution order: STABILIZE → SEARCH + FIREWALL → AGENT + MONEY-LOOPS → PORTALS pilot → BROKER → (T2/T3 held).** Start with STABILIZE; **SEARCH + FIREWALL are the Phase-1 gate that must be ready before AGENT, PORTALS, sends, or T2/T3.** No code/implementation without Maya approval per branch.
+**Next action:** Per-branch plans are written (`docs/crm/architecture/branches/`). **Corrected execution order: STABILIZE → SEARCH + FIREWALL → AGENT + MONEY-LOOPS → PORTALS pilot → BROKER → (T2/T3 held).** Start with STABILIZE; **SEARCH + FIREWALL are the Phase-1 gate that must be ready before AGENT, PORTALS, sends, or T2/T3.** No code/implementation without Maya approval per branch.
 
 ---
 

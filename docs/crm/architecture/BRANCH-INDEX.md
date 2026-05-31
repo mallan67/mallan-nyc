@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement the per-branch plans task-by-task. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Build the search-centric Mallan CRM as defined in the spec `docs/crm-architecture/MASTER-PLAN.md`, one branch per subsystem, each isolated, journaled, and rule-bound.
+**Goal:** Build the search-centric Mallan CRM as defined in the spec `docs/crm/architecture/MASTER-PLAN.md`, one branch per subsystem, each isolated, journaled, and rule-bound.
 
 **Architecture:** One canonical search core fed live from Cotality; CRM, broker tools, tiers, money-loops, and client portals all serve the loop *Search → match → send/share → track → advise → show → offer/lease/sale → commission*. Each subsystem is owned by ONE agent on ONE branch with a resume-journal.
 
@@ -12,8 +12,8 @@
 
 ## How to use this index (READ FIRST)
 
-1. **Each branch has its own plan file** in `docs/crm-architecture/branches/`, named for the branch.
-2. **To start or restart a branch:** open its file, read the **🛑 MANDATORY RULES** block at the top *every time*, read its journal (`docs/crm-architecture/journals/<slug>.*`), resume from the last completed step.
+1. **Each branch has its own plan file** in `docs/crm/architecture/branches/`, named for the branch.
+2. **To start or restart a branch:** open its file, read the **🛑 MANDATORY RULES** block at the top *every time*, read its journal (`docs/crm/architecture/journals/<slug>.*`), resume from the last completed step.
 3. **An agent works ONLY its own branch and ONLY its owned files.** It never improvises, never expands scope, never touches another branch's files.
 4. The spec (`...listing-search-business-spine-master-plan.md`) is the source of truth for *what*; each branch file is the source of truth for *how*.
 
