@@ -272,6 +272,13 @@ export interface PublicListingDTO {
     email?: string;
     phone?: string;
     company?: string;
+    /** Headshot URL from the Agent record; absent → render initials fallback. */
+    photo?: string;
+    /** Stored license title / role (e.g. "Licensed Real Estate Broker") —
+     *  the NY DOS §175.25 designation. Omitted when the Agent has none. */
+    title?: string;
+    /** Agent public_slug → optional link to /agents/{slug}. */
+    slug?: string;
   };
   /**
    * Option C (PR-FE.2, 2026-05-15) — siblings annotation.
