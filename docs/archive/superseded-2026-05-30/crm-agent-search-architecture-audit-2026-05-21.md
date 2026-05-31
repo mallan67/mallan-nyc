@@ -1,3 +1,5 @@
+> ⛔ **RESTRICTED · SUPERSEDED · NON-AUTHORITATIVE — DO NOT USE.** Superseded 2026-05-30 by the canonical CRM architecture plan (`docs/CRM-ARCHITECTURE.md` → spec → per-branch plans). Historical reference only — **no agent may pull requirements, scope, or instructions from this file.** See `RESTRICTED-DO-NOT-USE.md` in this folder.
+
 # CRM + Agent Search Architecture Audit — 2026-05-21
 
 **Status:** REPORT-ONLY · No code patches · No schema changes · No migrations · No env/Neon/cron/workflow/agent/skill changes · No external-inventory or sponsor implementation · No PR 5B activity · No admin bypass.
