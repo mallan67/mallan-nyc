@@ -17,6 +17,13 @@ import { formatBathrooms } from '@/lib/format/bathrooms';
 interface FeaturedListing {
   id: string;
   mlsId: string;
+  /**
+   * Raw RLS/Trestle key or internal SL-/RL- prefix. On the public DTO `id`
+   * already carries listing_id for DB rows, but the field is surfaced
+   * explicitly so a broker can pin by ANY of id / mlsId / listing_id and the
+   * match still resolves. Optional — Trestle-direct rows may omit it.
+   */
+  listing_id?: string;
   slug: string;
   status: string;
   listingType: 'sale' | 'rent';
@@ -76,6 +83,21 @@ const DEFAULT_CONFIG: FeaturedConfig = {
   sort: 'newest',
   limit: 6,
 };
+
+/**
+ * Pin match — a listing is pinned when the broker's pinned-id set contains
+ * ANY of its identifiers: the public `id` (which carries listing_id for DB
+ * rows), the `mlsId`, OR the explicit `listing_id`. Matching all three lets a
+ * broker pin by whichever identifier they have on hand (numeric PK, RLS key,
+ * or SL-/RL- prefix) and still hit the right card.
+ */
+function isPinnedListing(listing: FeaturedListing, pinnedSet: Set<string>): boolean {
+  return (
+    pinnedSet.has(listing.id) ||
+    pinnedSet.has(listing.mlsId) ||
+    (listing.listing_id != null && pinnedSet.has(listing.listing_id))
+  );
+}
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
@@ -399,9 +421,9 @@ export default function FeaturedListings() {
         const seenIds = new Set<string>();
         const merged: FeaturedListing[] = [];
         for (const l of exclusives) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
-        const pinned = generalListings.filter(l => pinnedSet.has(l.id) || pinnedSet.has(l.mlsId));
+        const pinned = generalListings.filter(l => isPinnedListing(l, pinnedSet));
         for (const l of pinned) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
-        const rest = generalListings.filter(l => !pinnedSet.has(l.id) && !pinnedSet.has(l.mlsId));
+        const rest = generalListings.filter(l => !isPinnedListing(l, pinnedSet));
         for (const l of rest) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
 
         const featured = merged.slice(0, limit);
@@ -429,7 +451,7 @@ export default function FeaturedListings() {
           <div className="flex items-end justify-between mb-12 md:mb-16">
             <div>
               <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Featured</p>
-              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Properties</h2>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Mallan Exclusives</h2>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 md:gap-8">
@@ -449,7 +471,7 @@ export default function FeaturedListings() {
         <div className="flex items-end justify-between mb-12 md:mb-16">
           <div>
             <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Featured</p>
-            <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Properties</h2>
+            <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Mallan Exclusives</h2>
           </div>
           <Link href="/buy" className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500 hidden sm:block">
             View All &rarr;
@@ -461,7 +483,7 @@ export default function FeaturedListings() {
             <ListingCard
               key={listing.id}
               listing={listing}
-              isPinned={pinnedIds.has(listing.id) || pinnedIds.has(listing.mlsId)}
+              isPinned={isPinnedListing(listing, pinnedIds)}
             />
           ))}
         </div>

@@ -178,9 +178,33 @@ describe('Candidate display shows building facts', () => {
 });
 
 // ── 8. Dedup key excludes unit number ──
+//
+// Updated 2026-05-31 (Part A). The inline `StreetNumber-StreetName-PostalCode`
+// template was promoted into a shared `addressIdentityKey(rec)` resolver so a
+// building's identity (and its merged saved profile) aggregates across every
+// unit. The identity key is still UNIT-FREE — it incorporates street number,
+// direction, name, suffix, borough (CityRegion) and zip (PostalCode), but never
+// UnitNumber — so two units in the same building still collapse to one building.
 
-describe('Building dedup key excludes unit number', () => {
-  it('key uses StreetNumber-StreetName-PostalCode (no unit)', () => {
-    expect(routeTs).toContain('`${addr.StreetNumber}-${addr.StreetName}-${addr.PostalCode || \'\'}`');
+describe('Building dedup key excludes unit number (addressIdentityKey)', () => {
+  it('the dedup key is built by addressIdentityKey, not an inline unit-bearing concat', () => {
+    expect(routeTs).toContain('function addressIdentityKey');
+    expect(routeTs).toContain('addressIdentityKey(addr)');
+  });
+
+  it('addressIdentityKey is composed from street parts + borough + zip', () => {
+    const start = routeTs.indexOf('function addressIdentityKey');
+    const body = routeTs.slice(start, start + 900);
+    expect(body).toContain('rec.StreetNumber');
+    expect(body).toContain('rec.StreetName');
+    expect(body).toContain('rec.PostalCode');
+    expect(body).toContain('rec.CityRegion'); // borough
+  });
+
+  it('the identity key never incorporates the unit number', () => {
+    const start = routeTs.indexOf('function addressIdentityKey');
+    const body = routeTs.slice(start, start + 900);
+    expect(body).not.toContain('UnitNumber');
+    expect(body).not.toContain('rec.Unit');
   });
 });

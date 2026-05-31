@@ -634,6 +634,32 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         attributionText: 'Listing data from REBNY RLS',
         disclaimerRequired: true,
       },
+      // Assigned listing-agent contact card — populated ONLY for Mallan
+      // exclusives (SL-/RL- prefix or website-only rls_eligible === false),
+      // where Mallan IS the listing broker and the named agent is our own
+      // licensee. For third-party IDX/RLS rows this stays undefined so we
+      // never surface another brokerage's agent PII. Built from whatever
+      // agent_info actually carries — blank fields are omitted, never invented.
+      ...(() => {
+        const isMallanExclusive =
+          dbListing.listing_id?.startsWith('SL-') ||
+          dbListing.listing_id?.startsWith('RL-') ||
+          dbListing.rls_eligible === false;
+        if (!isMallanExclusive) return {};
+        const name = (agentInfo.ListAgentFullName || '').trim();
+        const email = (agentInfo.ListAgentEmail || '').trim();
+        const phone = (agentInfo.ListAgentDirectPhone || '').trim();
+        const company = (agentInfo.ListOfficeName || '').trim();
+        if (!name && !email && !phone && !company) return {};
+        return {
+          _assignedAgent: {
+            ...(name ? { name } : {}),
+            ...(email ? { email } : {}),
+            ...(phone ? { phone } : {}),
+            ...(company ? { company } : {}),
+          },
+        };
+      })(),
     };
 
     return {
@@ -1962,31 +1988,41 @@ export default async function ListingPage({ params, searchParams }: Props) {
             <div className="lg:col-span-1 min-w-0 hidden lg:block">
               <div className="sticky top-24 space-y-5">
 
-                {/* Contact Card */}
+                {/* Contact Card — for a Mallan exclusive, render the ASSIGNED
+                    listing agent (name + Mallan contact). The brokerage line is
+                    ALWAYS shown for 19 NYCRR §175.25 attribution. Third-party
+                    IDX rows carry no `_assignedAgent` (PII stripped) and fall
+                    back to the brokerage-only block + default Mallan contact. */}
                 <div className="rounded-3xl p-6 border border-black/[0.06]" style={{ background: 'linear-gradient(180deg, #fff 0%, #F8F7F4 100%)' }}>
                   <h3 className="font-display font-semibold text-[15px] text-brand-dark mb-1">Interested in this property?</h3>
-                  <p className="text-brand-dark/50 text-[12px] mb-5">Mallan Real Estate Inc.</p>
+                  {listing._assignedAgent?.name && (
+                    <p className="text-brand-dark text-[14px] font-medium">{listing._assignedAgent.name}</p>
+                  )}
+                  {/* §175.25 brokerage attribution — never dropped. */}
+                  <p className="text-brand-dark/50 text-[12px] mb-5">
+                    {listing._assignedAgent?.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
+                  </p>
                   <div className="space-y-2.5">
                     <a
-                      href={`mailto:contact@mallan.nyc?subject=${encodeURIComponent(`Schedule Showing: ${fullAddress}`)}`}
+                      href={`mailto:${listing._assignedAgent?.email || 'contact@mallan.nyc'}?subject=${encodeURIComponent(`Schedule Showing: ${fullAddress}`)}`}
                       className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 font-medium text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       Schedule a Showing
                     </a>
                     <a
-                      href={`mailto:contact@mallan.nyc?subject=${encodeURIComponent(`Inquiry: ${fullAddress}`)}`}
+                      href={`mailto:${listing._assignedAgent?.email || 'contact@mallan.nyc'}?subject=${encodeURIComponent(`Inquiry: ${fullAddress}`)}`}
                       className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-gold text-white rounded-2xl hover:bg-brand-gold-deep font-medium text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                       Request Information
                     </a>
                     <a
-                      href="tel:646-258-4460"
+                      href={`tel:${(listing._assignedAgent?.phone || '646-258-4460').replace(/[^\d+]/g, '')}`}
                       className="flex items-center justify-center gap-2 w-full px-6 py-3 text-brand-dark rounded-2xl ring-1 ring-black/10 hover:bg-gray-50 font-medium text-sm transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                      (646) 258-4460
+                      {listing._assignedAgent?.phone || '(646) 258-4460'}
                     </a>
                   </div>
                 </div>

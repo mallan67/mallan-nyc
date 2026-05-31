@@ -13,6 +13,7 @@ import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-ma
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
+import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -302,6 +303,18 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
 
+  // Mallan-exclusive agent assignment (Part C2). A CRM-created listing is ALWAYS
+  // a Mallan exclusive (SL-/RL- prefix, mls_id null), so the creating agent IS
+  // the listing agent. Load that agent's identity so buildExclusiveAgentAssignment
+  // can stamp the named agent + "Mallan Real Estate Inc." onto the row — the
+  // attribution the public FeaturedListings + listing-detail contact card render
+  // (19 NYCRR §175.25 / UCBA Art. III §2(C)). Identity is the AUTHENTICATED agent,
+  // never invented; the helper fills only blank agent_info keys (manual wins).
+  const assigningAgent = await prisma.agent.findUnique({
+    where: { id: auth.userId },
+    select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true },
+  });
+
   // Wrap listing create + ID generation + audit log in a single transaction.
   // Advisory lock inside generateListingId prevents duplicate listing IDs.
   // If any step fails, the entire transaction rolls back.
@@ -309,6 +322,18 @@ export async function POST(req: NextRequest) {
   try {
   result = await prisma.$transaction(async (tx) => {
     const listingId = await generateListingId(tx, listingType);
+
+    // Stamp the Mallan listing-agent attribution. listingId is SL-/RL- (CRM
+    // exclusive) so this is never null; it blank-only-merges over whatever
+    // agent keys the form already sent (manual wins) and resolves the two
+    // promoted display columns (list_agent_full_name / list_office_name).
+    const exclusiveAssignment = assigningAgent
+      ? buildExclusiveAgentAssignment(
+          assigningAgent,
+          { listing_id: listingId, rls_eligible: rlsEligible },
+          (persistence.agentInfo as Record<string, unknown>) ?? {},
+        )
+      : null;
 
     const listing = await tx.listing.create({
       data: {
@@ -390,7 +415,14 @@ export async function POST(req: NextRequest) {
         features: persistence.features as Prisma.InputJsonValue,
         media: (body.media as Prisma.InputJsonValue) ?? [],
         compliance: compliance as Prisma.InputJsonValue,
-        agent_info: persistence.agentInfo as Prisma.InputJsonValue,
+        // agent_info carries the assigned Mallan listing-agent attribution
+        // (blank-only merged over form values); list_agent_full_name /
+        // list_office_name are the promoted display columns the public DTO +
+        // detail card read. Falls back to the raw form agentInfo if the agent
+        // row could not be loaded.
+        agent_info: (exclusiveAssignment?.agent_info ?? persistence.agentInfo) as Prisma.InputJsonValue,
+        list_agent_full_name: exclusiveAssignment?.list_agent_full_name ?? null,
+        list_office_name: exclusiveAssignment?.list_office_name ?? null,
         // raw_data stores the full normalized payload (removed fields already stripped)
         raw_data: persistence.raw_data as Prisma.InputJsonValue,
         modification_timestamp: now,
