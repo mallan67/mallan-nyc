@@ -22,14 +22,14 @@
 | # | Branch (open this file) | Git branch | Journal slug | Owns | Depends on | Status |
 |---|---|---|---|---|---|---|
 | 0 | **STABILIZE-BRANCH.md** | `fix/sale-form-commission-history-building` | `00-stabilize` | sale-form, media, building load (#295) | — | ⬜ |
-| 1 | **SEARCH-BRANCH.md** | `feat/search-registry-core` | `01-registry-core` | `search-registry.json`, `lib/search/**` | 0 | ⬜ |
-| 2 | **AGENT-BRANCH.md** | `feat/agent-search-shell` | `02-agent-search` | `app/api/crm/search/**`, agent-search UI | 1 | ⬜ |
-| 3 | **MONEY-LOOPS-BRANCH.md** | `feat/money-loops-send` | `03-money-loops` | `ListingSend`, send/collection routes + UI | 1, 2 | ⬜ |
-| 4 | **BROKER-BRANCH.md** | `feat/broker-command-center` | `04-broker` | broker routes, credential vault, doc library, Money&Action board, Marketing Hub, leads lifecycle, `panels.js` modularize | 0 | ⬜ |
-| 5 | **EXTERNAL-BRANCH.md** (T2) | `feat/t2-external-inventory` | `05-t2-external` | `lib/external-listings/**`, `external_inventory_*` | 1, 7 · **HELD (Maya)** | 🔒 |
-| 6 | **SPONSOR-BRANCH.md** (T3) | `feat/t3-sponsor` | `06-t3-sponsor` | `lib/sponsor/**`, sponsor schema | 1, 7 · **HELD (Maya)** | 🔒 |
-| 7 | **FIREWALL-BRANCH.md** | `feat/tier-firewall-tests` | `07-firewall` | reverse-pin CI tests, pre-send scans | — (**Phase 1 gate** — must be green before AGENT / PORTALS / sends / T2 / T3) | ⬜ |
-| 8 | **PORTALS-BRANCH.md** | `feat/client-portals` | `08-portals` | `app/portal/**`, `app/api/portal/**`, owner-link, deal-readiness | **SEARCH (1) + FIREWALL (7) ready** — scheduled Phase 3; **NOT before SEARCH+FIREWALL** | ⬜ |
+| 1 | **SEARCH-BRANCH.md** | `feat/search-registry-core` | `01-search` | `search-registry.json`, `lib/search/**` | 0 | ⬜ |
+| 2 | **FIREWALL-BRANCH.md** | `feat/tier-firewall-tests` | `02-firewall` | reverse-pin CI tests, pre-send scans | 0 (**Phase-1 gate** — green before AGENT / MONEY-LOOPS / PORTALS / sends / T2 / T3) | ⬜ |
+| 3 | **AGENT-BRANCH.md** | `feat/agent-search-shell` | `03-agent` | `app/api/crm/search/**`, agent-search UI | 1 | ⬜ |
+| 4 | **MONEY-LOOPS-BRANCH.md** | `feat/money-loops-send` | `04-money-loops` | `ListingSend`, send/collection routes + UI | 1, 3 | ⬜ |
+| 5 | **PORTALS-BRANCH.md** | `feat/client-portals` | `05-portals` | `app/portal/**`, `app/api/portal/**`, owner-link, deal-readiness | **1 + 2 (SEARCH + FIREWALL) ready**; scheduled after 3 + 4 | ⬜ |
+| 6 | **BROKER-BRANCH.md** | `feat/broker-command-center` | `06-broker` | broker routes, credential vault, doc library, Money&Action board, Marketing Hub, leads lifecycle, `panels.js` modularize | 0 (early phase = non-schema) | ⬜ |
+| 7 | **EXTERNAL-BRANCH.md** (T2) | `feat/t2-external-inventory` | `07-t2-external` | `lib/external-listings/**`, `external_inventory_*` | 1, 2 · **HELD (Maya)** | 🔒 |
+| 8 | **SPONSOR-BRANCH.md** (T3) | `feat/t3-sponsor` | `08-t3-sponsor` | `lib/sponsor/**`, sponsor schema | 1, 2 · **HELD (Maya)** | 🔒 |
 
 **Companion detail-specs (active, cite for T2/T3 data models):** `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md`, `...sponsor-database-design.md`.
 

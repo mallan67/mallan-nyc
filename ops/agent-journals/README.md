@@ -15,7 +15,7 @@ One JSON object per line, appended after every meaningful action. Never rewritte
 
 ```json
 {
-  "section": "01-registry-core",
+  "section": "01-search",
   "branch": "feat/search-registry-core",
   "status": "in_progress",
   "last_completed_step": "2",
@@ -36,6 +36,6 @@ One JSON object per line, appended after every meaningful action. Never rewritte
 
 ## 4. Slugs
 
-`00-stabilize` · `01-registry-core` · `02-agent-search` · `03-money-loops` · `04-broker` · `05-t2-external` · `06-t3-sponsor` · `07-firewall` · `08-portals`
+`00-stabilize` · `01-search` · `02-firewall` · `03-agent` · `04-money-loops` · `05-portals` · `06-broker` · `07-t2-external` · `08-t3-sponsor`
 
 > The Workflow tool provides journaling + resume natively within a session; these files are the durable, cross-session, human-readable mirror that survives any interruption.

@@ -116,6 +116,7 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 | Topic | Canonical file |
 |---|---|
 | **Compliance per-area canonical map** (read first for any §D surface) | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
+| **CRM architecture rebuild plan** (search-first · PLANNING / docs-only — nothing implemented · order: STABILIZE → SEARCH + FIREWALL → AGENT + MONEY-LOOPS → PORTALS → BROKER → T2/T3 held) | `docs/CRM-ARCHITECTURE.md` (control file + branch board) · spec `docs/superpowers/specs/2026-05-30-listing-search-business-spine-master-plan.md` · per-branch plans `docs/superpowers/plans/branches/` |
 | REBNY skill (auto-loaded at session start) | `.claude/skills/rebny-compliance/SKILL.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |

@@ -279,7 +279,7 @@ Each agent: read-only investigation first → TDD → run the §7.4 suite → re
 | D18 | **Deterministic Cotality tests** (recorded fixtures / contract tests) (§11.8). | ✅ Maya |
 | D19 | **Multi-agent system built now = ready-to-hire** (§11.9). | ✅ Maya |
 | D20 | Buyer-Rep rule **CONFIRMED** against the UCBA Master Copy PDF (`rev. 2026-3.30`, Maya-verified) = **Art. II §16, co-broker / buyer-side**, executed agreement before any showing. | ✅ confirmed |
-| D21 | **Client Portals = first-class section** (agent `08-portals`); seller-portal content per §12.1; honest empty-states. | ✅ Maya |
+| D21 | **Client Portals = first-class section** (agent `05-portals`); seller-portal content per §12.1; honest empty-states. | ✅ Maya |
 | D22 | **Seller-portal pilot** (Maya's current exclusive) — **gated on SEARCH contract + FIREWALL baseline ready**, scheduled Phase 3 (NOT right after STABILIZE); punch-list §12.4. | ✅ Maya (corrected order) |
 | D23 | **"Who's clicking" shown to seller is ANONYMIZED — never buyer PII** (§12.2). | ✅ Maya (compliance) |
 | D24 | **Seller deal-readiness tracker**, property-type-aware (co-op stock/lease · condo/townhouse title · all: attorney/condition-report/payoff/accountant/closing-costs/proceeds) (§12.3). | ✅ Maya |
@@ -334,7 +334,7 @@ Each agent: read-only investigation first → TDD → run the §7.4 suite → re
 
 ## §12. Client Portals + Seller-Portal Pilot (gated on SEARCH + FIREWALL)
 
-The buyer / seller / tenant / landlord portals are a **first-class section** (own agent/branch/journal `08-portals`), not a tail of the money loops — they are the client-facing end of the event spine where clients track and react. **Honest empty-states everywhere** (§0.2): "no showings yet," never a zero that reads as broken.
+The buyer / seller / tenant / landlord portals are a **first-class section** (own agent/branch/journal `05-portals`), not a tail of the money loops — they are the client-facing end of the event spine where clients track and react. **Honest empty-states everywhere** (§0.2): "no showings yet," never a zero that reads as broken.
 
 **Foundation already built** (verified 2026-05-30): seller portal = 7 tabs (`app/portal/seller/page.tsx`), 72-hour hashed invite token, owner-scoped showings/offers, compliance PASS (2026-05-20 audit) — agent + buyer PII masked, address fail-closed, demand anonymized.
 

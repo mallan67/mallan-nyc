@@ -1,7 +1,7 @@
 # SEARCH BRANCH — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Checkbox steps.
-> **Git branch:** `feat/search-registry-core` · **Journal:** `ops/agent-journals/01-registry-core.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `feat/search-registry-core` · **Journal:** `ops/agent-journals/01-search.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
 
 ---
 
@@ -9,7 +9,7 @@
 
 You are the **SEARCH agent**. ONLY branch `feat/search-registry-core`, ONLY this plan's owned files. No improvising, no scope creep, no other branches' files.
 
-0. **RESUME FIRST.** Read `ops/agent-journals/01-registry-core.state.json` + tail journal. Resume after `last_completed_step`. Append journal + update state every action. Block → `status:"blocked"`, record, STOP, surface to Maya.
+0. **RESUME FIRST.** Read `ops/agent-journals/01-search.state.json` + tail journal. Resume after `last_completed_step`. Append journal + update state every action. Block → `status:"blocked"`, record, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION — LIVE COTALITY `$metadata` IS THE FIELD AUTHORITY.** The single source of field truth is the **live Cotality `$metadata`**. Existing mapper constants and old registry files (legacy field lists/symbols, located via the `rebny-compliance` skill §2.3) are **compatibility references ONLY — not authority**. If a legacy constant/file conflicts with live `$metadata`, **STOP and surface the mismatch** — do not guess, do not silently follow the old constant. The DB is a cache/projection only. Invented field names = HTTP 400.
 2. **ALWAYS COTALITY LIVE PULL.** The registry maps the LIVE Cotality feed; the DB is a cache; live-validate before display/send/share; live data passes the 6 distribution gates + mapper + `normalizeStandardStatus()` + terminal-status guard (spec §3.1).
 3. **REBNY COMPLIANCE IN-REPO.** `compliance/UCBA_Master_Copy_rev._2026_3.30.pdf` + `compliance/UCBA-2026.md` + `rebny-compliance` skill. Invoke before compliance-touching commits. Fail-closed.

@@ -1,7 +1,7 @@
 # PORTALS BRANCH — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Steps use checkbox (`- [ ]`).
-> **Git branch:** `feat/client-portals` · **Journal:** `ops/agent-journals/08-portals.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `feat/client-portals` · **Journal:** `ops/agent-journals/05-portals.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
 
 ---
 
@@ -9,7 +9,7 @@
 
 You are the **PORTALS agent**. You work ONLY on branch `feat/client-portals` and ONLY the files this plan owns (§Owned files). You do NOT improvise, expand scope, refactor unrelated code, or touch another branch's files.
 
-0. **RESUME FIRST.** Read `ops/agent-journals/08-portals.state.json` + tail `08-portals.journal.jsonl`. Resume from the step AFTER `last_completed_step`. Never redo completed work. After every action: append one line to the journal, then overwrite state. On a blocker: set `status:"blocked"`, record it, STOP, surface to Maya.
+0. **RESUME FIRST.** Read `ops/agent-journals/05-portals.state.json` + tail `05-portals.journal.jsonl`. Resume from the step AFTER `last_completed_step`. Never redo completed work. After every action: append one line to the journal, then overwrite state. On a blocker: set `status:"blocked"`, record it, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION.** If a field, interface, rule, or value is unclear/undefined/missing — STOP and ask Maya. Read the actual file before changing it. Do not guess a Cotality field, a Prisma column, or a UCBA rule.
 2. **ALWAYS COTALITY LIVE PULL.** All listing data is live from Cotality; the DB is a cache only; live-validate before any open/send/share; never serve stale as fresh. Live data still passes the 6 distribution gates + the **Cotality Live Connect** mapper + status-normalizer + terminal-status guard (spec §3.1).
 3. **REBNY COMPLIANCE IS IN-REPO.** Primary source: `compliance/UCBA_Master_Copy_rev._2026_3.30.pdf` + `compliance/UCBA-2026.md` + the `rebny-compliance` skill. Invoke the skill before any compliance-touching commit. Fail-closed on any ambiguity.

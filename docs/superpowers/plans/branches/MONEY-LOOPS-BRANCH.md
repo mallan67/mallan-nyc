@@ -1,7 +1,7 @@
 # MONEY-LOOPS BRANCH — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Checkbox steps.
-> **Git branch:** `feat/money-loops-send` · **Journal:** `ops/agent-journals/03-money-loops.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `feat/money-loops-send` · **Journal:** `ops/agent-journals/04-money-loops.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
 
 ---
 
@@ -9,7 +9,7 @@
 
 You are the **MONEY-LOOPS agent**. ONLY branch `feat/money-loops-send`, ONLY this plan's owned files. No improvising, no scope creep, no other branches' files.
 
-0. **RESUME FIRST.** `ops/agent-journals/03-money-loops.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
+0. **RESUME FIRST.** `ops/agent-journals/04-money-loops.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION.** Unclear/missing → STOP and ask. Read interfaces before consuming.
 2. **ALWAYS COTALITY LIVE PULL.** A live capture from Cotality fires immediately **before any send/share** to a client; never send a stale price or dead listing; the 6 gates + mapper + terminal-status guard apply (spec §3.1, §3.1 compliance pin).
 3. **REBNY COMPLIANCE IN-REPO.** `compliance/UCBA_Master_Copy_rev._2026_3.30.pdf` + `compliance/UCBA-2026.md` + `rebny-compliance` skill. Invoke before compliance-touching commits. Fail-closed.

@@ -39,14 +39,14 @@ Each section is owned by ONE agent, on its OWN branch in an isolated worktree, w
 | # | Section (plan ref) | Agent focus | Branch | Journal | Owns (write) | Status |
 |---|---|---|---|---|---|---|
 | 0 | Stabilize #295 (plan §7 Phase 0) | Stabilize | `fix/sale-form-commission-history-building` (current) | `ops/agent-journals/00-stabilize.*` | sale-form / media / building load | ⬜ NOT STARTED |
-| 1 | Canonical registry + search core (§2) | Search spine | `feat/search-registry-core` | `ops/agent-journals/01-registry-core.*` | `search-registry.json`, `lib/search/**` | ⬜ NOT STARTED |
-| 2 | Agent search shell (§2.3–2.4) | Agent search | `feat/agent-search-shell` | `ops/agent-journals/02-agent-search.*` | `app/api/crm/search/**`, agent-search UI | ⬜ NOT STARTED |
-| 3 | Money loops + send (§4) | Loops / send | `feat/money-loops-send` | `ops/agent-journals/03-money-loops.*` | `ListingSend`, send/collection routes + UI | ⬜ NOT STARTED |
-| 4 | **Broker Command Center** (§6) — *top-notch* | Broker | `feat/broker-command-center` | `ops/agent-journals/04-broker.*` | broker routes, credential vault, doc library, Money&Action board, Marketing Hub, leads lifecycle | ⬜ NOT STARTED |
-| 5 | Tier 2 — external / StreetEasy (§3.2) | T2 (HELD) | `feat/t2-external-inventory` | `ops/agent-journals/05-t2-external.*` | `lib/external-listings/**`, `external_inventory_*` | ⬜ NOT STARTED — Maya approval |
-| 6 | Tier 3 — sponsor / Schedule A (§3.3) | T3 (HELD) | `feat/t3-sponsor` | `ops/agent-journals/06-t3-sponsor.*` | `lib/sponsor/**`, sponsor schema | ⬜ NOT STARTED — Maya approval |
-| 7 | Compliance firewall + tests (§5, §3.4) | Compliance | `feat/tier-firewall-tests` | `ops/agent-journals/07-firewall.*` | reverse-pin CI tests, pre-send scans | ⬜ NOT STARTED |
-| 8 | Client Portals + **Seller-Portal Pilot** (§12) | Portals | `feat/client-portals` | `ops/agent-journals/08-portals.*` | `app/portal/**`, `app/api/portal/**`, owner-link flow, anonymized engagement, deal-readiness tracker | ⬜ NOT STARTED — **Phase 3; starts ONLY after SEARCH + FIREWALL ready (NOT first)** |
+| 1 | Canonical registry + search core (§2) | Search spine | `feat/search-registry-core` | `ops/agent-journals/01-search.*` | `search-registry.json`, `lib/search/**` | ⬜ NOT STARTED |
+| 2 | Compliance firewall + tests (§5, §3.4) | Compliance | `feat/tier-firewall-tests` | `ops/agent-journals/02-firewall.*` | reverse-pin CI tests, pre-send scans | ⬜ NOT STARTED |
+| 3 | Agent search shell (§2.3–2.4) | Agent search | `feat/agent-search-shell` | `ops/agent-journals/03-agent.*` | `app/api/crm/search/**`, agent-search UI | ⬜ NOT STARTED |
+| 4 | Money loops + send (§4) | Loops / send | `feat/money-loops-send` | `ops/agent-journals/04-money-loops.*` | `ListingSend`, send/collection routes + UI | ⬜ NOT STARTED |
+| 5 | Client Portals + **Seller-Portal Pilot** (§12) | Portals | `feat/client-portals` | `ops/agent-journals/05-portals.*` | `app/portal/**`, `app/api/portal/**`, owner-link flow, anonymized engagement, deal-readiness tracker | ⬜ NOT STARTED — after SEARCH + FIREWALL |
+| 6 | **Broker Command Center** (§6) — *top-notch* | Broker | `feat/broker-command-center` | `ops/agent-journals/06-broker.*` | broker routes, credential vault, doc library, Money&Action board, Marketing Hub, leads lifecycle | ⬜ NOT STARTED — early phase non-schema |
+| 7 | Tier 2 — external / StreetEasy (§3.2) | T2 (HELD) | `feat/t2-external-inventory` | `ops/agent-journals/07-t2-external.*` | `lib/external-listings/**`, `external_inventory_*` | 🔒 HELD — Maya approval |
+| 8 | Tier 3 — sponsor / Schedule A (§3.3) | T3 (HELD) | `feat/t3-sponsor` | `ops/agent-journals/08-t3-sponsor.*` | `lib/sponsor/**`, sponsor schema | 🔒 HELD — Maya approval |
 
 *The Broker section (#4) is the one you flagged for a dedicated agent to make top-notch — it includes the NYS-tied credential vault, the document/template library, the Money & Action Board, the Marketing Hub, and the leads-lifecycle factual-stage-reason + verified-leads-plugin work.*
 

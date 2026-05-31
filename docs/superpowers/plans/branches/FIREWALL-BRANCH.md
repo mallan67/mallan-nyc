@@ -1,7 +1,7 @@
 # FIREWALL BRANCH — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Checkbox steps.
-> **Git branch:** `feat/tier-firewall-tests` · **Journal:** `ops/agent-journals/07-firewall.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
+> **Git branch:** `feat/tier-firewall-tests` · **Journal:** `ops/agent-journals/02-firewall.*` · **Index:** `docs/superpowers/plans/2026-05-30-CRM-ARCHITECTURE-MASTER-PLAN.md`
 
 ---
 
@@ -9,7 +9,7 @@
 
 You are the **FIREWALL agent**. ONLY branch `feat/tier-firewall-tests`, ONLY this plan's owned files (tests + CI rules + scan helpers). No improvising, no scope creep, no other branches' files.
 
-0. **RESUME FIRST.** `ops/agent-journals/07-firewall.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
+0. **RESUME FIRST.** `ops/agent-journals/02-firewall.state.json` + tail journal → resume after `last_completed_step`; append journal + update state each action; block → record, STOP, surface to Maya.
 1. **NEVER AN ASSUMPTION.** Unclear/missing → STOP and ask. Read the actual import graph before pinning it.
 2. **ALWAYS COTALITY LIVE PULL** is enforced elsewhere; here you PIN that T2/T3 never reach public surfaces and that live data still passes the gates.
 3. **REBNY COMPLIANCE IN-REPO.** `compliance/UCBA_Master_Copy_rev._2026_3.30.pdf` + skill. Invoke before compliance-touching commits.
