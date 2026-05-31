@@ -9884,6 +9884,44 @@ function _populateSaleFormFromApi(listing) {
     if (_listingUrlEl && !(_listingUrlEl.value || '').trim() && typeof generateListingUrl === 'function') {
         generateListingUrl('sale');
     }
+
+    // ── Auto-pull building facts from Cotality on edit-load ──────────────────
+    // Edit-load restores SAVED data only; it never queried Cotality, so an
+    // existing listing created without a building lookup showed an EMPTY building
+    // section (roof deck / elevator / building pets / laundry / association /
+    // parking all blank). Run the building lookup from the listing's address
+    // ONLY when the building section is still empty — so it never overwrites
+    // saved building data or the manual Mallan Building Profile (management /
+    // board / financing / super, which Cotality does not provide). (2026-05-31)
+    _autoLookupBuildingOnLoad();
+}
+
+// Returns true when the building section has no saved/entered data yet — used to
+// gate the edit-load auto-pull so it only fills a blank section.
+function _saleBuildingSectionIsEmpty() {
+    var ids = ['saleBldgName', 'saleBldgYearBuilt', 'saleBldgTotalFloors', 'saleBldgTotalUnits', 'saleBldgStreetAddress'];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (el && (el.value || '').trim()) return false;
+    }
+    var anyAmenity = document.querySelector('#saleBuildingModal input[data-rls-field="BuildingFeatures"]:checked');
+    return !anyAmenity;
+}
+
+function _autoLookupBuildingOnLoad() {
+    try {
+        if (!_saleBuildingSectionIsEmpty()) return; // saved/manual data present — never clobber
+        var addrEl = document.getElementById('saleStreetAddress');
+        var addr = addrEl ? (addrEl.value || '').trim() : '';
+        if (!addr || addr.length < 5 || typeof fetchBuildingsFromAPI !== 'function') return;
+        fetchBuildingsFromAPI(addr).then(function (matches) {
+            // Re-check empty: the agent may have started typing during the fetch.
+            if (matches && matches.length && _saleBuildingSectionIsEmpty()) {
+                buildingDatabase = matches;
+                populateBuildingFromIDX('sale', matches[0]);
+            }
+        }).catch(function () { /* lookup is best-effort; manual entry always works */ });
+    } catch (e) { /* never block edit-load on the auto-pull */ }
 }
 
 // ═══════════════════════════════════════════════════════════
