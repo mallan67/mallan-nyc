@@ -9836,6 +9836,20 @@ function _populateSaleFormFromApi(listing) {
     // would leave a Contract/Sold listing's Buyer's Agent Contact section
     // (default display:none) hidden until a manual status change. (Codex #298.)
     if (typeof updateSaleStatusFields === 'function') updateSaleStatusFields();
+
+    // Auto-generate the Listing URL on edit-load. generateListingUrl is wired
+    // only to the address atoms' `change` event; restoring them via setVal sets
+    // .value programmatically and never fires `change`, so the readonly URL
+    // field stayed on its "Auto-generated from address" placeholder. The address
+    // atoms (StreetNumber/Name/Suffix/DirPrefix/Unit/City/State/Zip) and
+    // _saleEditListingId are restored above, so generate now — but ONLY when the
+    // field is blank, so a saved/manually-set slug is never overwritten. The
+    // slug format is the existing canonical /listing/{address}/{listing-id}
+    // (matches the API publicUrl from lib/crm/listing-urls.ts). (2026-05-31)
+    var _listingUrlEl = document.getElementById('saleListingUrl');
+    if (_listingUrlEl && !(_listingUrlEl.value || '').trim() && typeof generateListingUrl === 'function') {
+        generateListingUrl('sale');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
