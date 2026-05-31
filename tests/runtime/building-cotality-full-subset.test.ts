@@ -115,6 +115,30 @@ describe('route wiring', () => {
     expect(hasField('AttendanceType')).toBe(false);
     expect(ROUTE).not.toMatch(/'BuildingLaundryFeatures'|'BuildingPetsAllowed'|'AttendanceType'/); // not in $select
   });
+  it('fetches ALL SIX amenity feature fields it unions — incl. AssociationAmenities (Codex #301)', () => {
+    ['BuildingFeatures', 'ExteriorFeatures', 'CommunityFeatures', 'AssociationAmenities', 'AccessibilityFeatures', 'ParkingFeatures']
+      .forEach((f) => expect(ROUTE).toMatch(new RegExp(`'${f}'`)));
+  });
+});
+
+describe('BuildingKeyNumeric aggregation backfills empty policy arrays (Codex #301)', () => {
+  function loadMerge() {
+    const fn = sliceFn(ROUTE, 'mergeMissingExtras').replace(/: Record<[^>]*>/g, '');
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+    return new Function(`${fn}; return mergeMissingExtras;`)();
+  }
+  const mergeMissingExtras = loadMerge();
+  it('an empty array target IS backfilled from a later non-empty unit', () => {
+    const target: Record<string, unknown> = { building_pets: [], building_laundry: [] };
+    mergeMissingExtras(target, { building_pets: ['BuildingCatsOK'], building_laundry: ['CoinOperated'] });
+    expect(target.building_pets).toEqual(['BuildingCatsOK']);
+    expect(target.building_laundry).toEqual(['CoinOperated']);
+  });
+  it('a non-empty array is NOT overwritten (manual/first value wins)', () => {
+    const target: Record<string, unknown> = { building_pets: ['BuildingNo'] };
+    mergeMissingExtras(target, { building_pets: ['BuildingCatsOK'] });
+    expect(target.building_pets).toEqual(['BuildingNo']);
+  });
 });
 
 describe('form populate — building pet/laundry fill (suggestion-only, manual wins)', () => {

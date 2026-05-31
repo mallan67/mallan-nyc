@@ -138,8 +138,11 @@ function mergeMissingExtras(target: Record<string, unknown>, extras: Record<stri
   for (const k of Object.keys(extras)) {
     const v = extras[k];
     const cur = target[k];
-    const curEmpty = cur === null || cur === undefined || cur === '' || cur === false;
-    const vMeaningful = v !== null && v !== undefined && v !== '' && v !== false;
+    // An empty array counts as empty (backfillable) and a non-empty array as
+    // meaningful — so aggregating multiple units of a building by BuildingKeyNumeric
+    // backfills building_pets/building_laundry regardless of $orderby. (Codex #301)
+    const curEmpty = cur === null || cur === undefined || cur === '' || cur === false || (Array.isArray(cur) && cur.length === 0);
+    const vMeaningful = v !== null && v !== undefined && v !== '' && v !== false && !(Array.isArray(v) && v.length === 0);
     if (curEmpty && vMeaningful) target[k] = v;
   }
 }
@@ -539,7 +542,10 @@ export async function GET(request: NextRequest) {
           'YearBuiltDetails', 'YearBuiltSource',
           'NumberOfUnitsInCommunity', 'PropertyCondition', 'OwnershipType', 'PropertyAttachedYN',
           'AssociationYN', 'AssociationPhone', 'AssociationFee2',
-          'ExteriorFeatures', 'CommunityFeatures', 'AccessibilityFeatures',
+          // All SIX amenity feature fields the resolver unions must be fetched —
+          // AssociationAmenities was missing, so association-only amenities
+          // (Concierge/IndoorPool) never filled on the Cotality path. (Codex #301)
+          'ExteriorFeatures', 'CommunityFeatures', 'AccessibilityFeatures', 'AssociationAmenities',
         ].join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
