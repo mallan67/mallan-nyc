@@ -117,8 +117,8 @@ This is the continuation of the 2026-05-17 finding (`NEON.md` §10 entry + `docs
 ### Required GitHub configuration (Maya adds; HELD until then)
 | Item | Type | Value |
 |---|---|---|
-| `NEON_PREVIEW_PROJECT_ID` | **Variable** | `hidden-mountain-87248164` |
-| `NEON_PREVIEW_API_KEY` | **Secret** | a Neon key that can manage `hidden-mountain` (ideally preview-scoped) |
+| `NEON_PREVIEW_PROJECT_ID` | **Variable** (or repo Secret — workflow accepts either via `vars.X \|\| secrets.X`) | `hidden-mountain-87248164` |
+| `NEON_PREVIEW_API_KEY` | **Secret** | a Neon key that can manage `hidden-mountain` (ideally an org key for "Vercel: maya", which structurally cannot reach production) |
 
 > ⚠️ Do **not** reuse `vars.NEON_PROJECT_ID` (= production `morning-bread-68708332`) or `secrets.NEON_API_KEY` (production rotation key) — see `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` §7.
 

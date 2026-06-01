@@ -42,7 +42,9 @@ jobs:
     # Skip fork PRs: they cannot access secrets, and we never act on external refs.
     if: github.event.pull_request.head.repo.full_name == github.repository
     env:
-      PREVIEW_PROJECT_ID: ${{ vars.NEON_PREVIEW_PROJECT_ID }}
+      # Accept the preview project id whether it was stored as a repo VARIABLE
+      # or a repo SECRET (project ids are not sensitive; either placement works).
+      PREVIEW_PROJECT_ID: ${{ vars.NEON_PREVIEW_PROJECT_ID || secrets.NEON_PREVIEW_PROJECT_ID }}
       EXPECTED_PREVIEW_PROJECT_ID: hidden-mountain-87248164
       PROD_PROJECT_ID: morning-bread-68708332
       HEAD_REF: ${{ github.head_ref }}
@@ -97,7 +99,8 @@ jobs:
         continue-on-error: true
         with:
           # PREVIEW ONLY — never vars.NEON_PROJECT_ID (that is PRODUCTION).
-          project_id: ${{ vars.NEON_PREVIEW_PROJECT_ID }}
+          # Accept variable OR secret placement (see env block above).
+          project_id: ${{ vars.NEON_PREVIEW_PROJECT_ID || secrets.NEON_PREVIEW_PROJECT_ID }}
           branch: preview/${{ github.head_ref }}
           # PREVIEW ONLY — never secrets.NEON_API_KEY (that is the production rotation key).
           api_key: ${{ secrets.NEON_PREVIEW_API_KEY }}
