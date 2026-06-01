@@ -180,7 +180,12 @@ export default function Header() {
   ];
 
   const exclusivesItems = [
-    { title: 'Our Listings', href: '/sign-in' },
+    // Public Company Exclusives page — the search page filters to Mallan
+    // exclusives (exclusive=mallan) and renders the cards with their canonical
+    // address URLs. (Was '/sign-in', which gated the public exclusives behind
+    // login; the /buy rewrite drops query params, so link the search route
+    // directly.)
+    { title: 'Our Listings', href: '/search?exclusive=mallan&tab=buy-residential' },
     { title: 'New to Market', href: '/buy?sort=newest' },
     { title: 'Client Portal', href: '/sign-in' },
   ];
