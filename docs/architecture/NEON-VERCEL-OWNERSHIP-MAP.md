@@ -236,6 +236,8 @@ The same env-var NAME may live on both surfaces with **different values**. This 
 | `SLACK_WEBHOOK_URL` | secret | Slack alert endpoint | rotate workflow |
 | `NEON_ADMIN_KEY`, `NEON_ROTATION_ADMIN`, `ROTATION_ADMIN_KEY`, `ASSISTANT_PAT`, `TEST_SECRET`, `NYC_GEOCLIENT_KEY`, `NYC_SODA_*`, `SOCRATA_APP_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` | secrets | Various integration creds | Various workflows |
 | `AUDIT_*` (var) | actions vars | Audit-bot config (email, cadence, SMTP) | `.github/workflows/repo-audit-bot.yml` |
+| `NEON_PREVIEW_PROJECT_ID` | **actions var** (not secret) | **`hidden-mountain-87248164`** (the PREVIEW project) — added 2026-06-01 for Tier 2 cleanup; deliberately distinct from the production-pointing `NEON_PROJECT_ID` | `.github/workflows/cleanup-neon-preview-branch.yml` |
+| `NEON_PREVIEW_API_KEY` | secret | Neon key scoped to the PREVIEW project (`hidden-mountain`) — added 2026-06-01 for Tier 2 cleanup; distinct from the production `NEON_API_KEY` rotation key | `.github/workflows/cleanup-neon-preview-branch.yml` |
 
 ### Key ownership rule
 

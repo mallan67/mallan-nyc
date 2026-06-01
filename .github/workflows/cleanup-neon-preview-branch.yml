@@ -1,0 +1,103 @@
+name: Cleanup Neon preview branch on PR close
+
+# =========================================================================
+# PRODUCTION ISOLATION — read this before editing.
+# -------------------------------------------------------------------------
+# When a PR closes (merged or not), delete the ONE Neon preview branch that
+# the Vercel-Managed integration created for that PR's preview deploys.
+# This is hygiene only — it complements the daily `neon-branch-prune` cron
+# (24h retention) by cleaning a PR's branch immediately at close.
+#
+# It operates EXCLUSIVELY on the PREVIEW Neon project
+#   hidden-mountain-87248164  (Vercel label "neon-green-school")
+# via DEDICATED, PREVIEW-ONLY credentials:
+#   vars.NEON_PREVIEW_PROJECT_ID    -> must equal hidden-mountain-87248164
+#   secrets.NEON_PREVIEW_API_KEY    -> a Neon key scoped to the preview project
+#
+# It MUST NEVER touch production:
+#   - Neon project  morning-bread-68708332  (mallandb / PRODUCTION)
+#   - vars.NEON_PROJECT_ID   -> PRODUCTION (do NOT use here)
+#   - secrets.NEON_API_KEY   -> production credential-rotation key (do NOT use here)
+#
+# Refs:
+#   docs/neon-vercel-branch-check-2026-06-01.md  (§11 Tier 2)
+#   docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md  (§7 env-var ownership)
+# =========================================================================
+
+on:
+  pull_request:
+    types: [closed]
+
+# Least privilege: no repo contents access is needed (no checkout; Neon API only).
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-preview-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  delete-preview-branch:
+    runs-on: ubuntu-latest
+    # Skip fork PRs: they cannot access secrets, and we never act on external refs.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      PREVIEW_PROJECT_ID: ${{ vars.NEON_PREVIEW_PROJECT_ID }}
+      EXPECTED_PREVIEW_PROJECT_ID: hidden-mountain-87248164
+      PROD_PROJECT_ID: morning-bread-68708332
+      HEAD_REF: ${{ github.head_ref }}
+    steps:
+      # ---------------------------------------------------------------------
+      # Guard — fail CLOSED before the delete action runs. Reads $HEAD_REF via
+      # env (NOT inline ${{ }}) so a crafted branch name cannot inject shell.
+      # ---------------------------------------------------------------------
+      - name: Guard — production isolation + branch-name safety
+        run: |
+          set -euo pipefail
+
+          # 1. Preview project id must be present, must be the EXPECTED preview
+          #    project, and must NEVER equal the production project.
+          if [ -z "${PREVIEW_PROJECT_ID}" ]; then
+            echo "::error::NEON_PREVIEW_PROJECT_ID is not set — refusing to run."; exit 1
+          fi
+          if [ "${PREVIEW_PROJECT_ID}" = "${PROD_PROJECT_ID}" ]; then
+            echo "::error::Preview project id equals PRODUCTION (${PROD_PROJECT_ID}) — aborting."; exit 1
+          fi
+          if [ "${PREVIEW_PROJECT_ID}" != "${EXPECTED_PREVIEW_PROJECT_ID}" ]; then
+            echo "::error::Preview project id '${PREVIEW_PROJECT_ID}' != expected '${EXPECTED_PREVIEW_PROJECT_ID}' — aborting."; exit 1
+          fi
+
+          # 2. head_ref must be present.
+          if [ -z "${HEAD_REF}" ]; then
+            echo "::error::Empty head_ref — aborting."; exit 1
+          fi
+
+          # 3. Never act on a protected branch name.
+          case "${HEAD_REF}" in
+            main|master|production|preview/main)
+              echo "::error::Refusing to act on protected branch '${HEAD_REF}'."; exit 1 ;;
+          esac
+
+          # 4. Reject path-traversal / shell / glob metacharacters and whitespace:
+          #    ..  ~  ^  :  \  [  ]  {  }  and spaces.
+          case "${HEAD_REF}" in
+            *..*|*"~"*|*"^"*|*":"*|*"\\"*|*"["*|*"]"*|*"{"*|*"}"*|*" "*)
+              echo "::error::Suspicious character in head_ref '${HEAD_REF}' — aborting."; exit 1 ;;
+          esac
+
+          echo "Guard passed. Cleanup target (if it exists): preview/${HEAD_REF}"
+
+      # ---------------------------------------------------------------------
+      # Official Neon action, pinned to the PREVIEW project + PREVIEW key only.
+      # continue-on-error: a missing / already-pruned branch (or any hygiene-only
+      # hiccup) must never put a red X on a closed PR.
+      # ---------------------------------------------------------------------
+      - name: Delete the PR's Neon preview branch (preview project only)
+        uses: neondatabase/delete-branch-action@v3
+        continue-on-error: true
+        with:
+          # PREVIEW ONLY — never vars.NEON_PROJECT_ID (that is PRODUCTION).
+          project_id: ${{ vars.NEON_PREVIEW_PROJECT_ID }}
+          branch: preview/${{ github.head_ref }}
+          # PREVIEW ONLY — never secrets.NEON_API_KEY (that is the production rotation key).
+          api_key: ${{ secrets.NEON_PREVIEW_API_KEY }}
