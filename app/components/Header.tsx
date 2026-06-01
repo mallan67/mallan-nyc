@@ -185,7 +185,7 @@ export default function Header() {
     // address URLs. (Was '/sign-in', which gated the public exclusives behind
     // login; the /buy rewrite drops query params, so link the search route
     // directly.)
-    { title: 'Our Listings', href: '/search?exclusive=mallan&tab=buy-residential' },
+    { title: 'Mallan Listings', href: '/search?exclusive=mallan&tab=buy-residential' },
     { title: 'New to Market', href: '/buy?sort=newest' },
     { title: 'Client Portal', href: '/sign-in' },
   ];
@@ -274,7 +274,7 @@ export default function Header() {
               <li><NavDropdown label="Buy" items={buyItems} dark={dark} /></li>
               <li><NavDropdown label="Rent" items={rentItems} dark={dark} /></li>
               <li><NavDropdown label="Sell" items={sellItems} dark={dark} /></li>
-              <li><NavDropdown label="Listings" items={exclusivesItems} dark={dark} /></li>
+              <li><NavDropdown label="Mallan Exclusives" items={exclusivesItems} dark={dark} /></li>
               <li><NavDropdown label="Neighborhoods" items={neighborhoodItems} dark={dark} /></li>
               <li><NavDropdown label="More" items={moreItems} dark={dark} /></li>
 
@@ -416,7 +416,7 @@ export default function Header() {
                   onClick={() => setExclusivesOpen(!exclusivesOpen)}
                   className={`flex items-center gap-2 w-full py-3 min-h-[44px] ${mobileTextColor}`}
                 >
-                  Listings
+                  Mallan Exclusives
                   <ChevronIcon open={exclusivesOpen} />
                 </button>
                 {exclusivesOpen && (

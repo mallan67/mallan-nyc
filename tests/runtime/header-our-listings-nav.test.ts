@@ -10,14 +10,20 @@ import { resolve } from 'path';
 const header = readFileSync(resolve(__dirname, '../../app/components/Header.tsx'), 'utf8');
 
 describe('Header — Our Listings → public Company Exclusives', () => {
-  it('the Listings dropdown source is exclusivesItems (used for desktop + mobile)', () => {
+  it('the Mallan Exclusives dropdown source is exclusivesItems (desktop + mobile)', () => {
     expect(header).toMatch(/const exclusivesItems = \[/);
-    expect(header).toMatch(/NavDropdown label="Listings" items=\{exclusivesItems\}/);
+    expect(header).toMatch(/NavDropdown label="Mallan Exclusives" items=\{exclusivesItems\}/);
     expect(header).toMatch(/exclusivesItems\.map\(mobileDropdownItem\)/);
   });
 
-  it('"Our Listings" links to the exclusive search page, not /sign-in', () => {
-    const m = header.match(/\{\s*title:\s*'Our Listings',\s*href:\s*'([^']+)'\s*\}/);
+  it('the dropdown heading is "Mallan Exclusives", not the old "Listings"', () => {
+    // desktop label + mobile button text
+    expect(header).toMatch(/NavDropdown label="Mallan Exclusives"/);
+    expect(header).not.toMatch(/NavDropdown label="Listings"/);
+  });
+
+  it('"Mallan Listings" links to the exclusive search page, not /sign-in', () => {
+    const m = header.match(/\{\s*title:\s*'Mallan Listings',\s*href:\s*'([^']+)'\s*\}/);
     expect(m).not.toBeNull();
     const href = m![1];
     expect(href).toMatch(/exclusive=mallan/);
