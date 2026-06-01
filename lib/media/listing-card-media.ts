@@ -56,3 +56,30 @@ export function getHeroPhoto(
 export function countPhotoMedia(media: readonly ListingPhotoMedia[] | null | undefined): number {
   return getValidPhotoMedia(media).length;
 }
+
+/**
+ * Whether a listing card should run IDXImage's white-border auto-crop.
+ *
+ * White-border auto-crop forces a cross-origin image fetch
+ * (`crossOrigin="anonymous"` — the canvas detector needs an untainted
+ * image). For CRM/Mallan exclusive listings (`_source === 'exclusive'`,
+ * i.e. SL-/RL- rows) the hero is a clean Sharp-processed R2 WebP that needs
+ * no crop, and forcing `crossOrigin` BREAKS it: the `pub-*.r2.dev` endpoint
+ * omits `Vary: Origin` on its non-CORS response, so a browser that already
+ * cached the hero via a plain (non-`crossOrigin`) fetch — which Featured and
+ * the agent page do — reuses that no-`Access-Control-Allow-Origin`,
+ * `immutable` cached response for the search card's `crossOrigin` request,
+ * fails the CORS check, and falls back to the placeholder. (Verified live:
+ * non-CORS-then-CORS on the same URL → the CORS load errors; CORS-first →
+ * loads.) Disabling auto-crop here makes the search card fetch the hero the
+ * SAME way as Featured/agent (no `crossOrigin`), so the cache stays coherent
+ * and the CRM hero renders.
+ *
+ * Third-party IDX / RLS photos are served same-origin via
+ * `/api/media/proxy`, where `crossOrigin` is harmless, so they KEEP
+ * white-border auto-crop (`_source` is `'db+idx'` / undefined → returns
+ * true) and their behavior is unchanged.
+ */
+export function shouldAutoCropWhiteBorder(source: string | null | undefined): boolean {
+  return source !== 'exclusive';
+}
