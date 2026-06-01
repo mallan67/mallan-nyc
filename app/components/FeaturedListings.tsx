@@ -451,7 +451,7 @@ export default function FeaturedListings() {
           <div className="flex items-end justify-between mb-12 md:mb-16">
             <div>
               <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Featured</p>
-              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Mallan Exclusives</h2>
+              <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Featured Listings</h2>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 md:gap-8">
@@ -471,7 +471,7 @@ export default function FeaturedListings() {
         <div className="flex items-end justify-between mb-12 md:mb-16">
           <div>
             <p className="text-brand-gold-deep text-[13px] font-medium mb-2 gold-glow-text">Featured</p>
-            <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Mallan Exclusives</h2>
+            <h2 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl tracking-tight text-brand-dark">Featured Listings</h2>
           </div>
           <Link href="/buy" className="text-[13px] font-light text-brand-dark/85 hover:text-brand-dark transition-all duration-500 hidden sm:block">
             View All &rarr;

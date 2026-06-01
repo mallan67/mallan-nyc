@@ -160,18 +160,36 @@ describe('Mallan exclusive wins over RLS/IDX duplicate (same address+unit)', () 
   });
 });
 
-// ── 3. Heading is "Mallan Exclusives" ───────────────────────────────────
+// ── 3. Home FEATURED section: titled "Featured Listings", exclusives first ──
+//
+// The home featured section is a MIX — pinned IDX/RLS third-party listings plus
+// Mallan exclusives. Titling it "Mallan Exclusives" misrepresents those
+// third-party listings as Mallan's own (NY DOS 19 NYCRR §175 / REBNY advertising
+// violation). The <h2> must read "Featured Listings"; Mallan exclusives are
+// surfaced FIRST within it, but the section is not LABELED exclusives-only.
+// (The header nav "Mallan Exclusives" dropdown — a genuinely exclusives-only
+//  surface — is separate and keeps its name.)
 
-describe('Exclusives section heading', () => {
-  test('reads "Mallan Exclusives", never "Properties"/"Our Listings"', () => {
-    const src = fs.readFileSync(
-      path.join(REPO_ROOT, 'app/components/FeaturedListings.tsx'),
-      'utf8',
-    );
-    expect(src).toContain('Mallan Exclusives');
-    // The old generic headings must be gone from the <h2>.
+describe('Home Featured section heading + ordering', () => {
+  const src = fs.readFileSync(
+    path.join(REPO_ROOT, 'app/components/FeaturedListings.tsx'),
+    'utf8',
+  );
+
+  test('the <h2> reads "Featured Listings" — never "Mallan Exclusives"/"Properties"/"Our Listings"', () => {
+    expect(src).toMatch(/<h2[^>]*>Featured Listings<\/h2>/);
+    expect(src).not.toMatch(/<h2[^>]*>Mallan Exclusives<\/h2>/);
     expect(src).not.toMatch(/>Properties</);
     expect(src).not.toMatch(/>Our Listings</);
+  });
+
+  test('Mallan exclusives are merged FIRST, before pinned + general listings', () => {
+    const idxExclusives = src.indexOf('for (const l of exclusives)');
+    const idxPinned = src.indexOf('const pinned =');
+    const idxRest = src.indexOf('const rest =');
+    expect(idxExclusives).toBeGreaterThan(-1);
+    expect(idxPinned).toBeGreaterThan(idxExclusives);
+    expect(idxRest).toBeGreaterThan(idxPinned);
   });
 });
 
