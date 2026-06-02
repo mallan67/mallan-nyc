@@ -27,6 +27,10 @@ import {
   buildExclusiveAgentAssignment,
   isMallanExclusiveListing,
 } from '../../lib/listings/exclusive-agent-assignment';
+import {
+  isPinnedFeatured,
+  orderFeaturedListings,
+} from '../../lib/featured/featured-ordering';
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -79,15 +83,10 @@ function makeDbListing(overrides: Partial<DbListing> = {}): DbListing {
 // ── 1. Featured pin matches by id / mlsId / listing_id ──────────────────
 
 describe('Featured pin matching (id / mlsId / listing_id — match ANY)', () => {
-  // Mirror the component helper exactly so the matching contract is locked in.
+  // The all-three matcher now lives in the shared featured-ordering helper.
   type Pinnable = { id: string; mlsId: string; listing_id?: string };
-  function isPinnedListing(listing: Pinnable, pinnedSet: Set<string>): boolean {
-    return (
-      pinnedSet.has(listing.id) ||
-      pinnedSet.has(listing.mlsId) ||
-      (listing.listing_id != null && pinnedSet.has(listing.listing_id))
-    );
-  }
+  const isPinnedListing = (listing: Pinnable, pinnedSet: Set<string>): boolean =>
+    isPinnedFeatured(listing, pinnedSet);
 
   const listing: Pinnable = { id: '42', mlsId: 'RLS90001', listing_id: 'SL-9001' };
 
@@ -107,18 +106,22 @@ describe('Featured pin matching (id / mlsId / listing_id — match ANY)', () => 
     expect(isPinnedListing(listing, new Set(['nope']))).toBe(false);
   });
 
-  test('the FeaturedListings component uses the all-three matcher', () => {
+  test('the all-three matcher (id / mlsId / listing_id) is enforced by isPinnedFeatured', () => {
+    expect(isPinnedFeatured({ id: '42', mlsId: 'RLS90001', listing_id: 'SL-9001' }, new Set(['42']))).toBe(true);
+    expect(isPinnedFeatured({ id: '42', mlsId: 'RLS90001', listing_id: 'SL-9001' }, new Set(['RLS90001']))).toBe(true);
+    expect(isPinnedFeatured({ id: '42', mlsId: 'RLS90001', listing_id: 'SL-9001' }, new Set(['SL-9001']))).toBe(true);
+    expect(isPinnedFeatured({ id: '42', mlsId: 'RLS90001', listing_id: 'SL-9001' }, new Set(['nope']))).toBe(false);
+  });
+
+  test('the FeaturedListings component delegates to the shared featured-ordering helpers', () => {
     const src = fs.readFileSync(
       path.join(REPO_ROOT, 'app/components/FeaturedListings.tsx'),
       'utf8',
     );
-    // The matcher checks id, mlsId, AND listing_id.
-    expect(src).toMatch(/pinnedSet\.has\(listing\.id\)/);
-    expect(src).toMatch(/pinnedSet\.has\(listing\.mlsId\)/);
-    expect(src).toMatch(/pinnedSet\.has\(listing\.listing_id\)/);
-    // And it is used for both the merge filter and the isPinned badge.
-    expect(src).toMatch(/isPinnedListing\(l, pinnedSet\)/);
-    expect(src).toMatch(/isPinnedListing\(listing, pinnedIds\)/);
+    expect(src).toMatch(/from '@\/lib\/featured\/featured-ordering'/);
+    expect(src).toMatch(/orderFeaturedListings\(/);
+    expect(src).toMatch(/featuredBadgeFor\(/);
+    expect(src).toMatch(/isPinnedFeatured\(listing, pinnedIds\)/);
   });
 });
 
@@ -183,13 +186,21 @@ describe('Home Featured section heading + ordering', () => {
     expect(src).not.toMatch(/>Our Listings</);
   });
 
-  test('Mallan exclusives are merged FIRST, before pinned + general listings', () => {
-    const idxExclusives = src.indexOf('for (const l of exclusives)');
-    const idxPinned = src.indexOf('const pinned =');
-    const idxRest = src.indexOf('const rest =');
-    expect(idxExclusives).toBeGreaterThan(-1);
-    expect(idxPinned).toBeGreaterThan(idxExclusives);
-    expect(idxRest).toBeGreaterThan(idxPinned);
+  test('the component orders via orderFeaturedListings(exclusives, generalListings, …)', () => {
+    expect(src).toMatch(/orderFeaturedListings\(exclusives, generalListings, pinnedSet, limit\)/);
+  });
+
+  test('Mallan exclusives are ordered FIRST, then pinned, then regular (behavioral)', () => {
+    const out = orderFeaturedListings(
+      [{ id: 'SL-1', _source: 'exclusive' }],
+      [
+        { id: 'RLS-pin', _source: 'db+idx' },
+        { id: 'RLS-reg', _source: 'db+idx' },
+      ],
+      new Set(['RLS-pin']),
+      6,
+    );
+    expect(out.map((l) => l.id)).toEqual(['SL-1', 'RLS-pin', 'RLS-reg']);
   });
 });
 
