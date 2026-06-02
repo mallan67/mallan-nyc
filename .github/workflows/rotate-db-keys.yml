@@ -1,9 +1,15 @@
 name: Rotate Neon DB Credentials
 
 on:
-  schedule:
-    - cron: "0 5 1,15 * *" # Every 1st and 15th at 5AM UTC
-  workflow_dispatch:
+  # ⛔ DISABLED 2026-06-02 — the scheduled rotation targets morning-bread/royal-dawn and
+  #    can overwrite production DATABASE_URL away from cold-waterfall. Production was
+  #    repointed to hidden-mountain/cold-waterfall on 2026-06-02 (cross-project DB rescue);
+  #    a scheduled run would re-break it. Re-enable ONLY after retarget to
+  #    hidden-mountain/cold-waterfall + a fail-closed host guard — see
+  #    docs/rotate-db-keys-host-guard-patch-2026-06-02.md.
+  # schedule:
+  #   - cron: "0 5 1,15 * *" # Every 1st and 15th at 5AM UTC
+  workflow_dispatch: # manual-only until retarget + host guard land
 
 jobs:
   rotate:
