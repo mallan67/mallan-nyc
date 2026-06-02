@@ -104,15 +104,8 @@ export async function GET(
     );
   } catch (error) {
     console.error(`[/api/agents/${slug}/listings] Error:`, error instanceof Error ? error.message : error);
-    // TEMP DIAGNOSTIC (2026-06-02): surface the Prisma error name/code on the 500
-    // so the prod-only fault can be pinpointed. name+code are NOT secrets
-    // (P1001=unreachable, P2024=pool timeout, P2022=column, quota=compute).
-    // The message is sanitized (DB URLs redacted) to avoid leaking secrets.
-    // REVERT once captured.
-    const e = error as { name?: string; code?: string; message?: string };
-    const safeMsg = String(e?.message ?? error).replace(/postgres(?:ql)?:\/\/[^\s'"]+/gi, '[REDACTED_DB_URL]').slice(0, 300);
     return NextResponse.json(
-      { error: 'Failed to fetch agent listings', _diag: { name: e?.name ?? null, code: e?.code ?? null, message: safeMsg } },
+      { error: 'Failed to fetch agent listings' },
       { status: 500 }
     );
   }
