@@ -151,3 +151,26 @@ The durable architectural fix is to move from the **Vercel-Managed** integration
 5. Disconnect the old Vercel-Managed integration; remove the Tier 2 workaround if no longer needed.
 
 **Do-not-touch (Tier 1 & 2):** production `DATABASE_URL`/`DATABASE_URL_UNPOOLED`, `morning-bread-68708332`, the `green-school` project itself, any `main`/primary branch, manual Neon branch deletion (cron owns it), credentials.
+
+---
+
+## 13. Final state — 2026-06-02 (post research + prune)
+
+Deep-research (97-agent harness) reframed the diagnosis: the check is **not** a stale false positive but a **true over-included-allowance signal**. On the **current** Neon Launch plan the **included branch allowance is 10/project** (5,000 is the hard ceiling; the "5,000 = Launch" figure is a *legacy*-plan number). Extra branches on paid plans are **billed (~$1.50/branch-month)**, not blocked — which is why the check was red at ~40 yet branch creation still succeeded. Root cause of accumulation: branch-per-preview-deploy + Vercel's 180-day deployment retention + **GitHub `delete_branch_on_merge` was off**, so merged-PR git branches (and their Neon branches) lingered. Sources: `neon.com/docs/introduction/plans`, `…/legacy-plans`, `…/guides/vercel-branch-cleanup`, `…/guides/neon-managed-vercel-integration`, Neon changelog 2024-03-01.
+
+**Actions taken (all Maya-approved):**
+- **Safe-29 prune executed:** 29 merged/closed-PR preview branches (idle ≥24h) deleted from `hidden-mountain-87248164`. 0 failures.
+- **hidden-mountain: 40 → 11 branches.**
+- **Production health: 200** (`mallan.nyc/api/health`) before + after; `morning-bread` never queried or touched.
+- **Open-PR preview branches kept** (PRs #290, #279, #302, #289, #303); **`main` kept** (primary).
+- **Left alone:** `preview/fix/search-exclusive-card-hero` (#313, active branch) and `preview/fix/sale-form-video-autofill` (no PR, git branch still exists — investigate before removing).
+- **Branch-overage billing:** ~30 extra branches → ~1; trending to $0 as the cron prunes the remainder.
+
+**Controls now in place (self-maintaining, 3 layers):**
+1. **GitHub `delete_branch_on_merge` = true** (flipped 2026-06-02) — merged PRs auto-delete their git branch.
+2. **PR-close cleanup workflow live** — `.github/workflows/cleanup-neon-preview-branch.yml` (PRs #315 + #317; controlled API call, fail-loud, hard-pinned to the preview project).
+3. **Daily `neon-branch-prune` cron** — idle ≥24h safety net (the only sanctioned manual-equivalent deleter).
+
+**Left to the cron (not deleted manually):** `preview/fix/exclusive-media-agent-controls` (#311), `preview/fix/our-listings-nav-exclusives` (#312), `preview/test/neon-metadata-refresh` (orphan).
+
+**Red "Branch limit exceeded" check — expected effect:** the check fires at the **included allowance (10)**, not the 5,000 ceiling. At **11 branches it is expected to remain red** (1 over); it should **clear once the cron drops the count to ≤10** (expected within ~24–48h, settling at ~6 = open PRs + `main`). The check's red/green state is only observable on a **fresh** preview deployment's *Deployment Checks* panel (not via API). The earlier "send Vercel a false-positive support ticket" plan is **withdrawn** — there is no false positive to escalate; the fix is branch-count reduction (done/ongoing) + the controls above.
