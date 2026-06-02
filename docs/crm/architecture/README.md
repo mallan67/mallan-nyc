@@ -8,7 +8,7 @@
 
 ## 📁 What is in this folder (`docs/crm/architecture/`)
 
-The **entire** CRM architecture rebuild lives **here, in one place** — nothing scattered, no hunting across the repo.
+The **entire** CRM architecture rebuild lives **here, in one place** — nothing scattered, no hunting across the repo. (The only deliberate exception is the two external companion specs — see the note below.)
 
 | Open this | What it is |
 |---|---|
@@ -16,10 +16,23 @@ The **entire** CRM architecture rebuild lives **here, in one place** — nothing
 | **`MASTER-PLAN.md`** | The full plan — every section, decision, and compliance rule (the *what*). |
 | **`BRANCH-INDEX.md`** | The branch registry + the exact build order. |
 | **`branches/`** | One implementation plan per branch — STABILIZE · SEARCH · FIREWALL · AGENT · MONEY-LOOPS · PORTALS · BROKER · EXTERNAL · SPONSOR (the *how*). |
+| **`FORM-WORKFLOW-TRUTH-TABLE.md`** | Per-form truth table — UI → handler → route → DB → audit → approval gate → compliance → gap → status → next PR, for the 4 intake/deal forms. |
+| **`BUSINESS-WORKFLOW-GAPS.md`** | The business-workflow gap register — 13 cross-cutting pipelines/policies (seller acquisition, showings, offers, referrals, attribution, retention, rollout, etc.). |
 | **`journals/`** | The agent resume-journal protocol (so work survives a freeze/shutdown). |
 | **`superseded/`** | ⛔ RESTRICTED old docs — **do NOT use** (kept only for history). |
 
 **Read order:** `README.md` → `MASTER-PLAN.md` → the relevant file in `branches/`.
+
+### 📎 External companion specs (intentionally NOT in this folder)
+
+Two documents that this plan depends on are **deliberately left at their repo-canonical path** `docs/superpowers/specs/` and are **NOT moved into this folder**:
+
+| Spec | Path (do not move) |
+|---|---|
+| **Tier 2** — external / StreetEasy / off-market data model | `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md` |
+| **Tier 3** — sponsor / Schedule A / new-development data model | `docs/superpowers/specs/2026-04-30-sponsor-database-design.md` |
+
+**Why they stay there:** they are **shared governance documents** referenced by the official hold record (`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`), `CLAUDE.md`, the PR-verification checklist, and other control files across multiple branches. Moving them would break those references and diverge from `main`. They are companions to — not part of — this folder. Cite them at the path above; never duplicate them here.
 
 ---
 
@@ -65,7 +78,7 @@ Each section is owned by ONE agent, on its OWN branch in an isolated worktree, w
 | 7 | Tier 2 — external / StreetEasy (§3.2) | T2 (HELD) | `feat/t2-external-inventory` | `docs/crm/architecture/journals/07-t2-external.*` | `lib/external-listings/**`, `external_inventory_*` | 🔒 HELD — Maya approval |
 | 8 | Tier 3 — sponsor / Schedule A (§3.3) | T3 (HELD) | `feat/t3-sponsor` | `docs/crm/architecture/journals/08-t3-sponsor.*` | `lib/sponsor/**`, sponsor schema | 🔒 HELD — Maya approval |
 
-*The Broker section (#4) is the one you flagged for a dedicated agent to make top-notch — it includes the NYS-tied credential vault, the document/template library, the Money & Action Board, the Marketing Hub, and the leads-lifecycle factual-stage-reason + verified-leads-plugin work.*
+*The Broker section (#6) is the one you flagged for a dedicated agent to make top-notch — it includes the NYS-tied credential vault, the document/template library, the Money & Action Board, the Marketing Hub, and the leads-lifecycle factual-stage-reason + verified-leads-plugin work.*
 
 ---
 
@@ -103,7 +116,7 @@ Every agent writes its own memory so any interruption can be picked up exactly w
 
 - **Per-PR approval** for: schema/migration · `public/crm/**` · cron · env · Neon settings · agents/skills/workflows · force-push.
 - **`NEON.md` discipline** before any migration (manual apply to prod before code merge).
-- **T2/T3 implementation** (sections 5, 6) — explicit Maya approval to start (HELD per `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`; planning lifted, build gated).
+- **T2/T3 implementation** (sections 7, 8) — explicit Maya approval to start (HELD per `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`; planning lifted, build gated).
 - **StreetEasy scrape** — Maya's broker-of-record ToS memo recorded before scraper code (plan §3.2, §5.7, §9 D2).
 - **NYS credential auto-sync** — read Open NY Terms of Use + register Socrata app token before go-live (plan §6.4, §9 D4).
 - **Validation suite green** (plan §7.4) + section health tests before any commit.
