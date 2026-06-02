@@ -35,6 +35,7 @@
  */
 
 import { buildAddressKey, type DedupeAddressLike } from '@/lib/listings/dedupe-crm-vs-idx';
+import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 
 /** Minimal shape the ordering/badge helpers read off a featured listing. */
 export interface FeaturedOrderable {
@@ -71,6 +72,24 @@ export function isPinnedFeatured(l: Pick<FeaturedOrderable, 'id' | 'mlsId' | 'li
     (l.mlsId != null && pinnedSet.has(l.mlsId)) ||
     (l.listing_id != null && pinnedSet.has(l.listing_id))
   );
+}
+
+/**
+ * Build the detail-page href for a Featured card.
+ *
+ * Route identity is the LISTING id (`id` / ListingId), exactly like search's
+ * `listingHref` — NOT the numeric Trestle ListingKey (`mlsId`). The previous
+ * `buildCanonicalListingPath({ slug, id: mlsId || id })` produced
+ * `/listing/{address-with-suffix}/{numeric-key}`, which the detail route cannot
+ * resolve for pure-IDX rows → "Listing Not Found". Routing through the shared
+ * canonical builder keeps Featured and search on one resolvable URL shape.
+ * (2026-06-02; pairs with Branch A #320 case-insensitive id resolution.)
+ *
+ * `mlsId` is accepted (the real caller passes a full listing that carries it)
+ * but deliberately NOT used for route identity — that was the bug.
+ */
+export function featuredCardHref(l: { slug: string; id: string; mlsId?: string }): string {
+  return buildCanonicalListingPath({ slug: l.slug, id: l.id });
 }
 
 export type FeaturedBadgeKind = 'exclusive' | 'rls';
