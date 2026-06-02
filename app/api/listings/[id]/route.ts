@@ -8,6 +8,7 @@ import { toPublicDTO } from '@/lib/idx/public-dto';
 import { geocodeListings } from '@/lib/geo/geocode';
 import prisma from '@/lib/prisma';
 import { resolveListingMediaFromRows, resolveListingMedia } from '@/lib/media/listing-media-resolver';
+import { normalizeListingIdCase } from '@/lib/listing-canonical-url';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -31,7 +32,13 @@ type Props = {
  */
 export async function GET(request: Request, { params }: Props) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    // Canonical URLs lowercase the listing id; Trestle (`ListingId eq …`) and
+    // Prisma findUnique are case-SENSITIVE and store it uppercase. Normalize a
+    // recognizable REBNY/CRM id back to uppercase before any lookup so
+    // `/api/listings/rls20059088` resolves identically to the uppercase form.
+    // (2026-06-02 sitewide P0 fix.) Non-id values pass through untouched.
+    const id = normalizeListingIdCase(rawId);
     const useIDX = process.env.IDX_ENABLED === 'true';
 
     // ═══════════════════════════════════════════════════════════

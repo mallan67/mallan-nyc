@@ -42,3 +42,55 @@ export function buildCanonicalListingPath(listing: ListingForCanonicalUrl): stri
 
   return `/listing/${addressSlug}/${idLower}`;
 }
+
+/**
+ * REBNY / CRM listing-id shapes that appear as a canonical URL's trailing
+ * segment. `buildCanonicalListingPath` LOWERCASES the id (`rls20059088`,
+ * `sl-0004`), but the stored id is UPPERCASE and every id lookup is
+ * case-SENSITIVE:
+ *   - Trestle OData `ListingId eq 'RLS20059088'`
+ *   - Prisma `findUnique({ where: { listing_id: 'SL-0004' }})`
+ *   - `/api/listings/{id}` (delegates to the two above)
+ * Bounded to the known prefixes so an address slug, a UCBA-suppressed
+ * `listing-xxx` slug, or a numeric Trestle ListingKey is NEVER altered.
+ */
+const LISTING_ID_SEGMENT = /^(rls|rbny|sl|rl)-?\d+$/i;
+
+/**
+ * Restore the stored uppercase casing of a listing id when (and only when) the
+ * value is a recognizable REBNY/CRM listing id. Anything else — address slugs,
+ * `listing-xxx` suppressed slugs, numeric ListingKeys — is returned verbatim.
+ *
+ * This is the fix for the 2026-06-02 sitewide P0 where the canonical
+ * `/listing/{address}/rls20059088` 404'd because the lowercased id never
+ * matched the case-sensitive Trestle/Prisma lookups. (See the dated audit.)
+ */
+export function normalizeListingIdCase(id: string): string {
+  return LISTING_ID_SEGMENT.test(id) ? id.toUpperCase() : id;
+}
+
+/**
+ * Inverse of `buildCanonicalListingPath`: collapse the catch-all `[...slug]`
+ * segments back into the single lookup key the detail route + `/api/listings`
+ * feed to the resolver.
+ *
+ * Shapes handled:
+ *   ['333-east-...', 'sl-0004']                  → 'SL-0004'   (canonical 2-seg)
+ *   ['333-east-...-sl-0004']                     → unchanged   (legacy hybrid;
+ *                                                  resolved downstream via the
+ *                                                  embedded-id extractor)
+ *   ['listing-rls20061539']                      → unchanged   (UCBA-suppressed)
+ *   ['400-east-90th-...']                        → unchanged   (legacy address-only)
+ *   ['rls20059088']                              → 'RLS20059088' (raw id)
+ *
+ * The trailing segment is run through `normalizeListingIdCase`, so a canonical
+ * two-segment id (always the LAST segment) or a bare raw id is restored to its
+ * stored uppercase form before lookup. Multi-word slugs (address forms) and the
+ * `listing-xxx` form do not match the id pattern and pass through untouched.
+ */
+export function resolveLookupKey(slug: string[] | string | undefined): string {
+  // Next.js catch-all returns string[]; normalize defensively.
+  const parts = Array.isArray(slug) ? slug : slug ? [slug] : [];
+  if (parts.length === 0) return '';
+  return normalizeListingIdCase(parts[parts.length - 1]);
+}

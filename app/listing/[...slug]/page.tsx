@@ -195,37 +195,13 @@ type Props = {
   searchParams: Promise<{ key?: string; ref?: string; t?: string }>;
 };
 
-/**
- * Resolve the catch-all params into a single lookup key for fetchListing.
- *
- * Backward-compatibility matters here — every existing IDX/RLS URL must
- * still resolve. Existing single-segment shapes:
- *   - `333-east-46th-street-apt-2g-new-york-ny-10017-rls20061539` (IDX hybrid with rls id suffix)
- *   - `400-east-90th-street-apt-17c-new-york-ny-10128`            (legacy address-only, no id)
- *   - `listing-rls20061539`                                       (UCBA-suppressed)
- *   - `RLS20061539`                                               (raw listing id)
- *   - `sl-0004` / `rl-0099`                                       (CRM exclusive id-only — will redirect)
- *
- * New two-segment shape:
- *   - `333-east-46th-street-.../sl-0004`                          (canonical CRM exclusive)
- *
- * fetchFromDB / fetchFromTrestleDirect already have multiple resolution
- * strategies that handle each of these shapes, so we just join the catch-all
- * back into a single string for one-segment URLs, or pass the id-only
- * segment when it's clearly the trailing path piece.
- */
-function resolveLookupKey(slug: string[] | string | undefined): string {
-  // Normalize defensively — Next.js catch-all returns string[], but be safe.
-  const parts = Array.isArray(slug) ? slug : (slug ? [slug] : []);
-  if (parts.length === 0) return '';
-  if (parts.length === 1) return parts[0];
-  // Two+ segments — last segment is the listing id (canonical form).
-  // fetchFromDB Strategy 3 (treat slug as listing_id) handles it directly.
-  return parts[parts.length - 1];
-}
-
-// Canonical URL builder — single source of truth at lib/listing-canonical-url.ts
-import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+// Canonical URL build + parse — single source of truth at
+// lib/listing-canonical-url.ts. `resolveLookupKey` is the inverse of
+// `buildCanonicalListingPath`: it collapses the catch-all `[...slug]` segments
+// back into a single lookup key and restores the stored uppercase casing of the
+// trailing listing id (the canonical URL lowercases it, but Trestle/Prisma
+// lookups are case-sensitive — the 2026-06-02 sitewide P0 fix).
+import { buildCanonicalListingPath, resolveLookupKey } from '@/lib/listing-canonical-url';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
