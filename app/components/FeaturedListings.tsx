@@ -5,7 +5,6 @@ import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
-import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 import {
@@ -13,6 +12,12 @@ import {
   getValidPhotoMedia,
 } from '@/lib/media/listing-card-media';
 import { formatBathrooms } from '@/lib/format/bathrooms';
+import {
+  orderFeaturedListings,
+  featuredBadgeFor,
+  featuredCardHref,
+  isPinnedFeatured,
+} from '@/lib/featured/featured-ordering';
 
 interface FeaturedListing {
   id: string;
@@ -83,21 +88,6 @@ const DEFAULT_CONFIG: FeaturedConfig = {
   sort: 'newest',
   limit: 6,
 };
-
-/**
- * Pin match — a listing is pinned when the broker's pinned-id set contains
- * ANY of its identifiers: the public `id` (which carries listing_id for DB
- * rows), the `mlsId`, OR the explicit `listing_id`. Matching all three lets a
- * broker pin by whichever identifier they have on hand (numeric PK, RLS key,
- * or SL-/RL- prefix) and still hit the right card.
- */
-function isPinnedListing(listing: FeaturedListing, pinnedSet: Set<string>): boolean {
-  return (
-    pinnedSet.has(listing.id) ||
-    pinnedSet.has(listing.mlsId) ||
-    (listing.listing_id != null && pinnedSet.has(listing.listing_id))
-  );
-}
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) {
@@ -241,25 +231,29 @@ function RentVsBuyCalc({ monthlyRent }: { monthlyRent: number }) {
   );
 }
 
-function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned?: boolean }) {
+function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: boolean }) {
   const isRental = listing.listingType === 'rent';
   const photos = getValidPhotoMedia(listing.media).map((m) => ({
     url: String(m.url),
     mediaType: m.mediaType || 'Photo',
     order: m.order ?? undefined,
   }));
+  // Single badge: Mallan-owned exclusives → "Mallan Exclusive" (accurate
+  // tooltip, never an RLS/syndication claim); pinned third-party IDX/RLS →
+  // "Featured". Mallan-owned wins, so a pinned exclusive shows ONE badge.
+  const badge = featuredBadgeFor(listing, !!pinned);
   const [calcOpen, setCalcOpen] = useState(false);
 
   const cc = listing.monthlyCommonCharges || listing.monthlyMaintenance;
 
   return (
     <div className="prop-card rounded-3xl overflow-hidden bg-white relative">
-      {isPinned && (
+      {badge && (
         <span
           className="absolute top-4 left-4 z-30 bg-brand-gold text-white text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm"
-          title="Featured listing — listed on REBNY RLS and syndicated to all major platforms"
+          title={badge.title}
         >
-          Featured
+          {badge.text}
         </span>
       )}
       {/* REBNY UCBA Art. I §16(C) — Coming Soon listings must show this exact badge */}
@@ -269,12 +263,12 @@ function ListingCard({ listing, isPinned }: { listing: FeaturedListing; isPinned
         activationDate={listing.activationDate}
         className="absolute top-4 right-4 z-30 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[60%]"
       />
-      <Link href={buildCanonicalListingPath({ slug: listing.slug, id: listing.mlsId || listing.id })} className="block cursor-pointer group">
+      <Link href={featuredCardHref(listing)} className="block cursor-pointer group">
         <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
       </Link>
 
       <div className="p-5 md:p-6">
-        <Link href={buildCanonicalListingPath({ slug: listing.slug, id: listing.mlsId || listing.id })} className="block cursor-pointer">
+        <Link href={featuredCardHref(listing)} className="block cursor-pointer">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <h3 className="font-display font-semibold text-base md:text-[17px] truncate text-brand-dark">
@@ -418,15 +412,11 @@ export default function FeaturedListings() {
 
         if (cancelled || (generalListings.length === 0 && exclusives.length === 0)) return;
 
-        const seenIds = new Set<string>();
-        const merged: FeaturedListing[] = [];
-        for (const l of exclusives) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
-        const pinned = generalListings.filter(l => isPinnedListing(l, pinnedSet));
-        for (const l of pinned) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
-        const rest = generalListings.filter(l => !isPinnedListing(l, pinnedSet));
-        for (const l of rest) { if (!seenIds.has(l.id)) { seenIds.add(l.id); merged.push(l); } }
-
-        const featured = merged.slice(0, limit);
+        // Order: (1) ALL Mallan-owned exclusives first by classification/source
+        // (not by pinnedIds), (2) pinned third-party listings, (3) regular
+        // listings. Dedupe by id + canonical address so a CRM exclusive
+        // collapses its RLS/IDX twin and nothing renders twice.
+        const featured = orderFeaturedListings(exclusives, generalListings, pinnedSet, limit);
 
         if (!cancelled) {
           setListings(featured);
@@ -483,7 +473,7 @@ export default function FeaturedListings() {
             <ListingCard
               key={listing.id}
               listing={listing}
-              isPinned={isPinnedListing(listing, pinnedIds)}
+              pinned={isPinnedFeatured(listing, pinnedIds)}
             />
           ))}
         </div>
