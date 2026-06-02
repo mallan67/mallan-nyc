@@ -57,6 +57,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          # 0. Trim stray whitespace/newlines. A value pasted into a GitHub
+          #    secret/variable box often carries a trailing newline, which
+          #    silently breaks the exact-match guards below (seen in PR #316 smoke test).
+          PREVIEW_PROJECT_ID="$(printf '%s' "${PREVIEW_PROJECT_ID:-}" | tr -d '[:space:]')"
+          HEAD_REF="$(printf '%s' "${HEAD_REF:-}" | tr -d '\r\n')"
+
           # 1. Preview project id must be present, must be the EXPECTED preview
           #    project, and must NEVER equal the production project.
           if [ -z "${PREVIEW_PROJECT_ID}" ]; then
@@ -90,17 +96,63 @@ jobs:
           echo "Guard passed. Cleanup target (if it exists): preview/${HEAD_REF}"
 
       # ---------------------------------------------------------------------
-      # Official Neon action, pinned to the PREVIEW project + PREVIEW key only.
-      # continue-on-error: a missing / already-pruned branch (or any hygiene-only
-      # hiccup) must never put a red X on a closed PR.
+      # Delete via a CONTROLLED Neon API call (not the official action) so we can
+      # distinguish failure modes instead of masking them (Codex review, PR #315):
+      #   - missing API key / auth / list error  -> HARD FAIL (never silent)
+      #   - branch genuinely not found            -> success (the ONLY tolerated no-op)
+      #   - delete error                          -> HARD FAIL
+      # No blanket `continue-on-error`. Secrets are passed via env and never printed
+      # (no `set -x`, no `curl -v`); GitHub also masks them in logs.
       # ---------------------------------------------------------------------
       - name: Delete the PR's Neon preview branch (preview project only)
-        uses: neondatabase/delete-branch-action@v3
-        continue-on-error: true
-        with:
-          # PREVIEW ONLY — never vars.NEON_PROJECT_ID (that is PRODUCTION).
-          # Accept variable OR secret placement (see env block above).
-          project_id: ${{ vars.NEON_PREVIEW_PROJECT_ID || secrets.NEON_PREVIEW_PROJECT_ID }}
-          branch: preview/${{ github.head_ref }}
+        env:
           # PREVIEW ONLY — never secrets.NEON_API_KEY (that is the production rotation key).
-          api_key: ${{ secrets.NEON_PREVIEW_API_KEY }}
+          NEON_API_KEY: ${{ secrets.NEON_PREVIEW_API_KEY }}
+        run: |
+          set -uo pipefail   # NOT -e: we inspect HTTP codes and decide explicitly
+
+          # Re-trim here: job-level env reaches this step raw (the guard trimmed
+          # only its own shell copy).
+          PID="$(printf '%s' "${PREVIEW_PROJECT_ID:-}" | tr -d '[:space:]')"
+          REF="$(printf '%s' "${HEAD_REF:-}" | tr -d '\r\n')"
+          KEY="$(printf '%s' "${NEON_API_KEY:-}" | tr -d '[:space:]')"
+
+          # Codex review: fail HARD when the preview API key is absent/misnamed,
+          # rather than letting the delete silently no-op.
+          if [ -z "${KEY}" ]; then
+            echo "::error::NEON_PREVIEW_API_KEY is not set — cannot manage preview branches. Failing."; exit 1
+          fi
+          # Defense in depth: re-assert the preview project (guard already checked).
+          if [ "${PID}" != "hidden-mountain-87248164" ] || [ "${PID}" = "morning-bread-68708332" ]; then
+            echo "::error::Refusing: project id '${PID}' is not the expected preview project."; exit 1
+          fi
+
+          TARGET="preview/${REF}"
+          API="https://console.neon.tech/api/v2/projects/${PID}/branches"
+
+          # 1) List branches. Any non-200 (401/403/etc.) = auth/permission/API problem = HARD FAIL.
+          HTTP=$(curl -sS -o /tmp/neon-branches.json -w "%{http_code}" \
+                   -H "Authorization: Bearer ${KEY}" -H "Accept: application/json" "${API}" || echo "000")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::Neon list-branches returned HTTP ${HTTP} (auth/permission/API failure). Failing — not masking."; exit 1
+          fi
+
+          # 2) Find the EXACT target, non-primary + non-protected (defense in depth).
+          BRANCH_ID=$(jq -r --arg n "${TARGET}" \
+            '.branches[] | select(.name==$n and .primary==false and .protected==false) | .id' \
+            /tmp/neon-branches.json | head -n1)
+
+          # 3) Genuinely-absent branch = the ONLY tolerated no-op (PR had no preview, or already pruned).
+          if [ -z "${BRANCH_ID}" ] || [ "${BRANCH_ID}" = "null" ]; then
+            echo "No deletable branch named '${TARGET}' (already gone or never created). Nothing to do."; exit 0
+          fi
+
+          # 4) Delete. 404 = already gone; anything else non-2xx = HARD FAIL.
+          echo "Deleting '${TARGET}' (id ${BRANCH_ID}) from ${PID}..."
+          DCODE=$(curl -sS -o /tmp/neon-del.json -w "%{http_code}" -X DELETE \
+                    -H "Authorization: Bearer ${KEY}" "${API}/${BRANCH_ID}" || echo "000")
+          case "${DCODE}" in
+            200|201|202) echo "Deleted '${TARGET}'." ;;
+            404)         echo "Branch vanished before delete (404) — already gone." ;;
+            *)           echo "::error::Delete returned HTTP ${DCODE} — failing (not masking)."; exit 1 ;;
+          esac

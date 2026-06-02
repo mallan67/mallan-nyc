@@ -102,8 +102,8 @@ This is the continuation of the 2026-05-17 finding (`NEON.md` §10 entry + `docs
 ### Cleanup automation
 - **Workflow:** `.github/workflows/cleanup-neon-preview-branch.yml`
 - **Trigger:** `pull_request: [closed]` (merged or not).
-- **Action:** official `neondatabase/delete-branch-action@v3`, preceded by a fail-closed **guard step**.
-- **Deletes only:** `preview/<head_ref>` on the **preview** project.
+- **Action:** a fail-closed **guard step** followed by a **controlled Neon API call** (list → exact-match → delete). *(Switched from the official `neondatabase/delete-branch-action@v3` + `continue-on-error` per Codex review on PR #315: a blanket `continue-on-error` masked auth/permission failures, so the workflow could report success while silently never deleting. The controlled call instead **fails hard** on missing key / auth / list / delete errors and tolerates **only** a genuinely-absent branch.)*
+- **Deletes only:** `preview/<head_ref>` on the **preview** project (exact name match; `primary==false && protected==false`).
 - **Complements** (does not replace) the daily `neon-branch-prune` cron (`app/api/cron/neon-branch-prune/route.ts`, 24h retention). The cron is the safety net; this workflow is the immediate, PR-scoped clean.
 
 ### Production-isolation design (why it is safe)
@@ -112,7 +112,8 @@ This is the continuation of the 2026-05-17 finding (`NEON.md` §10 entry + `docs
   - `secrets.NEON_PREVIEW_API_KEY`
 - Hard-pins the preview project and **refuses** to run if it is empty, equals production (`morning-bread-68708332`), or is anything other than `hidden-mountain-87248164`.
 - **Refuses** protected branch names (`main`, `master`, `production`, `preview/main`) and suspicious refs containing `..`, `~`, `^`, `:`, `\`, `[`, `]`, `{`, `}`, or spaces.
-- Skips fork PRs; `permissions: contents: read`; reads `head_ref` via env (no shell injection); prints no secrets; `continue-on-error` so a missing branch never red-X's a closed PR.
+- Skips fork PRs; `permissions: contents: read`; reads `head_ref` via env (no shell injection); **trims stray whitespace** on the project id (a trailing newline in the GitHub secret broke the exact-match guard in the PR #316 smoke test); prints no secrets (no `set -x` / `curl -v`; GitHub masks).
+- **Fail-loud, not silent:** missing/wrong API key or any non-200 list/delete response **fails the run** (not masked). The *only* tolerated no-op is "branch genuinely not found."
 
 ### Required GitHub configuration (Maya adds; HELD until then)
 | Item | Type | Value |
