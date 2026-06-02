@@ -128,16 +128,28 @@ export function orderFeaturedListings<T extends FeaturedOrderable>(
   limit: number,
 ): T[] {
   const seenIds = new Set<string>();
-  const seenKeys = new Set<string>();
+  // Address keys CLAIMED BY A MALLAN-OWNED ROW. Address-key dedupe collapses a
+  // later row ONLY when a Mallan exclusive already holds that address — i.e. it
+  // suppresses the IDX/RLS TWIN of a Mallan exclusive (the same physical unit
+  // re-published by the feed under a different listing_id). Two pure third-party
+  // rows that share an address are legitimate CO-LISTED siblings — the API keeps
+  // and badges them via annotateCoListedSiblings (_coListedCount) — and must NOT
+  // be collapsed here. Limiting the address collapse to Mallan-claimed keys is
+  // exactly that distinction. (Codex review 2026-06-01.)
+  const mallanKeys = new Set<string>();
   const out: T[] = [];
 
   const tryAdd = (l: T): void => {
     const ids = [l.id, l.mlsId, l.listing_id].filter((x): x is string => typeof x === 'string' && x.length > 0);
-    if (ids.some((x) => seenIds.has(x))) return;
+    if (ids.some((x) => seenIds.has(x))) return; // never the same listing twice (by id)
     const key = buildAddressKey(l.address ?? null);
-    if (key && seenKeys.has(key)) return; // collapse duplicate physical unit (CRM row already kept)
+    // Collapse ONLY against a Mallan exclusive's address — never IDX↔IDX, so
+    // co-listed third-party siblings at the same address are preserved.
+    if (key && mallanKeys.has(key)) return;
     ids.forEach((x) => seenIds.add(x));
-    if (key) seenKeys.add(key);
+    // Mallan-owned rows are added first (phases 1/1b), so claiming the key here
+    // makes a later IDX twin (phases 2/3) collapse onto this exclusive.
+    if (key && isMallanOwnedListing(l)) mallanKeys.add(key);
     out.push(l);
   };
 

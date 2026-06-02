@@ -164,6 +164,61 @@ describe('dedupe. CRM exclusive collapses its RLS/IDX twin (same address+unit)',
   });
 });
 
+describe('co-listed IDX siblings preserved — address collapse is Mallan-only (Codex review 2026-06-01)', () => {
+  it('two third-party IDX rows at the SAME address (no Mallan) are BOTH kept', () => {
+    // Co-listed siblings — the API keeps + badges them via annotateCoListedSiblings.
+    // Ordering must not silently drop the second one.
+    const out = orderFeaturedListings(
+      [],
+      [
+        { id: 'RLS-a', _source: 'db+idx', address: addr('5A') },
+        { id: 'RLS-b', _source: 'db+idx', address: addr('5A') }, // co-listed sibling, same unit
+      ],
+      new Set(),
+      6,
+    );
+    expect(out.map((l) => l.id)).toEqual(['RLS-a', 'RLS-b']);
+  });
+
+  it('address-key collapse fires ONLY against a Mallan exclusive — never IDX↔IDX', () => {
+    // WITH a Mallan exclusive at the address, both IDX twins of that unit collapse…
+    const withMallan = orderFeaturedListings(
+      [{ id: 'SL-1', _source: 'exclusive', address: addr('5A') }],
+      [
+        { id: 'RLS-a', _source: 'db+idx', address: addr('5A') },
+        { id: 'RLS-b', _source: 'db+idx', address: addr('5A') },
+      ],
+      new Set(),
+      6,
+    );
+    expect(withMallan.map((l) => l.id)).toEqual(['SL-1']);
+    // …but with NO Mallan row, neither IDX sibling is suppressed (even if pinned).
+    const noMallan = orderFeaturedListings(
+      [],
+      [
+        { id: 'RLS-a', _source: 'db+idx', address: addr('5A') },
+        { id: 'RLS-b', _source: 'db+idx', address: addr('5A') },
+      ],
+      new Set(['RLS-a']),
+      6,
+    );
+    expect(noMallan.map((l) => l.id)).toEqual(['RLS-a', 'RLS-b']);
+  });
+
+  it('still dedupes the SAME listing by id (no accidental double-add)', () => {
+    const out = orderFeaturedListings(
+      [],
+      [
+        { id: 'RLS-a', _source: 'db+idx', address: addr('5A') },
+        { id: 'RLS-a', _source: 'db+idx', address: addr('5A') }, // same id twice
+      ],
+      new Set(),
+      6,
+    );
+    expect(out.map((l) => l.id)).toEqual(['RLS-a']);
+  });
+});
+
 describe('7. Third-party attribution remains compliant in the component', () => {
   it('non-exclusive cards still render the RLS courtesy attribution line', () => {
     expect(componentSrc).toMatch(/RLS · Listing Courtesy of/);
