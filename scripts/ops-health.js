@@ -31,8 +31,8 @@
 //        in NEON.md §3 Trap #1).
 //     2. The GitHub check showing "Vercel: pending" reflects the legacy
 //        Statuses API drift (RC8 above), not a Neon branch-limit failure.
-//     3. Repo docs (docs/neon-vercel-integration-repair-plan-2026-05-17.md
-//        §F.8) classify the "Branch limit exceeded" symptom as stale
+//     3. Repo doc docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md
+//        classifies the "Branch limit exceeded" symptom as stale
 //        Vercel-Neon integration state, NOT actual branch exhaustion.
 //     4. Actual documented branch count is 8 / 5000 (well under cap).
 //     5. The media-backfill + media-sync crons (both formerly `*/15`)
@@ -73,7 +73,7 @@ const JSON_OUT = process.argv.includes('--json');
 // Launch-plan thresholds (2026-05-17 — migrated from Free).
 // Storage cap is 10 GB; compute is 300 CU-hours/mo baseline + overage billing.
 // Branch cap is 5000 per project. See
-// docs/neon-launch-branch-policy-audit-2026-05-17.md §D.4 for derivations.
+// docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md for current status.
 //
 // Field name notes (backwards compat):
 //   - `storage_free_cap_mb` retained as the field name so the JSON output
@@ -292,7 +292,7 @@ async function run() {
   // gap so a future env-var misconfiguration cannot persist for 2+ weeks.
   // The branch-count thresholds were updated 2026-05-17 from the
   // free-tier `>=8` (within-2-of-10-cap) framing to the Launch-plan
-  // hygiene framing — see docs/neon-launch-branch-policy-audit-2026-05-17.md.
+  // hygiene framing — see docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md.
   try {
     const lastPrune = await prisma.auditEvent.findFirst({
       where: { action: 'neon_branch_prune_cron' },

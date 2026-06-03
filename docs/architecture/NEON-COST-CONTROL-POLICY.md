@@ -5,7 +5,7 @@
 **Status:** OPEN · REPORT-ONLY · No runtime patched. No env vars changed. No threshold change deployed. No workflow change. Sister doc: `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`.
 **Date:** 2026-05-18
 **Author:** Claude Code under Maya direction.
-**Supersedes (in part):** `docs/neon-launch-branch-policy-audit-2026-05-17.md` — that audit treated Launch as the new ceiling; this doc treats Launch as **temporary plan capacity, not budget policy**.
+**Supersedes (in part):** the (deleted 2026-06-03) 2026-05-17 Launch-plan branch-policy audit — which treated Launch as the new ceiling; this doc treats Launch as **temporary plan capacity, not budget policy**.
 
 ---
 
@@ -27,8 +27,8 @@ The mallan-nyc Neon usage shape is designed so the project **fits inside the Fre
 
 - A small, slim-writer–constrained `listings` table (target ~80–200 MB after legacy JSON drop)
 - A bounded set of secondary tables (audit_events, demand_signals, listing_search_projection, etc.) that grow slowly
-- A single production branch (`main`) on the production project (`morning-bread-68708332`)
-- A small, prune-disciplined set of preview branches on the preview/integration project (`hidden-mountain-87248164`)
+- A single production branch (`main`) on the canonical production project (`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`)
+- A small, prune-disciplined set of preview branches on the same Vercel-integration project (`hidden-mountain-87248164`)
 - Compute discipline: `db-keepalive` cron at `*/15` (not `*/3`), no synthetic health-probe DB load, no permanent connection pools beyond what serverless routes use
 
 ### Why this is the policy, not just an aesthetic preference
@@ -303,8 +303,8 @@ The implementation roadmap in §12 is **proposal-only**. Each item requires a se
 ## §14 — Cross-references
 
 - `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` — sister doc; full project identity + env ownership + automation ownership matrix
-- `docs/neon-launch-branch-policy-audit-2026-05-17.md` — PR #150's audit doc; sets plan-capacity thresholds (which this doc reframes as "capacity, not policy")
-- `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8 — the integration-check noise that triggered the temporary Launch upgrade
+- (deleted 2026-06-03) PR #150's Launch-plan threshold audit — its plan-capacity thresholds are reframed here as "capacity, not policy"
+- (deleted 2026-06-03) the integration-check noise investigation — canonical status now in `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`
 - `memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md` — the implementation plan that, when shipped, recovers ~115 MB on `listings` toward the storage budget target
 - `NEON.md` — operational discipline; this doc's policy supersedes any "Launch as steady-state" framing
 - `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` §15 — public-records project's storage budget (also intentionally Free)

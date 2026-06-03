@@ -14,7 +14,7 @@
  * Historical context: originally built 2026-04-28 to keep mallan-nyc
  * under the Neon free-tier 10-branch cap. After the plan was upgraded
  * to Launch, the cap dimension disappeared but the hygiene motivation
- * remained. See docs/neon-launch-branch-policy-audit-2026-05-17.md.
+ * remained. See docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md.
  *
  * SAFETY:
  *   - Default mode is dry-run: prints what WOULD be deleted, no API

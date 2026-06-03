@@ -15,12 +15,12 @@ name: Cleanup Neon preview branch on PR close
 #   secrets.NEON_PREVIEW_API_KEY    -> a Neon key scoped to the preview project
 #
 # It MUST NEVER touch production:
-#   - Neon project  morning-bread-68708332  (mallandb / PRODUCTION)
-#   - vars.NEON_PROJECT_ID   -> PRODUCTION (do NOT use here)
+#   - Neon project  morning-bread-68708332  (mallandb / legacy do-not-serve — refuse here)
+#   - vars.NEON_PROJECT_ID   -> legacy morning-bread project (do NOT use here)
 #   - secrets.NEON_API_KEY   -> production credential-rotation key (do NOT use here)
 #
 # Refs:
-#   docs/neon-vercel-branch-check-2026-06-01.md  (§11 Tier 2)
+#   docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md  (canonical Neon/Vercel status)
 #   docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md  (§7 env-var ownership)
 # =========================================================================
 
