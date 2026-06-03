@@ -23,7 +23,7 @@
 
 ### What today proved
 
-The Vercel-Neon integration's "Neon branching: Branch limit exceeded" check fires on every preview deploy of every PR even though the bound Neon project has 8 / 5000 branches (per `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8). A side-effect: the **preview branch alias auto-rotation appears to be gated on integration check success.** When the first preview's failing check is Skipped, the alias rotates to it; subsequent pushes each spawn a new failing check, and the alias rotation never advances.
+The Vercel-Neon integration's "Neon branching: Branch limit exceeded" check fires on every preview deploy of every PR even though the bound Neon project has 8 / 5000 branches (per `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`). A side-effect: the **preview branch alias auto-rotation appears to be gated on integration check success.** When the first preview's failing check is Skipped, the alias rotates to it; subsequent pushes each spawn a new failing check, and the alias rotation never advances.
 
 On PR #149 we measured this directly:
 
@@ -304,7 +304,7 @@ This ladder is what surfaced the PR #151 actual root cause after the audit's F1 
 
 ### What today proved
 
-Every PR today (#149, #150, #151, #152, #153) shipped with the Vercel context PENDING/FAILING on GitHub. None were build failures. All were the known "Neon branching: Branch limit exceeded" integration check noise (`docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8).
+Every PR today (#149, #150, #151, #152, #153) shipped with the Vercel context PENDING/FAILING on GitHub. None were build failures. All were the known "Neon branching: Branch limit exceeded" integration check noise (`docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`).
 
 The Vercel **deployment** state was READY in every case. The GitHub Vercel status context was PENDING because the integration check never resolved.
 
@@ -332,7 +332,7 @@ gh pr view <pr-num> --json statusCheckRollup --jq '.statusCheckRollup[] | select
 Before treating a PENDING/FAILING GitHub Vercel context as PR-blocking:
 
 1. **Confirm the underlying Vercel deployment state.** If READY, the failure is integration-side, not build-side.
-2. **Classify the integration check.** The current known noise is `Neon branching: Branch limit exceeded` — documented in `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8 as stale Vercel-side cache.
+2. **Classify the integration check.** The current known noise is `Neon branching: Branch limit exceeded` — documented in `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md` as a stale Vercel-side check.
 3. **Document the classification in the PR body** (one line, e.g. "Vercel context PENDING — classified as known Neon-branching integration noise per F.8; deploy READY at <immutable URL>").
 4. **Proceed with normal merge IF** the 3 CI checks (`pr-check`, `guardrails`, `claude-review`) are SUCCESS.
 
@@ -388,7 +388,7 @@ Each is a separate small PR with its own validation cycle.
 ## Cross-references
 
 - `docs/engineering/pr-verification-checklist.md` — sister doc; covers items 5, 6, 7, 9, 10 of Maya's original spec
-- `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8 — the source of the integration-noise classification baseline
+- `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md` — the source of the integration-noise classification baseline
 - `tests/e2e/search-card-after-proof.spec.ts` — the existing 4-test Playwright proof
 - `docs/mobile-search-card-overflow-audit-2026-05-17.md` POST-PR-#151 section — concrete proof that V4's DOM-dump rule was needed
 

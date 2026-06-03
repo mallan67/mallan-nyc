@@ -9,7 +9,7 @@
 // Originally built 2026-04-28 to keep mallan-nyc under the Neon
 // free-tier 10-branch cap. After the plan upgrade to Launch the cap
 // dimension disappeared but the hygiene + cost-control motivation
-// remained. See docs/neon-launch-branch-policy-audit-2026-05-17.md.
+// remained. See docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md.
 //
 // Mirrors scripts/neon-prune-branches.ts so an operator can verify the
 // cron's decisions locally before deploys. See lib/neon/branches.ts
