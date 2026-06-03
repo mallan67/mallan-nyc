@@ -30,14 +30,14 @@ If you're reading this because a Vercel preview build is stuck "pending" or a "N
 
 **Do NOT (without explicit Maya approval AND symptom classification above):**
 - ❌ Do not change `NEON_PROJECT_ID` on Vercel runtime or GitHub Actions
-- ❌ Do not copy one `NEON_PROJECT_ID` value to the other surface (the two intentionally differ per §7)
+- ❌ Do not copy one `NEON_PROJECT_ID` value to the other surface, and do not use either value as proof of production ownership (see §7)
 - ❌ Do not disconnect/reconnect the Vercel-Neon integration (resource id `store_K9l79ICRUTMsiRh2`)
 - ❌ Do not reconnect the Vercel-GitHub integration
 - ❌ Do not rotate DB credentials manually (the rotate workflow is the only authorized writer per §8)
 - ❌ Do not change `DATABASE_URL` / `DATABASE_URL_UNPOOLED` / `ASSISTANT_DATABASE_URL` on any surface
 - ❌ Do not toggle Vercel preview-branching off (would route preview deploys at the production DB — see `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`)
 
-**Why these guardrails exist:** the `NEON_PROJECT_ID` value differs between Vercel and GitHub Actions surfaces by design (see §7). Treating the symptom by "fixing" the env without proving which symptom class is in play can corrupt production data binding or rotation lifecycle.
+**Why these guardrails exist:** `NEON_PROJECT_ID` is **not** proof of production ownership and its value may differ across the Vercel and GitHub Actions surfaces (see §7). Production DB ownership is determined by `DATABASE_URL` / `DATABASE_URL_UNPOOLED` + the connected Vercel store `store_K9l79ICRUTMsiRh2` (both → `hidden-mountain` / `cold-waterfall`). Treating the symptom by "fixing" the env without proving which symptom class is in play can corrupt production data binding or rotation lifecycle.
 
 ---
 
@@ -140,7 +140,7 @@ Pair the table above with this single-sentence ticket summary:
 
 | Incident | Layer | State | Owner |
 |---|---|---|---|
-| **Vercel-Neon "Branch limit exceeded" stale check** | Vercel CI integration ↔ Neon-Vercel marketplace integration | Stale UI state since plan upgrade 2026-05-17; actual branch count is **8 / 5000** | Vendor-side (Vercel-Managed integration `store_K9l79ICRUTMsiRh2`) |
+| **Vercel-Neon "Branch limit exceeded" stale check** | Vercel CI integration ↔ Neon-Vercel marketplace integration | Stale UI state since plan upgrade 2026-05-17; actual branch count is **well under the 5000 Launch cap** (≈2 on `hidden-mountain` at last audit) | Vendor-side (Vercel-Managed integration `store_K9l79ICRUTMsiRh2`) |
 | **Media-cron Neon compute burn (RC1 / RC3)** | Neon production workload | Real chronic — `media_sync_state.last_photos_change` cursor frozen 21 days; 149 r2_failed vs 1 r2_mirrored per 24h before mitigation | mallan-nyc cron (`/api/cron/media-sync` + `/api/cron/media-backfill`) |
 
 **The media-cron compute burn is a PROVEN compute risk** (see canonical incident doc) but it is **NOT proven to cause** the Vercel-Neon preview branching status. The two share no causal path:
@@ -210,13 +210,13 @@ The same env-var NAME may live on both surfaces with **different values**. This 
 
 | Env-var name | Scope | Likely value | Reader |
 |---|---|---|---|
-| `DATABASE_URL` | Production | Pooled connection string for `cold-waterfall` endpoint on `morning-bread-68708332` | `lib/prisma.ts`, `lib/db.ts`, `scripts/ops-health.js`, 9 other call sites |
-| `DATABASE_URL_UNPOOLED` | Production | Direct (unpooled) connection string for the same endpoint | `scripts/batch-geocode.js`, `scripts/import-past-deals.js` |
+| `DATABASE_URL` | Production | Pooled connection string for the `ep-cold-waterfall-adno3ao2` endpoint on **`hidden-mountain-87248164`** (repointed 2026-06-02) | `lib/prisma.ts`, `lib/db.ts`, `scripts/ops-health.js`, 9 other call sites |
+| `DATABASE_URL_UNPOOLED` | Production | Direct (unpooled) connection string for the same `cold-waterfall` endpoint on `hidden-mountain-87248164` | `scripts/batch-geocode.js`, `scripts/import-past-deals.js` |
 | `ASSISTANT_DATABASE_URL` | Production | Same shape as `DATABASE_URL` | **Zero readers** in app source — flagged dead (no `process.env.ASSISTANT_DATABASE_URL` in code) |
 | `NEON_API_KEY` | Production | Neon API token with `branches:write` scope | `app/api/cron/neon-branch-prune/route.ts` (the prune cron) |
-| `NEON_PROJECT_ID` | Production | **Most likely `hidden-mountain-87248164`** (the integration's project) — inferred from cron's `examined=17 pruned=10` (would be ≤1 if it targeted `morning-bread`). Pending Maya's read-only UI confirmation | `app/api/cron/neon-branch-prune/route.ts` |
+| `NEON_PROJECT_ID` | Production | **May still be set to `morning-bread` in some legacy automation paths; do NOT use it as proof of production ownership.** Production runtime DB ownership is determined by `DATABASE_URL` / `DATABASE_URL_UNPOOLED` + the connected Vercel store `store_K9l79ICRUTMsiRh2`, both now → `hidden-mountain` / `cold-waterfall`. | `app/api/cron/neon-branch-prune/route.ts` |
 | `CRON_SECRET` | Production | Cron auth header value | Every `app/api/cron/*/route.ts` |
-| Lowercase integration vars (`database_url`, `POSTGRES_*`, etc.) | Production/Preview/Dev | Auto-managed by the Vercel-Neon integration | **Zero readers** in app source (verified via grep) |
+| `database_*` integration vars (`database_DATABASE_URL`, `POSTGRES_*`, etc.) | Production/Preview/Dev | Auto-managed by the connected Vercel store `store_K9l79ICRUTMsiRh2` → **`hidden-mountain-87248164`** | **Zero readers** in app source (app reads the bare `DATABASE_URL`, not these) |
 
 ### GitHub Actions env (repository / variables) — what workflows read
 
@@ -239,7 +239,7 @@ The same env-var NAME may live on both surfaces with **different values**. This 
 
 ### Key ownership rule
 
-**`NEON_PROJECT_ID` differs across the two surfaces by design** (best-current-evidence). The Vercel runtime value targets the preview/integration project; the GitHub Actions value targets the production project. Renaming, copying, or "fixing" either value without confirming the value on both surfaces will break automation.
+**`NEON_PROJECT_ID` is NOT proof of production ownership.** The GitHub Actions value is `morning-bread-68708332` (the legacy rotation target); the Vercel runtime value may also still be `morning-bread` in legacy automation paths. Either way, **production DB ownership is determined by `DATABASE_URL` / `DATABASE_URL_UNPOOLED` and the connected Vercel store `store_K9l79ICRUTMsiRh2`, both now → `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`** — NOT by `NEON_PROJECT_ID`. Do not rename, copy, or "fix" `NEON_PROJECT_ID` to infer ownership.
 
 ### Do NOT do
 - Do NOT change `NEON_PROJECT_ID` on either surface
@@ -254,7 +254,7 @@ The same env-var NAME may live on both surfaces with **different values**. This 
 |---|---|
 | **Owner file** | `.github/workflows/rotate-db-keys.yml` |
 | **Status** | ⛔ **SCHEDULE DISABLED** (PR #321; `workflow_dispatch`-only). DO NOT run until retargeted + host-guarded. |
-| **Target project (must become)** | `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`. The workflow's hardcoded `morning-bread` target is the pre-2026-06-02 state and **must** be retargeted before any re-enable. |
+| **Target project (must become)** | `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`. The rotation workflow is still hardcoded to the legacy `morning-bread` project and **must** be retargeted before any re-enable. |
 | **Required before re-enable** | retarget to cold-waterfall + a fail-closed host guard (`docs/rotate-db-keys-host-guard-patch-2026-06-02.md`). |
 | **What it did** | Reset the `neondb_owner` password, pulled new connection URIs, wrote the 3 bare DB env vars, redeployed. (This is exactly the path that mis-cut production onto royal-dawn on 2026-06-01 — hence disabled.) |
 | **History** | Last known-good rotation 2026-03-01; the 2026-06-01 06:35Z run caused the cross-project DB incident (`docs/incidents/2026-06-02-cross-project-db-repoint.md`). |
@@ -284,7 +284,7 @@ There are **two cleanup mechanisms** in play. Both target the same project (`hid
 | Field | Value |
 |---|---|
 | **Owner file** | `app/api/cron/neon-branch-prune/route.ts` + shared logic in `lib/neon/branches.ts` + operator CLI in `scripts/neon-prune-branches.ts` |
-| **Target Neon project** | `hidden-mountain-87248164` (per `NEON_PROJECT_ID` Vercel runtime env value, best evidence pending Maya's UI confirmation) |
+| **Target Neon project** | `hidden-mountain-87248164` — the cron empirically prunes the preview/integration project (`examined=17 pruned=10`) and never touches production data. (Do not infer this from `NEON_PROJECT_ID`, which is not authoritative — see §7.) |
 | **Schedule** | `vercel.json` cron entry `{ "path": "/api/cron/neon-branch-prune", "schedule": "0 4 * * *" }` — daily 04:00 UTC |
 | **Retention** | `DEFAULT_RETENTION_HOURS = 24` in `lib/neon/branches.ts:47` |
 | **Skips** | `primary` branches (production `main`) and `protected` branches (operator-flagged) |
@@ -316,27 +316,24 @@ The full list is in `NEON-COST-CONTROL-POLICY.md` §11. Highlights for the owner
 ## §15 — Quick-glance cheat sheet
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ PRODUCTION:    morning-bread-68708332                                │
-│                ├─ branch:   main (primary)                           │
-│                ├─ endpoint: ep-cold-waterfall-adno3ao2 (active)      │
-│                ├─ endpoint: ep-royal-dawn-ad6eh8t2     (rotation)    │
-│                └─ owned by: rotate-db-keys.yml (GH Actions)          │
-│                                                                       │
-│ PREVIEW:       hidden-mountain-87248164  (Vercel label: green-school)│
-│                ├─ branches: ~10–17 (steady-state should be ≤10)      │
-│                ├─ owned by: neon-branch-prune (Vercel cron)          │
-│                └─ owned by: Vercel-Neon integration (auto-creates)   │
-│                                                                       │
-│ NOT BOUND:     neon-green-door                                       │
-│                └─ visible in Vercel UI; intentionally not connected  │
-└─────────────────────────────────────────────────────────────────────┘
+PRODUCTION:    hidden-mountain-87248164 / neon-green-school / ep-cold-waterfall-adno3ao2 / main (br-crimson-frog-adr7g9gt), Launch
+               DATABASE_URL / DATABASE_URL_UNPOOLED point here (repointed 2026-06-02)
 
-┌─────────────────────────────────────────────────────────────────────┐
-│ NEON_PROJECT_ID    Vercel runtime env  →  hidden-mountain-87248164  │
-│                    GitHub Actions env  →  morning-bread-68708332    │
-│                    (intentionally different, per §7)                 │
-└─────────────────────────────────────────────────────────────────────┘
+CONNECTED VERCEL STORE:  store_K9l79ICRUTMsiRh2  ->  hidden-mountain-87248164
+               (this same project is also where Vercel-Neon creates preview branches)
+
+STALE / DO-NOT-USE (a SEPARATE Neon project, NOT an endpoint on the above):
+               morning-bread-68708332 / mallandb / ep-royal-dawn-ad6eh8t2 / main (br-old-tree-admdlb9z), Free
+               kept only as PITR/rollback; never serve from it
+
+NOT CONNECTED: round-recipe-12208101 / neon-green-door  (visible in Vercel UI, intentionally not connected)
+
+RULES:
+  - Do not run rotate-db-keys (disabled until retargeted to cold-waterfall + a fail-closed host guard).
+  - Do not prune morning-bread to "fix" the Vercel branch-limit check.
+  - Do not create Neon branches from stale/test/wip/probe Git branches.
+  - Require Active Resource Before Deploy stays OFF; production database branch creation stays OFF.
+  - NEON_PROJECT_ID may still say morning-bread in legacy automation - NOT proof of production ownership.
 ```
 
 ---

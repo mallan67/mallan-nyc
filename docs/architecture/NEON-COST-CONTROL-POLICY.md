@@ -1,6 +1,6 @@
 # Neon Cost-Control Policy
 
-> Production project for all figures below is **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`**. `morning-bread-68708332` / `royal-dawn` is stale / do-not-use. (Some historical storage figures were measured on the old project.)
+> Production project for all figures below is **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`** (`DATABASE_URL` points there). The legacy `morning-bread-68708332` / `royal-dawn` project is stale / do-not-use; some historical storage figures here were measured on it.
 
 **Status:** OPEN · REPORT-ONLY · No runtime patched. No env vars changed. No threshold change deployed. No workflow change. Sister doc: `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`.
 **Date:** 2026-05-18
@@ -128,9 +128,9 @@ When the underlying integration check stops asserting branch-limit failures (via
 
 | Concept | Value |
 |---|---|
-| **Production Neon project** | `morning-bread-68708332` (hosts `cold-waterfall` endpoint; `DATABASE_URL` points here) |
+| **Production Neon project** | `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` (`DATABASE_URL` points here; repointed 2026-06-02) |
 | **Preview/integration Neon project** | `hidden-mountain-87248164` (Vercel-Neon integration creates preview branches here; UI lists product as `neon-green-school`) |
-| **Credential rotation owner** | `.github/workflows/rotate-db-keys.yml` (GitHub Actions; targets production project) |
+| **Credential rotation owner** | `.github/workflows/rotate-db-keys.yml` (GitHub Actions; **targets the legacy `morning-bread` project and is DISABLED until retargeted to cold-waterfall + host-guarded**) |
 | **Preview branch cleanup owner** | `app/api/cron/neon-branch-prune/route.ts` daily 04:00 UTC + `lib/neon/branches.ts` shared logic (Vercel cron; targets preview project per cron audit-event evidence) |
 
 ---
