@@ -12,39 +12,11 @@
 **Status:** OPEN · REPORT-ONLY · No env vars changed. No projects altered. No automation modified. Sister doc: `docs/architecture/NEON-COST-CONTROL-POLICY.md`.
 **Date:** 2026-05-18 · clarification patch 2026-05-22
 **Author:** Claude Code under Maya direction.
-**Scope:** **Current best-known ownership map** of which Neon project is what, which env surface owns which value, which automation owns which lifecycle. The map exists so any future change to env / integration / cron can be reviewed against a single ownership table. (Prior wording said "Definitive map"; downgraded 2026-05-22 because not every surface has dashboard-confirmed values — see Confirmation Tier below.)
+**Scope:** Current ownership map of which Neon project is what, which env surface owns which value, and which automation owns which lifecycle — review any env / integration / cron change against this single table.
 
 ---
 
-## 🛑 CORRECTION 2026-06-03 — production ownership was INVERTED in this doc (read first)
-
-> **This map's original §5/§8 named the wrong production project and treated two *separate* Neon projects as one.** That framing was corrected on 2026-06-03, after the 2026-06-02 cross-project DB rescue (PRs #321/#322). Canonical topology:
-
-| | Canonical PRODUCTION (serve) | Stale (DO NOT SERVE) |
-|---|---|---|
-| Neon project | **`hidden-mountain-87248164`** ("neon-green-school") | `morning-bread-68708332` ("mallandb") |
-| Compute endpoint | **`ep-cold-waterfall-adno3ao2`** | `ep-royal-dawn-ad6eh8t2` |
-| Branch | **`main` (`br-crimson-frog-adr7g9gt`)** | `main` (`br-old-tree-admdlb9z`) |
-| Plan | Launch | Free |
-
-- **`cold-waterfall` and `royal-dawn` are in DIFFERENT Neon projects**, not two endpoints on one branch. (A Neon compute endpoint binds to exactly one branch in one project; the cross-project schema divergence — e.g. `agents.trestle_mls_id` present on cold-waterfall, absent on royal-dawn — is what exposed the inversion.)
-- The **bare** vars Prisma reads — **`DATABASE_URL` + `DATABASE_URL_UNPOOLED`** (datasource `prisma/schema.prisma:16-17`) — were repointed to **cold-waterfall** on 2026-06-02; the separate `ASSISTANT_DATABASE_URL` Production var was also repointed but is **not** read by Prisma / currently unused. The Vercel-Neon integration's `database_*` vars are **not** what Prisma reads directly.
-- `rotate-db-keys` **schedule is disabled** (PR #321; manual `workflow_dispatch` only) and **must stay disabled** until retargeted to cold-waterfall with a fail-closed host guard (`docs/rotate-db-keys-host-guard-patch-2026-06-02.md`).
-- The evidence file `.github/workflows/backups/rotate-db-keys.yml.cleanbak` cited in the Confirmation tier / §5 / §8 below was **removed in PR #322** (it held the hardcoded `morning-bread` binding + a `royal-dawn` connection string — the source of this inversion).
-- **2026-06-03 Vercel store-API trace (confirmed):** the only Neon store bound to mallan-nyc is **`store_K9l79ICRUTMsiRh2` → hidden-mountain**; **no Vercel store binds `morning-bread`** (its 10/10 Free branches are orphaned debris, not the deploy check's target); `round-recipe`/neon-green-door is not connected. The "Branch limit exceeded" is a **stale/false** check on hidden-mountain (2/5000) — **do NOT prune morning-bread to fix it.**
-- **Do not use `morning-bread` as production in any future doc or script.** (Confirmation-tier bullet 1 below is corrected in place; §5 and §8 have been rewritten to the canonical facts.)
-
----
-
-**Confirmation tier (2026-05-22):**
-
-- ⚠️ **SUPERSEDED 2026-06-03 — production is `hidden-mountain-87248164` / `cold-waterfall`, NOT `morning-bread`; see top CORRECTION banner.** (Original basis, now understood as the *pre-repoint* state: `prisma/schema.prisma` migrations applied (`memory/BACKEND-AUDIT-2026-04-29.md:891`), `ops:health` storage measurements (961 MB → 1000 MB across 4 days), and the rotation script's endpoint hardcode in `.github/workflows/backups/rotate-db-keys.yml.cleanbak` — that backup file was **removed in PR #322**.)
-- **Preview / integration Neon project `hidden-mountain-87248164` → UI-PROVEN from 2026-05-17.** Vercel Configure panel + Neon Console read by Maya on 2026-05-17 (per `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`). Vercel-side display name: "neon-green-school".
-- **Vercel runtime `NEON_PROJECT_ID` env-var value → NO-CHANGE / PENDING FINAL DASHBOARD CONFIRMATION.** Inferred from cron behavior (examined=17 pruned=10 implies preview project, not production) but the operator has not yet read the literal Vercel Production env value side-by-side with the Neon Console URL bar. See §7 "Key ownership rule" and `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. **Do not change this value without that confirmation** (see Do-Not-Fix-Blindly below).
-
----
-
-## ⚠️ Do Not Fix Blindly (added 2026-05-22)
+## Do Not Fix Blindly
 
 If you're reading this because a Vercel preview build is stuck "pending" or a "Neon branching: Branch limit exceeded" check is failing, **STOP and classify the symptom first**:
 

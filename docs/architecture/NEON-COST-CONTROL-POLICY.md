@@ -1,6 +1,6 @@
 # Neon Cost-Control Policy
 
-> ⚠️ **SUPERSEDED 2026-06-03 (production ownership corrected):** This doc names `morning-bread-68708332` as the "production Neon project". After the 2026-06-02 cross-project repoint, **production data lives on `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`**; `morning-bread` / `royal-dawn` is **stale / do-not-serve**. The storage/cost figures here describe the old morning-bread project and are historical. See the AGENT-STOP box in `NEON.md` + `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`.
+> Production project for all figures below is **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`**. `morning-bread-68708332` / `royal-dawn` is stale / do-not-use. (Some historical storage figures were measured on the old project.)
 
 **Status:** OPEN · REPORT-ONLY · No runtime patched. No env vars changed. No threshold change deployed. No workflow change. Sister doc: `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`.
 **Date:** 2026-05-18
