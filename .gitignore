@@ -230,3 +230,31 @@ vercel-*-backup.txt
 ops/audit/sentinel-l/
 # Smoke runner reports (timestamped per run, never committed)
 ops/audit/sales-smoke/
+
+# ─────────────────────────────────────────────────────────────────────
+# Generated junk + obsolete root artifacts (PR chore/remove-generated-junk 2026-06-03)
+#
+# Compiled Python caches (the backend/ stub is not a build target here).
+__pycache__/
+*.pyc
+
+# Root-anchored dev screenshots. Leading "/" keeps this scoped to the
+# repo root ONLY — it does NOT match app/icon.png, app/apple-icon.png,
+# or public/images/*.png, which are real shipped assets.
+/*.png
+
+# Orphaned root dumps removed in this PR (0 code refs). Root-anchored so
+# similarly-named files inside subdirectories are unaffected.
+/value
+/trestle-fields.json
+/repo-fields.json
+/audit-trestle-report.json
+/old-list.txt
+/SALE_SEARCH_SPEC.json
+/RENTAL_SEARCH_SPEC.json
+/baseline-note-from-session.txt
+/SALE-FORM-FIELDS-COMPLETE.txt
+/SALE-FORM-FIELDS-EXTRACTED.txt
+# NOTE: rotation-history.log is intentionally force-committed by
+# .github/workflows/rotate-db-keys.yml (git add -f) as a rotation audit
+# trail and is allow-listed in scripts/ci/repo-hygiene.mjs — do NOT ignore it.
