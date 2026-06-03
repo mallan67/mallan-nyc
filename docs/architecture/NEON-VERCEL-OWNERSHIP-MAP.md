@@ -5,9 +5,30 @@
 **Author:** Claude Code under Maya direction.
 **Scope:** **Current best-known ownership map** of which Neon project is what, which env surface owns which value, which automation owns which lifecycle. The map exists so any future change to env / integration / cron can be reviewed against a single ownership table. (Prior wording said "Definitive map"; downgraded 2026-05-22 because not every surface has dashboard-confirmed values — see Confirmation Tier below.)
 
+---
+
+## 🛑 CORRECTION 2026-06-03 — production ownership was INVERTED in this doc (read first)
+
+> **This map (2026-05-18/22) is partially INVERTED.** It labels `morning-bread-68708332` as the production Neon project and treats `cold-waterfall-adno3ao2` + `royal-dawn-ad6eh8t2` as two endpoints on the *same* `main` branch of *one* project. **Both are wrong** — proven by the 2026-06-02 cross-project DB rescue (PRs #321/#322). The original text below is retained unedited for the historical record; the corrected canonical topology is:
+
+| | Canonical PRODUCTION (serve) | Stale (DO NOT SERVE) |
+|---|---|---|
+| Neon project | **`hidden-mountain-87248164`** ("neon-green-school") | `morning-bread-68708332` ("mallandb") |
+| Compute endpoint | **`ep-cold-waterfall-adno3ao2`** | `ep-royal-dawn-ad6eh8t2` |
+| Branch | **`main` (`br-crimson-frog-adr7g9gt`)** | `main` (`br-old-tree-admdlb9z`) |
+| Plan | Launch | Free |
+
+- **`cold-waterfall` and `royal-dawn` are in DIFFERENT Neon projects**, not two endpoints on one branch. (A Neon compute endpoint binds to exactly one branch in one project; the cross-project schema divergence — e.g. `agents.trestle_mls_id` present on cold-waterfall, absent on royal-dawn — is what exposed the inversion.)
+- The **bare** vars Prisma reads — **`DATABASE_URL` + `DATABASE_URL_UNPOOLED`** (datasource `prisma/schema.prisma:16-17`) — were repointed to **cold-waterfall** on 2026-06-02; the separate `ASSISTANT_DATABASE_URL` Production var was also repointed but is **not** read by Prisma / currently unused. The Vercel-Neon integration's `database_*` vars are **not** what Prisma reads directly.
+- `rotate-db-keys` **schedule is disabled** (PR #321; manual `workflow_dispatch` only) and **must stay disabled** until retargeted to cold-waterfall with a fail-closed host guard (`docs/rotate-db-keys-host-guard-patch-2026-06-02.md`).
+- The evidence file `.github/workflows/backups/rotate-db-keys.yml.cleanbak` cited in the Confirmation tier / §5 / §8 below was **removed in PR #322** (it held the hardcoded `morning-bread` binding + a `royal-dawn` connection string — the source of this inversion).
+- **Confirmation-tier bullet 1, §5, and §8 below are SUPERSEDED by this banner.** Do not use `morning-bread` as production in any future doc or script.
+
+---
+
 **Confirmation tier (2026-05-22):**
 
-- **Production Neon project `morning-bread-68708332` → PROVEN.** Active reads/writes confirmed via `prisma/schema.prisma` migrations applied (`memory/BACKEND-AUDIT-2026-04-29.md:891`), `ops:health` storage measurements (961 MB → 1000 MB across 4 days), and the rotation script's endpoint hardcode (`.github/workflows/backups/rotate-db-keys.yml.cleanbak:82`).
+- ⚠️ **SUPERSEDED 2026-06-03 — production is `hidden-mountain-87248164` / `cold-waterfall`, NOT `morning-bread`; see top CORRECTION banner.** (Original basis, now understood as the *pre-repoint* state: `prisma/schema.prisma` migrations applied (`memory/BACKEND-AUDIT-2026-04-29.md:891`), `ops:health` storage measurements (961 MB → 1000 MB across 4 days), and the rotation script's endpoint hardcode in `.github/workflows/backups/rotate-db-keys.yml.cleanbak` — that backup file was **removed in PR #322**.)
 - **Preview / integration Neon project `hidden-mountain-87248164` → UI-PROVEN from 2026-05-17.** Vercel Configure panel + Neon Console read by Maya on 2026-05-17 (per `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8). Vercel-side display name: "neon-green-school".
 - **Vercel runtime `NEON_PROJECT_ID` env-var value → NO-CHANGE / PENDING FINAL DASHBOARD CONFIRMATION.** Inferred from cron behavior (examined=17 pruned=10 implies preview project, not production) but the operator has not yet read the literal Vercel Production env value side-by-side with the Neon Console URL bar. See §7 "Key ownership rule" and `docs/neon-launch-branch-policy-audit-2026-05-17.md` §C.4. **Do not change this value without that confirmation** (see Do-Not-Fix-Blindly below).
 
@@ -170,19 +191,21 @@ The two projects share an account but **must remain operationally isolated** —
 
 ## §5 — Production Neon project
 
+> ⚠️ **SUPERSEDED 2026-06-03** — this section's "production = `morning-bread-68708332`" framing and the "`cold-waterfall` + `royal-dawn` on the same `main` branch" claim are WRONG; production is `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`. See the top CORRECTION banner. Table retained for history.
+
 | Field | Value |
 |---|---|
 | **Neon project name (Console / API)** | `morning-bread-68708332` |
 | **Neon-side ID** | `morning-bread-68708332` (matches project name) |
 | **Branch in use** | `main` (Neon's `primary: true` branch) |
-| **Active compute endpoint(s)** | `cold-waterfall-adno3ao2` (primary; serves `DATABASE_URL`) ⋅ `royal-dawn-ad6eh8t2` (rotation-related secondary; provisioned during a credential rotation cycle, attached to the same `main` branch) |
+| **Active compute endpoint(s)** | ⚠️ **CORRECTED 2026-06-03 (see top banner):** `ep-cold-waterfall-adno3ao2` is the production endpoint but it lives in project **`hidden-mountain-87248164`** (NOT this project). `ep-royal-dawn-ad6eh8t2` is the endpoint on **`morning-bread-68708332`** and is **stale / do-not-serve**. They are in **DIFFERENT Neon projects — not two endpoints on one `main` branch** (the prior "attached to the same `main` branch" claim was the root of the inversion). |
 | **Active host pattern** | `ep-cold-waterfall-adno3ao2-pooler.c-2.us-east-1.aws.neon.tech` |
 | **Pooled / unpooled** | Both (Vercel env stores `DATABASE_URL` pooled + `DATABASE_URL_UNPOOLED` direct) |
 | **What lives here** | All production app data: `Listing`, `ListingMedia`, `Agent`, `Lead`, `Deal`, `CommissionPayment`, `AuditEvent`, etc. (60 Prisma models per `prisma/schema.prisma`) |
 | **Storage at 2026-05-18 16:40 ET** | **961 MB** (per ops:health) — note: over the Free-tier 500 MB cap; over Maya's budget target |
 | **Reads from** | All app code via Prisma client (`lib/prisma.ts`) → `process.env.DATABASE_URL` |
 | **Writes from** | Prod app routes + 23 crons + manual operator (`scripts/*` via local `.env.local`) |
-| **Evidence files** | `memory/BACKEND-AUDIT-2026-04-29.md:891` (migration applied here); `docs/listing-search-projection-drift-report-2026-05-16.md:5` (host bytes cited); `.github/workflows/backups/rotate-db-keys.yml.cleanbak:82` (the rotation script's endpoint URL hardcodes this project's endpoint) |
+| **Evidence files** | `memory/BACKEND-AUDIT-2026-04-29.md:891` (migration applied here); `docs/listing-search-projection-drift-report-2026-05-16.md:5` (host bytes cited). ⚠️ The third item — `.github/workflows/backups/rotate-db-keys.yml.cleanbak:82` — **was removed in PR #322** and pointed at the `ep-royal-dawn-ad6eh8t2` endpoint on `morning-bread-68708332`; treating that as "production" was the inverted assumption (corrected 2026-06-03, see top banner). |
 
 ---
 
@@ -251,6 +274,8 @@ The same env-var NAME may live on both surfaces with **different values**. This 
 ---
 
 ## §8 — Credential rotation owner
+
+> ⚠️ **SUPERSEDED 2026-06-03** — the rotation **target must be retargeted** from `morning-bread-68708332` to the canonical production project `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` before re-enabling, and the **schedule is now DISABLED** (PR #321; `workflow_dispatch`-only) until that retarget + a fail-closed host guard land. The "Schedule" row below (`cron: "0 5 1,15 * *"`) reflects the pre-2026-06-02 state. See `docs/rotate-db-keys-host-guard-patch-2026-06-02.md` + top CORRECTION banner.
 
 | Field | Value |
 |---|---|
