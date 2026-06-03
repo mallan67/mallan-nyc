@@ -220,6 +220,12 @@ report-*
 out.txt
 dump-*
 
+# Trestle/Cotality diagnostic dumps + local config backups.
+# Security: these may contain OAuth tokens / credentials — never commit.
+.trestle_*
+*.cleanbak
+vercel-*-backup.txt
+
 # Sentinel-L scanner outputs (timestamped per run, never committed)
 ops/audit/sentinel-l/
 # Smoke runner reports (timestamped per run, never committed)
