@@ -1,5 +1,9 @@
 # Neon Launch-plan branch-policy audit
 
+> # 🛑 SUPERSEDED 2026-06-03 — the "code targets morning-bread" framing here is stale
+>
+> This audit predates the 2026-06-02 cross-project repoint and the 2026-06-03 Vercel store-API trace. Production data now lives on **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`**; **`morning-bread-68708332` is stale / do-not-serve** and is **not** bound to any Vercel store for mallan-nyc. Do **not** use this doc to justify pruning morning-bread or treating it as production. See the AGENT-STOP box in `NEON.md` + `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. Retained for historical record.
+
 **Status:** OPEN · REPORT ONLY · No patches. No env. No branch deletes. No cron disable. No reconnect. No migrations. No reconciliation. No PR 5B. No CRM/Sentinel.
 **Date:** 2026-05-17T07:05Z
 **Author:** Claude Code, under Maya direction.

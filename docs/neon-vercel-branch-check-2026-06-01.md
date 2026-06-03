@@ -4,6 +4,8 @@
 **Scope of this doc:** record only. No app code, settings, env vars, branches, deployments, or credentials were changed by writing this file.
 **Related:** `NEON.md` §10 (change log) + §11 (preview-branch architecture) · `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` · `docs/neon-vercel-integration-repair-plan-2026-05-17.md` §F.8
 
+> **⚠️ UPDATE 2026-06-03 (Vercel store-API trace):** Confirmed the **only** Neon store bound to mallan-nyc is **`store_K9l79ICRUTMsiRh2` → `hidden-mountain-87248164`** (2/5000 branches). **`morning-bread-68708332` is NOT connected** — its 10/10 Free branches are orphaned debris, not the check's target — and `round-recipe`/neon-green-door is not connected. So "Branch limit exceeded" is a **stale/false** check against hidden-mountain; **do NOT prune morning-bread to fix it.** "Require Active Resource Before Deploy" remains **OFF** (keep it OFF until Vercel clears the false check). Latest preview (PR #322) reached **READY** with `/api/health` 200. Canonical status: `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`.
+
 ---
 
 ## 1. Root issue
