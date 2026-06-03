@@ -48,6 +48,8 @@ The `store_*` shape of mallan-nyc's resource ID is the Vercel marketplace instal
 
 **Definitively `morning-bread-68708332`.** Evidence chain:
 
+> ⚠️ **SUPERSEDED 2026-06-03.** This "definitively morning-bread = production" conclusion was **inverted**. The 2026-06-02 cross-project DB rescue (PRs #321/#322) established that production DATA is served by **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`**, and `morning-bread-68708332` / `ep-royal-dawn-ad6eh8t2` is stale / do-not-serve. The `.cleanbak` evidence files cited below were **removed in PR #322**. See `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` top CORRECTION banner. The original evidence chain is retained below for the historical record.
+
 1. **Runtime env in latest rotate-db-keys workflow run** (`gh run view 25910701936 --log-failed`) — env block shows `PROJECT_ID: morning-bread-68708332`. The workflow's `PROJECT_ID` reads from `secrets.NEON_PROJECT_ID || vars.NEON_PROJECT_ID`. The GH org `vars` listing shows `NEON_PROJECT_ID` is one of the configured variables.
 2. **Backup workflow file** `.github/workflows/backups/rotate-db-keys.yml.cleanbak:24` — hardcodes `PROJECT_ID: "morning-bread-68708332"` (preserved before the refactor that moved it to secrets/vars).
 3. **Backup workflow connection string** `.github/workflows/backups/rotate-db-keys.yml.cleanbak:82` — references endpoint `ep-royal-dawn-ad6eh8t2-pooler.c-2.us-east-1.aws.neon.tech` (which is a compute endpoint attached to `morning-bread-68708332`'s `main` branch).
@@ -380,7 +382,7 @@ After whichever step clears the failing check:
 - `docs/followup-vercel-neon-integration-repair-2026-05-17.md` — earlier follow-up + the new 2026-05-17 sub-section on preview-alias rotation block
 - `docs/neon-vercel-preview-branch-limit-audit-2026-05-16.md` — branch-cap pressure analysis with cleanup options
 - `.github/workflows/rotate-db-keys.yml` — current state, post-2026-05-15 patches
-- `.github/workflows/backups/rotate-db-keys.yml.cleanbak` — historical hardcoded binding (line 24 = the project ID source-of-truth)
+- `.github/workflows/backups/rotate-db-keys.yml.cleanbak` — **removed in PR #322** (was a historical hardcoded binding; its `morning-bread`/`royal-dawn` values fed the now-corrected production-ownership inversion — see `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` top banner)
 - `lib/neon/branches.ts` — prune logic
 - `app/api/cron/neon-branch-prune/route.ts` — daily cron at 04:00 UTC
 - `scripts/neon-prune-branches.ts` — local CLI wrapper for the same logic

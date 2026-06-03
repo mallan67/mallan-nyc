@@ -23,7 +23,7 @@
 ## B. Current project status
 
 - **Production:** mallan.nyc on Vercel (Next.js 16.1.6 + Turbopack, App Router)
-- **Database:** Neon Postgres (Vercel-Managed integration, cold-waterfall project `morning-bread-68708332`)
+- **Database:** Neon Postgres — **canonical production data home = `hidden-mountain-87248164` ("neon-green-school") · endpoint `ep-cold-waterfall-adno3ao2` · branch `main` (`br-crimson-frog-adr7g9gt`)** (repointed here 2026-06-02 in the cross-project DB rescue; PRs #321/#322). The legacy project `morning-bread-68708332` ("mallandb") · `ep-royal-dawn-ad6eh8t2` (`br-old-tree-admdlb9z`) is **stale / do-not-serve**. `cold-waterfall` and `royal-dawn` are endpoints in **two different Neon projects**, not two endpoints on one branch. Prisma reads the **bare** `DATABASE_URL` / `DATABASE_URL_UNPOOLED` / `ASSISTANT_DATABASE_URL` (now → cold-waterfall) — **not** the integration's `database_*` vars. `rotate-db-keys` schedule is **disabled** until retargeted to cold-waterfall + a fail-closed host guard. Details: `NEON.md` §10/§11 + `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` (top correction).
 - **Feed:** REBNY IDX Plus via Cotality/Trestle 5.0 (`https://api.cotality.com/trestle`) — read-only display
 - **Brokerage:** Mallan Real Estate Inc. · NY broker license **#10991205323** · 646-258-4460 · 400 East 90th Street, Suite 17C, NY 10128 · Principal broker: Maya Allan (REBNY agent license #10311201806)
 - **Active state / current PR queue / exclusive-launch readiness:** see the most recent audit at `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` (or run `gh pr list --state open` for the live queue)
