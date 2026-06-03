@@ -19,7 +19,7 @@
 | Plan | Launch | Free |
 
 - **`cold-waterfall` and `royal-dawn` are in DIFFERENT Neon projects**, not two endpoints on one branch. (A Neon compute endpoint binds to exactly one branch in one project; the cross-project schema divergence — e.g. `agents.trestle_mls_id` present on cold-waterfall, absent on royal-dawn — is what exposed the inversion.)
-- The **bare** vars Prisma reads — **`DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `ASSISTANT_DATABASE_URL`** — were repointed to **cold-waterfall** on 2026-06-02. The Vercel-Neon integration's `database_*` vars are **not** what Prisma reads directly.
+- The **bare** vars Prisma reads — **`DATABASE_URL` + `DATABASE_URL_UNPOOLED`** (datasource `prisma/schema.prisma:16-17`) — were repointed to **cold-waterfall** on 2026-06-02; the separate `ASSISTANT_DATABASE_URL` Production var was also repointed but is **not** read by Prisma / currently unused. The Vercel-Neon integration's `database_*` vars are **not** what Prisma reads directly.
 - `rotate-db-keys` **schedule is disabled** (PR #321; manual `workflow_dispatch` only) and **must stay disabled** until retargeted to cold-waterfall with a fail-closed host guard (`docs/rotate-db-keys-host-guard-patch-2026-06-02.md`).
 - The evidence file `.github/workflows/backups/rotate-db-keys.yml.cleanbak` cited in the Confirmation tier / §5 / §8 below was **removed in PR #322** (it held the hardcoded `morning-bread` binding + a `royal-dawn` connection string — the source of this inversion).
 - **Confirmation-tier bullet 1, §5, and §8 below are SUPERSEDED by this banner.** Do not use `morning-bread` as production in any future doc or script.
