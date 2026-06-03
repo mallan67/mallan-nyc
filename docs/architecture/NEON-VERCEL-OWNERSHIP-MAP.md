@@ -1,5 +1,14 @@
 # Neon ↔ Vercel Ownership Map
 
+> ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
+>
+> - **Canonical production data = `hidden-mountain-87248164` / "neon-green-school" / `ep-cold-waterfall-adno3ao2` / branch `main` (`br-crimson-frog-adr7g9gt`).**
+> - **`morning-bread-68708332` / "mallandb" / `ep-royal-dawn-ad6eh8t2` (`br-old-tree-admdlb9z`) is STALE / DO-NOT-SERVE.**
+> - **`round-recipe-12208101` / "neon-green-door" is NOT connected to mallan-nyc.**
+> - **Only Vercel store bound to mallan-nyc = `store_K9l79ICRUTMsiRh2` → hidden-mountain** (store-API verified 2026-06-03); **no store binds morning-bread.**
+> - **DO NOT run `rotate-db-keys`. DO NOT prune `morning-bread` to "fix" the Vercel branch-limit check** (it's a stale/false check on hidden-mountain at 2/5000). **DO NOT create Neon branches from stale/test/wip/probe Git branches.**
+> - Full evidence: `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`.
+
 **Status:** OPEN · REPORT-ONLY · No env vars changed. No projects altered. No automation modified. Sister doc: `docs/architecture/NEON-COST-CONTROL-POLICY.md`.
 **Date:** 2026-05-18 · clarification patch 2026-05-22
 **Author:** Claude Code under Maya direction.
@@ -22,6 +31,7 @@
 - The **bare** vars Prisma reads — **`DATABASE_URL` + `DATABASE_URL_UNPOOLED`** (datasource `prisma/schema.prisma:16-17`) — were repointed to **cold-waterfall** on 2026-06-02; the separate `ASSISTANT_DATABASE_URL` Production var was also repointed but is **not** read by Prisma / currently unused. The Vercel-Neon integration's `database_*` vars are **not** what Prisma reads directly.
 - `rotate-db-keys` **schedule is disabled** (PR #321; manual `workflow_dispatch` only) and **must stay disabled** until retargeted to cold-waterfall with a fail-closed host guard (`docs/rotate-db-keys-host-guard-patch-2026-06-02.md`).
 - The evidence file `.github/workflows/backups/rotate-db-keys.yml.cleanbak` cited in the Confirmation tier / §5 / §8 below was **removed in PR #322** (it held the hardcoded `morning-bread` binding + a `royal-dawn` connection string — the source of this inversion).
+- **2026-06-03 Vercel store-API trace (confirmed):** the only Neon store bound to mallan-nyc is **`store_K9l79ICRUTMsiRh2` → hidden-mountain**; **no Vercel store binds `morning-bread`** (its 10/10 Free branches are orphaned debris, not the deploy check's target); `round-recipe`/neon-green-door is not connected. The "Branch limit exceeded" is a **stale/false** check on hidden-mountain (2/5000) — **do NOT prune morning-bread to fix it.**
 - **Confirmation-tier bullet 1, §5, and §8 below are SUPERSEDED by this banner.** Do not use `morning-bread` as production in any future doc or script.
 
 ---

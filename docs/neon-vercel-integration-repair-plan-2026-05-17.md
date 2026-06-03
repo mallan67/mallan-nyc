@@ -1,3 +1,7 @@
+> # 🛑 SUPERSEDED 2026-06-03 — DO NOT trust this doc's "bound to morning-bread" conclusion
+>
+> This investigation (including §A–E) concludes the Vercel↔Neon integration is "bound to `morning-bread-68708332`". **That is WRONG.** A 2026-06-03 Vercel store-API trace confirmed the **only** Neon store connected to mallan-nyc is **`store_K9l79ICRUTMsiRh2` → `hidden-mountain-87248164`**; **no Vercel store binds `morning-bread`**. Production data lives on hidden-mountain/cold-waterfall (repointed 2026-06-02; PR #321/#322). Read the AGENT-STOP box in `NEON.md` + `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. This file is retained for historical/diagnostic record only.
+
 > **⚠ AUTHORITATIVE SECTION IS §F.8.** Sections A–E of this doc reflect interim investigation that ran on the (incorrect) free-tier framing. They are preserved for the diagnostic trail. The final classification + support packet in §F.8 has the correct Launch-plan facts: bound project = `neon-green-school` / `hidden-mountain-87248164`, plan = Launch (8 / 5000 branches), the failing check is stale Vercel-side state. The Launch threshold-update audit lives in `docs/neon-launch-branch-policy-audit-2026-05-17.md`.
 
 ---
