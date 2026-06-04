@@ -469,7 +469,7 @@ const INTERNAL_ONLY_FIELDS = new Set([
   'Students', 'GuarantorsPolicy',
 
   // Fields that don't exist on Trestle (CRM-internal)
-  'MoveInCostsAmountTotal', 'MoveInCostsComments',    // Not on Trestle; real field is MoveInCosts
+  'MoveInCostsAmountTotal',    // Not on Trestle (phantom). MoveInCostsAmount + MoveInCostsComments ARE live (2026-06-04).
   'IDXEntireListingDisplayYN',                          // Not on Trestle; real field is InternetEntireListingDisplayYN
   'YearRenovated', 'BuyerAgentRLSParticipantYN',
   'TotalShares', 'AnnualTaxes',
