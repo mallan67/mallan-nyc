@@ -427,7 +427,7 @@ Trestle integration is **Layer 0 dependency** — no production feature work pro
 
 **AR.3 CI/CD Enforcement:**
 Deployment fails automatically if:
-- Any occurrence of `api-trestle.corelogic.com` or `api-prod.corelogic.com` detected in repository
+- A **new runtime** reference to `api-trestle.corelogic.com` or `api-prod.corelogic.com` is detected by `scripts/ci/guardrails.mjs` §12 (non-comment, non-allowlisted code). The media-proxy route (`app/api/media/proxy/route.ts`), the IDX DTO modules (`db-to-public-dto.ts` / `public-dto.ts`), test fixtures, and comments are **intentionally allowlisted** — they keep handling the legacy media hosts during the 2026 warranty window.
 - IDX integration test suite fails
 - OAuth token refresh test fails
 
@@ -635,7 +635,7 @@ Phase 0 (CRM Buildout) ──→ Phase 1 (Data) ──→ Phase 2 (Auth) ──�
 - CI-gated (AR.3) — build fails on detection
 - Standardized ENV variable: `TRESTLE_API_URL=https://api.cotality.com/trestle`
 - Separate staging and production values
-- Deprecated URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) trigger build failure
+- A **new runtime** use of the deprecated URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) triggers build failure via `guardrails.mjs` §12; the media-proxy allowlist + DTO/test references are exempt (legacy media hosts stay valid during the 2026 warranty)
 - Hard deadline: March 31, 2026. Vendor may decommission earlier with notice; do not rely on quota boost.
 
 ## Rule 5: Fail closed — any uncertainty defaults to NON-DISPLAY

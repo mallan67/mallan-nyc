@@ -54,7 +54,7 @@ This project integrates **REBNY Residential Listing Service (RLS) IDX data** und
 **Non-compliance exposes the brokerage to immediate suspension and liquidated damages up to $40,000.**
 
 #### ✅ Allowed Use (REBNY Confirmed 2026-03-27)
-- MLS/IDX data may be accessed only via **authorized server-side connections** using credentials issued through Trestle/CoreLogic
+- MLS/IDX data may be accessed only via **authorized server-side connections** using credentials issued through Cotality/Trestle (formerly CoreLogic)
 - IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27)
 - IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search
 - Client data stays on mallan.nyc — never passes through RealPlus or third parties
@@ -130,7 +130,7 @@ All UI must work on: Desktop (1920px+), Laptop (1366px), Tablet (768px-1024px), 
 
 ## DATA SOURCE
 
-**Primary Data Feed:** REBNY RLS via Trestle (CoreLogic)
+**Primary Data Feed:** REBNY RLS via Cotality/Trestle (formerly CoreLogic)
 **Data Dictionary:** `C:\Users\MayaAllan\Desktop\mallan nyc web\Trestle fields\Data_Migration_2025_RLS_Data_Rules.xlsx`
 **Total Available Fields:** 902 IDX Plus fields across 7 resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39)
 **Picklist Values:** 2,066 lookup values
