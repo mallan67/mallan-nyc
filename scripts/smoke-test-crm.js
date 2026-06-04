@@ -277,7 +277,6 @@ const DATA_FILES = [
   'data/rebny-rls-property-lookup.csv',
   'data/rls-form-bindings.json',
   'data/RLS-FIELD-REGISTRY.md',
-  'data/TRESTLE-COMPLETE-FIELD-CATALOG.md',
   'compliance/rules/active.json',
   'compliance/rules/rls-required.json',
   'compliance/rules/export-policy.json',

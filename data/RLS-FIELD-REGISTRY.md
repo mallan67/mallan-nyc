@@ -332,4 +332,4 @@ Virtual tour URLs also available via `VirtualTourURLUnbranded` and `VirtualTourU
 | `scripts/audit-form-fields.js` | Form field → RLS binding classifier |
 | `scripts/ucba-compliance-audit.js` | CI-gateable UCBA audit |
 | `artifacts/` | Trestle live data (NDJSON), field catalogs, mapping reports |
-| `data/TRESTLE-COMPLETE-FIELD-CATALOG.md` | **Complete catalog of all 1,363 Trestle fields** — every field name, type, across all 12 resources |
+| `artifacts/metadata.xml` + `data/rebny-rls-property-fields.csv` + `data/rebny-rls-property-lookup.csv` | **Live Cotality field truth** — every field name/type from the `api.cotality.com/trestle` `$metadata` (refresh with `npm run trestle:diff` / `npm run trestle:refresh-csv`) |

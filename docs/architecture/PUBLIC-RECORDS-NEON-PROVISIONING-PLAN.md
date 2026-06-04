@@ -417,7 +417,7 @@ Per charter Article 1.20: merging this plan does not authorize provisioning. Eac
 | Existing branch-prune pattern (reuse model) | `lib/neon/branches.ts` + `scripts/neon-prune-branches.ts` + `app/api/cron/neon-branch-prune/route.ts` |
 | Existing ops-health pattern (reuse model) | `scripts/ops-health.js` |
 | External-inventory hold (NOT released by this plan) | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
-| REBNY compliance rulebook | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `RLS-VALIDATOR-V2.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `FIELD-AUTHORITY.md`) + `REBNY-RLS-RESO-COMPLETE-REFERENCE.md` |
+| REBNY compliance rulebook | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `RLS-VALIDATOR-V2.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `FIELD-AUTHORITY.md`) + `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` + `data/UCBA-2026-Requirements.md` |
 
 ---
 
