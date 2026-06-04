@@ -320,12 +320,13 @@ export const B26_MEDIA = [
 ];
 
 // B27: Rental-Specific
-// Live-Trestle truth (verified 2026-04-19):
+// Live-Trestle truth (verified 2026-04-19; MoveInCosts* re-verified 2026-06-04):
 //   - PossessionDate is a RESO field that Trestle ignores (CLAUDE.md "fields
 //     that DO NOT exist on Trestle"). Use AvailabilityDate.
-//   - MoveInCostsComments/MoveInCostsAmountTotal do NOT exist on Trestle.
-//     MoveInCosts (the multi-select picklist) is the only valid field; the
-//     dollar amounts are captured via CustomProperty.AdditionalFee* (B30).
+//   - MoveInCostsAmount (Edm.Decimal) + MoveInCostsComments (Edm.String) ARE live
+//     Property fields as of 2026-06-04 (the cached snapshot had lagged). Both are
+//     selected here alongside the MoveInCosts multi-select picklist.
+//   - MoveInCostsAmountTotal still does NOT exist on Trestle — kept out (phantom).
 const B27_RENTAL = [
   "LeaseAmount", "LeaseAmountFrequency",
   "LeaseConsideredTerms", "LeaseTerm",
@@ -337,7 +338,10 @@ const B27_RENTAL = [
   "SecurityDeposit", "KeyDeposit",
   "TenantPays",
   // FARE Act fee transparency (NYC LL 119/2024)
-  "MoveInCosts", "OngoingFees", "TenantPaysDescription",
+  // MoveInCosts (multi-select cost types) + MoveInCostsAmount (Edm.Decimal $) +
+  // MoveInCostsComments (Edm.String) are all live Property fields (2026-06-04).
+  "MoveInCosts", "MoveInCostsAmount", "MoveInCostsComments",
+  "OngoingFees", "TenantPaysDescription",
 ];
 
 // B30: FARE Act Custom Property Fields (4 fields — need $expand=CustomProperty)
@@ -440,8 +444,9 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   // Rental
   "LeaseConsideredTerms", "FurnishedDescription",
   "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
-  // (Rental move-in fields MoveInCostsComments/MoveInCostsAmountTotal previously
-  // excluded here are no longer in B27_RENTAL — they do NOT exist on Trestle.)
+  // (MoveInCostsAmount + MoveInCostsComments are NOT excluded — they are live
+  // Property fields selected via B27_RENTAL as of 2026-06-04. MoveInCostsAmountTotal
+  // remains absent from live and is simply never listed in any B-category array.)
   // FARE Act CustomProperty fields (need $expand=CustomProperty)
   "AdditionalFee", "AdditionalFeeDescription", "AdditionalFeeYN", "FeeFrequency",
 ]);
