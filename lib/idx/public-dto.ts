@@ -229,6 +229,10 @@ export interface PublicListingDTO {
   cumulativeDaysOnMarket?: number;
   // FARE Act fee transparency
   moveInCosts?: string;
+  // Move-in fee amount (Property MoveInCostsAmount, live 2026-06-04) with read-time
+  // legacy fallback (AdditionalFee → MoveInCostsAmountTotal) resolved in the builders.
+  moveInCostsAmount?: number;
+  moveInCostsComments?: string;
   ongoingFees?: string;
   tenantPays?: string;
   tenantPaysDescription?: string;
