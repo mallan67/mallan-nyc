@@ -1064,14 +1064,14 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCosts — comma-separated list of move-in cost types</p>
                 </div>
                 <div>
-                    <label class="field-label">Move-In Costs Total ($)</label>
-                    <input type="number" id="rentalMoveInCostsAmountTotal" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="MoveInCostsAmountTotal">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCostsAmountTotal — total dollar amount</p>
+                    <label class="field-label">Move-In Cost Amount ($)</label>
+                    <input type="number" id="rentalMoveInCostsAmount" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="MoveInCostsAmount">
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCostsAmount — dollar amount</p>
                 </div>
             </div>
             <div class="mb-4">
                 <label class="field-label">Move-In Costs Comments</label>
-                <textarea id="rentalMoveInCostsComments" rows="2" placeholder="Additional details about move-in costs..." class="field-input" data-rls-ignore="true" data-removed-field="MoveInCostsComments"></textarea>
+                <textarea id="rentalMoveInCostsComments" rows="2" placeholder="Additional details about move-in costs..." class="field-input" data-rls-field="MoveInCostsComments"></textarea>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -4575,7 +4575,8 @@ function loadRentalListingData(listingId) {
 
     // FARE Act (NYC LL 119/2024) fee disclosure fields
     viewerSetVal('rentalMoveInCosts', d.MoveInCosts);
-    viewerSetVal('rentalMoveInCostsAmountTotal', d.MoveInCostsAmountTotal);
+    // Legacy fallback (pre-2026-06-04 listings stored the amount under MoveInCostsAmountTotal)
+    viewerSetVal('rentalMoveInCostsAmount', d.MoveInCostsAmount || d.MoveInCostsAmountTotal);
     viewerSetVal('rentalMoveInCostsComments', d.MoveInCostsComments);
     viewerSetVal('rentalOngoingFees', d.OngoingFees);
     viewerSetVal('rentalFeeFrequency', d.FeeFrequency);

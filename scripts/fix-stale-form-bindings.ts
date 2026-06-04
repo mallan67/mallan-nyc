@@ -101,8 +101,8 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
   // Confirmed-dead fields with no Trestle replacement (remove, don't rename)
   { from: 'MoveInCostsAmountTotal', to: null,
     reason: 'CLAUDE.md: field does not exist on Trestle. MoveInCosts is a picklist only.' },
-  { from: 'MoveInCostsComments', to: null,
-    reason: 'CLAUDE.md: field does not exist on Trestle.' },
+  // (MoveInCostsComments removed 2026-06-04: it is a live Property field now —
+  //  Edm.String(1024); the rental forms bind it directly. Not a stale binding.)
   { from: 'PossessionDate', to: null,
     reason: 'CLAUDE.md: RESO field, Trestle ignores. No replacement.' },
   { from: 'YearRenovated', to: null,

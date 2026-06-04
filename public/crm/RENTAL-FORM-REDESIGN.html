@@ -1085,14 +1085,14 @@ body { font-family: Manrope, sans-serif; }
                     <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCosts — comma-separated list of move-in cost types</p>
                 </div>
                 <div>
-                    <label class="field-label">Move-In Costs Total ($)</label>
-                    <input type="number" id="rentalMoveInCostsAmountTotal" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="MoveInCostsAmountTotal">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCostsAmountTotal — total dollar amount</p>
+                    <label class="field-label">Move-In Cost Amount ($)</label>
+                    <input type="number" id="rentalMoveInCostsAmount" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="MoveInCostsAmount">
+                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCostsAmount — dollar amount</p>
                 </div>
             </div>
             <div class="mb-4">
                 <label class="field-label">Move-In Costs Comments</label>
-                <textarea id="rentalMoveInCostsComments" rows="2" placeholder="Additional details about move-in costs..." class="field-input" data-rls-ignore="true" data-removed-field="MoveInCostsComments"></textarea>
+                <textarea id="rentalMoveInCostsComments" rows="2" placeholder="Additional details about move-in costs..." class="field-input" data-rls-field="MoveInCostsComments"></textarea>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -5868,7 +5868,7 @@ function collectRentalFormData() {
     data.OngoingFees = data.rentalOngoingFees || '';
     data.FeeFrequency = data.rentalFeeFrequency || '';
     data.MoveInCosts = data.rentalMoveInCosts || '';
-    data.MoveInCostsAmountTotal = parseFloat(data.rentalMoveInCostsAmountTotal || '0') || 0;
+    data.MoveInCostsAmount = parseFloat(data.rentalMoveInCostsAmount || '0') || 0;
     data.MoveInCostsComments = data.rentalMoveInCostsComments || '';
     data.AdditionalFeeYN = data.rentalAdditionalFeeYN || '';
     data.AdditionalFee = parseFloat(data.rentalAdditionalFee || '0') || 0;
@@ -6966,7 +6966,11 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalOngoingFees', raw.OngoingFees || '');
     setVal('rentalFeeFrequency', raw.FeeFrequency || '');
     setVal('rentalMoveInCosts', raw.MoveInCosts || '');
-    setVal('rentalMoveInCostsAmountTotal', raw.MoveInCostsAmountTotal || '');
+    // Legacy fallback: rentals saved before 2026-06-04 stored the amount under
+    // the (phantom) MoveInCostsAmountTotal key in raw_data. Read the live field
+    // first, fall back to the legacy key so existing listings keep their value
+    // and migrate forward to MoveInCostsAmount on next save.
+    setVal('rentalMoveInCostsAmount', (raw.MoveInCostsAmount || raw.MoveInCostsAmountTotal) || '');
     setVal('rentalMoveInCostsComments', raw.MoveInCostsComments || '');
     setChecked('rentalAdditionalFeeYN', raw.AdditionalFeeYN === true || raw.AdditionalFeeYN === 'true');
     setVal('rentalAdditionalFee', raw.AdditionalFee || '');
