@@ -68,7 +68,6 @@ for (const [k, v] of Object.entries(CRM_OVERLAY_VALUES_RAW)) {
 // ── Constants (small, stable — stay in validator) ────────────────────────
 
 const RESO_TO_RLS_RENAMES = {
-  'BuildingSocialMedia':      'BuildingSocialMediaURL',
   'BuyerAgentKey':            'BuyerAgentMlsId',
   'BuyerOfficeKey':           'BuyerOfficeMlsId',
   'BuyerTeamKey':             'BuyerTeamMlsId',
@@ -81,7 +80,6 @@ const RESO_TO_RLS_RENAMES = {
   'CoListAgent3Key':          'CoListAgent3MLSID',
   'CoListAgentKey':           'CoListAgentMlsId',
   'ListAgentKey':             'ListAgentMlsId',
-  'ListingSocialMedia':       'ListingSocialMediaURL',
   'ListOfficeKey':            'ListOfficeMlsId',
   'ListTeamKey':              'ListTeamMlsId',
   'LotDimensionsSource':      'LotSizeSource',

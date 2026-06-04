@@ -31,14 +31,15 @@ export const FORBIDDEN_FIELDS: Record<string, string> = {
   // resource carries item URLs (MediaURL/OriginalMediaUrl) classified by
   // MediaCategory (Photo / Floor Plan / Video / Virtual Tour). Guarded by
   // B26_MEDIA parity too; listed here so the server-code audit also catches them.
-  // NOTE: ListingSocialMediaURL / BuildingSocialMediaURL are also phantom but are
-  // deferred to the trestle-mapper cleanup PR (they have dead phantom→phantom
-  // rename entries at lib/idx/trestle-mapper.ts:18,30 that must be removed in the
-  // same change to keep this audit at 0 stale).
   VideoURL: 'phantom; Property uses VirtualTourURLBranded, or Media resource (MediaCategory=Video)',
   FloorPlanURL: 'phantom; use Media resource (MediaCategory="Floor Plan")',
   MatterportURL: 'phantom; 3D/tours are VirtualTourURLBranded/Unbranded on Property',
   InteractiveFloorPlanURL: 'phantom; use Media resource (MediaCategory="Floor Plan")',
+  // Phantom social-media URL fields — neither the *URL names nor their old
+  // ListingSocialMedia / BuildingSocialMedia rename targets exist on live. The
+  // dead phantom→phantom rename entries were removed from lib/idx/trestle-mapper.ts.
+  ListingSocialMediaURL: 'phantom; no live resource exposes this',
+  BuildingSocialMediaURL: 'phantom; no live resource exposes this',
   ResourceRecordID: 'exists but NOT unique across MLOs — use ResourceRecordKey for Media joins',
 };
 

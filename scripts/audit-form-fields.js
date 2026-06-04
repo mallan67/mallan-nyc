@@ -30,7 +30,6 @@ const FILE_CATEGORIES = {
 // ── RESO→RLS Renames ─────────────────────────────────────────────────────
 
 const RESO_TO_RLS_RENAMES = {
-  'BuildingSocialMedia':      'BuildingSocialMediaURL',
   'BuyerAgentKey':            'BuyerAgentMlsId',
   'BuyerOfficeKey':           'BuyerOfficeMlsId',
   'BuyerTeamKey':             'BuyerTeamMlsId',
@@ -43,7 +42,6 @@ const RESO_TO_RLS_RENAMES = {
   'CoListAgent3Key':          'CoListAgent3MLSID',
   'CoListAgentKey':           'CoListAgentMlsId',
   'ListAgentKey':             'ListAgentMlsId',
-  'ListingSocialMedia':       'ListingSocialMediaURL',
   'ListOfficeKey':            'ListOfficeMlsId',
   'ListTeamKey':              'ListTeamMlsId',
   'LotDimensionsSource':      'LotSizeSource',
