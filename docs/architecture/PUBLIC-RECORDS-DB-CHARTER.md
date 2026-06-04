@@ -284,7 +284,7 @@ This charter does not modify the source-of-truth charter. The public-records dat
 
 ### 7.2 — Relationship to tracked project compliance docs
 
-This charter operates within the rules in `CLAUDE.md` and the tracked `compliance/` directory (entry point: `compliance/README.md`, with topic-specific files including `compliance/UCBA-2026.md`, `compliance/IDX-VOW-DISPLAY-RULES.md`, `compliance/NYC-NYS-REQUIREMENTS.md`, `compliance/RLS-VALIDATOR-V2.md`, `compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `compliance/FIELD-AUTHORITY.md`, and `REBNY-RLS-RESO-COMPLETE-REFERENCE.md` at the repo root). Where this charter is stricter (e.g., extending the "Off-Market" prohibition to internal code identifiers), the stricter rule wins.
+This charter operates within the rules in `CLAUDE.md` and the tracked `compliance/` directory (entry point: `compliance/README.md`, with topic-specific files including `compliance/UCBA-2026.md`, `compliance/IDX-VOW-DISPLAY-RULES.md`, `compliance/NYC-NYS-REQUIREMENTS.md`, `compliance/RLS-VALIDATOR-V2.md`, `compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `compliance/FIELD-AUTHORITY.md`; field/compliance truth lives in `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` + `data/UCBA-2026-Requirements.md` + the live `api.cotality.com/trestle` feed). Where this charter is stricter (e.g., extending the "Off-Market" prohibition to internal code identifiers), the stricter rule wins.
 
 ### 7.3 — Relationship to the external-inventory hold
 
@@ -398,7 +398,7 @@ _None yet. This is the initial charter._
 
 | Topic | Path |
 |---|---|
-| REBNY UCBA + Trestle + Fair Housing + Advertising compliance | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `RLS-VALIDATOR-V2.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `FIELD-AUTHORITY.md`) + `REBNY-RLS-RESO-COMPLETE-REFERENCE.md` |
+| REBNY UCBA + Trestle + Fair Housing + Advertising compliance | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `RLS-VALIDATOR-V2.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`, `FIELD-AUTHORITY.md`) + `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` + `data/UCBA-2026-Requirements.md` |
 | Source-of-truth charter (architecture) | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
 | Companion design (cross-repo) | `mallan-marketing-plans/2026-05-14-public-records-intelligence-design.md` |
 | Phase B 13-scanner system (extended to 15) | `mallan-marketing-plans/2026-05-12-townhouse-hunter-completion-plan.md` |
