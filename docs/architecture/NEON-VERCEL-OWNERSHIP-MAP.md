@@ -267,7 +267,7 @@ The same env-var NAME may live on both surfaces with **different values**. This 
 
 ## §9 — Preview branch cleanup owner
 
-There are **two cleanup mechanisms** in play. Both target the same project (`hidden-mountain-87248164`) — they coexist as defense-in-depth.
+There are **two cleanup mechanisms** in play, coexisting as defense-in-depth. Mechanism A (Vercel-managed, vendor-side) operates on the connected store's project (`hidden-mountain-87248164`). Mechanism B (our prune cron) targets whatever `NEON_PROJECT_ID` resolves to at runtime, which the code does **not** independently verify (see Mechanism B + §7) — do **not** assume the two mechanisms target the same project until the Phase 2 fail-closed guard is in place.
 
 ### Mechanism A — Vercel-Managed integration's auto-cleanup (vendor-side)
 
@@ -284,7 +284,7 @@ There are **two cleanup mechanisms** in play. Both target the same project (`hid
 | Field | Value |
 |---|---|
 | **Owner file** | `app/api/cron/neon-branch-prune/route.ts` + shared logic in `lib/neon/branches.ts` + operator CLI in `scripts/neon-prune-branches.ts` |
-| **Target Neon project** | `hidden-mountain-87248164` — the cron empirically prunes the preview/integration project (`examined=17 pruned=10`) and never touches production data. (Do not infer this from `NEON_PROJECT_ID`, which is not authoritative — see §7.) |
+| **Target Neon project** | **Runtime `NEON_PROJECT_ID`.** `app/api/cron/neon-branch-prune/route.ts` reads `process.env.NEON_PROJECT_ID` and passes that exact value to `pruneBranches()`, so the prune target is whatever `NEON_PROJECT_ID` resolves to at runtime. The current code does **not** independently verify the project — **treat this as unsafe until Phase 2 adds a fail-closed allowlist guard.** Do **not** use `NEON_PROJECT_ID` as proof of production ownership (ownership = `DATABASE_URL` / `DATABASE_URL_UNPOOLED` + the connected Vercel store — see §7). |
 | **Schedule** | `vercel.json` cron entry `{ "path": "/api/cron/neon-branch-prune", "schedule": "0 4 * * *" }` — daily 04:00 UTC |
 | **Retention** | `DEFAULT_RETENTION_HOURS = 24` in `lib/neon/branches.ts:47` |
 | **Skips** | `primary` branches (production `main`) and `protected` branches (operator-flagged) |
