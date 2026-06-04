@@ -193,10 +193,14 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'AdditionalFeeFrequency',
   'OngoingFees',
   'MoveInCosts',
-  'MoveInCostsAmountTotal',
-  'MoveInCostsComments',
+  // MoveInCostsAmountTotal / MoveInCostsComments removed 2026-06-04: phantom on
+  // live Trestle (trestle:audit-server vs live $metadata — neither exists).
+  // MoveInCosts is the only valid field (a picklist); FARE Act dollar values
+  // are captured via CustomProperty.AdditionalFee* (B30). Do NOT substitute
+  // MoveInCostsAmount — it is also a phantom.
   'FeeFrequency',
-  'FirstShowingDate',
+  // FirstShowingDate removed 2026-06-04: phantom on live Trestle. The activation
+  // timestamp is ActivationDate (already kept above), which is the live field.
 
   // ── Features (form populate) ───────────────────────────────────────
   'Heating',
