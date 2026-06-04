@@ -7854,14 +7854,6 @@
       "requirements": "No"
     },
     {
-      "field": "VideoURL",
-      "matrixFieldName": "VideoURL",
-      "description": "",
-      "lmpAddEdit": "No",
-      "lmpSearch": "Yes",
-      "requirements": "No"
-    },
-    {
       "field": "View",
       "matrixFieldName": "View",
       "description": "View from the property (City, Park, Water, River, Garden, Courtyard, Street, Skyline, Bridge, None)",
