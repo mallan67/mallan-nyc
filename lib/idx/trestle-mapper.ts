@@ -306,15 +306,16 @@ const B25_GREEN = [
   "GreenCertification", "PowerProductionType",
 ];
 
-// B26: Media (17 fields)
-const B26_MEDIA = [
+// B26: Media — Property-level media metadata (counts, timestamps, tour URLs).
+// NOTE: photo/video/floorplan ITEM urls do NOT live on Property — they come from
+// the Media resource (MediaURL/OriginalMediaUrl, classified by MediaCategory).
+// Exported for the live-parity guard test (media-fields-live-parity.test.ts).
+export const B26_MEDIA = [
   "PhotosCount", "PhotosChangeTimestamp",
-  "VideosCount", "VideoURL",
+  "VideosCount",
   "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
-  "ListingSocialMediaURL", "BuildingSocialMediaURL",
   "DocumentsAvailable", "DocumentsCount", "DocumentsChangeTimestamp",
-  "FloorPlanURL", "InteractiveFloorPlanURL",
-  "MapURL", "MatterportURL",
+  "MapURL",
   "Media", "MediaURL",
 ];
 
@@ -432,10 +433,10 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   "PatioYN", "PatioDescription", "PetRestrictions",
   // Green
   "GreenCertification",
-  // Media (navigation property — use $expand=Media instead)
-  "Media", "MediaURL", "VideoURL", "FloorPlanURL",
-  "InteractiveFloorPlanURL", "MatterportURL",
-  "ListingSocialMediaURL", "BuildingSocialMediaURL",
+  // Media navigation property + Media-resource field — excluded from the flat
+  // Property $select; media items are fetched via $expand=Media / fetchListingMedia
+  // (classified by MediaCategory). Phantom *URL names removed 2026-06-04 (not on live).
+  "Media", "MediaURL",
   // Rental
   "LeaseConsideredTerms", "FurnishedDescription",
   "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
