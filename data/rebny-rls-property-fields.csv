@@ -1211,3 +1211,16 @@
 ,Permission,,Permission,,Open House,Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission,live-discovered
 ,SourceSystemKey,,SourceSystemKey,,Open House,Edm.String,live-discovered
 ,SourceSystemListingKey,,SourceSystemListingKey,,Open House,Edm.String,live-discovered
+,DownPaymentAssistanceAmount,,DownPaymentAssistanceAmount,,Property,Edm.Decimal,live-discovered
+,DownPaymentAssistanceCount,,DownPaymentAssistanceCount,,Property,Edm.Int32,live-discovered
+,DownPaymentAssistanceYN,,DownPaymentAssistanceYN,,Property,Edm.Boolean,live-discovered
+,FloorPlansChangeTimestamp,,FloorPlansChangeTimestamp,,Property,Edm.DateTimeOffset,live-discovered
+,FloorPlansCount,,FloorPlansCount,,Property,Edm.Int32,live-discovered
+,MoveInCostsAmount,,MoveInCostsAmount,,Property,Edm.Decimal,live-discovered
+,MoveInCostsComments,,MoveInCostsComments,,Property,Edm.String,live-discovered
+,SourceMlsUrl,,SourceMlsUrl,,Property,Edm.String,live-discovered
+,TotalFloorPlansCount,,TotalFloorPlansCount,,Property,Edm.Int32,live-discovered
+,SourceFloorPlansCount,,SourceFloorPlansCount,,Custom Property,Edm.Int64,live-discovered
+,MemberUrl,,MemberUrl,,Member,Edm.String,live-discovered
+,OfficeUrl,,OfficeUrl,,Office,Edm.String,live-discovered
+,OriginalMediaUrl,,OriginalMediaUrl,,Media,Edm.String,live-discovered
