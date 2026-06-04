@@ -10,8 +10,6 @@
  * - Never be exposed to client-side bundles
  * - Include required attribution/disclaimers when displayed
  * - Be logged for audit purposes
- *
- * @see https://www.reso.org/data-dictionary/
  */
 
 /**

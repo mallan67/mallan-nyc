@@ -18,7 +18,6 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 **Monitor these sources:**
 - https://www.rebny.com/rls-updates/ — REBNY RLS bulletins
 - https://www.rebny.com/compliance/ — REBNY compliance updates
-- https://www.reso.org/data-dictionary/ — RESO Data Dictionary releases
 - https://www.cotality.com — Trestle/Cotality platform updates
 - NYC Council legislation tracker — Local laws affecting real estate
 
@@ -46,7 +45,7 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 
 | Date | Source | Change | Impact | Status |
 |------|--------|--------|--------|--------|
-| 2026-02-23 | Cotality | **Trestle API URL migration deadline: March 31, 2026** — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated → new URL `api.cotality.com/trestle`. Media URLs work through 2026 warranty. Extra quota boost available on new endpoint. RESO DD 2.0 now live. | All API integration, backend | **Complete** — all code uses `api.cotality.com/trestle` (verified 2026-04-14). Media proxy allowlists legacy domains through 2026 warranty. |
+| 2026-02-23 | Cotality | **Trestle API URL migration deadline: March 31, 2026** — old URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) deprecated → new URL `api.cotality.com/trestle`. Media URLs work through 2026 warranty. Extra quota boost available on new endpoint. | All API integration, backend | **Complete** — all code uses `api.cotality.com/trestle` (verified 2026-04-14). Media proxy allowlists legacy domains through 2026 warranty. |
 | 2026-02-23 | Internal | Master Audit Report v3.3 — 225 findings, 39 passes. Trestle migration enforced at Layer 0 + CI gating + Go-Live gate #21 (Pass 39 — Section AR). Finding totals reconciled. Pre-build lock checklist added. | Documentation | Complete |
 | 2026-02-21 | Internal | Compliance library created (14 docs + 2 JSON) | All development | Complete |
 | 2026-02-21 | REBNY | No post-January 2026 UCBA amendments found | No action needed | Verified |
@@ -84,13 +83,6 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
 | 2025-06-11 | NYC | **FARE Act effective** (LL 119/2024) | Rental listings | Active |
 | 2025-06-11 | NYC | InternetEntireListingDisplayYN=False when landlord doesn't pay broker fee | IDX filtering | Documented |
 | 2025-06-11 | NYC | DCWP penalties: §20-699.21 ($750/$1,800), §20-699.22 ($375/$900) | Compliance | Documented |
-
-### April 2025
-
-| Date | Source | Change | Impact | Status |
-|------|--------|--------|--------|--------|
-| 2025-04-15 | RESO | **RESO DD 2.0 certification deadline** — all DD 1.7 downgraded to Legacy | Field mappings | Monitoring |
-| 2025-04-15 | Cotality | Trestle achieved RESO DD 2.0 vendor certification | Feed | Confirmed |
 
 ### March 2025
 
