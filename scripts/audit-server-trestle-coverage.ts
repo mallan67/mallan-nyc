@@ -94,12 +94,13 @@ const FORBIDDEN_FIELDS: Record<string, string> = {
   VOWEntireListingDisplayYN: 'not on IDX Plus',
   VOWAutomatedValuationDisplayYN: 'not on IDX Plus',
   VOWConsumerCommentYN: 'not on IDX Plus',
+  // MoveInCostsAmountTotal stays forbidden — still absent from live $metadata.
+  // (MoveInCostsAmount + MoveInCostsComments were REMOVED from this list on
+  // 2026-06-04: the live Cotality $metadata now exposes both as Property fields —
+  // MoveInCostsAmount = Edm.Decimal(14,2), MoveInCostsComments = Edm.String(1024).
+  // #340/#341 had classified them as phantom from a stale snapshot; the snapshot
+  // is refreshed in this same PR. Live feed wins over the cached snapshot.)
   MoveInCostsAmountTotal: 'does not exist; MoveInCosts is a picklist only',
-  MoveInCostsComments: 'does not exist',
-  // MoveInCostsAmount: a plausible-looking phantom — guard against substituting
-  // it for the removed MoveInCostsAmountTotal (PR-live-2). FARE Act dollar
-  // values live on CustomProperty.AdditionalFee* (B30).
-  MoveInCostsAmount: 'does not exist; MoveInCosts is a picklist only',
   FirstShowingDate: 'use ActivationDate',
   PossessionDate: 'RESO field, Trestle ignores',
   YearRenovated: 'does not exist',

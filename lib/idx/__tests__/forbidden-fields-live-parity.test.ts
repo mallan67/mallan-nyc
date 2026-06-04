@@ -13,6 +13,10 @@ import { resolve } from 'path';
  * joins. If the live feed ever turns one of the other phantoms real, this test
  * fails so the guard list is reconciled with proof (not silently stale).
  *
+ * 2026-06-04 reconciliation: MoveInCostsAmount + MoveInCostsComments were REMOVED
+ * from FORBIDDEN_FIELDS — the live $metadata now exposes both as Property fields
+ * (the snapshot was refreshed in the same PR). They are no longer guarded phantoms.
+ *
  * The list is read as text (not imported): the audit script self-executes an
  * async IIFE + process.exit on load, so importing it would run the whole audit.
  * Parsing the source keeps the audit script the single source of truth without
@@ -45,7 +49,7 @@ describe('FORBIDDEN_FIELDS live-parity (server phantom guard)', () => {
   );
 
   it('parsed a non-trivial FORBIDDEN_FIELDS list and a populated live snapshot', () => {
-    expect(forbiddenKeys.length).toBeGreaterThanOrEqual(15);
+    expect(forbiddenKeys.length).toBeGreaterThanOrEqual(14);
     expect(liveNames.size).toBeGreaterThan(500);
   });
 
@@ -56,17 +60,22 @@ describe('FORBIDDEN_FIELDS live-parity (server phantom guard)', () => {
     expect(liveButUndocumented).toEqual([]);
   });
 
-  it('the 5 newly guarded phantoms are present', () => {
-    for (const f of [
-      'MoveInCostsAmount',
-      'VideoURL',
-      'FloorPlanURL',
-      'MatterportURL',
-      'InteractiveFloorPlanURL',
-    ]) {
+  it('the guarded media phantoms are present and genuinely absent from live', () => {
+    for (const f of ['VideoURL', 'FloorPlanURL', 'MatterportURL', 'InteractiveFloorPlanURL']) {
       expect(forbiddenKeys).toContain(f);
-      expect(liveNames.has(f)).toBe(false); // and genuinely phantom on live
+      expect(liveNames.has(f)).toBe(false);
     }
+  });
+
+  it('MoveInCostsAmount + MoveInCostsComments are NOT forbidden and ARE live', () => {
+    // Reconciled 2026-06-04: live Property fields, removed from FORBIDDEN_FIELDS.
+    for (const f of ['MoveInCostsAmount', 'MoveInCostsComments']) {
+      expect(forbiddenKeys).not.toContain(f);
+      expect(liveNames.has(f)).toBe(true);
+    }
+    // MoveInCostsAmountTotal stays forbidden + phantom.
+    expect(forbiddenKeys).toContain('MoveInCostsAmountTotal');
+    expect(liveNames.has('MoveInCostsAmountTotal')).toBe(false);
   });
 
   it('ResourceRecordID is the lone live-but-forbidden field and its hint documents why', () => {

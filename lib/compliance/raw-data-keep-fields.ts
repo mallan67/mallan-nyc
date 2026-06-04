@@ -193,11 +193,13 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'AdditionalFeeFrequency',
   'OngoingFees',
   'MoveInCosts',
-  // MoveInCostsAmountTotal / MoveInCostsComments removed 2026-06-04: phantom on
-  // live Trestle (trestle:audit-server vs live $metadata — neither exists).
-  // MoveInCosts is the only valid field (a picklist); FARE Act dollar values
-  // are captured via CustomProperty.AdditionalFee* (B30). Do NOT substitute
-  // MoveInCostsAmount — it is also a phantom.
+  // MoveInCostsAmount + MoveInCostsComments restored 2026-06-04: the live Cotality
+  // $metadata exposes both as Property fields (MoveInCostsAmount = Edm.Decimal(14,2),
+  // MoveInCostsComments = Edm.String(1024)). #340 removed them based on a stale
+  // snapshot; the snapshot is refreshed in this same PR. MoveInCostsAmountTotal
+  // stays OUT — it is still absent from live $metadata.
+  'MoveInCostsAmount',
+  'MoveInCostsComments',
   'FeeFrequency',
   // FirstShowingDate removed 2026-06-04: phantom on live Trestle. The activation
   // timestamp is ActivationDate (already kept above), which is the live field.

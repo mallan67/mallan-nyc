@@ -15,10 +15,13 @@ import {
  * truth is the live `$metadata` (captured in artifacts/metadata.xml); static
  * snapshots/docs are not authoritative.
  *
- * Phantoms removed 2026-06-04 (PR-live-2): MoveInCostsAmountTotal,
- * MoveInCostsComments, FirstShowingDate. None exists on live Trestle; the real
- * fields are MoveInCosts (picklist) + CustomProperty.AdditionalFee* (B30) for
- * FARE Act fees, and ActivationDate for the activation timestamp.
+ * Still phantom (kept out): MoveInCostsAmountTotal, FirstShowingDate — neither is
+ * on live Trestle (use MoveInCosts picklist; ActivationDate for activation).
+ *
+ * Restored 2026-06-04: MoveInCostsAmount + MoveInCostsComments. The live Cotality
+ * $metadata exposes both as Property fields (Edm.Decimal / Edm.String); #340 had
+ * removed them based on a stale snapshot. The snapshot is refreshed in the same
+ * PR. Live feed wins over the cached snapshot.
  *
  * The forbidden set mirrors FORBIDDEN_FIELDS in
  * scripts/audit-server-trestle-coverage.ts — the live-audit source of truth.
@@ -33,6 +36,8 @@ describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', (
   );
 
   // Known phantoms / forbidden field names per the live server-coverage audit.
+  // NOTE: MoveInCostsComments is NO LONGER here — it went live (Property field)
+  // and is now kept (see below). MoveInCostsAmountTotal remains phantom.
   const FORBIDDEN_PHANTOMS = [
     'IDXEntireListingDisplayYN',
     'SyndicateYN',
@@ -40,7 +45,6 @@ describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', (
     'VOWAutomatedValuationDisplayYN',
     'VOWConsumerCommentYN',
     'MoveInCostsAmountTotal',
-    'MoveInCostsComments',
     'FirstShowingDate',
     'PossessionDate',
     'YearRenovated',
@@ -51,9 +55,16 @@ describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', (
     expect(liveNames.size).toBeGreaterThan(500);
   });
 
-  it('the three removed fields are genuinely phantom on live Trestle', () => {
-    for (const f of ['MoveInCostsAmountTotal', 'MoveInCostsComments', 'FirstShowingDate']) {
+  it('the still-phantom fields are genuinely absent from live Trestle', () => {
+    for (const f of ['MoveInCostsAmountTotal', 'FirstShowingDate']) {
       expect(liveNames.has(f)).toBe(false);
+    }
+  });
+
+  it('MoveInCostsAmount + MoveInCostsComments are now live and kept', () => {
+    for (const f of ['MoveInCostsAmount', 'MoveInCostsComments']) {
+      expect(liveNames.has(f)).toBe(true);   // live Property fields
+      expect(RAW_DATA_KEEP_SET.has(f)).toBe(true); // and retained
     }
   });
 
