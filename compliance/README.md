@@ -40,8 +40,6 @@
 | [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Trestle/Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
 | [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
 | [`RLS-VALIDATOR-V2.md`](RLS-VALIDATOR-V2.md) | Deterministic RLS compliance validator — 4-layer pipeline, 10 sections, 42 tests, production file validation | Backend, QA |
-| [`MASTER-AUDIT-REPORT-v3.md`](MASTER-AUDIT-REPORT-v3.md) | Full system audit — 225 findings, 39 passes, 6 schemas, enterprise controls, production roadmap, Trestle migration enforcement | All |
-| [`FULL-AUDIT-2026-03-13.md`](FULL-AUDIT-2026-03-13.md) | **UCBA 2026 source-verified audit** — 145 rules, 109 PASS, 9 FAIL, 27 EVALUATE CLOSELY. Every rule verified against actual code with line-number evidence. | All |
 | [`AUTH-AND-API-SECURITY.md`](AUTH-AND-API-SECURITY.md) | Sprint 9 auth architecture — dual auth (Bearer + cookie), CORS, rate limiting, session management, cross-origin security | Backend, Security |
 
 ## Machine-Readable Enforcement

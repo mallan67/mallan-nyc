@@ -159,8 +159,6 @@ Old long-form CLAUDE.md (45 KB · all content from before 2026-05-20 rebuild) is
 
 Other historical material:
 
-- `compliance/archive/MASTER-AUDIT-REPORT-v3.md` — 225-finding audit (archived)
-- `compliance/archive/FULL-AUDIT-2026-03-13.md` — UCBA 2026 source-verified (archived)
 - (An earlier full-site audit from 2026-04-06 is preserved on Maya's local disk only — it lives under the `memory/` tree which is gitignored, so it is intentionally not in the repo. Superseded by `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md`.)
 - `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` — canonical incident report (the 7,594-row corruption)
 - `memory/AUDIT-2026-05-12.md` — pre-PR-#148 audit

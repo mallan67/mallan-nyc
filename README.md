@@ -836,7 +836,7 @@ CI auto-runs `pr-check.yml` (jest --ci with 13 projects + type-check + ucba + ci
 
 ## Immediate Cleanup & MVP Lock
 
-The MVP scope and active in-flight workstreams are tracked in [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) (master 10-PR backend rebuild) and [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) (Workstream C — UCBA compliance gaps). The current snapshot of what's open vs. shipped lives in [`memory/OUTSTANDING-WORK-2026-04-27.md`](memory/OUTSTANDING-WORK-2026-04-27.md) and is the agreed entry point for any new session — open it first, run the pre-flight checklist at the top, then pick the next item.
+The MVP scope and active in-flight workstreams are tracked in [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) (master 10-PR backend rebuild) and [`memory/FOLLOWUP-2026-05-01.md`](memory/FOLLOWUP-2026-05-01.md) (Workstream C — UCBA compliance gaps). For the current open-vs-shipped state of any new session, run `gh pr list --state open`, `git log --oneline -10`, and read the most recent audit under `docs/audits/`.
 
 Cleanup discipline (no drift): every working-tree file is either committed, intentionally tracked-and-staged, or deleted — `.env.local` and `node_modules` excepted. Branches off `main` only, one focused change per PR, schema PRs follow [`NEON.md`](NEON.md) (nullable first, dual-write, manual `prisma migrate deploy` to Neon prod *before* code merges).
 
@@ -866,9 +866,8 @@ Enforcement: see `lib/compliance/rls-enforcement.ts` (assertRlsCompliantPayload)
 
 ## Last Work Completed
 
-Authoritative changelog lives in `git log` and the merged PR list. The two human-curated summaries are:
+Authoritative changelog lives in `git log` and the merged PR list. The human-curated summary is:
 
-- [`memory/OUTSTANDING-WORK-2026-04-27.md`](memory/OUTSTANDING-WORK-2026-04-27.md) — current snapshot reconciled against actual GitHub merge state (most recent additions land here first).
 - [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — master 10-PR backend rebuild plan with status table per PR.
 
 Recent areas of work: REBNY UCBA 2026 compliance (Workstream C — Inquiry / Offer transmission / Auction listings + enforcement / Ethics training fields + auth gate), Trestle media pipeline hardening (`ResourceRecordKey` correctness, batch-URL length, MediaStatus filter), media schema normalization (`ListingMedia` + `MediaSyncState`), React Compiler + lint hygiene sweep (`useAsyncResource`, `useClientOnly`, set-state-in-effect elimination), and CI gate restoration (`npm run crm:test`).

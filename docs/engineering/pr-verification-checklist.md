@@ -299,8 +299,6 @@ grep -rln 'CLAUDE\.md' --exclude-dir=node_modules --exclude-dir=.next \
 | `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md` |
 | `compliance/VALIDATOR-FRAMEWORK.md` |
 | `docs/sentinel-v2-redesign-plan-2026-05-16.md` |
-| `docs/superpowers/plans/2026-03-24-fix-104-criticals.md` |
-| `docs/superpowers/plans/2026-04-27-c4c-ethics-admin-panel.md` |
 | `docs/superpowers/specs/2026-05-04-crm-search-agent-workflow-rebuild.md` |
 | `scripts/fix-stale-form-bindings.ts` |
 | `.github/workflows/repo-audit-bot.yml:441` ("per CLAUDE.md" inline comment) |
