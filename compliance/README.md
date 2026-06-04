@@ -26,7 +26,6 @@
 
 | File | Purpose | Audience |
 |------|---------|----------|
-| [`FIELD-AUTHORITY.md`](FIELD-AUTHORITY.md) | Governance hierarchy, all 902 IDX Plus fields by category, 23 RESO→RLS renames | Developers, Compliance |
 | [`UCBA-2026.md`](UCBA-2026.md) | Full REBNY UCBA rules — 159 rules, 7 exhibits, penalties, enforcement | Broker, Agents, Developers |
 | [`NYC-NYS-REQUIREMENTS.md`](NYC-NYS-REQUIREMENTS.md) | NYC/NYS law — DOS advertising, Fair Housing, FARE Act, SHIELD Act, disclosures | All |
 | [`IDX-VOW-DISPLAY-RULES.md`](IDX-VOW-DISPLAY-RULES.md) | 6 distribution gates, IDX/VOW feed rules, display eligibility, suppression | Frontend, Backend |
@@ -39,7 +38,6 @@
 | [`AUDIT-LOGGING-AND-EVIDENCE.md`](AUDIT-LOGGING-AND-EVIDENCE.md) | NY SHIELD Act, data access logging, evidence retention, breach response | Backend, Security |
 | [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Trestle/Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
 | [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
-| [`RLS-VALIDATOR-V2.md`](RLS-VALIDATOR-V2.md) | Deterministic RLS compliance validator — 4-layer pipeline, 10 sections, 42 tests, production file validation | Backend, QA |
 | [`AUTH-AND-API-SECURITY.md`](AUTH-AND-API-SECURITY.md) | Sprint 9 auth architecture — dual auth (Bearer + cookie), CORS, rate limiting, session management, cross-origin security | Backend, Security |
 
 ## Machine-Readable Enforcement
