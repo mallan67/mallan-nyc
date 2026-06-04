@@ -85,6 +85,9 @@ const MUST_EXIST_KEY_FIELDS = [
 
 // Common dead/renamed fields per CLAUDE.md "Fields That DO NOT EXIST on
 // Trestle - NEVER USE". If we find any of these in code, flag it.
+// A live-parity guard test (lib/idx/__tests__/forbidden-fields-live-parity.test.ts)
+// reads this list and asserts every entry is phantom on live $metadata OR is a
+// documented live-but-intentional exception (ResourceRecordID).
 const FORBIDDEN_FIELDS: Record<string, string> = {
   IDXEntireListingDisplayYN: 'use InternetEntireListingDisplayYN',
   SyndicateYN: 'use SyndicateTo (multi-select)',
@@ -93,10 +96,27 @@ const FORBIDDEN_FIELDS: Record<string, string> = {
   VOWConsumerCommentYN: 'not on IDX Plus',
   MoveInCostsAmountTotal: 'does not exist; MoveInCosts is a picklist only',
   MoveInCostsComments: 'does not exist',
+  // MoveInCostsAmount: a plausible-looking phantom — guard against substituting
+  // it for the removed MoveInCostsAmountTotal (PR-live-2). FARE Act dollar
+  // values live on CustomProperty.AdditionalFee* (B30).
+  MoveInCostsAmount: 'does not exist; MoveInCosts is a picklist only',
   FirstShowingDate: 'use ActivationDate',
   PossessionDate: 'RESO field, Trestle ignores',
   YearRenovated: 'does not exist',
-  ResourceRecordID: 'use ResourceRecordKey (CLAUDE.md vendor-confirmed 2026-04-07)',
+  // Phantom media URL fields — they look plausible but no live resource exposes
+  // them. The real model: Property carries VirtualTourURL* (tours/3D); the Media
+  // resource carries item URLs (MediaURL/OriginalMediaUrl) classified by
+  // MediaCategory (Photo / Floor Plan / Video / Virtual Tour). Guarded by
+  // B26_MEDIA parity too; listed here so the server-code audit also catches them.
+  // NOTE: ListingSocialMediaURL / BuildingSocialMediaURL are also phantom but are
+  // deferred to the trestle-mapper cleanup PR (they have dead phantom→phantom
+  // rename entries at lib/idx/trestle-mapper.ts:18,30 that must be removed in the
+  // same change to keep this audit at 0 stale).
+  VideoURL: 'phantom; Property uses VirtualTourURLBranded, or Media resource (MediaCategory=Video)',
+  FloorPlanURL: 'phantom; use Media resource (MediaCategory="Floor Plan")',
+  MatterportURL: 'phantom; 3D/tours are VirtualTourURLBranded/Unbranded on Property',
+  InteractiveFloorPlanURL: 'phantom; use Media resource (MediaCategory="Floor Plan")',
+  ResourceRecordID: 'exists but NOT unique across MLOs — use ResourceRecordKey for Media joins',
 };
 
 async function getToken(): Promise<string> {
