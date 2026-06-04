@@ -975,12 +975,10 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   //            type, field names, and DD versions all originate here)
   //
   // The behavior below is SPECIFIC to mallan.nyc's REBNY IDX Plus feed served
-  // via Cotality/Trestle 5.0 (REBNY's currently-certified provider; verified
-  // in the RESO Desktop Client 2026-05-01: REBNY UOI T00000046 → Cotality/
-  // Trestle 5.0 endorsement on Data Dictionary 2.0, certified Jan 23 2025,
-  // 100% of 251 IDX fields). Other Cotality/Trestle deployments serving
-  // different MLSes (with different policy layers) MAY behave differently for
-  // these fields. Do not generalize this comment to "all Trestle feeds."
+  // via the live api.cotality.com/trestle feed. Other Cotality/Trestle
+  // deployments serving different MLSes (with different policy layers) MAY
+  // behave differently for these fields. Do not generalize this comment to
+  // "all Trestle feeds."
   //
   // Under REBNY's policy layer, non-displayable rows are filtered out of the
   // IDX Plus feed BEFORE they reach this mapper. Two consequences:
