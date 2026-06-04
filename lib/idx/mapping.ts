@@ -4,8 +4,7 @@
  * COMPLIANCE NOTE:
  * Maps RESO Data Dictionary field names to our internal canonical representation.
  * 902 REBNY IDX Plus fields across 7 resources. 23 RESO-to-RLS renames handled.
- *
- * @see https://www.reso.org/data-dictionary/
+ * Field truth = the live api.cotality.com/trestle $metadata (RESO-shaped OData model).
  */
 
 import type { IDXListing } from './types';

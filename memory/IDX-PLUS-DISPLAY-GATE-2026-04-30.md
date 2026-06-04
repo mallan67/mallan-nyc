@@ -9,8 +9,8 @@ This incident is specifically about the REBNY IDX Plus feed served via Cotality/
 | Layer | What it is | Role here |
 |---|---|---|
 | **REBNY** | MLS / RLS organization, data owner, policy layer | Owns the policy that pre-filters non-displayable rows out of the IDX Plus feed. RESO Desktop Client UOI: `T00000046` |
-| **Cotality / Trestle** | API / feed platform implementing + serving the data | Currently REBNY's certified provider on RESO Data Dictionary 2.0 (Jan 23, 2025; 100% of 251 IDX fields, 16 resources, 1,436 fields, 65,735 lookups). Migrated from Perchwell Feb 2025. |
-| **RESO** | Certification / data-standard framework | Defines the Property entity type, field names, enum values, certification levels. Cotality/Trestle 5.0 is RESO-certified on DD 2.0; REBNY's older Perchwell endorsements (DD 1.7 + Web API Core 2.0.0) are EXPIRING SOON but unrelated to mallan.nyc's current feed. |
+| **Cotality / Trestle** | API / feed platform implementing + serving the data | REBNY's data feed, served read-only via `api.cotality.com/trestle`. |
+| **RESO** | The OData / field-naming model the feed exposes | Defines the Property entity type, field names, and enum values — the model the Cotality feed returns. Field truth = the live `$metadata`, not an external standard. |
 
 **Why this matters for the bug:** the null-handling behavior below is **specific to REBNY's policy layer applied at Cotality's data-serving boundary**. It is NOT a universal property of all Trestle feeds. Other MLSes served via Cotality/Trestle could have different policy layers and different runtime behavior on the same RESO fields.
 

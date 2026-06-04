@@ -61,13 +61,9 @@
 
 ---
 
-### Data Dictionary
+### Field/value renames in the live feed
 
-- **RESO DD 2.0** certified (April 15, 2025) — **NOW LIVE** on Trestle
-- Cotality achieved RESO DD 2.0 vendor certification
-- DD 1.7 certifications downgraded to "Certified Legacy"
-
-### Key DD 2.0 Changes
+These field/value names are what the live `api.cotality.com/trestle` feed returns:
 
 | Change | Detail |
 |--------|--------|
