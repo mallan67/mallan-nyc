@@ -6966,7 +6966,11 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalOngoingFees', raw.OngoingFees || '');
     setVal('rentalFeeFrequency', raw.FeeFrequency || '');
     setVal('rentalMoveInCosts', raw.MoveInCosts || '');
-    setVal('rentalMoveInCostsAmount', raw.MoveInCostsAmount || '');
+    // Legacy fallback: rentals saved before 2026-06-04 stored the amount under
+    // the (phantom) MoveInCostsAmountTotal key in raw_data. Read the live field
+    // first, fall back to the legacy key so existing listings keep their value
+    // and migrate forward to MoveInCostsAmount on next save.
+    setVal('rentalMoveInCostsAmount', (raw.MoveInCostsAmount || raw.MoveInCostsAmountTotal) || '');
     setVal('rentalMoveInCostsComments', raw.MoveInCostsComments || '');
     setChecked('rentalAdditionalFeeYN', raw.AdditionalFeeYN === true || raw.AdditionalFeeYN === 'true');
     setVal('rentalAdditionalFee', raw.AdditionalFee || '');
