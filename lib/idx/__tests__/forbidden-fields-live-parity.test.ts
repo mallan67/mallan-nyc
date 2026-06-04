@@ -50,8 +50,11 @@ describe('FORBIDDEN_FIELDS snapshot parity (server phantom guard)', () => {
     expect(liveButUndocumented).toEqual([]);
   });
 
-  it('the guarded media phantoms are present and genuinely absent from the snapshot', () => {
-    for (const f of ['VideoURL', 'FloorPlanURL', 'MatterportURL', 'InteractiveFloorPlanURL']) {
+  it('the guarded media + social-media phantoms are present and genuinely absent from the snapshot', () => {
+    for (const f of [
+      'VideoURL', 'FloorPlanURL', 'MatterportURL', 'InteractiveFloorPlanURL',
+      'ListingSocialMediaURL', 'BuildingSocialMediaURL',
+    ]) {
       expect(forbiddenKeys).toContain(f);
       expect(snapshotNames.has(f)).toBe(false);
     }

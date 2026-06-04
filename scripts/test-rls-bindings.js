@@ -27,7 +27,6 @@ const BINDINGS = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', 'rls-fo
 // ── CSV / RLS Field Loading ──────────────────────────────────────────────
 
 const RESO_TO_RLS_RENAMES = {
-  'BuildingSocialMedia':      'BuildingSocialMediaURL',
   'StandardStatus':           'MlsStatus',
   'ListingKey':               'SourceSystemKey',
   'ModificationTimestamp':    'SourceSystemModificationTimestamp',
