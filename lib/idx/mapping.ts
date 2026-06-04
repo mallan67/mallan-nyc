@@ -364,14 +364,16 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     //
     // Per-row opt-out flags (AVM, ConsumerComment) remain fail-closed via
     // affirmPermission elsewhere — only InternetEntireListingDisplayYN /
-    // InternetAddressDisplayYN are IDX-Plus pre-filtered. Legacy callers
-    // gating on `idxEntireListingDisplayYN` inherit the same convention via
-    // the canonical InternetEntireListingDisplayYN fallback.
+    // InternetAddressDisplayYN are IDX-Plus pre-filtered. The legacy DTO key
+    // `idxEntireListingDisplayYN` is the consumer contract and is preserved,
+    // but it now derives solely from the canonical InternetEntireListingDisplayYN
+    // (IDXEntireListingDisplayYN does NOT exist on live Trestle — verified
+    // 2026-06-04 via trestle:audit-server against the live $metadata).
     //
     // New code should still use evaluateDisplayGate() from lib/compliance/
     // gates.ts; for raw Trestle records, pass `{ idxPlusPreFiltered: true }`.
     idxEntireListingDisplayYN:
-      (normalized.IDXEntireListingDisplayYN ?? normalized.InternetEntireListingDisplayYN) !== false,
+      normalized.InternetEntireListingDisplayYN !== false,
     internetEntireListingDisplayYN: normalized.InternetEntireListingDisplayYN !== false,
     internetAddressDisplayYN: normalized.InternetAddressDisplayYN !== false,
     participantOnlyYN:
