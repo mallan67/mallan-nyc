@@ -2693,7 +2693,7 @@
     "Levels": {
       "reso": "Levels",
       "rls": "Levels",
-      "description": "The number of levels in the property being sold/leased. For example, One Level, Two Levels, Three or More Levels, <a href=\"http://ddwiki.reso.org/pages/viewpage.action?pageId=9941240\">Multi/Split</a>, Loft. A discreet horizontal plane of interior living space (excluding basements).",
+      "description": "The number of levels in the property being sold/leased. For example, One Level, Two Levels, Three or More Levels, Multi/Split, Loft. A discreet horizontal plane of interior living space (excluding basements).",
       "required": "optional",
       "editable": true,
       "searchable": true,
