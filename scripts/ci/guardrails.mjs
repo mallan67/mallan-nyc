@@ -495,7 +495,7 @@ if (errors.length > 0) {
   }
   console.error(`\n${errors.length} error(s) found. CI BLOCKED.\n`);
   console.error("Phase 3 content must live in src/templates/, src/data/, or src/compliance/.");
-  console.error("See docs/PHASE3_PARALLEL_SAFE.md for guidance.\n");
+  console.error("Move the offending Phase 3 content into one of those directories before retrying.\n");
   process.exit(1);
 }
 

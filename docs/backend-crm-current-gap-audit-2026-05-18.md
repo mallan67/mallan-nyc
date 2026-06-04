@@ -2,7 +2,7 @@
 
 > **Status:** REPORT-ONLY · no code patched · no PR opened · no env/Neon/migration/cron/IDX/projection/reconciliation/CRM/R2/Sentinel changes.
 > **Scope:** Backend & CRM items that can move forward **while IDX / projection / reconciliation are on hold** (PR #147 soak in progress, PR #148 held, PR 5B `NOT_STARTED`).
-> **Truth source:** current `main` (HEAD `69c4ac40`). Older docs (e.g. `docs/archive/CRM-SEARCH-DEEP-AUDIT-2026-03-23.md`, `memory/archive/CRM-REMAINING-WORK-2026-03-18.md`) are treated as **evidence**, not authority.
+> **Truth source:** current `main` (HEAD `69c4ac40`). Older session/plan docs are treated as **evidence**, not authority.
 > **Method:** parallel `Explore` sweeps (281 API routes + 8 CRM panels + 4 portal types + 3 form families + open-PR review) + targeted file reads + `gh pr view` of `#146 #62 #148 #139 #124 #153`. Probe scripts disposable, not committed.
 > **Hold context preserved:** no reconciliation, no merge of #148, no PR 5B start, no IDX patches, no manual cron, no env vars, no Neon, no migrations, no cron, no Sentinel/bots, no edits to `agents/skills/workflows`, no CRM patches.
 
@@ -57,9 +57,6 @@ Every finding below is classified A–E. Maya's worklist for safe near-term work
 
 | Doc | Date | Verdict on current `main` |
 |---|---|---|
-| `docs/archive/CRM-SEARCH-DEEP-AUDIT-2026-03-23.md` | 2026-03-23 | **STALE (E)** — 8 search filter bugs called out. Most are IDX-side (out of scope). Townhouse / PropertySubType cases verified still relevant in current code (see Finding 11.1). |
-| `memory/archive/CRM-REMAINING-WORK-2026-03-18.md` | 2026-03-18 | **STALE (E)** — pre-dates Workstreams C1–C4. Many of its "missing" items now exist (Inquiry, Offer, auction, ethics) per `memory/REFACTOR-2026-04-25.md`. |
-| `docs/superpowers/specs/_archived-2026-04-27/2026-03-21-seller-prospecting-engine-design.md` | 2026-03-21 | **STALE (E)** — explicitly archived. No production implementation. |
 | `compliance/CRM-AND-MESSAGING-COMPLIANCE.md` | undated | **CURRENT-ENOUGH (E)** — TCPA/FARE/Fair Housing patterns still match `lib/compliance/` and `app/api/inquiries/route.ts`. Re-stamp date and link from `CLAUDE.md`. |
 | `compliance/AUDIT-LOGGING-AND-EVIDENCE.md` | undated | **CURRENT-ENOUGH (E)** — NY SHIELD Act + audit event patterns still match `prisma/schema.prisma` `AuditEvent`. Re-stamp. |
 | `docs/crm-workflow-proof-audit-2026-05-16.md` | 2026-05-16 | **CURRENT but not on `main` yet** — lives on PR #146 branch. Its §8 item #1 is the very stub-then-toast finding PR #146 fixes. |
@@ -438,8 +435,6 @@ A dedicated `TownhouseSellerProfile` model would make pitch-packet data structur
 
 | Doc | What to do |
 |---|---|
-| `docs/archive/CRM-SEARCH-DEEP-AUDIT-2026-03-23.md` | Already archived. Reference for evidence; do not re-action. |
-| `memory/archive/CRM-REMAINING-WORK-2026-03-18.md` | Already archived. Confirm Workstream C items now closed. |
 | `compliance/CRM-AND-MESSAGING-COMPLIANCE.md` | Add date stamp + verify-link to live `lib/compliance/` modules. |
 | `compliance/AUDIT-LOGGING-AND-EVIDENCE.md` | Add date stamp + link to `AuditEvent` model + ops:health audit-event growth pin. |
 | Explore agent's "no-auth" flag on `app/api/debug/media-health/route.ts` | Incorrect — route IS gated (`requireAgentOrBroker`). Note in next session. |

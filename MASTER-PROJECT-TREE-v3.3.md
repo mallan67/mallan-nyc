@@ -351,7 +351,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 
 ### Pre-Build Lock Checklist
 - [ ] Confirm canonical schemas finalized (5 + ledger)
-- [ ] Confirm all server-enforced gates enumerated (9 total — defined in `compliance/BACKEND-VALIDATION-ENGINE.md` Section E.6 + `compliance/MASTER-AUDIT-REPORT-v3.md` Section E)
+- [ ] Confirm all server-enforced gates enumerated (9 total — defined in `compliance/BACKEND-VALIDATION-ENGINE.md` Section E.6)
 - [ ] Confirm RBAC matrix complete before API scaffolding
 - [ ] Confirm no inline JS logic considered authoritative
 - [ ] Confirm Trestle endpoint fully migrated to `api.cotality.com/trestle`
@@ -558,8 +558,7 @@ This is an **existential system dependency**.
 
 # SECTION 12: BLOCKER INVENTORY (47 total)
 
-47 BLOCKERs from Master Audit Report v3.3. All must be resolved before go-live.
-See full details in `compliance/MASTER-AUDIT-REPORT-v3.md`.
+47 BLOCKERs. All must be resolved before go-live.
 
 ---
 
@@ -582,7 +581,6 @@ See full details in `compliance/MASTER-AUDIT-REPORT-v3.md`.
 |------|---------|
 | `MASTER-PROJECT-TREE-v3.3.md` | THIS file — roles, portals, progress, phases, go-live gates, enforcement |
 | `CLAUDE.md` | Project instructions for Claude Code agents |
-| `compliance/MASTER-AUDIT-REPORT-v3.md` | Full audit report (225 findings, 39 passes) |
 | `compliance/fields.json` | 902 IDX Plus fields — machine-readable |
 | `compliance/lookups.json` | 114 picklists, 1,993 REBNY values |
 
