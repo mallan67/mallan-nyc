@@ -24,6 +24,19 @@
 
 ---
 
+## 0. Field authority order (which source wins for field / display truth)
+
+When sources disagree about whether a field exists, what it is named, or whether it may be displayed, resolve in this order:
+
+1. **UCBA 2026 governs compliance.** REBNY co-brokerage rules set the outer bound for what may be collected, displayed, and syndicated.
+2. **IDX Plus / the live Cotality feed / the refreshed CSVs define displayable field truth.** The live `api.cotality.com/trestle` feed and the CSVs regenerated from it (`data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`) are the field-name / field-existence authority. Static markdown field snapshots are not.
+3. **REBNY / RLS compliance rules override generic vendor or default assumptions** where they apply (e.g., display-gate null-handling is REBNY-specific, not a generic vendor default).
+4. **Cotality/Trestle exposes the live RESO-shaped OData model;** use the live `$metadata` (snapshot at `artifacts/metadata.xml`) to fill field / model gaps. RESO is the shape of the model — not an external authority, version, or certification.
+5. **Internal-only fields must not affect public display or compliance** — they are excluded from the display / syndication path.
+6. **Unknown or unverified display eligibility fails closed to non-display.** If you cannot prove a field is displayable, do not display it.
+
+---
+
 ## 1. REBNY UCBA 2026 (Universal Co-Brokerage Agreement)
 
 | | |
