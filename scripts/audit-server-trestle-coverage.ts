@@ -30,6 +30,11 @@
 import { config as dotenvConfig } from 'dotenv';
 import path from 'node:path';
 import fs from 'node:fs';
+import {
+  FORBIDDEN_FIELDS,
+  FORBIDDEN_LIVE_ALLOWLIST,
+  detectForbiddenNowLive,
+} from './trestle-forbidden-fields';
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local'), override: true });
 
@@ -83,42 +88,12 @@ const MUST_EXIST_KEY_FIELDS = [
   'ModificationTimestamp', 'PhotosChangeTimestamp',
 ];
 
-// Common dead/renamed fields per CLAUDE.md "Fields That DO NOT EXIST on
-// Trestle - NEVER USE". If we find any of these in code, flag it.
-// A live-parity guard test (lib/idx/__tests__/forbidden-fields-live-parity.test.ts)
-// reads this list and asserts every entry is phantom on live $metadata OR is a
-// documented live-but-intentional exception (ResourceRecordID).
-const FORBIDDEN_FIELDS: Record<string, string> = {
-  IDXEntireListingDisplayYN: 'use InternetEntireListingDisplayYN',
-  SyndicateYN: 'use SyndicateTo (multi-select)',
-  VOWEntireListingDisplayYN: 'not on IDX Plus',
-  VOWAutomatedValuationDisplayYN: 'not on IDX Plus',
-  VOWConsumerCommentYN: 'not on IDX Plus',
-  // MoveInCostsAmountTotal stays forbidden — still absent from live $metadata.
-  // (MoveInCostsAmount + MoveInCostsComments were REMOVED from this list on
-  // 2026-06-04: the live Cotality $metadata now exposes both as Property fields —
-  // MoveInCostsAmount = Edm.Decimal(14,2), MoveInCostsComments = Edm.String(1024).
-  // #340/#341 had classified them as phantom from a stale snapshot; the snapshot
-  // is refreshed in this same PR. Live feed wins over the cached snapshot.)
-  MoveInCostsAmountTotal: 'does not exist; MoveInCosts is a picklist only',
-  FirstShowingDate: 'use ActivationDate',
-  PossessionDate: 'RESO field, Trestle ignores',
-  YearRenovated: 'does not exist',
-  // Phantom media URL fields — they look plausible but no live resource exposes
-  // them. The real model: Property carries VirtualTourURL* (tours/3D); the Media
-  // resource carries item URLs (MediaURL/OriginalMediaUrl) classified by
-  // MediaCategory (Photo / Floor Plan / Video / Virtual Tour). Guarded by
-  // B26_MEDIA parity too; listed here so the server-code audit also catches them.
-  // NOTE: ListingSocialMediaURL / BuildingSocialMediaURL are also phantom but are
-  // deferred to the trestle-mapper cleanup PR (they have dead phantom→phantom
-  // rename entries at lib/idx/trestle-mapper.ts:18,30 that must be removed in the
-  // same change to keep this audit at 0 stale).
-  VideoURL: 'phantom; Property uses VirtualTourURLBranded, or Media resource (MediaCategory=Video)',
-  FloorPlanURL: 'phantom; use Media resource (MediaCategory="Floor Plan")',
-  MatterportURL: 'phantom; 3D/tours are VirtualTourURLBranded/Unbranded on Property',
-  InteractiveFloorPlanURL: 'phantom; use Media resource (MediaCategory="Floor Plan")',
-  ResourceRecordID: 'exists but NOT unique across MLOs — use ResourceRecordKey for Media joins',
-};
+// Forbidden field list + the live-drift guard live in a pure, importable module
+// (this script self-executes a network IIFE + process.exit, so its internals are
+// not unit-testable in place). The audit consumes the exact same data below.
+//   - FORBIDDEN_FIELDS: dead/renamed fields per CLAUDE.md "Fields That DO NOT
+//     EXIST on Trestle - NEVER USE". Flagged if found in scanned code.
+//   - detectForbiddenNowLive: catches a phantom the vendor has since made real.
 
 async function getToken(): Promise<string> {
   const res = await fetch(`${TRESTLE_BASE}/oidc/connect/token`, {
@@ -186,7 +161,7 @@ function listTsFiles(dir: string): string[] {
 }
 
 interface Finding {
-  kind: 'FORBIDDEN_REFERENCE' | 'MUST_EXIST_GATE_MISSING_FROM_LIVE' | 'MUST_EXIST_KEY_MISSING_FROM_LIVE' | 'STALE_REFERENCE' | 'LEGACY_GUARD';
+  kind: 'FORBIDDEN_REFERENCE' | 'MUST_EXIST_GATE_MISSING_FROM_LIVE' | 'MUST_EXIST_KEY_MISSING_FROM_LIVE' | 'STALE_REFERENCE' | 'LEGACY_GUARD' | 'FORBIDDEN_NOW_LIVE';
   file?: string;
   line?: number;
   field: string;
@@ -303,6 +278,43 @@ function isVendorBlessedFallback(field: string, content: string): boolean {
     }
   }
 
+  // 4. Live-drift guard — a forbidden field that has turned up in the live
+  //    $metadata SCHEMA (vendor added/renamed it), excluding the documented
+  //    intentional allowlist. This is the guard the daily trestle-live-audit.yml
+  //    needs: the snapshot unit test cannot see fresh vendor drift.
+  //
+  //    Basis = the deterministic schema (union of byResource field Names), NOT
+  //    live.all. live.all also folds in CustomFields keys harvested from sampled
+  //    live records' JSON (non-deterministic — varies by which records were
+  //    fetched), so using it would make this gate flaky and would flag open
+  //    CustomProperty data keys as schema drift. "Forbidden field now in the
+  //    schema" is the real signal.
+  const liveSchemaFields = new Set<string>();
+  for (const fields of live.byResource.values()) {
+    for (const f of fields) liveSchemaFields.add(f);
+  }
+  console.log('── Forbidden fields now present in LIVE $metadata (vendor drift) ');
+  const forbiddenNowLive = detectForbiddenNowLive(
+    liveSchemaFields,
+    FORBIDDEN_FIELDS,
+    FORBIDDEN_LIVE_ALLOWLIST,
+  );
+  if (forbiddenNowLive.length === 0) {
+    console.log(
+      `  ✓ no drift — every forbidden field is still absent from live` +
+        ` (allowlisted as live-but-intentional: ${[...FORBIDDEN_LIVE_ALLOWLIST].join(', ')})`,
+    );
+  } else {
+    for (const f of forbiddenNowLive) {
+      console.log(
+        `  ✗ ${f}  — NOW PRESENT ON LIVE (was forbidden as phantom) —` +
+          ` reconcile the guard list with proof: ${FORBIDDEN_FIELDS[f]}`,
+      );
+      findings.push({ kind: 'FORBIDDEN_NOW_LIVE', field: f, detail: FORBIDDEN_FIELDS[f] });
+    }
+  }
+  console.log('');
+
   const forbidden = findings.filter((f) => f.kind === 'FORBIDDEN_REFERENCE');
   const legacyGuards = findings.filter((f) => f.kind === 'LEGACY_GUARD');
 
@@ -339,17 +351,20 @@ function isVendorBlessedFallback(field: string, content: string): boolean {
   console.log(`  Documented legacy guards:            ${legacyGuards.length}    (informational — not bugs)`);
   console.log(`  Gate fields missing from live:       ${findings.filter((f) => f.kind === 'MUST_EXIST_GATE_MISSING_FROM_LIVE').length}`);
   console.log(`  Key fields missing from live:        ${findings.filter((f) => f.kind === 'MUST_EXIST_KEY_MISSING_FROM_LIVE').length}`);
+  console.log(`  Forbidden fields now live (drift):   ${forbiddenNowLive.length}    ${forbiddenNowLive.length === 0 ? '(✓)' : '(✗)'}`);
   console.log('');
 
   if (jsonOutput) {
     console.log(JSON.stringify({ findings }, null, 2));
   }
 
-  // Exit non-zero only on STALE references or missing live fields — legacy
-  // guards (documented intentional) do NOT fail the audit.
+  // Exit non-zero on STALE references, missing live fields, OR live drift
+  // (a forbidden phantom now present on live). Legacy guards (documented
+  // intentional) do NOT fail the audit.
   const fatal =
     forbidden.length +
     findings.filter((f) => f.kind === 'MUST_EXIST_GATE_MISSING_FROM_LIVE').length +
-    findings.filter((f) => f.kind === 'MUST_EXIST_KEY_MISSING_FROM_LIVE').length;
+    findings.filter((f) => f.kind === 'MUST_EXIST_KEY_MISSING_FROM_LIVE').length +
+    forbiddenNowLive.length;
   process.exit(fatal > 0 ? 1 : 0);
 })().catch((e) => { console.error('Failed:', e instanceof Error ? e.message : String(e)); process.exit(1); });
