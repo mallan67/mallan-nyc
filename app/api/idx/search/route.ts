@@ -289,7 +289,7 @@ export async function GET(req: NextRequest) {
     // SponsorUnitYN is REBNY-specific and lives inside
     // CustomProperty.CustomFields as a JSON string field, NOT a top-level
     // OData property. There is no way to express "WHERE SponsorUnitYN=true"
-    // in an OData $filter against Trestle 5.0 (the field doesn't exist as
+    // in an OData $filter against the live Cotality/Trestle feed (the field doesn't exist as
     // a queryable property — only the containing JSON string does).
     //
     // The mapper at lib/search/crm-idx-mapper.ts parses CustomFields and
