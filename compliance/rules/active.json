@@ -41,7 +41,6 @@
   },
   "ucbaAudit": {
     "checklist": "compliance/rules/ucba-audit-checklist.json",
-    "report": "compliance/FULL-AUDIT-2026-03-13.md",
     "validator": "scripts/ucba-compliance-audit.js",
     "run": "node scripts/ucba-compliance-audit.js",
     "description": "UCBA 2026 full compliance audit — 145 rules, regression detection, pattern verification"

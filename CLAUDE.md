@@ -1,6 +1,6 @@
 # CLAUDE.md — Project Command Center · mallan.nyc
 
-> Lean indexed command center (rebuilt 2026-05-20). Full historical reference preserved at `docs/historical/CLAUDE-FULL-REFERENCE-2026-05-20.md` (45 KB, byte-identical to the pre-2026-05-20 CLAUDE.md).
+> Lean indexed command center (rebuilt 2026-05-20).
 >
 > **Compliance-first.** When a task touches anything in §D, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST. The index has per-area canonical pointers, validators, and fail-closed instructions for REBNY, RLS, UCBA, IDX Plus, Trestle/Cotality, Fair Housing, NY DOS, FARE Act, TCPA, NY SHIELD, audit retention, CRM lead routing, seller/landlord intake, and Mallan exclusives/syndication.
 
@@ -153,18 +153,8 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 
 ## I. Historical archive pointers
 
-Old long-form CLAUDE.md (45 KB · all content from before 2026-05-20 rebuild) is preserved verbatim at:
-
-- `docs/historical/CLAUDE-FULL-REFERENCE-2026-05-20.md` (lives in `docs/archive/` rather than `memory/archive/` because the latter is `.gitignore`d — preservation must be reachable to every Claude session via the repo, not just Maya's local disk)
-
-Other historical material:
-
-- (An earlier full-site audit from 2026-04-06 is preserved on Maya's local disk only — it lives under the `memory/` tree which is gitignored, so it is intentionally not in the repo. Superseded by `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md`.)
 - `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` — canonical incident report (the 7,594-row corruption)
 - `memory/AUDIT-2026-05-12.md` — pre-PR-#148 audit
-- `memory/BACKEND-AUDIT-2026-04-29.md` — backend deep audit (large; superseded by `docs/backend-crm-current-gap-audit-2026-05-18.md`)
-- `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md` — search spine handoff (large; superseded by master plan PR 5)
-- `memory/archive/` — older quarterly snapshots
 
 ---
 

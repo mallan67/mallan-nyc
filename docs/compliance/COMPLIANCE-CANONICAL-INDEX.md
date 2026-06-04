@@ -7,7 +7,7 @@
 | | |
 |---|---|
 | **Index created** | 2026-05-20 |
-| **Supersedes** | The compliance content previously living inline in `CLAUDE.md`. Old long-form CLAUDE.md preserved at `docs/historical/CLAUDE-FULL-REFERENCE-2026-05-20.md`. |
+| **Supersedes** | The compliance content previously living inline in `CLAUDE.md`. |
 | **Maintenance contract** | Every time a rule changes (REBNY publishes new UCBA revision, NY DOS updates §175, NYC LL changes FARE Act, etc.), the canonical file for that area gets updated and this index's "last verified" date is bumped in the row. New compliance areas get a new row, not a free-text paragraph. |
 | **Fail-closed default** | If a row says "stop and report" and you cannot find the canonical file or it is silent on the question you have, **STOP**. Do not guess REBNY/RLS/IDX Plus/Trestle/Cotality requirements from memory. The 2026-04-30 incident (7,594-row corruption from guessed `affirmPermission` semantics on REBNY-pre-filtered nulls) is in `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` as the canonical example. |
 | **Authority for compliance baseline** | `npm run compliance-check` must report 93/93 BLOCKER+STRICT; `npm run ucba:audit` must report 46 PASS / 0 FAIL / **0 REGRESSIONS** (any non-zero regression is a hard stop); `npm run idx:validate` must report 0 critical. |
@@ -158,11 +158,11 @@
 
 | | |
 |---|---|
-| **Canonical** | Data retention table in `docs/historical/CLAUDE-FULL-REFERENCE-2026-05-20.md` (preserved verbatim from old CLAUDE.md "Data Retention Policies" section); `app/api/cron/data-retention/route.ts` (enforcement) |
+| **Canonical** | The data-retention schedule in the **Fail-closed** row below; `.claude/skills/rebny-compliance/SKILL.md` §1; `app/api/cron/data-retention/route.ts` (enforcement) |
 | **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §1; `prisma/schema.prisma` (model timestamps that gate retention) |
 | **Validator** | `npm run ops:health:json` (verifies `latest_data_retention_run` is fresh + `archive_backlog=0` + `listings_missing_status_changed=0`) |
 | **When to read** | Any new PII column; any new lead/portal storage; any new audit-event action; any new export endpoint; any third-party integration handling user data |
-| **Fail-closed** | NY SHIELD §899-bb. Encrypted-at-rest (Neon TDE). Per CLAUDE-FULL-REFERENCE-2026-05-20.md retention table: Listing data + agreements 6 years; transaction records + commissions 6 years; audit event logs 2 years; Trestle/IDX access logs 12 months; lead PII inactive 3 years then archive; session tokens 24 hours auto-expire; closed listing display removed within 24 hours (REBNY §2.05). |
+| **Fail-closed** | NY SHIELD §899-bb. Encrypted-at-rest (Neon TDE). Retention schedule: Listing data + agreements 6 years; transaction records + commissions 6 years; audit event logs 2 years; Trestle/IDX access logs 12 months; lead PII inactive 3 years then archive; session tokens 24 hours auto-expire; closed listing display removed within 24 hours (REBNY §2.05). |
 
 ## 15. Audit log retention + AuditEvent contract
 
@@ -216,7 +216,6 @@
 ## Cross-references
 
 - `CLAUDE.md` — lean command center (this index is its §H pointer for compliance)
-- `docs/historical/CLAUDE-FULL-REFERENCE-2026-05-20.md` — old long-form CLAUDE.md (preserved verbatim 2026-05-20)
 - `.claude/skills/rebny-compliance/SKILL.md` — the auto-loaded skill mirror
 - `NEON.md` — DB-side rules (separate index)
 - `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` — file/folder canonical-source rules (separate index)

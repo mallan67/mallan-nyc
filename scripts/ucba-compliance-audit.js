@@ -32,7 +32,6 @@ const path = require('path');
 // ─── Config ──────────────────────────────────────────────────────────────
 const ROOT = path.resolve(__dirname, '..');
 const CHECKLIST_PATH = path.join(ROOT, 'compliance', 'rules', 'ucba-audit-checklist.json');
-const AUDIT_REPORT_PATH = path.join(ROOT, 'compliance', 'FULL-AUDIT-2026-03-13.md');
 
 // ─── CLI Args ────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -578,7 +577,6 @@ if (jsonOutput) {
     console.log('');
   }
 
-  console.log(`Full audit report: ${AUDIT_REPORT_PATH}`);
   console.log(`Checklist source: ${CHECKLIST_PATH}`);
   console.log('');
 }
