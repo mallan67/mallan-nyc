@@ -626,6 +626,20 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       laundryFeatures: features.LaundryFeatures ? String(features.LaundryFeatures) : undefined,
       petsAllowedDetail: features.PetsAllowed ? String(features.PetsAllowed) : undefined,
       moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
+      // Canonical MoveInCostsAmount wins; read-time legacy fallback only when blank.
+      moveInCostsAmount:
+        features.MoveInCostsAmount != null && features.MoveInCostsAmount !== ''
+          ? Number(features.MoveInCostsAmount)
+          : features.AdditionalFee != null && features.AdditionalFee !== ''
+            ? Number(features.AdditionalFee)
+            : features.MoveInCostsAmountTotal != null && features.MoveInCostsAmountTotal !== ''
+              ? Number(features.MoveInCostsAmountTotal)
+              : undefined,
+      moveInCostsComments: features.MoveInCostsComments
+        ? String(features.MoveInCostsComments)
+        : features.AdditionalFeeDescription
+          ? String(features.AdditionalFeeDescription)
+          : undefined,
       ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
       tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
       appliances: features.Appliances ? String(features.Appliances) : undefined,
@@ -1739,6 +1753,20 @@ export default async function ListingPage({ params, searchParams }: Props) {
                       <div className="flex justify-between py-2.5 border-b border-black/5">
                         <span className="text-[13px] text-brand-dark/80">Move-In Costs</span>
                         <span className="text-[13px] font-medium text-brand-dark">{listing.moveInCosts}</span>
+                      </div>
+                    )}
+                    {/* FARE Act: move-in fee amount + comments (canonical MoveInCostsAmount/Comments,
+                        with read-time legacy fallback resolved in the DTO — single value, no duplicate). */}
+                    {typeof listing.moveInCostsAmount === 'number' && listing.moveInCostsAmount > 0 && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/80">Move-In Cost Amount</span>
+                        <span className="text-[13px] font-medium text-brand-dark">${listing.moveInCostsAmount.toLocaleString('en-US')}</span>
+                      </div>
+                    )}
+                    {listing.moveInCostsComments && (
+                      <div className="flex justify-between py-2.5 border-b border-black/5">
+                        <span className="text-[13px] text-brand-dark/80">Move-In Cost Details</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{listing.moveInCostsComments}</span>
                       </div>
                     )}
                     {listing.ongoingFees && (

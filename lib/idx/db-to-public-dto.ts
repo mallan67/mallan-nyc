@@ -75,6 +75,9 @@ interface DbFeatures {
   ArchitecturalStyle?: string;
   // FARE Act fee transparency
   MoveInCosts?: string;
+  MoveInCostsAmount?: number | string;
+  MoveInCostsComments?: string;
+  MoveInCostsAmountTotal?: number | string; // legacy phantom — read-only fallback
   OngoingFees?: string;
   TenantPays?: string;
   TenantPaysDescription?: string;
@@ -451,6 +454,22 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     virtualTourURL: rawData.VirtualTourURLUnbranded ? String(rawData.VirtualTourURLUnbranded) : (rawData.VirtualTourURLBranded ? String(rawData.VirtualTourURLBranded) : undefined),
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
+    // Canonical MoveInCostsAmount wins; read-time legacy fallback only when blank
+    // (AdditionalFee → MoveInCostsAmountTotal). Resolves to a single value — no
+    // double output. Write path never writes the legacy keys.
+    moveInCostsAmount:
+      features.MoveInCostsAmount != null && features.MoveInCostsAmount !== ''
+        ? Number(features.MoveInCostsAmount)
+        : features.AdditionalFee != null && features.AdditionalFee !== ''
+          ? Number(features.AdditionalFee)
+          : features.MoveInCostsAmountTotal != null && features.MoveInCostsAmountTotal !== ''
+            ? Number(features.MoveInCostsAmountTotal)
+            : undefined,
+    moveInCostsComments: features.MoveInCostsComments
+      ? String(features.MoveInCostsComments)
+      : features.AdditionalFeeDescription
+        ? String(features.AdditionalFeeDescription)
+        : undefined,
     ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
     tenantPays: features.TenantPays ? String(features.TenantPays) : undefined,
     tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,

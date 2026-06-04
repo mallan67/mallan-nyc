@@ -4576,8 +4576,10 @@ function loadRentalListingData(listingId) {
     // FARE Act (NYC LL 119/2024) fee disclosure fields
     viewerSetVal('rentalMoveInCosts', d.MoveInCosts);
     // Legacy fallback (pre-2026-06-04 listings stored the amount under MoveInCostsAmountTotal)
-    viewerSetVal('rentalMoveInCostsAmount', d.MoveInCostsAmount || d.MoveInCostsAmountTotal);
-    viewerSetVal('rentalMoveInCostsComments', d.MoveInCostsComments);
+    // Read-time legacy fallback (canonical wins): MoveInCostsAmount → AdditionalFee
+    // → MoveInCostsAmountTotal; MoveInCostsComments → AdditionalFeeDescription.
+    viewerSetVal('rentalMoveInCostsAmount', d.MoveInCostsAmount || d.AdditionalFee || d.MoveInCostsAmountTotal);
+    viewerSetVal('rentalMoveInCostsComments', d.MoveInCostsComments || d.AdditionalFeeDescription);
     viewerSetVal('rentalOngoingFees', d.OngoingFees);
     viewerSetVal('rentalFeeFrequency', d.FeeFrequency);
     viewerSetVal('rentalTenantPays', d.TenantPays);
