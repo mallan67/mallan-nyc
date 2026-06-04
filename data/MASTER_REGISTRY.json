@@ -5519,7 +5519,7 @@
       "nullable": true,
       "isEnum": false,
       "isMultiEnum": true,
-      "rebnyDescription": "The number of levels in the property being sold/leased. For example, One Level, Two Levels, Three or More Levels, <a href=\"http://ddwiki.reso.org/pages/viewpage.action?pageId=9941240\">Multi/Split</a>, Loft. A discreet horizontal plane of interior living space (excluding basements).",
+      "rebnyDescription": "The number of levels in the property being sold/leased. For example, One Level, Two Levels, Three or More Levels, Multi/Split, Loft. A discreet horizontal plane of interior living space (excluding basements).",
       "lmpAddEdit": true,
       "lmpSearch": true,
       "required": "No",
