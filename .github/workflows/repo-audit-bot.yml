@@ -583,8 +583,8 @@ jobs:
             ### COMPARE AGAINST PRIORS
 
             Compare findings against the most recent prior `memory/audits/AUDIT-*.md`,
-            and against pre-existing `memory/AUDIT-*.md`, `memory/BACKEND-AUDIT-*.md`,
-            and `memory/RESO-COMPLIANCE-AUDIT-*.md`. Cite deltas in section D (New
+            and against pre-existing `memory/AUDIT-*.md` and
+            `memory/RESO-COMPLIANCE-AUDIT-*.md`. Cite deltas in section D (New
             since last audit) and section E (Fixed since last audit).
 
             ### FINISH STATE (REQUIRED — workflow verifies)

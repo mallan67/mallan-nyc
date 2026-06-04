@@ -296,7 +296,6 @@ grep -rln 'CLAUDE\.md' --exclude-dir=node_modules --exclude-dir=.next \
 | `memory/REFACTOR-2026-04-25.md` |
 | `memory/AUDITOR-LOG.md` |
 | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
-| `memory/SEARCH-SPINE-HANDOFF-2026-04-29.md` |
 | `compliance/VALIDATOR-FRAMEWORK.md` |
 | `docs/sentinel-v2-redesign-plan-2026-05-16.md` |
 | `docs/superpowers/specs/2026-05-04-crm-search-agent-workflow-rebuild.md` |

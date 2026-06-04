@@ -313,8 +313,8 @@ Report-only: no changes made.
 - If a same-day file already exists, append a `-HHMM` suffix in Eastern, e.g.
   `AUDIT-2026-05-13-0800.md`. Do not overwrite prior reports.
 - Compare against the most recent prior `memory/audits/AUDIT-*.md` (and, for the first
-  run, against any audit files already in `memory/` such as `AUDIT-2026-05-12.md`,
-  `BACKEND-AUDIT-2026-04-29.md`, `RESO-COMPLIANCE-AUDIT-2026-04-29.md`).
+  run, against any audit files already in `memory/` such as `AUDIT-2026-05-12.md`
+  and `RESO-COMPLIANCE-AUDIT-2026-04-29.md`).
 - Every finding must cite exact evidence: file path, line number(s), command output
   excerpt, or external URL with retrieval date.
 

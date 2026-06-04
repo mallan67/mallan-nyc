@@ -260,4 +260,3 @@ Do not implement PR 4.
 - `app/api/cron/data-retention/route.ts:77-107` — terminal-listing §2.05 enforcement (only writes `listings`, not projection — H1 gap)
 - `lib/idx/sync.ts:170,205-207,832,846,251-264` — Trestle sync upsert sites (correctly dual-write)
 - `memory/REFACTOR-2026-04-25.md` — master plan; PR 4 still NOT_STARTED
-- `memory/BACKEND-AUDIT-2026-04-29.md` — prior audit; this incident is post-audit
