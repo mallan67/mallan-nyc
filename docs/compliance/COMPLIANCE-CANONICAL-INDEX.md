@@ -68,9 +68,9 @@
 
 | | |
 |---|---|
-| **Canonical** | `lib/idx/trestle-mapper.ts:610-720` (`TERMINAL_STATUSES` set + `normalizeStandardStatus()` function). **PENDING merge of PR #165:** a new `computeGateColumns` helper (lines ~722-870 of the same file) becomes the single source of truth. The helper exists on the branch `feat/phase-a-centralize-gate-computation`; it is NOT on main yet. After PR #165 merges, append the helper line range and the new test file to this row. |
+| **Canonical** | `lib/idx/trestle-mapper.ts` — `TERMINAL_STATUSES` (set, ~line 610), `normalizeStandardStatus()` (~line 687), and `computeGateColumns()` (~line 846), which is the single source of truth for the gate columns. All three are on `main`. |
 | **Backup** | `app/api/cron/data-retention/route.ts:79` (cron predicate — must agree with mapper terminal set); `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` §2 |
-| **Validator** | `lib/compliance/__tests__/c2-terminal-idx-display.test.ts`; `tests/runtime/h1-dual-write-tier1.test.ts`; `tests/runtime/projection-dual-write-tier2.test.ts`. **PENDING merge of PR #165:** a new runtime test pin for the listing-writer projection coverage will land in `tests/runtime/`; it currently exists only on the branch `feat/phase-a-centralize-gate-computation`. Add it to this row after PR #165 merges. |
+| **Validator** | `lib/idx/__tests__/compute-gate-columns.test.ts`; `lib/compliance/__tests__/c2-terminal-idx-display.test.ts`; `tests/runtime/h1-dual-write-tier1.test.ts`; `tests/runtime/projection-dual-write-tier2.test.ts`; `tests/runtime/listing-writer-projection-coverage.test.ts`. |
 | **When to read** | Any code path that writes `listings.status` or `listing_search_projection.status` or `idx_display_yn`; any new cron that mutates listing rows |
 | **Fail-closed** | Always normalize the input status BEFORE applying TERMINAL_STATUSES.has(). Always update the projection in the same logical operation (or via `dualWriteProjectionForListingId`). Never bump `modification_timestamp` on a terminal row without flipping idx_display_yn to false (that's the H1 ping-pong incident shape). |
 
@@ -88,9 +88,9 @@
 
 | | |
 |---|---|
-| **Canonical** | TODAY: the inline computation at `lib/idx/trestle-mapper.ts:807-870` (the original pre-Phase-A logic — `internetEntireListing = raw.InternetEntireListingDisplayYN !== false`, `affirmPermission(...)` on AVM/ConsumerComment, `!TERMINAL_STATUSES.has(...)` guard). **PENDING merge of PR #165:** the centralized `computeGateColumns()` helper becomes the single source of truth for `idx_display_yn`, `internet_entire_listing_display_yn`, `internet_address_display_yn`, `internet_automated_valuation_display_yn`, `internet_consumer_comment_yn`. The helper exists on the branch `feat/phase-a-centralize-gate-computation`; re-verify this row after PR #165 merges. |
+| **Canonical** | `lib/idx/trestle-mapper.ts` — the centralized `computeGateColumns()` helper (~line 846) is the single source of truth for `idx_display_yn`, `internet_entire_listing_display_yn`, `internet_address_display_yn`, `internet_automated_valuation_display_yn`, `internet_consumer_comment_yn` (on `main`). Semantics: `internetEntireListing = raw.InternetEntireListingDisplayYN !== false`, `affirmPermission(...)` on AVM/ConsumerComment, `!TERMINAL_STATUSES.has(...)` guard. |
 | **Backup** | `lib/compliance/gates.ts` (`coerceStrictBool`, `affirmPermission`, `evaluateDisplayGate` — reader-side helpers); `.claude/skills/rebny-compliance/SKILL.md` §2.1 (fail-OPEN vs fail-CLOSED semantics) |
-| **Validator** | `lib/compliance/__tests__/compliance-gates.test.ts`; `scripts/ci-compliance-check.js` regression guards (lines 471-507). **PENDING merge of PR #165:** a new unit-test file for `computeGateColumns()` lives on the branch `feat/phase-a-centralize-gate-computation` only; add it to this row after PR #165 merges. |
+| **Validator** | `lib/idx/__tests__/compute-gate-columns.test.ts`; `lib/compliance/__tests__/compliance-gates.test.ts`; `scripts/ci-compliance-check.js` regression guards (lines 471-507). |
 | **When to read** | Any code path that writes any of the 5 columns; any new reader path that consumes them |
 | **Fail-closed** | `InternetEntireListingDisplayYN` + `InternetAddressDisplayYN` are REBNY-pre-filtered (null = displayable). `InternetAutomatedValuationDisplayYN` + `InternetConsumerCommentYN` are per-row opt-out (fail-closed). The asymmetry is documented at `lib/idx/trestle-mapper.ts:780-832` and locked by tests. Wrapping the first two in `affirmPermission()` collapses every REBNY-feed row to false — that was the 2026-04-30 incident shape. |
 
