@@ -29594,7 +29594,6 @@
       "auditDate": "2026-03-13",
       "source": "UCBA Master Copy (January 2026 Redline Revision)",
       "totalRules": 145,
-      "reportFile": "compliance/FULL-AUDIT-2026-03-13.md",
       "checklistFile": "compliance/rules/ucba-audit-checklist.json",
       "validatorScript": "scripts/ucba-compliance-audit.js",
       "runCommand": "npm run ucba:audit"
