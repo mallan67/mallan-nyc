@@ -52,6 +52,12 @@ export interface TrestleFetchOptions {
    * audited via Trestle `$metadata`, CustomProperty expansion is opt-in
    * only.
    *
+   * NOTE (2026-06-04): `DownPaymentAssistanceAmount` / `DownPaymentAssistanceCount`
+   * migrated to the **Property** entity and are now fetched via the Property
+   * `$select` (B15_FINANCIAL_UNIT → IDX_PLUS_SELECT_FIELDS) — they are no longer
+   * a reason to expand CustomProperty. `crm-idx-mapper` reads them from Property
+   * (with a legacy CustomProperty fallback for old `raw_data`).
+   *
    * When this option is `true`, the expand is included as bare
    * `CustomProperty` (no inner `$select`) so Trestle returns whatever
    * fields currently exist on that entity. Callers reading
