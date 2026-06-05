@@ -16,6 +16,7 @@ import { createNotification } from "@/lib/notifications/engine";
 import { computeGateColumns } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
+import { checkFeeDisclosure } from "@/lib/crm/fee-disclosure";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -126,6 +127,21 @@ export async function PATCH(
           error: `ClosePrice is required before marking a listing as ${newStatus} (UCBA C12)`,
           field: "ClosePrice",
         },
+        { status: 422 }
+      );
+    }
+  }
+
+  // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals going display-ready
+  // (Active / ComingSoon). Applies to CRM rental exclusives too (NOT skipped like
+  // the RLS gate below), since FARE applies wherever rental details are displayed.
+  // Never gates Draft. Fee data is the listing's saved raw_data (existingRaw).
+  const isRentalListing = ((listing.listing_type as string) ?? "") === "rent";
+  if (isRentalListing && (newStatus === "Active" || newStatus === "ComingSoon")) {
+    const feeCheck = checkFeeDisclosure(existingRaw);
+    if (!feeCheck.ok) {
+      return NextResponse.json(
+        { error: feeCheck.reason, field: "MoveInCostsAmount", code: "FARE_FEE_DISCLOSURE" },
         { status: 422 }
       );
     }
