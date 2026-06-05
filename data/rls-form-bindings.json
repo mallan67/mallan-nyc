@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated": "2026-03-20",
+    "generated": "2026-06-05",
     "source": "audit-form-fields.js"
   },
   "files": {
@@ -25,6 +25,10 @@
         },
         "saleUpdatingAgentLicense": {
           "internal": true,
+          "elementType": "hidden"
+        },
+        "saleUpdatingAgentMlsId": {
+          "unknown": true,
           "elementType": "hidden"
         },
         "saleUpdatingAgentCompanyKey": {
@@ -131,10 +135,6 @@
           "internal": true,
           "elementType": "checkbox"
         },
-        "saleBuyerRepAgreementAck": {
-          "internal": true,
-          "elementType": "checkbox"
-        },
         "saleOptOutFormUpload": {
           "internal": true,
           "elementType": "file"
@@ -175,9 +175,33 @@
           "rlsField": "ClosePrice",
           "elementType": "number"
         },
+        "saleAlsoAvailableForRent": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
         "saleInternetAVMDisplayYN": {
           "rlsField": "InternetAutomatedValuationDisplayYN",
           "elementType": "radio"
+        },
+        "saleAuctionYn": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleAuctionType": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "saleAuctionStartDate": {
+          "unknown": true,
+          "elementType": "datetime-local"
+        },
+        "saleAuctionEndDate": {
+          "unknown": true,
+          "elementType": "datetime-local"
+        },
+        "saleAuctionTermsUrl": {
+          "unknown": true,
+          "elementType": "url"
         },
         "salePropertyType": {
           "rlsField": "PropertyType",
@@ -234,6 +258,14 @@
         "saleFirstCoBroke": {
           "internal": true,
           "elementType": "date"
+        },
+        "saleSendToRls": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleSendToWebsite": {
+          "unknown": true,
+          "elementType": "checkbox"
         },
         "saleAvailableOccupancy": {
           "rlsField": "PossessionDate",
@@ -343,13 +375,17 @@
           "rlsField": "RentingAllowedYN",
           "elementType": "radio"
         },
-        "saleCommissionType": {
-          "internal": true,
+        "saleExclusiveCommissionType": {
+          "unknown": true,
           "elementType": "select"
         },
         "saleExclusiveCommission": {
           "internal": true,
           "elementType": "number"
+        },
+        "saleBuyerAgentPays": {
+          "unknown": true,
+          "elementType": "radio"
         },
         "saleConcessions": {
           "rlsField": "Concessions",
@@ -519,17 +555,77 @@
           "internal": true,
           "elementType": "radio"
         },
+        "saleResidentialType": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleCommercialFeatures": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
         "saleCurrentUse": {
           "rlsField": "CurrentUse",
           "elementType": "radio"
+        },
+        "salePrivateOutdoorSpace": {
+          "unknown": true,
+          "elementType": "checkbox"
         },
         "saleLight": {
           "internal": true,
           "elementType": "radio"
         },
+        "saleExposure": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
         "saleHasViews": {
           "rlsField": "ViewYN",
           "elementType": "radio"
+        },
+        "saleViewList": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleAdditionalRooms": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleKitchenType": {
+          "internal": true,
+          "elementType": "checkbox"
+        },
+        "saleKitchenFeatures": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleDining": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleBathroomFeatures": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleFeatureDetails": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleWindows": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleCeilings": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleFlooring": {
+          "rlsField": "Flooring",
+          "elementType": "checkbox"
+        },
+        "saleStorage": {
+          "rlsField": "BuildingFeatures",
+          "elementType": "checkbox"
         },
         "salePetsAllowed": {
           "rlsField": "PetsAllowed",
@@ -538,6 +634,18 @@
         "saleWasherDryerAllowed": {
           "rlsField": "BuildingLaundryFeatures",
           "elementType": "radio"
+        },
+        "saleWasherDryerHookups": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleWasherDryerInUnit": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleWasherDryerBrand": {
+          "unknown": true,
+          "elementType": "checkbox"
         },
         "saleCoolingYes": {
           "internal": true,
@@ -561,6 +669,14 @@
         },
         "saleHeating": {
           "rlsField": "Heating",
+          "elementType": "checkbox"
+        },
+        "saleFreshAirSystem": {
+          "unknown": true,
+          "elementType": "checkbox"
+        },
+        "saleHvacSystem": {
+          "unknown": true,
           "elementType": "checkbox"
         },
         "fireplace": {
@@ -1437,10 +1553,10 @@
         }
       },
       "stats": {
-        "total": 357,
-        "rlsBound": 190,
-        "internal": 167,
-        "unknown": 0
+        "total": 386,
+        "rlsBound": 192,
+        "internal": 166,
+        "unknown": 28
       }
     },
     "RENTAL-FORM-REDESIGN.html": {
@@ -1714,12 +1830,12 @@
           "rlsField": "MoveInCosts",
           "elementType": "text"
         },
-        "rentalMoveInCostsAmountTotal": {
-          "internal": true,
+        "rentalMoveInCostsAmount": {
+          "rlsField": "MoveInCostsAmount",
           "elementType": "number"
         },
         "rentalMoveInCostsComments": {
-          "internal": true,
+          "rlsField": "MoveInCostsComments",
           "elementType": "textarea"
         },
         "rentalOngoingFees": {
@@ -3173,8 +3289,8 @@
       },
       "stats": {
         "total": 431,
-        "rlsBound": 258,
-        "internal": 173,
+        "rlsBound": 260,
+        "internal": 171,
         "unknown": 0
       }
     },
@@ -4912,12 +5028,12 @@
           "rlsField": "MoveInCosts",
           "elementType": "text"
         },
-        "rentalMoveInCostsAmountTotal": {
-          "internal": true,
+        "rentalMoveInCostsAmount": {
+          "rlsField": "MoveInCostsAmount",
           "elementType": "number"
         },
         "rentalMoveInCostsComments": {
-          "internal": true,
+          "rlsField": "MoveInCostsComments",
           "elementType": "textarea"
         },
         "rentalOngoingFees": {
@@ -6483,8 +6599,8 @@
       },
       "stats": {
         "total": 448,
-        "rlsBound": 248,
-        "internal": 200,
+        "rlsBound": 250,
+        "internal": 198,
         "unknown": 0
       }
     },
@@ -6498,6 +6614,14 @@
         "saleMaxPrice": {
           "internal": true,
           "elementType": "select"
+        },
+        "saleMinPriceCustom": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "saleMaxPriceCustom": {
+          "unknown": true,
+          "elementType": "number"
         },
         "saleMinBeds": {
           "internal": true,
@@ -6602,6 +6726,14 @@
         "rentalMaxRent": {
           "internal": true,
           "elementType": "select"
+        },
+        "rentalMinRentCustom": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "rentalMaxRentCustom": {
+          "unknown": true,
+          "elementType": "number"
         },
         "rentalMinBeds": {
           "internal": true,
@@ -6719,6 +6851,22 @@
           "internal": true,
           "elementType": "text"
         },
+        "bldg-grid-north": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "bldg-grid-west": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "bldg-grid-east": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "bldg-grid-south": {
+          "unknown": true,
+          "elementType": "select"
+        },
         "landLease": {
           "internal": true,
           "elementType": "radio"
@@ -6747,6 +6895,30 @@
           "internal": true,
           "elementType": "select"
         },
+        "buildingFinancingMin": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "buildingFinancingMax": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "buildingKeywordSearch": {
+          "unknown": true,
+          "elementType": "text"
+        },
+        "buildingManagementCompany": {
+          "unknown": true,
+          "elementType": "text"
+        },
+        "adv-rls-id": {
+          "unknown": true,
+          "elementType": "text"
+        },
+        "adv-zip": {
+          "unknown": true,
+          "elementType": "text"
+        },
         "advancedNeighborhoodInput": {
           "internal": true,
           "elementType": "text"
@@ -6754,6 +6926,74 @@
         "advancedSearchAddress": {
           "internal": true,
           "elementType": "text"
+        },
+        "adv-grid-north": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-grid-south": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-grid-west": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-grid-east": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-keyword": {
+          "unknown": true,
+          "elementType": "text"
+        },
+        "advSaleMinPrice": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "advSaleMaxPrice": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "advSaleMinPriceCustom": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "advSaleMaxPriceCustom": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-min-expenses": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-max-expenses": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "advRentalMinRent": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "advRentalMaxRent": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "advRentalMinRentCustom": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "advRentalMaxRentCustom": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-min-net-rent": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-max-net-rent": {
+          "unknown": true,
+          "elementType": "select"
         },
         "mortgagePrice": {
           "internal": true,
@@ -6770,6 +7010,38 @@
         "mortgageTerm": {
           "internal": true,
           "elementType": "text"
+        },
+        "adv-min-beds": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-max-beds": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-min-baths": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-max-baths": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-min-rooms": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-max-rooms": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-min-sqft": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-max-sqft": {
+          "unknown": true,
+          "elementType": "select"
         },
         "enableInvestmentFilter": {
           "internal": true,
@@ -6875,9 +7147,157 @@
           "internal": true,
           "elementType": "select"
         },
+        "adv-management": {
+          "unknown": true,
+          "elementType": "text"
+        },
+        "adv-listed-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-listed-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-updated-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-updated-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-contract-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-contract-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-lease-signed-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-lease-signed-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-sold-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-sold-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-rented-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-rented-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-expired-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-expired-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-hold-from": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-hold-to": {
+          "unknown": true,
+          "elementType": "date"
+        },
+        "adv-dom-min": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-dom-max": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-cdom-min": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-cdom-max": {
+          "unknown": true,
+          "elementType": "number"
+        },
         "bomFilter": {
           "internal": true,
           "elementType": "radio"
+        },
+        "adv-tax-min": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-tax-max": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-monthly-min": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-monthly-max": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-financing": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "adv-ceiling-min": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-ceiling-max": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-floor-min": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-floor-max": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-year-built-from": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-year-built-to": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-floors-min": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-floors-max": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-bldg-units-min": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-bldg-units-max": {
+          "unknown": true,
+          "elementType": "number"
+        },
+        "adv-building-name": {
+          "unknown": true,
+          "elementType": "text"
         },
         "searchListAgent": {
           "internal": true,
@@ -6911,6 +7331,70 @@
           "internal": true,
           "elementType": "text"
         },
+        "compPropertyAddress": {
+          "unknown": true,
+          "elementType": "text"
+        },
+        "compBuildingAddress": {
+          "unknown": true,
+          "elementType": "text"
+        },
+        "compBuildingMinPrice": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compBuildingMaxPrice": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compBuildingMinBeds": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compBuildingMaxBeds": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compBuildingMinBaths": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compBuildingMaxBaths": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compBuildingMinSqft": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compBuildingMaxSqft": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compGeneralMinPrice": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compGeneralMaxPrice": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compGeneralMinBeds": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compGeneralMinBaths": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compGeneralMinSqft": {
+          "unknown": true,
+          "elementType": "select"
+        },
+        "compGeneralMaxSqft": {
+          "unknown": true,
+          "elementType": "select"
+        },
         "outdoor": {
           "internal": true,
           "elementType": "radio"
@@ -6924,10 +7408,6 @@
           "elementType": "checkbox"
         },
         "resultsSearchInput": {
-          "internal": true,
-          "elementType": "text"
-        },
-        "clientSearchInput": {
           "internal": true,
           "elementType": "text"
         },
@@ -6954,22 +7434,6 @@
         "refineMaxBaths": {
           "internal": true,
           "elementType": "select"
-        },
-        "refineMinSqft": {
-          "internal": true,
-          "elementType": "select"
-        },
-        "refineMaxSqft": {
-          "internal": true,
-          "elementType": "select"
-        },
-        "refinePropertyType": {
-          "internal": true,
-          "elementType": "select"
-        },
-        "refineNeighborhood": {
-          "internal": true,
-          "elementType": "text"
         },
         "refineStatusActive": {
           "internal": true,
@@ -7165,17 +7629,17 @@
         }
       },
       "stats": {
-        "total": 168,
+        "total": 255,
         "rlsBound": 13,
-        "internal": 155,
-        "unknown": 0
+        "internal": 150,
+        "unknown": 92
       }
     }
   },
   "summary": {
-    "totalElements": 1778,
-    "rlsBound": 888,
-    "internal": 890,
-    "unknown": 0
+    "totalElements": 1894,
+    "rlsBound": 894,
+    "internal": 880,
+    "unknown": 120
   }
 }
