@@ -41,12 +41,18 @@ describe('PATCH enforcement Draft/WebOnly bypass (P0 fix)', () => {
     );
   });
 
-  test('isDraftLike treats Draft, Incomplete, and empty as draft-like (not a narrow allowlist)', () => {
+  test('isDraftLike compares the NORMALIZED status for Draft/Incomplete (Codex P2 — casing/whitespace)', () => {
     expect(routeSource).toMatch(/const effectiveStatus\s*=\s*\(merged\.MlsStatus[^\n]*\|\|\s*listing\.status/);
     expect(routeSource).toMatch(/const isDraftLike\s*=/);
-    expect(routeSource).toMatch(/effectiveStatus === "Draft"/);
-    expect(routeSource).toMatch(/effectiveStatus === "Incomplete"/);
-    // The old literal-only negative gate must be gone (it was the bug).
+    // The draft-like check must run on the normalized status, not the raw
+    // string, so "incomplete" / "Incomplete " / " DRAFT " fold to canonical.
+    expect(routeSource).toMatch(/const normalizedStatus\s*=\s*normalizeStandardStatus\(effectiveStatus\)/);
+    expect(routeSource).toMatch(/normalizedStatus === "Draft"/);
+    expect(routeSource).toMatch(/normalizedStatus === "Incomplete"/);
+    // No raw-literal draft compare should remain (it missed casing variants).
+    expect(routeSource).not.toMatch(/effectiveStatus === "Draft"/);
+    expect(routeSource).not.toMatch(/effectiveStatus === "Incomplete"/);
+    // The old literal-only negative gate must be gone (it was the original bug).
     expect(routeSource).not.toMatch(/&&\s*!isDraft\s*&&/);
   });
 

@@ -160,4 +160,27 @@ describe('PATCH RLS enforcement gate · Incomplete draft saves', () => {
     const res = await callPatch({ PropertyType: 'Residential' });
     expect(res.status).not.toBe(422);
   });
+
+  // NORMALIZE (Codex P2 on #358): a draft marker with different casing or
+  // surrounding whitespace must still be treated as draft-like — otherwise a
+  // legitimate draft save 422s on a casing quirk. The gate must normalize the
+  // status (repo convention: normalizeStandardStatus folds case + trims) before
+  // the draft-like comparison. These fail on the raw `=== "Incomplete"`/"Draft"
+  // compare and pass once the gate normalizes first.
+  it.each([
+    ['lowercase incomplete', 'incomplete'],
+    ['Incomplete with trailing space', 'Incomplete '],
+    ['padded uppercase DRAFT', ' DRAFT '],
+  ])('NORMALIZE: %s is NOT blocked by RLS enforcement', async (_label, status) => {
+    const res = await callPatch({ MlsStatus: status, PropertyType: 'Residential' });
+    expect(res.status).not.toBe(422);
+  });
+
+  // FAIL-CLOSED still holds after normalization: a casing variant of a
+  // displayable status must remain enforced (normalize folds it to canonical
+  // ActiveUnderContract, which is NOT draft-like).
+  it('NORMALIZE does not relax enforcement: "activeundercontract" IS enforced (422)', async () => {
+    const res = await callPatch({ MlsStatus: 'activeundercontract', PropertyType: 'Residential' });
+    expect(res.status).toBe(422);
+  });
 });

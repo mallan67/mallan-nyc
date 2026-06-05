@@ -134,8 +134,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // draft set keeps the gate fail-closed across the full displayable + terminal
   // set while still freeing genuine draft saves.
   const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
+  // Normalize before the draft-like comparison so casing / whitespace variants
+  // of the draft markers ("incomplete", "Incomplete ", " DRAFT ") still count as
+  // draft-like and are not wrongly 422'd (Codex P2 #358) — the repo convention
+  // is to fold status casing via normalizeStandardStatus. The `|| "Draft"`
+  // default above guarantees effectiveStatus is non-empty, so empty/missing
+  // status folds to "Draft" (draft-like) and never reaches
+  // normalizeStandardStatus('') — which would otherwise default to "Active"
+  // (would wrongly enforce). Active/ComingSoon/ActiveUnderContract/Pending and
+  // terminal all normalize to non-draft-like values and remain enforced.
+  const normalizedStatus = normalizeStandardStatus(effectiveStatus);
   const isDraftLike =
-    !effectiveStatus || effectiveStatus === "Draft" || effectiveStatus === "Incomplete";
+    normalizedStatus === "Draft" || normalizedStatus === "Incomplete";
 
   const isCrmCreated = !listing.mls_id;
   if (effectiveRlsEligible && !isDraftLike && !isCrmCreated) {
