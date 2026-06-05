@@ -70,12 +70,16 @@ These fields exist on the Trestle Property entity (confirmed via `metadata.xml`)
 | `VOWEntireListingDisplayYN` | — | Does not exist on Trestle |
 | `VOWAutomatedValuationDisplayYN` | — | Does not exist on Trestle |
 | `VOWConsumerCommentYN` | — | Does not exist on Trestle |
-| `MoveInCostsAmountTotal` | — | Does not exist; `MoveInCosts` is a picklist |
-| `MoveInCostsComments` | — | Does not exist on Trestle |
+| `MoveInCostsAmountTotal` | — | Phantom — does not exist on live Trestle; legacy fallback only (never written). `MoveInCosts` is a multi-select enum |
 | `YearRenovated` | — | Does not exist on Trestle |
 | `BuyerAgentRLSParticipantYN` | — | Does not exist on Trestle |
 | `FirstShowingDate` | `ActivationDate` | Confirmed 2026-03-19: not accepted |
 | `PossessionDate` | — | RESO field, Trestle ignores |
+
+> **Correction (2026-06-04):** `MoveInCostsComments` (live Property `Edm.String(1024)`) and
+> `MoveInCostsAmount` (live Property `Edm.Decimal(14,2)`) are **live Property fields** and the
+> **canonical FARE move-in disclosure** fields — they were previously (incorrectly) listed here as
+> non-existent. Only `MoveInCostsAmountTotal` remains phantom / legacy fallback only.
 
 ---
 
@@ -286,7 +290,7 @@ OAuth2 Client Credentials → `POST https://api.cotality.com/trestle/oidc/connec
 | `IDXEntireListingDisplayYN` | `InternetEntireListingDisplayYN` | No separate IDX field exists on Trestle. The master `InternetEntireListingDisplayYN` controls both internet and IDX display. |
 | `SyndicateYN` (boolean) | `SyndicateTo` (multi-select) | Trestle uses `SyndicateTo` for portal selection. Valid values are the opted-in portal names. Empty = no syndication. |
 | Distribution gate fields | All on Property entity | `InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `ShowingInstructions` — all accessible, all writable on listing submission. |
-| `MoveInCosts` | Picklist only | Trestle has `MoveInCosts` as a multi-select enum (cost types). Dollar amounts (`MoveInCostsAmountTotal`, `MoveInCostsComments`) are CRM-internal only — not submitted to Trestle. |
+| `MoveInCosts` | Multi-select enum + live amount/comments | `MoveInCosts` is a multi-select enum (cost types). `MoveInCostsAmount` (live Property `Edm.Decimal(14,2)`) and `MoveInCostsComments` (live Property `Edm.String(1024)`) are **live Property fields** — the canonical FARE move-in disclosure fields. `MoveInCostsAmountTotal` remains phantom / legacy fallback only (never written). |
 | VOW fields | Not on IDX Plus | `VOWEntireListingDisplayYN` etc. require Direct Data License / VOW feed — not available on current IDX Plus license. |
 | Building resource | Key + nav only | Building-level data lives on Property + CustomProperty, not the Building entity. |
 

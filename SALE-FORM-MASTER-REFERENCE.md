@@ -271,8 +271,8 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no RESO
 | Country | Country | No | **COND** | PUB | If submitted, must be US. |
 | SubdivisionName | Neighborhood | Yes | **REQ** | PUB | **[I9]** Exhibit A: "Neighborhood." RLS+IDX+VOW+Syndication. Public. |
 | CrossStreet | Nearest cross streets | Yes | OPT | PUB | — |
-| Latitude | GPS latitude | Yes | OPT | PUB | Degrees/decimal. No plus symbol. |
-| Longitude | GPS longitude | Yes | OPT | PUB | Same format. |
+| Latitude | GPS latitude | Yes | OPT | PUB | Degrees/decimal. No plus symbol. Agent-entered only — the IDX Plus feed always returns `Latitude` null (not usable for map/transit filtering). |
+| Longitude | GPS longitude | Yes | OPT | PUB | Same format. Agent-entered only — the IDX Plus feed always returns `Longitude` null. |
 | Directions | Driving directions | Yes | OPT | PUB | — |
 | ParcelNumber | Tax parcel number | Yes | OPT | HID | — |
 
@@ -309,7 +309,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no RESO
 | DuplicateListingIDs | Co-exclusive or dual listing ID | Yes | OPT | AGT | Only for co-exclusive or sale+lease dual listings. |
 | ManagingAgencyListingYN | Managing agency listing | Yes | OPT | AGT | — |
 | ListingURL | Brokerage listing page URL | Yes | OPT | PUB | — |
-| ListingSocialMediaURL | Social media URL | Yes | OPT | PUB | — |
+| ListingSocialMediaURL | Social media URL | — | — | — | **PHANTOM — not a live Cotality field; do not bind.** |
 | HomeWarrantyYN | Home warranty included | Yes | OPT | PUB | — |
 
 ---
@@ -538,7 +538,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no RESO
 | LandmarkStatusYN | Landmark designation | Yes | OPT | PUB | — |
 | OriginalDetailYN | Original detail | Yes | OPT | PUB | — |
 | LaborInformation | Union/Non-Union | Yes | OPT | AGT | — |
-| BuildingSocialMediaURL | Building social URL | Yes | OPT | PUB | — |
+| BuildingSocialMediaURL | Building social URL | — | — | — | **PHANTOM — not a live Cotality field; do not bind.** |
 | SeniorCommunityYN | Senior community | Yes | OPT | PUB | — |
 | WaterfrontYN | Waterfront | Yes | OPT | PUB | — |
 | BuildingSmokeFreeYN | Smoke-free | Yes | OPT | PUB | Smoke Free Air Act. |
@@ -804,8 +804,8 @@ All optional, distribution = PUB.
 | PhotosChangeTimestamp | Last photo update | No | SYS | SYS | — |
 | VideosCount | Videos | No | SYS | PUB | — |
 | VideosChangeTimestamp | Last video update | No | SYS | SYS | — |
-| VideoURL | Video URL | No | SYS | PUB | — |
-| Video2URL–Video4URL | Additional videos | No | SYS | PUB | — |
+| VideoURL | Video URL | — | — | — | **PHANTOM — not a live field. Use `VirtualTourURLBranded`/`VirtualTourURLUnbranded`, or the Media resource with `MediaCategory=Video`.** |
+| Video2URL–Video4URL | Additional videos | — | — | — | **PHANTOM — same family as `VideoURL`; not live. Use `VirtualTourURL*` / Media resource.** |
 | VirtualTourURLBranded | Branded tour | Yes | OPT | PUB | — |
 | VirtualTourURLUnbranded | Unbranded tour | Yes | OPT | PUB | — |
 | VirtualTourURLUnbranded2 | 2nd tour | Yes | OPT | PUB | — |
@@ -836,9 +836,9 @@ All optional, distribution = PUB.
 | OwnerPays | Owner-paid expenses | Yes | OPT | PUB | ResidentialLease only. For individual owners or < 5 units. |
 | OwnerPaysRemarks | Details | Yes | OPT | PUB | — |
 | OwnerPaysPlusConcessionsYN | Owner pays + concession | Yes | OPT | PUB | — |
-| MoveInCosts | Move-in fees | Yes | OPT | PUB | — |
-| MoveInCostsComments | Details | Yes | OPT | PUB | — |
-| MoveInCostsAmountTotal | Total move-in | Yes | **COND** | PUB | Required if MoveInCosts have value. |
+| MoveInCosts | Move-in fees (multi-select enum) | Yes | OPT | PUB | Live Property field. |
+| MoveInCostsComments | Move-in details | Yes | OPT | PUB | Live Property `Edm.String(1024)` — canonical FARE move-in disclosure text. |
+| MoveInCostsAmount | Move-in cost amount | Yes | **COND** | PUB | Live Property `Edm.Decimal(14,2)` — canonical FARE move-in dollar amount. Required if MoveInCosts have value. (`MoveInCostsAmountTotal` is **phantom** — does not exist on live Trestle; legacy fallback only.) |
 | UnitsFurnished | Furnished count | No | SYS | PUB | — |
 | UnitTypes | Unit type collection | Yes | OPT | PUB | For multifamily. |
 | UnitTypeType | Unit types list | No | SYS | PUB | — |
