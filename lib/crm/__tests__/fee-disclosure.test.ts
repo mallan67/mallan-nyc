@@ -1,4 +1,38 @@
-import { checkFeeDisclosure } from '@/lib/crm/fee-disclosure';
+import { checkFeeDisclosure, isDisplayReadyStatus } from '@/lib/crm/fee-disclosure';
+
+/**
+ * isDisplayReadyStatus — the FARE gate must fire ONLY when a rental becomes
+ * publicly displayed (Active/ComingSoon). The CRM form saves drafts as RESO
+ * MlsStatus "Incomplete" (non-Draft but non-display-ready), so draft saves must
+ * never be gated (Codex #348).
+ */
+describe('isDisplayReadyStatus', () => {
+  it('is true for Active and ComingSoon', () => {
+    expect(isDisplayReadyStatus('Active')).toBe(true);
+    expect(isDisplayReadyStatus('ComingSoon')).toBe(true);
+    expect(isDisplayReadyStatus('active')).toBe(true); // normalized
+  });
+
+  it('is false for Draft and Incomplete (draft saves never gated)', () => {
+    expect(isDisplayReadyStatus('Draft')).toBe(false);
+    expect(isDisplayReadyStatus('Incomplete')).toBe(false);
+  });
+
+  it('is false for terminal / non-public statuses', () => {
+    for (const s of ['Withdrawn', 'Pending', 'Sold', 'Rented', 'Expired', 'Hold', '']) {
+      expect(isDisplayReadyStatus(s)).toBe(false);
+    }
+  });
+
+  it('combined gate logic: draft (Incomplete) save with fee flag + no detail is NOT gated', () => {
+    // The route condition is: isRental && isDisplayReadyStatus(status) && !checkFeeDisclosure(data).ok
+    const flaggedNoDetail = { AdditionalFeeYN: true };
+    const draftGated = isDisplayReadyStatus('Incomplete') && !checkFeeDisclosure(flaggedNoDetail).ok;
+    expect(draftGated).toBe(false); // draft Incomplete → not display-ready → not gated
+    const publishGated = isDisplayReadyStatus('Active') && !checkFeeDisclosure(flaggedNoDetail).ok;
+    expect(publishGated).toBe(true); // Active + flag + no detail → gated
+  });
+});
 
 /**
  * FARE Act fee-disclosure gate (PR 3c). The pure rule used by the backend publish
