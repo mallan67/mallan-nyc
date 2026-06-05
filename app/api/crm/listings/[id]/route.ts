@@ -116,16 +116,25 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   });
   const effectiveRlsEligible = eligibility.rlsEligible;
 
-  // RLS Enforcement Gate — only for RLS-eligible listings leaving Draft.
-  // Draft saves and website-only listings (InHouseWebOnly, InHouseInternal,
-  // commercial) skip the 48-field mandatory check. REBNY requires those
-  // fields for RLS/IDX submission, not for in-progress drafts or web-only
-  // exclusives. Matches the POST handler's `if (rlsEligible)` guard.
+  // RLS Enforcement Gate — only for RLS-eligible listings becoming
+  // DISPLAY-READY (Active / ComingSoon). Draft saves and website-only listings
+  // (InHouseWebOnly, InHouseInternal, commercial) skip the 48-field mandatory
+  // check. REBNY requires those fields for RLS/IDX submission, not for
+  // in-progress drafts or web-only exclusives. Matches the POST handler's
+  // `if (rlsEligible)` guard.
+  //
+  // Gate on DISPLAY-READY status (not !isDraft): the CRM form saves drafts as
+  // RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready, so a
+  // `!isDraft` check would wrongly enforce the 48-field gate on an Incomplete
+  // draft save (422). Same class as Codex #348/#350 — this is the second gate.
+  // isDisplayReadyStatus() is true only for normalized Active/ComingSoon;
+  // Draft/Incomplete/empty/terminal are all treated as not-display-ready, so
+  // none of them are gated (terminal saves like Withdrawn shouldn't need the
+  // full RLS field set either).
   const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
-  const isDraft = effectiveStatus === "Draft";
 
   const isCrmCreated = !listing.mls_id;
-  if (effectiveRlsEligible && !isDraft && !isCrmCreated) {
+  if (effectiveRlsEligible && isDisplayReadyStatus(effectiveStatus) && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(merged, {
       listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
       isNewDevelopment: merged.NewDevelopmentYN === true,

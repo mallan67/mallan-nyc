@@ -7,8 +7,13 @@
  * Draft saves and InHouseWebOnly listings that don't need RLS fields.
  * POST handler correctly wraps enforcement in `if (rlsEligible)`.
  *
- * Fix: PATCH now skips enforcement when effectiveRlsEligible is false
- * OR when the listing is in Draft status.
+ * Fix: PATCH skips enforcement when effectiveRlsEligible is false OR when the
+ * status is not display-ready (Draft / Incomplete / empty / terminal). The gate
+ * keys on isDisplayReadyStatus(effectiveStatus) — normalized Active/ComingSoon
+ * only — NOT a negative `!isDraft` check, which wrongly blocked Incomplete draft
+ * saves (the CRM draft marker MlsStatus:"Incomplete" is non-Draft but not
+ * display-ready). Same class as Codex #348/#350. Behavioral proof:
+ * tests/runtime/crm-patch-incomplete-draft-rls-gate.test.ts.
  */
 
 import { readFileSync } from 'fs';
@@ -21,12 +26,22 @@ const ROUTE_PATH = path.resolve(
 const routeSource = readFileSync(ROUTE_PATH, 'utf-8');
 
 describe('PATCH enforcement Draft/WebOnly bypass (P0 fix)', () => {
-  test('enforcement gate is wrapped in rlsEligible AND !isDraft AND !isCrmCreated guard', () => {
-    expect(routeSource).toMatch(/if\s*\(\s*effectiveRlsEligible\s*&&\s*!isDraft\s*&&\s*!isCrmCreated\s*\)/);
+  test('enforcement gate is wrapped in rlsEligible AND display-ready AND !isCrmCreated guard', () => {
+    // The gate keys on DISPLAY-READY status (Active/ComingSoon), NOT `!isDraft`.
+    // The CRM form saves drafts as RESO MlsStatus:"Incomplete" — non-Draft but
+    // not display-ready — so a `!isDraft` gate wrongly enforced the 48-field
+    // check on Incomplete draft saves (422). Same class as Codex #348/#350;
+    // behavioral proof in crm-patch-incomplete-draft-rls-gate.test.ts.
+    expect(routeSource).toMatch(
+      /if\s*\(\s*effectiveRlsEligible\s*&&\s*isDisplayReadyStatus\(effectiveStatus\)\s*&&\s*!isCrmCreated\s*\)/
+    );
   });
 
-  test('isDraft is derived from effectiveStatus', () => {
-    expect(routeSource).toMatch(/const isDraft\s*=\s*effectiveStatus\s*===\s*"Draft"/);
+  test('effectiveStatus is derived from merged MlsStatus and the gate uses the display-ready allowlist (not !isDraft)', () => {
+    expect(routeSource).toMatch(/const effectiveStatus\s*=\s*\(merged\.MlsStatus[^\n]*\|\|\s*listing\.status/);
+    expect(routeSource).toMatch(/isDisplayReadyStatus\(effectiveStatus\)/);
+    // The negative-status gate must be gone (it is the bug).
+    expect(routeSource).not.toMatch(/&&\s*!isDraft\s*&&/);
   });
 
   test('InHouseWebOnly is included in isInHouse check', () => {
