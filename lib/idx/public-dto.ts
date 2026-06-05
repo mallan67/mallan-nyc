@@ -335,6 +335,8 @@ export function resolveMoveInFees(
     ? s.MoveInCostsAmount
     : !blank(s.AdditionalFee)
       ? s.AdditionalFee
+      // MoveInCostsAmountTotal: legacy field — does not exist on live Trestle;
+      // intentional read-only fallback for old raw_data only (never written).
       : !blank(s.MoveInCostsAmountTotal)
         ? s.MoveInCostsAmountTotal
         : undefined;

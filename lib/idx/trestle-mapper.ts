@@ -214,6 +214,9 @@ const B15_FINANCIAL_UNIT = [
   "AssociationFee2", "AssociationFee2Frequency",
   "AssociationFeeIncludes", "AssociationName", "AssociationYN",
   "CurrentFinancing", "FinancialDataSource",
+  // DownPaymentAssistance* are live Property fields (migrated from CustomProperty;
+  // verified 2026-06-04). In the Property $select so they are fetched from Property.
+  "DownPaymentAssistanceAmount", "DownPaymentAssistanceCount",
   "TaxAnnualAmount", "TaxYear", "TaxBlock", "TaxLot",
   "TaxMapNumber",
 ];

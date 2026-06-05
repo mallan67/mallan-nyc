@@ -78,7 +78,9 @@ interface DbFeatures {
   MoveInCosts?: string;
   MoveInCostsAmount?: number | string;
   MoveInCostsComments?: string;
-  MoveInCostsAmountTotal?: number | string; // legacy phantom — read-only fallback
+  // legacy field — does not exist on live Trestle; intentional read-only fallback
+  // for old raw_data only (never written). See resolveMoveInFees().
+  MoveInCostsAmountTotal?: number | string;
   OngoingFees?: string;
   TenantPays?: string;
   TenantPaysDescription?: string;

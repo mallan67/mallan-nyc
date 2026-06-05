@@ -81,12 +81,20 @@ export function mapTrestleToCrmListing(
   const customProps = Array.isArray(raw.CustomProperty)
     ? raw.CustomProperty[0] as Record<string, unknown> | undefined
     : raw.CustomProperty as Record<string, unknown> | undefined;
-  const dpaAmount = customProps?.DownPaymentAssistanceAmount != null
-    ? Number(customProps.DownPaymentAssistanceAmount)
-    : null;
-  const dpaCount = customProps?.DownPaymentAssistanceCount != null
-    ? Number(customProps.DownPaymentAssistanceCount)
-    : null;
+  // DownPaymentAssistance* are live Property fields (migrated from CustomProperty,
+  // 2026-06-04). Read Property first; fall back to legacy CustomProperty values
+  // ONLY when the Property field is blank/null — protects old raw_data that stored
+  // these under CustomProperty.
+  const dpaAmountSrc =
+    raw.DownPaymentAssistanceAmount != null && raw.DownPaymentAssistanceAmount !== ''
+      ? raw.DownPaymentAssistanceAmount
+      : customProps?.DownPaymentAssistanceAmount;
+  const dpaAmount = dpaAmountSrc != null && dpaAmountSrc !== '' ? Number(dpaAmountSrc) : null;
+  const dpaCountSrc =
+    raw.DownPaymentAssistanceCount != null && raw.DownPaymentAssistanceCount !== ''
+      ? raw.DownPaymentAssistanceCount
+      : customProps?.DownPaymentAssistanceCount;
+  const dpaCount = dpaCountSrc != null && dpaCountSrc !== '' ? Number(dpaCountSrc) : null;
 
   // CustomFields is a REBNY-specific JSON string on CustomProperty that
   // carries 41 NYC-specific flags (per CLAUDE.md). SponsorUnitYN is the
