@@ -16,6 +16,7 @@
  */
 
 import type { PublicListingDTO } from './public-dto';
+import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
@@ -454,22 +455,8 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     virtualTourURL: rawData.VirtualTourURLUnbranded ? String(rawData.VirtualTourURLUnbranded) : (rawData.VirtualTourURLBranded ? String(rawData.VirtualTourURLBranded) : undefined),
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
-    // Canonical MoveInCostsAmount wins; read-time legacy fallback only when blank
-    // (AdditionalFee → MoveInCostsAmountTotal). Resolves to a single value — no
-    // double output. Write path never writes the legacy keys.
-    moveInCostsAmount:
-      features.MoveInCostsAmount != null && features.MoveInCostsAmount !== ''
-        ? Number(features.MoveInCostsAmount)
-        : features.AdditionalFee != null && features.AdditionalFee !== ''
-          ? Number(features.AdditionalFee)
-          : features.MoveInCostsAmountTotal != null && features.MoveInCostsAmountTotal !== ''
-            ? Number(features.MoveInCostsAmountTotal)
-            : undefined,
-    moveInCostsComments: features.MoveInCostsComments
-      ? String(features.MoveInCostsComments)
-      : features.AdditionalFeeDescription
-        ? String(features.AdditionalFeeDescription)
-        : undefined,
+    // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
+    ...resolveMoveInFees(features as Record<string, unknown>),
     ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
     tenantPays: features.TenantPays ? String(features.TenantPays) : undefined,
     tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,

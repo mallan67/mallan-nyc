@@ -31,7 +31,7 @@ import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal } from '@/lib/idx/mapping';
 import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
-import { toPublicDTO, buildAuctionPublic, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { toPublicDTO, buildAuctionPublic, resolveMoveInFees, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
@@ -240,6 +240,13 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
   } catch {
     return null;
   }
+
+  // FARE Act move-in fee disclosure on the Trestle-direct path (Codex #346):
+  // toPublicDTO omits these — resolve from the raw Trestle record so the public
+  // disclosure is path-independent (canonical-first, zero-safe fallback).
+  const trestleMoveInFees = resolveMoveInFees(raw);
+  dto.moveInCostsAmount = trestleMoveInFees.moveInCostsAmount;
+  dto.moveInCostsComments = trestleMoveInFees.moveInCostsComments;
 
   // Always fetch media from Trestle Media resource ($expand=Media removed)
   const listingKey = String(raw.SourceSystemKey || raw.ListingId || debugId);
@@ -626,20 +633,8 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       laundryFeatures: features.LaundryFeatures ? String(features.LaundryFeatures) : undefined,
       petsAllowedDetail: features.PetsAllowed ? String(features.PetsAllowed) : undefined,
       moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
-      // Canonical MoveInCostsAmount wins; read-time legacy fallback only when blank.
-      moveInCostsAmount:
-        features.MoveInCostsAmount != null && features.MoveInCostsAmount !== ''
-          ? Number(features.MoveInCostsAmount)
-          : features.AdditionalFee != null && features.AdditionalFee !== ''
-            ? Number(features.AdditionalFee)
-            : features.MoveInCostsAmountTotal != null && features.MoveInCostsAmountTotal !== ''
-              ? Number(features.MoveInCostsAmountTotal)
-              : undefined,
-      moveInCostsComments: features.MoveInCostsComments
-        ? String(features.MoveInCostsComments)
-        : features.AdditionalFeeDescription
-          ? String(features.AdditionalFeeDescription)
-          : undefined,
+      // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
+      ...resolveMoveInFees(features as Record<string, unknown>),
       ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
       tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
       appliances: features.Appliances ? String(features.Appliances) : undefined,

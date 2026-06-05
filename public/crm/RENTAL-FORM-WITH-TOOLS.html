@@ -4578,8 +4578,18 @@ function loadRentalListingData(listingId) {
     // Legacy fallback (pre-2026-06-04 listings stored the amount under MoveInCostsAmountTotal)
     // Read-time legacy fallback (canonical wins): MoveInCostsAmount → AdditionalFee
     // → MoveInCostsAmountTotal; MoveInCostsComments → AdditionalFeeDescription.
-    viewerSetVal('rentalMoveInCostsAmount', d.MoveInCostsAmount || d.AdditionalFee || d.MoveInCostsAmountTotal);
-    viewerSetVal('rentalMoveInCostsComments', d.MoveInCostsComments || d.AdditionalFeeDescription);
+    // Explicit blank check (null/undefined/'') — NOT truthiness — so a canonical 0
+    // wins over a stale legacy AdditionalFee/MoveInCostsAmountTotal (Codex #346).
+    var _miBlankV = function (v) { return v === null || v === undefined || v === ''; };
+    viewerSetVal('rentalMoveInCostsAmount',
+      !_miBlankV(d.MoveInCostsAmount) ? d.MoveInCostsAmount
+      : !_miBlankV(d.AdditionalFee) ? d.AdditionalFee
+      : !_miBlankV(d.MoveInCostsAmountTotal) ? d.MoveInCostsAmountTotal
+      : undefined);
+    viewerSetVal('rentalMoveInCostsComments',
+      !_miBlankV(d.MoveInCostsComments) ? d.MoveInCostsComments
+      : !_miBlankV(d.AdditionalFeeDescription) ? d.AdditionalFeeDescription
+      : undefined);
     viewerSetVal('rentalOngoingFees', d.OngoingFees);
     viewerSetVal('rentalFeeFrequency', d.FeeFrequency);
     viewerSetVal('rentalTenantPays', d.TenantPays);
