@@ -193,8 +193,8 @@ Cotality uses RESO-standard structured address fields. The address is decomposed
 | `Country` | String | — | `"US"` | Country |
 | `CrossStreet` | String | — | — | Cross streets |
 | `Directions` | String | — | — | Directions text |
-| `Latitude` | Decimal | — | `40.749` | Lat (often null — REBNY feed doesn't always populate) |
-| `Longitude` | Decimal | — | `-73.973` | Lng (often null) |
+| `Latitude` | Decimal | — | `40.749` | Present in `$metadata` but **always null on the IDX Plus feed** — not usable for map/transit filtering (separate geocode backfill) |
+| `Longitude` | Decimal | — | `-73.973` | Present in `$metadata` but **always null on the IDX Plus feed** — not usable for map/transit filtering |
 | `UnParsedAddress` | String | 255 | `"333 E 46TH St"` | Display-only concatenation. **NOT for searching.** |
 | `BuildingName` | String | — | `"The Corinthian"` | Building name (when known) |
 
@@ -397,7 +397,7 @@ The full field list lives in `lib/idx/trestle-mapper.ts`. Summary:
 | Media | B26 | 17 | PhotosCount, PhotosChangeTimestamp, VirtualTourURLUnbranded, VideosCount |
 | Rental-Specific | B27 | — | LeaseAmount, AvailabilityDate, Furnished, PetsAllowed, MoveInCosts, OngoingFees, TenantPaysDescription |
 | Other / Misc | B29 | 12 | Disclaimer, CopyrightNotice, CountyOrParish, ListingKeyNumeric |
-| FARE Act Custom | B30 | 4 | AdditionalFee, AdditionalFeeDescription, AdditionalFeeYN, FeeFrequency (requires `$expand=CustomProperty` — currently broken) |
+| FARE Act Custom | B30 | 4 | AdditionalFee, AdditionalFeeDescription, AdditionalFeeYN, FeeFrequency — **legacy CustomProperty fallback** (`$expand=CustomProperty` currently 400s). Canonical FARE public display is `MoveInCostsAmount` / `MoveInCostsComments` (live Property fields). |
 
 ### RESO-to-RLS renames (23 fields)
 
@@ -425,8 +425,7 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 | `VOWEntireListingDisplayYN` | Does NOT exist | — |
 | `VOWAutomatedValuationDisplayYN` | Does NOT exist | — |
 | `VOWConsumerCommentYN` | Does NOT exist | — |
-| `MoveInCostsAmountTotal` | Does NOT exist | `MoveInCosts` is a picklist |
-| `MoveInCostsComments` | Does NOT exist | — |
+| `MoveInCostsAmountTotal` | Does NOT exist (phantom; legacy fallback only) | `MoveInCosts` is a multi-select enum; use live `MoveInCostsAmount` for the dollar amount |
 | `YearRenovated` | Does NOT exist | — |
 | `PossessionDate` | RESO field, Trestle ignores | `AvailabilityDate` |
 | `FirstShowingDate` | Does NOT exist | `ActivationDate` |
@@ -824,7 +823,15 @@ Required on pages showing third-party IDX data. NOT required on InHouse/website-
 
 ### FARE Act disclosure (NYC rentals)
 
-Required on all rental listings per NYC LL 119/2024. Covers move-in costs, ongoing fees, and tenant-paid expenses. Fields: `MoveInCosts`, `OngoingFees`, `TenantPays`, `TenantPaysDescription`.
+Required on all rental listings per NYC LL 119/2024. Covers move-in costs, ongoing fees, and tenant-paid expenses.
+
+**Canonical FARE public-display fields (live Property):**
+- `MoveInCosts` — multi-select enum (cost types)
+- `MoveInCostsAmount` — live Property `Edm.Decimal(14,2)` (move-in dollar amount)
+- `MoveInCostsComments` — live Property `Edm.String(1024)` (move-in disclosure text)
+- `OngoingFees`, `TenantPays`, `TenantPaysDescription`
+
+`AdditionalFee` / `AdditionalFeeDescription` / `AdditionalFeeYN` / `FeeFrequency` are **legacy CustomProperty fallback** only. `MoveInCostsAmountTotal` is **phantom** — does not exist on live Trestle (legacy fallback only).
 
 ---
 
@@ -1015,9 +1022,9 @@ Returns HTTP 400 with "Results from 'RLS' has been suppressed (provider Level)".
 
 Must use PublicRemarks text search as heuristic.
 
-### Latitude/Longitude often null
+### Latitude/Longitude always null on IDX Plus
 
-REBNY's IDX Plus feed doesn't consistently populate geocoordinates. The site has a separate geocode backfill process.
+`Latitude`/`Longitude` exist in Trestle `$metadata` but are **always null on the IDX Plus feed** — they are not usable for map/transit filtering. The site has a separate geocode backfill process.
 
 ### Trestle stores mixed-case street names
 

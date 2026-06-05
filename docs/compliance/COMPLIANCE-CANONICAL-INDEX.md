@@ -65,7 +65,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 | **Backup** | `data/rebny-rls-property-lookup.csv` (2,066 picklist values); `data/RLS-FIELD-REGISTRY.md`; `.claude/skills/rebny-compliance/SKILL.md` §2; `artifacts/metadata.xml` (live Trestle OData metadata) |
 | **Validator** | `npm run idx:validate` (32-section validator) — current baseline 1278 pass / 0 critical |
 | **When to read** | Any Trestle OData $select, $expand, or $filter change; any new field on Listing model or projection; mapper change |
-| **Fail-closed** | IDX Plus does NOT include `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `VOW*` gate fields, `SyndicateYN`, `FirstShowingDate`, `Latitude`, `Longitude`, `MoveInCostsAmountTotal`, `PossessionDate`, `YearRenovated`. If you see those in code, they are phantom fields — verify against the CSV before referencing. |
+| **Fail-closed** | IDX Plus does NOT include `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `VOW*` gate fields, `SyndicateYN`, `FirstShowingDate`, `MoveInCostsAmountTotal`, `PossessionDate`, `YearRenovated`. If you see those in code, they are phantom fields — verify against the CSV before referencing. **`Latitude`/`Longitude` are NOT phantom** — they exist in Trestle `$metadata` but are **always null on IDX Plus**, so they are not usable for map/transit filtering (do not build Lat/Lng filters; geocoordinates come from the separate geocode backfill). |
 
 ## 4. Trestle / Cotality Web API (the runtime feed serving REBNY IDX Plus)
 
@@ -122,7 +122,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 | | |
 |---|---|
 | **Canonical** | `app/components/Footer.tsx:25-29,104,215` (license + brokerage + phone + address — every public page); `app/components/IDXDisclaimer.tsx`; `app/layout.tsx` JSON-LD identifier `10991205323`; `lib/compliance/dto.ts` (`sanitizeForPublic` strips listing-agent PII) |
-| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §6 (NY DOS); `data/UCBA-2026-Requirements.md` (REBNY courtesy rules); `app/listing/[id]/page.tsx:1859-1882` (per-listing "Listing Courtesy of Mallan Real Estate Inc.") |
+| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §6 (NY DOS); `data/UCBA-2026-Requirements.md` (REBNY courtesy rules); `app/listing/[...slug]/page.tsx` (per-listing "Listing Courtesy of Mallan Real Estate Inc." block) |
 | **Validator** | `npm run compliance-check` (NY DOS section); `npm run rls:validate` |
 | **When to read** | Any new public surface that displays a listing, agent, or brokerage name; any new email/SMS template; any new lead-capture form |
 | **Fail-closed** | Brokerage name + office address OR phone + license type (Salesperson/Broker) on every advertisement. NY DOS §175.25. Agent name NEVER appears without brokerage name. REBNY courtesy line on every IDX-displayed listing. Buyer/tenant portals MUST mask listing-agent PII (company only). |
@@ -151,7 +151,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 
 | | |
 |---|---|
-| **Canonical** | `app/listing/[id]/page.tsx:1546-1555` (rental disclosure block); `lib/idx/trestle-mapper.ts` B30 fields (`MoveInCosts`, `OngoingFees`, `TenantPays`, `AdditionalFee*`, `FeeFrequency`) |
+| **Canonical** | `app/listing/[...slug]/page.tsx` (rental FARE disclosure block); `lib/idx/trestle-mapper.ts` fields. Canonical FARE public-display fields are the **live Property** fields `MoveInCosts`, `MoveInCostsAmount`, `MoveInCostsComments`, `OngoingFees`, `TenantPays`, `TenantPaysDescription`; `AdditionalFee*` / `FeeFrequency` are **legacy CustomProperty fallback**. |
 | **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §5; `data/UCBA-2026-Requirements.md`; `data/RLS-Syndication-Research.md` (Standard Active / Non-Syndicated rental category) |
 | **Validator** | `npm run compliance-check` (FARE Act section grep). **GAP NOTE 2026-05-20:** the source-grep validator passes, but the live-page rendering on production rentals was verified MISSING in `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4 — a rendering-conditional bug, not a missing file. New PR required. |
 | **When to read** | Any rental listing display path; any new rental-fee CRM form; any rental syndication work |
