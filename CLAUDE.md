@@ -98,7 +98,7 @@ A change is not "fixed" without one of the following:
 - A **Vercel runtime log** (`mcp__claude_ai_Vercel__get_runtime_logs`).
 - **Direct source-code Read** — for purely static claims only (e.g., "is the import present?" — NOT for "does the disclosure render?").
 
-Example of why this matters: the 2026-05-20 launch-readiness audit found the FARE Act disclosure source-grep passing (`app/listing/[id]/page.tsx:1546-1555` contained the text) BUT the conditional was not rendering on production rentals — a real legal exposure ($1,800–$2,000 per violation under NYC LL 119/2024). See `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4.
+Example of why this matters: the 2026-05-20 launch-readiness audit found the FARE Act disclosure source-grep passing (`app/listing/[...slug]/page.tsx`, FARE disclosure block, contained the text) BUT the conditional was not rendering on production rentals — a real legal exposure ($1,800–$2,000 per violation under NYC LL 119/2024). See `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4.
 
 Guardrail docs: `docs/engineering/pr-verification-checklist.md` + `docs/engineering/vercel-preview-proof-rules.md` + `docs/operations/proof-first-guardrails.md`.
 

@@ -566,7 +566,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 
 ## Listing Detail Page — Feature Sections
 
-The listing detail page (`app/listing/[id]/page.tsx`) displays property data in structured sections:
+The listing detail page (`app/listing/[...slug]/page.tsx`) displays property data in structured sections:
 
 | Section | Data Source (Trestle IDX Plus) | Examples |
 |---------|-------------------------------|----------|

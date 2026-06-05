@@ -203,7 +203,7 @@ app/components/IDXImage.tsx
 app/components/SearchListingCard.tsx
 app/components/FeaturedListings.tsx
 app/search/page.tsx
-app/listing/[id]/page.tsx
+app/listing/[...slug]/page.tsx
 lib/media/white-border-detector.ts
 public/crm/css/**
 public/crm/js/dashboard/**  (if touching dashboard UI)

@@ -28,7 +28,7 @@ source (Trestle / RESO / external feed)
   → sync (lib/idx/sync.ts and the 5 non-sync writers in H1 Tier-1)
     → DB (listings.* columns, listing_search_projection.*, audit_events, sync_errors)
       → API / DTO (app/api/listings/*, lib/idx/db-to-public-dto.ts, lib/idx/public-dto.ts)
-        → frontend (app/components/*, app/listing/[id]/page.tsx, helpers in lib/media/)
+        → frontend (app/components/*, app/listing/[...slug]/page.tsx, helpers in lib/media/)
           → browser / user-visible (placeholder vs. photo, field renders, link works)
             → tests / validators (jest, idx:validate, compliance-check, ucba:audit, ops:health)
 ```
