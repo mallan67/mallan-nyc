@@ -15,9 +15,30 @@
 //   - A canonical MoveInCostsAmount of 0 alone is NOT a "detail" — a flagged
 //     listing with a zero amount and no text/description is under-disclosed.
 
+import { normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+
 export interface FeeDisclosureResult {
   ok: boolean;
   reason?: string;
+}
+
+/**
+ * Display-ready = the listing is (or is becoming) publicly displayed: Active or
+ * ComingSoon. Draft / Incomplete / terminal / withdrawn are NOT display-ready.
+ *
+ * The CRM rental form maps its "Draft" UI to RESO MlsStatus "Incomplete" on save,
+ * so a draft save must be treated as non-display-ready — otherwise the FARE gate
+ * would 422 a normal draft save (Codex #348). Input is normalized first so
+ * "incomplete"/"Active"/etc. fold to canonical form.
+ */
+export function isDisplayReadyStatus(status: unknown): boolean {
+  const raw = String(status ?? "").trim();
+  // Empty/unknown is fail-safe NON-display-ready: never gate on a missing status.
+  // (normalizeStandardStatus defaults '' → 'Active' for display-gate math; that
+  // default must NOT make the FARE gate fire on an empty status.)
+  if (!raw) return false;
+  const s = normalizeStandardStatus(raw);
+  return s === "Active" || s === "ComingSoon";
 }
 
 function blankText(v: unknown): boolean {

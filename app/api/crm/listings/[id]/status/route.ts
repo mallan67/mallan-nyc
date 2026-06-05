@@ -16,7 +16,7 @@ import { createNotification } from "@/lib/notifications/engine";
 import { computeGateColumns } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
-import { checkFeeDisclosure } from "@/lib/crm/fee-disclosure";
+import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -137,7 +137,7 @@ export async function PATCH(
   // the RLS gate below), since FARE applies wherever rental details are displayed.
   // Never gates Draft. Fee data is the listing's saved raw_data (existingRaw).
   const isRentalListing = ((listing.listing_type as string) ?? "") === "rent";
-  if (isRentalListing && (newStatus === "Active" || newStatus === "ComingSoon")) {
+  if (isRentalListing && isDisplayReadyStatus(newStatus)) {
     const feeCheck = checkFeeDisclosure(existingRaw);
     if (!feeCheck.ok) {
       return NextResponse.json(

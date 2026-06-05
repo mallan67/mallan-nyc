@@ -18,7 +18,7 @@ import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
-import { checkFeeDisclosure } from "@/lib/crm/fee-disclosure";
+import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import type { Prisma } from "@prisma/client";
 
@@ -147,11 +147,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals going display-ready
-  // (non-Draft). Covers the edit-save publish path (the status route covers the
-  // status-only transition). Applies to CRM rental exclusives too. Never gates Draft.
+  // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals becoming display-ready
+  // (Active / ComingSoon). Covers the edit-save publish path. Applies to CRM rental
+  // exclusives too. Gate on DISPLAY-READY status (not !isDraft): the CRM form saves
+  // drafts as RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
+  // so a draft save must never be gated (Codex #348).
   const isRental = ((listing.listing_type as string) ?? "") === "rent";
-  if (isRental && !isDraft) {
+  if (isRental && isDisplayReadyStatus(effectiveStatus)) {
     const feeCheck = checkFeeDisclosure(merged);
     if (!feeCheck.ok) {
       return NextResponse.json(
