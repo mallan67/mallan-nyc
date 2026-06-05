@@ -149,7 +149,7 @@ Must inspect:
 - `lib/idx/public-dto.ts`
 - `app/components/IDXDisclaimer.tsx`
 - `app/components/Footer.tsx`
-- `app/listing/[id]/page.tsx`
+- `app/listing/[...slug]/page.tsx`
 
 Must not invent rules from memory.
 

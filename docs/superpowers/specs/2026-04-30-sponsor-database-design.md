@@ -68,7 +68,7 @@ Today, mallan agents discover sponsor inventory ad hoc — they pass a building,
 | Building detail page — sponsor LLC, management company, selling brokerage (if known), unsold-unit count, contact info | `app/api/crm/sponsor-db/buildings/[id]/route.ts` + CRM UI |
 | Agent enrichment form — manual entry of management company contact, selling brokerage, current asking price, commission terms | `app/api/crm/sponsor-db/buildings/[id]/enrich/route.ts` + UI |
 | Sponsor listing capture — when an agent confirms an active sponsor unit listing, store it (links to RLS Listing if applicable; otherwise stores non-RLS shadow row) | `app/api/crm/sponsor-db/listings/route.ts` + UI |
-| Sponsor classification badge on RLS listing pages — when an RLS Listing matches a sponsor unit, render "SPONSOR UNIT" badge | extends existing `app/listing/[id]/page.tsx` reading; **CRM-only badge surface** |
+| Sponsor classification badge on RLS listing pages — when an RLS Listing matches a sponsor unit, render "SPONSOR UNIT" badge | extends existing `app/listing/[...slug]/page.tsx` reading; **CRM-only badge surface** |
 | Per-client invite + search-send (same as external-inventory spec) | `app/api/crm/sponsor-db/listings/[id]/share/route.ts` |
 | Client portal — shared sponsor listings appear with disclaimer + sponsor badge | `app/api/portal/sponsor-listings/route.ts` |
 | Disclaimer + public-route firewall | reuse `lib/external-inventory/disclaimer.ts` pattern; new `lib/sponsor-db/access.ts` |
