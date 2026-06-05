@@ -1126,8 +1126,6 @@
 ,ApplicationFee,,ApplicationFee,,Custom Property,Edm.Decimal,live-discovered
 ,CommunityDevelopmentDistrictYN,,CommunityDevelopmentDistrictYN,,Custom Property,Edm.Boolean,live-discovered
 ,ConsumerRemarks,,ConsumerRemarks,,Custom Property,Edm.String,live-discovered
-,DownPaymentAssistanceAmount,,DownPaymentAssistanceAmount,,Custom Property,Edm.Decimal,live-discovered
-,DownPaymentAssistanceCount,,DownPaymentAssistanceCount,,Custom Property,Edm.Int64,live-discovered
 ,GulfAccessType,,GulfAccessType,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.Multi.GulfAccessType,live-discovered
 ,GulfAccessYN,,GulfAccessYN,,Custom Property,Edm.Boolean,live-discovered
 ,LakeChainName,,LakeChainName,,Custom Property,Edm.String,live-discovered
