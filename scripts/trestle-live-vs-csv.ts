@@ -14,6 +14,7 @@
 import { config as dotenvConfig } from 'dotenv';
 import path from 'node:path';
 import fs from 'node:fs';
+import { detectResidue } from './lib/csv-residue';
 
 dotenvConfig({ path: path.resolve(process.cwd(), '.env.local'), override: true });
 
@@ -116,6 +117,7 @@ async function main() {
   console.log('');
 
   const csvFields = parseCsvFields();
+  const liveByResource = new Map<string, Set<string>>();
 
   for (const resource of RESOURCES) {
     console.log(`── ${resource} ${'─'.repeat(50 - resource.length)}`);
@@ -126,6 +128,7 @@ async function main() {
     }
     const csvSet = csvFields.get(resource) || new Set<string>();
     const liveSet = new Set(liveFields);
+    liveByResource.set(resource, liveSet); // feeds the residue detector (empty-fetch-guarded)
 
     const onlyOnLive = liveFields.filter((f) => !csvSet.has(f)).sort();
     const onlyInCsv = [...csvSet].filter((f) => !liveSet.has(f)).sort();
@@ -145,6 +148,21 @@ async function main() {
     }
     console.log('');
   }
+
+  // Migration-residue gate: FAIL (non-zero exit) when any resource has CSV rows
+  // (field, resource) that no longer exist on live for that resource. Valid
+  // multi-resource fields are preserved; empty/failed fetches are skipped.
+  const residue = detectResidue(csvFields, liveByResource);
+  console.log('── SUMMARY ─────────────────────────────────────────');
+  console.log(`  Migration residue (CSV rows not on live for their resource): ${residue.length}`);
+  if (residue.length > 0) {
+    for (const r of residue) console.log(`    - ${r.field}  (${r.resource})`);
+    console.log('');
+    console.log('  ✗ FAIL — stale CSV resource ownership. Prune with `npm run trestle:refresh-csv -- --prune`.');
+    process.exit(1);
+  }
+  console.log('  ✓ no residue — CSV resource ownership matches live.');
+  process.exit(0);
 }
 
 main().catch((e) => {

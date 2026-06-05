@@ -105,8 +105,13 @@ jobs:
         if: steps.secrets.outputs.is_configured == 'true'
         continue-on-error: true
         run: |
-          # Refresh script does NOT write in dry mode; we just diff.
-          npm run trestle:refresh-csv
+          # trestle:diff exits non-zero on migration residue — CSV (field,resource)
+          # rows whose field no longer exists on live for that resource (e.g. a
+          # field migrated to another resource and the old row survived). The
+          # aggregate step below flags/opens an issue when this outcome != success.
+          # (Read-only: trestle:diff never writes the CSV; use refresh-csv --prune
+          # locally to fix residue once reviewed.)
+          npm run trestle:diff
 
       - name: Aggregate result
         id: aggregate
