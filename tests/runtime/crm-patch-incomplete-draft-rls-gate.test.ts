@@ -183,4 +183,38 @@ describe('PATCH RLS enforcement gate · Incomplete draft saves', () => {
     const res = await callPatch({ MlsStatus: 'activeundercontract', PropertyType: 'Residential' });
     expect(res.status).toBe(422);
   });
+
+  // STALE-RAW (Codex P1 on #358 dd01538b): the authoritative status is the
+  // `status` COLUMN. The status route flips that column on activation but does
+  // NOT keep raw_data.MlsStatus in sync, so an activated listing can carry a
+  // stale `raw_data.MlsStatus = "Incomplete"`. A PATCH that OMITS MlsStatus must
+  // decide the gate from the persisted column (Active → enforce), NOT from the
+  // stale raw value. Reading `merged.MlsStatus` (which falls back to raw_data)
+  // skips enforcement on a publicly displayable Active listing — fail-OPEN. The
+  // gate must use `body.MlsStatus || listing.status`.
+  it('STALE-RAW: Active column + stale raw_data Incomplete + PATCH without MlsStatus IS enforced (422)', async () => {
+    const listing = prismaMock as { listing: { findUnique: jest.Mock } };
+    listing.listing.findUnique = jest.fn(async () => ({
+      ...eligibleListing(),
+      status: 'Active',
+      raw_data: { MlsStatus: 'Incomplete' },
+    }));
+    const res = await callPatch({ PropertyType: 'Residential' }); // no MlsStatus override
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toMatch(/RLS enforcement/i);
+  });
+
+  // Counterpart: an explicit body MlsStatus override still wins — a genuine
+  // draft save (body says Incomplete) is allowed even if the column is Active.
+  it('STALE-RAW counterpart: explicit body MlsStatus="Incomplete" override is NOT gated', async () => {
+    const listing = prismaMock as { listing: { findUnique: jest.Mock } };
+    listing.listing.findUnique = jest.fn(async () => ({
+      ...eligibleListing(),
+      status: 'Active',
+      raw_data: { MlsStatus: 'Active' },
+    }));
+    const res = await callPatch({ MlsStatus: 'Incomplete', PropertyType: 'Residential' });
+    expect(res.status).not.toBe(422);
+  });
 });

@@ -41,8 +41,16 @@ describe('PATCH enforcement Draft/WebOnly bypass (P0 fix)', () => {
     );
   });
 
+  test('effectiveStatus is sourced from body.MlsStatus then listing.status — NOT stale merged/raw_data (Codex P1 #358)', () => {
+    // The gate must decide from the request override or the authoritative
+    // persisted column, never from merged.MlsStatus (which falls back to a
+    // potentially stale raw_data.MlsStatus and would fail-OPEN on an Active
+    // listing whose raw value is a stale "Incomplete").
+    expect(routeSource).toMatch(/const effectiveStatus\s*=\s*\(body\.MlsStatus[^\n]*\|\|\s*listing\.status/);
+    expect(routeSource).not.toMatch(/const effectiveStatus\s*=\s*\(merged\.MlsStatus/);
+  });
+
   test('isDraftLike compares the NORMALIZED status for Draft/Incomplete (Codex P2 — casing/whitespace)', () => {
-    expect(routeSource).toMatch(/const effectiveStatus\s*=\s*\(merged\.MlsStatus[^\n]*\|\|\s*listing\.status/);
     expect(routeSource).toMatch(/const isDraftLike\s*=/);
     // The draft-like check must run on the normalized status, not the raw
     // string, so "incomplete" / "Incomplete " / " DRAFT " fold to canonical.

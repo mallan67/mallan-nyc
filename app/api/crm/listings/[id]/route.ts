@@ -133,7 +133,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // letting it save missing mandatory fields (Codex P1 on #358). This negative
   // draft set keeps the gate fail-closed across the full displayable + terminal
   // set while still freeing genuine draft saves.
-  const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
+  //
+  // Source the status from the REQUEST override (`body.MlsStatus`) then the
+  // authoritative persisted `listing.status` column — NOT `merged.MlsStatus`.
+  // `merged` falls back to `raw_data.MlsStatus`, which the status route does NOT
+  // keep in sync when it flips the `status` column on activation. Reading the
+  // merged/raw value would let a stale `raw_data.MlsStatus = "Incomplete"` make
+  // an actually-Active listing look draft-like and bypass enforcement — a
+  // fail-OPEN on a publicly displayable listing (Codex P1 on #358 dd01538b). An
+  // explicit body override still wins (a genuine draft save sends Incomplete).
+  const effectiveStatus = (body.MlsStatus as string) || listing.status || "Draft";
   // Normalize before the draft-like comparison so casing / whitespace variants
   // of the draft markers ("incomplete", "Incomplete ", " DRAFT ") still count as
   // draft-like and are not wrongly 422'd (Codex P2 #358) — the repo convention
