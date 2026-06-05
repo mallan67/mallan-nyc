@@ -25,7 +25,7 @@ import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 // Fields NOT on IDX Plus removed: SourceSystemModificationTimestamp, ComingSoonDate,
 // BathroomsTotal, FloorNumber, Media, IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN
 // Use BathroomsTotalInteger instead of BathroomsTotal; photos via PhotosCount (Media needs $expand)
-const SEARCH_SELECT_FIELDS = [
+export const SEARCH_SELECT_FIELDS = [
   // Address
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
   "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
@@ -49,6 +49,13 @@ const SEARCH_SELECT_FIELDS = [
   "BuildingName", "NumberOfUnitsTotal", "BuildingKeyNumeric",
   // Financial
   "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
+  // DownPaymentAssistance* are live Property fields (migrated from CustomProperty,
+  // verified 2026-06-04). Required here so /api/idx/search populates them via the
+  // mapper, which reads them Property-first (#352). Without them in this route-local
+  // select, the mapper would map both to null even though the default
+  // IDX_PLUS_SELECT_FIELDS already includes them. Do NOT $expand=CustomProperty for
+  // these — Trestle 400s on that expand; the Property fields are authoritative.
+  "DownPaymentAssistanceAmount", "DownPaymentAssistanceCount",
   // Agent/Office
   "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail",
   "ListAgentDirectPhone", "ListOfficeMlsId", "ListOfficeName",
