@@ -112,7 +112,6 @@ const HOT_PATHS = [
   'lib/listing-slug.ts',
   'lib/listing-canonical-url.ts',
   'app/listing/[...slug]/page.tsx',
-  'app/listing/[id]/page.tsx',
   'app/sitemap.ts',
   'app/components/FeaturedListings.tsx',
   'app/components/SearchListingCard.tsx',
