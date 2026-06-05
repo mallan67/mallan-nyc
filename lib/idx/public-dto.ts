@@ -314,6 +314,42 @@ export interface PublicListingDTO {
 }
 
 /**
+ * FARE Act move-in fee resolution — shared by every DTO builder (DB path,
+ * Trestle-direct path) so disclosure is path-independent and the canonical-first
+ * fallback is defined once.
+ *
+ * Canonical Property fields win; legacy fields are read-time fallback ONLY when
+ * the canonical field is blank. "Blank" = null/undefined/'' — NOT 0, so a
+ * legitimate canonical 0 wins over a stale legacy AdditionalFee (Codex #346).
+ *   amount   = MoveInCostsAmount → AdditionalFee → MoveInCostsAmountTotal
+ *   comments = MoveInCostsComments → AdditionalFeeDescription
+ * `source` keys are PascalCase Trestle field names (works for listing.features
+ * and a raw Trestle record alike).
+ */
+export function resolveMoveInFees(
+  source: Record<string, unknown> | null | undefined,
+): { moveInCostsAmount?: number; moveInCostsComments?: string } {
+  const s = source || {};
+  const blank = (v: unknown) => v == null || v === '';
+  const amount = !blank(s.MoveInCostsAmount)
+    ? s.MoveInCostsAmount
+    : !blank(s.AdditionalFee)
+      ? s.AdditionalFee
+      : !blank(s.MoveInCostsAmountTotal)
+        ? s.MoveInCostsAmountTotal
+        : undefined;
+  const comments = !blank(s.MoveInCostsComments)
+    ? s.MoveInCostsComments
+    : !blank(s.AdditionalFeeDescription)
+      ? s.AdditionalFeeDescription
+      : undefined;
+  return {
+    moveInCostsAmount: amount != null ? Number(amount) : undefined,
+    moveInCostsComments: comments != null ? String(comments) : undefined,
+  };
+}
+
+/**
  * Convert an IDXListing to a public-safe DTO.
  *
  * Strips: privateRemarks, listAgentEmail, listAgentMlsId, listOfficeMlsId,
