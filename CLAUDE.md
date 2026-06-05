@@ -158,6 +158,36 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 
 ---
 
+## J. Codex findings — classify before acting
+
+Codex is a **static code-path reviewer only.** Codex reads the repo; it does **not** query `api.cotality.com`, does not see the live IDX Plus feed, does not see production Neon/Vercel state, and does not receive REBNY/Trestle notices. Claude must not treat Codex as live field authority. Claude independently verifies field truth with live tools **before** making any field-truth claim.
+
+**J.1 — Classify every Codex finding before action.** Exactly one of:
+
+| Class | What it is |
+|---|---|
+| **A** | Static repo code-path issue (the code does X) |
+| **B** | Live Cotality field-truth issue (the feed contains / lacks / moved a field) |
+| **C** | REBNY / Trestle notice / compliance-rule issue |
+| **D** | Runtime / Vercel / Neon / env issue |
+| **E** | Generated artifact / validator-baseline issue |
+
+**J.2 — Codex is strong evidence for Class A only.** Accept a Codex Class-A finding as actionable when it is one of: missing `select` list · missing DTO path · fallback bug (e.g. `||` swallowing a legitimate `0`) · draft-gate / status-logic bug · route-local `select` mismatch · generated-artifact / test mismatch.
+
+**J.3 — Codex is NOT authority for Class B / C / D.** Do not act on, repeat, or write into a PR any Codex claim that: a field exists / is populated live on IDX Plus · a field moved to another resource · a REBNY/Trestle rule changed · production DB / env state is correct. For B/C/D, Codex output is a **hypothesis to verify**, never a conclusion.
+
+**J.4 — B/C/D require independent proof.** One of: `npm run trestle:audit-server` · `npm run trestle:diff` · `npm run trestle:probe` / a live `$metadata` query · a refreshed `artifacts/metadata.xml` **plus** a live proof capture · a dated REBNY/Trestle notice (Class C) · a read-only runtime/Vercel/Neon proof as applicable (Class D). No PR CI check queries live Cotality — live verification is a manual step Claude performs.
+
+**J.5 — Every Cotality field change must trace end-to-end** (each link confirmed, not assumed): live field exists → selected from Trestle → route-local select lists checked → mapped → `raw_data` preserved if needed → public DTO **DB path** checked → public DTO **Trestle-direct path** checked → rendered if public → form save/hydrate checked if CRM → legacy fallback zero-safe if numeric → tests added.
+
+**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · `npm run test:rls` passes before merge. Note: **`test:rls` is NOT in PR CI today** (`.github/workflows/pr-check.yml` does not run it) — run it by hand and state the result, or state plainly that it was not run.
+
+**J.7 — Status / compliance gates use explicit status semantics:** normalize draft-like statuses before comparing · Draft / Incomplete / empty must not be blocked by publish-only gates · public / display-ready statuses stay **fail-closed** · do not reuse a narrow helper for a broader compliance gate unless the status sets are **proven** equivalent.
+
+**J.8 — No "green checks" claim stands alone.** When reporting passing checks, state per check **what it proves and what it does not.** Example: "`rls:validate` green proves the static RLS binding rules pass; it does **not** prove any field is live on Cotality."
+
+---
+
 ## Operational tips
 
 - **For a quick "what's the project state right now"** → run `gh pr list --state open` plus `git log --oneline -10`, then list the contents of the audits directory (`docs/audits/`) and Read the most recent file there. The current latest is `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md`.
