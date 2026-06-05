@@ -116,25 +116,29 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   });
   const effectiveRlsEligible = eligibility.rlsEligible;
 
-  // RLS Enforcement Gate — only for RLS-eligible listings becoming
-  // DISPLAY-READY (Active / ComingSoon). Draft saves and website-only listings
-  // (InHouseWebOnly, InHouseInternal, commercial) skip the 48-field mandatory
-  // check. REBNY requires those fields for RLS/IDX submission, not for
-  // in-progress drafts or web-only exclusives. Matches the POST handler's
-  // `if (rlsEligible)` guard.
+  // RLS Enforcement Gate — fail-closed. Enforce the 48-field mandatory check
+  // for every RLS-eligible listing in a NON-draft status: the publicly
+  // displayable Active / ComingSoon / ActiveUnderContract, plus Pending and the
+  // terminal statuses. Website-only listings (InHouseWebOnly, InHouseInternal,
+  // commercial) are filtered out via effectiveRlsEligible. REBNY requires those
+  // fields for RLS/IDX submission. Matches the POST handler's `if (rlsEligible)`.
   //
-  // Gate on DISPLAY-READY status (not !isDraft): the CRM form saves drafts as
-  // RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready, so a
-  // `!isDraft` check would wrongly enforce the 48-field gate on an Incomplete
-  // draft save (422). Same class as Codex #348/#350 — this is the second gate.
-  // isDisplayReadyStatus() is true only for normalized Active/ComingSoon;
-  // Draft/Incomplete/empty/terminal are all treated as not-display-ready, so
-  // none of them are gated (terminal saves like Withdrawn shouldn't need the
-  // full RLS field set either).
+  // Skip ONLY draft-like states: literal "Draft", the CRM draft marker
+  // "Incomplete" (non-Draft but in-progress — the form saves drafts this way),
+  // and empty/missing status (which the `|| "Draft"` default already folds to
+  // Draft). A naive `!isDraft` that recognised only literal "Draft" wrongly
+  // enforced on Incomplete draft saves (Codex #348/#350 class). Do NOT swap in
+  // the FARE-specific isDisplayReadyStatus() helper — it is Active/ComingSoon-
+  // only and would fail-OPEN on the publicly displayable ActiveUnderContract,
+  // letting it save missing mandatory fields (Codex P1 on #358). This negative
+  // draft set keeps the gate fail-closed across the full displayable + terminal
+  // set while still freeing genuine draft saves.
   const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
+  const isDraftLike =
+    !effectiveStatus || effectiveStatus === "Draft" || effectiveStatus === "Incomplete";
 
   const isCrmCreated = !listing.mls_id;
-  if (effectiveRlsEligible && isDisplayReadyStatus(effectiveStatus) && !isCrmCreated) {
+  if (effectiveRlsEligible && !isDraftLike && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(merged, {
       listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
       isNewDevelopment: merged.NewDevelopmentYN === true,

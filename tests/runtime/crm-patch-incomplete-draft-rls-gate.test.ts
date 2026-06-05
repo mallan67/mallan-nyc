@@ -16,14 +16,24 @@
  * prisma/auth). The real `classifyRlsEligibility` + `assertRlsCompliantPayload`
  * run, so the gate's 422 (or skip) is observed, not asserted structurally.
  *
+ * The gate is a COMPLIANCE gate (fail-closed): it must enforce the 48 RLS
+ * fields for EVERY non-draft status — Active, ComingSoon, ActiveUnderContract,
+ * Pending, and terminal — and skip ONLY draft-like states (Draft / Incomplete /
+ * empty). Draft-like ≡ `Draft`, `Incomplete`, or empty/null/undefined.
+ *
+ * NOTE: the gate must NOT reuse the FARE-specific `isDisplayReadyStatus`
+ * (Active/ComingSoon only) — that under-enforces `ActiveUnderContract`, which is
+ * publicly displayable (`DISPLAYABLE_STATUSES`), a fail-OPEN regression (Codex
+ * P1 on #358). This suite pins the broader fail-closed set.
+ *
  * Test plan:
- *   - GUARD (fixture validity): MlsStatus:"Active" on the same eligible
- *     fixture with a minimal payload MUST 422 (display-ready → enforce). This
- *     proves the fixture is RLS-eligible and the gate fires — so the bug test
- *     below is not vacuous, and it pins that the fix does NOT over-skip.
- *   - BUG: MlsStatus:"Incomplete" on the same fixture MUST NOT 422. Fails on
- *     the pre-fix `!isDraft` gate (returns 422); passes once the gate keys on
- *     display-ready status.
+ *   - GUARD (fixture validity): MlsStatus:"Active" MUST 422 (proves the fixture
+ *     is RLS-eligible and the gate fires — bug test not vacuous).
+ *   - GUARD (Codex P1): MlsStatus:"ActiveUnderContract" MUST 422 — publicly
+ *     displayable, must remain gated. Fails on the isDisplayReadyStatus gate.
+ *   - BUG: MlsStatus:"Incomplete" MUST NOT 422 (draft-like).
+ *   - DRAFT-LIKE: empty MlsStatus with an existing non-display-ready listing
+ *     status MUST NOT 422.
  */
 
 import { buildPrismaMock } from './helpers';
@@ -123,10 +133,31 @@ describe('PATCH RLS enforcement gate · Incomplete draft saves', () => {
     expect(body.error).toMatch(/RLS enforcement/i);
   });
 
+  // GUARD (Codex P1 on #358): ActiveUnderContract is publicly displayable
+  // (DISPLAYABLE_STATUSES) and MUST remain RLS-gated. The narrow FARE helper
+  // isDisplayReadyStatus() returns false for it → would skip enforcement
+  // (fail-open). This case fails on the isDisplayReadyStatus gate and passes
+  // once the gate treats only Draft/Incomplete/empty as draft-like.
+  it('GUARD (Codex P1): ActiveUnderContract save IS enforced (422)', async () => {
+    const res = await callPatch({ MlsStatus: 'ActiveUnderContract', PropertyType: 'Residential' });
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toMatch(/RLS enforcement/i);
+  });
+
   // BUG: an Incomplete (CRM draft) save on the SAME eligible fixture must NOT
-  // be blocked by the RLS enforcement gate. Pre-fix this returns 422.
+  // be blocked by the RLS enforcement gate.
   it('BUG: Incomplete draft save is NOT blocked by RLS enforcement', async () => {
     const res = await callPatch({ MlsStatus: 'Incomplete', PropertyType: 'Residential' });
+    expect(res.status).not.toBe(422);
+  });
+
+  // DRAFT-LIKE: a listing with no persisted status and a PATCH that does not set
+  // MlsStatus resolves to the "Draft" default → draft-like → not gated.
+  it('DRAFT-LIKE: empty/absent status is NOT blocked by RLS enforcement', async () => {
+    const listing = prismaMock as { listing: { findUnique: jest.Mock } };
+    listing.listing.findUnique = jest.fn(async () => ({ ...eligibleListing(), status: null }));
+    const res = await callPatch({ PropertyType: 'Residential' });
     expect(res.status).not.toBe(422);
   });
 });

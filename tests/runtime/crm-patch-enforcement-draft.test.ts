@@ -8,11 +8,13 @@
  * POST handler correctly wraps enforcement in `if (rlsEligible)`.
  *
  * Fix: PATCH skips enforcement when effectiveRlsEligible is false OR when the
- * status is not display-ready (Draft / Incomplete / empty / terminal). The gate
- * keys on isDisplayReadyStatus(effectiveStatus) — normalized Active/ComingSoon
- * only — NOT a negative `!isDraft` check, which wrongly blocked Incomplete draft
- * saves (the CRM draft marker MlsStatus:"Incomplete" is non-Draft but not
- * display-ready). Same class as Codex #348/#350. Behavioral proof:
+ * status is draft-like — `isDraftLike` ≡ "Draft", the CRM draft marker
+ * "Incomplete", or empty/missing. It enforces (fail-closed) for EVERY other
+ * status, including the publicly displayable Active / ComingSoon /
+ * ActiveUnderContract plus Pending and terminal. The gate deliberately does NOT
+ * reuse the FARE-specific isDisplayReadyStatus() (Active/ComingSoon-only), which
+ * would fail-OPEN on ActiveUnderContract (Codex P1 on #358). The Incomplete-
+ * draft side is the Codex #348/#350 class. Behavioral proof:
  * tests/runtime/crm-patch-incomplete-draft-rls-gate.test.ts.
  */
 
@@ -26,21 +28,25 @@ const ROUTE_PATH = path.resolve(
 const routeSource = readFileSync(ROUTE_PATH, 'utf-8');
 
 describe('PATCH enforcement Draft/WebOnly bypass (P0 fix)', () => {
-  test('enforcement gate is wrapped in rlsEligible AND display-ready AND !isCrmCreated guard', () => {
-    // The gate keys on DISPLAY-READY status (Active/ComingSoon), NOT `!isDraft`.
-    // The CRM form saves drafts as RESO MlsStatus:"Incomplete" — non-Draft but
-    // not display-ready — so a `!isDraft` gate wrongly enforced the 48-field
-    // check on Incomplete draft saves (422). Same class as Codex #348/#350;
-    // behavioral proof in crm-patch-incomplete-draft-rls-gate.test.ts.
+  test('enforcement gate is wrapped in rlsEligible AND !isDraftLike AND !isCrmCreated guard', () => {
+    // Fail-closed: the gate enforces for EVERY non-draft status (Active,
+    // ComingSoon, ActiveUnderContract, Pending, terminal) and skips ONLY
+    // draft-like states (Draft / Incomplete / empty). It must NOT reuse the
+    // FARE-specific isDisplayReadyStatus() (Active/ComingSoon-only) — that would
+    // fail-OPEN on the publicly displayable ActiveUnderContract (Codex P1 #358).
+    // The Incomplete-draft side is the Codex #348/#350 class. Behavioral proof:
+    // crm-patch-incomplete-draft-rls-gate.test.ts.
     expect(routeSource).toMatch(
-      /if\s*\(\s*effectiveRlsEligible\s*&&\s*isDisplayReadyStatus\(effectiveStatus\)\s*&&\s*!isCrmCreated\s*\)/
+      /if\s*\(\s*effectiveRlsEligible\s*&&\s*!isDraftLike\s*&&\s*!isCrmCreated\s*\)/
     );
   });
 
-  test('effectiveStatus is derived from merged MlsStatus and the gate uses the display-ready allowlist (not !isDraft)', () => {
+  test('isDraftLike treats Draft, Incomplete, and empty as draft-like (not a narrow allowlist)', () => {
     expect(routeSource).toMatch(/const effectiveStatus\s*=\s*\(merged\.MlsStatus[^\n]*\|\|\s*listing\.status/);
-    expect(routeSource).toMatch(/isDisplayReadyStatus\(effectiveStatus\)/);
-    // The negative-status gate must be gone (it is the bug).
+    expect(routeSource).toMatch(/const isDraftLike\s*=/);
+    expect(routeSource).toMatch(/effectiveStatus === "Draft"/);
+    expect(routeSource).toMatch(/effectiveStatus === "Incomplete"/);
+    // The old literal-only negative gate must be gone (it was the bug).
     expect(routeSource).not.toMatch(/&&\s*!isDraft\s*&&/);
   });
 
