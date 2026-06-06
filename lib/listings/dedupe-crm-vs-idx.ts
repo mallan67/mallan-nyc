@@ -62,8 +62,40 @@ import {
   canonicalizeSuffix,
   canonicalizeStreetName,
 } from '@/lib/address/nyc-address-normalizer';
+import { countPhotoMedia } from '@/lib/media/listing-card-media';
+import { hasVirtualTour } from '@/lib/idx/display-adapter';
 
 const CRM_PREFIXES = ['SL-', 'RL-'] as const;
+
+/**
+ * PR-B (2026-06-05) — winner rule for collapsing PURE third-party RLS duplicates
+ * of the same unit to one canonical card. Returns true when `cand` should beat
+ * the current `best`, applied in strict priority order:
+ *   1. usable photos win over no-photo (countPhotoMedia uses the card's own
+ *      "valid Photo media" definition — rejects floor-plan/video/tour),
+ *   2. more valid Photo media,
+ *   3. has a VirtualTour URL,
+ *   4. freshest modificationTimestamp (ISO; falls back to updatedAt),
+ *   5. stable tie-break by listing id (ascending — deterministic).
+ */
+function isBetterIdxDuplicate(cand: DedupeCandidate, best: DedupeCandidate): boolean {
+  const candPhotos = countPhotoMedia(cand.media ?? undefined);
+  const bestPhotos = countPhotoMedia(best.media ?? undefined);
+  if ((candPhotos > 0) !== (bestPhotos > 0)) return candPhotos > 0; // 1
+  if (candPhotos !== bestPhotos) return candPhotos > bestPhotos; // 2
+  const candTour = hasVirtualTour({ virtualTourURL: cand.virtualTourURL ?? undefined });
+  const bestTour = hasVirtualTour({ virtualTourURL: best.virtualTourURL ?? undefined });
+  if (candTour !== bestTour) return candTour; // 3
+  const candTs = cand.modificationTimestamp || cand.updatedAt || '';
+  const bestTs = best.modificationTimestamp || best.updatedAt || '';
+  if (candTs !== bestTs) return candTs > bestTs; // 4 (ISO 8601: larger string = newer)
+  return cand.id < best.id; // 5 (stable, deterministic)
+}
+
+/** Pick the single canonical winner from a pure-IDX same-unit bucket. */
+function pickIdxWinner<T extends DedupeCandidate>(rows: T[]): T {
+  return rows.reduce((best, cur) => (isBetterIdxDuplicate(cur, best) ? cur : best));
+}
 
 /**
  * Canonicalize a single street token so address-variant spellings collapse to
@@ -111,6 +143,11 @@ export interface DedupeCandidate {
    *  exist for the same key. `updatedAt` is checked as fallback. */
   modificationTimestamp?: string | null;
   updatedAt?: string | null;
+  /** PR-B: media + tour signals used by the pure-IDX winner rule. Optional so
+   *  callers that don't carry them (raw rows) still satisfy the type — the
+   *  winner rule degrades gracefully (treated as no photos / no tour). */
+  media?: ReadonlyArray<{ url?: string | null; mediaType?: string | null; order?: number | null }> | null;
+  virtualTourURL?: string | null;
 }
 
 function norm(value: string | null | undefined): string {
@@ -196,10 +233,15 @@ function pickNewestCrm<T extends DedupeCandidate>(crmRows: T[]): T {
 /**
  * Public-surface dedupe. Returns a new array; does not mutate input.
  *
- * Order-preserving: when a key-group is collapsed to its CRM winner, that
- * winner takes the position of the FIRST occurrence in the input array.
- * Non-candidate rows (no UnitNumber, no StreetName, or pure-IDX groups)
- * are returned in their original positions.
+ * Two collapses, both keyed on the unit-level address key (buildAddressKey):
+ *   - MIXED group (≥1 CRM SL-/RL- row): prefer the newest CRM exclusive over its
+ *     IDX shadow (the original behavior).
+ *   - PURE-IDX group (PR-B): collapse same-unit third-party RLS duplicates to one
+ *     canonical card via the winner rule (isBetterIdxDuplicate).
+ *
+ * Order-preserving: a collapsed group's winner takes the position of the FIRST
+ * occurrence in the input array. Non-candidate rows (no UnitNumber / no
+ * StreetNumber) are returned in their original positions.
  */
 export function preferCrmExclusiveOverIdxDuplicate<T extends DedupeCandidate>(
   listings: T[],
@@ -231,12 +273,15 @@ export function preferCrmExclusiveOverIdxDuplicate<T extends DedupeCandidate>(
   for (const [key, bucket] of buckets) {
     const crmRows = bucket.filter((r) => isCrmId(r.id));
     if (crmRows.length === 0) {
-      // Pure-IDX group: helper is a no-op for this group; keep all rows in
-      // their original positions.
-      bucket.forEach((row) => {
-        const idx = listings.indexOf(row);
-        winners.push({ index: idx, row });
-      });
+      // PR-B: pure-IDX group — collapse same-unit third-party RLS duplicates to
+      // ONE canonical card via the winner rule (usable photos > more photos >
+      // virtual tour > freshest > stable id). The winner takes the group's
+      // first-seen position; suppressed siblings are dropped — their brokerages
+      // are NOT represented and no co-listed badge can render for a collapsed
+      // single row. (A single-row "group" trivially returns that row.) Mallan
+      // mixed groups still take the CRM-preference branch below, preserving the
+      // #360 annotate behavior for whatever co-listed rows survive.
+      winners.push({ index: firstSeenIndex.get(key) ?? 0, row: pickIdxWinner(bucket) });
       continue;
     }
     // At least one CRM row in this group: collapse to the (newest) CRM

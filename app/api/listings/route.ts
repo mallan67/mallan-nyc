@@ -1005,7 +1005,10 @@ export async function GET(request: Request) {
         // Wait for both to finish in parallel
         await Promise.allSettled([photoPromise, geocodePromise]);
 
-        const publicListings = pageListings.map(toPublicDTO);
+        // PR-B: dedupe same-unit duplicates on the Trestle-direct path too
+        // (mixed CRM-vs-IDX + pure third-party same-unit), matching the DB-first
+        // path above so cards and map markers stay deduped on every code path.
+        const publicListings = preferCrmExclusiveOverIdxDuplicate(pageListings.map(toPublicDTO));
 
         // ── Merge local exclusive listings from DB ──
         // UCBA Art. I, Sec. 5: Simultaneous Distribution — only show listings

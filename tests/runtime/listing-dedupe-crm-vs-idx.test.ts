@@ -181,28 +181,73 @@ describe('preferCrmExclusiveOverIdxDuplicate — address suppression / missing d
   });
 });
 
-describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX groups (helper is no-op)', () => {
-  // ── Test 8: pure-IDX group → all kept ──
-  it('group with NO CRM row is unchanged (real third-party listings)', () => {
+describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX groups (PR-B winner-rule collapse)', () => {
+  it('different units are both kept (RLS_20087929=20B vs RLS_20036865=1D)', () => {
     const result = preferCrmExclusiveOverIdxDuplicate([RLS_20087929, RLS_20036865]);
     expect(result).toHaveLength(2);
   });
 
-  it('two IDX rows that happen to share the SAME unit do NOT collapse (no CRM to prefer)', () => {
-    // Defensive case: two IDX rows accidentally synced for the same unit
-    // would still both appear, because the helper does not collapse IDX
-    // duplicates — only IDX-vs-CRM. (A pure-IDX duplicate is a separate
-    // data-quality issue handled at sync time, not in this helper.)
-    const idxA: DedupeCandidate = {
-      id: 'RLS11111',
-      address: { ...RLS_20093870.address },
-    };
-    const idxB: DedupeCandidate = {
-      id: 'RLS22222',
-      address: { ...RLS_20093870.address },
-    };
+  it('PR-B: two third-party IDX rows at the SAME unit collapse to ONE canonical card', () => {
+    const idxA: DedupeCandidate = { id: 'RLS11111', address: { ...RLS_20093870.address } };
+    const idxB: DedupeCandidate = { id: 'RLS22222', address: { ...RLS_20093870.address } };
     const result = preferCrmExclusiveOverIdxDuplicate([idxA, idxB]);
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(1);
+    // No media/tour/timestamp → tie resolves to the stable id (ascending).
+    expect(result[0].id).toBe('RLS11111');
+  });
+});
+
+describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX winner rule (PR-B)', () => {
+  const photo = (n: number) => ({ url: `https://cdn.example.com/${n}.jpg`, mediaType: 'Photo', order: n });
+  const at = (id: string, over: Partial<DedupeCandidate> = {}): DedupeCandidate => ({
+    id,
+    address: { ...RLS_20093870.address },
+    ...over,
+  });
+
+  it('1. usable photos beat no-photo', () => {
+    const r = preferCrmExclusiveOverIdxDuplicate([at('RLS-A', { media: [] }), at('RLS-B', { media: [photo(1)] })]);
+    expect(r).toHaveLength(1);
+    expect(r[0].id).toBe('RLS-B');
+  });
+
+  it('2. more valid Photo media wins', () => {
+    const r = preferCrmExclusiveOverIdxDuplicate([
+      at('RLS-A', { media: [photo(1)] }),
+      at('RLS-B', { media: [photo(1), photo(2), photo(3)] }),
+    ]);
+    expect(r[0].id).toBe('RLS-B');
+  });
+
+  it('non-photo media (FloorPlan) does NOT count as a usable photo', () => {
+    const r = preferCrmExclusiveOverIdxDuplicate([
+      at('RLS-A', { media: [{ url: 'https://cdn.example.com/fp.jpg', mediaType: 'FloorPlan', order: 0 }] }),
+      at('RLS-B', { media: [photo(1)] }),
+    ]);
+    expect(r[0].id).toBe('RLS-B');
+  });
+
+  it('3. virtualTourURL breaks an equal-photo tie', () => {
+    const r = preferCrmExclusiveOverIdxDuplicate([
+      at('RLS-A', { media: [photo(1)] }),
+      at('RLS-B', { media: [photo(1)], virtualTourURL: 'https://my.matterport.com/show/?m=abc' }),
+    ]);
+    expect(r[0].id).toBe('RLS-B');
+  });
+
+  it('4. freshest modificationTimestamp breaks a tie', () => {
+    const r = preferCrmExclusiveOverIdxDuplicate([
+      at('RLS-A', { media: [photo(1)], modificationTimestamp: '2026-01-01T00:00:00Z' }),
+      at('RLS-B', { media: [photo(1)], modificationTimestamp: '2026-06-01T00:00:00Z' }),
+    ]);
+    expect(r[0].id).toBe('RLS-B');
+  });
+
+  it('5. stable tie-break by id, order-independent', () => {
+    const a = at('RLS-zzz', { media: [photo(1)] });
+    const b = at('RLS-aaa', { media: [photo(1)] });
+    expect(preferCrmExclusiveOverIdxDuplicate([a, b])[0].id).toBe('RLS-aaa');
+    expect(preferCrmExclusiveOverIdxDuplicate([b, a])[0].id).toBe('RLS-aaa');
   });
 });
 
