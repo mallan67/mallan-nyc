@@ -387,7 +387,12 @@ export default function FeaturedListings() {
         // Build query params from config
         const params = new URLSearchParams();
         params.set('type', filters.type === 'rent' ? 'rent' : 'sale');
-        params.set('limit', String(Math.max(limit * 3, 30)));
+        // Over-fetch headroom: the client-side `filterFeaturedDisplayable` drops
+        // photoless cards AFTER the fetch (the API can't filter on photo
+        // presence), so request a large candidate pool — ~8× the configured
+        // count — so enough displayable rows remain to fill `limit` even if some
+        // of the top sorted rows are photoless (Codex #366).
+        params.set('limit', String(Math.max(limit * 8, 48)));
         params.set('excludeUndisclosed', 'true');
         params.set('sort', config.sort || 'price-desc');
         // Coming Soon Layer 1 — Featured excludes ONLY Coming Soon (no-showings
