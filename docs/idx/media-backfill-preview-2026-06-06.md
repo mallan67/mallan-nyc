@@ -20,10 +20,19 @@
 
 ## What is being previewed
 
-1. **Media-coverage repair** — listings that have legacy `listings.media` JSON
-   but **no active `listing_media` rows**, so they render via the JSON fallback
-   (the path #363 just hardened). Repair = populate `listing_media` from live
-   Trestle Media (IDX rows) so they use the clean table path.
+1. **Media-coverage repair** — **every IDX listing missing active `listing_media`**,
+   regardless of whether `listings.media` JSON is empty or non-empty. Repair =
+   populate `listing_media` from live Trestle Media (IDX rows only) so they use the
+   clean table path.
+   > **⚠️ Scope correction (live confirmation 2026-06-06):** the JSON-fallback group
+   > (non-empty `listings.media` + no `listing_media`, sized by **Q1** ≈ 5,998) is a
+   > **subset**, not the whole problem. A sample of the **50 newest** sale listings
+   > showed **45/50 with empty `media[]`** — i.e. **no `listing_media` AND empty
+   > `listings.media` JSON** (new listings entering faster than the incremental media
+   > cron catches up). Those rows are **outside Q1** but **inside `rows_with_no_active_media_at_all`**
+   > (Q3). **Size the coverage backfill from `rows_with_no_active_media_at_all`, not
+   > Q1.** Both old legacy gaps and new-listing lag must be covered (and the future
+   > cron/sync design must keep new listings from entering without media).
 2. **Denorm repair** — re-derive `listings.photo_count` / `primary_photo_url`
    (+ `primary_photo_r2_key`, `photos_change_timestamp`) from `listing_media`,
    so the cheap card/winner signals are trustworthy.
@@ -347,7 +356,11 @@ active Photo only. **Run denorm scoped to `has_active_media = true`** (the
 ### 4a. Coverage backfill (write PR — needs approval)
 - **Path:** reuse `lib/idx/media-sync.ts` ingest (upsert `listing_media` by
   `media_key`) — already idempotent; do **not** write a parallel path.
-- **Scope:** IDX/RLS gap rows from Q1 (exclude `SL-`/`RL-`).
+- **Scope:** **every IDX/RLS listing missing active `listing_media`** (exclude
+  `SL-`/`RL-`) — sized by **`rows_with_no_active_media_at_all` (Q3)**, NOT just the
+  Q1 JSON-fallback subset. This covers both legacy JSON-only gaps AND newest
+  listings with empty media (45/50 in the live sample). Fetch live Trestle Media
+  for each.
 - **Batch:** 100–250 listings/run; respect Trestle rate limits; 404 → existing
   `r2_attempts` cooldown (no infinite retry).
 - **Idempotency:** upsert by `media_key`; re-run inserts nothing new.
