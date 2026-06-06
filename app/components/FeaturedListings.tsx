@@ -15,6 +15,7 @@ import { formatBathrooms } from '@/lib/format/bathrooms';
 import {
   orderFeaturedListings,
   filterFeaturedDisplayable,
+  collectDisplayableFeatured,
   featuredBadgeFor,
   featuredCardHref,
   isPinnedFeatured,
@@ -384,15 +385,9 @@ export default function FeaturedListings() {
         const { filters, pinnedListingIds, limit } = config;
         const pinnedSet = new Set(pinnedListingIds);
 
-        // Build query params from config
+        // Build the base query params from config (limit is applied per page).
         const params = new URLSearchParams();
         params.set('type', filters.type === 'rent' ? 'rent' : 'sale');
-        // Over-fetch headroom: the client-side `filterFeaturedDisplayable` drops
-        // photoless cards AFTER the fetch (the API can't filter on photo
-        // presence), so request a large candidate pool — ~8× the configured
-        // count — so enough displayable rows remain to fill `limit` even if some
-        // of the top sorted rows are photoless (Codex #366).
-        params.set('limit', String(Math.max(limit * 8, 48)));
         params.set('excludeUndisclosed', 'true');
         params.set('sort', config.sort || 'price-desc');
         // Coming Soon Layer 1 — Featured excludes ONLY Coming Soon (no-showings
@@ -400,7 +395,7 @@ export default function FeaturedListings() {
         // ActiveUnderContract stay eligible (the latter is part of the normal
         // public display set, incl. pinned under-contract listings — Codex #366).
         // Per-request param; does NOT change global search status policy. The
-        // client-side `filterFeaturedDisplayable` below is the authoritative gate
+        // client-side `filterFeaturedDisplayable` is the authoritative gate
         // (it also drops photoless cards the API can't filter).
         params.set('statuses', 'Active,ActiveUnderContract');
         if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
@@ -409,23 +404,38 @@ export default function FeaturedListings() {
         if (filters.boroughs.length === 1) params.set('borough', filters.boroughs[0]);
         if (filters.neighborhoods.length === 1) params.set('neighborhood', filters.neighborhoods[0]);
 
+        // Exclusives feed (Mallan-owned) — small, single fetch, kicked off in
+        // parallel with the general pagination below.
         const exclParams = new URLSearchParams(params.toString());
         exclParams.set('exclusive', 'mallan');
-        exclParams.set('excludeUndisclosed', 'true');
         exclParams.set('limit', '12');
-        const [res, exclRes] = await Promise.all([
-          fetch(`/api/listings?${params.toString()}`),
-          fetch(`/api/listings?${exclParams.toString()}`),
-        ]);
-        if (!res.ok) throw new Error('Failed to fetch');
-        const data = await res.json();
-        const exclData = exclRes.ok ? await exclRes.json() : { listings: [] };
+        const exclPromise = fetch(`/api/listings?${exclParams.toString()}`)
+          .then((r) => (r.ok ? r.json() : { listings: [] }))
+          .catch(() => ({ listings: [] }));
 
-        // Coming Soon Layer 1 — exclude Coming Soon + photoless listings from
-        // BOTH feeds before ordering (curated hero content; see
-        // filterFeaturedDisplayable). The UCBA Coming Soon badge is untouched
-        // for surfaces that DO render Coming Soon (detail / opt-in search).
-        const generalListings: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(data.listings || []);
+        // General feed — page DEEPER until enough displayable rows fill the grid.
+        // The newest listings disproportionately lack media coverage (the
+        // listing_media backfill gap), so a single page can leave the section
+        // short (5 cards instead of 6). collectDisplayableFeatured pages until
+        // `limit` displayable rows exist. Capture `_lastUpdated` from page 0 for
+        // the IDX disclaimer. (Interim fill-fix until coverage backfill.)
+        const pageSize = Math.max(limit * 8, 48);
+        let firstLastUpdated: string | undefined;
+        const generalListings = await collectDisplayableFeatured<FeaturedListing>(
+          async (skip, size) => {
+            const pageParams = new URLSearchParams(params.toString());
+            pageParams.set('skip', String(skip));
+            pageParams.set('limit', String(size));
+            const r = await fetch(`/api/listings?${pageParams.toString()}`);
+            if (!r.ok) return [];
+            const d = await r.json();
+            if (skip === 0 && d._lastUpdated) firstLastUpdated = d._lastUpdated as string;
+            return (d.listings || []) as FeaturedListing[];
+          },
+          { target: limit + 6, pageSize, maxPages: 5 },
+        );
+
+        const exclData = await exclPromise;
         const exclusives: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(exclData.listings || []);
 
         if (cancelled || (generalListings.length === 0 && exclusives.length === 0)) return;
@@ -433,13 +443,14 @@ export default function FeaturedListings() {
         // Order: (1) ALL Mallan-owned exclusives first by classification/source
         // (not by pinnedIds), (2) pinned third-party listings, (3) regular
         // listings. Dedupe by id + canonical address so a CRM exclusive
-        // collapses its RLS/IDX twin and nothing renders twice.
+        // collapses its RLS/IDX twin and nothing renders twice. generalListings
+        // is already filtered to displayable by collectDisplayableFeatured.
         const featured = orderFeaturedListings(exclusives, generalListings, pinnedSet, limit);
 
         if (!cancelled) {
           setListings(featured);
           setPinnedIds(pinnedSet);
-          if (data._lastUpdated) setLastUpdated(new Date(data._lastUpdated));
+          if (firstLastUpdated) setLastUpdated(new Date(firstLastUpdated));
         }
       } catch {
         console.warn('[FeaturedListings] Failed to load featured listings');

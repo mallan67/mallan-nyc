@@ -101,6 +101,42 @@ export function filterFeaturedDisplayable<T extends FeaturedDisplayable>(listing
 }
 
 /**
+ * Page through a Featured feed until enough DISPLAYABLE rows are collected to
+ * fill the grid.
+ *
+ * Why: the homepage config sorts by `newest`, and the newest listings
+ * disproportionately lack media coverage (the `listing_media` backfill gap —
+ * production diagnosis 2026-06-06: 38 of the 48 newest Manhattan sale listings
+ * were photoless). A single page therefore yields fewer than `target`
+ * displayable rows, so the section under-fills (5 cards instead of 6). Collecting
+ * across pages fills `limit` reliably whenever enough displayable listings exist
+ * in the feed. **Interim fill-fix until media coverage is backfilled** — once the
+ * coverage/denorm backfills land, the first page almost always satisfies
+ * `target` and this loop stops after one fetch.
+ *
+ * `fetchPage(skip, pageSize)` returns ONE raw page (already-mapped DTO rows).
+ * The loop stops when: enough displayable collected (`>= target`), the feed is
+ * exhausted (a short page), or `maxPages` is reached. Returns the accumulated
+ * DISPLAYABLE rows (Coming-Soon-free, photo-bearing), in feed order.
+ */
+export async function collectDisplayableFeatured<T extends FeaturedDisplayable>(
+  fetchPage: (skip: number, pageSize: number) => Promise<readonly T[]>,
+  opts: { target: number; pageSize?: number; maxPages?: number },
+): Promise<T[]> {
+  const pageSize = Math.max(1, opts.pageSize ?? 48);
+  const maxPages = Math.max(1, opts.maxPages ?? 5);
+  const out: T[] = [];
+  for (let page = 0; page < maxPages; page++) {
+    const batch = await fetchPage(page * pageSize, pageSize);
+    if (!batch || batch.length === 0) break;
+    out.push(...filterFeaturedDisplayable(batch as T[]));
+    if (out.length >= opts.target) break; // enough displayable to fill the grid
+    if (batch.length < pageSize) break; // feed exhausted — no more pages
+  }
+  return out;
+}
+
+/**
  * Pin match — a listing is pinned when the broker's pinned-id set contains
  * ANY of its identifiers (public `id`, `mlsId`, or explicit `listing_id`), so
  * a broker can pin by whichever identifier they have on hand.
