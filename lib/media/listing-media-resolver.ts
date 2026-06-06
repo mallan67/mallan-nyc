@@ -118,7 +118,13 @@ export function classifyMediaItem(raw: unknown): MediaClass {
   const cat = String(m.MediaCategory ?? m.mediaCategory ?? m.category ?? m.mediaType ?? '').toLowerCase();
   const cls = String(m.MediaClassification ?? m.mediaClassification ?? '').toLowerCase();
   const desc = String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? '').toLowerCase();
-  const url = String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '').toLowerCase();
+  // Decode an already-proxied URL (`/api/media/proxy?url=<encoded source>`)
+  // back to its source before URL-shape classification. For pre-mapped DTO
+  // input the document/floor-plan signal is percent-encoded inside the `?url=`
+  // param (`%2FMedia%2FProperty%2FDOCUMENT-…`), which hides the anchored
+  // `/Media/Property/DOCUMENT-…/` path — the item would then default to photo
+  // and could become the card hero (Codex review, PR #363, 2026-06-06).
+  const url = unwrapProxyUrl(String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '')).toLowerCase();
 
   // Floor plan / document signals (multiple to catch Trestle's inconsistent
   // tagging AND the legacy `listings.media` JSON, where ~2,000 first-position

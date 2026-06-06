@@ -134,6 +134,28 @@ describe('resolveListingMedia (JSON path) — dedupe + hero safety', () => {
     ];
     expect(resolveListingMedia(items)).toHaveLength(1);
   });
+
+  // ── Codex #363 follow-up 2: classify pre-proxied document/floor-plan ──
+  // For pre-proxied input the document/floor-plan signal is percent-encoded
+  // inside the `?url=` param, hiding the anchored `/Media/Property/DOCUMENT-…/`
+  // path from classification. classifyMediaItem must decode the proxy wrapper
+  // first, else a proxied floor plan/document defaults to photo and can hero.
+  it('classifies a pre-proxied Trestle DOCUMENT- URL as floorplan (decode before classify)', () => {
+    const docProxied = proxied('https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/x.jpg');
+    expect(classifyMediaItem({ MediaCategory: '', url: docProxied })).toBe('floorplan');
+    // URL document signal must win even if the category claims Photo.
+    expect(classifyMediaItem({ MediaCategory: 'Photo', url: docProxied })).toBe('floorplan');
+  });
+
+  it('pre-proxied document first + real proxied photo second → photo is hero', () => {
+    const docProxied = proxied('https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/fp.jpg');
+    const photoProxied = proxied('https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1.jpg');
+    const items = [
+      { mediaType: '', url: docProxied, order: 0 },
+      { mediaType: '', url: photoProxied, order: 1 },
+    ];
+    expect(heroOf(items)).toBe(photoProxied);
+  });
 });
 
 describe('table-backed path (resolveListingMediaFromRows) — unchanged', () => {
