@@ -420,6 +420,7 @@ export async function GET(request: Request) {
             // and lib/listings/dedupe-crm-vs-idx.ts.
             let publicListings = preferCrmExclusiveOverIdxDuplicate(
               displayable.map(dbListingToPublicDTO),
+              { collapsePureIdxDuplicates: true },
             );
 
             // Build features lookup — passed into applyPublicListingPostFilters
@@ -1008,7 +1009,7 @@ export async function GET(request: Request) {
         // PR-B: dedupe same-unit duplicates on the Trestle-direct path too
         // (mixed CRM-vs-IDX + pure third-party same-unit), matching the DB-first
         // path above so cards and map markers stay deduped on every code path.
-        const publicListings = preferCrmExclusiveOverIdxDuplicate(pageListings.map(toPublicDTO));
+        const publicListings = preferCrmExclusiveOverIdxDuplicate(pageListings.map(toPublicDTO), { collapsePureIdxDuplicates: true });
 
         // ── Merge local exclusive listings from DB ──
         // UCBA Art. I, Sec. 5: Simultaneous Distribution — only show listings

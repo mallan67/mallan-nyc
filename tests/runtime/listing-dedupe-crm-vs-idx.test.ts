@@ -187,32 +187,40 @@ describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX groups (PR-B winner-ru
     expect(result).toHaveLength(2);
   });
 
-  it('PR-B: two third-party IDX rows at the SAME unit collapse to ONE canonical card', () => {
+  it('PR-B: two third-party IDX rows at the SAME unit collapse to ONE card (opt-in flag)', () => {
     const idxA: DedupeCandidate = { id: 'RLS11111', address: { ...RLS_20093870.address } };
     const idxB: DedupeCandidate = { id: 'RLS22222', address: { ...RLS_20093870.address } };
-    const result = preferCrmExclusiveOverIdxDuplicate([idxA, idxB]);
+    const result = preferCrmExclusiveOverIdxDuplicate([idxA, idxB], { collapsePureIdxDuplicates: true });
     expect(result).toHaveLength(1);
     // No media/tour/timestamp → tie resolves to the stable id (ascending).
     expect(result[0].id).toBe('RLS11111');
   });
+
+  it('PR-B: WITHOUT the opt-in flag (e.g. agent page), pure-IDX same-unit rows are kept', () => {
+    const idxA: DedupeCandidate = { id: 'RLS11111', address: { ...RLS_20093870.address } };
+    const idxB: DedupeCandidate = { id: 'RLS22222', address: { ...RLS_20093870.address } };
+    expect(preferCrmExclusiveOverIdxDuplicate([idxA, idxB])).toHaveLength(2);
+  });
 });
 
-describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX winner rule (PR-B)', () => {
+describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX winner rule (PR-B, opt-in)', () => {
   const photo = (n: number) => ({ url: `https://cdn.example.com/${n}.jpg`, mediaType: 'Photo', order: n });
   const at = (id: string, over: Partial<DedupeCandidate> = {}): DedupeCandidate => ({
     id,
     address: { ...RLS_20093870.address },
     ...over,
   });
+  const dedupe = (rows: DedupeCandidate[]) =>
+    preferCrmExclusiveOverIdxDuplicate(rows, { collapsePureIdxDuplicates: true });
 
   it('1. usable photos beat no-photo', () => {
-    const r = preferCrmExclusiveOverIdxDuplicate([at('RLS-A', { media: [] }), at('RLS-B', { media: [photo(1)] })]);
+    const r = dedupe([at('RLS-A', { media: [] }), at('RLS-B', { media: [photo(1)] })]);
     expect(r).toHaveLength(1);
     expect(r[0].id).toBe('RLS-B');
   });
 
   it('2. more valid Photo media wins', () => {
-    const r = preferCrmExclusiveOverIdxDuplicate([
+    const r = dedupe([
       at('RLS-A', { media: [photo(1)] }),
       at('RLS-B', { media: [photo(1), photo(2), photo(3)] }),
     ]);
@@ -220,7 +228,7 @@ describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX winner rule (PR-B)', (
   });
 
   it('non-photo media (FloorPlan) does NOT count as a usable photo', () => {
-    const r = preferCrmExclusiveOverIdxDuplicate([
+    const r = dedupe([
       at('RLS-A', { media: [{ url: 'https://cdn.example.com/fp.jpg', mediaType: 'FloorPlan', order: 0 }] }),
       at('RLS-B', { media: [photo(1)] }),
     ]);
@@ -228,7 +236,7 @@ describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX winner rule (PR-B)', (
   });
 
   it('3. virtualTourURL breaks an equal-photo tie', () => {
-    const r = preferCrmExclusiveOverIdxDuplicate([
+    const r = dedupe([
       at('RLS-A', { media: [photo(1)] }),
       at('RLS-B', { media: [photo(1)], virtualTourURL: 'https://my.matterport.com/show/?m=abc' }),
     ]);
@@ -236,7 +244,7 @@ describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX winner rule (PR-B)', (
   });
 
   it('4. freshest modificationTimestamp breaks a tie', () => {
-    const r = preferCrmExclusiveOverIdxDuplicate([
+    const r = dedupe([
       at('RLS-A', { media: [photo(1)], modificationTimestamp: '2026-01-01T00:00:00Z' }),
       at('RLS-B', { media: [photo(1)], modificationTimestamp: '2026-06-01T00:00:00Z' }),
     ]);
@@ -246,8 +254,8 @@ describe('preferCrmExclusiveOverIdxDuplicate — pure-IDX winner rule (PR-B)', (
   it('5. stable tie-break by id, order-independent', () => {
     const a = at('RLS-zzz', { media: [photo(1)] });
     const b = at('RLS-aaa', { media: [photo(1)] });
-    expect(preferCrmExclusiveOverIdxDuplicate([a, b])[0].id).toBe('RLS-aaa');
-    expect(preferCrmExclusiveOverIdxDuplicate([b, a])[0].id).toBe('RLS-aaa');
+    expect(dedupe([a, b])[0].id).toBe('RLS-aaa');
+    expect(dedupe([b, a])[0].id).toBe('RLS-aaa');
   });
 });
 

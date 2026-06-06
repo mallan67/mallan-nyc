@@ -243,10 +243,22 @@ function pickNewestCrm<T extends DedupeCandidate>(crmRows: T[]): T {
  * occurrence in the input array. Non-candidate rows (no UnitNumber / no
  * StreetNumber) are returned in their original positions.
  */
+export interface PreferCrmDedupeOptions {
+  /**
+   * PR-B opt-in (default false): also collapse PURE third-party RLS same-unit
+   * duplicate groups to one canonical card via the winner rule. The public
+   * search endpoint (/api/listings) enables this; other callers (e.g. the agent
+   * page) keep the legacy behavior where pure-IDX groups pass through unchanged.
+   */
+  collapsePureIdxDuplicates?: boolean;
+}
+
 export function preferCrmExclusiveOverIdxDuplicate<T extends DedupeCandidate>(
   listings: T[],
+  options: PreferCrmDedupeOptions = {},
 ): T[] {
   if (!Array.isArray(listings) || listings.length < 2) return listings;
+  const collapsePureIdx = options.collapsePureIdxDuplicates === true;
 
   // First pass: bucket rows by key. Rows that cannot be keyed pass through.
   const buckets = new Map<string, T[]>();
@@ -273,15 +285,22 @@ export function preferCrmExclusiveOverIdxDuplicate<T extends DedupeCandidate>(
   for (const [key, bucket] of buckets) {
     const crmRows = bucket.filter((r) => isCrmId(r.id));
     if (crmRows.length === 0) {
-      // PR-B: pure-IDX group — collapse same-unit third-party RLS duplicates to
-      // ONE canonical card via the winner rule (usable photos > more photos >
-      // virtual tour > freshest > stable id). The winner takes the group's
-      // first-seen position; suppressed siblings are dropped — their brokerages
-      // are NOT represented and no co-listed badge can render for a collapsed
-      // single row. (A single-row "group" trivially returns that row.) Mallan
-      // mixed groups still take the CRM-preference branch below, preserving the
-      // #360 annotate behavior for whatever co-listed rows survive.
-      winners.push({ index: firstSeenIndex.get(key) ?? 0, row: pickIdxWinner(bucket) });
+      if (collapsePureIdx) {
+        // PR-B (opt-in, search endpoint): collapse same-unit third-party RLS
+        // duplicates to ONE canonical card via the winner rule (usable photos >
+        // more photos > virtual tour > freshest > stable id). Winner takes the
+        // group's first-seen position; suppressed siblings are dropped — their
+        // brokerages are NOT represented and no co-listed badge can render for a
+        // collapsed single row. Mallan mixed groups still take the CRM-preference
+        // branch below, preserving the #360 annotate behavior.
+        winners.push({ index: firstSeenIndex.get(key) ?? 0, row: pickIdxWinner(bucket) });
+      } else {
+        // Default (e.g. agent page): pure-IDX group passes through unchanged —
+        // keep all rows in their original positions.
+        bucket.forEach((row) => {
+          winners.push({ index: listings.indexOf(row), row });
+        });
+      }
       continue;
     }
     // At least one CRM row in this group: collapse to the (newest) CRM
