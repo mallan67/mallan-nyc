@@ -101,6 +101,14 @@ export interface ResolvedMedia {
 
 export interface ResolveListingMediaOptions {
   mapUrl?: (rawUrl: string) => string;
+  /**
+   * Skip the display-URL dedupe pass. Used by {@link resolveListingMediaFromRows},
+   * which has ALREADY collapsed rows by the richer `(cached, original)` visual
+   * identity — there, two genuinely-distinct photos can legitimately share a
+   * cached display URL, and a second dedupe on the display URL would wrongly
+   * merge them (regression caught by media-display-p0, 2026-06-06).
+   */
+  skipDedupe?: boolean;
 }
 
 /** Heuristic classification — works against raw Trestle Media records, DB JSONB, or DTO shapes. */
@@ -112,12 +120,22 @@ export function classifyMediaItem(raw: unknown): MediaClass {
   const desc = String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? '').toLowerCase();
   const url = String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '').toLowerCase();
 
-  // Floor plan signals (multiple to catch Trestle's inconsistent tagging)
+  // Floor plan / document signals (multiple to catch Trestle's inconsistent
+  // tagging AND the legacy `listings.media` JSON, where ~2,000 first-position
+  // items are floor plans/documents carrying an EMPTY MediaCategory. Without
+  // URL-shape detection those fall through to the `cat === ''` photo default
+  // below and become a card hero (PR-Hero, 2026-06-06). The URL checks are
+  // conservative — `floorplan`/`floor_plan`/`floor plan` tokens, `.pdf`
+  // documents, and `/site-plan/`÷`/diagram/` path/filename forms — none of
+  // which appear in a real listing photo URL.
   if (
     cat === 'floorplan' || cat.includes('floor plan') || cat.includes('floor_plan') || cat === 'floor plan' ||
     cls === 'document' ||
     desc.includes('floorplan') || desc.includes('floor plan') ||
     /\/floorplans?\//i.test(url) ||
+    /floor[\s_-]?plans?/i.test(url) ||
+    /\.pdf(\?|$)/i.test(url) ||
+    /(?:^|[/_-])(?:site[\s_-]?plans?|diagrams?)(?:[/_.-]|$)/i.test(url) ||
     TRESTLE_DOCUMENT_URL_PATTERN.test(url)
   ) {
     return 'floorplan';
@@ -306,7 +324,23 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
     return a.idx - b.idx;
   });
 
-  return decorated.map((d, i) => ({
+  // Collapse by visual identity — parity with `resolveListingMediaFromRows`.
+  // The legacy `listings.media` JSON often repeats the same image (re-imports,
+  // mirrored index paths), which without dedupe renders duplicate photos in the
+  // card strip / detail gallery (PR-Hero, 2026-06-06). Iterating in sorted order
+  // keeps the best survivor first (photo before floorplan, then lowest order),
+  // exactly as the table path does.
+  const seen = new Set<string>();
+  const deduped = options.skipDedupe
+    ? decorated
+    : decorated.filter((d) => {
+        const key = visualIdentity(d.url, d.url) || d.url;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+  return deduped.map((d, i) => ({
     url: d.url,
     thumbUrl: d.thumbUrl,
     mediaType: CLASS_TO_DISPLAY[d.klass],
@@ -435,7 +469,7 @@ export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): Resol
         PreferredPhotoYN: r.preferred_photo_yn,
       };
     });
-  return resolveListingMedia(items);
+  return resolveListingMedia(items, { skipDedupe: true });
 }
 
 /** Listing context the media-fallback gate needs to tell a CRM-exclusive
