@@ -253,6 +253,28 @@ function isBetterDuplicate(candidate: ListingMediaTableRow, current: ListingMedi
   return candidate.order < current.order;
 }
 
+/**
+ * Recover the original source URL from a `/api/media/proxy?url=<encoded>`
+ * wrapper. Returns the input unchanged when it is not a proxy URL.
+ *
+ * Used for DEDUPE IDENTITY only. `resolveListingMedia` accepts already-proxied
+ * "pre-mapped DTO entries" (persisted `listings.media` JSON / DTO re-feed) as a
+ * supported input shape; `visualIdentity` strips the query string, so without
+ * unwrapping, two DISTINCT proxied photos both reduce to the `/api/media/proxy`
+ * pathname and collapse to one image (Codex review, PR #363, 2026-06-06). This
+ * keys identity on the encoded source instead. Render URLs are unaffected.
+ */
+function unwrapProxyUrl(url: string): string {
+  if (!url || !url.includes('/api/media/proxy')) return url;
+  const m = url.match(/[?&]url=([^&]+)/);
+  if (!m) return url;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return url;
+  }
+}
+
 /** Wrap Trestle/CoreLogic media URLs with the bearer-auth proxy. Pass through otherwise. */
 export function proxyTrestleUrl(url: string): string {
   if (!url) return url;
@@ -341,8 +363,12 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
   const deduped = options.skipDedupe
     ? decorated
     : decorated.filter((d) => {
-        // Key on the SOURCE URL (pre-proxy), never the mapped `d.url`.
-        const key = visualIdentity(d.rawUrl, d.rawUrl) || d.rawUrl;
+        // Key on the SOURCE URL, never the mapped `d.url`. `rawUrl` may itself
+        // already be proxied (pre-mapped DTO input), so unwrap the proxy
+        // wrapper first — otherwise every proxied item shares the
+        // `/api/media/proxy` identity and the gallery collapses to one image.
+        const src = unwrapProxyUrl(d.rawUrl);
+        const key = visualIdentity(src, src) || src;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;

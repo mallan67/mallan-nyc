@@ -109,6 +109,31 @@ describe('resolveListingMedia (JSON path) — dedupe + hero safety', () => {
     ];
     expect(resolveListingMedia(items)).toHaveLength(1);
   });
+
+  // ── Codex #363 follow-up: already-proxied DTO-shape input ──
+  // The resolver's contract accepts "pre-mapped DTO entries" — i.e. `url` is
+  // ALREADY `/api/media/proxy?url=<encoded>` (persisted JSON / DTO re-feed).
+  // The dedupe key must unwrap the proxy to the encoded SOURCE, else every
+  // proxied item shares the `/api/media/proxy` pathname and collapses to one.
+  const proxied = (src: string) => `/api/media/proxy?url=${encodeURIComponent(src)}`;
+
+  it('does NOT collapse distinct pre-proxied DTO media (already-mapped input)', () => {
+    const items = [
+      { mediaType: 'Photo', url: proxied('https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/1.jpg'), order: 0 },
+      { mediaType: 'Photo', url: proxied('https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/2.jpg'), order: 1 },
+      { mediaType: 'Photo', url: proxied('https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/3.jpg'), order: 2 },
+    ];
+    expect(resolveListingMedia(items)).toHaveLength(3);
+  });
+
+  it('DOES collapse duplicate pre-proxied DTO media that point at the same source', () => {
+    const src = 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/1.jpg';
+    const items = [
+      { mediaType: 'Photo', url: proxied(src), order: 0 },
+      { mediaType: 'Photo', url: proxied(src), order: 5 },
+    ];
+    expect(resolveListingMedia(items)).toHaveLength(1);
+  });
 });
 
 describe('table-backed path (resolveListingMediaFromRows) — unchanged', () => {
