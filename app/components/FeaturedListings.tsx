@@ -14,6 +14,7 @@ import {
 import { formatBathrooms } from '@/lib/format/bathrooms';
 import {
   orderFeaturedListings,
+  filterFeaturedDisplayable,
   featuredBadgeFor,
   featuredCardHref,
   isPinnedFeatured,
@@ -389,6 +390,12 @@ export default function FeaturedListings() {
         params.set('limit', String(Math.max(limit * 3, 30)));
         params.set('excludeUndisclosed', 'true');
         params.set('sort', config.sort || 'price-desc');
+        // Coming Soon Layer 1 — Featured shows Active only (no-showings Coming
+        // Soon inventory shouldn't headline the homepage). Per-request param;
+        // does NOT change global search status policy. Client-side
+        // `filterFeaturedDisplayable` below is the authoritative gate (it also
+        // drops photoless cards the API can't filter).
+        params.set('statuses', 'Active');
         if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
         if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice));
         if (filters.minBeds) params.set('beds', String(filters.minBeds));
@@ -407,8 +414,12 @@ export default function FeaturedListings() {
         const data = await res.json();
         const exclData = exclRes.ok ? await exclRes.json() : { listings: [] };
 
-        const generalListings: FeaturedListing[] = data.listings || [];
-        const exclusives: FeaturedListing[] = exclData.listings || [];
+        // Coming Soon Layer 1 — exclude Coming Soon + photoless listings from
+        // BOTH feeds before ordering (curated hero content; see
+        // filterFeaturedDisplayable). The UCBA Coming Soon badge is untouched
+        // for surfaces that DO render Coming Soon (detail / opt-in search).
+        const generalListings: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(data.listings || []);
+        const exclusives: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(exclData.listings || []);
 
         if (cancelled || (generalListings.length === 0 && exclusives.length === 0)) return;
 

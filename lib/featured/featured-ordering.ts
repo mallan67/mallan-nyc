@@ -36,6 +36,8 @@
 
 import { buildAddressKey, type DedupeAddressLike } from '@/lib/listings/dedupe-crm-vs-idx';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import { isComingSoonStatus } from '@/lib/compliance/status';
+import { getValidPhotoMedia, type ListingPhotoMedia } from '@/lib/media/listing-card-media';
 
 /** Minimal shape the ordering/badge helpers read off a featured listing. */
 export interface FeaturedOrderable {
@@ -59,6 +61,43 @@ const CRM_ID_PREFIX = /^(SL|RL)-/i;
 export function isMallanOwnedListing(l: Pick<FeaturedOrderable, '_source' | 'id' | 'mlsId' | 'listing_id'>): boolean {
   if (l._source === 'exclusive') return true;
   return [l.listing_id, l.id, l.mlsId].some((x) => typeof x === 'string' && CRM_ID_PREFIX.test(x));
+}
+
+/**
+ * Coming Soon Layer 1 (2026-06-06) — Featured displayability gate.
+ *
+ * The homepage Featured section is curated hero content, held to a stricter bar
+ * than search. A listing is shown in Featured only when BOTH:
+ *   - it is NOT Coming Soon (no-showings inventory shouldn't headline the home
+ *     page — production showed a photoless Coming Soon card, 345 E 81st #14B), and
+ *   - it has at least one usable public Photo (floor plans, documents, videos,
+ *     and broken/placeholder URLs do NOT count — a photoless card renders the
+ *     grey placeholder).
+ *
+ * INCLUSION gate only. It does NOT change global search status policy and does
+ * NOT affect the REBNY UCBA Art. I §16(C) Coming Soon badge, which still renders
+ * wherever a Coming Soon listing IS shown (detail pages / opt-in search).
+ */
+export interface FeaturedDisplayable {
+  status?: string | null;
+  media?: readonly ListingPhotoMedia[] | null;
+}
+
+/** True when the listing has ≥1 usable public Photo (uses the same
+ *  `getValidPhotoMedia` gate the cards render through). */
+export function hasUsableFeaturedPhoto(l: FeaturedDisplayable): boolean {
+  return getValidPhotoMedia(l.media ?? null).length > 0;
+}
+
+/** Featured shows a listing only if it is not Coming Soon AND has a usable photo. */
+export function isFeaturedDisplayable(l: FeaturedDisplayable): boolean {
+  if (isComingSoonStatus(l.status)) return false;
+  return hasUsableFeaturedPhoto(l);
+}
+
+/** Drop Coming Soon + photoless listings, preserving the order of the rest. */
+export function filterFeaturedDisplayable<T extends FeaturedDisplayable>(listings: T[]): T[] {
+  return listings.filter(isFeaturedDisplayable);
 }
 
 /**
