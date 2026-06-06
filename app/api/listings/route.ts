@@ -418,9 +418,17 @@ export async function GET(request: Request) {
             // CRM row. The IDX row stays in DB for audit history. See
             // docs/crm/listing-canonical-mallan-exclusive-audit-2026-05-28.md
             // and lib/listings/dedupe-crm-vs-idx.ts.
+            // CRM-vs-IDX dedup runs early (filter-safe: a Mallan exclusive and
+            // its IDX shadow are the SAME listing → identical features, so any
+            // post-filter applies to both identically). The PURE-IDX same-unit
+            // collapse is deferred to AFTER applyPublicListingPostFilters below:
+            // same-unit third-party siblings can carry DIFFERENT
+            // features/remarks/amenities, so the winner must be chosen among the
+            // rows that actually match the user's filters — otherwise a matching
+            // unit could vanish when the media-winner fails a filter the
+            // suppressed sibling would pass (Codex P2 #362).
             let publicListings = preferCrmExclusiveOverIdxDuplicate(
               displayable.map(dbListingToPublicDTO),
-              { collapsePureIdxDuplicates: true },
             );
 
             // Build features lookup — passed into applyPublicListingPostFilters
@@ -543,6 +551,17 @@ export async function GET(request: Request) {
             // badge that visually differentiates 3 otherwise-identical
             // cards. Pure post-processing — does NOT remove or merge
             // any rows. Single pass over the array; O(N) work.
+            // PR-B (after ALL filters + the live-media fallback): collapse
+            // pure-IDX same-unit duplicates to one canonical card. Running it
+            // here — once only filter-matching rows remain AND empty media has
+            // been backfilled from Trestle — guarantees (a) a same-unit group
+            // never disappears because the media-winner failed a filter a
+            // suppressed sibling would pass, and (b) the "usable photos" winner
+            // metric reflects the post-fallback media (Codex P2 #362). Runs
+            // before annotateCoListedSiblings so co-listed badges see the final
+            // deduped set.
+            publicListings = preferCrmExclusiveOverIdxDuplicate(publicListings, { collapsePureIdxDuplicates: true });
+
             let annotatedListings = annotateCoListedSiblings(publicListings);
             if (excludeUndisclosed) {
               annotatedListings = annotatedListings.filter(
