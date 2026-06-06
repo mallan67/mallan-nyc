@@ -41,25 +41,21 @@ describe('PATCH enforcement Draft/WebOnly bypass (P0 fix)', () => {
     );
   });
 
-  test('effectiveStatus is sourced from body.MlsStatus then listing.status — NOT stale merged/raw_data (Codex P1 #358)', () => {
-    // The gate must decide from the request override or the authoritative
-    // persisted column, never from merged.MlsStatus (which falls back to a
-    // potentially stale raw_data.MlsStatus and would fail-OPEN on an Active
-    // listing whose raw value is a stale "Incomplete").
-    expect(routeSource).toMatch(/const effectiveStatus\s*=\s*\(body\.MlsStatus[^\n]*\|\|\s*listing\.status/);
-    expect(routeSource).not.toMatch(/const effectiveStatus\s*=\s*\(merged\.MlsStatus/);
+  test('RLS gate is keyed on persisted listing.status only — NOT body.MlsStatus or merged/raw_data (Codex P1 ×2 #358)', () => {
+    // The PATCH route does not write the status column, so neither the request
+    // payload (body.MlsStatus) nor the stale raw_data.MlsStatus is authoritative.
+    // The gate must read the persisted listing.status column.
+    expect(routeSource).toMatch(/const persistedStatus\s*=\s*listing\.status\s*\|\|\s*"Draft"/);
+    expect(routeSource).toMatch(/const normalizedPersistedStatus\s*=\s*normalizeStandardStatus\(persistedStatus\)/);
+    // The RLS gate must NOT source its draft decision from body.MlsStatus or merged.
+    expect(routeSource).not.toMatch(/const isDraftLike[\s\S]{0,40}body\.MlsStatus/);
+    expect(routeSource).not.toMatch(/normalizedStatus\s*=\s*normalizeStandardStatus\(effectiveStatus\)/);
   });
 
-  test('isDraftLike compares the NORMALIZED status for Draft/Incomplete (Codex P2 — casing/whitespace)', () => {
+  test('isDraftLike compares the NORMALIZED persisted status for Draft/Incomplete (Codex P2 — casing/whitespace)', () => {
     expect(routeSource).toMatch(/const isDraftLike\s*=/);
-    // The draft-like check must run on the normalized status, not the raw
-    // string, so "incomplete" / "Incomplete " / " DRAFT " fold to canonical.
-    expect(routeSource).toMatch(/const normalizedStatus\s*=\s*normalizeStandardStatus\(effectiveStatus\)/);
-    expect(routeSource).toMatch(/normalizedStatus === "Draft"/);
-    expect(routeSource).toMatch(/normalizedStatus === "Incomplete"/);
-    // No raw-literal draft compare should remain (it missed casing variants).
-    expect(routeSource).not.toMatch(/effectiveStatus === "Draft"/);
-    expect(routeSource).not.toMatch(/effectiveStatus === "Incomplete"/);
+    expect(routeSource).toMatch(/normalizedPersistedStatus === "Draft"/);
+    expect(routeSource).toMatch(/normalizedPersistedStatus === "Incomplete"/);
     // The old literal-only negative gate must be gone (it was the original bug).
     expect(routeSource).not.toMatch(/&&\s*!isDraft\s*&&/);
   });

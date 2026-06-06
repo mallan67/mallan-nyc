@@ -116,52 +116,41 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   });
   const effectiveRlsEligible = eligibility.rlsEligible;
 
-  // RLS Enforcement Gate — fail-closed. Enforce the 48-field mandatory check
-  // for every RLS-eligible listing in a NON-draft status: the publicly
-  // displayable Active / ComingSoon / ActiveUnderContract, plus Pending and the
-  // terminal statuses. Website-only listings (InHouseWebOnly, InHouseInternal,
-  // commercial) are filtered out via effectiveRlsEligible. REBNY requires those
-  // fields for RLS/IDX submission. Matches the POST handler's `if (rlsEligible)`.
+  // RLS Enforcement Gate — fail-closed, keyed on the PERSISTED `listing.status`
+  // column ONLY. Enforce the 48-field mandatory check for every RLS-eligible
+  // listing in a non-draft persisted status: the publicly displayable Active /
+  // ComingSoon / ActiveUnderContract, plus Pending and the terminal statuses.
+  // Website-only listings (InHouseWebOnly/InHouseInternal/commercial) are
+  // filtered out via effectiveRlsEligible. Skip ONLY when the persisted status
+  // normalizes to draft-like: "Draft", the CRM draft marker "Incomplete", or
+  // empty/null (→ the "Draft" default).
   //
-  // Skip ONLY draft-like states: literal "Draft", the CRM draft marker
-  // "Incomplete" (non-Draft but in-progress — the form saves drafts this way),
-  // and empty/missing status (which the `|| "Draft"` default already folds to
-  // Draft). A naive `!isDraft` that recognised only literal "Draft" wrongly
-  // enforced on Incomplete draft saves (Codex #348/#350 class). Do NOT swap in
-  // the FARE-specific isDisplayReadyStatus() helper — it is Active/ComingSoon-
-  // only and would fail-OPEN on the publicly displayable ActiveUnderContract,
-  // letting it save missing mandatory fields (Codex P1 on #358). This negative
-  // draft set keeps the gate fail-closed across the full displayable + terminal
-  // set while still freeing genuine draft saves.
+  // Why persisted-only: the PATCH route does NOT write the `status` column
+  // (transitions go through /status). So neither `body.MlsStatus` (request
+  // payload) nor `raw_data.MlsStatus` (which the status route leaves stale on
+  // activation) is authoritative here. Reading either let a request — or a stale
+  // raw value — make an actually Active/ActiveUnderContract row look draft-like
+  // and bypass the 48-field check while the row stays publicly displayable
+  // (fail-OPEN: Codex P1 ×2 on #358 — stale-raw, then request-downgrade).
   //
-  // Source the status from the REQUEST override (`body.MlsStatus`) then the
-  // authoritative persisted `listing.status` column — NOT `merged.MlsStatus`.
-  // `merged` falls back to `raw_data.MlsStatus`, which the status route does NOT
-  // keep in sync when it flips the `status` column on activation. Reading the
-  // merged/raw value would let a stale `raw_data.MlsStatus = "Incomplete"` make
-  // an actually-Active listing look draft-like and bypass enforcement — a
-  // fail-OPEN on a publicly displayable listing (Codex P1 on #358 dd01538b). An
-  // explicit body override still wins (a genuine draft save sends Incomplete).
-  const effectiveStatus = (body.MlsStatus as string) || listing.status || "Draft";
-  // Normalize before the draft-like comparison so casing / whitespace variants
-  // of the draft markers ("incomplete", "Incomplete ", " DRAFT ") still count as
-  // draft-like and are not wrongly 422'd (Codex P2 #358) — the repo convention
-  // is to fold status casing via normalizeStandardStatus. The `|| "Draft"`
-  // default above guarantees effectiveStatus is non-empty, so empty/missing
-  // status folds to "Draft" (draft-like) and never reaches
-  // normalizeStandardStatus('') — which would otherwise default to "Active"
-  // (would wrongly enforce). Active/ComingSoon/ActiveUnderContract/Pending and
-  // terminal all normalize to non-draft-like values and remain enforced.
-  const normalizedStatus = normalizeStandardStatus(effectiveStatus);
+  // Normalize before the draft-like compare so casing/whitespace variants of the
+  // persisted draft markers ("incomplete", "Incomplete ", " DRAFT ") still count
+  // as draft-like (Codex P2). The `|| "Draft"` default keeps persistedStatus
+  // non-empty, so an empty/null column folds to "Draft" (draft-like) and never
+  // reaches normalizeStandardStatus('') — which would default to "Active". Do
+  // NOT use the FARE-specific isDisplayReadyStatus() (Active/ComingSoon-only) —
+  // it would fail-OPEN on the publicly displayable ActiveUnderContract.
+  const persistedStatus = listing.status || "Draft";
+  const normalizedPersistedStatus = normalizeStandardStatus(persistedStatus);
   const isDraftLike =
-    normalizedStatus === "Draft" || normalizedStatus === "Incomplete";
+    normalizedPersistedStatus === "Draft" || normalizedPersistedStatus === "Incomplete";
 
   const isCrmCreated = !listing.mls_id;
   if (effectiveRlsEligible && !isDraftLike && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(merged, {
       listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
       isNewDevelopment: merged.NewDevelopmentYN === true,
-      currentStatus: effectiveStatus,
+      currentStatus: persistedStatus,
       previousStatus: listing.status || undefined,
       existingActivationDate: existingRaw.ActivationDate as string | undefined,
       rlsEligible: effectiveRlsEligible,
@@ -184,6 +173,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // exclusives too. Gate on DISPLAY-READY status (not !isDraft): the CRM form saves
   // drafts as RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
   // so a draft save must never be gated (Codex #348).
+  //
+  // Unchanged from its #350 baseline: this gate reads `effectiveStatus`
+  // (merged.MlsStatus → listing.status). It shares the same latent stale-raw /
+  // request-override considerations as the persisted-status RLS gate above, but
+  // is intentionally left at its established behavior in this PR (separate
+  // follow-up). isDisplayReadyStatus() normalizes the value internally.
+  const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
   const isRental = ((listing.listing_type as string) ?? "") === "rent";
   if (isRental && isDisplayReadyStatus(effectiveStatus)) {
     const feeCheck = checkFeeDisclosure(merged);
