@@ -6,14 +6,17 @@
 
 ## TL;DR
 
-The detail hero is pixelated because **the source image from the IDX Plus feed
-is small (575×530)**, not because of a code mis-selection or proxy compression.
-The hero is the **proxied Cotality original `MediaURL`** displayed at ~1027px →
-**1.79× upscale**. The media proxy does **not** resize; the resolver correctly
-picks the full-size field; the hero is a plain `<img>` (no Next/Image
-downscaling). For IDX listings, `MediaURL` is the *only* size Cotality publishes,
-so the card and the detail-hero resolve to the **same** URL. **CRM exclusives
-(SL-/RL-) are unaffected** — they carry R2 `-hero.webp` (1600px) and render sharp.
+The detail hero is pixelated because **the image the app resolved for the sampled
+listing is small (575×530)**, not because of a code mis-selection or proxy
+compression. The hero is the **proxied Cotality original `MediaURL`** displayed at
+~1027px → **1.79× upscale**. The media proxy does **not** resize; the resolver
+correctly picks the full-size field; the hero is a plain `<img>` (no Next/Image
+downscaling). **For the sampled IDX listing, the card and detail hero currently
+resolve to the same `MediaURL` (575×530).** We have **not** yet proven whether
+Cotality publishes alternate image sizes, `ImageSizeDescription` variants, URL
+modifiers, or entitlement-dependent media alternatives — that requires a live
+Trestle Media probe (§4). **CRM exclusives (SL-/RL-) are unaffected** — they carry
+R2 `-hero.webp` (1600px) and render sharp.
 
 ➡️ The fix is **not** "use a different field" (the `url`/`thumbUrl` split already
 exists and works for CRM). The lever is the **IDX source resolution**: either
@@ -59,8 +62,9 @@ Captured from the live page (Playwright, 2026-06-06):
 
 ## 3. Why the quality is poor (proven)
 
-1. The IDX Plus `MediaURL` for this photo points to a **575×530** image (Cotality
-   serves a reduced display size for the consumer feed).
+1. The `MediaURL` the app resolved for this photo points to a **575×530** image.
+   (Whether this is the only size Cotality publishes, or whether a larger
+   variant/entitlement exists, is **not yet proven** — see §4.)
 2. The detail hero/lightbox display at ~1000–1370px, **upscaling 1.8–2.4×** — the
    browser stretches a small bitmap → visible pixelation.
 3. It is **NOT** any of the commonly-suspected causes:
@@ -68,27 +72,41 @@ Captured from the live page (Playwright, 2026-06-06):
    - **Not a card/original mixup** — the hero uses `url` (full-size field), the
      thumb uses `thumbUrl`; the resolver picks the original, not the card.
    - **Not Next/Image** — the hero is a plain `<img>`, no optimizer downscaling.
-   - **Not card/detail field confusion** — for IDX, `url` and `thumbUrl` resolve
-     to the **same** Cotality URL because the feed publishes only one size.
-4. **CRM exclusives are sharp** (R2 `-hero.webp` 1600px), confirming the defect is
-   isolated to **IDX-feed-sourced** media resolution, not the display code.
+   - **Not card/detail field confusion** — for the sampled IDX listing, `url` and
+     `thumbUrl` resolved to the **same** Cotality URL. (Whether the feed exposes a
+     larger size for that same photo is unproven — §4.)
+4. **CRM exclusives are sharp** (R2 `-hero.webp` 1600px). This is consistent with
+   the defect being **IDX-feed-sourced** media resolution rather than the display
+   code — but the IDX feed ceiling itself is **not yet proven** (§4).
 
 ## 4. OPEN question — must be verified LIVE before any fix (Class B)
 
-Per the compliance charter (do not assert live-feed truth from the repo):
-**Does Cotality IDX Plus offer a higher-resolution media URL/field, or is ~575px
-the IDX Plus ceiling?** The repo only ever sees `MediaURL`; whether a larger size
-is obtainable is a **live Trestle question**.
+**Two possible roots, and we do NOT yet know which:**
+- **A.** the app is using a low-res/proxied/card-size image for the detail hero, or
+- **B.** Cotality only provides a low-res image for these listings.
 
-Verification steps (read-only, manual — NOT in this report):
-- `npm run trestle:probe` / a live `Media` OData query for this
-  `ResourceRecordKey` — inspect every field for a larger URL, an
-  `ImageSizeDescription`, or multiple rows per photo at different sizes.
-- Check whether the `MediaURL` accepts a size modifier, or whether a different
-  `Accept`/size header yields a larger original.
-- Check Trestle/Cotality IDX Plus docs/notices for image-size entitlements.
-- **Do not assume a larger size exists.** If verification shows 575px is the IDX
-  Plus cap, the source cannot be improved and only display mitigation remains.
+Per the compliance charter (do not assert live-feed truth from the repo): **whether
+Cotality/Trestle exposes higher-resolution variants through `ImageSizeDescription`,
+alternate Media rows, URL modifiers, or entitlement-specific access is unproven.**
+For the sampled listing the app resolved only one usable `MediaURL` (575×530) — that
+is a **sample-specific observation, not a proven feed ceiling.**
+
+**A follow-up engineer MUST run a live Trestle Media probe before choosing Track A
+vs Track B — do not skip it and do not implement mitigation on assumption.**
+
+Live-verification requirements (read-only, manual — NOT done in this report):
+1. Inspect live Trestle `Media` rows for several sample listings
+   (`npm run trestle:probe` / a `Media` OData query by `ResourceRecordKey`).
+2. Check `ImageSizeDescription`, `MediaModificationTimestamp`, `MediaObjectID`, and
+   any `MediaURL` variants / size modifiers / alternate Media rows per photo.
+3. Compare the **original** `MediaURL` pixel dimensions vs the proxied and any R2
+   dimensions.
+4. Verify whether higher-resolution assets exist (Track A) or whether the feed
+   itself is low-res for these listings (Track B).
+
+If the probe proves 575px is the IDX Plus ceiling, the source cannot be improved
+and only display mitigation (Track B) remains; if it shows a larger size exists,
+Track A (higher-res fetch + re-sync) is correct.
 
 ## 5. Proposed fix (conditional on §4)
 
@@ -143,11 +161,13 @@ one expects backfill to sharpen IDX photos.
 The starting bet was *"detail hero pulls the same field as cards, normalized to a
 small card/proxy asset; detail needs a separate fullUrl while cards use
 thumbUrl."* The `url` (full) vs `thumbUrl` (card) split **already exists** and
-works for CRM (1600px hero vs 800px card). For **IDX** listings the two resolve to
-the **same** Cotality URL — **not** because we downscaled to a card asset, but
-because IDX Plus publishes only one size (~575px). So the real lever is the **IDX
-source resolution** (Track A, pending live verification), with display mitigation
-(Track B) as the fallback — *not* a field-selection change.
+works for CRM (1600px hero vs 800px card). For the **sampled IDX** listing the two
+resolved to the **same** Cotality URL — **not** because we downscaled to a card
+asset, but because the app found only one usable `MediaURL` for that photo. Whether
+a higher-resolution variant exists for IDX media is **unproven** (§4). So the lever
+is the **IDX source resolution** (Track A *if* a larger size exists), with display
+mitigation (Track B) as the fallback — *not* a field-selection change. The live
+Trestle probe (§4) decides which.
 
 > **Stop after report.** No code, no DB, no env, no R2/backfill. Next concrete
 > step is the **live Trestle Media verification** in §4 to choose Track A vs B.
