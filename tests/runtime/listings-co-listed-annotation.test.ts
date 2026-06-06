@@ -63,7 +63,19 @@ function listingFixture(overrides: Partial<PublicListingDTO> = {}): PublicListin
   };
 }
 
-describe('annotateCoListedSiblings (PR-FE.2 Option C)', () => {
+describe('annotateCoListedSiblings (PR-FE.2 Option C + PR-A Mallan-only gating)', () => {
+  // A Mallan exclusive sibling makes a group "Mallan-relevant" (SL-/RL- id or
+  // _source='exclusive'); only then does the badge render. See PR-A.
+  function mallanExclusive(overrides: Partial<PublicListingDTO> = {}): PublicListingDTO {
+    return listingFixture({
+      id: 'SL-1001',
+      slug: '50-w-66-sl-1001',
+      listOfficeName: 'Mallan Real Estate Inc.',
+      _source: 'exclusive',
+      ...overrides,
+    });
+  }
+
   it('returns _coListedCount=0 / undefined for a single-source listing (no siblings)', () => {
     const input = [
       listingFixture({ id: 'RLS001', slug: '400-east-90th-street-apt-17c-new-york-ny-10128-rls001', listOfficeName: 'Acme Realty' }),
@@ -74,69 +86,100 @@ describe('annotateCoListedSiblings (PR-FE.2 Option C)', () => {
     expect(out[0]._coListedBrokerages).toBeUndefined();
   });
 
-  it('annotates 3 co-listed siblings with count=2 each (siblings, not self)', () => {
+  // PR-A core: a pure third-party-vs-third-party same-unit group must NOT be
+  // annotated, so the yellow "Additional listing source" banner does not show
+  // on ordinary non-Mallan RLS listings (e.g. Compass + Corcoran of the same unit).
+  it('PR-A: third-party-only same-unit group is NOT annotated (no badge)', () => {
     const input = [
-      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'Extell Marketing' }),
+      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'Compass' }),
       listingFixture({ id: 'RLS002', slug: '50-w-66-rls002', listOfficeName: 'Corcoran' }),
       listingFixture({ id: 'RLS003', slug: '50-w-66-rls003', listOfficeName: 'Douglas Elliman' }),
     ];
     const out = annotateCoListedSiblings(input);
     expect(out).toHaveLength(3);
     for (const row of out) {
-      expect(row._coListedCount).toBe(2);
-      // Each row's badge should name the OTHER 2 brokerages, not itself.
-      expect(row._coListedBrokerages).toBeDefined();
-      expect(row._coListedBrokerages).not.toContain(row.listOfficeName);
-      expect(row._coListedBrokerages!).toHaveLength(2);
+      expect(row._coListedCount).toBeFalsy();
+      expect(row._coListedBrokerages).toBeUndefined();
     }
   });
 
-  it('produces correct sibling brokerage lists per row', () => {
+  // PR-A: a Mallan exclusive (SL-/RL- id) in the same-unit group makes it
+  // Mallan-relevant → every member is annotated (self OR sibling is Mallan).
+  it('PR-A: Mallan exclusive (SL- id) + third-party siblings → group IS annotated', () => {
     const input = [
-      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'Extell' }),
+      mallanExclusive({ id: 'SL-1001', slug: '50-w-66-sl-1001', listOfficeName: 'Mallan Real Estate Inc.' }),
       listingFixture({ id: 'RLS002', slug: '50-w-66-rls002', listOfficeName: 'Corcoran' }),
-      listingFixture({ id: 'RLS003', slug: '50-w-66-rls003', listOfficeName: 'Elliman' }),
+      listingFixture({ id: 'RLS003', slug: '50-w-66-rls003', listOfficeName: 'Douglas Elliman' }),
     ];
     const out = annotateCoListedSiblings(input);
+    for (const row of out) {
+      expect(row._coListedCount).toBe(2);
+      expect(row._coListedBrokerages).toBeDefined();
+      expect(row._coListedBrokerages).not.toContain(row.listOfficeName);
+    }
+    // The Mallan card names the third-party siblings; a third-party card names
+    // Mallan + the other third-party.
     const byId = Object.fromEntries(out.map(l => [l.id, l]));
-    expect(new Set(byId.RLS001._coListedBrokerages)).toEqual(new Set(['Corcoran', 'Elliman']));
-    expect(new Set(byId.RLS002._coListedBrokerages)).toEqual(new Set(['Extell', 'Elliman']));
-    expect(new Set(byId.RLS003._coListedBrokerages)).toEqual(new Set(['Extell', 'Corcoran']));
+    expect(new Set(byId['SL-1001']._coListedBrokerages)).toEqual(new Set(['Corcoran', 'Douglas Elliman']));
+    expect(new Set(byId.RLS002._coListedBrokerages)).toEqual(new Set(['Mallan Real Estate Inc.', 'Douglas Elliman']));
+  });
+
+  // PR-A: the _source='exclusive' signal also makes a group Mallan-relevant,
+  // even when the id is not an SL-/RL- slug.
+  it('PR-A: _source="exclusive" sibling → group IS annotated', () => {
+    const input = [
+      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'Mallan Real Estate Inc.', _source: 'exclusive' }),
+      listingFixture({ id: 'RLS002', slug: '50-w-66-rls002', listOfficeName: 'Corcoran' }),
+    ];
+    const out = annotateCoListedSiblings(input);
+    for (const row of out) expect(row._coListedCount).toBe(1);
+  });
+
+  // PR-A: a third-party RL... id (e.g. RLS-prefixed) must NOT be mistaken for a
+  // Mallan rental exclusive (RL- with hyphen). A third-party-only group stays
+  // unannotated even when ids start with "RLS".
+  it('PR-A: third-party "RLS…" ids do not match the RL- Mallan prefix', () => {
+    const input = [
+      listingFixture({ id: 'RLS101', slug: '50-w-66-rls101', listOfficeName: 'Compass' }),
+      listingFixture({ id: 'RLS102', slug: '50-w-66-rls102', listOfficeName: 'Corcoran' }),
+    ];
+    const out = annotateCoListedSiblings(input);
+    for (const row of out) expect(row._coListedCount).toBeFalsy();
   });
 
   it('does NOT remove or merge any rows (preserves distinct listing_id count)', () => {
     const input = [
-      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'A' }),
+      mallanExclusive({ id: 'SL-1001', slug: '50-w-66-sl-1001', listOfficeName: 'Mallan' }),
       listingFixture({ id: 'RLS002', slug: '50-w-66-rls002', listOfficeName: 'B' }),
       listingFixture({ id: 'RLS003', slug: '50-w-66-rls003', listOfficeName: 'C' }),
       listingFixture({ id: 'RLS004', slug: 'somewhere-else-rls004', listOfficeName: 'D' }),
     ];
     const out = annotateCoListedSiblings(input);
     expect(out).toHaveLength(4);
-    expect(out.map(l => l.id)).toEqual(['RLS001', 'RLS002', 'RLS003', 'RLS004']);
+    expect(out.map(l => l.id)).toEqual(['SL-1001', 'RLS002', 'RLS003', 'RLS004']);
   });
 
-  it('leaves single-source listings unannotated when mixed with a co-listed group', () => {
+  it('only the Mallan-relevant group is annotated when mixed with a third-party group', () => {
     const input = [
-      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'A' }),
+      // Mallan-relevant group at 50-w-66
+      mallanExclusive({ id: 'SL-1001', slug: '50-w-66-sl-1001', listOfficeName: 'Mallan' }),
       listingFixture({ id: 'RLS002', slug: '50-w-66-rls002', listOfficeName: 'B' }),
-      listingFixture({ id: 'RLS003', slug: 'somewhere-else-rls003', listOfficeName: 'C' }),
+      // separate third-party-only group at 10-park
+      listingFixture({ id: 'RLS003', slug: '10-park-ave-rls003', listOfficeName: 'C' }),
+      listingFixture({ id: 'RLS004', slug: '10-park-ave-rls004', listOfficeName: 'D' }),
     ];
     const out = annotateCoListedSiblings(input);
-    const single = out.find(l => l.id === 'RLS003');
-    expect(single?._coListedCount).toBeFalsy();
-    expect(single?._coListedBrokerages).toBeUndefined();
-    const colisted = out.filter(l => l.id !== 'RLS003');
-    for (const row of colisted) {
-      expect(row._coListedCount).toBe(1);
-    }
+    const byId = Object.fromEntries(out.map(l => [l.id, l]));
+    expect(byId['SL-1001']._coListedCount).toBe(1);
+    expect(byId.RLS002._coListedCount).toBe(1);
+    // third-party-only group → not annotated
+    expect(byId.RLS003._coListedCount).toBeFalsy();
+    expect(byId.RLS004._coListedCount).toBeFalsy();
   });
 
   it('skips MLS-ID fallback slugs (address-suppressed listings cannot have co-listed siblings via slug)', () => {
-    // Two address-suppressed listings cannot be safely grouped — their
-    // slugs are listing-rls00X with no shared address key.
     const input = [
-      listingFixture({ id: 'RLS001', slug: 'listing-rls001', listOfficeName: 'A' }),
+      mallanExclusive({ id: 'SL-1001', slug: 'listing-sl-1001', listOfficeName: 'Mallan' }),
       listingFixture({ id: 'RLS002', slug: 'listing-rls002', listOfficeName: 'B' }),
     ];
     const out = annotateCoListedSiblings(input);
@@ -145,23 +188,22 @@ describe('annotateCoListedSiblings (PR-FE.2 Option C)', () => {
     }
   });
 
-  it('dedupes the "REBNY RLS" fallback office name (it is not a real brokerage)', () => {
+  it('dedupes the "REBNY RLS" fallback office name in a Mallan-relevant group', () => {
     const input = [
-      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'Acme' }),
+      mallanExclusive({ id: 'SL-1001', slug: '50-w-66-sl-1001', listOfficeName: 'Mallan' }),
       listingFixture({ id: 'RLS002', slug: '50-w-66-rls002', listOfficeName: 'REBNY RLS' }),
     ];
     const out = annotateCoListedSiblings(input);
-    const row1 = out.find(l => l.id === 'RLS001');
-    expect(row1?._coListedCount).toBe(1);
-    // "REBNY RLS" is the neutral fallback when the source row omits a
-    // real brokerage — it would be misleading to render it as a
-    // sibling brokerage name on the other row's badge.
-    expect(row1?._coListedBrokerages).toEqual([]);
+    const mallan = out.find(l => l.id === 'SL-1001');
+    expect(mallan?._coListedCount).toBe(1);
+    // "REBNY RLS" is the neutral fallback when the source row omits a real
+    // brokerage — it must not render as a sibling brokerage name.
+    expect(mallan?._coListedBrokerages).toEqual([]);
   });
 
   it('is pure (does not mutate input array or its elements)', () => {
     const input = [
-      listingFixture({ id: 'RLS001', slug: '50-w-66-rls001', listOfficeName: 'A' }),
+      mallanExclusive({ id: 'SL-1001', slug: '50-w-66-sl-1001', listOfficeName: 'Mallan' }),
       listingFixture({ id: 'RLS002', slug: '50-w-66-rls002', listOfficeName: 'B' }),
     ];
     const snapshot = JSON.stringify(input);
@@ -224,5 +266,15 @@ describe('Co-listed badge copy (PR-FE.2 Option C, post-Codex copy review)', () =
   it('Both files preserve the "Multiple listing sources" fallback for nameless siblings', () => {
     expect(searchCardSrc).toMatch(/'Multiple listing sources'/);
     expect(featuredSrc).toMatch(/'Multiple listing sources'/);
+  });
+
+  // PR-A render guard: when the annotator leaves _coListedCount absent (the
+  // third-party-only case), the badge must not render. formatCoListedBadge
+  // early-returns null on a falsy/<=0 count, and the JSX renders it only when
+  // truthy — so absent metadata ⇒ no yellow banner.
+  it('SearchListingCard suppresses the badge when _coListedCount is absent/<=0', () => {
+    expect(searchCardSrc).toMatch(/if\s*\(!count\s*\|\|\s*count\s*<=\s*0\)\s*return null/);
+    // The badge JSX is gated on a truthy formatCoListedBadge(...) result.
+    expect(searchCardSrc).toMatch(/formatCoListedBadge\(listing\)\s*&&/);
   });
 });
