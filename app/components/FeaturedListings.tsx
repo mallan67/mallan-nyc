@@ -390,12 +390,14 @@ export default function FeaturedListings() {
         params.set('limit', String(Math.max(limit * 3, 30)));
         params.set('excludeUndisclosed', 'true');
         params.set('sort', config.sort || 'price-desc');
-        // Coming Soon Layer 1 — Featured shows Active only (no-showings Coming
-        // Soon inventory shouldn't headline the homepage). Per-request param;
-        // does NOT change global search status policy. Client-side
-        // `filterFeaturedDisplayable` below is the authoritative gate (it also
-        // drops photoless cards the API can't filter).
-        params.set('statuses', 'Active');
+        // Coming Soon Layer 1 — Featured excludes ONLY Coming Soon (no-showings
+        // inventory shouldn't headline the homepage); Active AND
+        // ActiveUnderContract stay eligible (the latter is part of the normal
+        // public display set, incl. pinned under-contract listings — Codex #366).
+        // Per-request param; does NOT change global search status policy. The
+        // client-side `filterFeaturedDisplayable` below is the authoritative gate
+        // (it also drops photoless cards the API can't filter).
+        params.set('statuses', 'Active,ActiveUnderContract');
         if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
         if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice));
         if (filters.minBeds) params.set('beds', String(filters.minBeds));

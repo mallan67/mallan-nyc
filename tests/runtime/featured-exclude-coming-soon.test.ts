@@ -31,6 +31,10 @@ const ACTIVE_ONLY_FLOORPLAN = {
   media: [{ url: 'https://cdn.example.com/a/fp.jpg', mediaType: 'FloorPlan', order: 0 }],
 };
 const COMING_SOON_NO_PHOTOS = { id: 'RLS5', status: 'ComingSoon', media: [] }; // the screenshot case
+// ActiveUnderContract is part of the normal public display set and must stay
+// eligible for Featured (e.g. a pinned under-contract listing) — Codex #366.
+const UNDER_CONTRACT_WITH_PHOTOS = { id: 'RLS7', status: 'ActiveUnderContract', media: [photo(0)] };
+const UNDER_CONTRACT_NO_PHOTOS = { id: 'RLS8', status: 'ActiveUnderContract', media: [] };
 
 describe('Featured Listings — Coming Soon + photoless exclusion', () => {
   it('excludes ComingSoon listings (even with photos)', () => {
@@ -51,15 +55,25 @@ describe('Featured Listings — Coming Soon + photoless exclusion', () => {
     expect(hasUsableFeaturedPhoto(ACTIVE_WITH_PHOTOS)).toBe(true);
   });
 
-  it('filterFeaturedDisplayable drops ComingSoon + photoless, preserves order of the rest', () => {
+  it('keeps ActiveUnderContract listings that have usable photos (Codex #366)', () => {
+    expect(isFeaturedDisplayable(UNDER_CONTRACT_WITH_PHOTOS)).toBe(true);
+  });
+
+  it('still excludes photoless ActiveUnderContract (photo gate is status-independent)', () => {
+    expect(isFeaturedDisplayable(UNDER_CONTRACT_NO_PHOTOS)).toBe(false);
+  });
+
+  it('filterFeaturedDisplayable drops only ComingSoon + photoless; keeps Active & ActiveUnderContract with photos', () => {
     const out = filterFeaturedDisplayable([
       ACTIVE_WITH_PHOTOS,
       COMING_SOON_WITH_PHOTOS,
       ACTIVE_NO_PHOTOS,
+      UNDER_CONTRACT_WITH_PHOTOS,   // kept
       { id: 'RLS6', status: 'Active', media: [photo(0)] },
       COMING_SOON_NO_PHOTOS,
+      UNDER_CONTRACT_NO_PHOTOS,     // dropped (photoless)
     ]);
-    expect(out.map((l) => l.id)).toEqual(['RLS1', 'RLS6']);
+    expect(out.map((l) => l.id)).toEqual(['RLS1', 'RLS7', 'RLS6']);
   });
 });
 
