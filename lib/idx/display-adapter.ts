@@ -46,6 +46,18 @@ export function listingHref(listing: DisplayListing): string {
   return buildCanonicalListingPath({ slug: listing.slug, id: listing.id });
 }
 
+/**
+ * PR-C (2026-06-05) — a card has a 3D/virtual tour when the Property field
+ * `virtualTourURL` (mapped from `VirtualTourURLBranded`/`VirtualTourURLUnbranded`)
+ * is a non-empty string. Live probe confirmed IDX Plus serves the tour as a URL
+ * FIELD, not a Media-resource row, so this keys on `virtualTourURL` — NOT the
+ * photo-filtered `media[]`. Never surfaced as "Video": IDX Plus exposes only
+ * `VideosCount` (a count) with no playable video URL.
+ */
+export function hasVirtualTour(listing: Pick<DisplayListing, 'virtualTourURL'>): boolean {
+  return typeof listing.virtualTourURL === 'string' && listing.virtualTourURL.trim().length > 0;
+}
+
 /** Slim listing type for frontend cards — no 414-line monster */
 export interface DisplayListing {
   id: string;

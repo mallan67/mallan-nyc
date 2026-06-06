@@ -1,0 +1,96 @@
+/// <reference types="jest" />
+/**
+ * PR-C (2026-06-05) — search-card 3D/virtual-tour visibility.
+ *
+ * Live media probe established that IDX Plus serves the virtual tour as a
+ * Property URL FIELD (`VirtualTourURLBranded`/`VirtualTourURLUnbranded` →
+ * `virtualTourURL`), NOT a Media-resource row (Media serves only Photo +
+ * FloorPlan). The URL already reaches the cards via the API DTO, but the cards
+ * surfaced no indicator. PR-C adds a "3D Tour" badge keyed on `virtualTourURL`.
+ *
+ * Video is intentionally NOT surfaced: IDX Plus exposes only `VideosCount` with
+ * no playable URL, so the detail Video tab stays gated on a real `videoUrl`.
+ */
+import { readFileSync } from 'fs';
+import * as path from 'path';
+import { hasVirtualTour } from '@/lib/idx/display-adapter';
+
+describe('hasVirtualTour (PR-C predicate)', () => {
+  it('is true when virtualTourURL is a non-empty string', () => {
+    expect(hasVirtualTour({ virtualTourURL: 'https://my.matterport.com/show/?m=abc' })).toBe(true);
+  });
+  it('is false when virtualTourURL is missing / undefined', () => {
+    expect(hasVirtualTour({ virtualTourURL: undefined })).toBe(false);
+    expect(hasVirtualTour({} as { virtualTourURL?: string })).toBe(false);
+  });
+  it('is false for empty / whitespace-only strings', () => {
+    expect(hasVirtualTour({ virtualTourURL: '' })).toBe(false);
+    expect(hasVirtualTour({ virtualTourURL: '   ' })).toBe(false);
+  });
+});
+
+describe('SearchListingCard — 3D Tour badge wiring (source guard)', () => {
+  const src = readFileSync(
+    path.resolve(__dirname, '../../app/components/SearchListingCard.tsx'),
+    'utf8',
+  );
+
+  it('imports hasVirtualTour from the display-adapter (keyed on the Property field, not media[])', () => {
+    expect(src).toMatch(/import\s*\{[^}]*hasVirtualTour[^}]*\}\s*from\s*'@\/lib\/idx\/display-adapter'/);
+  });
+
+  it('renders the TourBadge gated on hasVirtualTour in all three card variants', () => {
+    // GridCard, ListCard, SplitCard each render the badge behind a
+    // `hasVirtualTour(listing) &&` gate (ListCard/SplitCard wrap the JSX in
+    // parens; GridCard renders <TourBadge /> directly).
+    const gated = src.match(/hasVirtualTour\(listing\)\s*&&/g) || [];
+    expect(gated.length).toBeGreaterThanOrEqual(3);
+    expect(src).toMatch(/<TourBadge\b/);
+  });
+
+  it('labels the badge "3D Tour" and never "Video" (IDX Plus has no playable video URL)', () => {
+    expect(src).toMatch(/3D Tour/);
+    expect(src).not.toMatch(/>\s*Video\s*</);
+  });
+
+  it('does NOT reference phantom media fields', () => {
+    expect(src).not.toMatch(/\bVideoURL\b/);
+    expect(src).not.toMatch(/\bMatterportURL\b/);
+    expect(src).not.toMatch(/\bFloorPlanURL\b/);
+  });
+});
+
+describe('ListingMediaGallery — tab gating (source guard)', () => {
+  const src = readFileSync(
+    path.resolve(__dirname, '../../app/components/ListingMediaGallery.tsx'),
+    'utf8',
+  );
+
+  it('shows the Video tab ONLY when a real videoUrl exists', () => {
+    expect(src).toMatch(/key:\s*'video',[^}]*available:\s*!!videoUrl/);
+  });
+
+  it('shows the 3D Tour tab when a virtualTourUrl exists', () => {
+    expect(src).toMatch(/key:\s*'3d',[^}]*available:\s*!!virtualTourUrl/);
+  });
+
+  it('filters tabs to the available set (a dead tab is not rendered)', () => {
+    expect(src).toMatch(/availableTabs\s*=\s*tabs\.filter\(\s*t\s*=>\s*t\.available\s*\)/);
+  });
+});
+
+describe('Listing detail page — virtualTourURL fallback + video sourced from media (source guard)', () => {
+  const src = readFileSync(
+    path.resolve(__dirname, '../../app/listing/[...slug]/page.tsx'),
+    'utf8',
+  );
+
+  it('3D tour falls back to the Property field listing.virtualTourURL', () => {
+    expect(src).toMatch(/const virtualTourUrl\s*=\s*listing\.virtualTourURL\s*\|\|/);
+  });
+
+  it('video is derived from the media array (no phantom VideoURL field)', () => {
+    expect(src).toMatch(/const videoUrl\s*=\s*videoMedia\?\.url\s*\|\|\s*null/);
+    expect(src).not.toMatch(/listing\.VideoURL|rawData\.VideoURL/);
+  });
+});
