@@ -419,6 +419,13 @@ export default function FeaturedListings() {
         // short (5 cards instead of 6). collectDisplayableFeatured pages until
         // `limit` displayable rows exist. Capture `_lastUpdated` from page 0 for
         // the IDX disclaimer. (Interim fill-fix until coverage backfill.)
+        //
+        // target = limit (no buffer): orderFeaturedListings caps to `limit`, and
+        // collecting `limit` displayable general rows already guarantees ≥ limit
+        // after ordering — exclusives are added first and dedupe only collapses
+        // general rows that twin an exclusive (bounded by the exclusive count),
+        // so survivors ≥ E + limit − E = limit. A larger target would force an
+        // extra page once the grid can already be filled (Codex #368).
         const pageSize = Math.max(limit * 8, 48);
         let firstLastUpdated: string | undefined;
         const generalListings = await collectDisplayableFeatured<FeaturedListing>(
@@ -432,7 +439,7 @@ export default function FeaturedListings() {
             if (skip === 0 && d._lastUpdated) firstLastUpdated = d._lastUpdated as string;
             return (d.listings || []) as FeaturedListing[];
           },
-          { target: limit + 6, pageSize, maxPages: 5 },
+          { target: limit, pageSize, maxPages: 5 },
         );
 
         const exclData = await exclPromise;
