@@ -281,30 +281,73 @@ FROM (SELECT listing_id FROM ranked WHERE rk = 1 GROUP BY listing_id HAVING COUN
 
 ---
 
-## Results (FILL after running the pack — do not fabricate)
+## Results — filled from live run (2026-06-06, cold-waterfall / neondb)
 
 | Metric | Source | Value |
 |---|---|---|
-| Coverage backfill count | Q1 | _pending_ |
-| — CRM vs IDX split | Q1b | _pending_ |
-| Total Active/ComingSoon | Q3 | _pending_ |
-| `photo_count` would change (ALL) | Q3 | _pending_ |
-| `primary_photo_url` would change (ALL) | Q3 | _pending_ |
-| `primary_photo_r2_key` would change (ALL) | Q3 | _pending_ |
-| `photos_change_timestamp` would change (ALL) | Q3 | _pending_ |
-| **Any of the 4 columns would change (ALL)** | Q3 | _pending_ |
-| **Any of the 4 would change (media-bearing only)** — the denorm work-set | Q3 | _pending_ |
-| Rows with zero active Photo rows | Q3 | _pending_ |
-| Rows with no active media at all | Q3 | _pending_ |
-| Non-photo/inactive heroes (must be 0) | Q4 | _pending_ |
-| Hero URL looks like document (must be 0) | Q4 | _pending_ |
-| Active Image-typed rows | Q5 | _pending_ |
-| Listings with an ambiguous hero tie | Q6 | _pending_ |
+| Coverage backfill count (non-empty JSON + no active media) | Q1 | **1,715** |
+| — CRM vs IDX split | Q1b | _not captured_ (split the 8,560 by `SL-`/`RL-` prefix before the run; production is IDX-dominant) |
+| Total Active/ComingSoon | Q3 | **10,698** |
+| `photo_count` would change (ALL) | Q3 | **8,541** |
+| `primary_photo_url` would change (ALL) | Q3 | **2** |
+| `primary_photo_r2_key` would change (ALL) | Q3 | **2,027** |
+| `photos_change_timestamp` would change (ALL) | Q3 | **4** |
+| **Any of the 4 columns would change (ALL)** | Q3 | **10,559** |
+| **Any of the 4 would change (media-bearing only)** — the denorm work-set | Q3 | **2,027** |
+| Rows with zero active Photo rows | Q3 | **8,571** |
+| Rows with no active media at all | Q3 | **8,560** |
+| Non-photo/inactive heroes (must be 0) | Q4 | **0** ✅ |
+| Hero URL looks like document (must be 0) | Q4 | **0** ✅ |
+| Active Image-typed rows | Q5 | **0** (no Image-typed rows → Photo-only `photo_count` is complete) |
+| Listings with an ambiguous hero tie | Q6 | **0** (no ties → `id ASC` tiebreak is moot; Q3 deltas already exact) |
 
-(Prior pasted probe, 2026-06-02/06, for orientation only — re-confirm with the
-pack: Photo 63,828 · FloorPlan 4,846 · `photo_count` null ≈ 8,527 ·
-`primary_photo_url` null ≈ 8,567 · first-media-floorplan ≈ 2,061 · coverage gap
-≈ 5,998.)
+### Row split (the decision-driving categories)
+
+| Cat | Definition | Count | Source |
+|---|---|---|---|
+| **A** | no active `listing_media` **at all** | **8,560** | Q3 `rows_with_no_active_media_at_all` |
+| **B** | no active `listing_media` **+ non-empty** `listings.media` JSON | **1,715** | Q1 |
+| **C** | no active `listing_media` **+ empty** JSON | **6,845** | **A − B** |
+| **D** | `listing_media` exists but summary stale/null (**denorm-repair-only**) | **2,027** | Q3 `any_of_4_change_MEDIA_ONLY` |
+
+**Read of the numbers:**
+- **80% of Active/ComingSoon (8,560 / 10,698) have NO active media rows at all.** This
+  is the dominant defect behind blank/inconsistent search cards — a **coverage**
+  problem, not a dedupe one.
+- **C = 6,845 have neither `listing_media` nor legacy JSON** → the media-sync pipeline
+  is missing **full coverage** (new listings entering without media), not just failing
+  to migrate old JSON. Coverage backfill must fetch **live Trestle Media**.
+- **D = 2,027** is the denorm-only work-set (media exists, summary stale — mostly
+  `r2_key` lag). `primary_photo_url`/`photos_change_timestamp` rarely change (2 / 4),
+  so the denorm churn is dominated by R2-key reconciliation.
+- **Q4 = 0/0, Q5 = 0, Q6 = 0** → the hero-safety + Photo-only + determinism
+  assumptions all hold on real data; no surprises block the writers.
+
+## Decision (from the live numbers)
+
+**Coverage backfill and denorm backfill MUST be two separate, sequential write PRs.**
+Running denorm first would write zeros/nulls for the 8,560 no-media rows and **lock in
+the broken state**. Coverage must populate `listing_media` from live Trestle first.
+
+**Recommended order:**
+1. **Coverage backfill PR (write-gated, preview-first):**
+   - Target: **IDX listings missing active `listing_media`** (the **A = 8,560** set;
+     exclude `SL-`/`RL-` — run Q1b first to size the CRM subset to exclude).
+   - Fetch **live Trestle Media**; write **`listing_media` only** (idempotent upsert by
+     `media_key`); **no denorm writes** except whatever the existing per-listing sync
+     path already does *and is explicitly proven safe*.
+   - **Bounded batches**; **dry-run counts + sample `listing_id`s first**; no R2 cleanup.
+2. **Denorm backfill PR (write-gated, after coverage lands):**
+   - Recompute the 4 derived fields (`photo_count`, `primary_photo_url`,
+     `primary_photo_r2_key`, `photos_change_timestamp`) from active `listing_media`.
+   - Include the **deterministic writer `orderBy`** (`preferred_photo_yn desc, order asc,
+     id asc`).
+   - **Verify:** re-run Q3 → `any_of_4_change_MEDIA_ONLY` → **0**; Q4 stays **0 / 0**.
+3. **Then** detail media tabs → image quality (live Trestle probe) → card layout →
+   search canonicalization (the #362 replacement).
+
+(Prior pasted probe, 2026-06-02/06, for orientation only — now superseded by the live
+run above.)
 
 ---
 
