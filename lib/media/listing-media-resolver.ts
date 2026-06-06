@@ -101,6 +101,14 @@ export interface ResolvedMedia {
 
 export interface ResolveListingMediaOptions {
   mapUrl?: (rawUrl: string) => string;
+  /**
+   * Skip the display-URL dedupe pass. Used by {@link resolveListingMediaFromRows},
+   * which has ALREADY collapsed rows by the richer `(cached, original)` visual
+   * identity — there, two genuinely-distinct photos can legitimately share a
+   * cached display URL, and a second dedupe on the display URL would wrongly
+   * merge them (regression caught by media-display-p0, 2026-06-06).
+   */
+  skipDedupe?: boolean;
 }
 
 /** Heuristic classification — works against raw Trestle Media records, DB JSONB, or DTO shapes. */
@@ -110,14 +118,30 @@ export function classifyMediaItem(raw: unknown): MediaClass {
   const cat = String(m.MediaCategory ?? m.mediaCategory ?? m.category ?? m.mediaType ?? '').toLowerCase();
   const cls = String(m.MediaClassification ?? m.mediaClassification ?? '').toLowerCase();
   const desc = String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? '').toLowerCase();
-  const url = String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '').toLowerCase();
+  // Decode an already-proxied URL (`/api/media/proxy?url=<encoded source>`)
+  // back to its source before URL-shape classification. For pre-mapped DTO
+  // input the document/floor-plan signal is percent-encoded inside the `?url=`
+  // param (`%2FMedia%2FProperty%2FDOCUMENT-…`), which hides the anchored
+  // `/Media/Property/DOCUMENT-…/` path — the item would then default to photo
+  // and could become the card hero (Codex review, PR #363, 2026-06-06).
+  const url = unwrapProxyUrl(String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '')).toLowerCase();
 
-  // Floor plan signals (multiple to catch Trestle's inconsistent tagging)
+  // Floor plan / document signals (multiple to catch Trestle's inconsistent
+  // tagging AND the legacy `listings.media` JSON, where ~2,000 first-position
+  // items are floor plans/documents carrying an EMPTY MediaCategory. Without
+  // URL-shape detection those fall through to the `cat === ''` photo default
+  // below and become a card hero (PR-Hero, 2026-06-06). The URL checks are
+  // conservative — `floorplan`/`floor_plan`/`floor plan` tokens, `.pdf`
+  // documents, and `/site-plan/`÷`/diagram/` path/filename forms — none of
+  // which appear in a real listing photo URL.
   if (
     cat === 'floorplan' || cat.includes('floor plan') || cat.includes('floor_plan') || cat === 'floor plan' ||
     cls === 'document' ||
     desc.includes('floorplan') || desc.includes('floor plan') ||
     /\/floorplans?\//i.test(url) ||
+    /floor[\s_-]?plans?/i.test(url) ||
+    /\.pdf(\?|$)/i.test(url) ||
+    /(?:^|[/_-])(?:site[\s_-]?plans?|diagrams?)(?:[/_.-]|$)/i.test(url) ||
     TRESTLE_DOCUMENT_URL_PATTERN.test(url)
   ) {
     return 'floorplan';
@@ -235,6 +259,28 @@ function isBetterDuplicate(candidate: ListingMediaTableRow, current: ListingMedi
   return candidate.order < current.order;
 }
 
+/**
+ * Recover the original source URL from a `/api/media/proxy?url=<encoded>`
+ * wrapper. Returns the input unchanged when it is not a proxy URL.
+ *
+ * Used for DEDUPE IDENTITY only. `resolveListingMedia` accepts already-proxied
+ * "pre-mapped DTO entries" (persisted `listings.media` JSON / DTO re-feed) as a
+ * supported input shape; `visualIdentity` strips the query string, so without
+ * unwrapping, two DISTINCT proxied photos both reduce to the `/api/media/proxy`
+ * pathname and collapse to one image (Codex review, PR #363, 2026-06-06). This
+ * keys identity on the encoded source instead. Render URLs are unaffected.
+ */
+function unwrapProxyUrl(url: string): string {
+  if (!url || !url.includes('/api/media/proxy')) return url;
+  const m = url.match(/[?&]url=([^&]+)/);
+  if (!m) return url;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return url;
+  }
+}
+
 /** Wrap Trestle/CoreLogic media URLs with the bearer-auth proxy. Pass through otherwise. */
 export function proxyTrestleUrl(url: string): string {
   if (!url) return url;
@@ -290,6 +336,13 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
       const url = mapFn(rawUrl);
       return {
         url,
+        // Keep the pre-map source URL for dedupe identity. `mapFn` (default
+        // `proxyTrestleUrl`) rewrites Cotality/CoreLogic URLs to
+        // `/api/media/proxy?url=<encoded>`; `visualIdentity` strips the query,
+        // so keying dedupe on the mapped `url` would give EVERY proxied item
+        // the same identity (`/api/media/proxy`) and collapse the gallery to
+        // one image (Codex review, PR #363, 2026-06-06).
+        rawUrl,
         thumbUrl: rawThumb ? mapFn(rawThumb) : url,
         klass,
         providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
@@ -306,7 +359,28 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
     return a.idx - b.idx;
   });
 
-  return decorated.map((d, i) => ({
+  // Collapse by visual identity — parity with `resolveListingMediaFromRows`.
+  // The legacy `listings.media` JSON often repeats the same image (re-imports,
+  // mirrored index paths), which without dedupe renders duplicate photos in the
+  // card strip / detail gallery (PR-Hero, 2026-06-06). Iterating in sorted order
+  // keeps the best survivor first (photo before floorplan, then lowest order),
+  // exactly as the table path does.
+  const seen = new Set<string>();
+  const deduped = options.skipDedupe
+    ? decorated
+    : decorated.filter((d) => {
+        // Key on the SOURCE URL, never the mapped `d.url`. `rawUrl` may itself
+        // already be proxied (pre-mapped DTO input), so unwrap the proxy
+        // wrapper first — otherwise every proxied item shares the
+        // `/api/media/proxy` identity and the gallery collapses to one image.
+        const src = unwrapProxyUrl(d.rawUrl);
+        const key = visualIdentity(src, src) || src;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+  return deduped.map((d, i) => ({
     url: d.url,
     thumbUrl: d.thumbUrl,
     mediaType: CLASS_TO_DISPLAY[d.klass],
@@ -435,7 +509,7 @@ export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): Resol
         PreferredPhotoYN: r.preferred_photo_yn,
       };
     });
-  return resolveListingMedia(items);
+  return resolveListingMedia(items, { skipDedupe: true });
 }
 
 /** Listing context the media-fallback gate needs to tell a CRM-exclusive

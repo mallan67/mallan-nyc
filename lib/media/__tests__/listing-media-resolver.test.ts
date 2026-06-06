@@ -144,18 +144,36 @@ describe('classifyMediaItem', () => {
   });
 
   it('does not match arbitrary URLs containing the word "DOCUMENT" outside the Trestle path shape', () => {
-    // Defensive: pattern must be anchored to /Media/Property/DOCUMENT-{ext}/
-    // so a benign URL with "document" in path doesn't get misclassified.
+    // Defensive: the Trestle DOCUMENT pattern must be anchored to
+    // /Media/Property/DOCUMENT-{ext}/ so a benign URL with "document" in the
+    // path doesn't get misclassified. (Fixture updated 2026-06-06 / PR-Hero:
+    // the prior `…/documents/floorplan.jpg` now correctly classifies as
+    // floorplan via the explicit `floorplan` filename token — see the
+    // floor-plan-filename cases below — so this guard uses a token-free name.)
     expect(
       classifyMediaItem({
-        url: 'https://example.com/documents/floorplan.jpg',
+        url: 'https://example.com/documents/IMG_4821.jpg',
       })
-    ).toBe('photo'); // default-to-photo path; no DOCUMENT-{ext} signal
+    ).toBe('photo'); // default-to-photo path; no DOCUMENT-{ext} / floorplan signal
     expect(
       classifyMediaItem({
         url: 'https://example.com/some-document-name.jpg',
       })
     ).toBe('photo'); // default-to-photo path
+  });
+
+  // PR-Hero (2026-06-06): the legacy `listings.media` JSON fallback often
+  // carries floor plans / documents with an EMPTY MediaCategory. URL-shape
+  // detection must classify these as floorplan so they never become a card
+  // hero — even though MediaCategory is blank (which otherwise defaults to
+  // photo).
+  it('classifies an empty-category item as floorplan from a "floorplan" filename token', () => {
+    expect(classifyMediaItem({ MediaCategory: '', url: 'https://cdn.example.com/123/floorplan-2g.jpg' })).toBe('floorplan');
+    expect(classifyMediaItem({ MediaCategory: '', url: 'https://cdn.example.com/123/floor_plan.png' })).toBe('floorplan');
+  });
+
+  it('classifies an empty-category .pdf as floorplan/document (never a photo hero)', () => {
+    expect(classifyMediaItem({ MediaCategory: '', url: 'https://cdn.example.com/123/site-plan.pdf' })).toBe('floorplan');
   });
 });
 
