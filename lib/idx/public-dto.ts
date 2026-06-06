@@ -534,6 +534,24 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
  * the page the user is currently looking at. Cross-page sibling
  * detection would require a separate query and is out of scope.
  */
+/**
+ * PR-A (2026-06-05) — a listing is "Mallan-relevant" for the co-listed badge if
+ * it is a Mallan exclusive / internal listing. The yellow "Additional listing
+ * source" badge must NOT render on ordinary third-party-vs-third-party
+ * co-listings (e.g. a Compass listing and a Corcoran listing of the same unit) —
+ * labeling a competitor's card with "Additional listing source: {competitor}"
+ * misrepresents third-party listings. Signals (DTO-present, no new schema field):
+ *   - `id` (= listing_id) prefixed `SL-` / `RL-` — Mallan CRM sale/rental
+ *     exclusive (the same `isCrmExclusive` check as db-to-public-dto.ts; note a
+ *     third-party `RLS…` id does NOT match `RL-`).
+ *   - `_source === 'exclusive'` — Mallan exclusive (mallan-exclusive provenance).
+ */
+function isMallanRelevantListing(dto: PublicListingDTO | undefined): boolean {
+  if (!dto) return false;
+  const id = dto.id ?? '';
+  return id.startsWith('SL-') || id.startsWith('RL-') || dto._source === 'exclusive';
+}
+
 export function annotateCoListedSiblings(listings: PublicListingDTO[]): PublicListingDTO[] {
   // Build the address-slug → indices map in one pass.
   const groups = new Map<string, number[]>();
@@ -553,6 +571,12 @@ export function annotateCoListedSiblings(listings: PublicListingDTO[]): PublicLi
 
   for (const indices of groups.values()) {
     if (indices.length <= 1) continue;
+    // PR-A: gate the badge to Mallan-relevant groups only. Surface the
+    // "Additional listing source" badge only when at least one same-unit row is
+    // a Mallan exclusive/internal listing (self OR a sibling). Pure third-party
+    // co-listings are left unannotated so the yellow banner does not show on
+    // ordinary non-Mallan RLS listings.
+    if (!indices.some((i) => isMallanRelevantListing(listings[i]))) continue;
     // For each member, the other members are its siblings. Collect
     // their listOfficeName for the badge text (dedup so a brokerage
     // that co-lists twice isn't double-counted, though that's unlikely).
