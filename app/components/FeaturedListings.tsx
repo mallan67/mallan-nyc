@@ -14,6 +14,7 @@ import {
 import { formatBathrooms } from '@/lib/format/bathrooms';
 import {
   orderFeaturedListings,
+  filterFeaturedDisplayable,
   featuredBadgeFor,
   featuredCardHref,
   isPinnedFeatured,
@@ -386,9 +387,22 @@ export default function FeaturedListings() {
         // Build query params from config
         const params = new URLSearchParams();
         params.set('type', filters.type === 'rent' ? 'rent' : 'sale');
-        params.set('limit', String(Math.max(limit * 3, 30)));
+        // Over-fetch headroom: the client-side `filterFeaturedDisplayable` drops
+        // photoless cards AFTER the fetch (the API can't filter on photo
+        // presence), so request a large candidate pool — ~8× the configured
+        // count — so enough displayable rows remain to fill `limit` even if some
+        // of the top sorted rows are photoless (Codex #366).
+        params.set('limit', String(Math.max(limit * 8, 48)));
         params.set('excludeUndisclosed', 'true');
         params.set('sort', config.sort || 'price-desc');
+        // Coming Soon Layer 1 — Featured excludes ONLY Coming Soon (no-showings
+        // inventory shouldn't headline the homepage); Active AND
+        // ActiveUnderContract stay eligible (the latter is part of the normal
+        // public display set, incl. pinned under-contract listings — Codex #366).
+        // Per-request param; does NOT change global search status policy. The
+        // client-side `filterFeaturedDisplayable` below is the authoritative gate
+        // (it also drops photoless cards the API can't filter).
+        params.set('statuses', 'Active,ActiveUnderContract');
         if (filters.minPrice) params.set('minPrice', String(filters.minPrice));
         if (filters.maxPrice) params.set('maxPrice', String(filters.maxPrice));
         if (filters.minBeds) params.set('beds', String(filters.minBeds));
@@ -407,8 +421,12 @@ export default function FeaturedListings() {
         const data = await res.json();
         const exclData = exclRes.ok ? await exclRes.json() : { listings: [] };
 
-        const generalListings: FeaturedListing[] = data.listings || [];
-        const exclusives: FeaturedListing[] = exclData.listings || [];
+        // Coming Soon Layer 1 — exclude Coming Soon + photoless listings from
+        // BOTH feeds before ordering (curated hero content; see
+        // filterFeaturedDisplayable). The UCBA Coming Soon badge is untouched
+        // for surfaces that DO render Coming Soon (detail / opt-in search).
+        const generalListings: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(data.listings || []);
+        const exclusives: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(exclData.listings || []);
 
         if (cancelled || (generalListings.length === 0 && exclusives.length === 0)) return;
 
